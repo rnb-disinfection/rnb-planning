@@ -43,16 +43,17 @@ class LinkLayer(layers.Layer):
     
 
 class RobotLayer(layers.Layer):
-    def __init__(self, link_info_list, rname, base_name, dim, *args, **kwargs):
+    def __init__(self, link_info_list, rname, dim, *args, **kwargs):
         if "name" not in kwargs:
             kwargs["name"] = rname
         super(RobotLayer, self).__init__(*args, **kwargs)
         self.link_info_list = link_info_list
+        self.link_name_list = []
         self.link_list = []
         self.rname = rname
         self.dim = dim
-        self.base_name = base_name
         for link_info in self.link_info_list:
+            self.link_name_list += [link_info.lname]
             self.link_list += [LinkLayer(link_info, dim=self.dim, name="{}_{}".format(rname,link_info.lname))]
         self.len_Q = len(self.link_list)
         
@@ -77,7 +78,7 @@ class RobotLayer(layers.Layer):
     # training 변수는 텐서가 됩니다.
     @tf.function
     def call(self, inputs):
-        T_dict = {self.base_name: inputs}
+        T_dict = {None: inputs}
         T_list = []
         for link in self.link_list:
             Tcur = link(T_dict[link.parent])
@@ -87,15 +88,24 @@ class RobotLayer(layers.Layer):
         return T_list
 
     
-def get_link_info_list(link_names, base_name, urdf_content):
+def get_link_info_list(link_names, urdf_content):
     joint_names = list(urdf_content.joint_map.keys())
     len_joints = len(joint_names)
     zero_joint_dict = joint_list2dict([0]*len_joints, joint_names)
     link_info_list = []
     for lname in link_names:
-        if lname == base_name:
-            continue
         jname = get_parent_joint(lname, urdf_content)
+        if jname is None:
+            link_info_list += [
+                LinkInfo(
+                    Toff=np.identity(4, dtype=np.float32),
+                    axis=3,
+                    ltype="fixed",
+                    lname=lname,
+                    parent=None
+                )
+            ]
+            continue
         parent_name = get_parent_link(lname, urdf_content)
         joint= urdf_content.joint_map[jname]
         link_info_list += [

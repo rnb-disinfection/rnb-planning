@@ -9,6 +9,6 @@ class LinkInfo:
     
 
 class RobotInfo:
-    def __init__(self, link_info_list, rname, base_name):
-        self.link_info_list, self.rname, self.base_name = \
-            link_info_list, rname, base_name
+    def __init__(self, link_info_list, rname, base_frame):
+        self.link_info_list, self.rname, self.base_frame = \
+            link_info_list, rname, base_frame
