@@ -81,7 +81,7 @@ class GeoMarker:
         while self.pub.get_num_connections() < 1:
             print("Please create a subscriber to the marker");
             timer.sleep(1)
-        print('publication OK')
+        print('publication OK - {}'.format(geometry.name))
     
     def set_marker(self, gframe):
         GeoMarker.ID_COUNT += 1
