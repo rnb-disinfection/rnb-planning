@@ -3,6 +3,7 @@ from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras import backend as K
 
+@tf.function
 def clip_gradient(gradients, grad_max=1):
     mx_grad = K.maximum(K.max(K.abs(gradients),axis=0, keepdims=True),grad_max)
     gradients = tf.divide(gradients, mx_grad) * grad_max
