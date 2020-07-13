@@ -63,6 +63,7 @@ class RobotLayer(layers.Layer):
             if link.ltype != 'fixed':
                 link.q.assign(Q[:,i_q])
     
+    @tf.function
     def get_Q(self):
         Q = []
         for link in self.link_list:
