@@ -92,7 +92,7 @@ class GeoMarker:
         self.marker.ns = "basic_shapes"
         self.marker.id = GeoMarker.ID_COUNT
         self.marker.type = self.get_type()
-        if hasattr(self.geometry, 'uri'):
+        if hasattr(self.geometry, 'uri') and self.geometry.uri:
             self.marker.mesh_resource = self.geometry.uri;
         self.marker.action = Marker.ADD
         self.marker.scale.x, self.marker.scale.y, self.marker.scale.z = self.geometry.get_rviz_scale()
