@@ -142,40 +142,8 @@ function [a,b,c,abc,dist] = pickClosestFace(a,b,c,d)
     abc = abc_candi(I,:);
 end
 
-function [a,b,c,d,dist,flag] = pickTetrahedron(a,b,c,shape1,shape2,IterationAllowed)
-%Now, if we're here, we have a successful 2D simplex, and we need to check
-%if the origin is inside a successful 3D simplex.
-%So, is the origin above or below the triangle?
-flag = 0;
-
-ab = b-a;
-ac = c-a;
-
-%Normal to face of triangle
-abc = cross(ab,ac);
-ao = -a;
-
-if dot(abc, ao) > 0 %Above
-    d = c;
-    c = b;
-    b = a;
-    
-    v = abc;
-    a = support(shape2,shape1,v); %Tetrahedron new point;
-    
-else %below
-    d = b;
-    b = a;
-    v = -abc;
-    a = support(shape2,shape1,v); %Tetrahedron new point
-end
-
-for i = 1:IterationAllowed %Allowing 10 tries to make a good tetrahedron.
-    [a,b,c,abc,dist] = pickClosestFace(a,b,c,d);
-    if dist<=0
-        flag = 1; 
-    end
-    if dot(abc, ao) > 0 %Above
+function [a,b,c,d] = nearest_simplex4(a,b,c,abc, shape1,shape2)
+    if dot(abc, -a) > 0 %Above
         d = c;
         c = b;
         b = a;    
@@ -187,12 +155,72 @@ for i = 1:IterationAllowed %Allowing 10 tries to make a good tetrahedron.
         v = -abc;
         a = support(shape2,shape1,v); %Tetrahedron new point
     end
+end
+
+function [a,b,c,d,dist,flag] = pickTetrahedron(a,b,c,shape1,shape2,IterationAllowed)
+%Now, if we're here, we have a successful 2D simplex, and we need to check
+%if the origin is inside a successful 3D simplex.
+%So, is the origin above or below the triangle?
+flag = 0;
+
+ab = b-a;
+ac = c-a;
+
+%Normal to face of triangle
+abc = cross(ab,ac);
+
+[a,b,c,d] = nearest_simplex4(a,b,c,abc, shape1,shape2);
+
+for i = 1:IterationAllowed %Allowing 10 tries to make a good tetrahedron.
+    abcd_bak = [a;b;c;d];
+    [a,b,c,abc,dist] = pickClosestFace(a,b,c,d);
+    if dist<=0
+        flag = 1; 
+    end
+    [a,b,c,d] = nearest_simplex4(a,b,c,abc, shape1,shape2);
 %     dist = min(sqrt(a*a'), abs(a*v'));
     if flag>0
         break; %It's inside the tetrahedron.
     end
     flag = -i;
 end
+dist = dist./norm(abc);
+[a,b,c] = resort_points(b,c,d);
+[a_,b_,v_,dist_] = pickClosestLine(a,b,c);
+if dist_>0 % else on triangle: dist=dist
+    dist_ = dist_./norm(v_);
+    v_ = v_./norm(v_);
+    ab = b_-a_;
+    ab_nm = ab./norm(ab);
+    oab = dot(a_, ab_nm);
+    if oab>0
+        dist_ = norm([dist_, oab]);
+    end
+    dist = norm([dist_, dist])*dist/abs(dist);
+end
+% if dist>5
+%     figure(100);
+%     clf;
+%     plot3(abcd_bak(:,1), abcd_bak(:,2), abcd_bak(:,3),'.');
+%     hold on;
+%     axis equal;
+%     XX = [a;b;c];
+%     plot3([XX(:,1); 0], [XX(:,2); 0], [XX(:,3); 0],'o');
+%     plot3([v_(1), 0], [v_(2), 0], [v_(3), 0]);
+%     XX_ = [b_;c_];
+%     plot3(XX_(:,1), XX_(:,2), XX_(:,3),'o');
+%     disp("here")
+% end
+end
+
+function [a,b,c] = resort_points(a,b,c)
+    Imat = [1,2,3;2,3,1;3,1,2];
+    XX = [a;b;c];
+    norms = vecnorm(XX');
+    [M,I] = min(norms);
+    a = XX(Imat(I,1),:);
+    b = XX(Imat(I,2),:);
+    c = XX(Imat(I,3),:);
 end
 
 function point = getFarthestInDir(shape, v)

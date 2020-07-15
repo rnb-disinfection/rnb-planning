@@ -88,20 +88,6 @@ for i = 3:-0.005:0.2
     S2Rot = S2RotDiff*S2Rot;
     Rotvec1 = [Rotvec1, [S1Rot]];
     Rotvec2 = [Rotvec2, [S2Rot]];
-%     S1Rot = [
-%             [0.99847,0.016541,-0.052829,];
-%             [-0.014912,0.99941,0.031073,];
-%             [0.053311,-0.030238,0.99812,];
-%             ];
-%     S2Rot = [
-%             [0.99752,0.065339,-0.026294,];
-%             [-0.063664,0.99616,0.060141,];
-%             [0.030123,-0.058318,0.99784,];
-%             ];
-%     disp("S1Rot")
-%     print_mat(S1Rot);
-%     disp("S2Rot")
-%     print_mat(S2Rot);
     
     S1Obj.Vertices = (S1Rot*S1Coords')' + (1/2+i/2);
     S2Obj.Vertices = (S2Rot*S2Coords')' - (1/2+i/2);
