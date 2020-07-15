@@ -44,9 +44,7 @@ dist = 0;
 
 
 %Point 4 selection (tetrahedron)
-if flag == 1 %Only bother if we could find a viable triangle.
-    [a,b,c,d,dist,flag] = pickTetrahedron(a,b,c,shape2,shape1,iterations);
-end
+[a,b,c,d,dist,flag] = pickTetrahedron(a,b,c,shape2,shape1,iterations);
 
 end
 
@@ -97,6 +95,8 @@ function [b,c,v,dist] = pickClosestLine(a,b,c)
     abp = cross(ab,abc);
     %Perpendicular to AC going away from triangle
     acp = cross(abc,ac);
+    abp = abp/(norm(abp)+eps);
+    acp = acp/(norm(acp)+eps);
 
     abpo = dot(abp,ao);
     acpo = dot(acp, ao);
@@ -127,6 +127,9 @@ function [a,b,c,abc,dist] = pickClosestFace(a,b,c,d)
     abc = cross(ab,ac);
     acd = cross(ac,ad);%Normal to face of triangle
     adb = cross(ad,ab);%Normal to face of triangle
+    abc = abc/(norm(abc)+eps);
+    acd = acd/(norm(acd)+eps);
+    adb = adb/(norm(adb)+eps);
     abco = dot(abc, ao);
     acdo = dot(acd, ao);
     adbo = dot(adb, ao);
@@ -142,19 +145,54 @@ function [a,b,c,abc,dist] = pickClosestFace(a,b,c,d)
     abc = abc_candi(I,:);
 end
 
-function [a,b,c,d] = nearest_simplex4(a,b,c,abc, shape1,shape2)
-    if dot(abc, -a) > 0 %Above
+function [a,b,c,d] = nearest_simplex4(a,b,c,v,dist, shape1,shape2)
+    if dot(v, -a) > 0 %Above
         d = c;
         c = b;
         b = a;    
-        v = abc;
-        a = support(shape2,shape1,v); %Tetrahedron new point
+        v = v;
     else %below
         d = b;
+        c = c;
         b = a;
-        v = -abc;
-        a = support(shape2,shape1,v); %Tetrahedron new point
+        v = -v;
     end
+    [v, dist] = direct(b,c,d,v,dist);
+    a = support(shape2,shape1,v); %Tetrahedron new point
+end
+
+function [v, dist] = direct(a,b,c,v,dist)
+    [a, b, c] = resort_points(a, b, c);
+    [a_,b_,v_,dist_] = pickClosestLine(a, b, c);
+    v_dist = v*dist;
+    v_dist_ori = v_dist;
+    if dist_>0 % else on triangle: dist=dist
+        ab = b_-a_;
+        ab_nm = ab./norm(ab);
+        oab = dot(a_, ab_nm);
+        if oab>0
+            v_dist_ = v_*dist_'-ab_nm*oab;
+            dist_ = norm(v_dist_);
+            v_ = v_dist_ / dist_;
+        end
+        v_dist = v_dist + v_*dist_;
+        dist = norm(v_dist);
+        v = v_dist/dist;
+    end
+%     figure(1);
+%     hold on;
+%     offset = (1/2+2.87/2);
+%     plt1 = plot3([a(1),b(1),c(1)]-offset, [a(2),b(2),c(2)]-offset, [a(3),b(3),c(3)]-offset,'-o','color', 'y');
+%     plt2 = plot3([a_(1),b_(1)]-offset, [a_(2),b_(2)]-offset, [a_(3),b_(3)]-offset,'-o','color', 'r');
+%     plt3 = plot3([-v_dist_ori(1), 0]-offset, [-v_dist_ori(2), 0]-offset, [-v_dist_ori(3), 0]-offset,'color', 'g');
+%     plt4 = plot3([-v_dist(1), 0]-offset, [-v_dist(2), 0]-offset, [-v_dist(3), 0]-offset,'color', 'b');
+%     drawnow;
+%     pause(0.01);
+%     delete(plt1);
+%     delete(plt2);
+%     delete(plt3);
+%     delete(plt4);
+%     hold off;
 end
 
 function [a,b,c,d,dist,flag] = pickTetrahedron(a,b,c,shape1,shape2,IterationAllowed)
@@ -168,47 +206,37 @@ ac = c-a;
 
 %Normal to face of triangle
 abc = cross(ab,ac);
+v = abc/norm(abc);
+dist = v*a';
 
-[a,b,c,d] = nearest_simplex4(a,b,c,abc, shape1,shape2);
+[a,b,c,d] = nearest_simplex4(a,b,c,v,dist, shape1,shape2);
 
 for i = 1:IterationAllowed %Allowing 10 tries to make a good tetrahedron.
     abcd_bak = [a;b;c;d];
-    [a,b,c,abc,dist] = pickClosestFace(a,b,c,d);
+    [a,b,c,v,dist] = pickClosestFace(a,b,c,d);
     if dist<=0
         flag = 1; 
     end
-    [a,b,c,d] = nearest_simplex4(a,b,c,abc, shape1,shape2);
+    [a,b,c,d] = nearest_simplex4(a,b,c,v, dist, shape1,shape2);
 %     dist = min(sqrt(a*a'), abs(a*v'));
     if flag>0
         break; %It's inside the tetrahedron.
     end
     flag = -i;
 end
-dist = dist./norm(abc);
-[a,b,c] = resort_points(b,c,d);
-[a_,b_,v_,dist_] = pickClosestLine(a,b,c);
-if dist_>0 % else on triangle: dist=dist
-    dist_ = dist_./norm(v_);
-    v_ = v_./norm(v_);
-    ab = b_-a_;
-    ab_nm = ab./norm(ab);
-    oab = dot(a_, ab_nm);
-    if oab>0
-        dist_ = norm([dist_, oab]);
-    end
-    dist = norm([dist_, dist])*dist/abs(dist);
-end
-% if dist>5
-%     figure(100);
-%     clf;
-%     plot3(abcd_bak(:,1), abcd_bak(:,2), abcd_bak(:,3),'.');
+    v_dist_ori = -v*dist;
+    [v, dist] = direct(b,c,d,v,dist);
+%     figure(1);
+%     global plt1 plt2 plt3 plt4 plt5 plt6;
 %     hold on;
-%     axis equal;
-%     XX = [a;b;c];
-%     plot3([XX(:,1); 0], [XX(:,2); 0], [XX(:,3); 0],'o');
-%     plot3([v_(1), 0], [v_(2), 0], [v_(3), 0]);
-%     XX_ = [b_;c_];
-%     plot3(XX_(:,1), XX_(:,2), XX_(:,3),'o');
+%     v_dist = -v*dist;
+%     vtx_ref = getFarthestInDir(shape1, v_dist_ori);
+%     XX = [a;b;c;d];
+%     plt1 = plot3([XX(end,1); XX(:,1)]+vtx_ref(1), [XX(end,2); XX(:,2)]+vtx_ref(2), [XX(end,3); XX(:,3)]+vtx_ref(3),'-o', 'color', 'r');
+%     plt2 = plot3([v_dist(1), 0]+vtx_ref(1), [v_dist(2), 0]+vtx_ref(2), [v_dist(3), 0]+vtx_ref(3),'-o','color', 'b');
+%     plt3 = plot3([v_dist_ori(1), 0]+vtx_ref(1), [v_dist_ori(2), 0]+vtx_ref(2), [v_dist_ori(3), 0]+vtx_ref(3),'-o','color', 'c');
+%     plt4 = plot3([v_dist_ori(1), v_dist(1)]+vtx_ref(1), [v_dist_ori(2), v_dist(2)]+vtx_ref(2), [v_dist_ori(3), v_dist(3)]+vtx_ref(3),'-o','color', 'g');
+%     hold off;
 %     disp("here")
 % end
 end
@@ -216,7 +244,7 @@ end
 function [a,b,c] = resort_points(a,b,c)
     Imat = [1,2,3;2,3,1;3,1,2];
     XX = [a;b;c];
-    norms = vecnorm(XX');
+    norms = sqrt(sum(XX.^2,2));
     [M,I] = min(norms);
     a = XX(Imat(I,1),:);
     b = XX(Imat(I,2),:);
