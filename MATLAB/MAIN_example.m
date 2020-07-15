@@ -102,11 +102,11 @@ for i = 3:-0.005:0.2
     dist_vec = [dist_vec, dist];
     flag_vec = [flag_vec, collisionFlag];
     
-    figure(101);
-%     subplot(1,2,2);
-    hold off;
-    plotyy([1:length(dist_vec)], dist_vec, [1:length(flag_vec)], flag_vec);
-    hold on;
+%     figure(101);
+% %     subplot(1,2,2);
+%     hold off;
+%     plotyy([1:length(dist_vec)], dist_vec, [1:length(flag_vec)], flag_vec);
+%     hold on;
 
     
     drawnow;
@@ -123,4 +123,10 @@ for i = 3:-0.005:0.2
         break;
     end
 end
+    figure(101);
+%     subplot(1,2,2);
+    hold off;
+    plotyy([1:length(dist_vec)], dist_vec, [1:length(flag_vec)], flag_vec);
+    hold on;
+
 disp(mean(times)*1000);

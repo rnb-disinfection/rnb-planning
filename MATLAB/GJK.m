@@ -35,13 +35,12 @@ function [dist,flag] = GJK(shape1,shape2,iterations)
 %
 
 %Point 1 and 2 selection (line segment)
-v = [0.8 0.5 1];
 dist = 0;
+v = [0.8 0.5 1];
 [a,b] = pickLine(v,shape2,shape1);
 
 %Point 3 selection (triangle)
-[a,b,c,flag] = pickTriangle(a,b,shape2,shape1,20);
-
+[a,b,c,flag] = pickTriangle(a,b,shape2,shape1,iterations);
 
 %Point 4 selection (tetrahedron)
 [a,b,c,d,dist,flag] = pickTetrahedron(a,b,c,shape2,shape1,iterations);
