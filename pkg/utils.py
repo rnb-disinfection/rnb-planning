@@ -52,3 +52,15 @@ class GlobalTimer:
                 per_T= np.round(np.sum(self.time_dict[name])/self.count_dict[name], 3),
                 timeunit=timeunit
             ))
+            
+    def __str__(self):
+        strout = ""
+        timeunit="ms"
+        names = self.name_list
+        for name in names:
+            strout += "{name}: \t{tot_T} {timeunit}/{tot_C} = {per_T} {timeunit} \n".format(
+                name=name, tot_T=np.round(np.sum(self.time_dict[name])), tot_C=self.count_dict[name], 
+                per_T= np.round(np.sum(self.time_dict[name])/self.count_dict[name], 3),
+                timeunit=timeunit
+            )
+        return strout

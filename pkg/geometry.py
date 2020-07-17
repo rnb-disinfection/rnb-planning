@@ -63,3 +63,6 @@ class GeometryFrame:
 # sub = fig.add_subplot(1,3,3,projection="3d")
 # x,y,z = np.transpose(BOX_DEFAULT)
 # sub.plot(x,y,z,'.')
+
+# cyl = trimesh.creation.cylinder(0.5,1,sections = int((N_mesh-2)/2))
+# np.savetxt("face_cyl.csv", cyl.faces, delimiter=",")
