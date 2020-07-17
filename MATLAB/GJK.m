@@ -178,20 +178,20 @@ function [v, dist] = direct(a,b,c,v,dist)
         dist = norm(v_dist);
         v = v_dist/dist;
     end
-%     figure(1);
-%     hold on;
-%     offset = (1/2+2.87/2);
-%     plt1 = plot3([a(1),b(1),c(1)]-offset, [a(2),b(2),c(2)]-offset, [a(3),b(3),c(3)]-offset,'-o','color', 'y');
-%     plt2 = plot3([a_(1),b_(1)]-offset, [a_(2),b_(2)]-offset, [a_(3),b_(3)]-offset,'-o','color', 'r');
-%     plt3 = plot3([-v_dist_ori(1), 0]-offset, [-v_dist_ori(2), 0]-offset, [-v_dist_ori(3), 0]-offset,'color', 'g');
-%     plt4 = plot3([-v_dist(1), 0]-offset, [-v_dist(2), 0]-offset, [-v_dist(3), 0]-offset,'color', 'b');
-%     drawnow;
-%     pause(0.01);
-%     delete(plt1);
-%     delete(plt2);
-%     delete(plt3);
-%     delete(plt4);
-%     hold off;
+    figure(1);
+    hold on;
+    global offset;
+    plt1 = plot3([a(1),b(1),c(1)]+offset(1), [a(2),b(2),c(2)]+offset(2), [a(3),b(3),c(3)]+offset(3),'-o','color', 'y');
+    plt2 = plot3([a_(1),b_(1)]+offset(1), [a_(2),b_(2)]+offset(2), [a_(3),b_(3)]+offset(3),'-o','color', 'r');
+    plt3 = plot3([-v_dist_ori(1), 0]+offset(1), [-v_dist_ori(2), 0]+offset(2), [-v_dist_ori(3), 0]+offset(3),'color', 'g');
+    plt4 = plot3([-v_dist(1), 0]+offset(1), [-v_dist(2), 0]+offset(2), [-v_dist(3), 0]+offset(3),'color', 'b');
+    drawnow;
+    pause(0.01);
+    delete(plt1);
+    delete(plt2);
+    delete(plt3);
+    delete(plt4);
+    hold off;
 end
 
 function [a,b,c,d,dist,flag] = pickTetrahedron(a,b,c,shape1,shape2,IterationAllowed)

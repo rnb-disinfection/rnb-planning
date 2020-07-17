@@ -9,7 +9,7 @@
 %
 %   Matthew Sheen, 2016
 clc;clear all;close all
-global plt1 plt2 plt3 plt4 plt5 plt6;
+global plt1 plt2 plt3 plt4 plt5 plt6 offset;
 %How many iterations to allow for collision detection.
 iterationsAllowed = 6;
 
@@ -20,19 +20,26 @@ hold on
 % Load sample vertex and face data for two convex polyhedra
 SampleShapeData;
 
+v_error = csvread("v_error.csv");
+vtx1_error = csvread("vtx1_error.csv");
+vtx2_error = csvread("vtx2_error.csv");
+face_cyl = csvread("face_cyl.csv");
+
 % Make shape 1
-S1.Vertices = V1;
-S1.Faces = F1;
-S1.FaceVertexCData = jet(size(V1,1));
+S1.Vertices = vtx1_error; %V1;
+S1.Faces = face_cyl+1; % F1;
+S1.FaceVertexCData = jet(size(vtx1_error,1)); % jet(size(V1,1));
 S1.FaceColor = 'interp';
 S1Obj = patch(S1);
 
 % Make shape 2
-S2.Vertices = V2;
-S2.Faces = F2;
-S2.FaceVertexCData = jet(size(V2,1));
+S2.Vertices = vtx2_error; %V2;
+S2.Faces = face_cyl+1; % F2;
+S2.FaceVertexCData = jet(size(vtx2_error,1)); % jet(size(V2,1));
 S2.FaceColor = 'interp';
 S2Obj = patch(S2);
+
+offset = mean(S2.Vertices,1);
 
 hold off
 axis equal
@@ -83,17 +90,23 @@ dist_vec = [];
 flag_vec = [];
 S1vec = [];
 S2vec = [];
+count = 0;
+s1v_list = [];
+s2v_list = [];
 for i = 3:-0.005:0.2
-    S1Rot = S1RotDiff*S1Rot;
-    S2Rot = S2RotDiff*S2Rot;
-
-    Rotvec1 = [Rotvec1, [S1Rot]];
-    Rotvec2 = [Rotvec2, [S2Rot]];
+%     S1Rot = S1RotDiff*S1Rot;
+%     S2Rot = S2RotDiff*S2Rot;
+% 
+%     Rotvec1 = [Rotvec1, [S1Rot]];
+%     Rotvec2 = [Rotvec2, [S2Rot]];
     
-    S1Obj.Vertices = (S1Rot*S1Coords')' + (1/2+2.87/2);
-    S2Obj.Vertices = (S2Rot*S2Coords')' - (1/2+2.87/2);
+%     S1Obj.Vertices = (S1Rot*S1Coords')' + (1/2+i/2);
+%     S2Obj.Vertices = (S2Rot*S2Coords')' - (1/2+i/2);
     S1vec = [S1vec S1Obj.Vertices];
     S2vec = [S2vec S2Obj.Vertices];
+    
+    s1v_list = [[s1v_list]; S1Obj.Vertices];
+    s2v_list = [[s2v_list]; S2Obj.Vertices];
     
     % Do collision detection
     tic;
@@ -118,10 +131,10 @@ for i = 3:-0.005:0.2
 %     delete(plt5);
 %     delete(plt6);
     
-    if collisionFlag > 0
-        t = text(3,3,3,'Collision!','FontSize',30);
-        break;
-    end
+%     if collisionFlag > 0
+%         t = text(3,3,3,'Collision!','FontSize',30);
+%         break;
+%     end
 end
     figure(101);
 %     subplot(1,2,2);
