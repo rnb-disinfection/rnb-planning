@@ -19,169 +19,6 @@ def pad_vertex(verts, N_vtx):
     return np.concatenate([verts, np.zeros((N_vtx-l_v,3))],axis=0).astype('float32')
 
 
-@tf.function
-def getFarthestInDir(FX, v):
-    dotted = K.sum(tf.multiply(FX,v),axis=-1)
-    IdxSet = tf.expand_dims(tf.argmax(dotted, axis=-1),axis=-1)
-    point=tf.gather(params = FX, indices=IdxSet)
-    return point
-
-@tf.function
-def support(FX1, FX2, v):
-    point1 = getFarthestInDir(FX1, v)
-    point2 = getFarthestInDir(FX2, -v)
-    return point1 - point2
-
-@tf.function
-def pickLineTF(v, FX1, FX2):
-    b= support(FX2, FX1, v)
-    a= support(FX2, FX1, -v)
-    return a, b
-
-Imat_line = tf.constant([[0, 1], [0, 2]], dtype=tf.int64)
-@tf.function
-def pickClosestLine(a,b,c):
-    ab = b-a
-    ao = -a
-    ac = c-a
-
-    #Normal to face of triangle
-    abc = tf.linalg.cross(ab,ac)
-    #Perpendicular to AB going away from triangle
-    abp = tf.linalg.cross(ab,abc)
-    #Perpendicular to AC going away from triangle
-    acp = tf.linalg.cross(abc,ac)
-    abp, abp_nm = tf.linalg.normalize(abp, axis=-1)
-    acp, abp_nm = tf.linalg.normalize(acp, axis=-1)
-    v_candi = tf.stack([abp,acp],axis=-2)
-    ao_exp = tf.expand_dims(ao, axis=-2)
-    vo_candi = K.sum(v_candi*ao_exp, axis=-1)
-    I = K.argmax(vo_candi, axis=-1)
-    I_exp = tf.expand_dims(I, axis=-1)
-    dist = tf.gather_nd(vo_candi, I_exp)
-    abc = tf.stack([a,b,c],axis=-2)
-    Ivec = tf.gather(Imat_line, I, axis=0)
-    b = tf.gather_nd(abc, Ivec[0:1])
-    c = tf.gather_nd(abc, Ivec[1:2])
-    v = tf.gather_nd(v_candi, I_exp)
-    v = tf.expand_dims(v, axis=-2)
-    return b,c,v,dist
-
-@tf.function
-def _loop_PickTriangle(a, b, c, flag, FX1, FX2):
-    [b_,c_,v,dist] = pickClosestLine(a,b,c,batch_dims=0);
-    a,b,c,flag = (support(FX2, FX1,v),b_,c_,tf.less_equal(dist,0))  
-#     ab = b-a;
-#     ao = -a;
-#     ac = c-a;
-#     abc = tf.linalg.cross(ab,ac)
-#     abp = tf.linalg.cross(ab,abc)
-#     acp = tf.linalg.cross(abc,ac)
-#     abpo = tf.greater(K.sum(abp*ao), 0)
-#     acpo = tf.greater(K.sum(acp*ao), 0)
-#     a,b,c,flag = tf.case(
-#         [
-#             (abpo, lambda: (support(FX2, FX1,abp),a,b,False)),
-#             (acpo, lambda: (support(FX2, FX1,acp),a,c,False))
-#         ], default=lambda: (a,b,c,True))
-    return a,b,c,flag, FX1, FX2
-
-@tf.function
-def _cond_PickTriangle(a, b, c, flag, FX1, FX2):
-    return tf.logical_not(flag)
-    
-
-@tf.function
-def PickTriangleTF(a, b, FX1, FX2, IterationAllowed=6):
-    flag = False
-
-    # First try:
-    ab = b-a
-    ao = -a
-    v = tf.linalg.cross(tf.linalg.cross(ab,ao),ab) # v is perpendicular to ab pointing in the general direction of the origin
-    c = b
-    b = a
-    a = support(FX2,FX1,v)
-    a,b,c,flag, _, _ = tf.while_loop(
-        _cond_PickTriangle, _loop_PickTriangle, (a,b,c,flag, FX1, FX2), parallel_iterations=10, maximum_iterations=IterationAllowed
-    )
-
-    return a, b, c, flag
-
-@tf.function
-def _loop_pickTetrahedron(a, b, c, d, dist, flag, FX1, FX2):
-    #Check the tetrahedron:
-    ab = b-a
-    ao = -a
-    ac = c-a
-    ad = d-a
-
-    #We KNOW that the origin is not under the base of the tetrahedron based on
-    #the way we picked a. So we need to check faces ABC, ABD, and ACD.
-
-    #Normal to face of triangle
-    abc = tf.linalg.cross(ab,ac)
-    acd = tf.linalg.cross(ac,ad)
-    adb = tf.linalg.cross(ad,ab)
-    abco = K.sum(abc*ao)
-    acdo = K.sum(acd*ao)
-    adbo = K.sum(adb*ao)
-
-    b,c,abc,flag = tf.cond(
-        tf.greater(abco, 0), 
-        lambda: (b,c,abc,flag), 
-        lambda: tf.cond(
-            tf.greater(acdo, 0),
-            lambda: (c,d,acd,flag),
-            lambda: tf.cond(
-                tf.greater(adbo, 0),
-                lambda: (d,b,adb,flag),
-                lambda: (b,c,abc,True)
-            )
-        )
-    )
-
-    a,b,c,d = tf.cond(tf.greater(K.sum(abc*ao), 0), 
-                        lambda: (support(FX2,FX1,abc),a,b,c), 
-                        lambda: (support(FX2,FX1,-abc),a,c,b)
-                       )
-    return a, b, c, d, K.max([acdo, adbo]), flag, FX1, FX2
-
-@tf.function
-def _cond_pickTetrahedron(a, b, c, d, dist, flag, FX1, FX2):
-    return tf.logical_not(flag)
-
-@tf.function
-def pickTetrahedronTF(a,b,c,FX1,FX2,IterationAllowed):
-    flag = False
-    ab = b-a
-    ac = c-a
-
-    # Normal to face of triangle
-    abc = tf.linalg.cross(ab,ac)
-    ao = -a
-
-    a,b,c,d = tf.cond(tf.greater(K.sum(abc* ao), 0), 
-                        lambda: (support(FX2,FX1,abc),a,b,c), 
-                        lambda: (support(FX2,FX1,-abc),a,c,b)
-                       )
-
-    a, b, c, d, dist, flag, _, _ = tf.while_loop(
-        _cond_pickTetrahedron, _loop_pickTetrahedron, (a,b,c,d,0.0,flag, FX1, FX2), 
-        parallel_iterations=10, maximum_iterations=IterationAllowed
-    )   
-    return a,b,c,d,dist,flag
-
-@tf.function
-def test_collision(FX1, FX2, v, iterations):
-    a, b = pickLineTF(v, FX2, FX1)
-    a, b, c, flag = PickTriangleTF(a,b,FX2,FX1,iterations)
-    a,b,c,d,dist,flag = tf.cond(flag, # Only bother if we could find a viable triangle.
-                           lambda: pickTetrahedronTF(a,b,c,FX2,FX1,iterations),
-                           lambda: (a,b,c,c,0.0,flag))
-    return dist, flag
-
-
 BATCH_DIM_DEFAULT = 2
 
 Imat_line = tf.constant([[0, 1], [0, 2]], dtype=tf.int64)
@@ -293,7 +130,6 @@ def pickClosestFace_batch(a,b,c,d,batch_dims=2):
     v = tf.gather_nd(v_candi, I_exp,batch_dims=batch_dims)
     dist = tf.expand_dims(tf.gather_nd(vo_candi, I_exp, batch_dims=batch_dims), axis=-1)
     v = tf.expand_dims(v, axis=-2)
-    a,b,c,v,dist
     return a,b,c,v,dist
 
 
@@ -376,18 +212,27 @@ def PickTriangleTF_batch(a, b, FX1_batch, FX2_batch, flag_default, IterationAllo
 
     return a, b, c, flag
 
-
 @tf.function
 def _loop_pickTetrahedron_batch(a, b, c, d, v, dist, flag, FX1_batch, FX2_batch, iter):
-    a,b,c,v,dist = pickClosestFace_batch(a,b,c,d)
-    a_,b_,c_,d_ = nearest_simplex4_batch(a,b,c,v, dist, FX1_batch,FX2_batch)
-    flag = tf.less_equal(dist,0)
+    a,b,c,v_,dist_ = pickClosestFace_batch(a,b,c,d)
+    a_,b_,c_,d_ = nearest_simplex4_batch(a,b,c,v_, dist_, FX1_batch,FX2_batch)
+    flag = tf.less_equal(dist_,0)
     def_case = tf.cast(flag, tf.float32)
     def_case_not = tf.cast(tf.logical_not(flag), tf.float32)
+    def_case_exp = tf.expand_dims(def_case,axis=-1)
+    def_case_not_exp = tf.expand_dims(def_case_not,axis=-1)
     d = def_case_not*d_ + def_case*d
     c = def_case_not*c_ + def_case*c
     b = def_case_not*b_ + def_case*b
     a = def_case_not*a_ + def_case*a
+    v = def_case_not_exp*v_ + def_case_exp*v
+    dist = def_case_not*dist_ + def_case*dist
+#     d = d_
+#     c = c_
+#     b = b_
+#     a = a_
+#     v = v_
+#     dist = dist_
     iter += 1
     return a, b, c, d, v, dist, flag, FX1_batch, FX2_batch, iter
 
@@ -413,17 +258,35 @@ def pickTetrahedronTF_batch(a,b,c,FX1_batch,FX2_batch,flag_default,dist_default,
         _cond_pickTetrahedron_batch, _loop_pickTetrahedron_batch, 
         (a,b,c,d,v,dist_default,flag_default, FX1_batch, FX2_batch, 0), 
         parallel_iterations=10, maximum_iterations=IterationAllowed
-    )   
+    )
     v_, dist_ = direct(b,c,d,v,dist)
-    dist = tf.sign(dist)*dist_
-    return a,b,c,d,dist,flag, iter
+    dist = dist_
+#     signdist = tf.sign(dist) # erroneous
+#     dist = signdist*dist_ # erroneous
+#     v_ = tf.expand_dims(signdist,axis=-1)*v_ # erroneous
+
+#     a = support_batch(FX2_batch,FX1_batch,v_) # Tetrahedron new point
+#     v_rs = tf.reduce_sum(v, axis=-2)
+#     dist3_ = K.sum(-a*v_rs, axis=-1)
+#     dotted = tf.reduce_sum(K.sum(v_*v, axis=-1), axis=-1)
+#     dist = dist3_/dotted
+    return a,b,c,d, v, v_, dist,flag, iter
 
 
 @tf.function
 def test_collision_batch(FX1_batch, FX2_batch, v_batch,flag_default,dist_default, IterationAllowed=6):
     a, b = pickLineTF_batch(v_batch, FX2_batch, FX1_batch)
     a, b, c, flag = PickTriangleTF_batch(a,b,FX2_batch,FX1_batch,flag_default,IterationAllowed)
-    a,b,c,d,dist,flag, iter = pickTetrahedronTF_batch(a,b,c,FX2_batch,FX1_batch,flag_default,dist_default,IterationAllowed)
+    a,b,c,d,v, v_, dist,flag, iter = pickTetrahedronTF_batch(a,b,c,FX2_batch,FX1_batch,flag_default,dist_default,IterationAllowed)
+#     v = v_batch
+#     v_ = v_batch
+    v = tf.stop_gradient(v)
+    v_ = tf.stop_gradient(v_)
+    a = support_batch(FX1_batch,FX2_batch,v_) # Tetrahedron new point
+    a = tf.expand_dims(a, axis=2)
+    dist3_ = K.sum(-a*v, axis=-1)
+    dotted = K.sum(v_*v, axis=-1)
+    dist = dist3_/dotted
     return dist, flag
 
 def get_flag_default(N_sim, N_col, val=False):
@@ -434,3 +297,178 @@ def get_dist_default(N_sim,N_col,  val=0.0):
 
 def get_xy_batch(N_sim, N_col):
     return np.array([[[[1,0,0]]]*N_col]*N_sim), np.array([[[[0,1,0]]]*N_col]*N_sim)
+
+
+
+
+
+
+
+
+
+
+
+
+
+# @tf.function
+# def getFarthestInDir(FX, v):
+#     dotted = K.sum(tf.multiply(FX,v),axis=-1)
+#     IdxSet = tf.expand_dims(tf.argmax(dotted, axis=-1),axis=-1)
+#     point=tf.gather(params = FX, indices=IdxSet)
+#     return point
+
+# @tf.function
+# def support(FX1, FX2, v):
+#     point1 = getFarthestInDir(FX1, v)
+#     point2 = getFarthestInDir(FX2, -v)
+#     return point1 - point2
+
+# @tf.function
+# def pickLineTF(v, FX1, FX2):
+#     b= support(FX2, FX1, v)
+#     a= support(FX2, FX1, -v)
+#     return a, b
+
+# Imat_line = tf.constant([[0, 1], [0, 2]], dtype=tf.int64)
+# @tf.function
+# def pickClosestLine(a,b,c):
+#     ab = b-a
+#     ao = -a
+#     ac = c-a
+
+#     #Normal to face of triangle
+#     abc = tf.linalg.cross(ab,ac)
+#     #Perpendicular to AB going away from triangle
+#     abp = tf.linalg.cross(ab,abc)
+#     #Perpendicular to AC going away from triangle
+#     acp = tf.linalg.cross(abc,ac)
+#     abp, abp_nm = tf.linalg.normalize(abp, axis=-1)
+#     acp, abp_nm = tf.linalg.normalize(acp, axis=-1)
+#     v_candi = tf.stack([abp,acp],axis=-2)
+#     ao_exp = tf.expand_dims(ao, axis=-2)
+#     vo_candi = K.sum(v_candi*ao_exp, axis=-1)
+#     I = K.argmax(vo_candi, axis=-1)
+#     I_exp = tf.expand_dims(I, axis=-1)
+#     dist = tf.gather_nd(vo_candi, I_exp)
+#     abc = tf.stack([a,b,c],axis=-2)
+#     Ivec = tf.gather(Imat_line, I, axis=0)
+#     b = tf.gather_nd(abc, Ivec[0:1])
+#     c = tf.gather_nd(abc, Ivec[1:2])
+#     v = tf.gather_nd(v_candi, I_exp)
+#     v = tf.expand_dims(v, axis=-2)
+#     return b,c,v,dist
+
+# @tf.function
+# def _loop_PickTriangle(a, b, c, flag, FX1, FX2):
+#     [b_,c_,v,dist] = pickClosestLine(a,b,c,batch_dims=0);
+#     a,b,c,flag = (support(FX2, FX1,v),b_,c_,tf.less_equal(dist,0))  
+# #     ab = b-a;
+# #     ao = -a;
+# #     ac = c-a;
+# #     abc = tf.linalg.cross(ab,ac)
+# #     abp = tf.linalg.cross(ab,abc)
+# #     acp = tf.linalg.cross(abc,ac)
+# #     abpo = tf.greater(K.sum(abp*ao), 0)
+# #     acpo = tf.greater(K.sum(acp*ao), 0)
+# #     a,b,c,flag = tf.case(
+# #         [
+# #             (abpo, lambda: (support(FX2, FX1,abp),a,b,False)),
+# #             (acpo, lambda: (support(FX2, FX1,acp),a,c,False))
+# #         ], default=lambda: (a,b,c,True))
+#     return a,b,c,flag, FX1, FX2
+
+# @tf.function
+# def _cond_PickTriangle(a, b, c, flag, FX1, FX2):
+#     return tf.logical_not(flag)
+    
+
+# @tf.function
+# def PickTriangleTF(a, b, FX1, FX2, IterationAllowed=6):
+#     flag = False
+
+#     # First try:
+#     ab = b-a
+#     ao = -a
+#     v = tf.linalg.cross(tf.linalg.cross(ab,ao),ab) # v is perpendicular to ab pointing in the general direction of the origin
+#     c = b
+#     b = a
+#     a = support(FX2,FX1,v)
+#     a,b,c,flag, _, _ = tf.while_loop(
+#         _cond_PickTriangle, _loop_PickTriangle, (a,b,c,flag, FX1, FX2), parallel_iterations=10, maximum_iterations=IterationAllowed
+#     )
+
+#     return a, b, c, flag
+
+# @tf.function
+# def _loop_pickTetrahedron(a, b, c, d, dist, flag, FX1, FX2):
+#     #Check the tetrahedron:
+#     ab = b-a
+#     ao = -a
+#     ac = c-a
+#     ad = d-a
+
+#     #We KNOW that the origin is not under the base of the tetrahedron based on
+#     #the way we picked a. So we need to check faces ABC, ABD, and ACD.
+
+#     #Normal to face of triangle
+#     abc = tf.linalg.cross(ab,ac)
+#     acd = tf.linalg.cross(ac,ad)
+#     adb = tf.linalg.cross(ad,ab)
+#     abco = K.sum(abc*ao)
+#     acdo = K.sum(acd*ao)
+#     adbo = K.sum(adb*ao)
+
+#     b,c,abc,flag = tf.cond(
+#         tf.greater(abco, 0), 
+#         lambda: (b,c,abc,flag), 
+#         lambda: tf.cond(
+#             tf.greater(acdo, 0),
+#             lambda: (c,d,acd,flag),
+#             lambda: tf.cond(
+#                 tf.greater(adbo, 0),
+#                 lambda: (d,b,adb,flag),
+#                 lambda: (b,c,abc,True)
+#             )
+#         )
+#     )
+
+#     a,b,c,d = tf.cond(tf.greater(K.sum(abc*ao), 0), 
+#                         lambda: (support(FX2,FX1,abc),a,b,c), 
+#                         lambda: (support(FX2,FX1,-abc),a,c,b)
+#                        )
+#     return a, b, c, d, K.max([acdo, adbo]), flag, FX1, FX2
+
+# @tf.function
+# def _cond_pickTetrahedron(a, b, c, d, dist, flag, FX1, FX2):
+#     return tf.logical_not(flag)
+
+# @tf.function
+# def pickTetrahedronTF(a,b,c,FX1,FX2,IterationAllowed):
+#     flag = False
+#     ab = b-a
+#     ac = c-a
+
+#     # Normal to face of triangle
+#     abc = tf.linalg.cross(ab,ac)
+#     ao = -a
+
+#     a,b,c,d = tf.cond(tf.greater(K.sum(abc* ao), 0), 
+#                         lambda: (support(FX2,FX1,abc),a,b,c), 
+#                         lambda: (support(FX2,FX1,-abc),a,c,b)
+#                        )
+
+#     a, b, c, d, dist, flag, _, _ = tf.while_loop(
+#         _cond_pickTetrahedron, _loop_pickTetrahedron, (a,b,c,d,0.0,flag, FX1, FX2), 
+#         parallel_iterations=10, maximum_iterations=IterationAllowed
+#     )   
+#     return a,b,c,d,dist,flag
+
+# @tf.function
+# def test_collision(FX1, FX2, v, iterations):
+#     a, b = pickLineTF(v, FX2, FX1)
+#     a, b, c, flag = PickTriangleTF(a,b,FX2,FX1,iterations)
+#     a,b,c,d,dist,flag = tf.cond(flag, # Only bother if we could find a viable triangle.
+#                            lambda: pickTetrahedronTF(a,b,c,FX2,FX1,iterations),
+#                            lambda: (a,b,c,c,0.0,flag))
+#     return dist, flag
+
