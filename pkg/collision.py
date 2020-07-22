@@ -225,14 +225,14 @@ def _loop_pickTetrahedron_batch(a, b, c, d, v, dist, flag, FX1_batch, FX2_batch,
     c = def_case_not*c_ + def_case*c
     b = def_case_not*b_ + def_case*b
     a = def_case_not*a_ + def_case*a
-    v = def_case_not_exp*v_ + def_case_exp*v
-    dist = def_case_not*dist_ + def_case*dist
+#     v = def_case_not_exp*v_ + def_case_exp*v
+#     dist = def_case_not*dist_ + def_case*dist
 #     d = d_
 #     c = c_
 #     b = b_
 #     a = a_
-#     v = v_
-#     dist = dist_
+    v = v_
+    dist = dist_
     iter += 1
     return a, b, c, d, v, dist, flag, FX1_batch, FX2_batch, iter
 
@@ -290,13 +290,17 @@ def test_collision_batch(FX1_batch, FX2_batch, v_batch,flag_default,dist_default
     return dist, flag
 
 def get_flag_default(N_sim, N_col, val=False):
-    return np.array([[[val]]*N_col]*N_sim)
+    return np.reshape(np.array([[[val]]*N_col]*N_sim), (N_sim, N_col, 1))
 
 def get_dist_default(N_sim,N_col,  val=0.0):
-    return np.array([[[val]]*N_col]*N_sim, dtype=np.float32)
+    return np.reshape(np.array([[[val]]*N_col]*N_sim, dtype=np.float32), (N_sim, N_col, 1))
 
 def get_xy_batch(N_sim, N_col):
-    return np.array([[[[1,0,0]]]*N_col]*N_sim), np.array([[[[0,1,0]]]*N_col]*N_sim)
+    return (
+        np.reshape(np.array([[[[1,0,0]]]*N_col]*N_sim, dtype=np.float32), (N_sim, N_col, 1, 3)), 
+        np.reshape(np.array([[[[0,1,0]]]*N_col]*N_sim, dtype=np.float32), (N_sim, N_col, 1, 3))
+    )
+
 
 
 

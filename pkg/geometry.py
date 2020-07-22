@@ -11,9 +11,10 @@ BOX_DEFAULT = np.pad(BOX_DEFAULT,((0,N_mesh-len(BOX_DEFAULT)),(0,0)))
 class GeoType(Enum):
     SPHERE = 0
     LINE = 1
-    BOX = 2
-    CYLINDER = 3
-    MESH = 4
+    PLANE = 2
+    BOX = 3
+    CYLINDER = 4
+    MESH = 5
 
 class GeometryItem:
     def __init__(self, name, gtype, dims, color=(0,1,0,1), display=True, collision=True, uri=None):
@@ -26,15 +27,37 @@ class GeometryItem:
         self.dims = dims
         self.uri = uri
         if gtype == GeoType.SPHERE:
-            self.vertice = ICS_DEFAULT*np.reshape(dims, (1,3))
+#             self.vertice = ICS_DEFAULT*np.reshape(dims, (1,3))
+            self.vertice = np.zeros((1,3),dtype=np.float32)
         elif gtype == GeoType.LINE:
-            self.vertice = CYL_DEFAULT*np.reshape(dims, (1,3))
+#             self.vertice = CYL_DEFAULT*np.reshape(dims, (1,3))
+            self.vertice = CYL_DEFAULT[[0,1]]*np.reshape(dims, (1,3))
+        elif gtype == GeoType.PLANE:
+#             self.vertice = BOX_DEFAULT*np.reshape(dims, (1,3))
+            self.vertice = BOX_DEFAULT[[0,1,3,2]]*np.reshape(dims, (1,3))
         elif gtype == GeoType.BOX:
-            self.vertice = BOX_DEFAULT*np.reshape(dims, (1,3))
+#             self.vertice = BOX_DEFAULT*np.reshape(dims, (1,3))
+            self.vertice = BOX_DEFAULT[[0,1,3,2,4,5,7,6]]*np.reshape(dims, (1,3))
         elif gtype == GeoType.CYLINDER:
-            self.vertice = CYL_DEFAULT*np.reshape(dims, (1,3))
+#             self.vertice = CYL_DEFAULT*np.reshape(dims, (1,3))
+            self.vertice = CYL_DEFAULT[[0,1]]*np.reshape(dims, (1,3))
         elif gtype == GeoType.MESH:
-            self.vertice = BOX_DEFAULT*np.reshape(dims, (1,3))
+#             self.vertice = BOX_DEFAULT*np.reshape(dims, (1,3))
+            self.vertice = BOX_DEFAULT[[0,1,3,2,4,5,7,6]]*np.reshape(dims, (1,3))
+    
+    def get_radius(self):
+        if self.gtype == GeoType.SPHERE:
+            return np.mean(self.dims)/2
+        elif self.gtype == GeoType.LINE:
+            return 0
+        elif self.gtype == GeoType.PLANE:
+            return 0
+        elif self.gtype == GeoType.BOX:
+            return 0
+        elif self.gtype == GeoType.CYLINDER:
+            return np.mean(self.dims[:2])/2
+        elif self.gtype == GeoType.MESH:
+            return 0
         
     def get_vertice(self):
         return self.vertice
