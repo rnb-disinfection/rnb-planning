@@ -9,7 +9,7 @@ from pkg.joint_utils import *
 from pkg.info import *
 
 class LinkLayer(layers.Layer):
-    def __init__(self, link_info, dim, *args, **kwargs):
+    def __init__(self, link_info, dim, Q=None, idx=None, *args, **kwargs):
         if "name" not in kwargs:
             kwargs["name"] = link_info.lname
         super(LinkLayer, self).__init__(*args, **kwargs)
@@ -22,28 +22,39 @@ class LinkLayer(layers.Layer):
         self.dim = dim
         self.Tjnt = JointMatLayer(axis=self.axis, dim=self.dim, ltype=self.ltype, name="{}_joint".format(kwargs["name"]))
         
-        if self.ltype == 'fixed':
-            self.q = tf.constant([0.0]*self.dim, name="{}_q".format(kwargs["name"]))
+        self.Q = Q
+        self.idx = idx
+        if idx is None or self.ltype == 'fixed':
+            self.q = tf.constant([[0.0]]*self.dim, name="{}_q".format(kwargs["name"]))
+            self.get_q = self.__fix_q
         else:
-            self.q = tf.Variable([0.0]*self.dim, name="{}_q".format(kwargs["name"]))
+            self.get_q = self.__var_q
         
     # 변수를 만듭니다.
     def build(self, input_shape):
         pass
+    
+    def __fix_q(self):
+        return self.q
+    
+    def __var_q(self):
+        return tf.gather(self.Q, [self.idx], axis=-1)
 
     # call 메서드가 그래프 모드에서 사용되면
     # training 변수는 텐서가 됩니다.
     @tf.function
     def call(self, inputs):
         Tpre = inputs
-        Tjnt = self.Tjnt(self.q)
+        Tjnt = self.Tjnt(tf.gather(self.get_q(), 0,axis=-1))
         Tpo = tf.matmul(Tpre,self.Toff)
         Tcur = tf.matmul(Tpo,Tjnt)
         return Tcur
     
 
 class RobotLayer(layers.Layer):
-    def __init__(self, link_info_list, rname, dim, *args, **kwargs):
+    def __init__(self, robot_info, dim, *args, **kwargs):
+        link_info_list = robot_info.link_info_list
+        rname = robot_info.rname
         if "name" not in kwargs:
             kwargs["name"] = rname
         super(RobotLayer, self).__init__(*args, **kwargs)
@@ -52,24 +63,52 @@ class RobotLayer(layers.Layer):
         self.link_list = []
         self.rname = rname
         self.dim = dim
-        for link_info in self.link_info_list:
+        self.DOF = len([True for link_info in self.link_info_list if link_info.ltype != 'fixed'])
+        self.Q = tf.Variable([[0.0]*self.DOF]*self.dim, name="{}_q".format(kwargs["name"]))
+        self.idx_var = []
+        for i_q, link_info in zip(range(len(self.link_info_list)), self.link_info_list):
+            if link_info.ltype != 'fixed':
+                idx_Q = len(self.idx_var)
+                self.idx_var += [i_q]
+            else:
+                idx_Q = None
             self.link_name_list += [link_info.lname]
-            self.link_list += [LinkLayer(link_info, dim=self.dim, name="{}_{}".format(rname,link_info.lname))]
-        self.len_Q = len(self.link_list)
+            self.link_list += [LinkLayer(link_info, dim=self.dim, name="{}_{}".format(rname,link_info.lname), Q=self.Q, idx=idx_Q)]
+        self.num_link = len(self.link_list)
+        self.link_idx_dict = {name: idx for name, idx in zip(self.link_name_list, range(len(self.link_name_list)))}
+        self.adjacency_list = [
+            list(map(
+                lambda x: self.link_idx_dict[x],
+                [lname for lname in get_adjacent_links(link_name, robot_info) if lname in self.link_name_list]
+            )) for link_name in self.link_name_list
+        ]
+        link_num = len(self.adjacency_list)
+        self.adjacency_mat = np.zeros((link_num,link_num), dtype=np.bool)
+        for i_adj, adj in zip(range(link_num), self.adjacency_list):
+            self.adjacency_mat[i_adj, adj] = True
+        self.dependency_list = [[self.link_idx_dict[lname] for lname in get_parent_links(link.lname, robot_info)] for link in link_info_list]
+        self.dependency_mat = np.zeros((link_num,link_num), dtype=np.bool)
+        for i_dep, dep in zip(range(link_num), self.dependency_list):
+            self.dependency_mat[i_dep, dep] = True
+            
+        self.mask_depend = tf.reshape(
+            tf.gather(tf.cast(self.dependency_mat, dtype = tf.float32), self.idx_var, axis=-1)
+            , (1, self.num_link, self.DOF, 1))
+        self.mask_prism = tf.cast(tf.reshape(
+            np.array([self.link_info_list[self.idx_var[i_q]].ltype == 'prismatic' for i_q in range(self.DOF)]), 
+            (1,1,self.DOF,1)), dtype=tf.float32)
+        self.mask_revol = tf.cast(tf.reshape(
+            np.array([self.link_info_list[self.idx_var[i_q]].ltype == 'revolute' for i_q in range(self.DOF)]), 
+            (1,1,self.DOF,1)), dtype=tf.float32)
+        self._axis_prism = tf.reshape(tf.one_hot([self.link_list[idx_q].axis-1 for idx_q in self.idx_var], 3), (1, self.DOF, 1, 3))
+            
         
     def assign_Q(self, Q):
-        for i_q in range(self.len_Q):
-            link = self.link_list[i_q]
-            if link.ltype != 'fixed':
-                link.q.assign(Q[:,i_q])
+        self.Q.assign(Q)
     
     @tf.function
     def get_Q(self):
-        Q = []
-        for link in self.link_list:
-            Q += [link.q]
-        Q = K.stack(Q, axis=1)#, name="{}_Q".format(self.rname))
-        return Q
+        return self.Q
         
     # 변수를 만듭니다.
     def build(self, input_shape):
@@ -87,6 +126,27 @@ class RobotLayer(layers.Layer):
             T_list += [Tcur]
         T_list = K.stack(T_list, axis=1)
         return T_list
+    
+    @tf.function
+    def jacobian(self, T_all):
+        RP_all = tf.gather(T_all, [0,1,2], axis=-2)
+        R_all = tf.gather(RP_all, [0,1,2], axis=-1)
+        P_all = tf.gather(RP_all, [3], axis=-1)
+        R_jnt = tf.gather(R_all, self.idx_var, axis=-3)
+        P_jnt = tf.gather(P_all, self.idx_var, axis=-3)
+        axis_jnt = K.sum(R_jnt*self._axis_prism, axis=-1)
+        axis_jnt_rep = tf.tile(tf.expand_dims(axis_jnt, axis=-3), [1,self.num_link,1,1])
+
+        jac_prism_ = tf.pad(axis_jnt, [[0,0], [0,0], [0,3]]) # N_sim, DOF, 6
+        jac_prism = tf.expand_dims(jac_prism_, axis=-3) * self.mask_depend# N_sim, N_link, DOF, 6
+
+        pij = tf.reshape(tf.expand_dims(P_all, axis=-3)-tf.expand_dims(P_jnt, axis=-4), (self.dim, self.num_link, self.DOF, 3)) # N_sim, N_link, DOF, 3, 1
+        jac_p_rev = tf.linalg.cross(pij, axis_jnt_rep)
+        jac_revol = tf.concat([jac_p_rev, axis_jnt_rep], axis=-1) * self.mask_depend# N_sim, N_link, DOF, 6
+
+        jacobian = self.mask_prism*jac_prism + self.mask_revol*jac_revol
+        return jacobian
+
 
     
 def get_link_info_list(link_names, urdf_content):
@@ -121,3 +181,29 @@ def get_link_info_list(link_names, urdf_content):
             )
         ]
     return link_info_list
+
+
+def get_adjacent_links_urdf(link_name, urdf_content):
+    adjacent_links = [link_name]
+    for k, v in urdf_content.joint_map.items():
+        if v.parent == link_name:
+            adjacent_links += [v.child]
+        if v.child == link_name:
+            adjacent_links += [v.parent]
+    return list(set(adjacent_links))
+
+def get_adjacent_links(link_name, robot_info):
+    adjacent_links = [link_name]
+    for v in robot_info.link_info_list:
+        if v.parent == link_name:
+            adjacent_links += [v.lname]
+        if v.lname == link_name:
+            adjacent_links += [v.parent]
+    return list(set(adjacent_links))
+
+def get_parent_links(link_name, robot_info):
+    parent_links = [link_name] if link_name else []
+    for v in robot_info.link_info_list:
+        if v.lname == link_name:
+            parent_links = get_parent_links(v.parent, robot_info) + parent_links
+    return parent_links
