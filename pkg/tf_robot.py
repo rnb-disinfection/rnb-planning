@@ -128,27 +128,45 @@ class RobotLayer(layers.Layer):
         return T_list
     
     @tf.function
-    def jacobian(self, T_all):
+    def prepare_joint_axis(self, T_all):
         RP_all = tf.gather(T_all, [0,1,2], axis=-2)
-        R_all = tf.gather(RP_all, [0,1,2], axis=-1)
-        P_all = tf.gather(RP_all, [3], axis=-1)
-        R_jnt = tf.gather(R_all, self.idx_var, axis=-3)
-        P_jnt = tf.gather(P_all, self.idx_var, axis=-3)
-        axis_jnt = K.sum(R_jnt*self._axis_prism, axis=-1)
-        axis_jnt_rep = tf.tile(tf.expand_dims(axis_jnt, axis=-3), [1,self.num_link,1,1])
-
-        jac_prism_ = tf.pad(axis_jnt, [[0,0], [0,0], [0,3]]) # N_sim, DOF, 6
-        jac_prism = tf.expand_dims(jac_prism_, axis=-3) * self.mask_depend# N_sim, N_link, DOF, 6
-
-        pij = tf.reshape(tf.expand_dims(P_all, axis=-3)-tf.expand_dims(P_jnt, axis=-4), (self.dim, self.num_link, self.DOF, 3)) # N_sim, N_link, DOF, 3, 1
-        jac_p_rev = tf.linalg.cross(pij, axis_jnt_rep)
-        jac_revol = tf.concat([jac_p_rev, axis_jnt_rep], axis=-1) * self.mask_depend# N_sim, N_link, DOF, 6
-
-        jacobian = self.mask_prism*jac_prism + self.mask_revol*jac_revol
-        return jacobian
-
-
+        R_all = tf.gather(RP_all, [0,1,2], axis=-1) # N_sim, N_link, 3, 3
+        P_all = tf.gather(RP_all, [3], axis=-1) # N_sim, N_link, 3, 1
+        R_jnt = tf.gather(R_all, self.idx_var, axis=-3) # N_sim, DOF, 3, 3
+        P_jnt = tf.gather(P_all, self.idx_var, axis=-3) # N_sim, DOF, 3, 1
+        axis_jnt = K.sum(R_jnt*self._axis_prism, axis=-1) # N_sim, DOF, 3
+        return P_jnt, axis_jnt
     
+    @tf.function
+    def jacobian_link(self, T_all, P_jnt, axis_jnt):
+        return self.jacobian_object(T_all, self.num_link, self.mask_depend, P_jnt, axis_jnt)
+    
+    def jacobian_object(self, Tbo_all, N_obj, mask_depend, P_jnt, axis_jnt): # mask_depend: 1, N_obj, DOF, 1
+        RP_all = tf.gather(Tbo_all, [0,1,2], axis=-2)
+        R_all = tf.gather(RP_all, [0,1,2], axis=-1) # N_sim, N_obj, 3, 3
+        P_all = tf.gather(RP_all, [3], axis=-1) # N_sim, N_obj, 3, 1
+
+        jac_prism_ = tf.pad(axis_jnt, [[0,0], [0,0], [0,3]]) # N_sim, DOF, 3+3
+        jac_prism = tf.expand_dims(jac_prism_, axis=-3) * mask_depend # N_sim, N_obj, DOF, 6
+
+        axis_jnt_rep = tf.tile(tf.expand_dims(axis_jnt, axis=-3), [1,N_obj,1,1]) # N_sim, N_obj, DOF, 3
+        pij = tf.reshape(tf.expand_dims(P_all, axis=-3)-tf.expand_dims(P_jnt, axis=-4), (self.dim, N_obj, self.DOF, 3)) # N_sim, N_obj, DOF, 3
+        jac_p_rev = tf.linalg.cross(pij, axis_jnt_rep) # N_sim, N_obj, DOF, 3
+        jac_revol = tf.concat([jac_p_rev, axis_jnt_rep], axis=-1) * mask_depend # N_sim, N_obj, DOF, 6
+
+        jacobian = self.mask_prism*jac_prism + self.mask_revol*jac_revol # N_sim, N_obj, DOF, 6
+        return jacobian
+    
+    def jacobian_rot(self, pij, N_obj, mask_depend, axis_jnt):
+        # pij: N_sim, N_obj, N_axis, Dim / mask_depend: 1, N_obj, DOF, 1 / axis_jnt: N_sim, DOF, 3
+        pij = tf.tile(tf.expand_dims(pij, axis=-2), [1,1,1,self.DOF,1]) # N_sim, N_obj, N_axis, DOF, Dim
+        axis_jnt_rep = tf.reshape(tf.tile(tf.expand_dims(axis_jnt, axis=-3), [1,N_obj*3,1,1]), 
+                                  (self.dim, N_obj, 3, self.DOF, 3)) # N_sim, N_obj, N_axis, DOF, 3
+        jac_p_rev = tf.linalg.cross(pij, axis_jnt_rep) * tf.expand_dims(mask_depend, axis=-3) # N_sim, N_obj, N_axis, DOF, 3
+
+        return tf.expand_dims(self.mask_revol, axis=-3)*jac_p_rev # N_sim, N_obj, N_axis, DOF, 3
+
+
 def get_link_info_list(link_names, urdf_content):
     joint_names = list(urdf_content.joint_map.keys())
     len_joints = len(joint_names)

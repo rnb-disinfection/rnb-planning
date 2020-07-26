@@ -64,3 +64,7 @@ class GlobalTimer:
                 timeunit=timeunit
             )
         return strout
+    
+    
+def lpf(y, y_pre, alpha):
+    return y*alpha + y_pre*(1-alpha)
