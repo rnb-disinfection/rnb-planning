@@ -164,6 +164,9 @@ class BindingCalculator(DistanceCalculator):
                     if N_stack <= i_p < N_stack+N_col:
                         i_c = i_p-N_stack
                         mask_dict[pair_case][i_s, i_c, 0] = 1
+        self.mask_rot_rev = 1 - self.mask_rot
+        self.mask_rot_diag = np.expand_dims(self.mask_rot, axis=-2)*np.expand_dims(self.mask_rot, axis=-1)
+        self.mask_rot_diag_rev = np.identity(self.N_rot, dtype=np.float32) - self.mask_rot_diag
 
         for k,v in mask_dict.items():
             setattr(self, "mask_"+k, 1-v)
