@@ -118,6 +118,8 @@ class GeoMarker:
     def get_type(self):
         if self.geometry.gtype == GeoType.BOX:
             return Marker.CUBE
+        elif self.geometry.gtype == GeoType.PLANE:
+            return Marker.CUBE
         elif self.geometry.gtype == GeoType.LINE:
             return Marker.CYLINDER
         elif self.geometry.gtype == GeoType.SPHERE:

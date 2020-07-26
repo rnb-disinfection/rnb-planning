@@ -18,7 +18,7 @@ def get_link_items_offsets(color=(0,1,0,0.5), display=True):
         GeometryItem(name='wrist_1_capsule', gtype=GeoType.CYLINDER, dims=[0.094,0.094,0.1149], color=color, display=display, collision=True),
         GeometryItem(name='wrist_2_capsule', gtype=GeoType.CYLINDER, dims=[0.092,0.092,0.1157], color=color, display=display, collision=True),
         GeometryItem(name='wrist_3_capsule', gtype=GeoType.CYLINDER, dims=[0.092,0.092,0.0922-0.0522], color=color, display=display, collision=True),
-        GeometryItem(name='tool_mesh', gtype=GeoType.MESH, dims=[1e-3,1e-3,1e-3], uri="package://my_mesh/meshes/stl/AirPick_cup_ctd.stl", color=(0.1,0.1,0.1,1), display=display, collision=False)
+        GeometryItem(name='tool_mesh', gtype=GeoType.MESH, dims=[1e-3,1e-3,1e-3], uri="package://my_mesh/meshes/stl/AirPick_cup_ctd.stl", color=(0.1,0.1,0.1,1), display=True, collision=False)
     ], {
         "base_capsule":GeometryFrame(SE3(Rot_zyx(0,0,0),(0,0,0.06365)), "base_link"),
         "shoulder_capsule":GeometryFrame(SE3(Rot_zyx(0,0,np.pi/2),(0,0.11047,0)), "shoulder_link"),
