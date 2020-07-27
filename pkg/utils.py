@@ -78,3 +78,38 @@ class LowPassFilter:
     def __call__(self, y):
         self.y_pre = y*self.alpha + self.y_pre*(1-self.alpha)
         return self.y_pre
+    
+    
+class CompareInterface:
+        
+    def __eq__(self, other):
+        if isinstance(other, CompareInterface):
+            return str(self) == str(other)
+        return NotImplemented
+    
+    def __ne__(self, other):
+        result = self.__eq__(other)
+        if result is NotImplemented:
+            return result
+        return not result
+        
+    def __gt__(self, other):
+        if isinstance(other, CompareInterface):
+            return str(self) > str(other)
+        return NotImplemented
+        
+    def __ge__(self, other):
+        if isinstance(other, CompareInterface):
+            return str(self) >= str(other)
+        return NotImplemented
+        
+    def __lt__(self, other):
+        if isinstance(other, CompareInterface):
+            return str(self) < str(other)
+        return NotImplemented
+        
+    def __le__(self, other):
+        if isinstance(other, CompareInterface):
+            return str(self) <= str(other)
+        return NotImplemented
+        
