@@ -64,6 +64,8 @@ class BindingLayer(layers.Layer):
     def __init__(self, btype, obj_layer, gitem=None, Toff=np.identity(4), counterparts=None, *args, **kwargs):
         self.obj_layer = obj_layer
         self.gitem = gitem
+        if 'name' not in kwargs:
+            kwargs['name']=gitem.name
         if self.gitem is None:
             self.gitem = obj_layer.gitem
         self.btype, self.counterparts = btype, counterparts
@@ -154,7 +156,8 @@ class BindingCalculator(DistanceCalculator):
         for i_s, pair_vec in zip(range(self.N_sim), slack_pair_list):
             pair_idx_list = []
             for pair in pair_vec:
-                i_p = self.pair_all.index(pair) if pair in self.pair_all else self.pair_all.index(tuple(reversed(pair)))
+                i_p = self.pair_idx_dict[pair]
+                        # self.pair_all.index(pair) if pair in self.pair_all else self.pair_all.index(tuple(reversed(pair)))
                 self.slack_idx_list += [(i_s, i_p)]
                 self.mask_rot[i_s, i_p] = 1
                 for pair_case in DistanceCalculator.pair_cases:
@@ -187,3 +190,35 @@ class BindingCalculator(DistanceCalculator):
         vec_ang = tf.expand_dims(vec_ang, axis=-2) # (N_sim, N_pair, N_axis, 1, Dim)
         jac_ang = K.sum(vec_ang*(jac_rot2 - jac_rot1), axis=-1) # (N_sim, N_pair, N_axis, DOF)
         return jac_ang
+    
+    
+def get_by_name(item_list, name):
+    return [item for item in item_list if item.name==name][0]
+
+def get_box_binding(box, btype=BindingType.SUCC, hexahedral=False):
+    box_name, dims = box.name, box.dims
+    Xhalf, Yhalf, Zhalf = np.array(dims)/2
+    bindings = [BindingInfo(
+                    name=box_name+'-top', btype=btype, obj_name=box_name, 
+                    gtype=GeoType.SPHERE, Toff=SE3(Rot_zyx(0,0,0), (0,0,Zhalf))), 
+                BindingInfo(
+                    name=box_name+'-bottom', btype=btype, obj_name=box_name, 
+                    gtype=GeoType.SPHERE, Toff=SE3(Rot_zyx(0,0,np.pi), (0,0,-Zhalf)))]
+    if hexahedral:
+        bindings += [
+            BindingInfo(
+                name=box_name+'-right', btype=btype, obj_name=box_name, 
+                gtype=GeoType.SPHERE, Toff=SE3(Rot_zyx(0,np.pi/2,0), (Xhalf,0,0))), 
+            BindingInfo(
+                name=box_name+'-left', btype=btype, obj_name=box_name, 
+                gtype=GeoType.SPHERE, Toff=SE3(Rot_zyx(0,-np.pi/2,0), (-Xhalf,0,0))),
+            BindingInfo(
+                name=box_name+'-front', btype=btype, obj_name=box_name, 
+                gtype=GeoType.SPHERE, Toff=SE3(Rot_zyx(np.pi/2,0,0), (0,-Yhalf,0))), 
+            BindingInfo(
+                name=box_name+'-back', btype=btype, obj_name=box_name, 
+                gtype=GeoType.SPHERE, Toff=SE3(Rot_zyx(-np.pi/2,0,0), (0,Yhalf,0)))
+            
+        ]
+    return bindings
+    

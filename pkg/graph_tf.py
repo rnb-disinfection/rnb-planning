@@ -22,8 +22,8 @@ from pkg.distance_calculator import *
 from pkg.binding_calculator import *
 
 class GraphModel(tf.keras.Model):
-    def __init__(self, robot_info, gitem_list, binfo_list, urdf_content, N_sim, rate_update = 0.5,
-                 alpha_jc=5, alpha_fc=200, alpha_jl=1, alpha_cl=1,alpha_cs=0, dQ_max = tf.constant([[1.0]*6])*2e-1,
+    def __init__(self, robot_info, gitem_list, binfo_list, urdf_content, N_sim, rate_update=0.9, alpha_lpf=0.9, error_margin=1e-4,
+                 alpha_jc=5, alpha_fc=200, alpha_jl=1, alpha_cl=1,alpha_cs=0, dQ_max = tf.constant([[1.0]*6])*1e-1,
                  LIM=np.pi, LIM_BOUND=1e-1, COL_BOUND=1e-2, learning_rate=5e-3, col_iteration = 20):
         super(GraphModel, self).__init__()
         self.alpha_jc = alpha_jc
@@ -32,6 +32,8 @@ class GraphModel(tf.keras.Model):
         self.alpha_cl = alpha_cl
         self.alpha_cs = alpha_cs
         self.rate_update = rate_update
+        self.alpha_lpf = alpha_lpf
+        self.error_margin = error_margin
         self.N_sim = N_sim
         self.LIM = LIM
         self.LIM_BOUND = LIM_BOUND
@@ -70,8 +72,15 @@ class GraphModel(tf.keras.Model):
             self.binding_name_list += [binfo.name]
             self.binding_dict[binfo.name] = BindingLayer(**binfo.get_kwargs(self.object_dict))
             self.binding_index_list += [self.object_name_list.index(binfo.obj_name)]
+            
         self.binding_index_list = tf.constant(self.binding_index_list)
         self.num_binding = len(self.binding_name_list)
+        self.binding_index_dict = {name: i_b for i_b, name in zip(range(self.num_binding), self.binding_name_list)}
+        
+        self.dQ_default = tf.zeros((self.N_sim, self.robot.DOF))
+        self.results_default = tf.zeros((self.N_sim,), dtype=tf.bool)
+        self.T_all_default = tf.zeros((self.N_sim, self.robot.num_link, 4, 4), dtype=tf.float32)
+        self.Tbo_all_default = tf.zeros((self.N_sim, self.num_objects, 4, 4), dtype=tf.float32)
         
         self.col_cal = CollisionCalculator(self.object_name_list, self.object_dict, self.robot, self.N_sim)
         self.bind_cal = BindingCalculator(self.binding_name_list, self.binding_dict, self.robot, self.N_sim)
@@ -225,4 +234,66 @@ class GraphModel(tf.keras.Model):
             self.bind_cal.jacobian_object(Tbb_all, P_jnt, axis_jnt),
             self.bind_cal.jacobian_rot(Tbb_all, axis_jnt)
         )
+    
+    
+    @tf.function
+    def _loop(self, dQ_pre, results, T_all, Tbo_all):
+        Qcur = self.get_Q()
+        T_all, Tbo_all, Tbb_all = self(self.binding_index_list)
+        jac_r, jac_o, jac_b, jac_brot = self.jacobian(T_all, Tbo_all, Tbb_all)
+        Tbo_all_res = tf.reshape(Tbo_all, (self.N_sim, 1, self.num_objects, 1, 4,4))
+        dist_all, flag_all, vec_all, mask_all = self.col_cal.calc_all(Tbo_all_res)
+        jac_d = self.col_cal.jacobian_distance(jac_o, vec_all)
+        Tbb_all_res = tf.reshape(Tbb_all, (self.N_sim, 1, self.num_binding, 1, 4,4))
+        b_dist_all, flag_all, vec_all, b_mask_all, angle_all, vec_angle, mask_rot = self.bind_cal.calc_all(Tbb_all_res)
+        mask_rot = tf.expand_dims(self.bind_cal.mask_rot, axis=-1)
+        b_dist_masked = b_dist_all*mask_rot
+        jac_bind, jac_ang = self.bind_cal.jacobian_binding(jac_b, vec_all, jac_brot, vec_angle)
+        jac_bind_masked = jac_bind*mask_rot
+        jac_bind_tr = tf.transpose(jac_bind_masked, (0,2,1))
+        jac_bind_inv = tf.matmul(jac_bind_tr, tf.linalg.inv(tf.matmul(jac_bind_masked,jac_bind_tr)+self.bind_cal.mask_rot_diag_rev))
+        jac_ang_stack = tf.gather_nd(jac_ang, [self.bind_cal.pair_axis_list]*self.N_sim, batch_dims=1)
+        jac_ang_masked = jac_ang_stack*mask_rot
+        jac_ang_tr = tf.transpose(jac_ang_masked, (0,2,1))
+        jac_ang_inv = tf.matmul(jac_ang_tr, tf.linalg.inv(tf.matmul(jac_ang_masked,jac_ang_tr)+self.bind_cal.mask_rot_diag_rev))
+        angle_all_stack = tf.gather_nd(angle_all, [self.bind_cal.pair_axis_list]*self.N_sim, batch_dims=1)
+        angle_all_masked = angle_all_stack*mask_rot
+        joint_masked = self.joint_mask_batch * (self.joint_batch - Qcur)
+        dQ = (
+            K.sum(
+                tf.matmul(jac_bind_inv,b_dist_masked) 
+                + tf.matmul(jac_ang_inv,angle_all_masked), axis=-1)
+            + joint_masked)*self.rate_update
+        dQ_clip = clip_gradient_elem_wise(dQ, self.dQ_max)
+        dQ_pre = dQ_clip*self.alpha_lpf + dQ_pre*(1-self.alpha_lpf)
+
+
+        #cut collision
+        dD = -K.sum(jac_d*tf.expand_dims(dQ_clip, axis=-2), axis=-1, keepdims=True)
+        Dcur = dist_all
+        mask_colliding = tf.cast(Dcur+dD<0,dtype=tf.float32)
+        sign_jac_d =tf.sign(jac_d)
+        dQ_cut = (mask_colliding* mask_all)*(Dcur+dD)*jac_d/(K.sum(tf.square(jac_d), axis=-1, keepdims=True)+1e-16)
+        dQ_cut = K.sum(dQ_cut, axis=-2) # need to implement optimizer
+
+        Qnew = Qcur+dQ_pre+dQ_cut
+        self.assign_Q(Qnew)
+        results = K.sum(K.sum(tf.abs(b_dist_masked)+tf.abs(angle_all_masked), axis=-1)+tf.abs(joint_masked),axis=-1)
+        return dQ_pre, tf.less_equal(results, self.error_margin), T_all, Tbo_all
+
+    @tf.function
+    def _cond(self, dQ_pre, results, T_all, Tbo_all):
+        return K.any(tf.logical_not(results))
+    
+    @tf.function
+    def run_test(self, N_loop=100):
+        dQ_init = self.dQ_default
+        results = self.results_default
+        T_all   = self.T_all_default
+        Tbo_all = self.Tbo_all_default
+        dQ_pre, results, T_all, Tbo_all = tf.while_loop(
+            self._cond, self._loop, (dQ_init, results, T_all, Tbo_all), 
+            parallel_iterations=100, maximum_iterations=N_loop
+        )
+        return results, T_all, Tbo_all
         

@@ -126,6 +126,8 @@ class DistanceCalculator:
                 pair_list = self.pair_dict[pair_case]
                 pair_all += pair_list
         self.pair_all = pair_all
+        self.pair_idx_dict = {pair: i_p for i_p, pair in zip(range(len(pair_all)), pair_all)}
+        self.pair_idx_dict.update({tuple(reversed(pair)): i_p for i_p, pair in zip(range(len(pair_all)), pair_all)})
         pair_all = np.array(pair_all)
         self.pair_obj1 = pair_all[:,0]
         self.pair_obj2 = pair_all[:,1]

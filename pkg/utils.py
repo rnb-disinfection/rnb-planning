@@ -72,6 +72,9 @@ class LowPassFilter:
         self.alpha = alpha
         self.y_pre = y_init
         
+    def reset(self):
+        self.y_pre = 0
+        
     def __call__(self, y):
         self.y_pre = y*self.alpha + self.y_pre*(1-self.alpha)
         return self.y_pre
