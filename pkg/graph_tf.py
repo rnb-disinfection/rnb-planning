@@ -87,6 +87,7 @@ class GraphModel(tf.keras.Model):
         self.optimizer = tf.optimizers.SGD(learning_rate=learning_rate)
             
     def assign_frame_dict(self, gframeset_list):
+        self.gframeset_list = gframeset_list
         frame_dict = {k: [] for k in self.object_dict.keys()}
         link_dict = {k: [] for k in self.object_dict.keys()}
         for gframeset in gframeset_list:
@@ -236,7 +237,6 @@ class GraphModel(tf.keras.Model):
         )
     
     
-    @tf.function
     def _loop(self, dQ_pre, results, T_all, Tbo_all):
         Qcur = self.get_Q()
         T_all, Tbo_all, Tbb_all = self(self.binding_index_list)
@@ -281,7 +281,6 @@ class GraphModel(tf.keras.Model):
         results = K.sum(K.sum(tf.abs(b_dist_masked)+tf.abs(angle_all_masked), axis=-1)+tf.abs(joint_masked),axis=-1)
         return dQ_pre, tf.less_equal(results, self.error_margin), T_all, Tbo_all
 
-    @tf.function
     def _cond(self, dQ_pre, results, T_all, Tbo_all):
         return K.any(tf.logical_not(results))
     
@@ -295,5 +294,21 @@ class GraphModel(tf.keras.Model):
             self._cond, self._loop, (dQ_init, results, T_all, Tbo_all), 
             parallel_iterations=100, maximum_iterations=N_loop
         )
+        return results, T_all, Tbo_all
+        
+    def run_test_disp(self, show_motion_func, idx_show, N_loop=100):
+        dQ_init = self.dQ_default
+        results = self.results_default
+        T_all   = self.T_all_default
+        Tbo_all = self.Tbo_all_default
+        dQ_pre, results, T_all, Tbo_all = dQ_init, results, T_all, Tbo_all
+        for _ in range(N_loop):
+            dQ_pre, results, T_all, Tbo_all = self._loop(dQ_pre, results, T_all, Tbo_all)
+            if not self._cond(dQ_pre, results, T_all, Tbo_all):
+                break
+            Qcur = self.get_Q()
+            pose = np.array(Qcur[idx_show])
+            gframeset = self.gframeset_list[idx_show]
+            show_motion_func(pose, gframeset)
         return results, T_all, Tbo_all
         
