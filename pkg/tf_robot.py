@@ -64,7 +64,7 @@ class RobotLayer(layers.Layer):
         self.rname = rname
         self.dim = dim
         self.DOF = len([True for link_info in self.link_info_list if link_info.ltype != 'fixed'])
-        self.Q = tf.Variable([[0.0]*self.DOF]*self.dim, name="{}_q".format(kwargs["name"]))
+        self.Q = tf.Variable([[0.0]*self.DOF]*self.dim, name="{}_q".format(kwargs["name"]), trainable=False)
         self.idx_var = []
         for i_q, link_info in zip(range(len(self.link_info_list)), self.link_info_list):
             if link_info.ltype != 'fixed':
