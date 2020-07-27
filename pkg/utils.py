@@ -66,5 +66,12 @@ class GlobalTimer:
         return strout
     
     
-def lpf(y, y_pre, alpha):
-    return y*alpha + y_pre*(1-alpha)
+    
+class LowPassFilter:
+    def __init__(self, alpha, y_init=0):
+        self.alpha = alpha
+        self.y_pre = y_init
+        
+    def __call__(self, y):
+        self.y_pre = y*self.alpha + self.y_pre*(1-self.alpha)
+        return self.y_pre

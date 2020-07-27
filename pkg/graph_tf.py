@@ -22,7 +22,7 @@ from pkg.distance_calculator import *
 from pkg.binding_calculator import *
 
 class GraphModel(tf.keras.Model):
-    def __init__(self, robot_info, gitem_list, binfo_list, urdf_content, N_sim, 
+    def __init__(self, robot_info, gitem_list, binfo_list, urdf_content, N_sim, rate_update = 0.5,
                  alpha_jc=5, alpha_fc=200, alpha_jl=1, alpha_cl=1,alpha_cs=0, dQ_max = tf.constant([[1.0]*6])*2e-1,
                  LIM=np.pi, LIM_BOUND=1e-1, COL_BOUND=1e-2, learning_rate=5e-3, col_iteration = 20):
         super(GraphModel, self).__init__()
@@ -31,6 +31,7 @@ class GraphModel(tf.keras.Model):
         self.alpha_jl = alpha_jl
         self.alpha_cl = alpha_cl
         self.alpha_cs = alpha_cs
+        self.rate_update = rate_update
         self.N_sim = N_sim
         self.LIM = LIM
         self.LIM_BOUND = LIM_BOUND
@@ -50,6 +51,10 @@ class GraphModel(tf.keras.Model):
         self.adjacency_list = self.robot.adjacency_list
         self.dependency_list = self.robot.dependency_list
         self.dependency_mat = self.robot.dependency_mat
+        self.default_joint_batch = tf.constant([[0.0]*self.robot.DOF]*N_sim, dtype=tf.float32)
+        self.default_joint_mask_batch = tf.constant([[0.0]*self.robot.DOF]*N_sim, dtype=tf.float32)
+        self.joint_batch = tf.Variable([[0.0]*self.robot.DOF]*N_sim, trainable=False)
+        self.joint_mask_batch = tf.Variable([[0.0]*self.robot.DOF]*N_sim, trainable=False)
             
         self.object_dict = {}
         self.object_name_list = []
@@ -86,8 +91,14 @@ class GraphModel(tf.keras.Model):
         self.col_cal.set_pair_mask()
         self.bind_cal.set_link_dependence(link_dict)
         
-    def set_slack_batch(self, slack_batch):
-        self.bind_cal.set_pair_mask(slack_batch)
+    def set_slack_batch(self, binding_batch, joint_batch=None, joint_mask_batch=None):
+        self.bind_cal.set_pair_mask(binding_batch)
+        if joint_batch is None:
+            joint_batch = self.default_joint_batch
+        self.joint_batch.assign(joint_batch)
+        if joint_mask_batch is None:
+            joint_mask_batch = self.default_joint_mask_batch
+        self.joint_mask_batch.assign(joint_mask_batch)
         
     def update_slack_frames(self, gframe_dict_list, T_all, Tbo_all):
         for i_s in range(self.N_sim):

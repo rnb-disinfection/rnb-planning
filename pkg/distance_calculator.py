@@ -6,6 +6,8 @@ from collections import defaultdict
 
 class ObjectLayer(layers.Layer):
     def __init__(self, gitem, N_sim, N_link, *args, **kwargs):
+        if 'name' not in kwargs:
+            kwargs['name']=gitem.name
         self.gitem, self.N_sim, self.N_link = gitem, N_sim, N_link
         self.Toff_list = tf.Variable(np.zeros((N_sim, 4,4), dtype=np.float32), trainable=False) # (N_sim, 4,4)
         self.link_one_hot = tf.Variable(np.zeros((self.N_sim,self.N_link,1,1), dtype=np.float32), trainable=False) # (N_sim, N_link)

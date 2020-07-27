@@ -10,31 +10,30 @@ class BindingType(Enum):
     PLANE = 3
     
     def full_axis(self):
-        N_axis = len(BIND_AXIS_DICT[self])
-        return np.pad(BIND_AXIS_DICT[self], [[0, 3-N_axis], [0,0]])
+        N_axis = len(BINDING_DICT[self].axis)
+        return np.pad(BINDING_DICT[self].axis, [[0, 3-N_axis], [0,0]])
     
     def num_axis(self):
-        return len(BIND_AXIS_DICT[self])
+        return len(BINDING_DICT[self].axis)
     
     def is_binder(self):
-        return BINDER_DICT[self]
+        return BINDING_DICT[self].binder
+    
+    def is_controlled(self):
+        return BINDING_DICT[self].controlled
+    
+    def is_multiple(self):
+        return BINDING_DICT[self].multiple
 
-BIND_AXIS_DICT = {
-    BindingType.VACC: [[0,0,-0.1]],
-    BindingType.SUCC: [[0,0,0.1]],
-    BindingType.PLANE: [[0,0,0.1]]
-}
+class BindingDef:
+    def __init__(self, axis, counterparts, binder, controlled, multiple):
+        self.axis, self.counterparts, self.binder, self.controlled, self.multiple = \
+            axis, counterparts, binder, controlled, multiple
 
 BINDING_DICT = {
-    BindingType.VACC: [BindingType.SUCC],
-    BindingType.SUCC: [BindingType.VACC, BindingType.PLANE],
-    BindingType.PLANE: [BindingType.SUCC]
-}
-
-BINDER_DICT = {
-    BindingType.VACC: True,
-    BindingType.SUCC: False,
-    BindingType.PLANE: True
+    BindingType.VACC: BindingDef([[0,0,-0.1]], [BindingType.SUCC], True, True, False),
+    BindingType.SUCC: BindingDef([[0,0,0.1]], [BindingType.VACC, BindingType.PLANE], False, False, False),
+    BindingType.PLANE: BindingDef([[0,0,0.1]], [BindingType.SUCC], True, False, True)
 }
 
 
@@ -43,7 +42,7 @@ class BindingInfo:
         self.name, self.btype, self.obj_name, self.gtype = name, btype, obj_name, gtype
         self.Toff, self.dims = Toff, dims
         if counterparts is None:
-            counterparts = BINDING_DICT[btype]
+            counterparts = BINDING_DICT[btype].counterparts
         self.counterparts = counterparts
         
     def get_gitem(self):
