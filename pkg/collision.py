@@ -23,7 +23,6 @@ def pad_vertex(verts, N_vtx):
 BATCH_DIM_DEFAULT = 2
 
 Imat_line = tf.constant([[0, 1], [0, 2]], dtype=tf.int64)
-@tf.function
 def pickClosestLine(a,b,c,batch_dims=2):
     ab = b-a
     ao = -a
@@ -50,27 +49,23 @@ def pickClosestLine(a,b,c,batch_dims=2):
     v = tf.gather_nd(v_candi, I_exp,batch_dims=batch_dims)
     return b,c,v,dist
 
-@tf.function
 def getFarthestInDir_batch(FX_batch, v_batch, batch_dims=BATCH_DIM_DEFAULT):
     dotted = K.sum(FX_batch*v_batch,axis=-1)
     IdxSet = tf.expand_dims(tf.argmax(dotted, axis=-1),-1)
     point=tf.gather_nd(params = FX_batch, indices=IdxSet, batch_dims=batch_dims)
     return point
 
-@tf.function
 def support_batch(FX1_batch, FX2_batch, v_batch, batch_dims=BATCH_DIM_DEFAULT):
     point1 = getFarthestInDir_batch(FX1_batch, v_batch, batch_dims)
     point2 = getFarthestInDir_batch(FX2_batch, -v_batch, batch_dims)
     return point1 - point2
 
-@tf.function
 def pickLineTF_batch(v_batch, FX1_batch, FX2_batch, batch_dims=BATCH_DIM_DEFAULT):
     b= support_batch(FX2_batch, FX1_batch, v_batch, batch_dims)
     a= support_batch(FX2_batch, FX1_batch, -v_batch, batch_dims)
     return a, b
 
 Imat_line = tf.constant([[0, 1], [0, 2]], dtype=tf.int64)
-@tf.function
 def pickClosestLine_batch(a,b,c,batch_dims=2):
     ab = b-a
     ao = -a
@@ -99,7 +94,6 @@ def pickClosestLine_batch(a,b,c,batch_dims=2):
     return b,c,v,dist
 
 Imat_face = tf.constant([[0, 1, 2], [0, 2, 3], [0, 3, 1]], dtype=tf.int64)
-@tf.function
 def pickClosestFace_batch(a,b,c,d,batch_dims=2):
     
     # Check the tetrahedron:
@@ -135,7 +129,6 @@ def pickClosestFace_batch(a,b,c,d,batch_dims=2):
 
 
 Imat_resort = tf.constant([[0,1,2],[1,2,0],[2,0,1]], dtype=tf.int64)
-@tf.function
 def resort_points_batch(a,b,c,batch_dims=2):
     XX = tf.stack([a,b,c], axis=-2)
     norms = tf_norm(XX, axis=-1)
@@ -146,7 +139,6 @@ def resort_points_batch(a,b,c,batch_dims=2):
     c = tf.gather_nd(XX,tf.gather(Imin,2,axis=-2), batch_dims=batch_dims)
     return a,b,c
 
-@tf.function
 def direct(a,b,c,v,dist):
     dist = tf.expand_dims(dist, axis=-1)
     a, b, c = resort_points_batch(a, b, c)
@@ -166,7 +158,6 @@ def direct(a,b,c,v,dist):
     dist = tf.reduce_sum(dist, axis=-1)
     return v, dist
 
-@tf.function
 def nearest_simplex4_batch(a,b,c,v,dist, FX1_batch,FX2_batch):
     tri_in = tf.greater(K.sum(tf.multiply(v,-tf.expand_dims(a,axis=-2)),axis=-1),0)
     tri_out = tf.logical_not(tri_in)
@@ -180,7 +171,6 @@ def nearest_simplex4_batch(a,b,c,v,dist, FX1_batch,FX2_batch):
     a = support_batch(FX2_batch,FX1_batch,v) # Tetrahedron new point
     return a,b,c,d
 
-@tf.function
 def _loop_PickTriangle_batch(a, b, c, flag, FX1_batch, FX2_batch):
     [b_,c_,v,dist] = pickClosestLine_batch(a,b,c);
     a__,b__,c__,flag = (support_batch(FX2_batch, FX1_batch,v, BATCH_DIM_DEFAULT),b_,c_,tf.less_equal(dist,0))
@@ -192,12 +182,10 @@ def _loop_PickTriangle_batch(a, b, c, flag, FX1_batch, FX2_batch):
     
     return a,b,c,flag, FX1_batch, FX2_batch
 
-@tf.function
 def _cond_PickTriangle_batch(a, b, c, flag, FX1_batch, FX2_batch):
     return tf.reduce_all(tf.logical_not(flag))
     
 
-@tf.function
 def PickTriangleTF_batch(a, b, FX1_batch, FX2_batch, flag_default, IterationAllowed=6):
     # First try:
     ab = b-a
@@ -213,7 +201,6 @@ def PickTriangleTF_batch(a, b, FX1_batch, FX2_batch, flag_default, IterationAllo
 
     return a, b, c, flag
 
-@tf.function
 def PickTriangleTF_batch_nl(a, b, FX1_batch, FX2_batch, flag_default):
     # First try:
     ab = b-a
@@ -232,7 +219,6 @@ def PickTriangleTF_batch_nl(a, b, FX1_batch, FX2_batch, flag_default):
 
     return a, b, c, flag
 
-@tf.function
 def _loop_pickTetrahedron_batch(a, b, c, d, v, dist, flag, FX1_batch, FX2_batch, iter):
     a,b,c,v_,dist_ = pickClosestFace_batch(a,b,c,d)
     a_,b_,c_,d_ = nearest_simplex4_batch(a,b,c,v_, dist_, FX1_batch,FX2_batch)
@@ -256,11 +242,9 @@ def _loop_pickTetrahedron_batch(a, b, c, d, v, dist, flag, FX1_batch, FX2_batch,
     iter += 1
     return a, b, c, d, v, dist, flag, FX1_batch, FX2_batch, iter
 
-@tf.function
 def _cond_pickTetrahedron_batch(a, b, c, d, v, dist, flag, FX1_batch, FX2_batch, iter):
     return tf.reduce_any(tf.logical_not(flag))
 
-@tf.function
 def pickTetrahedronTF_batch(a,b,c,FX1_batch,FX2_batch,flag_default,dist_default,IterationAllowed=6):
     ab = b-a
     ac = c-a
@@ -292,7 +276,6 @@ def pickTetrahedronTF_batch(a,b,c,FX1_batch,FX2_batch,flag_default,dist_default,
 #     dist = dist3_/dotted
     return a,b,c,d, v, v_, dist,flag, iter
 
-@tf.function
 def pickTetrahedronTF_batch_nl(a,b,c,FX1_batch,FX2_batch,flag_default,dist_default):
     ab = b-a
     ac = c-a
@@ -316,8 +299,6 @@ def pickTetrahedronTF_batch_nl(a,b,c,FX1_batch,FX2_batch,flag_default,dist_defau
     dist = dist_
     return a,b,c,d, v, v_, dist,flag, iter
 
-
-@tf.function
 def test_collision_batch(FX1_batch, FX2_batch, v_batch,flag_default,dist_default, IterationAllowed=6):
     a, b = pickLineTF_batch(v_batch, FX2_batch, FX1_batch)
     a, b, c, flag = PickTriangleTF_batch(a,b,FX2_batch,FX1_batch,flag_default,IterationAllowed)
@@ -329,7 +310,6 @@ def test_collision_batch(FX1_batch, FX2_batch, v_batch,flag_default,dist_default
     dist = dist3_/dotted
     return dist, K.sum(v_, axis=-2), flag
 
-@tf.function
 def test_collision_batch_nl(FX1_batch, FX2_batch, v_batch,flag_default,dist_default,IterationAllowed=0):
     a, b = pickLineTF_batch(v_batch, FX2_batch, FX1_batch)
     a, b, c, flag = PickTriangleTF_batch_nl(a,b,FX2_batch,FX1_batch,flag_default)
