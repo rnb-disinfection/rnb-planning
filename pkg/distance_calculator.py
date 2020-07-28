@@ -44,9 +44,6 @@ class DistanceCalculator:
     
     def __init__(self, object_name_list, object_dict, robot, N_sim):
         self.object_name_list, self.object_dict = object_name_list, object_dict
-        self.object_link_idx_list = []
-        for _ in object_name_list:
-            self.object_link_idx_list += [0]
         self.robot = robot
         self.N_sim = N_sim
         self.build_combinations()
@@ -155,14 +152,22 @@ class DistanceCalculator:
         return self.object_name_list.index(name)
     
     def set_link_dependence(self, link_dict):
+        self.object_link_idx_list = []
+        for _ in self.object_name_list:
+            self.object_link_idx_list += [0]
         for i_obj in range(self.num_objects):
             object_name = self.object_name_list[i_obj]
             self.object_link_idx_list[i_obj] = np.array(link_dict[object_name])
-        self.object_link_idx_mat = np.transpose(self.object_link_idx_list)
-        self.object_depend_mask = tf.reshape(
-            tf.gather(self.robot.mask_depend, self.object_link_idx_mat, axis=-3), 
-            (self.N_sim, self.num_objects, self.robot.DOF, 1))
-    
+        #self.object_link_idx_mat = np.transpose(self.object_link_idx_list)
+        #self.object_depend_mask = tf.reshape(
+        #    tf.gather(self.robot.mask_depend, self.object_link_idx_mat, axis=-3), 
+        #    (self.N_sim, self.num_objects, self.robot.DOF, 1))
+        set_assign(self, "object_link_idx_mat", np.transpose(self.object_link_idx_list), dtype=tf.int64)
+        set_assign(self, "object_depend_mask", 
+                   tf.reshape(tf.gather(self.robot.mask_depend, self.object_link_idx_mat, axis=-3), 
+                              (self.N_sim, self.num_objects, self.robot.DOF, 1)), dtype=tf.float32)
+        
+        
     @tf.function
     def pt_pt_dist(self, Tbo_all_res):
         Tbo_all_res = tf.tile(Tbo_all_res, [1, self.N_pt_pt, 1,1,1,1])
@@ -305,7 +310,7 @@ class CollisionCalculator(DistanceCalculator):
             N_col = self.N_pair_dict[pair_case]
             mask = np.zeros((self.N_sim, N_col, 1), dtype=np.float32)
             for i_col, comb in zip(range(N_col), self.pair_dict[pair_case]):
-                mask[:, i_col, 0] = tf.gather_nd(self.robot.adjacency_mat, self.object_link_idx_mat[:, comb])
-            setattr(self, "mask_"+pair_case, 1-mask)
+                mask[:, i_col, 0] = tf.gather_nd(self.robot.adjacency_mat, self.object_link_idx_mat.numpy()[:, comb])
+            set_assign(self,  "mask_"+pair_case, 1-mask, dtype=tf.float32)
             
             

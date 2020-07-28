@@ -38,4 +38,12 @@ def tf_T2V(T, N_sim):
     P = tf.gather(RP, 3, axis=-1)
     w = tf_R2w(R, N_sim)
     return tf.concat([P,w], axis=-1)
+
+
+    
+def set_assign(inst, name, val, dtype=tf.float32):
+    if hasattr(inst, name):
+        getattr(inst, name).assign(val)
+    else:
+        setattr(inst, name, tf.Variable(val, dtype=dtype, trainable=False))
     

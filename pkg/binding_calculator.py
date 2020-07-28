@@ -117,11 +117,12 @@ class BindingCalculator(DistanceCalculator):
             self.obj_axis[i_o] = obj.get_axis()
             self.axis_list += [obj.Naxis]
         self.obj_axis_exp = tf.expand_dims(tf.expand_dims(self.obj_axis, 0), -2) # 1,1, N_obj, N_axis, 1, 3
-        self.pair_axis_list = []
+        pair_axis_list = []
         for i_c, comb in zip(range(self.N_rot), self.pair_all):
-            self.pair_axis_list += np.pad(
+            pair_axis_list += np.pad(
                 np.expand_dims(np.arange(self.axis_list[comb[0]]), axis=1), 
                 [[0,0],[1,0]], constant_values=i_c).tolist()
+        set_assign(self, "pair_axis_list", pair_axis_list, dtype=tf.int64)
     
     def set_link_dependence(self, link_dict):
         link_dict_binding = {}
@@ -150,8 +151,8 @@ class BindingCalculator(DistanceCalculator):
             mask_dict[pair_case] = np.zeros((self.N_sim, N_col, 1), dtype=np.float32)
             N_stack_dict[pair_case] = N_stack
             N_stack += N_col
-
-        self.mask_rot = np.zeros((self.N_sim, self.N_rot), dtype=np.float32) # N_sim, N_rot
+        
+        mask_rot = np.zeros((self.N_sim, self.N_rot), dtype=np.float32) # N_sim, N_rot
         self.slack_idx_list = []
         for i_s, pair_vec in zip(range(self.N_sim), slack_pair_list):
             pair_idx_list = []
@@ -159,19 +160,21 @@ class BindingCalculator(DistanceCalculator):
                 i_p = self.pair_idx_dict[pair]
                         # self.pair_all.index(pair) if pair in self.pair_all else self.pair_all.index(tuple(reversed(pair)))
                 self.slack_idx_list += [(i_s, i_p)]
-                self.mask_rot[i_s, i_p] = 1
+                mask_rot[i_s, i_p] = 1
                 for pair_case in DistanceCalculator.pair_cases:
                     N_stack = N_stack_dict[pair_case]
                     N_col = self.N_pair_dict[pair_case]
                     if N_stack <= i_p < N_stack+N_col:
                         i_c = i_p-N_stack
                         mask_dict[pair_case][i_s, i_c, 0] = 1
-        self.mask_rot_rev = 1 - self.mask_rot
-        self.mask_rot_diag = np.expand_dims(self.mask_rot, axis=-2)*np.expand_dims(self.mask_rot, axis=-1)
-        self.mask_rot_diag_rev = np.identity(self.N_rot, dtype=np.float32) - self.mask_rot_diag
+        set_assign(self, "mask_rot", mask_rot, dtype=tf.float32)
+        self.mask_rot_rev = 1 - mask_rot
+        self.mask_rot_diag = np.expand_dims(mask_rot, axis=-2)*np.expand_dims(mask_rot, axis=-1)
+        set_assign(self, "mask_rot_diag_rev", np.identity(self.N_rot, dtype=np.float32) - self.mask_rot_diag, dtype=tf.float32)
+#         self.mask_rot_diag_rev = np.identity(self.N_rot, dtype=np.float32) - self.mask_rot_diag
 
         for k,v in mask_dict.items():
-            setattr(self, "mask_"+k, 1-v)
+            set_assign(self, "mask_"+k, 1-v, dtype=tf.float32)
             
     def jacobian_rot(self,Tbo_all, axis_jnt):
         Rbo_all = tf.expand_dims(tf.gather(tf.gather(Tbo_all, [0,1,2], axis=-2), [0,1,2], axis=-1), axis=-3)

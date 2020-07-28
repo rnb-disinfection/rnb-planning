@@ -23,7 +23,7 @@ from pkg.binding_calculator import *
 
 class GraphModel(tf.keras.Model):
     def __init__(self, robot_info, gitem_list, binfo_list, urdf_content, N_sim, rate_update=0.9, alpha_lpf=0.9, error_margin=1e-4,
-                 alpha_jc=5, alpha_fc=200, alpha_jl=1, alpha_cl=1,alpha_cs=0, dQ_max = tf.constant([[1.0]*6])*1e-1,
+                 alpha_jc=5, alpha_fc=200, alpha_jl=1, alpha_cl=1,alpha_cs=0, dQ_max = tf.constant([[1.0]*6])*1e-1, COL_AVOID_MULTIPLIER=1.0,
                  LIM=np.pi, LIM_BOUND=1e-1, COL_BOUND=1e-2, learning_rate=5e-3, col_iteration = 20):
         super(GraphModel, self).__init__()
         self.alpha_jc = alpha_jc
@@ -38,6 +38,7 @@ class GraphModel(tf.keras.Model):
         self.LIM = LIM
         self.LIM_BOUND = LIM_BOUND
         self.COL_BOUND = COL_BOUND
+        self.COL_AVOID_MULTIPLIER = COL_AVOID_MULTIPLIER
         self.dQ_max = tf.constant(dQ_max)
         self.learning_rate = learning_rate
         self.col_iteration = col_iteration
@@ -269,7 +270,7 @@ class GraphModel(tf.keras.Model):
 
 
         #cut collision
-        dD = -K.sum(jac_d*tf.expand_dims(dQ_clip, axis=-2), axis=-1, keepdims=True)
+        dD = (-K.sum(jac_d*tf.expand_dims(dQ_clip, axis=-2), axis=-1, keepdims=True))*self.COL_AVOID_MULTIPLIER
         Dcur = dist_all
         mask_colliding = tf.cast(Dcur+dD<0,dtype=tf.float32)
         sign_jac_d =tf.sign(jac_d)
