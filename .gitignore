@@ -1,7 +1,10 @@
-# Pycharm
-.idea/
+# Data
 *.csv
 *.pdf
+*.npy
+
+# Pycharm
+.idea/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

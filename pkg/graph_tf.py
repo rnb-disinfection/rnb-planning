@@ -242,9 +242,9 @@ class GraphModel(tf.keras.Model):
         Qcur = self.get_Q()
         T_all, Tbo_all, Tbb_all = self(self.binding_index_list)
         jac_r, jac_o, jac_b, jac_brot = self.jacobian(T_all, Tbo_all, Tbb_all)
-        Tbo_all_res = tf.reshape(Tbo_all, (self.N_sim, 1, self.num_objects, 1, 4,4))
-        dist_all, flag_all, vec_all, mask_all = self.col_cal.calc_all(Tbo_all_res)
-        jac_d = self.col_cal.jacobian_distance(jac_o, vec_all)
+#         Tbo_all_res = tf.reshape(Tbo_all, (self.N_sim, 1, self.num_objects, 1, 4,4))
+#         dist_all, flag_all, vec_all, mask_all = self.col_cal.calc_all(Tbo_all_res)
+#         jac_d = self.col_cal.jacobian_distance(jac_o, vec_all)
         Tbb_all_res = tf.reshape(Tbb_all, (self.N_sim, 1, self.num_binding, 1, 4,4))
         b_dist_all, flag_all, vec_all, b_mask_all, angle_all, vec_angle, mask_rot = self.bind_cal.calc_all(Tbb_all_res)
         mask_rot = tf.expand_dims(self.bind_cal.mask_rot, axis=-1)
@@ -270,14 +270,14 @@ class GraphModel(tf.keras.Model):
 
 
         #cut collision
-        dD = (-K.sum(jac_d*tf.expand_dims(dQ_clip, axis=-2), axis=-1, keepdims=True))*self.COL_AVOID_MULTIPLIER
-        Dcur = dist_all
-        mask_colliding = tf.cast(Dcur+dD<0,dtype=tf.float32)
-        sign_jac_d =tf.sign(jac_d)
-        dQ_cut = (mask_colliding* mask_all)*(Dcur+dD)*jac_d/(K.sum(tf.square(jac_d), axis=-1, keepdims=True)+1e-16)
-        dQ_cut = K.sum(dQ_cut, axis=-2) # need to implement optimizer
+#         dD = (-K.sum(jac_d*tf.expand_dims(dQ_clip, axis=-2), axis=-1, keepdims=True))*self.COL_AVOID_MULTIPLIER
+#         Dcur = dist_all
+#         mask_colliding = tf.cast(Dcur+dD<0,dtype=tf.float32)
+#         sign_jac_d =tf.sign(jac_d)
+#         dQ_cut = (mask_colliding* mask_all)*(Dcur+dD)*jac_d/(K.sum(tf.square(jac_d), axis=-1, keepdims=True)+1e-16)
+#         dQ_cut = K.sum(dQ_cut, axis=-2) # need to implement optimizer
 
-        Qnew = Qcur+dQ_pre+dQ_cut
+        Qnew = Qcur+dQ_pre#+dQ_cut
         self.assign_Q(Qnew)
         results = K.sum(K.sum(tf.abs(b_dist_masked)+tf.abs(angle_all_masked), axis=-1)+tf.abs(joint_masked),axis=-1)
         return dQ_pre, tf.less_equal(results, self.error_margin), T_all, Tbo_all

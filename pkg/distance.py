@@ -142,38 +142,6 @@ def distance_ln_pl(ln1, pl2, dist1, dist2, N_sim, N_col, zeros_pt): # (N_sim, N_
 #     dist, flag = distance_mesh_2_8(ln1, bx2, dist1, dist2, flag_default, dist_default, x_batch, y_batch, IterationAllowed=IterationAllowed)
 
 
-def distance_pt_pl_(pt1, pl2, dist1, dist2, N_sim, N_col): # (N_sim, N_col, 1, 3), (N_sim, N_col, 4, 3) / (N_sim, N_col, 1)
-    pl2_perm = tf.gather(pl2, [1,2,3,0], axis=-2)
-    pl2_stack = tf.stack([pl2, pl2_perm], axis=-2)
-    ln2 = tf.reshape(pl2_stack, (N_sim, N_col*4, 2, 3))
-    dist_, vec_, flag_ = distance_pt_ln(tf.repeat(pt1, 4, axis=-3), ln2, 0, 0)
-    dist_ = tf.reshape(dist_, (N_sim, N_col, 4, 1))
-    vec_ = tf.reshape(vec_, (N_sim, N_col, 4, 3))
-    i_dist_ = K.argmin(dist_, axis=-2)
-    dist_ = tf.gather_nd(dist_, i_dist_, batch_dims=2)
-    vec_ = tf.gather_nd(vec_, i_dist_, batch_dims=2)
-
-
-    po = tf.concat([pt1-pl2, pt1-pl2_perm], axis=-2)
-    pl_sides = tf.concat([pl2_perm-pl2, pl2-pl2_perm], axis=-2)
-    pl2_perp = tf.linalg.cross(tf.gather(pl_sides, [0], axis=-2), tf.gather(pl_sides, [1], axis=-2))
-    pl2_perp, _ = tf_normalize(pl2_perp, axis=-1)
-    dist__ = K.sum(pl2_perp * tf.gather(po, [1], axis=-2), axis=-1)
-    pl2_perp = -K.sum(pl2_perp, axis=-2)
-
-
-    inside = K.all(tf.greater(K.sum(pl_sides*po, axis=-1), 0), axis=-1, keepdims=True)
-    outside = tf.logical_not(inside)
-    inside = tf.cast(inside, tf.float32)
-    outside = tf.cast(outside, tf.float32)
-    vec = inside*pl2_perp + outside*vec_
-    dist_ = inside*dist__ + outside*dist_
-
-    dist = dist_ - (dist1 + dist2)
-    flag = tf.less_equal(dist, 0)
-    return dist, vec, flag
-
-
 def distance_ln_bx(ln1, bx2, dist1, dist2, N_sim, N_col, zeros_pt): # (N_sim, N_col, 1, 3), (N_sim, N_col, 4, 3) / (N_sim, N_col, 1)
     pt1 = tf.reshape(ln1, (N_sim, N_col*2, 1, 3))
     bx2_ = tf.repeat(bx2, 2, axis=-3)
