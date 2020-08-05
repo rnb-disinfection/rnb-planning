@@ -34,16 +34,16 @@ class GeometryItem:
             self.vertice = CYL_DEFAULT[[0,1]]*np.reshape(dims, (1,3))
         elif gtype == GeoType.PLANE:
 #             self.vertice = BOX_DEFAULT*np.reshape(dims, (1,3))
-            self.vertice = BOX_DEFAULT[[0,1,3,2]]*np.reshape(dims, (1,3))
+            self.vertice = BOX_DEFAULT[[1,5,7,3]]*np.reshape(dims, (1,3))
         elif gtype == GeoType.BOX:
 #             self.vertice = BOX_DEFAULT*np.reshape(dims, (1,3))
-            self.vertice = BOX_DEFAULT[[0,1,3,2,4,5,7,6]]*np.reshape(dims, (1,3))
+            self.vertice = BOX_DEFAULT[[1,5,7,3,0,4,6,2]]*np.reshape(dims, (1,3))
         elif gtype == GeoType.CYLINDER:
 #             self.vertice = CYL_DEFAULT*np.reshape(dims, (1,3))
             self.vertice = CYL_DEFAULT[[0,1]]*np.reshape(dims, (1,3))
         elif gtype == GeoType.MESH:
 #             self.vertice = BOX_DEFAULT*np.reshape(dims, (1,3))
-            self.vertice = BOX_DEFAULT[[0,1,3,2,4,5,7,6]]*np.reshape(dims, (1,3))
+            self.vertice = BOX_DEFAULT[[1,5,7,3,0,4,6,2]]*np.reshape(dims, (1,3))
     
     def get_radius(self):
         if self.gtype == GeoType.SPHERE:

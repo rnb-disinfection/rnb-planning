@@ -76,13 +76,11 @@ class BindingLayer(layers.Layer):
             self.counterparts = [self.btype]
         super(BindingLayer, self).__init__(*args, **kwargs)
         
-    @tf.function
     def call(self, input):
         T_bo = input # (N_sim, N_link, 4,4)
         self.T_bb = tf.matmul(T_bo, self.Toff)
         return self.T_bb
     
-    @tf.function
     def get_axis(self):
         return self.Raxis
     
@@ -92,7 +90,6 @@ class BindingCalculator(DistanceCalculator):
         super(BindingCalculator, self).__init__(*args, **kwargs)
         self.set_rot_axis()
         
-    @tf.function
     def angle_dist(self, Tbo_all_res): # (N_sim, 1, graph.num_objects, 1, 4,4))
         Rbo_all = tf.gather(
             tf.gather(tf.gather(Tbo_all_res, [0,1,2], axis=-2), [0,1,2], axis=-1),
@@ -132,7 +129,6 @@ class BindingCalculator(DistanceCalculator):
             link_dict_binding[binding_name] = link_dict[object_name]
         super(BindingCalculator, self).set_link_dependence(link_dict_binding)
     
-    @tf.function
     def calc_all(self, Tbo_all_res):
         dist_all, flag_all, vec_all, mask_all = super(BindingCalculator, self).calc_all(Tbo_all_res)
         angle_all, vec_angle, mask_rot = self.angle_dist(Tbo_all_res)

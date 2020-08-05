@@ -21,14 +21,9 @@ class ObjectLayer(layers.Layer):
     # 변수를 만듭니다.
     def build(self, input_shape):
         pass
-    
-    @tf.function
-    def get_vertice(self):
-        return self.vertice
 
     # call 메서드가 그래프 모드에서 사용되면
     # training 변수는 텐서가 됩니다.
-    @tf.function
     def call(self, input=None):
         T_all = input # (N_sim, N_link, 4,4)
         T_act = K.sum(T_all*self.link_one_hot, axis=1) # (N_sim, 4,4)
@@ -89,6 +84,7 @@ class DistanceCalculator:
         self.dist1_dict = {}
         self.dist2_dict = {}
         self.N_pair_dict = {}
+        self.dist_fun_list = []
         for pair_case in DistanceCalculator.pair_cases:
             self.vtx1_dict[pair_case], self.vtx2_dict[pair_case], \
                 self.dist1_dict[pair_case], self.dist2_dict[pair_case], self.N_pair_dict[pair_case] = \
@@ -96,29 +92,25 @@ class DistanceCalculator:
                                       DistanceCalculator.N_vtx_dict[pair_case[:2]], 
                                       DistanceCalculator.N_vtx_dict[pair_case[3:]]
                                      )
+            if self.N_pair_dict[pair_case]>0:
+                self.dist_fun_list += [getattr(self, pair_case+"_dist")]
             
     def prepare_collision_dat(self):
         pair_all = []
-        self.dist_fun_list = []
         for pair_case in DistanceCalculator.pair_cases:
             N_col = self.N_pair_dict[pair_case]
             if N_col>0:
-                self.dist_fun_list += [getattr(self, pair_case+"_dist")]
-                setattr(self, "vtx1_"+pair_case, self.vtx1_dict[pair_case])
-                setattr(self, "vtx2_"+pair_case, self.vtx2_dict[pair_case])
-                setattr(self, "dist1_"+pair_case, self.dist1_dict[pair_case])
-                setattr(self, "dist2_"+pair_case, self.dist2_dict[pair_case])
-                setattr(self, "zeros_"+pair_case, tf.constant(get_zero_points(self.N_sim, N_col), dtype=tf.float32))
-                setattr(self, "N_"+pair_case, N_col)
-                setattr(self, "flag_default_"+pair_case, 
-                        tf.constant(get_flag_default(self.N_sim, N_col), dtype=tf.bool))
-                setattr(self, "dist_default_"+pair_case, 
-                        tf.constant(get_dist_default(self.N_sim, N_col), dtype=tf.float32))
+                set_assign(self, "vtx1_"+pair_case, self.vtx1_dict[pair_case])
+                set_assign(self, "vtx2_"+pair_case, self.vtx2_dict[pair_case])
+                set_assign(self, "dist1_"+pair_case, self.dist1_dict[pair_case])
+                set_assign(self, "dist2_"+pair_case, self.dist2_dict[pair_case])
+                set_assign(self, "zeros_"+pair_case, get_zero_points(self.N_sim, N_col), dtype=tf.float32)
+                set_assign(self, "N_"+pair_case, N_col)
+                set_assign(self, "flag_default_"+pair_case, get_flag_default(self.N_sim, N_col), dtype=tf.bool)
+                set_assign(self, "dist_default_"+pair_case, get_dist_default(self.N_sim, N_col), dtype=tf.float32)
                 x_batch, y_batch = get_xy_batch(self.N_sim, N_col)
-                setattr(self, "x_batch_"+pair_case, 
-                        tf.constant(x_batch, dtype=tf.float32))
-                setattr(self, "y_batch_"+pair_case, 
-                        tf.constant(y_batch, dtype=tf.float32))
+                set_assign(self, "x_batch_"+pair_case, x_batch, dtype=tf.float32)
+                set_assign(self, "y_batch_"+pair_case, y_batch, dtype=tf.float32)
 
                 pair_list = self.pair_dict[pair_case]
                 pair_all += pair_list
@@ -152,23 +144,21 @@ class DistanceCalculator:
         return self.object_name_list.index(name)
     
     def set_link_dependence(self, link_dict):
-        self.object_link_idx_list = []
+        object_link_idx_list = []
         for _ in self.object_name_list:
-            self.object_link_idx_list += [0]
+            object_link_idx_list += [0]
         for i_obj in range(self.num_objects):
             object_name = self.object_name_list[i_obj]
-            self.object_link_idx_list[i_obj] = np.array(link_dict[object_name])
-        #self.object_link_idx_mat = np.transpose(self.object_link_idx_list)
+            object_link_idx_list[i_obj] = np.array(link_dict[object_name])
+        #self.object_link_idx_mat = np.transpose(object_link_idx_list)
         #self.object_depend_mask = tf.reshape(
         #    tf.gather(self.robot.mask_depend, self.object_link_idx_mat, axis=-3), 
         #    (self.N_sim, self.num_objects, self.robot.DOF, 1))
-        set_assign(self, "object_link_idx_mat", np.transpose(self.object_link_idx_list), dtype=tf.int64)
+        set_assign(self, "object_link_idx_mat", np.transpose(object_link_idx_list), dtype=tf.int64)
         set_assign(self, "object_depend_mask", 
                    tf.reshape(tf.gather(self.robot.mask_depend, self.object_link_idx_mat, axis=-3), 
                               (self.N_sim, self.num_objects, self.robot.DOF, 1)), dtype=tf.float32)
         
-        
-    @tf.function
     def pt_pt_dist(self, Tbo_all_res):
         Tbo_all_res = tf.tile(Tbo_all_res, [1, self.N_pt_pt, 1,1,1,1])
         vtx1_all = tf.gather(K.sum(K.sum(Tbo_all_res*self.vtx1_pt_pt, axis=-1), axis=-3), [0,1,2], axis=-1)
@@ -176,7 +166,6 @@ class DistanceCalculator:
         dist, vec, flag = distance_pt_pt(vtx1_all, vtx2_all, self.dist1_pt_pt, self.dist2_pt_pt)
         return dist, flag, vec, self.mask_pt_pt
 
-    @tf.function
     def pt_ln_dist(self, Tbo_all_res):
         Tbo_all_res = tf.tile(Tbo_all_res, [1, self.N_pt_ln, 1,1,1,1])
         vtx1_all = tf.gather(K.sum(K.sum(Tbo_all_res*self.vtx1_pt_ln, axis=-1), axis=-3), [0,1,2], axis=-1)
@@ -184,7 +173,6 @@ class DistanceCalculator:
         dist, vec, flag = distance_pt_ln(vtx1_all, vtx2_all, self.dist1_pt_ln, self.dist2_pt_ln)
         return dist, flag, vec, self.mask_pt_ln
 
-    @tf.function
     def pt_pl_dist(self, Tbo_all_res):
         Tbo_all_res = tf.tile(Tbo_all_res, [1, self.N_pt_pl, 1,1,1,1])
         vtx1_all = tf.gather(K.sum(K.sum(Tbo_all_res*self.vtx1_pt_pl, axis=-1), axis=-3), [0,1,2], axis=-1)
@@ -192,7 +180,6 @@ class DistanceCalculator:
         dist, vec, flag = distance_pt_pl(vtx1_all, vtx2_all, self.dist1_pt_pl, self.dist2_pt_pl, self.N_sim, self.N_pt_pl)
         return dist, flag, vec, self.mask_pt_pl
 
-    @tf.function
     def pt_bx_dist(self, Tbo_all_res):
         Tbo_all_res = tf.tile(Tbo_all_res, [1, self.N_pt_bx, 1,1,1,1])
         vtx1_all = tf.gather(K.sum(K.sum(Tbo_all_res*self.vtx1_pt_bx, axis=-1), axis=-3), [0,1,2], axis=-1)
@@ -200,7 +187,6 @@ class DistanceCalculator:
         dist, vec, flag = distance_pt_bx(vtx1_all, vtx2_all, self.dist1_pt_bx, self.dist2_pt_bx, self.N_sim, self.N_pt_bx)
         return dist, flag, vec, self.mask_pt_bx
 
-    @tf.function
     def ln_ln_dist(self, Tbo_all_res):
         Tbo_all_res = tf.tile(Tbo_all_res, [1, self.N_ln_ln, 1,1,1,1])
         vtx1_all = tf.gather(K.sum(K.sum(Tbo_all_res*self.vtx1_ln_ln, axis=-1), axis=-3), [0,1,2], axis=-1)
@@ -209,7 +195,6 @@ class DistanceCalculator:
                                     self.N_sim, self.N_ln_ln, self.zeros_ln_ln)
         return dist, flag, vec, self.mask_ln_ln
 
-    @tf.function
     def ln_pl_dist(self, Tbo_all_res):
         Tbo_all_res = tf.tile(Tbo_all_res, [1, self.N_ln_pl, 1,1,1,1])
         vtx1_all = tf.gather(K.sum(K.sum(Tbo_all_res*self.vtx1_ln_pl, axis=-1), axis=-3), [0,1,2], axis=-1)
@@ -218,7 +203,6 @@ class DistanceCalculator:
                                     self.N_sim, self.N_ln_pl, self.zeros_ln_pl)
         return dist, flag, vec, self.mask_ln_pl
 
-    @tf.function
     def ln_bx_dist(self, Tbo_all_res):
         Tbo_all_res = tf.tile(Tbo_all_res, [1, self.N_ln_bx, 1,1,1,1])
         vtx1_all = tf.gather(K.sum(K.sum(Tbo_all_res*self.vtx1_ln_bx, axis=-1), axis=-3), [0,1,2], axis=-1)
@@ -233,7 +217,6 @@ class DistanceCalculator:
 #                                   )
         return dist, flag, vec, self.mask_ln_bx
 
-    @tf.function
     def pl_pl_dist(self, Tbo_all_res):
         Tbo_all_res = tf.tile(Tbo_all_res, [1, self.N_pl_pl, 1,1,1,1])
         vtx1_all = tf.gather(K.sum(K.sum(Tbo_all_res*self.vtx1_pl_pl, axis=-1), axis=-3), [0,1,2], axis=-1)
@@ -245,7 +228,6 @@ class DistanceCalculator:
                                    )
         return dist, flag, vec, self.mask_pl_pl
 
-    @tf.function
     def pl_bx_dist(self, Tbo_all_res):
         Tbo_all_res = tf.tile(Tbo_all_res, [1, self.N_pl_bx, 1,1,1,1])
         vtx1_all = tf.gather(K.sum(K.sum(Tbo_all_res*self.vtx1_pl_bx, axis=-1), axis=-3), [0,1,2], axis=-1)
@@ -257,7 +239,6 @@ class DistanceCalculator:
                                    )
         return dist, flag, vec, self.mask_pl_bx
 
-    @tf.function
     def bx_bx_dist(self, Tbo_all_res):
         Tbo_all_res = tf.tile(Tbo_all_res, [1, self.N_bx_bx, 1,1,1,1])
         vtx1_all = tf.gather(K.sum(K.sum(Tbo_all_res*self.vtx1_bx_bx, axis=-1), axis=-3), [0,1,2], axis=-1)
@@ -269,7 +250,6 @@ class DistanceCalculator:
                                    )
         return dist, flag, vec, self.mask_bx_bx
     
-    @tf.function
     def calc_all(self, Tbo_all_res):
         dist_all = []
         flag_all = []

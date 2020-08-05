@@ -116,20 +116,17 @@ class GraphModel(tf.keras.Model):
                 ibindee = self.object_name_list.index(bindee.gitem.name)
                 Tbo_bindee = Tbo_all[i_s,ibindee]
                 Tbl_binder = T_all[i_s, i_link_binder]
-                Tlo = np.matmul(np.linalg.inv(Tbo_bindee), Tbl_binder)
+                Tlo = np.matmul(np.linalg.inv(Tbl_binder), Tbo_bindee)
                 gframe_dict_list[i_s][bindee.gitem.name].link_name = self.link_name_list[i_link_binder]
                 gframe_dict_list[i_s][bindee.gitem.name].Toff = Tlo
         return gframe_dict_list
             
-    @tf.function
     def assign_Q(self, Q):
         self.robot.assign_Q(Q)
             
-    @tf.function
     def get_Q(self):
         return self.robot.get_Q()
 
-    @tf.function
     def call(self, inputs=None):
         T_all = self.robot(self.robot_base)
         Tbo_all = []
