@@ -32,7 +32,7 @@
   * change gcc version to recommended one for each install in below link: sudo update-alternatives --config gcc && sudo update-alternatives --config g++
   * https://etasl.pages.gitlab.kuleuven.be/install-new.html
   * echo "source $OROCOS/install_isolated/setup.bash" >> ~/.bashrc
-  * 
+  * source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash
 
 # Tools
 * jupyter (host setting)
