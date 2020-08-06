@@ -39,7 +39,7 @@
   * export TF_GMT_ETASL_DIR=/home/junu/Projects/tf_gmt/eTaSL/  
   * source "$TF_GMT_ETASL_DIR"ws_ros/devel/setup.bash  
 
-# Get UR description
+# Install UR package
 * link: https://github.com/ros-industrial/universal_robot  
 * cd $HOME/catkin_ws/src  
 * git clone -b $ROS_DISTRO-devel https://github.com/ros-industrial/universal_robot.git  
