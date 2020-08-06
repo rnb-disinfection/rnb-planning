@@ -21,10 +21,46 @@
   * rosdep update
   * sudo apt-get install python-rosinstall
 * eTaSL
-
+  * install gcc7: sudo add-apt-repository ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install gcc-7 g++-7 gcc-7-multilib g++-7-multilib
+  * install gcc5: sudo add-apt-repository ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install gcc-5 g++-5 gcc-5-multilib g++-5-multilib
+  * set gcc alternative versions:
+    * sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-5 20
+    * sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 40
+    * sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-5 20
+    * sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-7 40
+  * check gcc alternative version: sudo update-alternatives --display gcc && sudo update-alternatives --display g++
+  * change gcc version to recommended one for each install in below link: sudo update-alternatives --config gcc && sudo update-alternatives --config g++
+  * https://etasl.pages.gitlab.kuleuven.be/install-new.html
+  * echo "source $OROCOS/install_isolated/setup.bash" >> ~/.bashrc
+  * 
 
 # Tools
 * jupyter (host setting)
 * Teamviewer (autostart, password)
 * GitKraken
 * PyCharm
+
+# Final .bashrc
+{
+export PATH=$PATH:~/.local/bin
+\# cuda
+export PATH=$PATH:/usr/local/cuda-10.1/bin
+export CUDADIR=/usr/local/cuda-10.1
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-10.1/lib64
+\# ros
+alias eb='nano ~/.bashrc'
+alias sb='source ~/.bashrc'
+alias gs='git status'
+alias gp='git pull'
+alias cw='cd ~/catkin_ws'
+alias cs='cd ~/catkin_ws/src'
+alias cm='cd ~/catkin_ws && catkin_make'
+source /opt/ros/melodic/setup.bash
+source ~/catkin_ws/devel/setup.bash
+\# etasl
+source $HOME/etasl_ws/devel/setup.sh
+export ROS_MASTER_URI=http://localhost:11311
+export ROS_HOSTNAME=localhost
+source /home/junsu/orocos-install/orocos-2.9_ws/install_isolated/setup.bash
+source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash
+}
