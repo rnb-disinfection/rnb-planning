@@ -36,8 +36,13 @@
 
 # Setup project PATH
 * add below to ~./bashrc
-  * export TF_GMT_ETASL_DIR=~/Projects/j_krmp/eTaSL  
-  * source "$TF_GMT_ETASL_DIR"/ws_ros/devel/setup.bash  
+  * export TF_GMT_ETASL_DIR=/home/junu/Projects/tf_gmt/eTaSL/  
+  * source "$TF_GMT_ETASL_DIR"ws_ros/devel/setup.bash  
+
+# Get UR description
+
+# Launch RVIZ
+roslaunch "$TF_GMT_ETASL_DIR"/launch/gui_ur10.launch
 
 # Recommended Tools
 * jupyter (host setting)
