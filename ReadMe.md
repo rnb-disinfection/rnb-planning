@@ -46,9 +46,10 @@
 * cd $HOME/catkin_ws  
 * rosdep update  
 * rosdep install --rosdistro $ROS_DISTRO --ignore-src --from-paths src  
+* catkin_make
 
 # Launch RVIZ
-* roslaunch "$TF_GMT_ETASL_DIR"/launch/gui_ur10.launch
+* roslaunch "$TF_GMT_ETASL_DIR"/launch/gui_ur10.launch  
 
 # Recommended Tools
 * jupyter (host setting)
