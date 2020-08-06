@@ -40,9 +40,11 @@
   * source "$TF_GMT_ETASL_DIR"ws_ros/devel/setup.bash  
 
 # Get UR description
+* git clone https://github.com/ros-industrial/universal_robot.git
+* install
 
 # Launch RVIZ
-roslaunch "$TF_GMT_ETASL_DIR"/launch/gui_ur10.launch
+* roslaunch "$TF_GMT_ETASL_DIR"/launch/gui_ur10.launch
 
 # Recommended Tools
 * jupyter (host setting)
