@@ -268,7 +268,7 @@ if __name__ == '__main__':
 
         if not args.local:
             # environment at generation time
-            CMAKE_PREFIX_PATH = '/home/junsu/etasl/ws/etasl-py/devel;/home/junsu/etasl/ws/etasl-ex/devel;/home/junsu/etasl/ws/etasl-rtt/devel;/home/junsu/etasl/ws/etasl/devel;/home/junsu/orocos-install/rtt_ros_ws/devel;/home/junsu/orocos-install/orocos-2.9_ws/install_isolated;/opt/ros/melodic'.split(';')
+            CMAKE_PREFIX_PATH = '/home/junsu/etasl_ws/etasl/ws/etasl-py/devel;/home/junsu/etasl_ws/etasl/ws/etasl-ex/devel;/home/junsu/etasl_ws/etasl/ws/etasl-rtt/devel;/home/junsu/etasl_ws/etasl/ws/etasl/devel;/home/junsu/orocos-install/rtt_ros_ws/devel;/home/junsu/orocos-install/orocos-2.9_ws/install_isolated;/opt/ros/melodic'.split(';')
         else:
             # don't consider any other prefix path than this one
             CMAKE_PREFIX_PATH = []
