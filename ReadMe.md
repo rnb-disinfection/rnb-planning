@@ -34,18 +34,26 @@
   * echo "source $OROCOS/install_isolated/setup.bash" >> ~/.bashrc
   * source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash
 
-# Tools
+# Setup project PATH
+* add below to ~./bashrc
+  * export TF_GMT_ETASL_DIR=~/Projects/j_krmp/eTaSL  
+  * source "$TF_GMT_ETASL_DIR"/ws_ros/devel/setup.bash  
+
+# Recommended Tools
 * jupyter (host setting)
 * Teamviewer (autostart, password)
 * GitKraken
 * PyCharm
 
-# Final .bashrc
+# Final .bashrc  
+
 export PATH=$PATH:~/.local/bin  
+
 \# cuda  
 export PATH=$PATH:/usr/local/cuda-10.1/bin  
 export CUDADIR=/usr/local/cuda-10.1  
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-10.1/lib64  
+
 \# ros  
 alias eb='nano ~/.bashrc'  
 alias sb='source ~/.bashrc'  
@@ -56,6 +64,7 @@ alias cs='cd ~/catkin_ws/src'
 alias cm='cd ~/catkin_ws && catkin_make'  
 source /opt/ros/melodic/setup.bash  
 source ~/catkin_ws/devel/setup.bash  
+
 \# etasl  
 source $HOME/etasl_ws/devel/setup.sh  
 export ROS_MASTER_URI=http://localhost:11311  
@@ -63,3 +72,6 @@ export ROS_HOSTNAME=localhost
 source /home/junsu/orocos-install/orocos-2.9_ws/install_isolated/setup.bash  
 source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash  
 
+\# tf_gmt  
+export TF_GMT_ETASL_DIR=~/Projects/j_krmp/eTaSL  
+source "$TF_GMT_ETASL_DIR"/ws_ros/devel/setup.bash  
