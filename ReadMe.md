@@ -5,8 +5,9 @@
   * sudo apt update
   * sudo apt-get install nvidia-driver-440
   * sudo reboot
-* cuda 10.1 (add path)
+* cuda 10.1 (add PATH, LD_LIBRARY_PATH)
 * cudnn 7.6
+* pip3 (apt-get install python3-pip && pip3 install --upgrade pip)
 * tensorflow 2.3.0
 * ROS Melodic
   * wget https://raw.githubusercontent.com/orocapangyo/meetup/master/190830/install_ros_melodic.sh && chmod 755 ./install_ros_melodic.sh && bash ./install_ros_melodic.sh
@@ -19,11 +20,10 @@
   * sudo rosdep init
   * rosdep update
   * sudo apt-get install python-rosinstall
-  * source /opt/ros/melodic/setup.bash
-*eTaSL
+* eTaSL
 
 
-# Additional
+# Tools
 * jupyter (host setting)
 * Teamviewer (autostart, password)
 * GitKraken
