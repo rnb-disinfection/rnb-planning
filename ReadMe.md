@@ -43,6 +43,12 @@
   * rosdep update  
   * rosdep install --rosdistro $ROS_DISTRO --ignore-src --from-paths src  
   * catkin_make  
+  
+# Python packages
+* ros compatibility  
+  * pip3 install rospkg  
+* misc.  
+  * pip3 install matplotlib trimesh  
 
 # Setup project  
 * rebuild custom workspace  
