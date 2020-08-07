@@ -98,6 +98,6 @@ source $HOME/orocos-install/orocos-2.9_ws/install_isolated/setup.bash
 source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash  
   
 \# tf_gmt  
-\#export TF_GMT_ETASL_DIR=/home/junsu/Projects/tf_gmt/eTaSL/  
+export TF_GMT_ETASL_DIR=/home/junsu/Projects/tf_gmt/eTaSL/  
 \#source "$TF_GMT_ETASL_DIR"ws_ros/devel/setup.bash  
   
