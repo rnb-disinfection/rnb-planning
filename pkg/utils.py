@@ -8,8 +8,9 @@ def get_all_mapping(A, B):
 import time
 import collections
 import numpy as np
+from .singleton import Singleton
 
-class GlobalTimer:
+class GlobalTimer(Singleton):
     def __init__(self, scale=1000):
         self.name_list = []
         self.ts_dict = {}

@@ -169,7 +169,8 @@ class ConstraintGraph:
         return node, pose_dict
     
     def simulate_transition(self, from_state=None, to_state=None, display=False, error_skip=1e-4, lock=False, err_conv=1e-4, **kwargs):
-        
+        gtimer = GlobalTimer.instance()
+        gtimer.tic("start set transition")
         if from_state is not None:
             pos_start = from_state.Q
             self.set_object_state(from_state)
@@ -199,7 +200,11 @@ class ConstraintGraph:
         if lock:
             self.lock.release()
             
+        gtimer.toc("start set transition")
+        gtimer.tic("set_simulate fun")
         e = set_simulate(init_text, initial_jpos=np.array(pos_start), err_conv=err_conv, **kwargs)
+        gtimer.toc("set_simulate fun")
+        gtimer.tic("post")
         
         if lock:
             self.lock.acquire()
@@ -219,6 +224,8 @@ class ConstraintGraph:
             success = False
         node, obj_pos_dict = self.get_object_state()
         end_state = State(node, obj_pos_dict, list(e.POS[-1]))
+        gtimer.toc("post")
+        print(gtimer)
         return e, end_state, success
     
     def rebind(self, binding, joint_dict_last):
