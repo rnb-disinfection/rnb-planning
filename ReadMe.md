@@ -51,8 +51,8 @@
   * pip3 install matplotlib trimesh  
 
 # Setup project  
-* rebuild custom workspace  
-  * cd eTaSL/ws_ros && rm -rf build devel && catkin make  
+* (rebuild custom workspace - not used now, workspace dependecny problem)  
+  * (cd eTaSL/ws_ros && rm -rf build devel && catkin make)  
 * add below to ~./bashrc
   * export TF_GMT_ETASL_DIR=/home/junu/Projects/tf_gmt/eTaSL/  
   * source "$TF_GMT_ETASL_DIR"ws_ros/devel/setup.bash  
@@ -92,10 +92,10 @@ export ROS_HOSTNAME=localhost
 source $HOME/orocos-install/orocos-2.9_ws/install_isolated/setup.bash  
   
 \# etasl  
-source $HOME/etasl_ws/devel/setup.sh  
+\#source $HOME/etasl_ws/devel/setup.sh  
 source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash  
   
 \# tf_gmt  
-export TF_GMT_ETASL_DIR=/home/junsu/Projects/tf_gmt/eTaSL/  
-source "$TF_GMT_ETASL_DIR"ws_ros/devel/setup.bash  
+\#export TF_GMT_ETASL_DIR=/home/junsu/Projects/tf_gmt/eTaSL/  
+\#source "$TF_GMT_ETASL_DIR"ws_ros/devel/setup.bash  
   
