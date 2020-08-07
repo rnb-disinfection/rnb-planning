@@ -61,7 +61,9 @@
 * roslaunch "$TF_GMT_ETASL_DIR"/launch/gui_ur10.launch  
 
 # Recommended Tools  
-* jupyter (host setting)  
+* jupyter 
+  * sudo apt install python3-notebook python-notebook jupyter jupyter-core python-ipykernel  
+  * host setting  
 * Teamviewer (autostart, password)  
 * GitKraken  
 * PyCharm  
