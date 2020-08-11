@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="panda">
+  <xacro:include filename="$(env TF_GMT_ETASL_DIR)/robots/panda_robot.xacro"/>
+  <link name="world"/>
+  <xacro:panda_robot robot_id="0" xyz="0 0.5 0" connected_to="world"/>
+  <xacro:panda_robot robot_id="1" xyz="0 -0.5 0" connected_to="world"/>
+</robot>
