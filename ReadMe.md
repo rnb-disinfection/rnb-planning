@@ -96,8 +96,8 @@
     \<!-- robot contents  --\>  
   \</xacro:macro\>  
 * change all item names: selectively replace {name="} with {"name="robotname${robot_id}}  
-* include xacro call it in "custom_robots.urdf.xacro"  
-* run rosrun xacro xacro custom_robots.urdf.xacro \> custom_robots.urdf  
+* include xacro and call it in "custom_robots.urdf.xacro"  
+* from cmd: rosrun xacro xacro "$TF_GMT_ETASL_DIR"robots/custom_robots.urdf.xacro \> "$TF_GMT_ETASL_DIR"robots/custom_robots.urdf  
 
 # Check final .bashrc  
 
