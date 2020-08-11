@@ -78,6 +78,23 @@
 * GitKraken  
 * PyCharm  
 
+# How to make xacro for multi-robot
+* find xacro file in the description package for target robot
+* copy the xacro file to "$TF_GMT_ETASL_DIR"/robots
+* delete "world" link and joint connected to it
+* add macro:  
+  \<xacro:macro name="indy7_arm" params="arm_id:='indy7' description_pkg:='indy7_description' connected_to:='' xyz:='0 0 0' rpy:='0 0 0'"\>  
+    \<xacro:unless value="${not connected_to}"\>  
+      \<joint name="${arm_id}_joint_${connected_to}" type="fixed"\>  
+        \<parent link="${connected_to}"/\>  
+        \<child link="${arm_id}_link0"/\>  
+        \<origin rpy="${rpy}" xyz="${xyz}"/\>  
+      \</joint\>  
+    \</xacro:unless\>  
+    \<!-- your contents  --\>  
+  \</xacro:macro\>
+* change all item names: selectively replace \<name"\> with \<"name="${arm_id}\>
+
 # Check final .bashrc  
 
 export PATH=$PATH:~/.local/bin  
