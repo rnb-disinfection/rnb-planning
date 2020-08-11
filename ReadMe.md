@@ -95,7 +95,7 @@
     \<!-- robot contents  --\>  
     \<!-- robot contents  --\>  
   \</xacro:macro\>  
-* change all item names: selectively replace \<name"\> with \<"name="robotname${robot_id}\>  
+* change all item names: selectively replace {name="} with {"name="robotname${robot_id}}  
 * include xacro call it in "custom_robots.urdf.xacro"  
 * run rosrun xacro xacro custom_robots.urdf.xacro \> custom_robots.urdf  
 
