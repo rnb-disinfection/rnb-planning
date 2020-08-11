@@ -85,7 +85,7 @@
 * add macro:  
   \<xacro:macro name="indy7_arm" params="arm_id:='indy7' description_pkg:='indy7_description' connected_to:='' xyz:='0 0 0' rpy:='0 0 0'"\>  
     \<xacro:unless value="${not connected_to}"\>  
-      \<joint name="${arm_id}_joint_${connected_to}" type="fixed"\>  
+      \<joint name="${arm_id}\_joint\_${connected_to}" type="fixed"\>  
         \<parent link="${connected_to}"/\>  
         \<child link="${arm_id}_link0"/\>  
         \<origin rpy="${rpy}" xyz="${xyz}"/\>  
