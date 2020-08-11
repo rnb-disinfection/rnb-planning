@@ -43,7 +43,15 @@
   * rosdep update  
   * rosdep install --rosdistro $ROS_DISTRO --ignore-src --from-paths src  
   * catkin_make  
-  
+* Moveit
+  * sudo apt-get install ros-melodic-moveit ros-melodic-industrial-core ros-melodic-moveit-visual-tools ros-melodic-joint-state-publisher-gui  
+* Gazebo
+  * sudo apt-get install ros-melodic-gazebo-ros-pkgs ros-melodic-gazebo-ros-control ros-melodic-joint-state-controller ros-melodic-effort-controllers ros-melodic-position-controllers ros-melodic-joint-trajectory-controller  
+* Install Indy package
+  * cd ~/catkin_ws/src && git clone -b  release-2.3 https://github.com/neuromeka-robotics/indy-ros
+  * cd ~/catkin_ws && catkin_make
+
+
 # Python packages
 * ros compatibility  
   * pip3 install rospkg  
@@ -77,6 +85,9 @@ export PATH=$PATH:/usr/local/cuda-10.1/bin
 export CUDADIR=/usr/local/cuda-10.1  
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-10.1/lib64  
   
+\# OROCOS  
+source $HOME/orocos-install/orocos-2.9_ws/install_isolated/setup.bash  
+  
 \# ros  
 alias eb='nano ~/.bashrc'  
 alias sb='source ~/.bashrc'  
@@ -90,9 +101,6 @@ source $HOME/catkin_ws/devel/setup.bash
 export ROS_MASTER_URI=http://localhost:11311  
 export ROS_HOSTNAME=localhost  
   
-\# OROCOS  
-source $HOME/orocos-install/orocos-2.9_ws/install_isolated/setup.bash  
-  
 \# etasl  
 \#source $HOME/etasl_ws/devel/setup.sh  
 source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash  
@@ -100,4 +108,3 @@ source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash
 \# tf_gmt  
 export TF_GMT_ETASL_DIR=/home/junsu/Projects/tf_gmt/eTaSL/  
 source "$TF_GMT_ETASL_DIR"ws_ros/devel/setup.bash  
-  
