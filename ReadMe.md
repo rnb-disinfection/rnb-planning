@@ -83,17 +83,19 @@
 * copy the xacro file to "$TF_GMT_ETASL_DIR"/robots
 * delete "world" link and joint connected to it
 * add macro:  
-  \<xacro:macro name="indy7_arm" params="arm_id:='indy7' description_pkg:='indy7_description' connected_to:='' xyz:='0 0 0' rpy:='0 0 0'"\>  
+  \<xacro:macro name="indy7_robot" params="robot_id:='0' description_pkg:='indy7_description' connected_to:='' xyz:='0 0 0' rpy:='0 0 0'"\>  
     \<xacro:unless value="${not connected_to}"\>  
-      \<joint name="${arm_id}\_joint\_${connected_to}" type="fixed"\>  
+      \<joint name="indy${robot_id}\_joint\_${connected_to}" type="fixed"\>  
         \<parent link="${connected_to}"/\>  
-        \<child link="${arm_id}_link0"/\>  
+        \<child link="indy${robot_id}_link0"/\>  
         \<origin rpy="${rpy}" xyz="${xyz}"/\>  
       \</joint\>  
     \</xacro:unless\>  
-    \<!-- your contents  --\>  
+    \<!-- robot contents  --\>  
+    \<!-- robot contents  --\>  
+    \<!-- robot contents  --\>  
   \</xacro:macro\>
-* change all item names: selectively replace \<name"\> with \<"name="${arm_id}\>
+* change all item names: selectively replace \<name"\> with \<"name="${robot_id}\>
 
 # Check final .bashrc  
 
