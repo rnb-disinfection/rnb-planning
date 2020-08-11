@@ -47,9 +47,11 @@ class ConstraintGraph:
     MAX_AGENT_DELAY = 4
     MAX_LEN_SIM_Q = 50
 
-    def __init__(self, urdf_path,  joint_names, link_names):
+    def __init__(self, urdf_path, joint_names, link_names, urdf_content=None):
         self.urdf_path = urdf_path
-        self.urdf_content = URDF.from_xml_file(urdf_path)
+        if urdf_content is None:
+            urdf_content = URDF.from_xml_file(urdf_path)
+        self.urdf_content = urdf_content
         self.joint_names = joint_names
         self.link_names = link_names
         self.collision_items_dict = {}

@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="custom_robots">
-  <xacro:include filename="$(find indy7_description)/urdf/materials.xacro"/>
+<xacro:include filename="$(find indy7_description)/urdf/materials.xacro"/>
 
-  <xacro:include filename="$(env TF_GMT_ETASL_DIR)/robots/panda_robot.xacro"/>
-  <xacro:include filename="$(env TF_GMT_ETASL_DIR)/robots/indy7_robot.xacro"/>
-  <link name="world"/>
-  <xacro:panda_robot robot_id="0" xyz="0 0.5 0" connected_to="world"/>
-  <xacro:indy7_robot robot_id="1" xyz="0 -0.5 0" connected_to="world"/>
+<xacro:include filename="$(env TF_GMT_ETASL_DIR)/robots/panda_robot.xacro"/>
+<xacro:include filename="$(env TF_GMT_ETASL_DIR)/robots/indy7_robot.xacro"/>
+<link name="world"/>
+<!-- BODY BEGIN -->
+<xacro:indy7_robot robot_id="0" xyz="0 -0.5 0" rpy="0 0 0" connected_to="world"/>
+<xacro:panda_robot robot_id="1" xyz="0 0.5 0" rpy="0 0 0" connected_to="world"/>
+<!-- BODY END -->
 </robot>
