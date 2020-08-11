@@ -9,6 +9,8 @@
 
   <param name="use_gui" value="true"/>
 
+  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />
+
   <node name="rviz" pkg="rviz" type="rviz" args="-d $(env TF_GMT_ETASL_DIR)/launch/custom_robots.rviz" />
 </launch>
 

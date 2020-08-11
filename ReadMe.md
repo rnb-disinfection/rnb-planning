@@ -97,10 +97,10 @@
   \</xacro:macro\>  
 * change all item names: selectively replace {name="} with {"name="robotname${robot_id}}  
 * include and call the xacro file in "custom_robots.urdf.xacro"  
-* generate URDF file  
+* test generating URDF file  
   * rosrun xacro xacro "$TF_GMT_ETASL_DIR"robots/custom_robots.urdf.xacro \> "$TF_GMT_ETASL_DIR"robots/custom_robots.urdf  
 * run rviz  
-  * roslaunch "$TF_GMT_ETASL_DIR"/launch/gui_custom_robots.launch  
+  * roslaunch "$TF_GMT_ETASL_DIR"/launch/gui_custom_robots_joint_panel.launch  
   * for "not unique" error, remove it from individual xacro files and include the item on the top of "custom_robots.urdf.xacro"  
 
 # Check final .bashrc  

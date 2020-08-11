@@ -5,6 +5,6 @@
   <xacro:include filename="$(env TF_GMT_ETASL_DIR)/robots/panda_robot.xacro"/>
   <xacro:include filename="$(env TF_GMT_ETASL_DIR)/robots/indy7_robot.xacro"/>
   <link name="world"/>
-  <xacro:indy7_robot robot_id="0" xyz="0 0.5 0" connected_to="world"/>
+  <xacro:panda_robot robot_id="0" xyz="0 0.5 0" connected_to="world"/>
   <xacro:indy7_robot robot_id="1" xyz="0 -0.5 0" connected_to="world"/>
 </robot>
