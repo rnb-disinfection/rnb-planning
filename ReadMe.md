@@ -24,7 +24,7 @@
   * sudo apt-get install ros-melodic-moveit ros-melodic-industrial-core ros-melodic-moveit-visual-tools ros-melodic-joint-state-publisher-gui  
 * Gazebo  
   * sudo apt-get install ros-melodic-gazebo-ros-pkgs ros-melodic-gazebo-ros-control ros-melodic-joint-state-controller ros-melodic-effort-controllers ros-melodic-position-controllers ros-melodic-joint-trajectory-controller  
-* Install UR package  
+* UR package  
   * link: https://github.com/ros-industrial/universal_robot  
   * cd $HOME/catkin_ws/src  
   * git clone -b $ROS_DISTRO-devel https://github.com/ros-industrial/universal_robot.git  
@@ -32,9 +32,11 @@
   * rosdep update  
   * rosdep install --rosdistro $ROS_DISTRO --ignore-src --from-paths src  
   * catkin_make  
-* Install Indy package
+* Indy package
   * cd ~/catkin_ws/src && git clone -b  release-2.3 https://github.com/neuromeka-robotics/indy-ros
   * cd ~/catkin_ws && catkin_make
+* Franka package  
+  * sudo apt install ros-melodic-libfranka ros-melodic-franka-ros  
 * eTaSL  
   * install gcc7: sudo add-apt-repository ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install gcc-7 g++-7 gcc-7-multilib g++-7-multilib  
   * install gcc5: sudo add-apt-repository ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install gcc-5 g++-5 gcc-5-multilib g++-5-multilib  
@@ -76,7 +78,7 @@
 * GitKraken  
 * PyCharm  
 
-# Final .bashrc  
+# Check final .bashrc  
 
 export PATH=$PATH:~/.local/bin  
   
