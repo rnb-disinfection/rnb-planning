@@ -77,11 +77,11 @@
 * Teamviewer (autostart, password)  
 * GitKraken  
 * PyCharm  
-
-# How to make xacro for multi-robot
-* find xacro file in the description package for target robot
-* copy the xacro file to "$TF_GMT_ETASL_DIR"/robots
-* delete "world" link and joint connected to it
+  
+# How to make xacro for multi-robot  
+* find xacro file in the description package for target robot  
+* copy the xacro file to "$TF_GMT_ETASL_DIR"/robots  
+* delete "world" link and joint connected to it  
 * add macro:  
   \<xacro:macro name="robotname" params="robot_id:='0' description_pkg:='robot_description' connected_to:='' xyz:='0 0 0' rpy:='0 0 0'"\>  
     \<xacro:unless value="${not connected_to}"\>  
@@ -97,8 +97,11 @@
   \</xacro:macro\>  
 * change all item names: selectively replace {name="} with {"name="robotname${robot_id}}  
 * include and call the xacro file in "custom_robots.urdf.xacro"  
-* generate URDF file
+* generate URDF file  
   * rosrun xacro xacro "$TF_GMT_ETASL_DIR"robots/custom_robots.urdf.xacro \> "$TF_GMT_ETASL_DIR"robots/custom_robots.urdf  
+* run rviz  
+  * roslaunch "$TF_GMT_ETASL_DIR"/launch/gui_custom_robots.launch  
+  * for "not unique" error, remove it from individual xacro files and include the item on the top of "custom_robots.urdf.xacro"  
 
 # Check final .bashrc  
 
