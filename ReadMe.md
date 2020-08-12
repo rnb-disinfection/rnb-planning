@@ -37,6 +37,11 @@
   * cd ~/catkin_ws && catkin_make
 * Franka package  
   * sudo apt install ros-melodic-libfranka ros-melodic-franka-ros  
+* panda simulator  
+  * pip install numpy numpy-quaternion rospy-message-converter==0.4.0  
+  * cd ~/catkin_ws && sudo rm -rf devel build  
+  * cd ~/catkin_ws/src && git clone https://github.com/justagist/panda_simulator && cd panda_simulator && ./build_ws.sh  
+  * launch panda simulator: roslaunch panda_gazebo panda_world.launch start_moveit:=false
 * eTaSL  
   * install gcc7: sudo add-apt-repository ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install gcc-7 g++-7 gcc-7-multilib g++-7-multilib  
   * install gcc5: sudo add-apt-repository ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install gcc-5 g++-5 gcc-5-multilib g++-5-multilib  
@@ -53,12 +58,14 @@
   * (add "source $OROCOS/install_isolated/setup.bash" on top of user section of "~/.bashrc")
   * source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash  
 
-
+  
 # Python packages
 * ros compatibility  
-  * pip3 install rospkg  
+  * pip install rospkg  
+* numba  
+  * pip install colorama==0.3.9 llvmlite==0.31.0 numba==0.47.0  
 * misc.  
-  * pip3 install matplotlib trimesh  
+  * pip install matplotlib trimesh  
 
 # Setup project  
 * rebuild custom workspace  
@@ -70,6 +77,9 @@
 # Launch RVIZ
 * roslaunch "$TF_GMT_ETASL_DIR"/launch/gui_ur10.launch  
 
+# Launch Panda simulator
+* roslaunch "$TF_GMT_ETASL_DIR"/launch/gui_ur10.launch  
+ 
 # Recommended Tools  
 * jupyter 
   * sudo apt install python3-notebook python-notebook jupyter jupyter-core python-ipykernel  
