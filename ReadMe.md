@@ -35,6 +35,7 @@
 * Indy package
   * cd ~/catkin_ws/src && git clone -b  release-2.3 https://github.com/neuromeka-robotics/indy-ros
   * cd ~/catkin_ws && catkin_make
+  * Follow instruction on IndyFramework3.0/ReadMe.md to update Indy robot to 3.0
 * Franka package  
   * sudo apt install ros-melodic-libfranka ros-melodic-franka-ros  
 * panda simulator  
@@ -112,6 +113,7 @@
 * run rviz  
   * roslaunch "$TF_GMT_ETASL_DIR"/launch/gui_custom_robots_joint_panel.launch  
   * for "not unique" error, remove it from individual xacro files and include the item on the top of "custom_robots.urdf.xacro"  
+
 
 # Check final .bashrc  
 
