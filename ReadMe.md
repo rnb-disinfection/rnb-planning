@@ -66,7 +66,7 @@
 * numba  
   * pip install colorama==0.3.9 llvmlite==0.31.0 numba==0.47.0  
 * misc.  
-  * pip install matplotlib trimesh  
+  * pip install matplotlib trimesh pathlib protobuf grpcio
 
 # Setup project  
 * rebuild custom workspace  
@@ -88,6 +88,9 @@
 * Teamviewer (autostart, password)  
 * GitKraken  
 * PyCharm  
+* openssh-server  
+  * sudo apt-get install openssh-server
+  * sudo service ssh start
   
 # How to make xacro for multi-robot  
 * find xacro file in the description package for target robot  
