@@ -58,7 +58,19 @@
   * https://etasl.pages.gitlab.kuleuven.be/install-new.html  
   * (add "source $OROCOS/install_isolated/setup.bash" on top of user section of "~/.bashrc")
   * source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash  
-
+* Azure Kinect  
+  * setup microsoft repository  
+    * curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -  
+    * sudo apt-add-repository https://packages.microsoft.com/ubuntu/18.04/prod  
+    * sudo apt-get update  
+  * install sdk  
+    * sudo apt install libk4a1.4  
+    * sudo apt install libk4a1.4-dev  
+    * sudo apt install k4a-tools  
+  * allow non-root usage
+    * Copy 'azure/99-k4a.rules' into '/etc/udev/rules.d/'.
+    * Detach and reattach Azure Kinect devices if attached during this process.
+    
   
 # Python packages
 * ros compatibility  
