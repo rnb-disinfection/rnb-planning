@@ -91,22 +91,125 @@ class XacroCustomizer:
         self.rid_count = 0
         self.kill_existing_subprocess()
 
-def get_collision_items_dict(urdf_content, color=(0,1,0,0.5), display=True, collision=True):
-    collision_items_dict = {'world':[],
-     "base_link":[GeoSegment((0,0,0), 'Z', 0.1273, 0.08, 
-                                 name="base_capsule", link_name="base_link", urdf_content=urdf_content, color=color, display=display, collision=collision)],
-     "shoulder_link":[GeoSegment((0,0,0), 'Y', 0.22094, 0.08, 
-                                 name="shoulder_capsule", link_name="shoulder_link", urdf_content=urdf_content, color=color, display=display, collision=collision)],
-     "upper_arm_link":[GeoSegment((0,-0.045,0.0), 'Z', 0.612, 0.06, 
-                                  name="upper_arm_capsule", link_name="upper_arm_link", urdf_content=urdf_content, color=color, display=display, collision=collision)],
-     "forearm_link":[GeoSegment((0,-0,0), 'Z', 0.5723, 0.05, 
-                                name="forearm_capsule", link_name="forearm_link", urdf_content=urdf_content, color=color, display=display, collision=collision)],
-     "wrist_1_link":[GeoSegment((0,0,0), 'Y', 0.1149, 0.047, 
-                                name="wrist_1_capsule", link_name="wrist_1_link", urdf_content=urdf_content, color=color, display=display, collision=collision)],
-     "wrist_2_link":[GeoSegment((0,0,0), 'Z', 0.1157, 0.046, 
-                                name="wrist_2_capsule", link_name="wrist_2_link", urdf_content=urdf_content, color=color, display=display, collision=collision)],
-     "wrist_3_link":[GeoSegment((0,0,0), 'Y', 0.0922-0.0522, 0.046, 
-                                name="wrist_3_capsule", link_name="wrist_3_link",urdf_content=urdf_content, color=color, display=display, collision=collision)],
-     "tool0":[]
-    }
+        
+from scipy.spatial.transform import Rotation
+from collections import defaultdict
+from stl import mesh
+from sklearn.decomposition import PCA
+from scipy import optimize
+import rospkg
+rospack = rospkg.RosPack()
+
+def dist_pt_seg(pt, seg):
+    P1 = pt
+    P21, P22 = seg
+
+    V2 = (P22-P21)
+    V2abs = np.linalg.norm(V2) # 4.5 us
+    V2nm = V2/V2abs
+    V1 = (P1-P21)
+    V1prj = np.dot(V1, V2nm) #1.8 us
+    if V1prj<0:
+        PP = P1-P21
+        return np.linalg.norm(PP) # 3.5 us
+    elif V1prj<V2abs:
+        Vcros = (V2nm[1]*V1[2]-V2nm[2]*V1[1], V2nm[2]*V1[0]-V2nm[0]*V1[2], V2nm[0]*V1[1]-V2nm[1]*V1[0]) # 60 us
+        return np.linalg.norm(Vcros) # 6 us
+    else:
+        PP = P1-P22
+        return np.linalg.norm(PP) # 3.5 us
+def dist_vertice_seg(vertice, seg):
+    return np.max([dist_pt_seg(vtx, seg) for vtx in vertice])
+def get_capsule_volume(seg, radii):
+    return (np.pi*radii**2)*(radii*4/3 + np.linalg.norm(seg[0]-seg[1]))
+
+def get_min_capsule_volume(vertice, seg):
+    radii = dist_vertice_seg(vertice, seg)
+    return get_capsule_volume(seg, radii)
+def get_min_seg_radii(vertice):
+    pca = PCA(3)
+    pca_res = pca.fit(vertice)
+    pca_dir = pca_res.components_[0]
+    vec_init = np.array([(pca_res.mean_ - pca_dir/10), (pca_res.mean_ + pca_dir/10)])
+    res = optimize.minimize(
+        fun=lambda seg_flat: get_min_capsule_volume(vertice, np.reshape(seg_flat, (2,3))), 
+        x0=np.array(vec_init).flatten(), method="Nelder-Mead", options={'disp':False})
+    seg = np.reshape(res.x, (2,3))
+    radii = dist_vertice_seg(vertice, seg)
+    return seg, radii
+
+def get_collision_items_dict(urdf_content, color=(0,1,0,0.5), display=True, collision=True, exclude_link=[]):
+    collision_items_dict = defaultdict(lambda: list())
+    geometry_dir = "./geometry_tmp"
+    try: os.mkdir(geometry_dir)
+    except: pass
+    for link in urdf_content.links:
+        skip = False
+        for ex_link in exclude_link:
+            if ex_link in link.name:
+                skip = True
+        if skip:
+            continue
+        for col_item in link.collisions:
+            geometry = col_item.geometry
+            geotype = geometry.__class__.__name__
+#             print("{}-{}".format(link.name, geotype))
+            if col_item.origin is None:
+                xyz = [0,0,0]
+                rpy = [0,0,0]
+            else:
+                xyz = col_item.origin.xyz
+                rpy = col_item.origin.rpy
+
+            if geotype == 'Cylinder':
+                collision_items_dict[link.name] += [GeoSegment(xyz, rpy, geometry.length, geometry.radius, 
+                                                               name="{}_{}_{}".format(link.name, geotype, len(collision_items_dict[link.name])),
+                                                               link_name=link.name, urdf_content=urdf_content, 
+                                                               color=color, display=display, collision=collision
+                                                              )]
+            elif geotype == 'Mesh':
+                name = "{}_{}_{}".format(link.name, geotype, len(collision_items_dict[link.name]))
+                geo_file_name = os.path.join(geometry_dir, name+".npy")
+                if os.path.isfile(geo_file_name):
+                    seg_radius = np.load(geo_file_name)
+                    seg, radius = np.reshape(seg_radius[:-1], (2,3)), seg_radius[-1]
+                else:
+                    filename_split = col_item.geometry.filename.split('/')
+                    package_name = filename_split[2]
+                    in_pack_path = "/".join(filename_split[3:])
+                    file_path = os.path.join(rospack.get_path(package_name), in_pack_path)
+                    col_mesh = mesh.Mesh.from_file(file_path)
+                    vertice = np.reshape(col_mesh.vectors, (-1,3))
+                    seg, radius = get_min_seg_radii(vertice)
+                    np.save(geo_file_name, np.concatenate([seg.flatten(), [radius]], axis=0))
+                xyz = seg[0]
+#                 print('xyz: {}'.format(xyz))
+                seg_vec = seg[1]-seg[0]
+#                 print('seg_vec: \n{}'.format(seg_vec))
+                length = np.linalg.norm(seg_vec)
+#                 print('length: {}'.format(length))
+                seg_vec_nm = seg_vec/length
+                seg_cross = np.cross([0,0,1], seg_vec_nm)
+                seg_cross_abs = np.linalg.norm(seg_cross)
+                seg_cross_nm = seg_cross/seg_cross_abs
+                theta = np.arcsin(seg_cross_abs)
+                sign_theta = np.sign(np.dot([0,0,1], seg_vec_nm))
+                theta = (sign_theta*theta + np.pi*(1-sign_theta)/2)
+                rotvec = seg_cross_nm*theta
+#                 print('sign_theta: {}'.format(sign_theta))
+#                 print('theta: {}'.format(theta))
+#                 print('rotvec: {}'.format(rotvec))
+                rpy_mat = Rotation.from_euler('xyz', rpy, degrees=False).as_dcm()
+                xyz_rpy = np.matmul(rpy_mat, xyz)
+                dcm = np.matmul(rpy_mat, Rotation.from_rotvec(rotvec).as_dcm())
+                xyz_rpy = np.add(xyz_rpy, dcm[:,2]*length/2).tolist()
+#                 print('xyz_rpy: {}'.format(xyz_rpy))
+                quat = Rotation.from_dcm(dcm).as_quat()
+                collision_items_dict[link.name] += [GeoSegment(xyz_rpy, quat, length, radius, 
+                                                               name=name,
+                                                               link_name=link.name, urdf_content=urdf_content, 
+                                                               color=color, display=display, collision=collision
+                                                              )]
+            else:
+                raise(NotImplementedError("collision geometry {} is not implemented".format(geotype)))
     return collision_items_dict

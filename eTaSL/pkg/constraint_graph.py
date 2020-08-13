@@ -72,6 +72,7 @@ class ConstraintGraph:
                               urdf_content = self.urdf_content, urdf_path = self.urdf_path,
                               collision_items_dict=self.collision_items_dict,
                               nWSR=nWSR, cputime=cputime, regularization_factor= regularization_factor)
+        self.show_pose(np.zeros(len(self.joint_names)))
         
     def set_collision_items(self, collision_items_dict):
         self.collision_items_dict = collision_items_dict
@@ -558,8 +559,8 @@ class ConstraintGraph:
                 print(e)
                 succ = False
             ret = False
-            print('\n{} - Goal cost:{}->{} / Init cost:{}->{} / branching: {}->{} ({} s)'.format(
-                "success" if succ else "fail",
+            print('\n{} ({}) - Goal cost:{}->{} / Init cost:{}->{} / branching: {}->{} ({} s)'.format(
+                "success" if succ else "fail", e.error if hasattr(e, "error") else None,
                 int(self.goal_cost_dict[state.node]), int(self.goal_cost_dict[leaf]),
                 int(self.init_cost_dict[state.node]), int(self.init_cost_dict[leaf]),  
                 snode.idx, len(self.snode_vec) if succ else "", round(timer.time()-self.t0,2)))
@@ -895,3 +896,7 @@ class ConstraintGraph:
         plt.plot(X, cost_vec,'.')
         plt.plot(X, parent_vec,'.')
         plt.axis([0,N_plot+1,-0.5,4.5])
+        
+    def show_pose(self, pose):
+        show_motion([pose], self.marker_list, self.pub, self.joints, self.joint_names)
+        

@@ -1,6 +1,7 @@
 from __future__ import print_function
 from scipy.spatial.transform import Rotation
 import numpy as np
+from collections import Iterable
 
 from .joint_utils import get_tf, get_transformation
 
@@ -130,17 +131,26 @@ class GeoSegment(GeometryItem):
         self.point0, self.axis, self.length, self.radius = \
             point0, axis, length, radius
         self.orientation=self.get_axis_quat()
+#         self.center = np.add(self.point0, Rotation.from_quat(self.orientation).as_dcm()[:,2]*length/2).tolist()
         self.center = list(self.point0)
-        self.center["XYZ".index(axis)] += length/2
+        if isinstance(self.axis, str):
+            self.center["XYZ".index(axis)] += length/2
         super(GeoSegment, self).__init__(**kwargs)
     
     def get_axis_quat(self):
-        if self.axis == "X":
-            return Rotation.from_rotvec((0,np.pi/2,0)).as_quat()
-        elif self.axis == "Y":
-            return Rotation.from_rotvec((-np.pi/2,0,0)).as_quat()
-        elif self.axis == "Z":
-            return Rotation.from_rotvec((0,0,0)).as_quat()
+        if isinstance(self.axis, str):
+            if self.axis == "X":
+                return Rotation.from_rotvec((0,np.pi/2,0)).as_quat()
+            elif self.axis == "Y":
+                return Rotation.from_rotvec((-np.pi/2,0,0)).as_quat()
+            elif self.axis == "Z":
+                return Rotation.from_rotvec((0,0,0)).as_quat()
+        elif isinstance(self.axis, Iterable):
+            if len(self.axis) == 3:
+                return Rotation.from_euler('xyz', self.axis, degrees=False).as_quat()
+            elif len(self.axis) == 4:
+                return self.axis
+        raise(NotImplementedError("Segment axis should be 'X', 'Y', 'Z', quaternion or rpy in radian"))
         
     def get_representation(self, point=None):
         if point is None:

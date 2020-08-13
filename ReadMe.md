@@ -78,7 +78,7 @@
 * numba  
   * pip install colorama==0.3.9 llvmlite==0.31.0 numba==0.47.0  
 * misc.  
-  * pip install matplotlib trimesh pathlib protobuf grpcio
+  * pip install matplotlib trimesh pathlib protobuf grpcio numpy-stl sklearn
 
 # Setup project  
 * rebuild custom workspace  
