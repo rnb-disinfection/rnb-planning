@@ -172,6 +172,7 @@ def get_collision_items_dict(urdf_content, color=(0,1,0,0.5), display=True, coll
             elif geotype == 'Mesh':
                 name = "{}_{}_{}".format(link.name, geotype, len(collision_items_dict[link.name]))
                 geo_file_name = os.path.join(geometry_dir, name+".npy")
+                geo_file_name_bak = os.path.join(geometry_dir, name+"_bak.npy")
                 if os.path.isfile(geo_file_name):
                     seg_radius = np.load(geo_file_name)
                     seg, radius = np.reshape(seg_radius[:-1], (2,3)), seg_radius[-1]
@@ -184,6 +185,7 @@ def get_collision_items_dict(urdf_content, color=(0,1,0,0.5), display=True, coll
                     vertice = np.reshape(col_mesh.vectors, (-1,3))
                     seg, radius = get_min_seg_radii(vertice)
                     np.save(geo_file_name, np.concatenate([seg.flatten(), [radius]], axis=0))
+                    np.save(geo_file_name_bak, np.concatenate([seg.flatten(), [radius]], axis=0))
                 xyz = seg[0]
 #                 print('xyz: {}'.format(xyz))
                 seg_vec = seg[1]-seg[0]
@@ -239,5 +241,40 @@ def get_collision_items_dict(urdf_content, color=(0,1,0,0.5), display=True, coll
 #         transfer_fixed_links(col_items_dict, urdf_content, joint_names, exclude_parents)
 # transfer_fixed_links(col_items_dict, urdf_content, joint_names=JOINT_NAMES)
 
-
+def refine_meshes():
+    val = np.load('./geometry_tmp/panda1_hand_Mesh_0_bak.npy')
+#     print(val)
+    # np.save('./geometry_tmp/panda1_hand_Mesh_0_bak.npy', val)
+    val = [ 0.000,  0.07,  0.025, 
+           -0.000, -0.07,  0.025, 0.05]
+    np.save('./geometry_tmp/panda1_hand_Mesh_0.npy', val)
+#     print(val)
+    val = np.load('./geometry_tmp/panda1_link6_Mesh_0_bak.npy')
+#     print(val)
+    # np.save('./geometry_tmp/panda1_link6_Mesh_0_bak.npy', val)
+    val = [0.11, 0.02, 0, -0.04, 0.01, 0, 0.065]
+    np.save('./geometry_tmp/panda1_link6_Mesh_0.npy', val)
+#     print(val)
+    val = np.load('./geometry_tmp/panda1_link5_Mesh_0_bak.npy')
+#     print(val)
+    # np.save('./geometry_tmp/panda1_link6_Mesh_0_bak.npy', val)
+    val = [ 0.0005,  0.063, -0.004, -0.003,  0.009, -0.230, 0.065]
+    np.save('./geometry_tmp/panda1_link5_Mesh_0.npy', val)
+#     print(val)
+    val = np.load('./geometry_tmp/panda1_rightfinger_Mesh_0_bak.npy')
+#     print(val)
+    # np.save('./geometry_tmp/panda1_rightfinger_Mesh_0_bak.npy', val)
+    val = [0,  0.008, 0.05, 
+           0, 0.02, 0.035, 
+           0.012]
+    np.save('./geometry_tmp/panda1_rightfinger_Mesh_0.npy', val)
+#     print(val)
+    val = np.load('./geometry_tmp/panda1_leftfinger_Mesh_0_bak.npy')
+#     print(val)
+    # np.save('./geometry_tmp/panda1_leftfinger_Mesh_0_bak.npy', val)
+    val = [0,  0.008, 0.05, 
+           0, 0.02, 0.035, 
+           0.012]
+    np.save('./geometry_tmp/panda1_leftfinger_Mesh_0.npy', val)
+#     print(val)
 

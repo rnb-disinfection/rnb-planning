@@ -10,7 +10,6 @@ from .geometry import *
 
 def get_publisher(joint_names, robot_name=""):
     pub = rospy.Publisher(robot_name+'/joint_states', JointState, queue_size=10)
-    rospy.init_node('joint_state_publisher', anonymous=True)
     rate = rospy.Rate(100) # 10hz
     joints = JointState()
     joints.header.seq += 1
