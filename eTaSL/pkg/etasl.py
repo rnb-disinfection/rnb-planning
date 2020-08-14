@@ -119,6 +119,10 @@ def simulate(etasl, initial_jpos, joint_names = None,
     
 def set_simulate(init_text, initial_jpos=[], additional_constraints="", 
                  vel_conv="1E-2", err_conv="1E-5", **kwargs):
+    etasl = prepare_simulate(init_text, additional_constraints, vel_conv, err_conv)
+    return do_simulate(etasl, initial_jpos, **kwargs)
+    
+def prepare_simulate(init_text, additional_constraints="", vel_conv="1E-2", err_conv="1E-5"):
     etasl = get_simulation(init_text)
 #     print("init_text")
 #     print(init_text)
@@ -161,6 +165,9 @@ def set_simulate(init_text, initial_jpos=[], additional_constraints="",
 #         print('monitor_string')
 #         print(monitor_string)
     etasl.readTaskSpecificationString(monitor_string)
+    return etasl
+    
+def do_simulate(etasl, initial_jpos, **kwargs):
     simulate(etasl=etasl, initial_jpos=initial_jpos, **kwargs)
     etasl.joint_dict_last = joint_list2dict(etasl.POS[-1], JOINT_NAMES_SIMULATION)
     output = etasl.etasl.getOutput()

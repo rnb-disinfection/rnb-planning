@@ -67,6 +67,8 @@ class XacroCustomizer:
                                                np.multiply(joint.axis, getattr(joint.limit, lim_dir))
                                               )
                                        )
+                joint.axis = None
+                joint.limit  = None
                 
         f = open(urdf_path, "w")
         f.write(URDF.to_xml_string(self.urdf_content))
@@ -213,3 +215,29 @@ def get_collision_items_dict(urdf_content, color=(0,1,0,0.5), display=True, coll
             else:
                 raise(NotImplementedError("collision geometry {} is not implemented".format(geotype)))
     return collision_items_dict
+
+# exclude_parents=['world']
+# joint_names=JOINT_NAMES
+# def transfer_fixed_links(col_items_dict, urdf_content, joint_names, exclude_parents=['world']):
+#     fixed = False
+#     zero_dict = joint_list2dict([0]*len(joint_names), joint_names)
+#     for joint in urdf_content.joints:
+#         parent_name = joint.parent
+#         if joint.type == 'fixed' and joint.parent not in exclude_parents:
+#             for k,v in col_items_dict.items():
+#                 if k == joint.child:
+#                     for ctem in v:
+#                         Toff = get_tf(ctem.link_name, zero_dict, urdf_content, from_link=parent_name)
+#                         ctem.set_link(parent_name)
+#                         ctem.center = (np.matmul(Toff[:3,:3], ctem.center) + Toff[:3,3]).tolist()
+#                         ctem.orientation = Rotation.from_dcm(
+#                             np.matmul(Toff[:3,:3], Rotation.from_quat(ctem.orientation).as_dcm())).as_quat()
+#                         col_items_dict[parent_name] += [ctem]
+#                     del col_items_dict[k]
+#                     fixed = True
+#     if fixed:
+#         transfer_fixed_links(col_items_dict, urdf_content, joint_names, exclude_parents)
+# transfer_fixed_links(col_items_dict, urdf_content, joint_names=JOINT_NAMES)
+
+
+

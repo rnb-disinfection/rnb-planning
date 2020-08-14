@@ -171,7 +171,8 @@ class ConstraintGraph:
             pose_dict[k] = v.object.get_frame()
         return node, pose_dict
     
-    def simulate_transition(self, from_state=None, to_state=None, display=False, error_skip=1e-4, lock=False, err_conv=1e-4, **kwargs):
+    def simulate_transition(self, from_state=None, to_state=None, display=False, error_skip=1e-4, lock=False, 
+                            vel_conv=1e-2, err_conv=1e-4, N=1, dt=1e-2, N_step=10, **kwargs):
         gtimer = GlobalTimer.instance()
         gtimer.tic("start set transition")
         if from_state is not None:
@@ -190,41 +191,51 @@ class ConstraintGraph:
 
         if additional_constraints=="" and to_state.Q is not None and np.sum(np.abs(np.subtract(to_state.Q,from_state.Q)))>1e-2:
 #             print('set joint constraint')
-            kwargs.update(dict(additional_constraints=make_joint_constraints(joint_names=self.joint_names), 
-                               inp_lbl=['target_%s'%jname for jname in self.joint_names], 
+            additional_constraints=make_joint_constraints(joint_names=self.joint_names)
+            kwargs.update(dict(inp_lbl=['target_%s'%jname for jname in self.joint_names], 
                                inp=list(to_state.Q)
                               ))                 
-        else:
-            kwargs.update(dict(additional_constraints=additional_constraints)
-                         )
             
         init_text = get_init_text()
-        
-        if lock:
-            self.lock.release()
-            
-        gtimer.toc("start set transition")
-        gtimer.tic("set_simulate fun")
-        e = set_simulate(init_text, initial_jpos=np.array(pos_start), err_conv=err_conv, **kwargs)
-        gtimer.toc("set_simulate fun")
-        gtimer.tic("post")
-        
-        if lock:
-            self.lock.acquire()
-            
-            
-        if from_state is not None:
-            self.set_object_state(from_state)
-        if display:
-            if len(e.POS)>1:
-                show_motion(e.POS, self.marker_list, self.pub, self.joints, self.joint_names, error_skip=1e-4)
-        if hasattr(e, 'error') and e.error<err_conv:
-            success = True
-            for bd in binding_list:
-                self.rebind(bd, e.joint_dict_last)
-                    
+        if not display:
+            if lock:
+                self.lock.release()
+            gtimer.toc("start set transition")
+            gtimer.tic("set_simulate fun")
+            e = set_simulate(init_text, additional_constraints=additional_constraints, 
+                             initial_jpos=np.array(pos_start), vel_conv=vel_conv, err_conv=err_conv, 
+                             N=N, dt=dt, **kwargs)
+            gtimer.toc("set_simulate fun")
+            gtimer.tic("post")
+            if lock:
+                self.lock.acquire()
+            if from_state is not None:
+                self.set_object_state(from_state)
+            if hasattr(e, 'error') and e.error<err_conv:
+                success = True
+                for bd in binding_list:
+                    self.rebind(bd, e.joint_dict_last)
+
+            else:
+                success = False
         else:
             success = False
+            e = prepare_simulate(init_text, additional_constraints=additional_constraints, 
+                                 vel_conv=vel_conv, err_conv=err_conv)
+            for _ in range(int(N/N_step)):
+                e = do_simulate(e, initial_jpos=np.array(pos_start), N=N_step, dt=dt, **kwargs)
+                pos_start = e.POS[-1]
+                show_motion(e.POS, self.marker_list, self.pub, self.joints, self.joint_names, error_skip=1e-4)
+                if hasattr(e, 'error') and e.error<err_conv:
+                    success = True
+                    break
+            gtimer.tic("post")
+            if from_state is not None:
+                self.set_object_state(from_state)
+            if success:
+                for bd in binding_list:
+                    self.rebind(bd, e.joint_dict_last)
+        
         node, obj_pos_dict = self.get_object_state()
         end_state = State(node, obj_pos_dict, list(e.POS[-1]))
         gtimer.toc("post")

@@ -5,6 +5,25 @@ from collections import Iterable
 
 from .joint_utils import get_tf, get_transformation
 
+    
+def get_adjacent_links(link_name, urdf_content, adjacent_links=None, propagate_fixed=False):
+    if adjacent_links is None:
+        adjacent_links = []
+    if link_name in adjacent_links:
+        return adjacent_links
+    adjacent_links += [link_name]
+    for k, v in urdf_content.joint_map.items():
+        if v.parent == link_name:
+            if v.type == 'fixed':
+                adjacent_links += get_adjacent_links(v.child, urdf_content, adjacent_links, True)
+            elif not propagate_fixed:
+                adjacent_links += [v.child]
+        elif v.child == link_name:
+            if v.type == 'fixed':
+                adjacent_links += get_adjacent_links(v.parent, urdf_content, adjacent_links, True)
+            elif not propagate_fixed:
+                adjacent_links += [v.parent]
+    return list(set(adjacent_links))
 
 class GeometryItem(object):
     def __init__(self, name, link_name, urdf_content, color=(0,1,0,1), display=True, collision=True):
@@ -15,15 +34,6 @@ class GeometryItem(object):
         self.set_name(name)
         self.set_link(link_name)
     
-    def get_adjacent_links(self):
-        adjacent_links = [self.link_name]
-        for k, v in self.urdf_content.joint_map.items():
-            if v.parent == self.link_name:
-                adjacent_links += [v.child]
-            if v.child == self.link_name:
-                adjacent_links += [v.parent]
-        return list(set(adjacent_links))
-    
     def set_name(self, name):
         self.name = name
         
@@ -31,7 +41,7 @@ class GeometryItem(object):
         self.link_name = link_name
         self.link = self.urdf_content.link_map[link_name]
         self.Tname = get_transformation(self.link_name)
-        self.adjacent_links = self.get_adjacent_links()
+        self.adjacent_links = get_adjacent_links(self.link_name, self.urdf_content)
         
     def get_representation(self, *args, **kwargs):
         raise NotImplementedError
@@ -196,6 +206,7 @@ class GeoMesh(GeometryItem):
     def __init__(self, uri, BLH, scale=(1,1,1), center=(0,0,0), orientation=(0,0,0,1), **kwargs):
         self.BLH, self.uri, self.center, self.scale = BLH, uri, center, scale
         self.orientation= (0,0,0,1)
+        kwargs['collision'] = False
         super(GeoMesh, self).__init__(**kwargs)
         
     def get_representation(self, point=None):

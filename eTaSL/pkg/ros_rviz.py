@@ -83,7 +83,7 @@ class GeoMarker:
         while self.pub.get_num_connections() < 1:
             print("Please create a subscriber to the marker");
             timer.sleep(1)
-        print('publication OK')
+#         print('publication OK')
     
     def set_marker(self, joint_dict):
         GeoMarker.ID_COUNT += 1
