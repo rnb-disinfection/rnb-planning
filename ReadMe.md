@@ -92,6 +92,13 @@
 
 # Launch Panda simulator
 * roslaunch "$TF_GMT_ETASL_DIR"/launch/gui_ur10.launch  
+
+# Launch Indy simulator (CadKit)
+* run TaskManager (simulator mode)  on STEP
+  * cd /home/user/release/IndyFramework3.0 && ./TaskManager -j indyDeploy.json
+* open cadkit (NRMK Launcher -> CadKit
+  * Insert Indy7 model ("C:\Program Files (x86)\neuromeka\NRMKFoundation\bin\models\Indy7\Model_Indy7.wrl")
+  * Connect -> Enter ip of STEP PC -> Connect
  
 # Recommended Tools  
 * jupyter 
