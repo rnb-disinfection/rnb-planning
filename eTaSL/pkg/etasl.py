@@ -79,7 +79,7 @@ def get_init_text(collision_items_dict=None, joint_names=None, link_names=None, 
            robot_jval[i]   = ctx:getScalarExpr(robot_jname[i])
         end
 
-        K=40
+        K=10
     """%(urdf_path, transform_text, Texpression_text, jnames_format)
     
     constraint_text = make_collision_constraints(ctem_list)
@@ -91,24 +91,17 @@ def get_simulation(init_text):
     etasl.readTaskSpecificationString(init_text)
     return etasl
 
-def simulate(etasl, initial_jpos, joint_names = None, 
+def simulate(etasl, initial_jpos, joint_names = None,
              inp_lbl=[], inp=[], N=100, dt=0.02):
     if joint_names is None:
         joint_names = JOINT_NAMES_SIMULATION
-    time = np.arange(0,N)*dt
     pos_lbl = joint_names
-    # inp_lbl=['tgt_x','tgt_y','tgt_z']
-    # inp=[0.5, 0.0, 0.0]
-#     print("N: ", N)
-#     print("dt: ", dt)
-    
     etasl.setInputTable(inp_lbl,inp)
     etasl.initialize(np.array(initial_jpos), pos_lbl)
     
     try:
         etasl.simulate(N=N,dt=dt)
     except EventException as e:
-#         print(e)
         idx_end = np.where(np.any(etasl.VEL!=0,axis=1))[0]
         if len(idx_end)>0:
             idx_end = idx_end[-1]
@@ -116,11 +109,9 @@ def simulate(etasl, initial_jpos, joint_names = None,
             etasl.VEL = etasl.VEL[:idx_end+1]
             etasl.TIME = etasl.TIME[:idx_end+1]
             etasl.OUTP = etasl.OUTP[:idx_end+1]
-    
-def set_simulate(init_text, initial_jpos=[], additional_constraints="", 
-                 vel_conv="1E-2", err_conv="1E-5", **kwargs):
-    etasl = prepare_simulate(init_text, additional_constraints, vel_conv, err_conv)
-    return do_simulate(etasl, initial_jpos, **kwargs)
+        return
+    except Exception as e:
+        print('unknown eTaSL exception: {}'.format(str(e)))
     
 def prepare_simulate(init_text, additional_constraints="", vel_conv="1E-2", err_conv="1E-5"):
     etasl = get_simulation(init_text)
@@ -167,10 +158,15 @@ def prepare_simulate(init_text, additional_constraints="", vel_conv="1E-2", err_
     etasl.readTaskSpecificationString(monitor_string)
     return etasl
     
-def do_simulate(etasl, initial_jpos, **kwargs):
-    simulate(etasl=etasl, initial_jpos=initial_jpos, **kwargs)
+def do_simulate(etasl, **kwargs):
+    simulate(etasl=etasl, **kwargs)
     etasl.joint_dict_last = joint_list2dict(etasl.POS[-1], JOINT_NAMES_SIMULATION)
     output = etasl.etasl.getOutput()
     if 'global.error' in output:
         etasl.error = output['global.error']
     return etasl
+
+def set_simulate(init_text, initial_jpos=[], additional_constraints="",
+                 vel_conv="1E-2", err_conv="1E-5", **kwargs):
+    etasl = prepare_simulate(init_text, additional_constraints, vel_conv, err_conv)
+    return do_simulate(etasl, initial_jpos=initial_jpos, **kwargs)

@@ -6,6 +6,7 @@ from urdf_parser_py.urdf import URDF
 
 from .global_config import *
 from .geometry import GeoSegment
+from .rotation_utils import  *
 
 XACRO_PATH_DEFAULT = '{}robots/custom_robots.urdf.xacro'.format(TF_GMT_ETASL_DIR)
 URDF_PATH_DEFAULT = '{}robots/custom_robots.urdf'.format(TF_GMT_ETASL_DIR)
@@ -205,7 +206,7 @@ def get_collision_items_dict(urdf_content, color=(0,1,0,0.5), display=True, coll
 #                 print('sign_theta: {}'.format(sign_theta))
 #                 print('theta: {}'.format(theta))
 #                 print('rotvec: {}'.format(rotvec))
-                rpy_mat = Rotation.from_euler('xyz', rpy, degrees=False).as_dcm()
+                rpy_mat = Rot_rpy(rpy)
                 xyz_rpy = np.matmul(rpy_mat, xyz)
                 dcm = np.matmul(rpy_mat, Rotation.from_rotvec(rotvec).as_dcm())
                 xyz_rpy = np.add(xyz_rpy, dcm[:,2]*length/2).tolist()

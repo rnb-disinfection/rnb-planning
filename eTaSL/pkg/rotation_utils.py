@@ -5,6 +5,8 @@ Created on 2019. 3. 15.
 '''
 import numpy as np
 from math import *
+from scipy.spatial.transform import Rotation
+from numba import jit
 
 def rad2deg(rads):
     return rads/np.pi*180
@@ -30,23 +32,30 @@ def Rot_axis( axis, q ):
                         [0,0,1]])
     return R
 
+def Rot_axis_series(axis_list, rad_list):
+    '''
+    zyx rotation matrix - caution: axis order: z,y,x
+    '''
+    R = Rot_axis(axis_list[0], rad_list[0])
+    for ax_i, rad_i in zip(axis_list[1:], rad_list[1:]):
+        R = np.matmul(R, Rot_axis(ax_i,rad_i))
+    return R
+
 def Rot_zyx(zr,yr,xr):
     '''
-    zyx rotatio matrix - caution: axis order: z,y,x
+    zyx rotation matrix - caution: axis order: z,y,x
     '''
-    R = np.matmul(np.matmul(Rot_axis(3,zr),Rot_axis(2,yr)),Rot_axis(1,xr))
-    return R
+    return Rot_axis_series([3,2,1], [zr,yr,xr])
 
 def Rot_zxz(zr1,xr2,zr3):
     '''
-    zxz rotatio matrix - caution: axis order: z,x,z
+    zxz rotation matrix - caution: axis order: z,x,z
     '''
-    R = np.matmul(np.matmul(Rot_axis(3,zr1),Rot_axis(1,xr2)),Rot_axis(3,zr3))
-    return R
+    return Rot_axis_series([3,1,3], [zr1,xr2,zr3])
 
 def Rot2zyx(R):
     '''
-    rotatio matrix to zyx angles - caution: axis order: z,y,x
+    rotation matrix to zyx angles - caution: axis order: z,y,x
     '''
     sy = sqrt(R[0,0]**2 + R[1,0]**2)
 
@@ -81,18 +90,18 @@ def SE3(R,P):
     T[0:3,0:3]=R
     T[0:3,3]=P
     return T
-    
+
 def SE3_inv(T):
     R=T[0:3,0:3].transpose()
     P=-np.matmul(R,T[0:3,3])
     return (SE3(R,P))
-    
+
 def SE3_R(T):
     return T[0:3,0:3]
-    
+
 def SE3_P(T):
     return T[0:3,3]
-   
+
 def SE3_mul_vec3(T,v):
     r=np.matmul(SE3_R(T),v)
     return np.add(r,SE3_P(T))
@@ -135,11 +144,22 @@ def fit_floor(Tcw, Tco, minz):
     Tco_out[0:3,3]=Pco_
     return Tco_out
 
-
 def project_px(Tco, cam_K, points):
     vtx_cco = np.matmul(cam_K, np.matmul(Tco[:3, :3], points.transpose()) + Tco[:3, 3:4])
     vtx_px = (vtx_cco[:2, :] / vtx_cco[2:3, :])
     return vtx_px, vtx_cco[2, :]
+
+def Rot_rpy(rpy):
+    return np.transpose(Rot_axis_series([1,2,3],np.negative(rpy)))
+
+def Rot_rotvec(rotvec):
+    return Rotation.from_rotvec(rotvec).as_dcm()
+
+def matmul_series(*Tlist):
+    T = Tlist[0]
+    for T_i in Tlist[1:]:
+        T = np.matmul(T, T_i)
+    return T
 
 Tx180 = np.identity(4, 'float32')
 Tx180[1,1]=-1

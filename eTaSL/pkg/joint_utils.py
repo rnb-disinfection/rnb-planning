@@ -1,29 +1,34 @@
 from __future__ import print_function
 from scipy.spatial.transform import Rotation
 import numpy as np
+from rotation_utils import *
 
-def get_parent_joint(link_name, urdf_content):
-    for joint in urdf_content.joints:
-        if joint.child == link_name:
-            return joint.name
-        
+parent_joint_map = {}
+
+def set_parent_joint_map(urdf_content):
+    global parent_joint_map
+    for link_name in urdf_content.link_map.keys():
+        for joint in urdf_content.joints:
+            if joint.child == link_name:
+                parent_joint_map[link_name] = joint.name
+
+def get_parent_joint(link_name):
+    return parent_joint_map[link_name]
+
 def get_tf(to_link, joint_dict, urdf_content, from_link='world'):
     T = np.identity(4)
     link_cur = to_link
     while link_cur != from_link:
-        parent_joint = urdf_content.joint_map[get_parent_joint(link_cur, urdf_content)]
-        T_J = np.identity(4)
+        parent_joint = urdf_content.joint_map[get_parent_joint(link_cur)]
         if parent_joint.type == 'revolute':
-            T_J[:3,:3] = Rotation.from_rotvec(np.array(parent_joint.axis)*joint_dict[parent_joint.name]).as_dcm()
+            T_J = SE3(Rot_rotvec(np.array(parent_joint.axis)*joint_dict[parent_joint.name]), [0,0,0])
         elif parent_joint.type == 'fixed':
-            pass
+            T_J = np.identity(4)
         else:
-            raise NotImplementedError  
-        Toff = np.identity(4)
-        Toff[:3,3] = parent_joint.origin.xyz
-        Toff[:3,:3] = Rotation.from_euler("xyz", 
-                                          parent_joint.origin.rpy, degrees=False).as_dcm()
-        T = np.matmul(Toff, np.matmul(T_J,T))
+            raise NotImplementedError
+        Toff = SE3(Rot_rpy(parent_joint.origin.rpy), parent_joint.origin.xyz)
+        # T = np.matmul(Toff, np.matmul(T_J,T))
+        T = matmul_series(Toff,T_J,T)
         link_cur = parent_joint.parent
     return T
 

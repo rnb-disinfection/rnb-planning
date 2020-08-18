@@ -99,3 +99,17 @@ def prepend_line(file_name, line):
     os.remove(file_name)
     # Rename dummy file as the original file
     os.rename(dummy_file, file_name)
+
+from functools import wraps
+
+def record_time(func):
+    gtimer = GlobalTimer.instance()
+    @wraps(func)
+    def __wrapper(*args, **kwargs):
+        gtimer.tic(func.__name__)
+        res = func(*args, **kwargs)
+        gtimer.toc(func.__name__)
+        return res
+    return __wrapper
+
+
