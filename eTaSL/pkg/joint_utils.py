@@ -1,5 +1,4 @@
 from __future__ import print_function
-from scipy.spatial.transform import Rotation
 import numpy as np
 from .rotation_utils import *
 
@@ -47,7 +46,7 @@ def get_tf(to_link, joint_dict, urdf_content, from_link='world'):
     while link_cur != from_link:
         parent_joint = urdf_content.joint_map[get_parent_joint(link_cur)]
         if parent_joint.type == 'revolute':
-            T_J = SE3(Rot_rotvec(np.array(parent_joint.axis)*joint_dict[parent_joint.name]), [0,0,0])
+            T_J = SE3(Rot_axis(np.where(parent_joint.axis)[0] + 1, joint_dict[parent_joint.name]), [0,0,0])
         elif parent_joint.type == 'fixed':
             T_J = np.identity(4)
         else:

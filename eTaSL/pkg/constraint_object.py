@@ -1,6 +1,7 @@
 from __future__ import print_function
 import numpy as np
 from scipy.spatial.transform import Rotation
+from .utils import *
 
 from .constraint_base import *
 
@@ -23,7 +24,7 @@ class DirectedPoint(ActionPoint):
         if hasattr(self, "handle"):
             self.handle.object.set_link(self.object.link_name)
             self.handle.object.set_center(self.point)
-            self.handle.set_direction(self.direction)
+            self.handle.set_pointer_direction(self.direction)
         else:
             self.handle = GeoPointer(direction=self.direction, 
                                       _object=GeoSphere(
@@ -40,19 +41,20 @@ class FramedPoint(ActionPoint):
         self.name = name
         self.object = _object
         self.point_ori = point_ori
+        self.R_point_ori = Rotation.from_rotvec(self.point_ori[1]).as_dcm()
         self.name_constraint = "framer_{objname}_{name}".format(objname=self.object.name, name=self.name)
         self.update_handle()
 
     def update_handle(self):
         Toff = self.object.get_offset_tf()
         self.point = np.matmul(Toff, list(self.point_ori[0])+[1])[:3]
-        self.orientation = Rotation.from_dcm(np.matmul(Toff[:3,:3], Rotation.from_rotvec(self.point_ori[1]).as_dcm())).as_rotvec()
+        self.orientation_mat = np.matmul(Toff[:3,:3], self.R_point_ori)
         if hasattr(self, "handle"):
             self.handle.object.set_link(self.object.link_name)
             self.handle.object.set_center(self.point)
-            self.handle.set_orientation(self.orientation)
+            self.handle.set_frame_orientation_mat(self.orientation_mat)
         else:
-            self.handle = GeoFrame(orientation=self.orientation,
+            self.handle = GeoFrame(orientation_mat=self.orientation_mat,
                                    _object=GeoSphere(
                                        name=self.name_constraint, center=self.point, radius=0,
                                        link_name=self.object.link_name, urdf_content=self.object.urdf_content,
@@ -72,8 +74,7 @@ class ObjectAction:
     def set_state(self, frame, link_name, bind_point, binder, collision_items_dict):
         collision_items_dict[self.object.link_name].remove(self.object)
         collision_items_dict[link_name] += [self.object]
-        self.object.set_center(frame[:3])
-        self.object.set_orientation(frame[3:])
+        self.object.set_offset_tf(frame[:3, 3], frame[:3,:3])
         self.object.set_link(link_name)
         self.bind(bind_point, binder)
         for ap in self.action_points_dict.values():

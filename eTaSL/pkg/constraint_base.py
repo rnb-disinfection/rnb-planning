@@ -1,6 +1,5 @@
 from __future__ import print_function
 import numpy as np
-from scipy.spatial.transform import Rotation
 
 from .geometry import *
     
@@ -74,8 +73,8 @@ def make_orientation_constraint(framer1, framer2, name, constraint_name, make_er
     if make_error:
         error_val = "\nerror_target = error_target + abs(orientation_{name})".format(name=name)
         error_statement = error_val+'\n ctx:setOutputExpression("error",error_target)'
-    R1=Rotation.from_rotvec(framer1.orientation).as_dcm()
-    R2=Rotation.from_rotvec(framer2.orientation).as_dcm()
+    R1=framer1.orientation_mat
+    R2=framer2.orientation_mat
     vec11 = tuple(np.dot(R1, (1,0,0)))
     vec12 = tuple(np.dot(R1, (0,0,1)))
     vec21 = tuple(np.dot(R2, (1,0,0)))

@@ -1,5 +1,4 @@
 from __future__ import print_function
-from scipy.spatial.transform import Rotation
 import time as timer
 import numpy as np
 
@@ -30,7 +29,7 @@ class Binding(object):
         Tbo = action_obj.object.get_tf(joint_dict_last)
         Tbt = get_tf(self.object.link_name, joint_dict_last, self.urdf_content)
         Tto = np.matmul(np.linalg.inv(Tbt), Tbo)
-        action_obj.set_state(tuple(Tto[:3,3])+tuple(Rotation.from_dcm(Tto[:3,:3]).as_quat()), self.object.link_name, 
+        action_obj.set_state(Tto, self.object.link_name,
                              bind_point, self.name, collision_items_dict=collision_items_dict)
         
     def make_constraints(self, action_obj, handle_name):

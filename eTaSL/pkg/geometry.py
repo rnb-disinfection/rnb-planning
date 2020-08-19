@@ -1,9 +1,11 @@
 from __future__ import print_function
-from scipy.spatial.transform import Rotation
 import numpy as np
 from collections import Iterable
 
+from .utils import *
+from .rotation_utils import *
 from .joint_utils import get_tf, get_transformation, get_adjacent_links
+from scipy.spatial.transform import Rotation
 
 
 
@@ -38,13 +40,13 @@ class GeometryItem(object):
         raise NotImplementedError
 
     def get_tf_representation(self):
-        orientation = self.get_orientation()
+        orientation_mat = self.orientation_mat
         angle_option = ""
-        if np.sum(np.abs(orientation[:3]))>1e-4:
-            xyzrot = Rotation.from_quat(orientation).as_euler("xyz")
-            for i in range(len(xyzrot)):
-                if abs(xyzrot[i])>1e-4:
-                    angle_option = "*rotate_{axis}({val})".format(axis="xyz"[i], val=xyzrot[i])+angle_option
+        if (3-np.sum(np.diag(orientation_mat)))>1e-4:
+            zyxrot = Rot2zyx(orientation_mat)
+            for i in range(len(zyxrot)):
+                if abs(zyxrot[2-i])>1e-4:
+                    angle_option = "*rotate_{axis}({val})".format(axis="xyz"[i], val=zyxrot[2-i])+angle_option
         center = self.get_center()
         center_option = ""
         if np.sum(np.abs(center))>1e-4:
@@ -65,31 +67,30 @@ class GeometryItem(object):
         return T
         
     def get_offset_tf(self):
-        T = np.identity(4)
-        T[:3,3] = self.get_center()
-        T[:3,:3] = Rotation.from_quat(self.get_orientation()).as_dcm()
-        return T
+        return self.Toff
         
     def get_center(self):
         return self.center
         
-    def get_orientation(self):
-        return self.orientation
-        
     def set_center(self, center):
         self.center = center
         
-    def set_orientation(self, orientation):
-        self.orientation = orientation
-        
+    def set_orientation_mat(self, orientation_mat):
+        self.orientation_mat = orientation_mat
+
+    def set_offset_tf(self, center=None, orientation_mat=None):
+        self.center = center if center is not None else self.center
+        self.orientation_mat = orientation_mat if orientation_mat is not None else self.orientation_mat
+        self.Toff = SE3(self.orientation_mat, self.center)
+
     def get_frame(self):
-        return tuple(self.get_center())+tuple(self.get_orientation())
+        return SE3(self.orientation_mat, self.center)
 
         
 class GeoSphere(GeometryItem):
     def __init__(self, center, radius, **kwargs):
-        self.center, self.radius = center, radius
-        self.orientation= (0,0,0,1)
+        self.set_offset_tf(center, np.identity(3))
+        self.radius = radius
         super(GeoSphere, self).__init__(**kwargs)
         
     def get_representation(self, point=None):
@@ -107,8 +108,8 @@ class GeoSphere(GeometryItem):
         
 class GeoBox(GeometryItem):
     def __init__(self, center, BLH, **kwargs):
-        self.center, self.BLH = center, BLH
-        self.orientation= (0,0,0,1)
+        self.set_offset_tf(center, np.identity(3))
+        self.BLH = BLH
         super(GeoBox, self).__init__(**kwargs)
         
     def get_representation(self, point=None):
@@ -128,26 +129,24 @@ class GeoSegment(GeometryItem):
     def __init__(self, point0, axis, length, radius, **kwargs):
         self.point0, self.axis, self.length, self.radius = \
             point0, axis, length, radius
-        self.orientation=self.get_axis_quat()
-#         self.center = np.add(self.point0, Rotation.from_quat(self.orientation).as_dcm()[:,2]*length/2).tolist()
-        self.center = list(self.point0)
+        self.set_offset_tf(list(self.point0), self.get_axis_mat())
         if isinstance(self.axis, str):
             self.center["XYZ".index(axis)] += length/2
         super(GeoSegment, self).__init__(**kwargs)
     
-    def get_axis_quat(self):
+    def get_axis_mat(self):
         if isinstance(self.axis, str):
             if self.axis == "X":
-                return Rotation.from_rotvec((0,np.pi/2,0)).as_quat()
+                return Rotation.from_rotvec((0,np.pi/2,0)).as_dcm()
             elif self.axis == "Y":
-                return Rotation.from_rotvec((-np.pi/2,0,0)).as_quat()
+                return Rotation.from_rotvec((-np.pi/2,0,0)).as_dcm()
             elif self.axis == "Z":
-                return Rotation.from_rotvec((0,0,0)).as_quat()
+                return Rotation.from_rotvec((0,0,0)).as_dcm()
         elif isinstance(self.axis, Iterable):
             if len(self.axis) == 3:
-                return Rotation.from_euler('xyz', self.axis, degrees=False).as_quat()
+                return Rotation.from_euler('xyz', self.axis, degrees=False).as_dcm()
             elif len(self.axis) == 4:
-                return self.axis
+                return Rotation.from_quat(self.axis).as_dcm()
         raise(NotImplementedError("Segment axis should be 'X', 'Y', 'Z', quaternion or rpy in radian"))
         
     def get_representation(self, point=None):
@@ -161,39 +160,12 @@ class GeoSegment(GeometryItem):
         
     def get_scale(self):
         return (self.radius*2, self.radius*2, self.length)
-    
-class GeoPointer:
-    def __init__(self, _object, direction=None):
-        assert direction is not None, "GeoPoint need direction"
-        self.__direction = direction
-        self.direction = self.__direction
-        self.object = _object
-    
-    def set_direction(self, direction):
-        self.direction = direction
-    
-    def get_direction(self):
-        return self.direction
-    
-class GeoFrame:
-    def __init__(self, _object, orientation=None):
-        assert orientation is not None, "GeoFrame need orientation"
-        assert orientation is not None, "GeoFrame orientation should be rotation vector"
-        self.__orientation = orientation
-        self.orientation = self.__orientation
-        self.object = _object
-    
-    def set_orientation(self, orientation):
-        self.orientation = orientation
-    
-    def get_orientation(self):
-        return self.orientation
 
         
 class GeoMesh(GeometryItem):
-    def __init__(self, uri, BLH, scale=(1,1,1), center=(0,0,0), orientation=(0,0,0,1), **kwargs):
-        self.BLH, self.uri, self.center, self.scale = BLH, uri, center, scale
-        self.orientation= (0,0,0,1)
+    def __init__(self, uri, BLH, scale=(1,1,1), center=(0,0,0), orientation_mat=np.identity(3), **kwargs):
+        self.BLH, self.uri, self.scale = BLH, uri, scale
+        self.set_offset_tf(center, orientation_mat)
         kwargs['collision'] = False
         super(GeoMesh, self).__init__(**kwargs)
         
@@ -205,3 +177,32 @@ class GeoMesh(GeometryItem):
         
     def get_scale(self):
         return self.scale
+
+class GeoPointer:
+    def __init__(self, _object, direction=None):
+        assert direction is not None, "GeoPoint need direction"
+        self.__direction = direction
+        self.direction = self.__direction
+        self.object = _object
+
+    def set_pointer_direction(self, direction):
+        self.direction = direction
+
+    def get_pointer_direction(self):
+        return self.direction
+
+class GeoFrame:
+    def __init__(self, _object, orientation=None, orientation_mat=None):
+        assert not (orientation is None and orientation_mat is None), "GeoFrame need orientation"
+        if orientation is not None:
+            assert len(orientation) == 3, "GeoFrame orientation should be rotation vector"
+            self.orientation_mat = Rotation.from_rotvec(orientation).as_dcm()
+        else:
+            self.orientation_mat = orientation_mat
+        self.object = _object
+
+    def set_frame_orientation_mat(self, orientation_mat):
+        self.orientation_mat = orientation_mat
+
+    def get_frame_orientation_mat(self):
+        return self.orientation_mat

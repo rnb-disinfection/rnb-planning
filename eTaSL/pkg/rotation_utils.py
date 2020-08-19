@@ -5,7 +5,6 @@ Created on 2019. 3. 15.
 '''
 import numpy as np
 from math import *
-from scipy.spatial.transform import Rotation
 
 def rad2deg(rads):
     return rads/np.pi*180
@@ -150,9 +149,6 @@ def project_px(Tco, cam_K, points):
 
 def Rot_rpy(rpy):
     return np.transpose(Rot_axis_series([1,2,3],np.negative(rpy)))
-
-def Rot_rotvec(rotvec):
-    return Rotation.from_rotvec(rotvec).as_dcm()
 
 def matmul_series(*Tlist):
     T = Tlist[0]

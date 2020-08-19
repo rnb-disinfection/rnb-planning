@@ -78,8 +78,8 @@ class ConstraintGraph:
         self.handle_dict = {}
         self.handle_list = []
         self.object_dict = {}
-        self.lock = Lock()
-        self.sim_q_lock = Lock()
+        self.dict_lock = Lock()
+        self.que_lock = Lock()
         self.manager = PriorityQueueManager()
         self.manager.start()
         self.connect_robots = connect_robots
@@ -292,14 +292,17 @@ class ConstraintGraph:
                             vel_conv=1e-2, err_conv=1e-4, N=1, dt=1e-2, N_step=10, print_expression=False, **kwargs):
         if dt_vis is None:
             dt_vis = dt
-        gtimer = GlobalTimer.instance()
-        gtimer.tic("start set transition")
+        self.gtimer = GlobalTimer.instance()
+        self.gtimer.tic("start set transition")
         if from_state is not None:
             pos_start = from_state.Q
             self.set_object_state(from_state)
 
+        self.gtimer.tic("start get_tf_collision_text")
         tf_col_text = get_tf_collision_text(GeometryItem.GLOBAL_GEO_LIST)
+        self.gtimer.toc("start get_tf_collision_text")
 
+        self.gtimer.tic("start make_constraints")
         additional_constraints = ""
         binding_list = []
         if to_state.node is not None:
@@ -309,32 +312,35 @@ class ConstraintGraph:
                     binding_list += [bd1]
                 else:
                     assert bd0[1] == bd1[1] , "impossible transition"
+        self.gtimer.toc("start make_constraints")
 
+        self.gtimer.tic("start make_joint_constraints")
         if additional_constraints=="" and to_state.Q is not None and np.sum(np.abs(np.subtract(to_state.Q,from_state.Q)))>1e-2:
 #             print('set joint constraint')
             additional_constraints=make_joint_constraints(joint_names=self.joint_names)
             kwargs.update(dict(inp_lbl=['target_%s'%jname for jname in self.joint_names], 
                                inp=list(to_state.Q)
-                              ))                 
+                              ))
+        self.gtimer.toc("start make_joint_constraints")
 
         if not (display or execute):
-            if lock:
-                self.lock.release()
-            gtimer.toc("start set transition")
-            gtimer.tic("set_simulate fun")
+            self.gtimer.tic("start lock")
+            self.gtimer.toc("start lock")
+            self.gtimer.toc("start set transition")
+            self.gtimer.tic("set_simulate fun")
             e = set_simulate(self.init_text+tf_col_text, additional_constraints=additional_constraints,
                              initial_jpos=np.array(pos_start), vel_conv=vel_conv, err_conv=err_conv, 
                              N=N, dt=dt, print_expression=print_expression, **kwargs)
-            gtimer.toc("set_simulate fun")
-            gtimer.tic("post")
-            if lock:
-                self.lock.acquire()
+            self.gtimer.toc("set_simulate fun")
+            self.gtimer.tic("post")
             if from_state is not None:
                 self.set_object_state(from_state)
             if hasattr(e, 'error') and e.error<err_conv:
+                self.gtimer.tic("post rebind")
                 success = True
                 for bd in binding_list:
                     self.rebind(bd, e.joint_dict_last)
+                self.gtimer.toc("post rebind")
 
             else:
                 success = False
@@ -372,7 +378,7 @@ class ConstraintGraph:
                 thread_display.join()
             if thread_execute is not None:
                 thread_execute.join()
-            gtimer.tic("post")
+            self.gtimer.tic("post")
             if from_state is not None:
                 self.set_object_state(from_state)
             if success:
@@ -380,11 +386,11 @@ class ConstraintGraph:
                     self.execute_grip(to_state)
                 for bd in binding_list:
                     self.rebind(bd, e.joint_dict_last)
-        
+
         node, obj_pos_dict = self.get_object_state()
         end_state = State(node, obj_pos_dict, list(e.POS[-1]) if hasattr(e, 'POS') else None)
-        gtimer.toc("post")
-        # print(gtimer)
+        self.gtimer.toc("post")
+        # print(self.gtimer)
         return e, end_state, success
 
     @record_time
@@ -489,9 +495,11 @@ class ConstraintGraph:
 
     @record_time
     def add_node_queue_leafs(self, snode):
+        self.dict_lock.acquire()
         snode.idx = self.snode_counter.value
         self.snode_dict[snode.idx] = snode
         self.snode_counter.value = self.snode_counter.value+1
+        self.dict_lock.release()
         state = snode.state
         leafs = self.valid_node_dict[state.node]
         if len(leafs) == 0:
@@ -529,7 +537,7 @@ class ConstraintGraph:
         self.add_node_queue_leafs(SearchNode(idx=0, state=initial_state, parents=[], leafs=[],
                                               leafs_P=[ConstraintGraph.WEIGHT_DEFAULT] * len(
                                                   self.valid_node_dict[initial_state.node])))
-        self.__search_loop(terminate_on_first, N_search, N_loop, display, dt_vis, verbose, print_expression, **kwargs)
+        self.__search_loop(terminate_on_first, N_search, N_loop, False, display, dt_vis, verbose, print_expression, **kwargs)
 
     @record_time
     def search_graph_mp(self, initial_state, goal_state,
@@ -552,9 +560,10 @@ class ConstraintGraph:
                                               leafs_P=[ConstraintGraph.WEIGHT_DEFAULT] * len(
                                                   self.valid_node_dict[initial_state.node])))
 
-        self.proc_list = [Process(target=self.__search_loop,
-                                  args=(terminate_on_first, N_search, N_loop, False, dt_vis, verbose, print_expression),
-                                  kwargs=kwargs) for id_agent in range(N_agents)]
+        self.proc_list = [Process(
+            target=self.__search_loop,
+            args=(terminate_on_first, N_search, N_loop, True, False, dt_vis, verbose, print_expression),
+            kwargs=kwargs) for id_agent in range(N_agents)]
         for proc in self.proc_list:
             proc.start()
 
@@ -562,14 +571,17 @@ class ConstraintGraph:
             proc.join()
 
     @record_time
-    def __search_loop(self, terminate_on_first, N_search, N_loop, display, dt_vis, verbose, print_expression=False, **kwargs):
+    def __search_loop(self, terminate_on_first, N_search, N_loop, lock=False,
+                      display=False, dt_vis=None, verbose=False, print_expression=False, **kwargs):
         loop_counter = 0
         while self.snode_counter.value < N_search and loop_counter < N_loop and not self.stop_now.value:
             loop_counter += 1
+            self.que_lock.acquire()
             if self.snode_queue.empty():
                 break
             snode, from_state, to_state = self.snode_queue.get()
-            e, new_state, succ = self.simulate_transition(from_state, to_state, display=display, dt_vis=dt_vis, lock=False,
+            self.que_lock.release()
+            e, new_state, succ = self.simulate_transition(from_state, to_state, display=display, dt_vis=dt_vis, lock=lock,
                                                           print_expression=print_expression, **kwargs)
             ret = False
             if succ:
