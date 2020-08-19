@@ -1,9 +1,10 @@
 from __future__ import print_function
 from scipy.spatial.transform import Rotation
 import numpy as np
-from rotation_utils import *
+from .rotation_utils import *
 
 parent_joint_map = {}
+link_adjacency_map = {}
 
 def set_parent_joint_map(urdf_content):
     global parent_joint_map
@@ -12,8 +13,33 @@ def set_parent_joint_map(urdf_content):
             if joint.child == link_name:
                 parent_joint_map[link_name] = joint.name
 
+def get_adjacent_links(link_name):
+    return link_adjacency_map[link_name]
+
 def get_parent_joint(link_name):
     return parent_joint_map[link_name]
+
+def set_link_adjacency_map(urdf_content):
+    global link_adjacency_map
+    for lname in urdf_content.link_map.keys():
+        link_adjacency_map[lname] = __get_adjacent_links(lname, urdf_content)
+
+def __get_adjacent_links(link_name, urdf_content, adjacent_links=None, propagate=True):
+    if adjacent_links is None:
+        adjacent_links = []
+    if link_name in adjacent_links:
+        return adjacent_links
+    adjacent_links += [link_name]
+    for k, v in urdf_content.joint_map.items():
+        if v.parent == link_name:
+            if not (propagate or v.type == 'fixed'):
+                return adjacent_links
+            adjacent_links = __get_adjacent_links(v.child, urdf_content, adjacent_links, propagate and v.type == 'fixed')
+        elif v.child == link_name:
+            if not (propagate or v.type == 'fixed'):
+                return adjacent_links
+            adjacent_links = __get_adjacent_links(v.parent, urdf_content, adjacent_links, propagate and v.type == 'fixed')
+    return list(set(adjacent_links))
 
 def get_tf(to_link, joint_dict, urdf_content, from_link='world'):
     T = np.identity(4)

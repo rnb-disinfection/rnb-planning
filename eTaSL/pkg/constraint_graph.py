@@ -70,6 +70,7 @@ class ConstraintGraph:
             urdf_content = URDF.from_xml_file(urdf_path)
         self.urdf_content = urdf_content
         set_parent_joint_map(urdf_content)
+        set_link_adjacency_map(urdf_content)
         self.joint_names = joint_names
         self.link_names = link_names
         self.collision_items_dict = {}
@@ -287,19 +288,23 @@ class ConstraintGraph:
         return node, pose_dict
 
     @record_time
-    def simulate_transition(self, from_state=None, to_state=None, display=False, execute=False, error_skip=1e-4, lock=False,
-                            vel_conv=1e-2, err_conv=1e-4, N=1, dt=1e-2, N_step=10, **kwargs):
+    def simulate_transition(self, from_state=None, to_state=None, display=False, execute=False, dt_vis=None, error_skip=1e-4, lock=False,
+                            vel_conv=1e-2, err_conv=1e-4, N=1, dt=1e-2, N_step=10, print_expression=False, **kwargs):
+        if dt_vis is None:
+            dt_vis = dt
         gtimer = GlobalTimer.instance()
         gtimer.tic("start set transition")
         if from_state is not None:
             pos_start = from_state.Q
             self.set_object_state(from_state)
 
+        tf_col_text = get_tf_collision_text(GeometryItem.GLOBAL_GEO_LIST)
+
         additional_constraints = ""
         binding_list = []
         if to_state.node is not None:
             for bd0, bd1 in zip(from_state.node, to_state.node):
-                if bd0[2] != bd1[2]:
+                if bd0[2] != bd1[2]: # check if new transition (slack)
                     additional_constraints += self.binder_dict[bd1[2]].make_constraints(self.object_dict[bd1[0]], bd1[1])
                     binding_list += [bd1]
                 else:
@@ -317,9 +322,9 @@ class ConstraintGraph:
                 self.lock.release()
             gtimer.toc("start set transition")
             gtimer.tic("set_simulate fun")
-            e = set_simulate(self.init_text, additional_constraints=additional_constraints,
+            e = set_simulate(self.init_text+tf_col_text, additional_constraints=additional_constraints,
                              initial_jpos=np.array(pos_start), vel_conv=vel_conv, err_conv=err_conv, 
-                             N=N, dt=dt, **kwargs)
+                             N=N, dt=dt, print_expression=print_expression, **kwargs)
             gtimer.toc("set_simulate fun")
             gtimer.tic("post")
             if lock:
@@ -337,10 +342,12 @@ class ConstraintGraph:
             success = False
             thread_display = None
             thread_execute = None
-            e = prepare_simulate(self.init_text, additional_constraints=additional_constraints,
-                                 vel_conv=vel_conv, err_conv=err_conv)
+            e = prepare_simulate(self.init_text+tf_col_text, additional_constraints=additional_constraints,
+                                 vel_conv=vel_conv, err_conv=err_conv, print_expression=print_expression)
             for i_sim in range(int(N/N_step)):
                 e = do_simulate(e, initial_jpos=np.array(pos_start), N=N_step, dt=dt, **kwargs)
+                if not hasattr(e, 'POS'):
+                    break
                 pos_start = e.POS[-1]
                 if display:
                     if thread_display is not None:
@@ -348,7 +355,7 @@ class ConstraintGraph:
                     thread_display = Thread(target=show_motion, 
                                             args=(e.POS, self.marker_list, self.pub,
                                                   self.joints, self.joint_names),
-                                            kwargs={'error_skip':1e-4, 'period':dt}
+                                            kwargs={'error_skip':error_skip, 'period':dt_vis if execute else dt/10}
                                             )
                     thread_display.start()
 
@@ -375,7 +382,7 @@ class ConstraintGraph:
                     self.rebind(bd, e.joint_dict_last)
         
         node, obj_pos_dict = self.get_object_state()
-        end_state = State(node, obj_pos_dict, list(e.POS[-1]))
+        end_state = State(node, obj_pos_dict, list(e.POS[-1]) if hasattr(e, 'POS') else None)
         gtimer.toc("post")
         # print(gtimer)
         return e, end_state, success
@@ -509,7 +516,7 @@ class ConstraintGraph:
     def search_graph(self, initial_state, goal_state,
                      tree_margin=0, depth_margin=0, joint_motion_num=10,
                      terminate_on_first=True, N_search=100, N_loop=1000,
-                     display=False, verbose=False, **kwargs):
+                     display=False, dt_vis=None, verbose=False, print_expression=False, **kwargs):
         self.joint_motion_num = joint_motion_num
         self.t0 = timer.time()
         self.DOF = len(initial_state.Q)
@@ -522,13 +529,13 @@ class ConstraintGraph:
         self.add_node_queue_leafs(SearchNode(idx=0, state=initial_state, parents=[], leafs=[],
                                               leafs_P=[ConstraintGraph.WEIGHT_DEFAULT] * len(
                                                   self.valid_node_dict[initial_state.node])))
-        self.__search_loop(terminate_on_first, N_search, N_loop, display, verbose, **kwargs)
+        self.__search_loop(terminate_on_first, N_search, N_loop, display, dt_vis, verbose, print_expression, **kwargs)
 
     @record_time
     def search_graph_mp(self, initial_state, goal_state,
                         tree_margin=0, depth_margin=0, joint_motion_num=10,
                         terminate_on_first=True, N_search=100, N_loop=1000, N_agents=8,
-                        display=False, verbose=False, **kwargs):
+                        display=False, dt_vis=None, verbose=False, print_expression=False, **kwargs):
         if display:
             print("Cannot display motion in multiprocess")
 
@@ -545,7 +552,9 @@ class ConstraintGraph:
                                               leafs_P=[ConstraintGraph.WEIGHT_DEFAULT] * len(
                                                   self.valid_node_dict[initial_state.node])))
 
-        self.proc_list = [Process(target=self.__search_loop, args=(terminate_on_first, N_search, N_loop, False, verbose), kwargs=kwargs) for id_agent in range(N_agents)]
+        self.proc_list = [Process(target=self.__search_loop,
+                                  args=(terminate_on_first, N_search, N_loop, False, dt_vis, verbose, print_expression),
+                                  kwargs=kwargs) for id_agent in range(N_agents)]
         for proc in self.proc_list:
             proc.start()
 
@@ -553,14 +562,15 @@ class ConstraintGraph:
             proc.join()
 
     @record_time
-    def __search_loop(self, terminate_on_first, N_search, N_loop, display, verbose, **kwargs):
+    def __search_loop(self, terminate_on_first, N_search, N_loop, display, dt_vis, verbose, print_expression=False, **kwargs):
         loop_counter = 0
         while self.snode_counter.value < N_search and loop_counter < N_loop and not self.stop_now.value:
             loop_counter += 1
             if self.snode_queue.empty():
                 break
             snode, from_state, to_state = self.snode_queue.get()
-            e, new_state, succ = self.simulate_transition(from_state, to_state, display=display, lock=False, **kwargs)
+            e, new_state, succ = self.simulate_transition(from_state, to_state, display=display, dt_vis=dt_vis, lock=False,
+                                                          print_expression=print_expression, **kwargs)
             ret = False
             if succ:
                 snode_new = SearchNode(idx=0, state=new_state, parents=snode.parents + [snode.idx],

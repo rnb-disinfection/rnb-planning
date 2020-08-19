@@ -52,12 +52,6 @@
       </geometry>
       <material name="metal_grey"/>
     </visual>
-    <collision>
-      <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
-      <geometry>
-        <cylinder length="0.075" radius="0.102"/>
-      </geometry>
-    </collision>
   </link>
   <link name="indy0_link1">
     <inertial>
@@ -73,15 +67,9 @@
       <material name="metal_grey"/>
     </visual>
     <collision>
-      <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.111"/>
+      <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.072"/>
       <geometry>
-        <cylinder length="0.222" radius="0.075"/>
-      </geometry>
-    </collision>
-    <collision>
-      <origin rpy="1.57079632679 0.0 0.0" xyz="0.0 -0.0545 0.222"/>
-      <geometry>
-        <cylinder length="0.109" radius="0.075"/>
+        <cylinder length="0.3" radius="0.1"/>
       </geometry>
     </collision>
   </link>
@@ -101,19 +89,13 @@
     <collision>
       <origin rpy="1.57079632679 0.0 -1.57079632679" xyz="-0.225 0.0 0.09"/>
       <geometry>
-        <cylinder length="0.45" radius="0.063"/>
+        <cylinder length="0.45" radius="0.073"/>
       </geometry>
     </collision>
     <collision>
-      <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.045"/>
+      <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 -0.01"/>
       <geometry>
-        <cylinder length="0.09" radius="0.075"/>
-      </geometry>
-    </collision>
-    <collision>
-      <origin rpy="0.0 0.0 0.0" xyz="-0.45 0.0 0.02975"/>
-      <geometry>
-        <cylinder length="0.1205" radius="0.045"/>
+        <cylinder length="0.2" radius="0.085"/>
       </geometry>
     </collision>
   </link>
@@ -131,15 +113,9 @@
       <material name="metal_grey"/>
     </visual>
     <collision>
-      <origin rpy="1.57079632679 0.0 -1.57079632679" xyz="-0.1335 0.0 -0.075"/>
+      <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.03"/>
       <geometry>
-        <cylinder length="0.267" radius="0.045"/>
-      </geometry>
-    </collision>
-    <collision>
-      <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 -0.0375"/>
-      <geometry>
-        <cylinder length="0.075" radius="0.045"/>
+        <cylinder length="0.2" radius="0.055"/>
       </geometry>
     </collision>
   </link>
@@ -157,21 +133,9 @@
       <material name="metal_grey"/>
     </visual>
     <collision>
-      <origin rpy="1.57079632679 0.0 0.0" xyz="0.0 -0.057 0.083"/>
+      <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 -0.092"/>
       <geometry>
-        <cylinder length="0.114" radius="0.045"/>
-      </geometry>
-    </collision>
-    <collision>
-      <origin rpy="1.57079632679 0.0 0.0" xyz="0.0 -0.057 0.083"/>
-      <geometry>
-        <cylinder length="0.114" radius="0.045"/>
-      </geometry>
-    </collision>
-    <collision>
-      <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0415"/>
-      <geometry>
-        <cylinder length="0.083" radius="0.045"/>
+        <cylinder length="0.35" radius="0.055"/>
       </geometry>
     </collision>
   </link>
@@ -189,15 +153,9 @@
       <material name="metal_grey"/>
     </visual>
     <collision>
-      <origin rpy="1.57079632679 0.0 -1.57079632679" xyz="-0.084 0.0 0.069"/>
+      <origin rpy="0.0 0.0 0.0" xyz="-0.0 0.0 -0.0225"/>
       <geometry>
-        <cylinder length="0.168" radius="0.045"/>
-      </geometry>
-    </collision>
-    <collision>
-      <origin rpy="0.0 0.0 0.0" xyz="-0.0 0.0 0.0345"/>
-      <geometry>
-        <cylinder length="0.069" radius="0.045"/>
+        <cylinder length="0.183" radius="0.055"/>
       </geometry>
     </collision>
   </link>
@@ -215,9 +173,9 @@
       <material name="metal_grey"/>
     </visual>
     <collision>
-      <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.03"/>
+      <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 -0.054"/>
       <geometry>
-        <cylinder length="0.06" radius="0.045"/>
+        <cylinder length="0.218" radius="0.05"/>
       </geometry>
     </collision>
   </link>

@@ -20,6 +20,12 @@
 			</geometry>
 			<material name="${indy_material}"/>
 		</visual>
+		<collision>
+			<origin xyz="0 0 0" rpy="0 0 0"/>
+			<geometry>
+				<cylinder length="0.075" radius="0.102"/>
+			</geometry>
+		</collision>
 		<inertial>
 			<origin xyz="0 0 0" rpy="0 0 0"/>
 			<mass value="1.59306955"/>
@@ -36,9 +42,15 @@
 			<material name="${indy_material}"/>
 		</visual>
 		<collision>
-			<origin xyz="0 0 0.072" rpy="0 0 0"/>
+			<origin xyz="0 0 0.111" rpy="0 0 0"/>
 			<geometry>
-				<cylinder length="0.3" radius="0.1"/>
+				<cylinder length="0.222" radius="0.075"/>
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="0 -0.0545 0.222" rpy="${PI/2} 0 0"/>
+			<geometry>
+				<cylinder length="0.109" radius="0.075"/>
 			</geometry>
 		</collision>
 		<inertial>
@@ -59,13 +71,19 @@
 		<collision>
 			<origin xyz="-0.225 0 0.09" rpy="${PI/2} 0 -${PI/2}"/>
 			<geometry>
-				<cylinder length="0.450" radius="0.073"/>
+				<cylinder length="0.450" radius="0.063"/>
 			</geometry>
 		</collision>
 		<collision>
-			<origin xyz="0 0 -0.01" rpy="0 0 0"/>
+			<origin xyz="0 0 0.045" rpy="0 0 0"/>
 			<geometry>
-				<cylinder length="0.2" radius="0.085"/>
+				<cylinder length="0.09" radius="0.075"/>
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="-0.45 0 0.02975 " rpy="0 0 0"/>
+			<geometry>
+				<cylinder length="0.1205" radius="0.045"/>
 			</geometry>
 		</collision>
 		<inertial>
@@ -84,9 +102,15 @@
 			<material name="${indy_material}"/>
 		</visual>
 		<collision>
-			<origin xyz="0 0 0.03" rpy="0 0 0"/>
+			<origin xyz="-0.1335 0 -0.075" rpy="${PI/2} 0 -${PI/2}"/>
 			<geometry>
-				<cylinder length="0.2" radius="0.055"/>
+				<cylinder length="0.267" radius="0.045"/>
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="0 0 -0.0375" rpy="0 0 0"/>
+			<geometry>
+				<cylinder length="0.075" radius="0.045"/>
 			</geometry>
 		</collision>
 		<inertial>
@@ -105,9 +129,21 @@
 			<material name="${indy_material}"/>
 		</visual>
 		<collision>
-			<origin xyz="0 0 -0.092" rpy="0 0 0"/>
+			<origin xyz="0 -0.057 0.083" rpy="${PI/2} 0 0"/>
 			<geometry>
-				<cylinder length="0.35" radius="0.055"/>
+				<cylinder length="0.114" radius="0.045"/>
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="0 -0.057 0.083" rpy="${PI/2} 0 0"/>
+			<geometry>
+				<cylinder length="0.114" radius="0.045"/>
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="0 0 0.0415" rpy="0 0 0"/>
+			<geometry>
+				<cylinder length="0.083" radius="0.045"/>
 			</geometry>
 		</collision>
 		<inertial>
@@ -126,9 +162,15 @@
 			<material name="${indy_material}"/>
 		</visual>
 		<collision>
-			<origin xyz="-0 0 -0.0225" rpy="0 0 0"/>
+			<origin xyz="-0.084 0 0.069" rpy="${PI/2} 0 -${PI/2}"/>
 			<geometry>
-				<cylinder length="0.183" radius="0.055"/>
+				<cylinder length="0.168" radius="0.045"/>
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="-0 0 0.0345" rpy="0 0 0"/>
+			<geometry>
+				<cylinder length="0.069" radius="0.045"/>
 			</geometry>
 		</collision>
 		<inertial>
@@ -147,9 +189,9 @@
 			<material name="${indy_material}"/>
 		</visual>
 		<collision>
-			<origin xyz="0 0 -0.054" rpy="0 0 0"/>
+			<origin xyz="0 0 0.03" rpy="0 0 0"/>
 			<geometry>
-				<cylinder length="0.218" radius="0.050"/>
+				<cylinder length="0.06" radius="0.045"/>
 			</geometry>
 		</collision>
 		<inertial>

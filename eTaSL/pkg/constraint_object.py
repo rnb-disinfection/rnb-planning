@@ -26,12 +26,13 @@ class DirectedPoint(ActionPoint):
             self.handle.set_direction(self.direction)
         else:
             self.handle = GeoPointer(direction=self.direction, 
-                                      _object=GeoSphere(name=self.name_constraint, center=self.point, radius=0, 
-                                                link_name=self.object.link_name, urdf_content=self.object.urdf_content)
+                                      _object=GeoSphere(
+                                          name=self.name_constraint, center=self.point, radius=0,
+                                          link_name=self.object.link_name, urdf_content=self.object.urdf_content,
+                                          collision=False, display=False)
                                      )
     
     def make_constraints(self, effector, point=None):
-        self.update_handle()
         return make_directed_point_constraint(self.handle, effector, self.name_constraint, point2=point)
 
 class FramedPoint(ActionPoint):
@@ -51,13 +52,14 @@ class FramedPoint(ActionPoint):
             self.handle.object.set_center(self.point)
             self.handle.set_orientation(self.orientation)
         else:
-            self.handle = GeoFrame(orientation=self.orientation, 
-                                      _object=GeoSphere(name=self.name_constraint, center=self.point, radius=0, 
-                                                link_name=self.object.link_name, urdf_content=self.object.urdf_content)
-                                     )
+            self.handle = GeoFrame(orientation=self.orientation,
+                                   _object=GeoSphere(
+                                       name=self.name_constraint, center=self.point, radius=0,
+                                       link_name=self.object.link_name, urdf_content=self.object.urdf_content,
+                                       collision=False, display=False)
+                                   )
     
     def make_constraints(self, effector, point=None):
-        self.update_handle()
         return make_oriented_point_constraint(self.handle, effector, self.name_constraint, point2=point)
     
 class ObjectAction:
@@ -74,6 +76,8 @@ class ObjectAction:
         self.object.set_orientation(frame[3:])
         self.object.set_link(link_name)
         self.bind(bind_point, binder)
+        for ap in self.action_points_dict.values():
+            ap.update_handle()
     
     def bind(self, point, target):
         self.binding = (point, target)

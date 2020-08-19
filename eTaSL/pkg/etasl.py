@@ -27,64 +27,60 @@ def set_simulation_config(joint_names, link_names, urdf_content, urdf_path, coll
     COLLISION_ITEMS_DICT = collision_items_dict
     NWSR, CPUTIME, REG_FACTOR = nWSR, cputime, regularization_factor
 
-def get_init_text(collision_items_dict=None, joint_names=None, link_names=None, urdf_content=None, urdf_path=None):
+def get_init_text():
     global JOINT_NAMES_SIMULATION, LINK_NAMES_SIMULATION, URDF_CONTENT_SIMULATION, URDF_PATH_SIMULATION, COLLISION_ITEMS_DICT
-    if collision_items_dict is None: collision_items_dict = COLLISION_ITEMS_DICT
-    else: COLLISION_ITEMS_DICT = collision_items_dict
-    if joint_names is None: joint_names = JOINT_NAMES_SIMULATION
-    else: JOINT_NAMES_SIMULATION = joint_names
-    if link_names is None: link_names = LINK_NAMES_SIMULATION
-    else: LINK_NAMES_SIMULATION = link_names
-    if urdf_content is None: urdf_content = URDF_CONTENT_SIMULATION
-    else: URDF_CONTENT_SIMULATION = urdf_content
-    if urdf_path is None: urdf_path = URDF_PATH_SIMULATION
-    else: URDF_PATH_SIMULATION = urdf_path
+    joint_names = JOINT_NAMES_SIMULATION
+    link_names = LINK_NAMES_SIMULATION
+    urdf_content = URDF_CONTENT_SIMULATION
+    urdf_path = URDF_PATH_SIMULATION
     jnames_format = get_joint_names_csv(joint_names, urdf_content)
     # define margin and translation
     transform_text = \
     """
-        margin=0.0001
-        radius=0.0
-        error_target=0
+margin=0.0001
+radius=0.0
+error_target=0
     """
     Texpression_text = ""
-    item_text = "\n"
-    ctem_list = []
-    for c_key in link_names:
-        ctems = collision_items_dict[c_key]
-        transform_text += '    u:addTransform("{T_link_name}","{link_name}","world")\n'.format(T_link_name=get_transformation(c_key), link_name=c_key)
-        Texpression_text += '    {T_link_name} = r.{T_link_name}\n'.format(T_link_name=get_transformation(c_key))
-        for i in range(len(ctems)):
-            ctem = ctems[i]
-            item_text += """    {name}={ctem}\n""".format(name=ctem.name, ctem=ctem.get_representation())
-            if ctem.collision:
-                ctem_list += [ctem]
+    for lname in link_names:
+        transform_text += 'u:addTransform("{T_link_name}","{link_name}","world")\n'.format(T_link_name=get_transformation(lname), link_name=lname)
+        Texpression_text += '{T_link_name} = r.{T_link_name}\n'.format(T_link_name=get_transformation(lname))
 
 
     definition_text = """
-        require("context")
-        require("geometric")
-        --require("libexpressiongraph_collision")
-        require("collision")
-        require("libexpressiongraph_velocities")
-        local u=UrdfExpr();
-        local fn = "%s"
-        u:readFromFile(fn)
-    %s
-        local r = u:getExpressions(ctx)
-    %s
-        robot_jname={%s}
-        robot_jval = {}
-        for i=1,#robot_jname do
-           robot_jval[i]   = ctx:getScalarExpr(robot_jname[i])
-        end
+require("context")
+require("geometric")
+--require("libexpressiongraph_collision")
+require("collision")
+require("libexpressiongraph_velocities")
+local u=UrdfExpr();
+local fn = "%s"
+u:readFromFile(fn)
+%s
+local r = u:getExpressions(ctx)
+%s
+robot_jname={%s}
+robot_jval = {}
+for i=1,#robot_jname do
+   robot_jval[i]   = ctx:getScalarExpr(robot_jname[i])
+end
 
-        K=10
+K=10
     """%(urdf_path, transform_text, Texpression_text, jnames_format)
     
-    constraint_text = make_collision_constraints(ctem_list)
-    
-    return definition_text + item_text + constraint_text
+    return definition_text
+
+def get_tf_collision_text(geo_list):
+    collision_item_list = []
+    item_text = "\n"
+    transformation_text = ""
+    for ctem in geo_list:
+        item_text += """{name}={ctem}\n""".format(name=ctem.name, ctem=ctem.get_representation())
+        transformation_text += ctem.get_tf_representation()+"\n"
+        if ctem.collision:
+            collision_item_list.append(ctem)
+    collision_text = make_collision_constraints(collision_item_list)
+    return item_text + transformation_text + collision_text
 
 def get_simulation(init_text):
     etasl = etasl_simulator(nWSR=NWSR, cputime=CPUTIME, regularization_factor= REG_FACTOR)
@@ -97,26 +93,28 @@ def simulate(etasl, initial_jpos, joint_names = None,
         joint_names = JOINT_NAMES_SIMULATION
     pos_lbl = joint_names
     etasl.setInputTable(inp_lbl,inp)
-    etasl.initialize(np.array(initial_jpos), pos_lbl)
-    
+
     try:
-        etasl.simulate(N=N,dt=dt)
-    except EventException as e:
-        idx_end = np.where(np.any(etasl.VEL!=0,axis=1))[0]
-        if len(idx_end)>0:
-            idx_end = idx_end[-1]
-            etasl.POS = etasl.POS[:idx_end+1]
-            etasl.VEL = etasl.VEL[:idx_end+1]
-            etasl.TIME = etasl.TIME[:idx_end+1]
-            etasl.OUTP = etasl.OUTP[:idx_end+1]
-        return
+        try:
+            etasl.initialize(np.array(initial_jpos), pos_lbl)
+            etasl.simulate(N=N,dt=dt)
+        except EventException as e:
+            idx_end = np.where(np.any(etasl.VEL!=0,axis=1))[0]
+            if len(idx_end)>0 and hasattr(etasl, 'POS'):
+                idx_end = idx_end[-1]
+                etasl.POS = etasl.POS[:idx_end+1]
+                etasl.VEL = etasl.VEL[:idx_end+1]
+                etasl.TIME = etasl.TIME[:idx_end+1]
+                etasl.OUTP = etasl.OUTP[:idx_end+1]
+            return
     except Exception as e:
         print('unknown eTaSL exception: {}'.format(str(e)))
     
-def prepare_simulate(init_text, additional_constraints="", vel_conv="1E-2", err_conv="1E-5"):
+def prepare_simulate(init_text, additional_constraints="", vel_conv="1E-2", err_conv="1E-5", print_expression=False):
+    if print_expression:
+        print(init_text)
+        print(additional_constraints)
     etasl = get_simulation(init_text)
-#     print("init_text")
-#     print(init_text)
     etasl.readTaskSpecificationString(additional_constraints)
     
     vel_statement=""
@@ -151,22 +149,21 @@ def prepare_simulate(init_text, additional_constraints="", vel_conv="1E-2", err_
                 argument = "e_arrived"
             }}
             """.format(err_conv=err_conv)
-#         print('additional_constraints')
-#         print(additional_constraints)
-#         print('monitor_string')
-#         print(monitor_string)
     etasl.readTaskSpecificationString(monitor_string)
+    if print_expression:
+        print(monitor_string)
     return etasl
     
 def do_simulate(etasl, **kwargs):
     simulate(etasl=etasl, **kwargs)
-    etasl.joint_dict_last = joint_list2dict(etasl.POS[-1], JOINT_NAMES_SIMULATION)
+    if hasattr(etasl, 'POS'):
+        etasl.joint_dict_last = joint_list2dict(etasl.POS[-1], JOINT_NAMES_SIMULATION)
     output = etasl.etasl.getOutput()
     if 'global.error' in output:
         etasl.error = output['global.error']
     return etasl
 
 def set_simulate(init_text, initial_jpos=[], additional_constraints="",
-                 vel_conv="1E-2", err_conv="1E-5", **kwargs):
-    etasl = prepare_simulate(init_text, additional_constraints, vel_conv, err_conv)
+                 vel_conv="1E-2", err_conv="1E-5", print_expression=False, **kwargs):
+    etasl = prepare_simulate(init_text, additional_constraints, vel_conv, err_conv, print_expression=print_expression)
     return do_simulate(etasl, initial_jpos=initial_jpos, **kwargs)

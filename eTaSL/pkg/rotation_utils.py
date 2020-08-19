@@ -6,7 +6,6 @@ Created on 2019. 3. 15.
 import numpy as np
 from math import *
 from scipy.spatial.transform import Rotation
-from numba import jit
 
 def rad2deg(rads):
     return rads/np.pi*180

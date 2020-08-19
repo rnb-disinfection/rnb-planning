@@ -3,30 +3,14 @@ from scipy.spatial.transform import Rotation
 import numpy as np
 from collections import Iterable
 
-from .joint_utils import get_tf, get_transformation
+from .joint_utils import get_tf, get_transformation, get_adjacent_links
 
-    
-def get_adjacent_links(link_name, urdf_content, adjacent_links=None, propagate_fixed=False):
-    if adjacent_links is None:
-        adjacent_links = []
-    if link_name in adjacent_links:
-        return adjacent_links
-    adjacent_links += [link_name]
-    for k, v in urdf_content.joint_map.items():
-        if v.parent == link_name:
-            if v.type == 'fixed':
-                adjacent_links += get_adjacent_links(v.child, urdf_content, adjacent_links, True)
-            elif not propagate_fixed:
-                adjacent_links += [v.child]
-        elif v.child == link_name:
-            if v.type == 'fixed':
-                adjacent_links += get_adjacent_links(v.parent, urdf_content, adjacent_links, True)
-            elif not propagate_fixed:
-                adjacent_links += [v.parent]
-    return list(set(adjacent_links))
+
 
 class GeometryItem(object):
+    GLOBAL_GEO_LIST = []
     def __init__(self, name, link_name, urdf_content, color=(0,1,0,1), display=True, collision=True):
+        GeometryItem.GLOBAL_GEO_LIST += [self]
         self.color = color
         self.display = display
         self.collision = collision
@@ -36,12 +20,13 @@ class GeometryItem(object):
     
     def set_name(self, name):
         self.name = name
+        self.tf_name = "{}_tf".format(self.name)
         
     def set_link(self, link_name):
         self.link_name = link_name
         self.link = self.urdf_content.link_map[link_name]
         self.Tname = get_transformation(self.link_name)
-        self.adjacent_links = get_adjacent_links(self.link_name, self.urdf_content)
+        self.adjacent_links = get_adjacent_links(self.link_name)
         
     def get_representation(self, *args, **kwargs):
         raise NotImplementedError
@@ -51,8 +36,8 @@ class GeometryItem(object):
         
     def get_scale(self):
         raise NotImplementedError
-    
-    def get_transformation(self):
+
+    def get_tf_representation(self):
         orientation = self.get_orientation()
         angle_option = ""
         if np.sum(np.abs(orientation[:3]))>1e-4:
@@ -66,9 +51,12 @@ class GeometryItem(object):
             for i in range(len(center)):
                 if abs(center[i])>1e-4:
                     center_option += "*translate_{axis}({val})".format(axis="xyz"[i], val=center[i])
-        tf_text = "{Tname}{center_option}{angle_option}".format(
-            Tname=self.Tname, center_option=center_option, angle_option=angle_option)
+        tf_text = "{tf_name} = {Tname}{center_option}{angle_option}".format(
+            tf_name=self.tf_name, Tname=self.Tname, center_option=center_option, angle_option=angle_option)
         return tf_text
+    
+    def get_tf_name(self): # get_transformation
+        return self.tf_name
                 
         
     def get_tf(self, joint_dict):
