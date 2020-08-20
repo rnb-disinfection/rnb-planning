@@ -57,11 +57,11 @@ def show_motion_dict(pose_list_dict, marker_list_dict, pub_dict, joints_dict, jo
             timer.sleep(period)
     #         print('published: {}'.format(joints.position), end="\r")
         
-def set_markers(collision_items, joints, joint_names, link_names, urdf_content):
+def set_markers(geometry_items, joints, joint_names, link_names, urdf_content):
     marker_list = []
     joint_dict = {joints.name[i]: joints.position[i] for i in range(len(joint_names))}
     for link_name in link_names:
-        ctems = collision_items[link_name]
+        ctems = geometry_items[link_name]
         for ctem in ctems:
             if ctem.display:
                 marker_list += [GeoMarker(geometry=ctem,urdf_content=urdf_content)]

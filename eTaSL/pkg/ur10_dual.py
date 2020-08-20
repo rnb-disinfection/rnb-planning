@@ -12,8 +12,8 @@ LINK_NAMES = ['world',
               'base_link_2', 'shoulder_link_2', 'upper_arm_link_2', 'forearm_link_2', 'wrist_1_link_2', 'wrist_2_link_2', 'wrist_3_link_2', 'tool0_2']
 ZERO_JOINT_POSE = np.array([0, -np.pi*0.6 , np.pi*0.6,0,0,0]+[0, -np.pi*0.6 , np.pi*0.6,0,0,0])
 
-def get_collision_items_dict(urdf_content, color=(0,1,0,0.5), display=True):
-    collision_items_dict = {
+def get_geometry_items_dict(urdf_content, color=(0,1,0,0.5), display=True):
+    geometry_items_dict = {
         "world":[],
         "base_link_1":[GeoSegment((0,0,0), 'Z', 0.1273, 0.08, 
                                   name="base_capsule_1", link_name="base_link_1", urdf_content=urdf_content, color=color, display=display)],
@@ -46,4 +46,4 @@ def get_collision_items_dict(urdf_content, color=(0,1,0,0.5), display=True):
                                      name="wrist_3_capsule_2", link_name="wrist_3_link_2",urdf_content=urdf_content, color=color, display=display)],
         "tool0_2":[]
     }
-    return collision_items_dict
+    return geometry_items_dict

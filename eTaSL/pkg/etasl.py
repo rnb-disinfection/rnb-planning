@@ -16,7 +16,7 @@ NWSR = 100
 CPUTIME =1000
 REG_FACTOR =1e-6
 
-def set_simulation_config(joint_names, link_names, urdf_content, urdf_path, collision_items_dict=None, 
+def set_simulation_config(joint_names, link_names, urdf_content, urdf_path, geometry_items_dict=None,
                           nWSR=300, cputime=1000, regularization_factor= 1e-6):
     global JOINT_NAMES_SIMULATION, LINK_NAMES_SIMULATION, URDF_CONTENT_SIMULATION, URDF_PATH_SIMULATION, COLLISION_ITEMS_DICT,\
             NWSR, CPUTIME, REG_FACTOR
@@ -24,7 +24,7 @@ def set_simulation_config(joint_names, link_names, urdf_content, urdf_path, coll
     LINK_NAMES_SIMULATION = link_names
     URDF_CONTENT_SIMULATION = urdf_content
     URDF_PATH_SIMULATION = urdf_path
-    COLLISION_ITEMS_DICT = collision_items_dict
+    COLLISION_ITEMS_DICT = geometry_items_dict
     NWSR, CPUTIME, REG_FACTOR = nWSR, cputime, regularization_factor
 
 def get_init_text():
@@ -35,12 +35,11 @@ def get_init_text():
     urdf_path = URDF_PATH_SIMULATION
     jnames_format = get_joint_names_csv(joint_names, urdf_content)
     # define margin and translation
-    transform_text = \
-    """
+    transform_text = """
 margin=0.0001
 radius=0.0
 error_target=0
-    """
+"""
     Texpression_text = ""
     for lname in link_names:
         transform_text += 'u:addTransform("{T_link_name}","{link_name}","world")\n'.format(T_link_name=get_transformation(lname), link_name=lname)
@@ -70,17 +69,17 @@ K=10
     
     return definition_text
 
-def get_tf_collision_text(geo_list):
-    collision_item_list = []
+def get_item_text(geo_list):
     item_text = "\n"
+    for gtem in geo_list:
+        item_text += """{name}={ctem}\n""".format(name=gtem.name, ctem=gtem.get_representation())
+    return item_text
+
+def get_tf_text(geo_list):
     transformation_text = ""
     for ctem in geo_list:
-        item_text += """{name}={ctem}\n""".format(name=ctem.name, ctem=ctem.get_representation())
         transformation_text += ctem.get_tf_representation()+"\n"
-        if ctem.collision:
-            collision_item_list.append(ctem)
-    collision_text = make_collision_constraints(collision_item_list)
-    return item_text + transformation_text + collision_text
+    return transformation_text
 
 def get_simulation(init_text):
     etasl = etasl_simulator(nWSR=NWSR, cputime=CPUTIME, regularization_factor= REG_FACTOR)

@@ -11,8 +11,10 @@ from scipy.spatial.transform import Rotation
 
 class GeometryItem(object):
     GLOBAL_GEO_LIST = []
+    GLOBAL_GEO_DICT = {}
     def __init__(self, name, link_name, urdf_content, color=(0,1,0,1), display=True, collision=True):
         GeometryItem.GLOBAL_GEO_LIST += [self]
+        GeometryItem.GLOBAL_GEO_DICT[name] = self
         self.color = color
         self.display = display
         self.collision = collision

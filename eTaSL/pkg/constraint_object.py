@@ -71,9 +71,9 @@ class ObjectAction:
     def get_action_points(self):
         return self.action_points_dict
         
-    def set_state(self, frame, link_name, bind_point, binder, collision_items_dict):
-        collision_items_dict[self.object.link_name].remove(self.object)
-        collision_items_dict[link_name] += [self.object]
+    def set_state(self, frame, link_name, bind_point, binder, geometry_items_dict):
+        geometry_items_dict[self.object.link_name].remove(self.object)
+        geometry_items_dict[link_name].append(self.object)
         self.object.set_offset_tf(frame[:3, 3], frame[:3,:3])
         self.object.set_link(link_name)
         self.bind(bind_point, binder)

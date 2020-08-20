@@ -12,9 +12,9 @@ current_scenario = Scenario.custom_robots
 
 urdf_content = None
 if current_scenario in [Scenario.single_object_dual_robot, Scenario.assembly_3_piece]:
-    from pkg.ur10_dual import URDF_PATH, JOINT_NAMES, LINK_NAMES, ZERO_JOINT_POSE, get_collision_items_dict
+    from pkg.ur10_dual import URDF_PATH, JOINT_NAMES, LINK_NAMES, ZERO_JOINT_POSE, get_geometry_items_dict
 elif current_scenario in [Scenario.single_object_single_robot, Scenario.double_object_single_robot]:
-    from pkg.ur10 import URDF_PATH, JOINT_NAMES, LINK_NAMES, ZERO_JOINT_POSE, get_collision_items_dict
+    from pkg.ur10 import URDF_PATH, JOINT_NAMES, LINK_NAMES, ZERO_JOINT_POSE, get_geometry_items_dict
 else:
     from pkg.robots_custom import *
 
@@ -53,14 +53,14 @@ rospy.init_node('task_planner', anonymous=True)
 gtimer = GlobalTimer.instance()
 gtimer.reset()
 graph = ConstraintGraph(urdf_path=URDF_PATH, joint_names=JOINT_NAMES, link_names=LINK_NAMES, urdf_content=urdf_content)
-col_items_dict = graph.set_collision_items(
-    get_collision_items_dict(graph.urdf_content, color=(0,1,0,0.5), display=True, collision=True,
+col_items_dict = graph.set_fixed_geometry_items(
+    get_geometry_items_dict(graph.urdf_content, color=(0,1,0,0.5), display=True, collision=True,
                              exclude_link=["panda1_link7"]))
 
 gtimer.tic("set_scene")
 if current_scenario == Scenario.custom_robots:
     collision = True
-    graph.add_collision_items("world",
+    graph.add_geometry_items("world",
                               [
                                   GeoMesh(uri="package://my_mesh/meshes/stl/AirPick_cup_ctd.stl",
                                           BLH=(0.01, 0.01, 0.01), scale=(1e-3, 1e-3, 1e-3), name="gripper1",

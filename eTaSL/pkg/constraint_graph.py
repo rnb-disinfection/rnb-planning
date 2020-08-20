@@ -73,7 +73,7 @@ class ConstraintGraph:
         set_link_adjacency_map(urdf_content)
         self.joint_names = joint_names
         self.link_names = link_names
-        self.collision_items_dict = {}
+        self.geometry_items_dict = {}
         self.binder_dict = {}
         self.handle_dict = {}
         self.handle_list = []
@@ -111,31 +111,52 @@ class ConstraintGraph:
         # prepare ros
         self.pub, self.joints, self.rate = get_publisher(self.joint_names)
         # prepare visualization markers
-        self.marker_list = set_markers(self.collision_items_dict, self.joints, self.joint_names, self.link_names, self.urdf_content)
+        self.marker_list = set_markers(self.geometry_items_dict, self.joints, self.joint_names, self.link_names, self.urdf_content)
         set_simulation_config(joint_names = self.joint_names, link_names = self.link_names, 
                               urdf_content = self.urdf_content, urdf_path = self.urdf_path,
-                              collision_items_dict=self.collision_items_dict,
+                              geometry_items_dict=self.geometry_items_dict,
                               nWSR=nWSR, cputime=cputime, regularization_factor= regularization_factor)
         self.init_text = get_init_text()
+        self.item_text = get_item_text(GeometryItem.GLOBAL_GEO_LIST)
+        self.fixed_tf_text = get_tf_text(self.fixed_tf_list)
+        self.fixed_collision_text = make_collision_constraints(self.fixed_collision_items_list)
         self.show_pose(np.zeros(len(self.joint_names)))
 
     @record_time
-    def set_collision_items(self, collision_items_dict):
-        self.collision_items_dict = collision_items_dict
-        self.collision_items_list = []
-        self.collision_items_idx_dict = {}
-        for v in collision_items_dict.values():
-            for ctem in v:
-                self.collision_items_idx_dict[ctem.name] = len(self.collision_items_list)
-                self.collision_items_list += [ctem]
-        return self.collision_items_dict
+    def reset_tf_list(self):
+        self.fixed_tf_list = []
+        self.movable_tf_list = []
+
+    def add_tf_items(self, gtems, fixed):
+        for gtem in gtems:
+            if fixed:
+                self.fixed_tf_list.append(gtem)
+            else:
+                self.movable_tf_list.append(gtem)
 
     @record_time
-    def add_collision_items(self, link_name, collision_Items):
-        self.collision_items_dict[link_name] += collision_Items
-        for ctem in collision_Items:
-            self.collision_items_idx_dict[ctem.name] = len(self.collision_items_list)
-            self.collision_items_list += [ctem]
+    def set_fixed_geometry_items(self, geometry_items_dict):
+        self.geometry_items_dict = geometry_items_dict
+        self.reset_tf_list()
+        self.fixed_collision_items_list = []
+        self.movable_collision_items_list = []
+        for v in geometry_items_dict.values():
+            for gtem in v:
+                self.add_tf_items([gtem], True)
+                if gtem.collision:
+                    self.fixed_collision_items_list.append(gtem)
+        return self.geometry_items_dict
+
+    @record_time
+    def add_geometry_items(self, link_name, collision_Items, fixed=False):
+        self.geometry_items_dict[link_name] += collision_Items
+        for gtem in collision_Items:
+            self.add_tf_items([gtem], fixed)
+            if gtem.collision:
+                if fixed:
+                    self.fixed_collision_items_list.append(gtem)
+                else:
+                    self.movable_collision_items_list.append(gtem)
 
     @record_time
     def add_binder(self, name, binder):
@@ -147,38 +168,41 @@ class ConstraintGraph:
             object_name = name
 
         _object = self.get_object_by_name(object_name)
-        
+
         if _object:
             link_name = _object.link_name
         else:
             _object=None
             assert link_name is not None, "The object should be registered first or give link name"
             assert "point" in kwargs, "The object should be registered first or give interaction point"
-        self.binder_dict[name] = _type(_object=_object, 
-                                       name=name, link_name=link_name, 
-                                       urdf_content=self.urdf_content, collision_items_dict=self.collision_items_dict, **kwargs)
+        self.binder_dict[name] = _type(_object=_object,
+                                       name=name, link_name=link_name,
+                                       urdf_content=self.urdf_content, geometry_items_dict=self.geometry_items_dict, **kwargs)
         if _object is None:
-            self.add_collision_items(link_name, [self.binder_dict[name].object])
+            self.add_geometry_items(link_name, [self.binder_dict[name].object])
 
     @record_time
     def add_object(self, name, _object, binding=None):
         self.object_dict[name] = _object
         if binding is not None:
-            self.binder_dict[binding[1]].bind(self.object_dict[name], binding[0], 
+            self.binder_dict[binding[1]].bind(self.object_dict[name], binding[0],
                                               joint_list2dict([0]*len(self.joint_names), joint_names=self.joint_names))
 
     @record_time
     def register_object(self, name, _type, binding=None, **kwargs):
         _object = self.get_object_by_name(name)
         self.object_dict[name] = _type(_object, **kwargs)
+        self.add_tf_items(
+            [ap.handle.object for ap in self.object_dict[name].get_action_points().values()],
+            _object in self.fixed_collision_items_list)
         if binding is not None:
-            self.binder_dict[binding[1]].bind(self.object_dict[name], binding[0], 
+            self.binder_dict[binding[1]].bind(self.object_dict[name], binding[0],
                                               joint_list2dict([0]*len(self.joint_names), joint_names=self.joint_names))
 
     @record_time
     def get_object_by_name(self, name):
-        if name in self.collision_items_idx_dict:
-            return self.collision_items_list[self.collision_items_idx_dict[name]]
+        if name in GeometryItem.GLOBAL_GEO_DICT:
+            return GeometryItem.GLOBAL_GEO_DICT[name]
         else:
             return None
 
@@ -274,7 +298,7 @@ class ConstraintGraph:
                 frame = state.obj_pos_dict[bd[0]]
                 binder.link_name = binder.object.link_name # sync linke name with parent
                 obj.set_state(frame, binder.link_name, bd[1], bd[2], 
-                              self.collision_items_dict)
+                              self.geometry_items_dict)
                 bd_list_done += [bd]
 
     @record_time
@@ -298,9 +322,15 @@ class ConstraintGraph:
             pos_start = from_state.Q
             self.set_object_state(from_state)
 
-        self.gtimer.tic("start get_tf_collision_text")
-        tf_col_text = get_tf_collision_text(GeometryItem.GLOBAL_GEO_LIST)
-        self.gtimer.toc("start get_tf_collision_text")
+        self.gtimer.tic("start get_tf_text")
+        tf_text = self.fixed_tf_text + get_tf_text(self.movable_tf_list)
+        self.gtimer.toc("start get_tf_text")
+
+        self.gtimer.tic("start get_collision_text")
+        col_text = self.fixed_collision_text + \
+                   make_collision_constraints(self.fixed_collision_items_list, self.movable_collision_items_list) + \
+                   make_collision_constraints(self.movable_collision_items_list)
+        self.gtimer.toc("start get_collision_text")
 
         self.gtimer.tic("start make_constraints")
         additional_constraints = ""
@@ -316,7 +346,6 @@ class ConstraintGraph:
 
         self.gtimer.tic("start make_joint_constraints")
         if additional_constraints=="" and to_state.Q is not None and np.sum(np.abs(np.subtract(to_state.Q,from_state.Q)))>1e-2:
-#             print('set joint constraint')
             additional_constraints=make_joint_constraints(joint_names=self.joint_names)
             kwargs.update(dict(inp_lbl=['target_%s'%jname for jname in self.joint_names], 
                                inp=list(to_state.Q)
@@ -328,7 +357,8 @@ class ConstraintGraph:
             self.gtimer.toc("start lock")
             self.gtimer.toc("start set transition")
             self.gtimer.tic("set_simulate fun")
-            e = set_simulate(self.init_text+tf_col_text, additional_constraints=additional_constraints,
+            e = set_simulate(self.init_text+self.item_text+tf_text+col_text,
+                             additional_constraints=additional_constraints,
                              initial_jpos=np.array(pos_start), vel_conv=vel_conv, err_conv=err_conv, 
                              N=N, dt=dt, print_expression=print_expression, **kwargs)
             self.gtimer.toc("set_simulate fun")
@@ -348,7 +378,8 @@ class ConstraintGraph:
             success = False
             thread_display = None
             thread_execute = None
-            e = prepare_simulate(self.init_text+tf_col_text, additional_constraints=additional_constraints,
+            e = prepare_simulate(self.init_text+self.item_text+tf_text+col_text,
+                                 additional_constraints=additional_constraints,
                                  vel_conv=vel_conv, err_conv=err_conv, print_expression=print_expression)
             for i_sim in range(int(N/N_step)):
                 e = do_simulate(e, initial_jpos=np.array(pos_start), N=N_step, dt=dt, **kwargs)

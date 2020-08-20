@@ -143,8 +143,8 @@ def get_min_seg_radii(vertice):
     radii = dist_vertice_seg(vertice, seg)
     return seg, radii
 
-def get_collision_items_dict(urdf_content, color=(0,1,0,0.5), display=True, collision=True, exclude_link=[]):
-    collision_items_dict = defaultdict(lambda: list())
+def get_geometry_items_dict(urdf_content, color=(0,1,0,0.5), display=True, collision=True, exclude_link=[]):
+    geometry_items_dict = defaultdict(lambda: list())
     geometry_dir = "./geometry_tmp"
     try: os.mkdir(geometry_dir)
     except: pass
@@ -167,13 +167,13 @@ def get_collision_items_dict(urdf_content, color=(0,1,0,0.5), display=True, coll
                 rpy = col_item.origin.rpy
 
             if geotype == 'Cylinder':
-                collision_items_dict[link.name] += [GeoSegment(xyz, rpy, geometry.length, geometry.radius, 
-                                                               name="{}_{}_{}".format(link.name, geotype, len(collision_items_dict[link.name])),
+                geometry_items_dict[link.name] += [GeoSegment(xyz, rpy, geometry.length, geometry.radius,
+                                                               name="{}_{}_{}".format(link.name, geotype, len(geometry_items_dict[link.name])),
                                                                link_name=link.name, urdf_content=urdf_content, 
                                                                color=color, display=display, collision=collision
                                                               )]
             elif geotype == 'Mesh':
-                name = "{}_{}_{}".format(link.name, geotype, len(collision_items_dict[link.name]))
+                name = "{}_{}_{}".format(link.name, geotype, len(geometry_items_dict[link.name]))
                 geo_file_name = os.path.join(geometry_dir, name+".npy")
                 geo_file_name_bak = os.path.join(geometry_dir, name+"_bak.npy")
                 if os.path.isfile(geo_file_name):
@@ -212,14 +212,14 @@ def get_collision_items_dict(urdf_content, color=(0,1,0,0.5), display=True, coll
                 xyz_rpy = np.add(xyz_rpy, dcm[:,2]*length/2).tolist()
 #                 print('xyz_rpy: {}'.format(xyz_rpy))
                 quat = Rotation.from_dcm(dcm).as_quat()
-                collision_items_dict[link.name] += [GeoSegment(xyz_rpy, quat, length, radius, 
+                geometry_items_dict[link.name] += [GeoSegment(xyz_rpy, quat, length, radius,
                                                                name=name,
                                                                link_name=link.name, urdf_content=urdf_content, 
                                                                color=color, display=display, collision=collision
                                                               )]
             else:
                 raise(NotImplementedError("collision geometry {} is not implemented".format(geotype)))
-    return collision_items_dict
+    return geometry_items_dict
 
 # exclude_parents=['world']
 # joint_names=JOINT_NAMES

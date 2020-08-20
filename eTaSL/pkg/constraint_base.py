@@ -1,6 +1,4 @@
 from __future__ import print_function
-import numpy as np
-
 from .geometry import *
     
 
@@ -129,11 +127,18 @@ def make_oriented_point_constraint(framer1, framer2, name, make_error=True, poin
                                                  point1=point1, point2=point2)
     ori_constraint = make_orientation_constraint(framer1, framer2, name=constraint_name_ori, constraint_name=constraint_name_ori, make_error=False)
     return pair_constraint + "\n" + ori_constraint + error_statement
-        
-def make_collision_constraints(collision_items):
+
+def make_collision_constraints(geometry_items1, geometry_items2=None):
     constraint_text = "\n"
-    for ctem1 in collision_items:
-        for ctem2 in collision_items[collision_items.index(ctem1)+1:]:
+    idx1 = 0
+    for ctem1 in geometry_items1:
+        idx1 += 1
+        if geometry_items2 is None:
+            geometry_items_tmp = geometry_items1[idx1:]
+        else:
+            geometry_items_tmp = geometry_items2
+
+        for ctem2 in geometry_items_tmp:
             if ctem2.link_name in ctem1.adjacent_links or ctem1.link_name in ctem2.adjacent_links:
                 pass
             else:
