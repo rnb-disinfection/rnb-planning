@@ -1,0 +1,31 @@
+# eTaSl example controller
+etasl_controller:
+  type: "etasl_ros_controllers/EtaslController"
+  joints:
+    - "shoulder_pan_joint"
+    - "shoulder_lift_joint"
+    - "elbow_joint"
+    - "wrist_1_joint"
+    - "wrist_2_joint"
+    - "wrist_3_joint"
+  input:
+    names:
+      - "tgt_x"
+      - "tgt_y"
+      - "tgt_z"
+    types:
+      - "Scalar"
+      - "Scalar"
+      - "Scalar"
+  output:
+    names:
+      - "error_x"
+      - "error_y"
+      - "error_z"
+      - "laser"
+    types:
+      - "Scalar"
+      - "Scalar"
+      - "Scalar"
+      - "Vector"
+  task_specification: "$(find etasl_ros_control_examples)/scripts/example_ur.lua"

@@ -31,10 +31,10 @@
   * cd $HOME/catkin_ws  
   * rosdep update  
   * rosdep install --rosdistro $ROS_DISTRO --ignore-src --from-paths src  
-  * catkin_make  
+  * catkin_make -DCMAKE_BUILD_TYPE=Release  
 * Indy package
   * cd ~/catkin_ws/src && git clone -b  release-2.3 https://github.com/neuromeka-robotics/indy-ros
-  * cd ~/catkin_ws && catkin_make
+  * cd ~/catkin_ws && catkin_make -DCMAKE_BUILD_TYPE=Release
   * Follow instruction on IndyFramework3.0/ReadMe.md to update Indy robot to 3.0
 * Franka package  
   * sudo apt install ros-melodic-libfranka ros-melodic-franka-ros  
@@ -42,7 +42,6 @@
   * pip install numpy numpy-quaternion rospy-message-converter==0.4.0  
   * cd ~/catkin_ws && sudo rm -rf devel build  
   * cd ~/catkin_ws/src && git clone https://github.com/justagist/panda_simulator && cd panda_simulator && ./build_ws.sh  
-  * launch panda simulator: roslaunch panda_gazebo panda_world.launch start_moveit:=false
 * eTaSL  
   * install gcc7: sudo add-apt-repository ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install gcc-7 g++-7 gcc-7-multilib g++-7-multilib  
   * install gcc5: sudo add-apt-repository ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install gcc-5 g++-5 gcc-5-multilib g++-5-multilib  
@@ -58,6 +57,9 @@
   * https://etasl.pages.gitlab.kuleuven.be/install-new.html  
   * (add "source $OROCOS/install_isolated/setup.bash" on top of user section of "~/.bashrc")
   * source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash  
+  * **if eTaSL simulation is slow (has to be under 1s with 200 constraints), re-compile packages in release mode**
+    * in "~/etasl_ws", "~/etasl_ws/etasl/ws/etasl", "~/etasl_ws/etasl/ws/etasl-py"
+    * sudo rm -rf devel && sudo rm -rf devel && catkin_make -DCMAKE_BUILD_TYPE=Release
 * Azure Kinect  
   * setup microsoft repository  
     * curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -  
@@ -84,16 +86,16 @@
 
 # Setup project  
 * rebuild custom workspace  
-  * cd eTaSL/ws_ros && rm -rf build devel && catkin make  
-* add below to ~./bashrc
-  * export TF_GMT_ETASL_DIR=/home/junu/Projects/tf_gmt/eTaSL/  
+  * cd eTaSL/ws_ros && rm -rf build devel && catkin_make -DCMAKE_BUILD_TYPE=Release  
+* add below to ~./bashrc  
+  * export TF_GMT_ETASL_DIR=/home/junsu/Projects/tf_gmt/eTaSL/  
   * source "$TF_GMT_ETASL_DIR"ws_ros/devel/setup.bash  
 
 # Launch RVIZ
-* roslaunch "$TF_GMT_ETASL_DIR"/launch/gui_ur10.launch  
+* roslaunch "$TF_GMT_ETASL_DIR"/launch/gui_custom_robots_joint_panel.launch  
 
 # Launch Panda simulator
-* roslaunch "$TF_GMT_ETASL_DIR"/launch/gui_ur10.launch  
+* roslaunch panda_gazebo panda_world.launch start_moveit:=false   
 
 # Launch Indy simulator (CadKit)
 * run TaskManager (simulator mode)  on STEP
