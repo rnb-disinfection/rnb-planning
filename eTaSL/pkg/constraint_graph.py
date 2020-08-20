@@ -453,7 +453,7 @@ class ConstraintGraph:
                 timer.sleep(dt)
 
     @record_time
-    def rebind(self, binding, joint_dict_last, execute=False):
+    def rebind(self, binding, joint_dict_last):
         binder = self.binder_dict[binding[2]]
         object_tar = self.object_dict[binding[0]]
         binder.bind(action_obj=object_tar, bind_point=binding[1], joint_dict_last=joint_dict_last)
