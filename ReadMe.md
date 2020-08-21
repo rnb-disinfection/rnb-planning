@@ -57,8 +57,8 @@
   * https://etasl.pages.gitlab.kuleuven.be/install-new.html  
   * (add "source $OROCOS/install_isolated/setup.bash" on top of user section of "~/.bashrc")
   * source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash  
-  * **if eTaSL simulation is slow (has to be under 1s with 200 constraints), re-compile packages in release mode**
-    * in "~/etasl_ws", "~/etasl_ws/etasl/ws/etasl", "~/etasl_ws/etasl/ws/etasl-py"
+  * **if eTaSL simulation is slow (has to be under 300ms with 200 constraints), re-compile packages in release mode**
+    * in "\~/etasl_ws", "\~/etasl_ws/etasl/ws/etasl", "\~/etasl_ws/etasl/ws/etasl-py"
     * sudo rm -rf devel && sudo rm -rf devel && catkin_make -DCMAKE_BUILD_TYPE=Release
 * Azure Kinect  
   * setup microsoft repository  

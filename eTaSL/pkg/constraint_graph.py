@@ -344,17 +344,15 @@ class ConstraintGraph:
                     assert bd0[1] == bd1[1] , "impossible transition"
         self.gtimer.toc("start make_constraints")
 
-        self.gtimer.tic("start make_joint_constraints")
         if additional_constraints=="" and to_state.Q is not None and np.sum(np.abs(np.subtract(to_state.Q,from_state.Q)))>1e-2:
+            self.gtimer.tic("start make_joint_constraints")
             additional_constraints=make_joint_constraints(joint_names=self.joint_names)
             kwargs.update(dict(inp_lbl=['target_%s'%jname for jname in self.joint_names], 
                                inp=list(to_state.Q)
                               ))
-        self.gtimer.toc("start make_joint_constraints")
+            self.gtimer.toc("start make_joint_constraints")
 
         if not (display or execute):
-            self.gtimer.tic("start lock")
-            self.gtimer.toc("start lock")
             self.gtimer.toc("start set transition")
             self.gtimer.tic("set_simulate fun")
             e = set_simulate(self.init_text+self.item_text+tf_text+col_text,
