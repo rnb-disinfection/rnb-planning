@@ -294,5 +294,4 @@ public:
 
   virtual ~EtaslDriver();
 };
-
 }  // namespace etasl_ros_controllers

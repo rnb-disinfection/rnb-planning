@@ -588,3 +588,63 @@ void EtaslDriver::getVariables(int flag, std::vector<std::string>& name, std::ve
 }
 
 }  // namespace etasl_ros_controllers
+
+
+typedef std::map<std::string, etasl_ros_controllers::EtaslDriver *> DriverMap;
+typedef std::map<std::string, etasl_ros_controllers::DoubleMap *> DoubleMapMap;
+DriverMap driver_map;
+DoubleMapMap doublemap_map;
+
+extern "C"
+{
+
+void etasl_create(char* key, double nWSR, double cputime, double regularization_factor) {
+    driver_map[key] = new etasl_ros_controllers::EtaslDriver(nWSR, cputime, regularization_factor);
+}
+
+void etasl_readTaskSpecification(char* key, char* context){
+    driver_map[key]->readTaskSpecificationString(context);
+}
+
+void etasl_initialize(char* key,
+                      char* key_initialval, double initialization_time, double sample_time,
+                      double convergence_crit, char* key_convergedval) {
+    driver_map[key]->initialize(
+            *doublemap_map[key_initialval],
+            initialization_time, sample_time, convergence_crit,
+            *doublemap_map[key_convergedval]);
+}
+
+void etasl_updateStep(char* key, double period_sec) {
+    driver_map[key]->updateStep(period_sec);
+}
+
+void etasl_setJointPos(char* key, char* dkey) {
+    driver_map[key]->setJointPos(*doublemap_map[dkey]);
+}
+
+void etasl_getJointPos(char* key, char* dkey) {
+    driver_map[key]->getJointPos(*doublemap_map[dkey]);
+}
+
+void etasl_setInput(char* key, char* dkey) {
+    driver_map[key]->setInput(*doublemap_map[dkey]);
+}
+
+void etasl_getOutput(char* key, char* dkey) {
+    driver_map[key]->getOutput(*doublemap_map[dkey]);
+}
+
+void DoubleMap_create(char* dkey){
+    doublemap_map[dkey] = new etasl_ros_controllers::DoubleMap();
+}
+
+void DoubleMap_set(char* dkey, char * key, double val){
+    (*doublemap_map[dkey])[key] = val;
+}
+
+double DoubleMap_get(char* dkey, char * key){
+    return (*doublemap_map[dkey])[key];
+}
+
+}

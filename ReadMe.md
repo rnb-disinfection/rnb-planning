@@ -110,7 +110,8 @@
   * host setting  
 * Teamviewer (autostart, password)  
 * GitKraken  
-* PyCharm  
+* PyCharm, Clion  
+  * add "export PATH=$PATH:{}/bin" to .bashrc  
 * openssh-server  
   * sudo apt-get install openssh-server
   * sudo service ssh start
@@ -173,3 +174,7 @@ source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash
 \# tf_gmt  
 export TF_GMT_ETASL_DIR=/home/junsu/Projects/tf_gmt/eTaSL/  
 source "$TF_GMT_ETASL_DIR"ws_ros/devel/setup.bash  
+  
+\# JetBrains  
+export PATH=$PATH:/home/junsu/pycharm-2020.2/bin  
+export PATH=$PATH:/home/junsu/clion-2020.2/bin  

@@ -33,7 +33,7 @@ def show_motion(pose_list, marker_list, pub, joints, joint_names, error_skip=1e-
         pvec_last = pvec
         joints.header.seq += 1
         joints.header.stamp = rospy.Time.now()
-        joints.position = pvec.tolist()
+        joints.position = pvec.tolist() if isinstance(pvec, np.ndarray) else pvec
         pub.publish(joints);
         for marker in marker_list:
             marker.move_marker({joints.name[i]: joints.position[i] for i in range(len(joint_names))})

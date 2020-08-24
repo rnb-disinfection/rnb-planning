@@ -108,13 +108,8 @@ def simulate(etasl, initial_jpos, joint_names = None,
             return
     except Exception as e:
         print('unknown eTaSL exception: {}'.format(str(e)))
-    
-def prepare_simulate(init_text, additional_constraints="", vel_conv="1E-2", err_conv="1E-5", print_expression=False):
-    if print_expression:
-        print(init_text)
-        print(additional_constraints)
-    etasl = get_simulation(init_text)
-    etasl.readTaskSpecificationString(additional_constraints)
+        
+def get_full_context(init_text, additional_constraints="", vel_conv="1E-2", err_conv="1E-5"):
     
     vel_statement=""
     for i in range(len(JOINT_NAMES_SIMULATION)):
@@ -148,10 +143,7 @@ def prepare_simulate(init_text, additional_constraints="", vel_conv="1E-2", err_
                 argument = "e_arrived"
             }}
             """.format(err_conv=err_conv)
-    etasl.readTaskSpecificationString(monitor_string)
-    if print_expression:
-        print(monitor_string)
-    return etasl
+    return init_text + "\n" + additional_constraints + "\n" + monitor_string
     
 def do_simulate(etasl, **kwargs):
     simulate(etasl=etasl, **kwargs)
@@ -162,7 +154,6 @@ def do_simulate(etasl, **kwargs):
         etasl.error = output['global.error']
     return etasl
 
-def set_simulate(init_text, initial_jpos=[], additional_constraints="",
-                 vel_conv="1E-2", err_conv="1E-5", print_expression=False, **kwargs):
-    etasl = prepare_simulate(init_text, additional_constraints, vel_conv, err_conv, print_expression=print_expression)
+def set_simulate(full_context, initial_jpos=[], **kwargs):
+    etasl = get_simulation(full_context)
     return do_simulate(etasl, initial_jpos=initial_jpos, **kwargs)

@@ -9,10 +9,12 @@ from .utils_graph import *
 from .utils import *
 from urdf_parser_py.urdf import URDF
 from pkg.plot_utils import *
+import threading
 from threading import Thread
 from multiprocessing import Process, Lock, Manager
 from pkg.panda_ros_interface import *
 from nrmkindy.indy_script import *
+from pkg.etasl_control import *
 
 # try:
 #     from queue import PriorityQueue
@@ -62,7 +64,7 @@ class ConstraintGraph:
 
     def __init__(self, urdf_path, joint_names, link_names, urdf_content=None,
                  connect_robots=False,
-                 indy_ip='141.223.193.55', btype=BlendingType.DUPLICATE, 
+                 indy_ip='141.223.193.55', btype=BlendingType.OVERRIDE, 
                  indy_grasp=lambda:None, indy_release=lambda:None):
         self.joint_num = len(joint_names)
         self.urdf_path = urdf_path
@@ -83,8 +85,11 @@ class ConstraintGraph:
         self.manager = PriorityQueueManager()
         self.manager.start()
         self.connect_robots = connect_robots
+        self.gtimer=GlobalTimer.instance()
 
+        self.indy_occupied = False
         if connect_robots:
+            self.indy_speed = 180
             self.ps = PandaStateSubscriber(interface_name=PANDA_SIMULATION_INTERFACE)
             self.ps.start_subsciption()
             self.pc = PandaControlPublisher(interface_name=PANDA_SIMULATION_INTERFACE)
@@ -310,14 +315,9 @@ class ConstraintGraph:
             node += ((k,) + v.binding,)
             pose_dict[k] = v.object.get_frame()
         return node, pose_dict
-
+    
     @record_time
-    def simulate_transition(self, from_state=None, to_state=None, display=False, execute=False, dt_vis=None, error_skip=1e-4, lock=False,
-                            vel_conv=1e-2, err_conv=1e-4, N=1, dt=1e-2, N_step=10, print_expression=False, **kwargs):
-        if dt_vis is None:
-            dt_vis = dt
-        self.gtimer = GlobalTimer.instance()
-        self.gtimer.tic("start set transition")
+    def get_transition_context(self, from_state=None, to_state=None, vel_conv=1e-2, err_conv=1e-4, **kwargs):
         if from_state is not None:
             pos_start = from_state.Q
             self.set_object_state(from_state)
@@ -351,14 +351,24 @@ class ConstraintGraph:
                                inp=list(to_state.Q)
                               ))
             self.gtimer.toc("start make_joint_constraints")
+        return get_full_context(self.init_text + self.item_text + tf_text+col_text, 
+                                additional_constraints, vel_conv, err_conv), pos_start, kwargs, binding_list
 
-        if not (display or execute):
-            self.gtimer.toc("start set transition")
+    @record_time
+    def simulate_transition(self, from_state=None, to_state=None, display=False, dt_vis=None, error_skip=1e-4, lock=False,
+                            vel_conv=1e-2, err_conv=1e-4, N=1, dt=1e-2, N_step=10, print_expression=False, **kwargs):
+        if dt_vis is None:
+            dt_vis = dt/10
+        self.gtimer = GlobalTimer.instance()
+        self.gtimer.tic("start set transition")
+        full_context, pos_start, kwargs, binding_list = self.get_transition_context(from_state, to_state, vel_conv, err_conv, **kwargs)
+        self.gtimer.toc("start set transition")
+        if print_expression:
+            print(full_context)
+        if not display:
             self.gtimer.tic("set_simulate fun")
-            e = set_simulate(self.init_text+self.item_text+tf_text+col_text,
-                             additional_constraints=additional_constraints,
-                             initial_jpos=np.array(pos_start), vel_conv=vel_conv, err_conv=err_conv, 
-                             N=N, dt=dt, print_expression=print_expression, **kwargs)
+            e = set_simulate(full_context, initial_jpos=np.array(pos_start), 
+                             N=N, dt=dt, **kwargs)
             self.gtimer.toc("set_simulate fun")
             self.gtimer.tic("post")
             if from_state is not None:
@@ -375,10 +385,7 @@ class ConstraintGraph:
         else:
             success = False
             thread_display = None
-            thread_execute = None
-            e = prepare_simulate(self.init_text+self.item_text+tf_text+col_text,
-                                 additional_constraints=additional_constraints,
-                                 vel_conv=vel_conv, err_conv=err_conv, print_expression=print_expression)
+            e = get_simulation(full_context)
             for i_sim in range(int(N/N_step)):
                 e = do_simulate(e, initial_jpos=np.array(pos_start), N=N_step, dt=dt, **kwargs)
                 if not hasattr(e, 'POS'):
@@ -390,29 +397,19 @@ class ConstraintGraph:
                     thread_display = Thread(target=show_motion, 
                                             args=(e.POS, self.marker_list, self.pub,
                                                   self.joints, self.joint_names),
-                                            kwargs={'error_skip':error_skip, 'period':dt_vis if execute else dt/10}
+                                            kwargs={'error_skip':error_skip, 'period':dt_vis}
                                             )
                     thread_display.start()
-
-                if execute:
-                    if thread_execute is not None:
-                        thread_execute.join()
-                    thread_execute = Thread(target=self.execute, args=(e.POS,dt))
-                    thread_execute.start()
                     
                 if hasattr(e, 'error') and e.error<err_conv:
                     success = True
                     break
             if thread_display is not None:
                 thread_display.join()
-            if thread_execute is not None:
-                thread_execute.join()
             self.gtimer.tic("post")
             if from_state is not None:
                 self.set_object_state(from_state)
             if success:
-                if execute:
-                    self.execute_grip(to_state)
                 for bd in binding_list:
                     self.rebind(bd, e.joint_dict_last)
 
@@ -421,6 +418,41 @@ class ConstraintGraph:
         self.gtimer.toc("post")
         # print(self.gtimer)
         return e, end_state, success
+    
+    @record_time
+    def execute_transition(self, from_state, to_state, jerr_fin=1e-3, N=300, dt=0.01, dt_exec=None):
+        if dt_exec is None:
+            dt_exec=dt
+        full_context, pos_start, kwargs, binding_list = \
+                self.get_transition_context(from_state, to_state, N=N, dt=dt)
+        initialize_etasl_control(full_context, joint_names=self.joint_names, zeros_pose=pos_start)
+#         for _ in range(N):
+#             self.gtimer.tic("update")
+#             joint_vals = update_step(dt=dt)
+#             self.gtimer.toc("update")
+#             self.execute_pose(np.array(joint_vals))
+#             if np.sum(np.abs(np.subtract(to_state.Q,joint_vals))) < jerr_fin:
+#                 break
+        self.stop_execute = False
+        self.gtimer.tic("execute_step")
+        self.execute_steps_rec(dt, 0, N, to_state.Q, jerr_fin, dt_exec)
+        while(not self.stop_execute):
+            timer.sleep(dt*10)
+        self.execute_pose(np.array(to_state.Q))
+        self.gtimer.toc("execute_step")
+        self.execute_grip(to_state)
+        
+    def execute_steps_rec(self, dt, count, N, final_pos, jerr_fin, dt_exec): 
+        count += 1
+        if not self.stop_execute:
+            self.gtimer.toctic("execute_step", "execute_step")
+            threading.Timer(dt_exec, self.execute_steps_rec, 
+                            args=(dt, count, N, final_pos, jerr_fin, dt_exec)).start ()
+            self.gtimer.tic("update")
+            joint_vals = update_step(dt=dt)
+            self.gtimer.toc("update")
+            self.execute_pose(np.array(joint_vals))
+            self.stop_execute = count>=N or (np.sum(np.abs(np.subtract(final_pos,joint_vals))) < jerr_fin)
 
     @record_time
     def execute_grip(self, state):
@@ -441,14 +473,33 @@ class ConstraintGraph:
                 self.pc.close_finger()
             else:
                 self.pc.open_finger()
+                
+    @record_time
+    def move_indy(self, *qval):
+        self.gtimer.tic("set occupied")
+        self.indy_occupied = True
+        self.gtimer.toc("set occupied")
+        self.gtimer.tic("amovej")
+        amovej(JointPos(*qval),
+               jv=JointMotionVel(self.indy_speed,self.indy_speed))
+        self.gtimer.toc("amovej")
+        self.gtimer.tic("set free")
+        self.indy_occupied = False
+        self.gtimer.toc("set free")
+                
+    def move_indy_async(self, *qval):
+        if not self.indy_occupied:
+            self.indy_occupied = True
+            t = Thread(target=self.move_indy, args=qval)
+            t.start()
 
     @record_time
-    def execute(self, POS, dt=1e-2):
+    def execute_pose(self, pos):
         if self.connect_robots:
-            for pos in POS:
-                amovej(JointPos(*np.rad2deg(pos[self.indy_idx])))
-                self.pc.joint_move_arm(pos[self.panda_idx])
-                timer.sleep(dt)
+            self.move_indy_async(*np.rad2deg(pos[self.indy_idx]))
+            self.pc.joint_move_arm(pos[self.panda_idx])
+        else:
+            self.show_pose(pos)
 
     @record_time
     def rebind(self, binding, joint_dict_last):
@@ -652,16 +703,23 @@ class ConstraintGraph:
         return sorted(schedule_dict.values(), key=lambda x: len(x))
 
     @record_time
-    def replay(self, schedule, N=400, dt=0.005, execute=False,**kwargs):
+    def replay(self, schedule, N=400, dt=0.005,**kwargs):
         state_cur = self.snode_dict[schedule[0]].state
         for i_state in schedule[1:]:
             state_new = self.snode_dict[i_state].state
             print('')
             print('-'*20)
             print("{}-{}".format(i_state, state_new.node))
-            e, new_state, succ = self.simulate_transition(state_cur, state_new, display=True, execute=execute, N=N, dt=dt,**kwargs)
+            e, new_state, succ = self.simulate_transition(state_cur, state_new, display=True, N=N, dt=dt,**kwargs)
             state_cur = state_new
         return e
+
+    @record_time
+    def execute_schedule(self, schedule, **kwargs):
+        for idx_sc in range(len(schedule)-1):
+            from_state = self.snode_dict[schedule[idx_sc]].state
+            to_state = self.snode_dict[schedule[idx_sc+1]].state
+            self.execute_transition(from_state, to_state, **kwargs)
 
     @record_time
     def check_goal(self, state, goal):
@@ -690,8 +748,6 @@ class ConstraintGraph:
         plt.axis([0,N_plot+1,-0.5,4.5])
 
     @record_time
-    def show_pose(self, pose, execute=False):
+    def show_pose(self, pose):
         show_motion([pose], self.marker_list, self.pub, self.joints, self.joint_names)
-        if execute:
-            self.execute([pose])
         
