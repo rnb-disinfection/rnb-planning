@@ -26,7 +26,7 @@ def init_kinect():
     # Modify camera configuration
     device_config = pyK4A.config
     device_config.color_format = _k4a.K4A_IMAGE_FORMAT_COLOR_BGRA32
-    device_config.color_resolution = _k4a.K4A_COLOR_RESOLUTION_720P
+    device_config.color_resolution = _k4a.K4A_COLOR_RESOLUTION_2160P
     device_config.depth_mode = _k4a.K4A_DEPTH_MODE_WFOV_2X2BINNED
     print(device_config)
 
@@ -39,19 +39,20 @@ def get_image_set(pyK4A):
     pyK4A.device_get_capture()
 
     # Get the depth image from the capture
-    depth_image_handle = pyK4A.capture_get_depth_image()
+#     depth_image_handle = pyK4A.capture_get_depth_image()
 
     # Get the color image from the capture
     color_image_handle = pyK4A.capture_get_color_image()
 
     # Check the image has been read correctly
-    if depth_image_handle and color_image_handle:
+    if color_image_handle : #and depth_image_handle:
 
         # Read and convert the image data to numpy array:
         color_image = pyK4A.image_convert_to_numpy(color_image_handle)[:,:,:3]
+        color_image = color_image.copy()
 
         # Transform the depth image to the color format
-        transformed_depth_image = pyK4A.transform_depth_to_color(depth_image_handle,color_image_handle)
+#         transformed_depth_image = pyK4A.transform_depth_to_color(depth_image_handle,color_image_handle)
 
     #     # Convert depth image (mm) to color, the range needs to be reduced down to the range (0,255)
     #     transformed_depth_color_image = cv2.applyColorMap(np.round(transformed_depth_image/30).astype(np.uint8), cv2.COLORMAP_JET)
@@ -64,13 +65,13 @@ def get_image_set(pyK4A):
     #     cv2.imshow('Colorized Depth Image',combined_image)
     #     k = cv2.waitKey(25)
 
-        pyK4A.image_release(depth_image_handle)
+#         pyK4A.image_release(depth_image_handle)
         pyK4A.image_release(color_image_handle)
         pyK4A.capture_release()
-        return color_image, transformed_depth_image
+        return color_image#, transformed_depth_image
     else:
         pyK4A.capture_release()
-        return None, None
+        return None
 
 
 
@@ -104,10 +105,12 @@ class ObjectMarker:
         
 def get_object_pose_dict(color_image, aruco_map, dictionary, cameraMatrix, distCoeffs):
     corners, ids, rejectedImgPoints = aruco.detectMarkers(color_image, dictionary)
+    if ids is None:
+        return {}, {}
     corner_dict = {}
     for idx, corner4 in zip(ids, corners):
         corner_dict[idx[0]] = corner4[0]
-        print("{}:{}".format(idx, corner4))
+#         print("{}:{}".format(idx, corner4))
     objectPose_dict = {}
     objectrtvec_dict = {}
     for obj_name, marker_list in aruco_map.items():
@@ -117,6 +120,8 @@ def get_object_pose_dict(color_image, aruco_map, dictionary, cameraMatrix, distC
             if marker.idx in corner_dict:
                 objectPoints = np.concatenate([objectPoints, marker.corners], axis=0)
                 imagePoints = np.concatenate([imagePoints, corner_dict[marker.idx]], axis=0)
+        if len(objectPoints) == 0:
+            continue
         ret, rvec, tvec = cv2.solvePnP(objectPoints, imagePoints, cameraMatrix, distCoeffs)
         R, jac = cv2.Rodrigues(rvec)
         Tobj = SE3(R, tvec.flatten())
@@ -124,4 +129,37 @@ def get_object_pose_dict(color_image, aruco_map, dictionary, cameraMatrix, distC
     #     objectrtvec_dict[obj_name] = (rvec, tvec)
     #     axis_len = 0.05
     #     aruco.drawAxis(color_image, cameraMatrix, distCoeffs, rvec,tvec, axis_len)
-    return objectPose_dict
+    return objectPose_dict, corner_dict
+
+
+def print_markers(aruco_map, dictionary, px_size, dir_img):
+    try: os.mkdir(dir_img)
+    except: pass
+    for mk in sorted(sum(aruco_map.values(), []), key=lambda x: x.idx):
+        img = aruco.drawMarker(dictionary,mk.idx, px_size)
+        cv2.imwrite("{}/marker_{}.png".format(dir_img, mk.idx), img)
+        
+        
+def draw_objects(color_image, aruco_map, objectPose_dict, corner_dict, cameraMatrix, distCoeffs, axis_len=0.1):
+    color_image_out = color_image.copy()
+    for k,Tco in objectPose_dict.items():
+        # draw object location
+        marker_o = aruco_map[k]
+        rvec,_ = cv2.Rodrigues(Tco[:3,:3])
+        tvec = Tco[:3,3]
+        aruco.drawAxis(color_image_out, cameraMatrix, distCoeffs, rvec,tvec, axis_len)
+
+        # draw model
+        marker_o_list = aruco_map[k]
+        for marker_o in marker_o_list:
+            Toff_corner = SE3(marker_o.Toff[:3,:3], marker_o.corners[0])
+            Tcc = np.matmul(Tco, Toff_corner)
+            rvec,_ = cv2.Rodrigues(Tcc[:3,:3])
+            tvec = Tcc[:3,3]
+            aruco.drawAxis(color_image_out, cameraMatrix, distCoeffs, rvec,tvec, marker_o.size)
+    # draw corners
+    markerIds = np.reshape(list(sorted(corner_dict.keys())), (-1,1))
+    markerCorners = [np.expand_dims(corner_dict[k[0]], axis=0) for k in markerIds]
+    color_image_out = aruco.drawDetectedMarkers(color_image_out, markerCorners, markerIds)
+    return color_image_out
+
