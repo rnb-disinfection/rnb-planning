@@ -150,6 +150,9 @@ def project_px(Tco, cam_K, points):
 def Rot_rpy(rpy):
     return np.transpose(Rot_axis_series([1,2,3],np.negative(rpy)))
 
+def Rot2rpy(R):
+    return np.asarray(list(reversed(Rot2zyx(R))))
+
 def matmul_series(*Tlist):
     T = Tlist[0]
     for T_i in Tlist[1:]:

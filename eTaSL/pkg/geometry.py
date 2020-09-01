@@ -109,8 +109,8 @@ class GeoSphere(GeometryItem):
 
         
 class GeoBox(GeometryItem):
-    def __init__(self, center, BLH, **kwargs):
-        self.set_offset_tf(center, np.identity(3))
+    def __init__(self, center, BLH, orientation=(0,0,0), **kwargs):
+        self.set_offset_tf(center, Rotation.from_rotvec(orientation).as_dcm())
         self.BLH = BLH
         super(GeoBox, self).__init__(**kwargs)
         

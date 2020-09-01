@@ -9,6 +9,8 @@ import cv2
 from cv2 import aruco
 from pkg.utils import *
 from pkg.rotation_utils import *
+from scipy.spatial.transform import Rotation
+import time
 
 # Path to the module
 # TODO: Modify with the path containing the k4a.dll from the Azure Kinect SDK
@@ -16,8 +18,14 @@ MODULEPATH = r'/usr/lib/x86_64-linux-gnu/libk4a.so'
 # for windows 'C:\\Program Files\\Azure Kinect SDK v1.4.1\\sdk\\windows-desktop\\amd64\\release\\bin\\k4a.dll'
 # under linux please use r'/usr/lib/x86_64-linux-gnu/libk4a.so'
 
+pyK4A = None
+color_image_handle = None
+
 def init_kinect():
     # Initialize the library with the path containing the module
+    global pyK4A
+    if pyK4A is not None:
+        disconnect_kinect()
     pyK4A = pyKinectAzure(MODULEPATH)
 
     # Open device
@@ -32,17 +40,19 @@ def init_kinect():
 
     # Start cameras using modified configuration
     pyK4A.device_start_cameras(device_config)
-    return pyK4A
 
-def get_image_set(pyK4A):
-    # Get capture
-    pyK4A.device_get_capture()
-
-    # Get the depth image from the capture
-#     depth_image_handle = pyK4A.capture_get_depth_image()
-
-    # Get the color image from the capture
-    color_image_handle = pyK4A.capture_get_color_image()
+def get_kinect_image(h_iter_duration=0.01, h_iter_max=100):
+    count = 0
+    color_image_handle = None
+    while not color_image_handle and count < h_iter_max:
+        # Get capture
+        pyK4A.device_get_capture()
+        # Get the depth image from the capture
+        # depth_image_handle = pyK4A.capture_get_depth_image()
+        # Get the color image from the capture
+        color_image_handle = pyK4A.capture_get_color_image()
+        time.sleep(h_iter_duration)
+        count += 1
 
     # Check the image has been read correctly
     if color_image_handle : #and depth_image_handle:
@@ -70,12 +80,13 @@ def get_image_set(pyK4A):
         pyK4A.capture_release()
         return color_image#, transformed_depth_image
     else:
+        print("None image handle: %i"%(count))
         pyK4A.capture_release()
         return None
 
 
 
-def get_calibration(pyK4A):
+def get_calibration():
     calibration = _k4a.k4a_calibration_t()
     # Get the camera calibration
     pyK4A.device_get_calibration(pyK4A.config.depth_mode,pyK4A.config.color_resolution,calibration)
@@ -85,9 +96,12 @@ def get_calibration(pyK4A):
     distCoeffs = np.array([cal_param.k1, cal_param.k2, cal_param.p1, cal_param.p2, cal_param.k3, cal_param.k4, cal_param.k5, cal_param.k6])
     return cameraMatrix, distCoeffs
 
-def disconnect_kinect(pyK4A):
+def disconnect_kinect():
+    global pyK4A, color_image_handle
     pyK4A.device_stop_cameras()
     pyK4A.device_close()
+    pyK4A = None
+    color_image_handle = None
     
 # define aruco/charuco - object mapping
 # should contain marker & offset
@@ -132,7 +146,7 @@ def get_object_pose_dict(color_image, aruco_map, dictionary, cameraMatrix, distC
     return objectPose_dict, corner_dict
 
 
-def print_markers(aruco_map, dictionary, px_size, dir_img):
+def print_markers(aruco_map, dictionary, px_size=800, dir_img="./markers"):
     try: os.mkdir(dir_img)
     except: pass
     for mk in sorted(sum(aruco_map.values(), []), key=lambda x: x.idx):
@@ -163,3 +177,17 @@ def draw_objects(color_image, aruco_map, objectPose_dict, corner_dict, cameraMat
     color_image_out = aruco.drawDetectedMarkers(color_image_out, markerCorners, markerIds)
     return color_image_out
 
+def get_T_rel(coord_from, coord_to, objectPose_dict):
+    return np.matmul(SE3_inv(objectPose_dict[coord_from]), objectPose_dict[coord_to])
+
+def T2xyzrpy(T):
+    return T[:3,3].tolist(), Rot2rpy(T[:3,:3]).tolist()
+
+def T2xyzrvec(T):
+    return T[:3,3].tolist(), Rotation.from_dcm(T[:3,:3]).as_rotvec().tolist()
+
+def get_put_dir(Robj, dir_vec_dict):
+    downvec = np.matmul(np.transpose(Robj), [[0],[0],[-1]])
+    dir_match_dict = {k: np.dot(v, downvec) for k, v in dir_vec_dict.items()}
+    key_match = sorted(dir_match_dict.keys(), key=lambda k: dir_match_dict[k])[-1]
+    return key_match
