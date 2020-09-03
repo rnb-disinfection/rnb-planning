@@ -23,6 +23,7 @@ def initialize_etasl_control(context_text, joint_names, zeros_pose,
     lib.DoubleMap_create("output")
     lib.DoubleMap_create("joint_val")
     lib.DoubleMap_create("joint_val_new")
+    lib.DoubleMap_create("joint_vel")
     
     for jname, jval in zip(JOINT_NAMES_CONTROL, zeros_pose):
         lib.DoubleMap_set("init_val", jname, ctypes.c_double(jval))
@@ -40,7 +41,10 @@ def update_step(dt, joint_pos=None):
         lib.etasl_setJointPos("etasl", "joint_val")
     lib.etasl_updateStep("etasl", ctypes.c_double(dt))
     lib.etasl_getJointPos("etasl", "joint_val_new")
+    lib.etasl_getJointVel("etasl", "joint_vel")
     joint_vals = []
+    joint_vels = []
     for jname in JOINT_NAMES_CONTROL:
         joint_vals.append(lib.DoubleMap_get("joint_val_new", jname))
-    return joint_vals
+        joint_vels.append(lib.DoubleMap_get("joint_vel", jname))
+    return joint_vals, joint_vels

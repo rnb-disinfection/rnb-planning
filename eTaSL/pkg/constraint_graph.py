@@ -15,6 +15,10 @@ from multiprocessing import Process, Lock, Manager
 from pkg.panda_ros_interface import *
 from nrmkindy.indy_script import *
 from pkg.etasl_control import *
+from indy_utils import indydcp_client
+
+
+INDY_GRPC = False
 
 # try:
 #     from queue import PriorityQueue
@@ -63,9 +67,10 @@ class ConstraintGraph:
     DSCALE = 1e4
 
     def __init__(self, urdf_path, joint_names, link_names, urdf_content=None,
-                 connect_robots=False,
-                 indy_ip='141.223.193.55', btype=BlendingType.OVERRIDE, 
-                 indy_grasp=lambda:None, indy_release=lambda:None):
+                 connect_panda=False, connect_indy=False,
+                 indy_ip='192.168.0.63', indy_btype=BlendingType.OVERRIDE,
+                 indy_joint_vel_level=9, indy_task_vel_level=9,
+                 indy_grasp_DO=16):
         self.joint_num = len(joint_names)
         self.urdf_path = urdf_path
         if urdf_content is None:
@@ -84,31 +89,49 @@ class ConstraintGraph:
         self.que_lock = Lock()
         self.manager = PriorityQueueManager()
         self.manager.start()
-        self.connect_robots = connect_robots
+        self.connect_panda = connect_panda
+        self.connect_indy = connect_indy
         self.gtimer=GlobalTimer.instance()
 
-        self.indy_occupied = False
-        if connect_robots:
-            self.indy_speed = 180
+
+        self.indy_idx = [idx for idx, jname in zip(range(self.joint_num), self.joint_names) if 'indy' in jname]
+        self.panda_idx = [idx for idx, jname in zip(range(self.joint_num), self.joint_names) if 'panda' in jname]
+        if connect_panda:
             self.ps = PandaStateSubscriber(interface_name=PANDA_SIMULATION_INTERFACE)
             self.ps.start_subsciption()
             self.pc = PandaControlPublisher(interface_name=PANDA_SIMULATION_INTERFACE)
 
-            self.indy_grasp = indy_grasp
-            self.indy_release = indy_release
-            try: end_script()
-            except: pass
-            self.indy_ip = indy_ip
-            self.btype = btype
-            config_script(NAME_INDY_7)
-            start_script(indy_ip)
-            blending_type(btype)
-            task_vel(0.1, 0.2, 20, 20)
-            self.indy_idx = [idx for idx, jname in zip(range(self.joint_num), self.joint_names) if 'indy' in jname]
-            self.panda_idx = [idx for idx, jname in zip(range(self.joint_num), self.joint_names) if 'panda' in jname]
+
+        if connect_indy:
+            self.indy_speed = 180
+            self.indy_acc = 360
+            if INDY_GRPC:
+                self.indy_grasp_fun = lambda:None
+                self.indy_release_fun = lambda:None
+                try: end_script()
+                except: pass
+                self.indy_ip = indy_ip
+                self.btype = btype
+                config_script(NAME_INDY_7)
+                start_script(indy_ip)
+                blending_type(indy_btype)
+                task_vel(0.1, 0.2, 20, 20)
+            else:
+                self.indy = indydcp_client.IndyDCPClient(indy_ip, "NRMK-Indy7")
+                self.indy.connect()
+                self.indy.set_collision_level(5)
+                self.indy.set_joint_vel_level(indy_joint_vel_level)
+                self.indy.set_task_vel_level(indy_task_vel_level)
+                self.indy.set_joint_blend_radius(20)
+                self.indy.set_task_blend_radius(0.2)
+                self.indy_grasp_DO = indy_grasp_DO
     
     def __del__(self):
-        try: end_script()
+        try:
+            if INDY_GRPC:
+                end_script()
+            else:
+                self.indy.disconnect()
         except: pass
 
     @record_time
@@ -449,56 +472,56 @@ class ConstraintGraph:
             threading.Timer(dt_exec, self.execute_steps_rec, 
                             args=(dt, count, N, final_pos, jerr_fin, dt_exec)).start ()
             self.gtimer.tic("update")
-            joint_vals = update_step(dt=dt)
+            joint_vals, joint_vels = update_step(dt=dt)
             self.gtimer.toc("update")
             self.execute_pose(np.array(joint_vals))
             self.stop_execute = count>=N or (np.sum(np.abs(np.subtract(final_pos,joint_vals))) < jerr_fin)
 
     @record_time
     def execute_grip(self, state):
-        if self.connect_robots:
-            indy_grip = False
-            panda_grip = False
-            for bd in state.node:
-                bind_link_name = self.binder_dict[bd[2]].object.link_name
-                if 'indy' in bind_link_name:
-                    indy_grip = True
-                elif 'panda' in bind_link_name:
-                    panda_grip = True
+        indy_grip = False
+        panda_grip = False
+        for bd in state.node:
+            bind_link_name = self.binder_dict[bd[2]].object.link_name
+            if 'indy' in bind_link_name:
+                indy_grip = True
+            elif 'panda' in bind_link_name:
+                panda_grip = True
+        if self.connect_indy:
             if indy_grip:
-                self.indy_grasp()
+                self.indy_grasp(True)
             else:
-                self.indy_release()
+                self.indy_grasp(True)
+        if self.connect_panda:
             if panda_grip:
                 self.pc.close_finger()
             else:
                 self.pc.open_finger()
-                
+
     @record_time
-    def move_indy(self, *qval):
-        self.gtimer.tic("set occupied")
-        self.indy_occupied = True
-        self.gtimer.toc("set occupied")
-        self.gtimer.tic("amovej")
-        amovej(JointPos(*qval),
-               jv=JointMotionVel(self.indy_speed,self.indy_speed))
-        self.gtimer.toc("amovej")
-        self.gtimer.tic("set free")
-        self.indy_occupied = False
-        self.gtimer.toc("set free")
+    def indy_grasp(self, grasp=False):
+        if INDY_GRPC:
+            if grasp:
+                self.indy_grasp_fun()
+            else:
+                self.indy_release_fun()
+        else:
+            self.indy.set_do(self.indy_grasp_DO, grasp)
                 
     def move_indy_async(self, *qval):
-        if not self.indy_occupied:
-            self.indy_occupied = True
-            t = Thread(target=self.move_indy, args=qval)
-            t.start()
+        if INDY_GRPC:
+            amovej(JointPos(*qval),
+                   jv=JointMotionVel(self.indy_speed,self.indy_acc))
+        else:
+            self.indy.joint_move_to(qval)
 
     @record_time
     def execute_pose(self, pos):
-        if self.connect_robots:
+        if self.connect_indy:
             self.move_indy_async(*np.rad2deg(pos[self.indy_idx]))
+        if self.connect_panda:
             self.pc.joint_move_arm(pos[self.panda_idx])
-        else:
+        if not (self.connect_indy or self.connect_panda):
             self.show_pose(pos)
 
     @record_time

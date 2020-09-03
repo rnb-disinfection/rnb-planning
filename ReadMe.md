@@ -38,6 +38,9 @@
   * Follow instruction on IndyFramework3.0/ReadMe.md to update Indy robot to 3.0
 * Franka package  
   * sudo apt install ros-melodic-libfranka ros-melodic-franka-ros  
+  * Copy/move the franka.sh file to the root of the catkin_ws $ cp ~/catkin_ws/src/franka_ros_interface/franka.sh ~/catkin_ws/
+  * Change the values in the copied file (described in the file).
+
 * panda simulator  
   * pip install numpy numpy-quaternion rospy-message-converter==0.4.0  
   * cd ~/catkin_ws && sudo rm -rf devel build  
@@ -96,6 +99,10 @@
 
 # Launch Panda simulator
 * roslaunch panda_gazebo panda_world.launch start_moveit:=false   
+
+# Launch franka ros interface  
+* visualization: roslaunch franka_visualization franka_visualization.launch robot_ip:=192.168.0.13 load_gripper:=true  
+* launch interface: roslaunch franka_interface interface.launch
 
 # Launch Indy simulator (CadKit)
 * run TaskManager (simulator mode)  on STEP
@@ -178,3 +185,4 @@ source "$TF_GMT_ETASL_DIR"ws_ros/devel/setup.bash
 \# JetBrains  
 export PATH=$PATH:/home/junsu/pycharm-2020.2/bin  
 export PATH=$PATH:/home/junsu/clion-2020.2/bin  
+

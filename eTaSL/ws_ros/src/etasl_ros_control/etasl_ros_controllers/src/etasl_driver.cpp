@@ -627,6 +627,10 @@ void etasl_getJointPos(char* key, char* dkey) {
     driver_map[key]->getJointPos(*doublemap_map[dkey]);
 }
 
+void etasl_getJointVel(char* key, char* dkey) {
+    driver_map[key]->getJointVel(*doublemap_map[dkey]);
+}
+
 void etasl_setInput(char* key, char* dkey) {
     driver_map[key]->setInput(*doublemap_map[dkey]);
 }
