@@ -34,7 +34,11 @@ def initialize_etasl_control(context_text, joint_names, zeros_pose,
                          ctypes.c_double(convergence_crit), "conv_val")
     lib.etasl_setInput("etasl", "input")
     
-def update_step(dt, joint_pos=None):
+def update_step(dt, joint_pos=None, input_dict=None):
+    if input_dict is not None:
+        for iname, ival in input_dict.items():
+            lib.DoubleMap_set("joint_val", iname, ctypes.c_double(ival))
+        lib.etasl_setInput("etasl", "input")
     if joint_pos is not None:
         for jname, jval in zip(JOINT_NAMES_CONTROL, joint_pos):
             lib.DoubleMap_set("joint_val", jname, ctypes.c_double(jval))

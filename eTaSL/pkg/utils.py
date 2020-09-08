@@ -17,6 +17,19 @@ def get_ip_address():
     s.connect(("8.8.8.8", 80))
     return s.getsockname()[0]
 
+def differentiate(X, dt):
+    V = (X[1:]-X[:-1])/dt
+    return np.concatenate([V, [V[-1]]], axis=0)
+
+def integrate(V, dt, X0=0):
+    return X0 + (np.cumsum(V, axis=0) - V) * dt
+
+def interpolate_double(X):
+    X_med = (X[:-1] + X[1:]) / 2
+    return np.concatenate(
+        [np.reshape(np.concatenate([X[:-1],X_med], axis=1), (-1, X.shape[1])),
+        X[-1:]], axis=0)
+
 class GlobalTimer(Singleton):
     def __init__(self, scale=1000):
         self.name_list = []

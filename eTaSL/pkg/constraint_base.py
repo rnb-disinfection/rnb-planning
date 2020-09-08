@@ -146,7 +146,7 @@ def make_collision_constraints(geometry_items1, geometry_items2=None):
     return constraint_text
 
 
-def make_joint_constraints(joint_names, make_error=True):
+def make_joint_constraints(joint_names, make_error=True, priority=2):
     joint_constraints = ""
     error_statement = ""
     for i in range(len(joint_names)):
@@ -157,10 +157,10 @@ Constraint{{
     context=ctx,
     name="constraint_{joint_name}",
     expr=error_{joint_name},
-    priority    = 2,
+    priority    = {priority},
     K           = K
 }}
-            """.format(joint_name=joint_names[i], index=i+1)
+            """.format(joint_name=joint_names[i], index=i+1, priority=priority)
         if make_error:
             error_statement += 'abs(error_{joint_name})+'.format(joint_name=joint_names[i])
     if make_error:

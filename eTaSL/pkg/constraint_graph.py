@@ -772,9 +772,14 @@ class ConstraintGraph:
         plt.axis([0,N_plot+1,-0.5,4.5])
 
     @record_time
-    def show_pose(self, pose):
-        show_motion([pose], self.marker_list, self.pub, self.joints, self.joint_names)
+    def show_pose(self, pose, **kwargs):
+        show_motion([pose], self.marker_list, self.pub, self.joints, self.joint_names, **kwargs)
 
+    @record_time
+    def show_motion(self, pose_list, **kwargs):
+        show_motion(pose_list, self.marker_list, self.pub, self.joints, self.joint_names, **kwargs)
+
+    @record_time
     def get_traj(self, from_state, to_state,
                  T_step=5, control_freq=4e3, downsample_log2=5, playback_speed_log2=1,
                  **kwargs):
@@ -786,22 +791,18 @@ class ConstraintGraph:
                                                       **kwargs)
         print("{} Hz / {} sec : {}".format(1 / dt, N * dt, N))
         e_POS = e.POS
-        dim = e_POS.shape[1]
         for _ in range(downsample_log2):
-            e_POS_med = np.concatenate([e_POS[0:1], (e_POS[:-1] + e_POS[1:]) / 2], axis=0)
-            e_POS = np.reshape(np.concatenate([e_POS_med, e_POS], axis=1), (-1, dim))
+            e_POS = interpolate_double(e_POS)
             dt = dt / 2
 
         for _ in range(playback_speed_log2):
-            e_POS_med = np.concatenate([e_POS[0:1], (e_POS[:-1] + e_POS[1:]) / 2], axis=0)
-            e_POS = np.reshape(np.concatenate([e_POS_med, e_POS], axis=1), (-1, dim))
+            e_POS = interpolate_double(e_POS)
         return e_POS, dt, succ
 
+    @record_time
     def get_traj_dat(self, e_POS, dt):
-        e_VEL = (e_POS[1:] - e_POS[:-1]) / (dt)
-        e_VEL = np.concatenate([e_VEL, [e_VEL[-1]]], axis=0)
-        e_ACC = (e_VEL[1:] - e_VEL[:-1]) / dt
-        e_ACC = np.concatenate([e_ACC, [e_ACC[-1]]], axis=0)
+        e_VEL = differentiate(e_POS, dt)
+        e_ACC = differentiate(e_VEL, dt)
         traj_data = np.concatenate([e_POS, e_VEL, e_ACC], axis=1)
         traj_data_list = traj_data[:].flatten().tolist()
         return traj_data_list
