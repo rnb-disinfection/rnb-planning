@@ -58,11 +58,11 @@
   * switch to recommended  gcc/g++ version for each install in below link  
     * sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
   * https://etasl.pages.gitlab.kuleuven.be/install-new.html  
-  * (add "source $OROCOS/install_isolated/setup.bash" on top of user section of "~/.bashrc")
-  * source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash  
-  * **if eTaSL simulation is slow (has to be under 300ms with 200 constraints), re-compile packages in release mode**
-    * in "\~/etasl_ws", "\~/etasl_ws/etasl/ws/etasl", "\~/etasl_ws/etasl/ws/etasl-py"
-    * sudo rm -rf devel && sudo rm -rf devel && catkin_make -DCMAKE_BUILD_TYPE=Release
+  * (add "source $OROCOS/install_isolated/setup.bash" on top of user section of "~/.bashrc")  
+  * source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash   
+  * **if eTaSL simulation is slow (has to be under 300ms with 200 constraints), re-compile packages in release mode**  
+    * in "\~/etasl_ws", "\~/etasl_ws/etasl/ws/etasl", "\~/etasl_ws/etasl/ws/etasl-py"  
+    * sudo rm -rf devel && sudo rm -rf devel && catkin_make -DCMAKE_BUILD_TYPE=Release  
 * Azure Kinect  
   * setup microsoft repository  
     * curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -  

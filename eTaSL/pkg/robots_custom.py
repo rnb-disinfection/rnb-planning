@@ -57,12 +57,15 @@ class XacroCustomizer:
         xacro_file.write(new_xacro_content)
         xacro_file.close()
 
-    def convert_xacro_to_urdf(self, urdf_path=URDF_PATH_DEFAULT, joint_fix_dict={}, vel_limit_dict={}):
+    def convert_xacro_to_urdf(self, urdf_path=URDF_PATH_DEFAULT,
+                              joint_fix_dict={}, vel_limit_dict={}, effort_limit_dict={}):
         urdf_content = subprocess.check_output(['xacro', self.xacro_path])
         self.urdf_content = URDF.from_xml_string(urdf_content)
         for joint in self.urdf_content.joints:
             if joint.name in vel_limit_dict:
                 joint.limit.velocity = str(vel_limit_dict[joint.name])
+            if joint.name in effort_limit_dict:
+                joint.limit.effort = str(effort_limit_dict[joint.name])
             if any([jkey in joint.name for jkey in joint_fix_dict.keys()]):
                 lim_dir = [v for k,v in joint_fix_dict.items() if k in joint.name][0]
                 joint.type='fixed'

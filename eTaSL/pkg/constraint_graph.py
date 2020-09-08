@@ -135,7 +135,7 @@ class ConstraintGraph:
         except: pass
 
     @record_time
-    def set_simulation(self, nWSR=50, cputime=200, regularization_factor= 1e-4):
+    def set_simulation(self, nWSR=50, cputime=200, regularization_factor= 1e-4, timescale=0.25):
         # prepare ros
         self.pub, self.joints, self.rate = get_publisher(self.joint_names)
         # prepare visualization markers
@@ -144,7 +144,7 @@ class ConstraintGraph:
                               urdf_content = self.urdf_content, urdf_path = self.urdf_path,
                               geometry_items_dict=self.geometry_items_dict,
                               nWSR=nWSR, cputime=cputime, regularization_factor= regularization_factor)
-        self.init_text = get_init_text()
+        self.init_text = get_init_text(timescale=timescale)
         self.item_text = get_item_text(GeometryItem.GLOBAL_GEO_LIST)
         self.fixed_tf_text = get_tf_text(self.fixed_tf_list)
         self.fixed_collision_text = make_collision_constraints(self.fixed_collision_items_list)
@@ -697,11 +697,12 @@ class ConstraintGraph:
                 if self.check_goal(snode_new.state, self.goal_state):
                     ret = True
             if verbose:
-                print('\n{} - Goal cost:{}->{} / Init cost:{}->{} / branching: {}->{} ({} s)'.format(
+                print('\n{} - Goal cost:{}->{} / Init cost:{}->{} / branching: {}->{} ({} s, err: {})'.format(
                     "success" if succ else "fail",
                     int(self.goal_cost_dict[from_state.node]), int(self.goal_cost_dict[to_state.node]),
                     int(self.init_cost_dict[from_state.node]), int(self.init_cost_dict[to_state.node]),
-                    snode.idx, snode_new.idx if succ else "", round(timer.time() - self.t0, 2)))
+                    snode.idx, snode_new.idx if succ else "", round(timer.time() - self.t0, 2),
+                    e.error if hasattr(e, 'error') else 'nan'))
                 print('node: {}->{}'.format(from_state.node, to_state.node))
                 print('=' * 150)
             if terminate_on_first and ret:

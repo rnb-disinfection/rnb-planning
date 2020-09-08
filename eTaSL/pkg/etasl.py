@@ -27,7 +27,7 @@ def set_simulation_config(joint_names, link_names, urdf_content, urdf_path, geom
     COLLISION_ITEMS_DICT = geometry_items_dict
     NWSR, CPUTIME, REG_FACTOR = nWSR, cputime, regularization_factor
 
-def get_init_text():
+def get_init_text(timescale=0.25):
     global JOINT_NAMES_SIMULATION, LINK_NAMES_SIMULATION, URDF_CONTENT_SIMULATION, URDF_PATH_SIMULATION, COLLISION_ITEMS_DICT
     joint_names = JOINT_NAMES_SIMULATION
     link_names = LINK_NAMES_SIMULATION
@@ -52,7 +52,7 @@ require("geometric")
 --require("libexpressiongraph_collision")
 require("collision")
 require("libexpressiongraph_velocities")
-local u=UrdfExpr();
+local u=UrdfExpr(%s);
 local fn = "%s"
 u:readFromFile(fn)
 %s
@@ -65,7 +65,7 @@ for i=1,#robot_jname do
 end
 
 K=10
-    """%(urdf_path, transform_text, Texpression_text, jnames_format)
+    """%(str(timescale) if timescale is not None else "", urdf_path, transform_text, Texpression_text, jnames_format)
     
     return definition_text
 
@@ -90,22 +90,27 @@ def simulate(etasl, initial_jpos, joint_names = None,
              inp_lbl=[], inp=[], N=100, dt=0.02):
     if joint_names is None:
         joint_names = JOINT_NAMES_SIMULATION
-    pos_lbl = joint_names
+    pos_lbl = np.concatenate([[jname, jname + "_dot"] for jname in joint_names], axis=0).tolist()
+    initial_jpos_exp = np.concatenate([[jval, 0.0] for jval in initial_jpos], axis=0)
     etasl.setInputTable(inp_lbl,inp)
 
     try:
         try:
-            etasl.initialize(np.array(initial_jpos), pos_lbl)
+            etasl.initialize(initial_jpos_exp, pos_lbl)
             etasl.simulate(N=N,dt=dt)
         except EventException as e:
             idx_end = np.where(np.any(etasl.VEL!=0,axis=1))[0]
             if len(idx_end)>0 and hasattr(etasl, 'POS'):
                 idx_end = idx_end[-1]
-                etasl.POS = etasl.POS[:idx_end+1]
-                etasl.VEL = etasl.VEL[:idx_end+1]
+                # etasl.POS = etasl.POS[:idx_end+1]
+                # etasl.VEL = etasl.VEL[:idx_end+1]
+                etasl.VEL = np.cumsum(etasl.VEL[:idx_end+1,1::2], axis=0)*dt
+                etasl.POS = initial_jpos+np.cumsum(np.pad(etasl.VEL, [[1,0],[0,0]], 'constant'), axis=0)[:-1]*dt
                 etasl.TIME = etasl.TIME[:idx_end+1]
                 etasl.OUTP = etasl.OUTP[:idx_end+1]
             return
+        etasl.VEL = np.cumsum(etasl.VEL[:,1::2], axis=0)*dt
+        etasl.POS = initial_jpos+np.cumsum(np.pad(etasl.VEL, [[1,0],[0,0]], 'constant'), axis=0)[:-1]*dt
     except Exception as e:
         print('unknown eTaSL exception: {}'.format(str(e)))
         
