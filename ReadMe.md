@@ -95,6 +95,11 @@
   * export TF_GMT_ETASL_DIR=/home/junsu/Projects/tf_gmt/eTaSL/  
   * source "$TF_GMT_ETASL_DIR"ws_ros/devel/setup.bash  
 
+# Setup and launch panda repeater
+* setup panda_ros_repeater on panda master pc (https://github.com/Cucumberkjs/panda_ros_repeater.git)  
+* launch panda command repeater  
+  * roslaunch panda_ros_repeater joint_velocity_repeater.launch robot_ip:=192.168.0.13 load_gripper:=true
+
 # Launch RVIZ
 * roslaunch "$TF_GMT_ETASL_DIR"/launch/gui_custom_robots_joint_panel.launch  
 
