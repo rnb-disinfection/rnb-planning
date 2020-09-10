@@ -15,10 +15,13 @@ COLLISION_ITEMS_DICT = None
 NWSR = 100
 CPUTIME =1000
 REG_FACTOR =1e-6
+K_DEFAULT = 10
 
 def augment_jnames_dot(joint_names):
     return np.concatenate([[jname, jname + "_dot"] for jname in joint_names], axis=0).tolist()
-def augment_jvals_dot(jvals, jdots):
+def augment_jvals_dot(jvals, jdots=None):
+    if jdots is None:
+        jdots = np.zeros_like(jvals)
     return np.concatenate([[jval, jdot] for jval, jdot in zip(jvals, jdots)], axis=0)
 
 def set_simulation_config(joint_names, link_names, urdf_content, urdf_path, geometry_items_dict=None,
@@ -32,7 +35,7 @@ def set_simulation_config(joint_names, link_names, urdf_content, urdf_path, geom
     COLLISION_ITEMS_DICT = geometry_items_dict
     NWSR, CPUTIME, REG_FACTOR = nWSR, cputime, regularization_factor
 
-def get_init_text(timescale=0.25):
+def get_init_text(timescale=0.25, K_default=K_DEFAULT):
     global JOINT_NAMES_SIMULATION, LINK_NAMES_SIMULATION, URDF_CONTENT_SIMULATION, URDF_PATH_SIMULATION, COLLISION_ITEMS_DICT
     joint_names = JOINT_NAMES_SIMULATION
     link_names = LINK_NAMES_SIMULATION
@@ -57,20 +60,22 @@ require("geometric")
 --require("libexpressiongraph_collision")
 require("collision")
 require("libexpressiongraph_velocities")
-local u=UrdfExpr(%s);
-local fn = "%s"
+local u=UrdfExpr({timescale});
+local fn = "{urdf_path}"
 u:readFromFile(fn)
-%s
+{transform_text}
 local r = u:getExpressions(ctx)
-%s
-robot_jname={%s}
-robot_jval = {}
+{Texpression_text}
+robot_jname={{{jnames_format}}}
+robot_jval = {{}}
 for i=1,#robot_jname do
    robot_jval[i]   = ctx:getScalarExpr(robot_jname[i])
 end
 
-K=10
-    """%(str(timescale) if timescale is not None else "", urdf_path, transform_text, Texpression_text, jnames_format)
+K={K_default}
+    """.format(timescale=str(timescale) if timescale is not None else "", urdf_path=urdf_path,
+               transform_text=transform_text, Texpression_text=Texpression_text, jnames_format=jnames_format,
+               K_default=K_default)
     
     return definition_text
 

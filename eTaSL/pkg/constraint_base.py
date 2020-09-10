@@ -18,7 +18,8 @@ context=ctx,
         lower=lower
     )
 
-def make_point_pair_constraint(obj1, obj2, varname, constraint_name, make_error=True, point1=None, point2=None):
+def make_point_pair_constraint(obj1, obj2, varname, constraint_name, make_error=True, point1=None, point2=None,
+                               K='K'):
     error_statement = ""
     if make_error:
         error_val = "\nerror_target = error_target + abs(dist_{varname}))".format(varname=varname)
@@ -34,15 +35,15 @@ Constraint{{
     name="{constraint_name}",
     expr = dist_{varname},
     priority = 2,
-    K        = K
+    K        = {K}
 }}""".format(
         constraint_name=constraint_name,
         T1=obj1.get_tf_name(), ctem1radius=0,
         T2=obj2.get_tf_name(), ctem2radius=0,
-        varname=varname
+        varname=varname, K=K
     ) + error_statement
 
-def make_dir_constraint(pointer1, pointer2, name, constraint_name, make_error=True):
+def make_dir_constraint(pointer1, pointer2, name, constraint_name, make_error=True, K='K'):
     error_statement = ""
     if make_error:
         error_val = "\nerror_target = error_target + abs(angle_{name})".format(name=name)
@@ -60,13 +61,13 @@ Constraint{{
     name="{constraint_name}",
     expr = angle_{name},
     priority = 2,
-    K        = K
+    K        = {K}
 }}""".format(
         constraint_name=constraint_name,
-        name=name
+        name=name, K=K
     ) + error_statement
 
-def make_orientation_constraint(framer1, framer2, name, constraint_name, make_error=True):
+def make_orientation_constraint(framer1, framer2, name, constraint_name, make_error=True, K='K'):
     error_statement = ""
     if make_error:
         error_val = "\nerror_target = error_target + abs(orientation_{name})".format(name=name)
@@ -96,10 +97,10 @@ Constraint{{
     name="{constraint_name}",
     expr = orientation_{name},
     priority = 2,
-    K        = K
+    K        = {K}
 }}""".format(
         constraint_name=constraint_name,
-        name=name
+        name=name, K=K
     ) + error_statement
 
 def make_directed_point_constraint(pointer1, pointer2, name, make_error=True, point1=None, point2=None):
@@ -146,7 +147,7 @@ def make_collision_constraints(geometry_items1, geometry_items2=None):
     return constraint_text
 
 
-def make_joint_constraints(joint_names, make_error=True, priority=2):
+def make_joint_constraints(joint_names, make_error=True, priority=2, K_joint="K"):
     joint_constraints = ""
     error_statement = ""
     for i in range(len(joint_names)):
@@ -158,9 +159,9 @@ Constraint{{
     name="constraint_{joint_name}",
     expr=error_{joint_name},
     priority    = {priority},
-    K           = K
+    K           = {K_joint}
 }}
-            """.format(joint_name=joint_names[i], index=i+1, priority=priority)
+            """.format(joint_name=joint_names[i], index=i+1, priority=priority, K_joint=K_joint)
         if make_error:
             error_statement += 'abs(error_{joint_name})+'.format(joint_name=joint_names[i])
     if make_error:

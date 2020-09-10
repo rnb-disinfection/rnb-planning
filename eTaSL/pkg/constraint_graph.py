@@ -8,17 +8,19 @@ from .ros_rviz import *
 from .utils_graph import *
 from .utils import *
 from urdf_parser_py.urdf import URDF
-from pkg.plot_utils import *
+from .plot_utils import *
 import threading
 from threading import Thread
 from multiprocessing import Process, Lock, Manager
-from pkg.panda_ros_interface import *
+from .panda_ros_interface import *
+from .panda_repeater import *
+from .etasl_control import *
 from nrmkindy.indy_script import *
-from pkg.etasl_control import *
 from indy_utils import indydcp_client
 
 
 INDY_GRPC = False
+PANDA_ROS = False
 
 # try:
 #     from queue import PriorityQueue
@@ -69,7 +71,7 @@ class ConstraintGraph:
     def __init__(self, urdf_path, joint_names, link_names, urdf_content=None,
                  connect_panda=False, connect_indy=False,
                  indy_ip='192.168.0.63', indy_btype=BlendingType.OVERRIDE,
-                 indy_joint_vel_level=9, indy_task_vel_level=9,
+                 indy_joint_vel_level=3, indy_task_vel_level=3,
                  indy_grasp_DO=16):
         self.joint_num = len(joint_names)
         self.urdf_path = urdf_path
@@ -97,10 +99,12 @@ class ConstraintGraph:
         self.indy_idx = [idx for idx, jname in zip(range(self.joint_num), self.joint_names) if 'indy' in jname]
         self.panda_idx = [idx for idx, jname in zip(range(self.joint_num), self.joint_names) if 'panda' in jname]
         if connect_panda:
-            self.ps = PandaStateSubscriber(interface_name=PANDA_SIMULATION_INTERFACE)
-            self.ps.start_subsciption()
-            self.pc = PandaControlPublisher(interface_name=PANDA_SIMULATION_INTERFACE)
-
+            if PANDA_ROS:
+                self.ps = PandaStateSubscriber(interface_name=PANDA_SIMULATION_INTERFACE)
+                self.ps.start_subsciption()
+                self.pc = PandaControlPublisher(interface_name=PANDA_SIMULATION_INTERFACE)
+            else:
+                self.panda = PandaRepeater()
 
         if connect_indy:
             self.indy_speed = 180
@@ -111,12 +115,15 @@ class ConstraintGraph:
                 try: end_script()
                 except: pass
                 self.indy_ip = indy_ip
-                self.btype = btype
+                self.btype = indy_btype
                 config_script(NAME_INDY_7)
                 start_script(indy_ip)
                 blending_type(indy_btype)
                 task_vel(0.1, 0.2, 20, 20)
             else:
+                self.indy_ip = indy_ip
+                self.indy_joint_vel_level = indy_joint_vel_level
+                self.indy_task_vel_level = indy_task_vel_level
                 self.indy = indydcp_client.IndyDCPClient(indy_ip, "NRMK-Indy7")
                 self.indy.connect()
                 self.indy.set_collision_level(5)
@@ -125,7 +132,50 @@ class ConstraintGraph:
                 self.indy.set_joint_blend_radius(20)
                 self.indy.set_task_blend_radius(0.2)
                 self.indy_grasp_DO = indy_grasp_DO
-    
+
+    def reset_panda(self):
+        if self.connect_panda:
+            if PANDA_ROS:
+                self.ps = PandaStateSubscriber(interface_name=PANDA_SIMULATION_INTERFACE)
+                self.ps.start_subsciption()
+                self.pc = PandaControlPublisher(interface_name=PANDA_SIMULATION_INTERFACE)
+            else:
+                self.panda.set_alpha_lpf(self.panda.alpha_lpf)
+                self.panda.set_d_gain(self.panda.d_gain)
+                self.panda.set_k_gain(self.panda.k_gain)
+                self.panda.send_qval(self.panda.get_qcur())
+
+    def reset_indy(self):
+        if self.connect_indy:
+            if INDY_GRPC:
+                self.indy_speed = 180
+                self.indy_acc = 360
+                self.indy_grasp_fun = lambda: None
+                self.indy_release_fun = lambda: None
+                try:
+                    end_script()
+                except:
+                    pass
+                config_script(NAME_INDY_7)
+                start_script(self.indy_ip)
+                blending_type(self.btype)
+                task_vel(0.1, 0.2, 20, 20)
+            else:
+                if hasattr(self, 'indy'):
+                    self.indy.disconnect()
+                self.indy = indydcp_client.IndyDCPClient(self.indy_ip, "NRMK-Indy7")
+                self.indy.connect()
+                self.indy.set_collision_level(5)
+                self.indy.set_joint_vel_level(self.indy_joint_vel_level)
+                self.indy.set_task_vel_level(self.indy_task_vel_level)
+                self.indy.set_joint_blend_radius(20)
+                self.indy.set_task_blend_radius(0.2)
+                self.indy_grasp_DO = self.indy_grasp_DO
+
+    def reset_robots(self):
+        self.reset_panda()
+        self.reset_indy()
+
     def __del__(self):
         try:
             if INDY_GRPC:
@@ -441,7 +491,24 @@ class ConstraintGraph:
         self.gtimer.toc("post")
         # print(self.gtimer)
         return e, end_state, success
-    
+
+    def get_real_robot_pose(self):
+
+        if INDY_GRPC:
+            raise(NotImplementedError("get pose for indy grpc"))
+        else:
+            Q_indy = np.deg2rad(self.indy.get_joint_pos())
+
+        if PANDA_ROS:
+            raise(NotImplementedError("get pose for panda ros"))
+        else:
+            Q_panda = self.panda.get_qcur()
+
+        Q_all = np.zeros(self.joint_num)
+        Q_all[self.indy_idx] = Q_indy
+        Q_all[self.panda_idx] = Q_panda
+        return Q_all
+
     @record_time
     def execute_transition(self, from_state, to_state, jerr_fin=1e-3, N=300, dt=0.01, dt_exec=None):
         if dt_exec is None:
@@ -493,10 +560,13 @@ class ConstraintGraph:
             else:
                 self.indy_grasp(True)
         if self.connect_panda:
-            if panda_grip:
-                self.pc.close_finger()
+            if PANDA_ROS:
+                if panda_grip:
+                    self.pc.close_finger()
+                else:
+                    self.pc.open_finger()
             else:
-                self.pc.open_finger()
+                self.panda.move_finger(panda_grip)
 
     @record_time
     def indy_grasp(self, grasp=False):
@@ -807,4 +877,35 @@ class ConstraintGraph:
         traj_data_list = traj_data[:].flatten().tolist()
         return traj_data_list
 
+    def init_panda_sync_indy(self, from_state, to_state, N, control_freq_panda=100,
+                             err_conv=0, sync_priority=2,
+                             K_sync_indy="K", K_sync_panda=None):
+        dt_panda = 1.0/control_freq_panda
+        pos_start = np.array(from_state.Q)[self.indy_idx]
+
+        full_context, pos_start, kwargs, binding_list = \
+                self.get_transition_context(from_state, to_state,
+                                            N=N, dt=dt_panda, err_conv=err_conv)
+        joint_constraint_indy = make_joint_constraints(
+            [self.joint_names[idx] for idx in self.indy_idx], make_error=False,
+            priority=sync_priority, K_joint=K_sync_indy)
+        joint_constraint_panda = "" if K_sync_panda is None else make_joint_constraints(
+            [self.joint_names[idx] for idx in self.panda_idx], make_error=False,
+            priority=sync_priority, K_joint=K_sync_panda)
+
+        e_sim = get_simulation(full_context+joint_constraint_indy+joint_constraint_panda)
+
+
+        self.inp_lbl=["target_{}".format(jname) for jname in self.joint_names]
+        e_sim.setInputTable(self.inp_lbl,
+                            inp=np.array([from_state.Q]))
+
+        self.pos_lbl = augment_jnames_dot(self.joint_names)
+        initial_jpos_exp = augment_jvals_dot(pos_start , np.zeros_like(pos_start))
+        e_sim.initialize(initial_jpos_exp, self.pos_lbl)
+
+        pos = e_sim.simulate_begin(N, dt_panda)
+        e_sim.DT = dt_panda
+
+        return e_sim, pos
         

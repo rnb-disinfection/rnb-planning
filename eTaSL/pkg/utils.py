@@ -43,6 +43,8 @@ class GlobalTimer(Singleton):
         self.name_list = []
         self.ts_dict = {}
         self.time_dict = collections.defaultdict(lambda: 0)
+        self.min_time_dict = collections.defaultdict(lambda: 1e10)
+        self.max_time_dict = collections.defaultdict(lambda: 0)
         self.count_dict = collections.defaultdict(lambda: 0)
         self.switch(True)
         
@@ -57,7 +59,10 @@ class GlobalTimer(Singleton):
         
     def toc(self, name):
         if self.__on:
-            self.time_dict[name] = self.time_dict[name]+(time.time() - self.ts_dict[name]) * self.scale
+            dt = (time.time() - self.ts_dict[name]) * self.scale
+            self.time_dict[name] = self.time_dict[name] + dt
+            self.min_time_dict[name] = min(self.min_time_dict[name], dt)
+            self.max_time_dict[name] = max(self.max_time_dict[name], dt)
             self.count_dict[name] = self.count_dict[name] + 1
             
     def toctic(self, name_toc, name_tic):
@@ -68,21 +73,21 @@ class GlobalTimer(Singleton):
         if names is None:
             names = self.name_list
         for name in names:
-            print("{name}: \t{tot_T} {timeunit}/{tot_C} = {per_T} {timeunit}".format(
+            print("{name}: \t{tot_T} {timeunit}/{tot_C} = {per_T} {timeunit} ({minT}/{maxT})\n".format(
                 name=name, tot_T=np.round(np.sum(self.time_dict[name])), tot_C=self.count_dict[name], 
                 per_T= np.round(np.sum(self.time_dict[name])/self.count_dict[name], 3),
-                timeunit=timeunit
+                timeunit=timeunit, minT=round(self.min_time_dict[name],3), maxT=round(self.max_time_dict[name],3)
             ))
             
     def __str__(self):
-        strout = ""
+        strout = "" 
         timeunit="ms"
         names = self.name_list
         for name in names:
-            strout += "{name}: \t{tot_T} {timeunit}/{tot_C} = {per_T} {timeunit} \n".format(
+            strout += "{name}: \t{tot_T} {timeunit}/{tot_C} = {per_T} {timeunit} ({minT}/{maxT})\n".format(
                 name=name, tot_T=np.round(np.sum(self.time_dict[name])), tot_C=self.count_dict[name], 
                 per_T= np.round(np.sum(self.time_dict[name])/self.count_dict[name], 3),
-                timeunit=timeunit
+                timeunit=timeunit, minT=round(self.min_time_dict[name],3), maxT=round(self.max_time_dict[name],3)
             )
         return strout
     
@@ -124,5 +129,51 @@ def record_time(func):
         gtimer.toc(func.__name__)
         return res
     return __wrapper
+
+import json
+
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
+
+def send_recv(sdict, host, port):
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    client_socket.connect((host, port))
+
+    rdict = {}
+    try:
+        sjson = json.dumps(sdict, cls=NumpyEncoder)
+        sbuff = sjson.encode()
+        client_socket.sendall(sbuff)
+
+        rjson = client_socket.recv(1024)
+        # rjson = "".join(map(chr, rjson))
+        rdict = json.loads(rjson)
+        rdict = {str(k): v for k,v in rdict.items()}
+    finally:
+        client_socket.close()
+    return rdict
+
+from filterpy.kalman import KalmanFilter
+from filterpy.common import Q_discrete_white_noise
+
+def createKF(dim_z, dt, P, R, Q, X0=None):
+    dim_x = dim_z*2
+    f = KalmanFilter (dim_x=dim_x, dim_z=dim_z)
+    f.x = np.array([0., 0.]*dim_z) if X0 is None else X0
+    f.F = np.identity(dim_x)  # state transition matrix
+    for i_F in range(dim_z):
+        f.F[i_F*2, i_F*2+1] = 1
+    f.H = np.identity(dim_x)[::2,:] # measurement function
+
+    f.P *= P #covariance matrix
+    f.R *= R # measurement noise
+    f.Q = np.identity(dim_x)
+    for i_Q in range(dim_z):
+        f.Q[i_Q*2:i_Q*2+2,i_Q*2:i_Q*2+2] = Q_discrete_white_noise(dim=2, dt=dt, var=Q)
+    return f
 
 

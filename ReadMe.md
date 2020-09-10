@@ -86,7 +86,7 @@
 * numba  
   * pip install colorama==0.3.9 llvmlite==0.31.0 numba==0.47.0  
 * misc.  
-  * pip install matplotlib trimesh pathlib protobuf grpcio numpy-stl sklearn  
+  * pip install matplotlib trimesh pathlib protobuf grpcio numpy-stl sklearn filterpy  
 
 # Setup project  
 * rebuild custom workspace  
@@ -97,8 +97,8 @@
 
 # Setup and launch panda repeater
 * setup panda_ros_repeater on panda master pc (https://github.com/Cucumberkjs/panda_ros_repeater.git)  
-* launch panda command repeater  
-  * roslaunch panda_ros_repeater joint_velocity_repeater.launch robot_ip:=192.168.0.13 load_gripper:=true
+* launch panda command repeater on matser  
+  * roslaunch panda_ros_repeater joint_velocity_repeater.launch robot_ip:=192.168.0.13 load_gripper:=false
 
 # Launch RVIZ
 * roslaunch "$TF_GMT_ETASL_DIR"/launch/gui_custom_robots_joint_panel.launch  
