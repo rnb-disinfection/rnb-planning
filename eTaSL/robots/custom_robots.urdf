@@ -35,7 +35,7 @@
   </material>
   <link name="world"/>
   <joint name="indy0_joint_world" type="fixed">
-    <origin rpy="0.0179848883694 0.0089306256948 1.26405232018" xyz="-0.520950078964 0.102396816015 0.0148023962975"/>
+    <origin rpy="0.0150965929123 0.00811313875957 1.27159046918" xyz="-0.532590679825 0.107710005063 0.0127092942974"/>
     <parent link="world"/>
     <child link="indy0_link0"/>
   </joint>
@@ -223,7 +223,7 @@
     <limit effort="3.141592653589793" lower="-3.75245789179" upper="3.75245789179" velocity="1.5707963267948966"/>
   </joint>
   <joint name="indy0_tcp" type="fixed">
-    <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.06"/>
+    <origin rpy="-0.0272346363883 -0.00977225860042 0.014358710505" xyz="-0.00590267304607 0.000456018937306 0.0602359141913"/>
     <parent link="indy0_link6"/>
     <child link="indy0_tcp"/>
   </joint>
@@ -282,7 +282,7 @@
     </actuator>
   </transmission>
   <joint name="panda1_joint_world" type="fixed">
-    <origin rpy="-0.011794190703 -0.00731106135215 -1.87625232935" xyz="0.0909019597926 0.395140539508 0.00399171533466"/>
+    <origin rpy="-0.0112616728328 -0.00702172347129 -1.87598923262" xyz="0.0914257230014 0.395475427003 0.00427928960791"/>
     <parent link="world"/>
     <child link="panda1_link0"/>
   </joint>
@@ -415,7 +415,7 @@
     <axis xyz="0.0 0.0 1.0"/>
     <parent link="panda1_link5"/>
     <child link="panda1_link6"/>
-    <limit effort="3.141592653589793" lower="-0.0175" upper="3.7525" velocity="1.5707963267948966"/>
+    <limit effort="3.141592653589793" lower="0.5" upper="3.7525" velocity="1.5707963267948966"/>
     <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-0.0175" soft_upper_limit="3.7525"/>
   </joint>
   <link name="panda1_link7">
@@ -446,7 +446,7 @@
     <child link="panda1_link8"/>
   </joint>
   <joint name="panda1_hand_joint" type="fixed">
-    <origin rpy="0.0 -0.0 -0.785398163397" xyz="0.0 0.0 0.0"/>
+    <origin rpy="0.00799966069138 -0.00551973919069 -0.794669530373" xyz="0.0015538636864 0.00384081899101 0.00117409495442"/>
     <parent link="panda1_link8"/>
     <child link="panda1_hand"/>
   </joint>

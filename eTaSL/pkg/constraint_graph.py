@@ -556,10 +556,7 @@ class ConstraintGraph:
             elif 'panda' in bind_link_name:
                 panda_grip = True
         if self.connect_indy:
-            if indy_grip:
-                self.indy_grasp(True)
-            else:
-                self.indy_grasp(True)
+            self.indy_grasp(indy_grip)
         if self.connect_panda:
             if PANDA_ROS:
                 if panda_grip:
@@ -921,7 +918,7 @@ class ConstraintGraph:
         return draw_objects(color_image, self.aruco_map, objectPose_dict, self.corner_dict, self.cameraMatrix,
                             self.distCoeffs, axis_len=axis_len)
 
-    def sample_Trel(self, obj_name, obj_link_name, coord_link_name, coord_name, Teo, sample_num=7):
+    def sample_Trel(self, obj_name, obj_link_name, coord_link_name, coord_name, Teo, sample_num=7, outlier_count=2):
         # sample
         xyz_cam_list = []
         rvec_cam_list = []
@@ -945,9 +942,9 @@ class ConstraintGraph:
             xyz_cal_list.append(xyz_cal)
             rvec_cal_list.append(rotvec_cal)
             timer.sleep(50e-3)
-        xyz_cam = get_mean_std(xyz_cam_list)
-        rvec_cam = get_mean_std(rvec_cam_list)
-        xyz_cal = get_mean_std(xyz_cal_list)
-        rvec_cal = get_mean_std(rvec_cal_list)
+        xyz_cam = get_mean_std(xyz_cam_list,outlier_count=outlier_count)
+        rvec_cam = get_mean_std(rvec_cam_list,outlier_count=outlier_count)
+        xyz_cal = get_mean_std(xyz_cal_list,outlier_count=outlier_count)
+        rvec_cal = get_mean_std(rvec_cal_list,outlier_count=outlier_count)
         return xyz_cam, rvec_cam, xyz_cal, rvec_cal, color_image, objectPose_dict
 

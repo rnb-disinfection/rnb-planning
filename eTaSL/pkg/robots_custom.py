@@ -57,7 +57,7 @@ class XacroCustomizer:
         xacro_file.write(new_xacro_content)
         xacro_file.close()
 
-    def convert_xacro_to_urdf(self, urdf_path=URDF_PATH_DEFAULT, joint_offset_dict={},
+    def convert_xacro_to_urdf(self, urdf_path=URDF_PATH_DEFAULT, joint_offset_dict={}, joint_limit_dict={},
                               joint_fix_dict={}, vel_limit_dict={}, effort_limit_dict={}):
         urdf_content = subprocess.check_output(['xacro', self.xacro_path])
         self.urdf_content = URDF.from_xml_string(urdf_content)
@@ -80,6 +80,12 @@ class XacroCustomizer:
                 T_e = SE3(Rot_rpy(joint.origin.rpy), joint.origin.xyz)
                 T_e = np.matmul(T_e, T_reeo_load)
                 joint.origin.xyz, joint.origin.rpy = T2xyzrpy(T_e)
+            if joint.name in joint_limit_dict.keys():
+                jlim = joint_limit_dict[joint.name]
+                if "upper" in jlim:
+                    joint.limit.upper = jlim['upper']
+                if "lower" in jlim:
+                    joint.limit.lower = jlim['lower']
                 
         f = open(urdf_path, "w")
         f.write(URDF.to_xml_string(self.urdf_content))
