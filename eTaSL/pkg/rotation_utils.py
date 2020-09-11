@@ -3,6 +3,7 @@ Created on 2019. 3. 15.
 
 @author: JSK
 '''
+from scipy.spatial.transform import Rotation
 import numpy as np
 from math import *
 
@@ -152,6 +153,12 @@ def Rot_rpy(rpy):
 
 def Rot2rpy(R):
     return np.asarray(list(reversed(Rot2zyx(R))))
+
+def T2xyzrpy(T):
+    return T[:3,3].tolist(), Rot2rpy(T[:3,:3]).tolist()
+
+def T2xyzrvec(T):
+    return T[:3,3].tolist(), Rotation.from_dcm(T[:3,:3]).as_rotvec().tolist()
 
 def matmul_series(*Tlist):
     T = Tlist[0]

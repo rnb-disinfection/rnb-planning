@@ -40,8 +40,8 @@ def set_RP_calib(sample_list):
 def T_err(T):
     Rbbbr = T[0]
     Pbbbr = np.expand_dims(T[1], axis=1)
-    Rreeo = T[2]
-    Preeo = np.expand_dims(T[3], axis=1)
+    Rrooo = T[2]
+    Prooo = np.expand_dims(T[3], axis=1)
 
     Rop_off_cam = matmul_md(Rcaminv_list, np.expand_dims(Rbbbr, axis=0))
     Pop_off_cam = matmul_md(Rcaminv_list, np.expand_dims(Pbbbr, axis=0)) + Pcaminv_list
@@ -49,8 +49,8 @@ def T_err(T):
     Ropo = matmul_md(Rop_off_cam, Rcal_list)
     Popo = matmul_md(Rop_off_cam, Pcal_list) + Pop_off_cam
 
-    Ropo_off = matmul_md(Ropo, np.expand_dims(Rreeo, axis=0))
-    Popo_off = matmul_md(Ropo, np.expand_dims(Preeo, axis=0)) + Popo
+    Ropo_off = matmul_md(Ropo, np.expand_dims(Rrooo, axis=0))
+    Popo_off = matmul_md(Ropo, np.expand_dims(Prooo, axis=0)) + Popo
 
     d_Ropo_off = Ropo_off - R_ZERO
     err_R = np.sum(d_Ropo_off * d_Ropo_off)
@@ -81,20 +81,20 @@ def calibrate_offset():
         print('Error too big! : ' + str(optlog['final_values']['f(x)']))
 
     T_bbbr = SE3(Xopt[0], Xopt[1])
-    T_reeo = SE3(Xopt[2], Xopt[3])
+    T_rooo = SE3(Xopt[2], Xopt[3])
     print("T_bbbr: {}".format(T_bbbr.astype(np.float16)))
-    print("T_reeo: {}".format(T_reeo.astype(np.float16)))
-    return T_bbbr, T_reeo
+    print("T_rooo: {}".format(T_rooo.astype(np.float16)))
+    return T_bbbr, T_rooo
 
 
-def save_offset(rname, T_bbbr, T_reeo, Teo_ref):
+def save_offset(rname, T_bbbr, T_rooo, Teo_ref):
     np.savetxt(OFFSET_DIR + "T_bbbr_{rname}.csv".format(rname=rname), T_bbbr, delimiter=",")
-    np.savetxt(OFFSET_DIR + "T_reeo_{rname}.csv".format(rname=rname), T_reeo, delimiter=",")
+    np.savetxt(OFFSET_DIR + "T_rooo_{rname}.csv".format(rname=rname), T_rooo, delimiter=",")
     np.savetxt(OFFSET_DIR + "Teo_ref_{rname}.csv".format(rname=rname), Teo_ref, delimiter=",")
 
 def load_offset(rname):
     T_bbbr = np.loadtxt(OFFSET_DIR + "T_bbbr_{rname}.csv".format(rname=rname), delimiter=",")
-    T_reeo = np.loadtxt(OFFSET_DIR + "T_reeo_{rname}.csv".format(rname=rname), delimiter=",")
+    T_rooo = np.loadtxt(OFFSET_DIR + "T_rooo_{rname}.csv".format(rname=rname), delimiter=",")
     Teo_ref = np.loadtxt(OFFSET_DIR + "Teo_ref_{rname}.csv".format(rname=rname), delimiter=",")
-    return T_bbbr, T_reeo, Teo_ref
+    return T_bbbr, T_rooo, Teo_ref
 

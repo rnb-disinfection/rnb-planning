@@ -6,7 +6,7 @@
 <xacro:include filename="$(env TF_GMT_ETASL_DIR)/robots/indy7_robot.xacro"/>
 <link name="world"/>
 <!-- BODY BEGIN -->
-<xacro:indy7_robot robot_id="0" xyz="-0.52249443531 0.10203795135 0.0125234127045" rpy="0.00833006380493 0.0172834411121 1.27034759964" connected_to="world"/>
-<xacro:panda_robot robot_id="1" xyz="0.0970267355442 0.390915095806 0.00331979990005" rpy="-0.00937373930552 -0.00443786923144 -1.87606356043" connected_to="world"/>
+<xacro:indy7_robot robot_id="0" xyz="-0.520950078964 0.102396816015 0.0148023962975" rpy="0.0179848883694 0.0089306256948 1.26405232018" connected_to="world"/>
+<xacro:panda_robot robot_id="1" xyz="0.0909019597926 0.395140539508 0.00399171533466" rpy="-0.011794190703 -0.00731106135215 -1.87625232935" connected_to="world"/>
 <!-- BODY END -->
 </robot>

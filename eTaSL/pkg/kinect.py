@@ -180,12 +180,6 @@ def draw_objects(color_image, aruco_map, objectPose_dict, corner_dict, cameraMat
 def get_T_rel(coord_from, coord_to, objectPose_dict):
     return np.matmul(SE3_inv(objectPose_dict[coord_from]), objectPose_dict[coord_to])
 
-def T2xyzrpy(T):
-    return T[:3,3].tolist(), Rot2rpy(T[:3,:3]).tolist()
-
-def T2xyzrvec(T):
-    return T[:3,3].tolist(), Rotation.from_dcm(T[:3,:3]).as_rotvec().tolist()
-
 def get_put_dir(Robj, dir_vec_dict):
     downvec = np.matmul(np.transpose(Robj), [[0],[0],[-1]])
     dir_match_dict = {k: np.dot(v, downvec) for k, v in dir_vec_dict.items()}
