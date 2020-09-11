@@ -8,7 +8,7 @@ HOST = '192.168.0.172'
 PORT = 1189
 
 class PandaRepeater:
-    def __init__(self, host=HOST, port=PORT, robot_ip=ROBOT_IP, alpha_lpf=0.8, k_gain=30.0, d_gain=5.0):
+    def __init__(self, host=HOST, port=PORT, robot_ip=ROBOT_IP, alpha_lpf=0.6, k_gain=30.0, d_gain=5.0):
         self.host, self.port, self.robot_ip = host, port, robot_ip
         self.set_alpha_lpf(alpha_lpf)
         self.set_k_gain(k_gain)
@@ -54,9 +54,9 @@ class PandaRepeater:
         self.qval = send_recv({'qval': qval}, self.host, self.port)['qval']
         return self.qval
 
-    def move_finger(self, close_bool, max_width=0.039, effort=1):
+    def move_finger(self, close_bool, max_width=0.039, min_width=0.025, effort=1):
         self.close_bool = close_bool
-        self.finger_cmd.goal.command.position = max_width*(1-close_bool)
+        self.finger_cmd.goal.command.position = (max_width-min_width)*(1-close_bool)+min_width
         self.finger_cmd.goal.command.max_effort = effort
         self.finger_cmd.header.seq += 1
         self.finger_cmd.goal_id.stamp = self.finger_cmd.header.stamp = rospy.Time.now()
