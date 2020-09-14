@@ -16,6 +16,7 @@ from .panda_ros_interface import *
 from .panda_repeater import *
 from .etasl_control import *
 from .kinect import *
+from .stereo import *
 from nrmkindy.indy_script import *
 from indy_utils import indydcp_client
 
@@ -907,44 +908,32 @@ class ConstraintGraph:
 
         return e_sim, pos
 
-    def set_camera_config(self, aruco_map, dictionary, cameraMatrix, distCoeffs, corner_dict):
+    def set_camera_config(self, aruco_map, dictionary, kn_config, rs_config, T_c21):
         self.aruco_map = aruco_map
         self.dictionary = dictionary
-        self.cameraMatrix = cameraMatrix
-        self.distCoeffs = distCoeffs
-        self.corner_dict = corner_dict
+        self.kn_config = kn_config
+        self.rs_config = rs_config
+        self.cameraMatrix, self.distCoeffs = kn_config
+        self.T_c21 = T_c21
 
     def draw_objects_graph(self, color_image, objectPose_dict, corner_dict, axis_len=0.1):
         return draw_objects(color_image, self.aruco_map, objectPose_dict, corner_dict, self.cameraMatrix,
                             self.distCoeffs, axis_len=axis_len)
 
-    def sample_Trel(self, obj_name, obj_link_name, coord_link_name, coord_name, Teo, sample_num=7, outlier_count=2):
-        # sample
-        xyz_cam_list = []
-        rvec_cam_list = []
-        xyz_cal_list = []
-        rvec_cal_list = []
-        for _ in range(sample_num):
-            color_image = get_kinect_image()
-            objectPose_dict, corner_dict = get_object_pose_dict(color_image, self.aruco_map, self.dictionary,
-                                                                self.cameraMatrix, self.distCoeffs)
-            T_co = objectPose_dict[obj_name]
-            T_cp = objectPose_dict[coord_name]
-            T_p0e = get_tf(obj_link_name, joint_list2dict(self.get_real_robot_pose(), self.joint_names), self.urdf_content,
-                           from_link=coord_link_name)
-            T_peo = Teo  # SE3(Rot_zyx(0,-np.pi/2,-np.pi/2), [0,0,0.091])
-            T_po_cam = np.matmul(SE3_inv(T_cp), T_co)
-            T_po_cal = np.matmul(T_p0e, T_peo)
-            xyz_cam, rotvec_cam = T2xyzrvec(T_po_cam)
-            xyz_cal, rotvec_cal = T2xyzrvec(T_po_cal)
-            xyz_cam_list.append(xyz_cam)
-            rvec_cam_list.append(rotvec_cam)
-            xyz_cal_list.append(xyz_cal)
-            rvec_cal_list.append(rotvec_cal)
-            timer.sleep(50e-3)
-        xyz_cam = get_mean_std(xyz_cam_list,outlier_count=outlier_count)
-        rvec_cam = get_mean_std(rvec_cam_list,outlier_count=outlier_count)
-        xyz_cal = get_mean_std(xyz_cal_list,outlier_count=outlier_count)
-        rvec_cal = get_mean_std(rvec_cal_list,outlier_count=outlier_count)
-        return xyz_cam, rvec_cam, xyz_cal, rvec_cal, color_image, objectPose_dict, corner_dict
+    def sample_Trel(self, obj_name, obj_link_name, coord_link_name, coord_name, Teo, objectPose_dict_ref):
+        aruco_map_new  = {k: self.aruco_map[k] for k in [obj_name, coord_name] if k not in objectPose_dict_ref}
+        objectPose_dict, corner_dict, color_image, rs_image, rs_corner_dict, objectPoints_dict, point3D_dict, err_dict = \
+            get_object_pose_dict_stereo(self.T_c21, self.kn_config, self.rs_config,
+                                        aruco_map_new, self.dictionary)
+        objectPose_dict.update(objectPose_dict_ref)
+        T_co = objectPose_dict[obj_name]
+        T_cp = objectPose_dict[coord_name]
+        T_p0e = get_tf(obj_link_name, joint_list2dict(self.get_real_robot_pose(), self.joint_names), self.urdf_content,
+                       from_link=coord_link_name)
+        T_peo = Teo  # SE3(Rot_zyx(0,-np.pi/2,-np.pi/2), [0,0,0.091])
+        T_po_cam = np.matmul(SE3_inv(T_cp), T_co)
+        T_po_cal = np.matmul(T_p0e, T_peo)
+        xyz_cam, rvec_cam = T2xyzrvec(T_po_cam)
+        xyz_cal, rvec_cal = T2xyzrvec(T_po_cal)
+        return xyz_cam, rvec_cam, xyz_cal, rvec_cal, color_image, objectPose_dict, corner_dict, err_dict
 

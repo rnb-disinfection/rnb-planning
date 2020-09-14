@@ -12,7 +12,7 @@ from pymanopt.manifolds import Rotations
 from pymanopt.manifolds import Euclidean
 from pymanopt.manifolds import Product
 from pymanopt import Problem
-from pymanopt.solvers import SteepestDescent
+from pymanopt.solvers import TrustRegions
 
 CALIB_TIMEOUT = 5
 
@@ -22,10 +22,10 @@ def set_RP_calib(sample_list):
 
     for sample in sample_list:
         xyz_cam, rvec_cam, xyz_cal, rvec_cal, _, _ = sample
-        Pcam_list.append(xyz_cam[0])
-        Rcam_list.append(Rotation.from_rotvec(rvec_cam[0]).as_dcm())
-        Pcal_list.append(xyz_cal[0])
-        Rcal_list.append(Rotation.from_rotvec(rvec_cal[0]).as_dcm())
+        Pcam_list.append(xyz_cam)
+        Rcam_list.append(Rotation.from_rotvec(rvec_cam).as_dcm())
+        Pcal_list.append(xyz_cal)
+        Rcal_list.append(Rotation.from_rotvec(rvec_cal).as_dcm())
 
     Rcam_list = np.array(Rcam_list)
     Pcam_list = np.expand_dims(Pcam_list, axis=-1)
@@ -59,7 +59,7 @@ def T_err(T):
     err_tot = (err_R + err_P) / N_POS_CALIB
     return err_tot
 
-def calibrate_offset():
+def calibrate_offset(solver_fun=TrustRegions):
     # (1) Instantiate a manifold
     manifold = Product((Rotations(3), Euclidean(3), Rotations(3), Euclidean(3)))
 
@@ -69,13 +69,13 @@ def calibrate_offset():
     problem = Problem(manifold=manifold, cost=T_err)
 
     # (3) Instantiate a Pymanopt solver
-    solver = SteepestDescent(mingradnorm=1e-5, maxtime=CALIB_TIMEOUT, logverbosity=2)
+    solver = solver_fun(mingradnorm=1e-5, maxtime=CALIB_TIMEOUT, logverbosity=2)
 
     # let Pymanopt do the rest
     Xopt, optlog = solver.solve(problem)
 
     if 'max time' in optlog['stoppingreason']:
-        raise (RuntimeError('Timeout: Not converged!'))
+        print('Timeout: Not converged!')
     print('Calibration error: ' + str(optlog['final_values']['f(x)']))
     if optlog['final_values']['f(x)'] > 5e-4:
         print('Error too big! : ' + str(optlog['final_values']['f(x)']))
