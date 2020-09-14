@@ -31,6 +31,20 @@ def get_aruco_config():
                           ObjectMarker(115, 0.0384, SE3(Rot_zyx(0,-np.pi/2,0), [0.025,0,0])),
                           ObjectMarker(116, 0.0384, SE3(Rot_zyx(0,np.pi/2,0), [-0.025,0,0]))
                          ],
+                 'box2':[ObjectMarker(121, 0.0384, SE3(Rot_zyx(0,0,np.pi), [0,0,0.025])),
+                          ObjectMarker(122, 0.0384, SE3(Rot_zyx(0,0,np.pi/2), [0,0.025,0])),
+                          ObjectMarker(123, 0.0384, SE3(Rot_zyx(0,0,0), [0,0,-0.025])),
+                          ObjectMarker(124, 0.0384, SE3(Rot_zyx(0,0,np.pi*3/2), [0,-0.025,0])),
+                          ObjectMarker(125, 0.0384, SE3(Rot_zyx(0,-np.pi/2,0), [0.025,0,0])),
+                          ObjectMarker(126, 0.0384, SE3(Rot_zyx(0,np.pi/2,0), [-0.025,0,0]))
+                         ],
+                 'box3':[ObjectMarker(131, 0.0384, SE3(Rot_zyx(0,0,np.pi), [0,0,0.025])),
+                          ObjectMarker(132, 0.0384, SE3(Rot_zyx(0,0,np.pi/2), [0,0.025,0])),
+                          ObjectMarker(133, 0.0384, SE3(Rot_zyx(0,0,0), [0,0,-0.025])),
+                          ObjectMarker(134, 0.0384, SE3(Rot_zyx(0,0,np.pi*3/2), [0,-0.025,0])),
+                          ObjectMarker(135, 0.0384, SE3(Rot_zyx(0,-np.pi/2,0), [0.025,0,0])),
+                          ObjectMarker(136, 0.0384, SE3(Rot_zyx(0,np.pi/2,0), [-0.025,0,0]))
+                         ],
                  'goal':[ObjectMarker(201, 0.1, SE3(Rot_zyx(0,0,np.pi), [0,0,0]))]
                 }
     return aruco_map, dictionary

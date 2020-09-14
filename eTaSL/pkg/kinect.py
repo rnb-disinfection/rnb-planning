@@ -85,6 +85,49 @@ def get_kinect_image(h_iter_duration=0.01, h_iter_max=100):
         return None
 
 
+def get_kinect_image_depth(h_iter_duration=0.01, h_iter_max=100):
+    count = 0
+    color_image_handle = None
+    while not color_image_handle and count < h_iter_max:
+        # Get capture
+        pyK4A.device_get_capture()
+        # Get the depth image from the capture
+        depth_image_handle = pyK4A.capture_get_depth_image()
+        # Get the color image from the capture
+        color_image_handle = pyK4A.capture_get_color_image()
+        time.sleep(h_iter_duration)
+        count += 1
+
+    # Check the image has been read correctly
+    if color_image_handle : #and depth_image_handle:
+
+        # Read and convert the image data to numpy array:
+        color_image = pyK4A.image_convert_to_numpy(color_image_handle)[:,:,:3]
+        color_image = color_image.copy()
+
+        # Transform the depth image to the color format
+        transformed_depth_image = pyK4A.transform_depth_to_color(depth_image_handle,color_image_handle)
+
+        # Convert depth image (mm) to color, the range needs to be reduced down to the range (0,255)
+#         transformed_depth_color_image = cv2.applyColorMap(np.round(transformed_depth_image/30).astype(np.uint8), cv2.COLORMAP_JET)
+
+    #     # Add the depth image over the color image:
+    #     combined_image = cv2.addWeighted(color_image,0.7,transformed_depth_color_image,0.3,0)
+
+    #     # Plot the image
+    #     cv2.namedWindow('Colorized Depth Image',cv2.WINDOW_NORMAL)
+    #     cv2.imshow('Colorized Depth Image',combined_image)
+    #     k = cv2.waitKey(25)
+
+#         pyK4A.image_release(depth_image_handle)
+        pyK4A.image_release(color_image_handle)
+        pyK4A.capture_release()
+        return color_image, transformed_depth_image
+    else:
+        print("None image handle: %i"%(count))
+        pyK4A.capture_release()
+        return None, None
+
 
 def get_calibration():
     calibration = _k4a.k4a_calibration_t()
@@ -139,11 +182,42 @@ def get_object_pose_dict(color_image, aruco_map, dictionary, cameraMatrix, distC
         ret, rvec, tvec = cv2.solvePnP(objectPoints, imagePoints, cameraMatrix, distCoeffs)
         R, jac = cv2.Rodrigues(rvec)
         Tobj = SE3(R, tvec.flatten())
+
         objectPose_dict[obj_name] = Tobj
     #     objectrtvec_dict[obj_name] = (rvec, tvec)
     #     axis_len = 0.05
     #     aruco.drawAxis(color_image, cameraMatrix, distCoeffs, rvec,tvec, axis_len)
     return objectPose_dict, corner_dict
+
+def refine_by_depth(depth_image, objectPose_dict, corner_dict, aruco_map, cameraMatrix, distCoeffs):
+    keys_sorted = sorted(corner_dict.keys())
+    points_sorted = np.concatenate([corner_dict[k] for k in keys_sorted], axis=0)
+    points_sorted_undist = np.reshape(cv2.undistortPoints(np.expand_dims(points_sorted, axis=1), cameraMatrix, distCoeffs, None, cameraMatrix), [-1,2])
+    depth_values = depth_image.flatten()[np.ravel_multi_index(points_sorted_undist[:,[1,0]].transpose().astype(np.int), depth_image.shape)]
+    pt3d_sorted = np.matmul(np.linalg.inv(cameraMatrix), np.pad(points_sorted_undist, [[0,0],[0,1]], 'constant', constant_values=1).transpose())*depth_values*1e-3
+    pt3d_sorted = np.reshape(pt3d_sorted.transpose(), (-1,4,3))
+    pt3d_dict = {keys_sorted[i_k]:pt3d_sorted[i_k] for i_k  in range(len(keys_sorted))}
+    for obj_name, marker_list in aruco_map.items():
+        objectPoints = np.zeros((0,3))
+        pt3dPoints = np.zeros((0,3))
+        for marker in marker_list:
+            if marker.idx in corner_dict:
+                objectPoints = np.concatenate([objectPoints, marker.corners], axis=0)
+                pt3dPoints = np.concatenate([pt3dPoints, pt3d_dict[marker.idx]], axis=0)
+        if len(objectPoints) == 0:
+            continue
+
+        idx_zs = np.where(pt3dPoints[:,2]>0.01)[0]
+        if len(idx_zs)>0:
+            Tobj = objectPose_dict[obj_name]
+            O3 = objectPoints[idx_zs].transpose()
+            O_pad = np.pad(O3, [[0,1],[0,0]], 'constant', constant_values=1)
+            O_pad.astype(np.float16)
+            P3_pnp = np.matmul(Tobj, O_pad)[:3]
+            P3 = pt3dPoints[idx_zs].transpose()
+            zscale = np.mean(P3[2,:]/P3_pnp[2,:])
+            objectPose_dict[obj_name][:3,3] *= zscale
+
 
 
 def print_markers(aruco_map, dictionary, px_size=800, dir_img="./markers"):

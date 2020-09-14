@@ -1,0 +1,22 @@
+
+
+1.- The method used is Least Squares. There are more complex algorithms than this one. Still it is the most common one, as the other methods may fail in some cases (i.e. some others fails if points are on plane or on infinite).
+
+The method can be found in Multiple View Geometry in Computer Vision by Richard Hartley and Andrew Zisserman (p312)
+
+2.-The usage:
+
+cv::Mat pnts3D(1,N,CV_64FC4);
+cv::Mat cam0pnts(1,N,CV_64FC2);
+cv::Mat cam1pnts(1,N,CV_64FC2);
+
+Fill the 2 chanel point Matrices with the points in images.
+
+cam0 and cam1 are Mat3x4 camera matrices (intrinsic and extrinsic parameters). You can construct them by multiplying A*RT, where A is the intrinsic parameter matrix and RT the rotation translation 3x4 pose matrix.
+
+cv::triangulatePoints(cam0,cam1,cam0pnts,cam1pnts,pnts3D);
+
+NOTE: pnts3D NEEDs to be a 4 channel 1xN cv::Mat when defined, throws exception if not, but the result is a cv::Mat(4,N,cv_64FC1) matrix. Really confusing, but it is the only way I didn't got an exception.
+
+UPDATE: As of version 3.0 or possibly earlier, this is no longer true, and pnts3D can also be of type Mat(4,N,CV_64FC1) or may be left completely empty (as usual, it is created inside the function).
+

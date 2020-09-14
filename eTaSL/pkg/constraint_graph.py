@@ -914,8 +914,8 @@ class ConstraintGraph:
         self.distCoeffs = distCoeffs
         self.corner_dict = corner_dict
 
-    def draw_objects_graph(self, color_image, objectPose_dict, axis_len=0.1):
-        return draw_objects(color_image, self.aruco_map, objectPose_dict, self.corner_dict, self.cameraMatrix,
+    def draw_objects_graph(self, color_image, objectPose_dict, corner_dict, axis_len=0.1):
+        return draw_objects(color_image, self.aruco_map, objectPose_dict, corner_dict, self.cameraMatrix,
                             self.distCoeffs, axis_len=axis_len)
 
     def sample_Trel(self, obj_name, obj_link_name, coord_link_name, coord_name, Teo, sample_num=7, outlier_count=2):
@@ -946,5 +946,5 @@ class ConstraintGraph:
         rvec_cam = get_mean_std(rvec_cam_list,outlier_count=outlier_count)
         xyz_cal = get_mean_std(xyz_cal_list,outlier_count=outlier_count)
         rvec_cal = get_mean_std(rvec_cal_list,outlier_count=outlier_count)
-        return xyz_cam, rvec_cam, xyz_cal, rvec_cal, color_image, objectPose_dict
+        return xyz_cam, rvec_cam, xyz_cal, rvec_cal, color_image, objectPose_dict, corner_dict
 
