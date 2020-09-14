@@ -78,6 +78,11 @@
     * Detach and reattach Azure Kinect devices if attached during this process.  
   * install open3d  
     * pip install open3d  
+* Realsense
+  * instruction in https://github.com/IntelRealSense/librealsense/blob/master/doc/distribution_linux.md  
+  * install pyrealsense2
+    * pip install pyrealsense2
+    
     
   
 # Python packages

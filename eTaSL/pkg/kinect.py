@@ -21,11 +21,11 @@ MODULEPATH = r'/usr/lib/x86_64-linux-gnu/libk4a.so'
 pyK4A = None
 color_image_handle = None
 
-def init_kinect():
+def init_kn():
     # Initialize the library with the path containing the module
     global pyK4A
     if pyK4A is not None:
-        disconnect_kinect()
+        disconnect_kn()
     pyK4A = pyKinectAzure(MODULEPATH)
 
     # Open device
@@ -41,7 +41,7 @@ def init_kinect():
     # Start cameras using modified configuration
     pyK4A.device_start_cameras(device_config)
 
-def get_kinect_image(h_iter_duration=0.01, h_iter_max=100):
+def get_kn_image(h_iter_duration=0.01, h_iter_max=100):
     count = 0
     color_image_handle = None
     while not color_image_handle and count < h_iter_max:
@@ -85,7 +85,7 @@ def get_kinect_image(h_iter_duration=0.01, h_iter_max=100):
         return None
 
 
-def get_kinect_image_depth(h_iter_duration=0.01, h_iter_max=100):
+def get_kn_image_depth(h_iter_duration=0.01, h_iter_max=100):
     count = 0
     color_image_handle = None
     while not color_image_handle and count < h_iter_max:
@@ -129,7 +129,7 @@ def get_kinect_image_depth(h_iter_duration=0.01, h_iter_max=100):
         return None, None
 
 
-def get_calibration():
+def get_kn_config():
     calibration = _k4a.k4a_calibration_t()
     # Get the camera calibration
     pyK4A.device_get_calibration(pyK4A.config.depth_mode,pyK4A.config.color_resolution,calibration)
@@ -139,7 +139,7 @@ def get_calibration():
     distCoeffs = np.array([cal_param.k1, cal_param.k2, cal_param.p1, cal_param.p2, cal_param.k3, cal_param.k4, cal_param.k5, cal_param.k6])
     return cameraMatrix, distCoeffs
 
-def disconnect_kinect():
+def disconnect_kn():
     global pyK4A, color_image_handle
     pyK4A.device_stop_cameras()
     pyK4A.device_close()
