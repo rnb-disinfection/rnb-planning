@@ -24,31 +24,31 @@ def get_aruco_config():
                           ObjectMarker(103, 0.05, SE3(Rot_zyx(0,0,np.pi), [0.1,-0.075,0])),
                           ObjectMarker(104, 0.05, SE3(Rot_zyx(0,0,np.pi), [-0.1,-0.075,0]))
                          ],
-                 'wall':[ObjectMarker(91, 0.048, SE3(Rot_zyx(0,0,np.pi), [-0.096,0.072,0])),
-                          ObjectMarker(92, 0.048, SE3(Rot_zyx(0,0,np.pi), [0.096,0.072,0])),
-                          ObjectMarker(93, 0.048, SE3(Rot_zyx(0,0,np.pi), [0.096,-0.072,0])),
-                          ObjectMarker(94, 0.048, SE3(Rot_zyx(0,0,np.pi), [-0.096,-0.072,0]))
+                 'wall':[ObjectMarker(91, 0.05, SE3(Rot_zyx(0,0,np.pi), [-0.1,0.075,0])),
+                          ObjectMarker(92, 0.05, SE3(Rot_zyx(0,0,np.pi), [0.1,0.075,0])),
+                          ObjectMarker(93, 0.05, SE3(Rot_zyx(0,0,np.pi), [0.1,-0.075,0])),
+                          ObjectMarker(94, 0.05, SE3(Rot_zyx(0,0,np.pi), [-0.1,-0.075,0]))
                          ],
-                 'box1':[ObjectMarker(111, 0.0384, SE3(Rot_zyx(0,0,np.pi), [0,0,0.025])),
-                          ObjectMarker(112, 0.0384, SE3(Rot_zyx(0,0,np.pi/2), [0,0.025,0])),
-                          ObjectMarker(113, 0.0384, SE3(Rot_zyx(0,0,0), [0,0,-0.025])),
-                          ObjectMarker(114, 0.0384, SE3(Rot_zyx(0,0,np.pi*3/2), [0,-0.025,0])),
-                          ObjectMarker(115, 0.0384, SE3(Rot_zyx(0,-np.pi/2,0), [0.025,0,0])),
-                          ObjectMarker(116, 0.0384, SE3(Rot_zyx(0,np.pi/2,0), [-0.025,0,0]))
+                 'box1':[ObjectMarker(111, 0.04, SE3(Rot_zyx(0,0,np.pi), [0,0,0.025])),
+                          ObjectMarker(112, 0.04, SE3(Rot_zyx(0,0,np.pi/2), [0,0.025,0])),
+                          ObjectMarker(113, 0.04, SE3(Rot_zyx(0,0,0), [0,0,-0.025])),
+                          ObjectMarker(114, 0.04, SE3(Rot_zyx(0,0,np.pi*3/2), [0,-0.025,0])),
+                          ObjectMarker(115, 0.04, SE3(Rot_zyx(0,-np.pi/2,0), [0.025,0,0])),
+                          ObjectMarker(116, 0.04, SE3(Rot_zyx(0,np.pi/2,0), [-0.025,0,0]))
                          ],
-                 'box2':[ObjectMarker(121, 0.0384, SE3(Rot_zyx(0,0,np.pi), [0,0,0.025])),
-                          ObjectMarker(122, 0.0384, SE3(Rot_zyx(0,0,np.pi/2), [0,0.025,0])),
-                          ObjectMarker(123, 0.0384, SE3(Rot_zyx(0,0,0), [0,0,-0.025])),
-                          ObjectMarker(124, 0.0384, SE3(Rot_zyx(0,0,np.pi*3/2), [0,-0.025,0])),
-                          ObjectMarker(125, 0.0384, SE3(Rot_zyx(0,-np.pi/2,0), [0.025,0,0])),
-                          ObjectMarker(126, 0.0384, SE3(Rot_zyx(0,np.pi/2,0), [-0.025,0,0]))
+                 'box2':[ObjectMarker(121, 0.04, SE3(Rot_zyx(0,0,np.pi), [0,0,0.025])),
+                          ObjectMarker(122, 0.04, SE3(Rot_zyx(0,0,np.pi/2), [0,0.025,0])),
+                          ObjectMarker(123, 0.04, SE3(Rot_zyx(0,0,0), [0,0,-0.025])),
+                          ObjectMarker(124, 0.04, SE3(Rot_zyx(0,0,np.pi*3/2), [0,-0.025,0])),
+                          ObjectMarker(125, 0.04, SE3(Rot_zyx(0,-np.pi/2,0), [0.025,0,0])),
+                          ObjectMarker(126, 0.04, SE3(Rot_zyx(0,np.pi/2,0), [-0.025,0,0]))
                          ],
-                 'box3':[ObjectMarker(131, 0.0384, SE3(Rot_zyx(0,0,np.pi), [0,0,0.025])),
-                          ObjectMarker(132, 0.0384, SE3(Rot_zyx(0,0,np.pi/2), [0,0.025,0])),
-                          ObjectMarker(133, 0.0384, SE3(Rot_zyx(0,0,0), [0,0,-0.025])),
-                          ObjectMarker(134, 0.0384, SE3(Rot_zyx(0,0,np.pi*3/2), [0,-0.025,0])),
-                          ObjectMarker(135, 0.0384, SE3(Rot_zyx(0,-np.pi/2,0), [0.025,0,0])),
-                          ObjectMarker(136, 0.0384, SE3(Rot_zyx(0,np.pi/2,0), [-0.025,0,0]))
+                 'box3':[ObjectMarker(131, 0.04, SE3(Rot_zyx(0,0,np.pi), [0,0,0.025])),
+                          ObjectMarker(132, 0.04, SE3(Rot_zyx(0,0,np.pi/2), [0,0.025,0])),
+                          ObjectMarker(133, 0.04, SE3(Rot_zyx(0,0,0), [0,0,-0.025])),
+                          ObjectMarker(134, 0.04, SE3(Rot_zyx(0,0,np.pi*3/2), [0,-0.025,0])),
+                          ObjectMarker(135, 0.04, SE3(Rot_zyx(0,-np.pi/2,0), [0.025,0,0])),
+                          ObjectMarker(136, 0.04, SE3(Rot_zyx(0,np.pi/2,0), [-0.025,0,0]))
                          ],
                  'goal':[ObjectMarker(201, 0.1, SE3(Rot_zyx(0,0,np.pi), [0,0,0]))]
                 }

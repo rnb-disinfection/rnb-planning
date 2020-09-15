@@ -49,13 +49,17 @@ def calibrate_stereo(aruco_map, dictionary, N_trial=5):
             objectPoints_o = []
             imagePoints_kn_o = []
             imagePoints_rs_o = []
+            occluded = 0
             for mk in markers:
                 if mk.idx in kn_corner_dict and mk.idx in rs_corner_dict:
                     objectPoints_o.append(mk.corners.copy())
                     imagePoints_kn_o.append(kn_corner_dict[mk.idx].copy())
                     imagePoints_rs_o.append(rs_corner_dict[mk.idx].copy())
+                elif mk.idx in kn_corner_dict:
+                    occluded += 1
 
-            if len(objectPoints_o) == 0:
+            if ((len(objectPoints_o) == 0) or
+                    (len(objectPoints_o) <= 2 and (len(objectPoints_o)+occluded >= 3))):
                 continue
             objectPoints.append(np.concatenate(objectPoints_o, axis=0).astype(np.float32))
             imagePoints_kn.append(np.concatenate(imagePoints_kn_o, axis=0))
