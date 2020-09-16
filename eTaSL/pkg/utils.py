@@ -39,12 +39,8 @@ def get_mean_std(X, outlier_count=2):
 
 class GlobalTimer(Singleton):
     def __init__(self, scale=1000):
-        self.name_list = []
-        self.ts_dict = {}
-        self.time_dict = collections.defaultdict(lambda: 0)
-        self.count_dict = collections.defaultdict(lambda: 0)
         self.scale = scale
-        self.switch(True)
+        self.reset()
         
     def reset(self):
         self.name_list = []
