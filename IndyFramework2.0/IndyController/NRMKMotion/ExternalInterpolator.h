@@ -44,7 +44,6 @@ template<int DIM>
 class OnlineJointInterpolator{
   public:
     typedef Eigen::Matrix<double, DIM, 1> JointVec;
-    double  alpha_lpf = 0.8;
     JointVec q_init;
     double period = 25E-5;
 
@@ -53,7 +52,7 @@ class OnlineJointInterpolator{
         period = _period;
     }
 
-    void push_next_qs(JointVec & qs_next){
+    void push_next_qs(double * qs_next){
 
     }
 
@@ -92,7 +91,7 @@ void *socket_thread_vel(void *arg) {
     socklen_t len, msg_size;
 
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {// 소켓 생성
-        printf("Server : Can't open stream socket\n");
+        printf("Trajectory Server : Can't open stream socket\n");
         exit(0);
     }
     memset(&server_addr, 0x00, sizeof(server_addr));
@@ -104,31 +103,32 @@ void *socket_thread_vel(void *arg) {
     //server_addr 셋팅
 
     if (bind(server_fd, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0) {//bind() 호출
-        printf("Server : Can't bind local address.\n");
-        exit(0);
+        printf("Trajectory Server : Can't bind local address.\n");
+        return nullptr;
     }
 
     if (listen(server_fd, 5) < 0) {//소켓을 수동 대기모드로 설정
-        printf("Server : Can't listening connect.\n");
+        printf("Trajectory Server : Can't listening connect.\n");
         exit(0);
     }
 
     memset(buffer, 0x00, sizeof(buffer));
-    printf("Server : wating connection request.\n");
+    printf("Trajectory Server : wating connection request.\n");
     len = sizeof(client_addr);
-    while (1) {
+    bool terminate = false;
+    while (!terminate) {
         Json::Value send_json;
         Json::Value read_json;
         client_fd = accept(server_fd, (struct sockaddr *) &client_addr, &len);
         if (client_fd < 0) {
-            printf("Server: accept failed.\n");
+            printf("Trajectory Server: accept failed.\n");
             exit(0);
         }
         inet_ntop(AF_INET, &client_addr.sin_addr.s_addr, temp, sizeof(temp));
-        printf("Server : %s client connected.\n", temp);
+        printf("Trajectory Server : %s client connected.\n", temp);
 
         msg_size = read(client_fd, buffer, BUF_LEN);
-        printf("Server : read %d bytes.\n", (int) msg_size);
+        printf("Trajectory Server : read %d bytes.\n", (int) msg_size);
 
         Json::CharReaderBuilder builder;
         builder.settings_["indentation"] = "";
@@ -139,61 +139,21 @@ void *socket_thread_vel(void *arg) {
         Json::Value::Members members = read_json.getMemberNames();
 
         double val;
+        double qval[DIM];
 
         for (const auto& membername : members) {
-            if (strcmp(membername.c_str(), "alpha_lpf") == 0) {
-                val = read_json["alpha_lpf"].asFloat();
-                if (val>=0 && val<1){
-                    jpr->alpha_lpf =val;
-                }
-                send_json["alpha_lpf"] = jpr->alpha_lpf;
+            if (strcmp(membername.c_str(), "terminate") == 0) {
+                terminate = true;
+                send_json["terminate"] = true;
             }
             else if (strcmp(membername.c_str(), "qval") == 0) {
-//                Qval q_pre;
-//                Qval dq_pre;
-//                Qval q;
-//                Qval dq;
-//                Qval qdt;
-//                q_pre = jpr->q_last;
-//                dq_pre = jpr->dq_last;
-//                for (int i = 0; i < DIM; i++) {
-//                    q.qval[i] = read_json["qval"][i].asFloat();
-//                }
-//
-//
-//                Json::Value qval_s;
-//                if (q.qval[0] < 100) {
-//                    Qval q_intp_tot;
-//                    double qi_intp;
-//                    double qi_exp;
-//                    double qi_tot;
-//                    for (int j = 0; j < SIZE_STEP; j++) {
-//                        for (int i = 0; i < DOF_COMMAND; i++) {
-//                            qi_exp = q_pre.qval[i] + dq_pre.qval[i] / SIZE_STEP * (j + 1);
-//                            qi_intp = ((SIZE_STEP - 1 - j) * q_pre.qval[i] + (1 + j) * q.qval[i]) / SIZE_STEP;
-//                            qi_tot = (fmax(0, (SIZE_ACC - 1 - j)) * qi_exp + fmin(SIZE_ACC, (1 + j)) * qi_intp) /
-//                                    SIZE_ACC;
-//                            dq.qval[i] = (qi_tot - q_intp_tot.qval[i]) * SIZE_STEP;
-//
-//                            qdt.qval[i] = (qi_tot - q_intp_tot.qval[i]) / PERIOD_REF;
-//                            q_intp_tot.qval[i] = qi_tot;
-//                        }
-//                        //            qval_s.append(qi_tot);
-//                        jpr->qque->push_back(q_intp_tot);
-//                        jpr->dqque->push_back(qdt);
-//                    }
-//
-//                    jpr->q_last = q;
-//                    jpr->dq_last = dq;
-//                }
-//
-//                for (int i = 0; i < DOF_COMMAND; i++) {
-//                    qval_s.append(jpr->q_last.qval[i]);
-//                }
-//                send_json["qval"] = qval_s;
-//                ROS_WARN("Server : qval %f, %f, %f, %f, %f, %f, %f.\n",
-//                         q.qval[0], q.qval[1], q.qval[2], q.qval[3], q.qval[4], q.qval[5], q.qval[6]);
-
+                Json::Value qval_s;
+                for (int i = 0; i < DIM; i++) {
+                    qval[i] = read_json["qval"][i].asFloat();
+                    qval_s.append(qval[i]);
+                }
+                jpr->push_next_qs(qval);
+                send_json["qval"] = qval_s;
             }
         }
 
@@ -205,14 +165,14 @@ void *socket_thread_vel(void *arg) {
 
         str = writer->write(send_json, &read_stream);
         str = read_stream.str();
-        printf("Server : return %d bytes.\n", str.length());
+        printf("Trajectory Server : return %d bytes.\n", str.length());
         memcpy(wbuffer, str.c_str(), str.length());
         write(client_fd, wbuffer, str.length());
         close(client_fd);
-        printf("Server : %s client closed.\n", temp);
+        printf("Trajectory Server : %s client closed.\n", temp);
     }
     close(server_fd);
-    exit(0);
+    return nullptr;
 }
 ///////////////////////////////////////////////////////////////////////////////
 /////////////////////// external communication thread /////////////////////////
@@ -253,11 +213,6 @@ public:
 	, _isTrajSetFailed(false)
 	, _flag_online(false)
 	{
-        thr_id = pthread_create(&p_thread, NULL, socket_thread_vel<DIM>, (void *) (&online_joint_interpolator));
-        if (thr_id < 0) {
-            perror("thread create error : ");
-            exit(0);
-        }
 	}
 
 	//FIXME for test...
@@ -322,6 +277,12 @@ public:
         {
             online_joint_interpolator.reset(_qd[0], intprData->getPeriod());
             _flag_online = true;
+
+            thr_id = pthread_create(&p_thread, NULL, socket_thread_vel<DIM>, (void *) (&online_joint_interpolator));
+            if (thr_id < 0) {
+                perror("thread create error : ");
+                exit(0);
+            }
         }
 
 		_idx = 0;
