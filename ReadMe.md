@@ -83,7 +83,6 @@
   * install pyrealsense2
     * pip install pyrealsense2
     
-    
   
 # Python packages
 * ros compatibility  
@@ -106,6 +105,11 @@
 * setup panda_ros_repeater on panda master pc (https://github.com/Cucumberkjs/panda_ros_repeater.git)  
 * launch panda command repeater on matser  
   * roslaunch panda_ros_repeater joint_velocity_repeater.launch robot_ip:=192.168.0.13 load_gripper:=false
+
+# Setup and launch indy online tracker
+* Download and install NRMK IndyFramework and PlatformSDK (framework 2.3.1 -> Platform 3.0.5)
+* Clone IndyFramework2.0 project and replace "ExternalInterpolator.h" with the one in this project
+* build Indy7ControlTask, replace the file in the step and run TaskMan
 
 # Launch RVIZ
 * roslaunch "$TF_GMT_ETASL_DIR"/launch/gui_custom_robots_joint_panel.launch  
