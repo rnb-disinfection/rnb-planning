@@ -24,6 +24,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 /////////////////////// external communication thread /////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
+#include <iostream>
+#include <cstdio>
 #include "stdio.h"
 #include "stdlib.h"
 #include <string>
@@ -67,7 +69,7 @@ class OnlineJointInterpolator {
     Eigen::Matrix<double, 2, 1> Pvec;
 
   public:
-    void reset(double *_qcur, double _period_c) {
+    int reset(double *_qcur, double _period_c, double _period_s) {
         for (int i_dim = 0; i_dim < DIM; i_dim++) {
             X0(i_dim,0) = _qcur[i_dim];
             V0(i_dim,0) = 0;
@@ -75,17 +77,18 @@ class OnlineJointInterpolator {
             Alpha(i_dim, 1) = 0;
         }
         period_c = _period_c;
-        set_sampling_period(_period_c);
+        return set_sampling_period(_period_s);
     }
 
-    void set_sampling_period(double _period_s){
+    int set_sampling_period(double _period_s){
         period_s = _period_s;
-        step_c_ref = period_s/period_c;
-        step_c = period_s/period_c;
+        step_c_ref = round(period_s/period_c);
+        step_c = step_c_ref;
         TimeMat << period_s * period_s * period_s, period_s * period_s, \
                     8 * period_s * period_s * period_s, 4 * period_s * period_s;
         TimeMatInv << TimeMat.inverse();
         i_step = 0;
+        return step_c_ref;
     }
 
     int push_next_qs(double *qs_next) {
@@ -96,22 +99,33 @@ class OnlineJointInterpolator {
         Xqueue.push_back(Xnew); // --> Xqueue[2]
 
         int qcount = Xqueue.size();
-        if (qcount < 2) return qcount;
+        if (qcount < 3) return qcount;
 
         JointVec Xtmp;
         JointVec Vtmp;
         JointVec Atmp;
-        calc_xva(step_c, X0, V0, Alpha, Xtmp, Vtmp, Atmp);
+        calc_xva(step_c_ref*(qcount-2), X0, V0, Alpha, Xtmp, Vtmp, Atmp);
+//        std::cout<<"step_c"<<std::endl<<step_c<<std::endl;
+//        std::cout<<"X0"<<std::endl<<X0<<std::endl;
+//        std::cout<<"V0"<<std::endl<<V0<<std::endl;
+//        std::cout<<"Alpha"<<std::endl<<Alpha<<std::endl;
+//        std::cout<<"Xtmp"<<std::endl<<Xtmp<<std::endl;
+//        std::cout<<"Vtmp"<<std::endl<<Vtmp<<std::endl;
+//        std::cout<<"Atmp"<<std::endl<<Atmp<<std::endl;
+//        std::cout<<"Xnew"<<std::endl<<Xnew<<std::endl;
         Vqueue.push_back(Vtmp); // --> Vqueue[0]
         // Xtmp == Xqueue[0]
 
         Eigen::Matrix<double, 2, 1> Alphatmp;
         AlphaVec Alphavectmp;
         for(int i_dim=0;i_dim<DIM;i_dim++){
-            Alphatmp = calc_alpha(Xtmp(i_dim, 0), Vtmp(i_dim, 0), Xqueue[1](i_dim, 0), Xqueue[2](i_dim, 0));
+            Alphatmp = calc_alpha(Xtmp(i_dim, 0), Vtmp(i_dim, 0), Xqueue[qcount-2](i_dim, 0), Xqueue[qcount-1](i_dim, 0));
             Alphavectmp(i_dim,0) = Alphatmp(0,0);
             Alphavectmp(i_dim,1) = Alphatmp(1,0);
         }
+//        std::cout<<"Xqueue[1]"<<std::endl<<Xqueue[1]<<std::endl;
+//        std::cout<<"Xqueue[2]"<<std::endl<<Xqueue[2]<<std::endl;
+//        std::cout<<"Alphavectmp"<<std::endl<<Alphavectmp<<std::endl;
         Alphaqueue.push_back(Alphavectmp); // --> Alphaqueue[0]
         return qcount;
     }
@@ -224,8 +238,18 @@ void *socket_thread_vel(void *arg) {
 
         double val;
         double qval[DIM];
+        double period_s;
+        int step_c;
 
         for (const auto &membername : members) {
+            if (strcmp(membername.c_str(), "reset") == 0) {
+                period_s = read_json["period_s"].asFloat();
+                for (int i = 0; i < DIM; i++) {
+                    qval[i] = read_json["qcur"][i].asFloat();
+                }
+                step_c = jpr->reset(qval, jpr->period_c, period_s);
+                send_json["step_c"] = step_c;
+            }
             if (strcmp(membername.c_str(), "terminate") == 0) {
                 terminate = true;
                 send_json["terminate"] = true;
@@ -284,7 +308,7 @@ class ExternalJointInterpolator {
     OnlineJointInterpolator<DIM> online_joint_interpolator;
     bool _flag_online;
     pthread_t p_thread;
-    int thr_id;
+    int thr_id=NULL;
 
     ExternalJointInterpolator()
             : _dim(DIM),
@@ -362,13 +386,15 @@ class ExternalJointInterpolator {
 
         if (_length == 1) // if _length==1, online trajectory
         {
-            online_joint_interpolator.reset(_qd[0], intprData->getPeriod());
+            online_joint_interpolator.reset(_qd[0], intprData->getPeriod(), online_joint_interpolator.period_s);
             _flag_online = true;
 
-            thr_id = pthread_create(&p_thread, NULL, socket_thread_vel<DIM>, (void *) (&online_joint_interpolator));
-            if (thr_id < 0) {
-                perror("thread create error : ");
-                exit(0);
+            if (thr_id == NULL){
+                thr_id = pthread_create(&p_thread, NULL, socket_thread_vel<DIM>, (void *) (&online_joint_interpolator));
+                if (thr_id < 0) {
+                    perror("thread create error : ");
+                    exit(0);
+                }
             }
         }
 

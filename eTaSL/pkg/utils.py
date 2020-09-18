@@ -67,10 +67,12 @@ class GlobalTimer(Singleton):
             self.min_time_dict[name] = min(self.min_time_dict[name], dt)
             self.max_time_dict[name] = max(self.max_time_dict[name], dt)
             self.count_dict[name] = self.count_dict[name] + 1
+            return dt
             
     def toctic(self, name_toc, name_tic):
-        self.toc(name_toc)
+        dt = self.toc(name_toc)
         self.tic(name_tic)
+        return dt
         
     def print_time_log(self, names=None, timeunit="ms"):
         if names is None:
