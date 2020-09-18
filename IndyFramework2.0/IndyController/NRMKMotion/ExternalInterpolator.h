@@ -223,10 +223,10 @@ void *socket_thread_vel(void *arg) {
             exit(0);
         }
         inet_ntop(AF_INET, &client_addr.sin_addr.s_addr, temp, sizeof(temp));
-        printf("Trajectory Server : %s client connected.\n", temp);
+//        printf("Trajectory Server : %s client connected.\n", temp);
 
         msg_size = read(client_fd, buffer, BUF_LEN);
-        printf("Trajectory Server : read %d bytes.\n", (int) msg_size);
+//        printf("Trajectory Server : read %d bytes.\n", (int) msg_size);
 
         Json::CharReaderBuilder builder;
         builder.settings_["indentation"] = "";
@@ -274,11 +274,11 @@ void *socket_thread_vel(void *arg) {
 
         str = writer->write(send_json, &read_stream);
         str = read_stream.str();
-        printf("Trajectory Server : return %d bytes.\n", str.length());
+//        printf("Trajectory Server : return %d bytes.\n", str.length());
         memcpy(wbuffer, str.c_str(), str.length());
         write(client_fd, wbuffer, str.length());
         close(client_fd);
-        printf("Trajectory Server : %s client closed.\n", temp);
+//        printf("Trajectory Server : %s client closed.\n", temp);
     }
     close(server_fd);
     return nullptr;
