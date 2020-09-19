@@ -8,9 +8,9 @@ from visualization_msgs.msg import Marker
 
 from .geometry import *
 
-def get_publisher(joint_names, robot_name=""):
+def get_publisher(joint_names, robot_name="", control_freq=100):
     pub = rospy.Publisher(robot_name+'/joint_states', JointState, queue_size=10)
-    rate = rospy.Rate(100) # 10hz
+    rate = rospy.Rate(control_freq) # 10hz
     joints = JointState()
     joints.header.seq += 1
     joints.header.stamp = rospy.Time.now()

@@ -5,18 +5,19 @@ import subprocess
 
 ROBOT_IP = '192.168.0.13'
 HOST = '192.168.0.172'
-PORT = 1189
+PORT_REPEATER = 1189
+CONTROL_RATE_PANDA = 100
 
 class PandaRepeater:
-    def __init__(self, host=HOST, port=PORT, robot_ip=ROBOT_IP, alpha_lpf=0.6, k_gain=30.0, d_gain=5.0):
+    def __init__(self, host=HOST, port=PORT_REPEATER, robot_ip=ROBOT_IP):
         self.host, self.port, self.robot_ip = host, port, robot_ip
-        self.set_alpha_lpf(alpha_lpf)
-        self.set_k_gain(k_gain)
-        self.set_d_gain(d_gain)
+        self.set_alpha_lpf(-1)
+        self.set_k_gain(-1)
+        self.set_d_gain(-1)
         self.get_qcur()
         self.clear()
         self.start_gripper_server()
-        self.rate = rospy.Rate(100)  # 10hz
+        self.rate = rospy.Rate(CONTROL_RATE_PANDA)  # 10hz
         self.finger_pub = rospy.Publisher('/franka_gripper/gripper_action/goal', GripperCommandActionGoal,
                                           tcp_nodelay=True, queue_size=1)
         self.finger_cmd = GripperCommandActionGoal()
@@ -46,13 +47,21 @@ class PandaRepeater:
         self.d_gain = send_recv({'d_gain': d_gain}, self.host, self.port)['d_gain']
         return self.d_gain
 
+    def get_qcount(self):
+        return send_recv({'qcount': 0}, self.host, self.port)['qcount']
+
     def get_qcur(self):
-        self.qcur = send_recv({'qcur': 0}, self.host, self.port)['qcur']
+        self.qcur = send_recv({'getq': 0}, self.host, self.port)['qval']
         return self.qcur
 
     def send_qval(self, qval):
-        self.qval = send_recv({'qval': qval}, self.host, self.port)['qval']
-        return self.qval
+        return send_recv({'qval': qval}, self.host, self.port)
+
+    def stop_tracking(self):
+        return send_recv({'stop': True}, self.host, self.port)
+
+    def reset(self):
+        return send_recv({'reset': True, "period_s": 1.0/CONTROL_RATE_PANDA}, self.host, self.port)
 
     def move_finger(self, close_bool, max_width=0.039, min_width=0.025, effort=1):
         self.close_bool = close_bool

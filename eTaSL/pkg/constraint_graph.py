@@ -23,6 +23,8 @@ from indy_utils import indydcp_client
 
 INDY_GRPC = False
 PANDA_ROS = False
+PORT_REPEATER = 1189
+CONTROL_FREQ = 100
 
 # try:
 #     from queue import PriorityQueue
@@ -145,7 +147,6 @@ class ConstraintGraph:
                 self.panda.set_alpha_lpf(self.panda.alpha_lpf)
                 self.panda.set_d_gain(self.panda.d_gain)
                 self.panda.set_k_gain(self.panda.k_gain)
-                self.panda.send_qval(self.panda.get_qcur())
 
     def reset_indy(self):
         if self.connect_indy:
@@ -189,7 +190,7 @@ class ConstraintGraph:
     @record_time
     def set_simulation(self, nWSR=50, cputime=200, regularization_factor= 1e-4, timescale=0.25):
         # prepare ros
-        self.pub, self.joints, self.rate = get_publisher(self.joint_names)
+        self.pub, self.joints, self.rate = get_publisher(self.joint_names, control_freq=CONTROL_FREQ)
         # prepare visualization markers
         self.marker_list = set_markers(self.geometry_items_dict, self.joints, self.joint_names, self.link_names, self.urdf_content)
         set_simulation_config(joint_names = self.joint_names, link_names = self.link_names, 
@@ -936,4 +937,18 @@ class ConstraintGraph:
         xyz_cam, rvec_cam = T2xyzrvec(T_po_cam)
         xyz_cal, rvec_cal = T2xyzrvec(T_po_cal)
         return xyz_cam, rvec_cam, xyz_cal, rvec_cal, color_image, objectPose_dict, corner_dict, err_dict
+
+    def indy_init_online_tracking(self):
+        qcur_indy = np.deg2rad(self.indy.get_joint_pos())
+        self.indy.move_ext_traj_txt(traj_type=1, traj_freq=4000, dat_size=len(self.indy_idx),
+                                     traj_data=qcur_indy.tolist()+[0]*2*len(self.indy_idx))
+        return send_recv({'reset': True, 'period_s': 1.0/CONTROL_FREQ, 'qcur': qcur_indy},
+                         self.indy.server_ip, PORT_REPEATER)
+
+    def indy_send_track_q(self, Q_indy):
+        return send_recv({'qval': Q_indy}, self.indy.server_ip, PORT_REPEATER)
+
+    def indy_end_online_tracking(self):
+        send_recv({'stop': True}, self.indy.server_ip, PORT_REPEATER)
+        # self.indy.stop_motion()
 
