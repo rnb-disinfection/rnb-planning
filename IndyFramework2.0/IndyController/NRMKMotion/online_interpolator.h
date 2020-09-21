@@ -5,6 +5,14 @@
 #ifndef SRC_ONLINE_INTERPOLATOR_H
 #define SRC_ONLINE_INTERPOLATOR_H
 
+#define ANSI_COLOR_RESET        "\x1b[0m"
+#define ANSI_BOLD               "\x1b[1m"
+#define ANSI_COLOR_RED          "\x1b[31m"
+#define ANSI_COLOR_GREEN        "\x1b[32m"
+#define ANSI_COLOR_YELLOW       "\x1b[33m"
+#define ANSI_COLOR_BLUE         "\x1b[34m"
+#define ANSI_COLOR_MAGENTA      "\x1b[35m"
+#define ANSI_COLOR_CYAN         "\x1b[36m"
 
 ///////////////////////////////////////////////////////////////////////////////
 /////////////////////// external communication thread /////////////////////////
@@ -55,11 +63,11 @@ public:
     double alpha_lpf = 0.6;
 
 protected:
+    pthread_t p_thread_online_interpolator = NULL;
+    int thr_id_online_interpolator = NULL;
+
     Eigen::Matrix<double, 2, 2> TimeMat;
     Eigen::Matrix<double, 2, 1> Pvec;
-    bool _flag_online;
-    pthread_t p_thread;
-    int thr_id=NULL;
     JointVec lpf_x;
     JointVec lpf_y;
 
@@ -235,7 +243,7 @@ void *socket_thread_vel(void *arg) {
     socklen_t len, msg_size;
 
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {// 소켓 생성
-        printf("[Trajectory Server] Can't open stream socket\n");
+        printf(ANSI_COLOR_RED   "[Trajectory Server] Can't open stream socket\n"    ANSI_COLOR_RESET);
         exit(0);
     }
     memset(&server_addr, 0x00, sizeof(server_addr));
@@ -247,17 +255,17 @@ void *socket_thread_vel(void *arg) {
     //server_addr 셋팅
 
     if (bind(server_fd, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0) {//bind() 호출
-        printf("[Trajectory Server] Can't bind local address.\n");
+        printf(ANSI_COLOR_RED   "[Trajectory Server] Can't bind local address.\n"   ANSI_COLOR_RESET);
         return nullptr;
     }
 
     if (listen(server_fd, 5) < 0) {//소켓을 수동 대기모드로 설정
-        printf("[Trajectory Server] Can't listening connect.\n");
+        printf(ANSI_COLOR_RED   "[Trajectory Server] Can't listening connect.\n"    ANSI_COLOR_RESET);
         exit(0);
     }
 
     memset(buffer, 0x00, sizeof(buffer));
-    printf("[Trajectory Server] wating connection request.\n");
+    printf(ANSI_COLOR_BLUE   "[Trajectory Server] wating connection request.\n"  ANSI_COLOR_RESET);
     len = sizeof(client_addr);
     bool terminate = false;
     while (!terminate) {
@@ -265,7 +273,7 @@ void *socket_thread_vel(void *arg) {
         Json::Value read_json;
         client_fd = accept(server_fd, (struct sockaddr *) &client_addr, &len);
         if (client_fd < 0) {
-            printf("[Trajectory Server] accept failed.\n");
+            printf(ANSI_COLOR_RED   "[Trajectory Server] accept failed.\n"  ANSI_COLOR_RESET);
             exit(0);
         }
         inet_ntop(AF_INET, &client_addr.sin_addr.s_addr, temp, sizeof(temp));
@@ -347,6 +355,7 @@ void *socket_thread_vel(void *arg) {
 //        printf("[Trajectory Server] %s client closed.\n", temp);
     }
     close(server_fd);
+    printf(ANSI_COLOR_BLUE   "[Trajectory Server] socket connection closed.\n"  ANSI_COLOR_RESET);
     return nullptr;
 }
 ///////////////////////////////////////////////////////////////////////////////
@@ -356,12 +365,11 @@ void *socket_thread_vel(void *arg) {
 template<int DIM>
 void OnlineInterpolator<DIM>::init_thread(double _period_c, double _period_s, double* qval){
     reset(_period_c, _period_s, qval);
-    _flag_online = true;
 
-    if (thr_id == NULL){
-        thr_id = pthread_create(&p_thread, NULL, socket_thread_vel<DIM>, (void *) this);
-        if (thr_id < 0) {
-            perror("thread create error : ");
+    if (thr_id_online_interpolator == NULL){
+        thr_id_online_interpolator = pthread_create(&p_thread_online_interpolator, NULL, socket_thread_vel<DIM>, (void *) this);
+        if (thr_id_online_interpolator < 0) {
+            printf(ANSI_COLOR_RED "[Trajectory Server] thread create error" ANSI_COLOR_RESET);
             exit(0);
         }
     }

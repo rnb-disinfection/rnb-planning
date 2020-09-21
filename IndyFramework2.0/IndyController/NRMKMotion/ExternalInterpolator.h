@@ -19,10 +19,7 @@
 
 #include "InterpolationData.h"
 
-
-
 #include "online_interpolator.h"
-
 
 namespace NRMKFoundation {
 namespace internal {
