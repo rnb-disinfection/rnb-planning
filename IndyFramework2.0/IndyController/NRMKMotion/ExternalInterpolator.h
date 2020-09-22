@@ -118,7 +118,9 @@ class ExternalJointInterpolator {
         if (_length == 1) // if _length==1, online trajectory
         {
             _flag_online = true;
+            printf(ANSI_COLOR_CYAN   "[Trajectory Server] init thread.\n"   ANSI_COLOR_RESET);
             online_interpolator.init_thread(intprData->getPeriod(), online_interpolator.period_s, _qd[0]);
+            printf(ANSI_COLOR_CYAN   "[Trajectory Server] thread started.\n"   ANSI_COLOR_RESET);
         }
 
         _idx = 0;
