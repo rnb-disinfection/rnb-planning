@@ -60,6 +60,9 @@ class PandaRepeater:
     def stop_tracking(self):
         return send_recv({'stop': True}, self.host, self.port)
 
+    def terminate_thread(self):
+        return send_recv({'terminate': True}, self.host, self.port)
+
     def reset(self):
         return send_recv({'reset': True, "period_s": 1.0/CONTROL_RATE_PANDA}, self.host, self.port)
 

@@ -143,7 +143,7 @@ class ExternalJointInterpolator {
             _idx = idx;
             _isTargetReached = false;
 
-            online_interpolator.get_next_qc(pd, vd, ad);
+            online_interpolator.get_next_qc(t, pd, vd, ad);
         } else if (idx > _length - 1)    //target reached
         {
             idx = _length - 1;

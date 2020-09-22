@@ -15,12 +15,14 @@
 #define ANSI_COLOR_CYAN         "\x1b[36m"
 
 #define LOG_QOUT false // generates error
+#define USE_GETQ_FUN true
 #include <mutex>          // std::mutex
 
 ///////////////////////////////////////////////////////////////////////////////
 /////////////////////// external communication thread /////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 #include <iostream>
+#include <fstream>
 #include <cstdio>
 #include "stdio.h"
 #include "stdlib.h"
@@ -40,9 +42,12 @@
 
 #define PORT_REPEATER 1189
 
+#define V_INTP_SATURATE 1.0
+#define A_INTP_SATURATE 2.0
+
 template<int DIM>
 class OnlineInterpolator {
-public:
+  public:
     typedef Eigen::Matrix<double, DIM, 1> JointVec;
     typedef Eigen::Matrix<double, DIM, 2> AlphaVec;
 
@@ -53,25 +58,26 @@ public:
     std::deque<JointVec> Xout_queue;
     std::deque<JointVec> Vout_queue;
     std::deque<JointVec> Aout_queue;
+    std::deque<double> time_queue;
+    std::deque<int> step_queue;
 
     JointVec X0;
     JointVec V0;
     AlphaVec Alpha;
+    double time0;
 
     double period_s = 1E-2;
+    double period_update = 1E-2;
     double period_c;
-    int step_c_ref = 1E-2/25E-5;
-    int step_c = 1E-2/25E-5;
-    int i_step = 0;
 
     double k_gain=10.0;
     double d_gain=5.0;
     double alpha_lpf = 0.6;
+    int step = 0;
 
     pthread_mutex_t mtx;           // mutex for critical section
 
-protected:
-
+  protected:
     pthread_t p_thread_online_interpolator = NULL;
     int thr_id_online_interpolator = NULL;
 
@@ -79,15 +85,19 @@ protected:
     JointVec lpf_x;
     JointVec lpf_y;
 
-public:
+  public:
     void (*get_qcur_fun)(void*, double *);
     void* p_handle;
 
     void get_qcur(double *qcur){
+        if (!USE_GETQ_FUN)
+            printf(ANSI_COLOR_RED   "[Trajectory Server] USE_GETQ_FUN is disabled.\n"  ANSI_COLOR_RESET);
         get_qcur_fun(p_handle, qcur);
     }
 
     void set_qreader_fun(void (*_get_qcur)(void*, double *), void* _p_handle){
+        if (!USE_GETQ_FUN)
+            printf(ANSI_COLOR_RED   "[Trajectory Server] USE_GETQ_FUN is disabled.\n"  ANSI_COLOR_RESET);
         get_qcur_fun = _get_qcur;
         p_handle = _p_handle;
     }
@@ -104,6 +114,7 @@ public:
         }
         pthread_mutex_lock(&mtx);
         for (int i_dim = 0; i_dim < DIM; i_dim++) {
+            time0 = 0;
             X0(i_dim,0) = _qcur[i_dim];
             V0(i_dim,0) = 0;
             Alpha(i_dim, 0) = 0;
@@ -119,6 +130,8 @@ public:
             Xout_queue.clear();
             Vout_queue.clear();
             Aout_queue.clear();
+            time_queue.clear();
+            step_queue.clear();
         }
         pthread_mutex_unlock(&mtx);
         return set_sampling_period(_period_s);
@@ -127,14 +140,12 @@ public:
     int set_sampling_period(double _period_s){
         pthread_mutex_lock(&mtx);
         period_s = _period_s;
-        step_c_ref = round(period_s/period_c);
-        step_c = step_c_ref;
+        period_update = period_s;
         TimeMat << period_s * period_s * period_s, period_s * period_s, \
                     8 * period_s * period_s * period_s, 4 * period_s * period_s;
         TimeMatInv << TimeMat.inverse();
-        i_step = 0;
         pthread_mutex_unlock(&mtx);
-        return step_c_ref;
+        return round(period_s/period_c);
     }
 
     bool stop() {
@@ -165,35 +176,35 @@ public:
         }
 //        std::cout<< "Xnew" << std::endl << Xnew <<std::endl;
 
-        int qcount = Xqueue.size()+1;
+        Xqueue.push_back(Xnew); // --> Xqueue[2]
+        int qcount = Xqueue.size();
         if (qcount < 3){
-            pthread_mutex_lock(&mtx);
-            Xqueue.push_back(Xnew); // --> Xqueue[2]
-            pthread_mutex_unlock(&mtx);
             return qcount;
         }
 
-        JointVec Xtmp;
-        JointVec Vtmp;
-        JointVec Atmp;
-        calc_xva(step_c_ref*(qcount-2), X0, V0, Alpha, Xtmp, Vtmp, Atmp);
-        // Xtmp == Xqueue[0]
+        if(Vqueue.empty()){
+            pthread_mutex_lock(&mtx);
+            JointVec Xtmp;
+            JointVec Vtmp;
+            JointVec Atmp;
+            calc_xva(period_update, X0, V0, Alpha, Xtmp, Vtmp, Atmp);
+            Xqueue[0] << Xtmp;
+            // Xtmp == Xqueue[0]
 
-        Eigen::Matrix<double, 2, 1> Alphatmp;
-        AlphaVec Alphavectmp;
-        for(int i_dim=0;i_dim<DIM;i_dim++){
-            Alphatmp = calc_alpha(Xtmp(i_dim, 0), Vtmp(i_dim, 0), Xqueue[qcount-2](i_dim, 0), Xnew(i_dim, 0));
-            Alphavectmp(i_dim,0) = Alphatmp(0,0);
-            Alphavectmp(i_dim,1) = Alphatmp(1,0);
-        }
+            Eigen::Matrix<double, 2, 1> Alphatmp;
+            AlphaVec Alphavectmp;
+            for(int i_dim=0;i_dim<DIM;i_dim++){
+                Alphatmp = calc_alpha(Xtmp(i_dim, 0), Vtmp(i_dim, 0), Xqueue[1](i_dim, 0), Xqueue[2](i_dim, 0));
+                Alphavectmp(i_dim,0) = Alphatmp(0,0);
+                Alphavectmp(i_dim,1) = Alphatmp(1,0);
+            }
 //        std::cout<< "Xtmp" << std::endl << Xtmp <<std::endl;
 //        std::cout<< "Vtmp" << std::endl << Vtmp <<std::endl;
 //        std::cout<< "Alphavectmp" << std::endl << Alphavectmp <<std::endl;
-        pthread_mutex_lock(&mtx);
-        Xqueue.push_back(Xnew); // --> Xqueue[2]
-        Vqueue.push_back(Vtmp); // --> Vqueue[0]
-        Alphaqueue.push_back(Alphavectmp); // --> Alphaqueue[0]
-        pthread_mutex_unlock(&mtx);
+            Vqueue.push_back(Vtmp); // --> Vqueue[0]
+            Alphaqueue.push_back(Alphavectmp); // --> Alphaqueue[0]
+            pthread_mutex_unlock(&mtx);
+        }
         return qcount;
     }
 
@@ -205,51 +216,66 @@ public:
         return Alpha;
     }
 
-    double calc_xva(int i_step, JointVec & X0, JointVec & V0, AlphaVec & Alpha, JointVec &pd, JointVec &vd, JointVec &ad) {
-        double v0, x0, alpha, beta, t, x, v, a;
+    double calc_xva(double t, JointVec & X0, JointVec & V0, AlphaVec & Alpha, JointVec &pd, JointVec &vd, JointVec &ad) {
+        double v0, x0, alpha, beta;
         for (int i_dim = 0; i_dim < DIM; i_dim++) {
-            t = period_c * i_step;
             x0 = X0(i_dim,0);
             v0 = V0(i_dim,0);
             alpha = Alpha(i_dim, 0);
             beta = Alpha(i_dim, 1);
-            x = alpha * t * t * t + beta * t * t + v0 * t + x0;
-            v = 3 * alpha * t * t + 2 * beta * t + v0;
-            a = 6 * alpha * t + 2 * beta;
-            pd(i_dim, 0) = x;
-            vd(i_dim, 0) = v;
-            ad(i_dim, 0) = a;
+            pd(i_dim, 0) = alpha * t * t * t + beta * t * t + v0 * t + x0;
+            vd(i_dim, 0) = fmax(-V_INTP_SATURATE,fmin(V_INTP_SATURATE, 3 * alpha * t * t + 2 * beta * t + v0));
+            ad(i_dim, 0) = fmax(-A_INTP_SATURATE,fmin(A_INTP_SATURATE,6 * alpha * t + 2 * beta));
         }
     }
 
-    void get_next_qc(JointVec &pd, JointVec &vd, JointVec &ad) {
+    void get_next_qc(double time, JointVec &pd, JointVec &vd, JointVec &ad) {
         pthread_mutex_lock(&mtx);
-        calc_xva(i_step++, X0, V0, Alpha, pd, vd, ad);
-        if (LOG_QOUT){
-            Xout_queue.push_back(pd);
-            Vout_queue.push_back(vd);
-            Aout_queue.push_back(ad);
-        }
-        if(i_step >= step_c){
+        if(time - time0 > period_update){
             if (!Xqueue.empty()) {
                 JointVec Xtmp = Xqueue.front();
                 Xqueue.pop_front();
                 if (!(Vqueue.empty() || Alphaqueue.empty())) {
-                    i_step = 0;
-                    step_c = step_c_ref;
+                    step += 1;
+                    period_update = 0;
+                    time0 = period_s*floor(time/period_s);
                     X0 = Xtmp;
                     V0 = Vqueue.front();
-                    Vqueue.pop_front();
                     Alpha = Alphaqueue.front();
+                    Vqueue.pop_front();
                     Alphaqueue.pop_front();
-//                    std::cout<< "X0" << std::endl << X0 <<std::endl;
-//                    std::cout<< "V0" << std::endl << V0 <<std::endl;
-//                    std::cout<< "Alpha" << std::endl << Alpha <<std::endl;
-                    pthread_mutex_unlock(&mtx);
-                    return;
+                }
+                else{
+                    calc_xva(period_update, X0, V0, Alpha, pd, vd, ad);
+                    period_update = 0;
+                    time0 = period_s*floor(time/period_s);
+                    X0 = Xtmp;
+                    for (int i_dim = 0; i_dim < DIM; i_dim++) {
+                        V0(i_dim, 0) = vd(i_dim, 0)/2;
+                        Alpha(i_dim, 0) = 0;
+                        Alpha(i_dim, 1) = 0;
+                    }
                 }
             }
-            step_c += step_c_ref;
+            else{
+                calc_xva(period_update, X0, V0, Alpha, pd, vd, ad);
+                period_update = 0;
+                time0 = period_s*floor(time/period_s);
+                for (int i_dim = 0; i_dim < DIM; i_dim++) {
+                    V0(i_dim, 0) = vd(i_dim, 0)/2;
+                    Alpha(i_dim, 0) = 0;
+                    Alpha(i_dim, 1) = 0;
+                }
+            }
+            period_update = period_s*ceil((time - time0)/period_s);
+        }
+        calc_xva(time - time0, X0, V0, Alpha, pd, vd, ad);
+        if (LOG_QOUT){
+            Xout_queue.push_back(pd);
+            Vout_queue.push_back(vd);
+            Aout_queue.push_back(ad);
+            step_queue.push_back(step);
+            time_queue.push_back(time);
         }
         pthread_mutex_unlock(&mtx);
     }
@@ -262,7 +288,7 @@ public:
         return lpf_y;
     }
 
-    void init_thread(double _period_c, double _period_s, double* qval);
+    void init_thread(double _period_c, double _period_s, double* qval=NULL);
 };
 
 template<int DIM>
@@ -339,10 +365,15 @@ void *socket_thread_vel(void *arg) {
 
         for (const auto &membername : members) {
             if (strcmp(membername.c_str(), "reset") == 0) {
-                for (int i = 0; i < DIM; i++) {
-                    qval[i] = read_json["qcur"][i].asFloat();
+                if (USE_GETQ_FUN){
+                    step_c = jpr->reset(jpr->period_c, read_json["period_s"].asFloat());
                 }
-                step_c = jpr->reset(jpr->period_c, read_json["period_s"].asFloat(), qval);
+                else{
+                    for (int i = 0; i < DIM; i++) {
+                        qval[i] = read_json["qcur"][i].asFloat();
+                    }
+                    step_c = jpr->reset(jpr->period_c, read_json["period_s"].asFloat(), qval);
+                }
                 send_json["step_c"] = step_c;
             } else if (strcmp(membername.c_str(), "stop") == 0) {
                 ret = jpr->stop();
@@ -350,6 +381,12 @@ void *socket_thread_vel(void *arg) {
             } else if (strcmp(membername.c_str(), "terminate") == 0) {
                 terminate = true;
                 send_json["terminate"] = true;
+            } else if(strcmp(membername.c_str(), "getq") == 0){
+                jpr->get_qcur(qval);
+                for (int i = 0; i < DIM; i++) {
+                    qval_s.append(qval[i]);
+                }
+                send_json["qval"] = qval_s;
             } else if (strcmp(membername.c_str(), "qval") == 0) {
                 for (int i = 0; i < DIM; i++) {
                     qval[i] = read_json["qval"][i].asFloat();
@@ -398,12 +435,15 @@ void *socket_thread_vel(void *arg) {
 
     pthread_mutex_destroy(&jpr->mtx);
     if (LOG_QOUT){
-        std::string filePath = "test.txt";
+        std::string filePath = "../test.txt";
 
         // write File
         std::ofstream writeFile(filePath.data());
         if( writeFile.is_open() ){
+            printf(ANSI_COLOR_RED   "[Trajectory Server] write log file.\n"  ANSI_COLOR_RESET);
             for(int i_q=0; i_q<jpr->Xout_queue.size(); i_q++){
+                writeFile << jpr->step_queue[i_q] << "\t" ;
+                writeFile << jpr->time_queue[i_q] << "\t" ;
                 for(int i_dim=0;i_dim<DIM; i_dim++){
                     writeFile << jpr->Xout_queue[i_q][i_dim] << "\t" ;
                 }
@@ -416,6 +456,7 @@ void *socket_thread_vel(void *arg) {
                 writeFile << std::endl;
             }
             writeFile.close();
+            printf(ANSI_COLOR_RED   "[Trajectory Server] writing log done.\n"  ANSI_COLOR_RESET);
         }
     }
 

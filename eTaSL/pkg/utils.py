@@ -49,6 +49,7 @@ class GlobalTimer(Singleton):
         self.min_time_dict = collections.defaultdict(lambda: 1e10)
         self.max_time_dict = collections.defaultdict(lambda: 0)
         self.count_dict = collections.defaultdict(lambda: 0)
+        self.timelist_dict = collections.defaultdict(lambda: list())
         self.switch(True)
         
     def switch(self, onoff):
@@ -60,17 +61,19 @@ class GlobalTimer(Singleton):
                 self.name_list += [name]
             self.ts_dict[name] = time.time()
         
-    def toc(self, name):
+    def toc(self, name, stack=False):
         if self.__on:
             dt = (time.time() - self.ts_dict[name]) * self.scale
             self.time_dict[name] = self.time_dict[name] + dt
             self.min_time_dict[name] = min(self.min_time_dict[name], dt)
             self.max_time_dict[name] = max(self.max_time_dict[name], dt)
             self.count_dict[name] = self.count_dict[name] + 1
+            if stack:
+                self.timelist_dict[name].append(dt)
             return dt
             
-    def toctic(self, name_toc, name_tic):
-        dt = self.toc(name_toc)
+    def toctic(self, name_toc, name_tic, stack=False):
+        dt = self.toc(name_toc, stack=stack)
         self.tic(name_tic)
         return dt
         
