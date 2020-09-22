@@ -50,6 +50,11 @@ class OnlineInterpolator {
   public:
     typedef Eigen::Matrix<double, DIM, 1> JointVec;
     typedef Eigen::Matrix<double, DIM, 2> AlphaVec;
+    struct JointVecState{
+        JointVec y;
+        JointVec dy;
+        JointVec ddy;
+    };
 
     Eigen::Matrix<double, 2, 2> TimeMatInv;
     std::deque<JointVec> Xqueue;
@@ -76,6 +81,7 @@ class OnlineInterpolator {
     int step = 0;
 
     pthread_mutex_t mtx;           // mutex for critical section
+    JointVecState lpf_Y;
 
   protected:
     pthread_t p_thread_online_interpolator = NULL;
@@ -121,6 +127,9 @@ class OnlineInterpolator {
             Alpha(i_dim, 1) = 0;
             lpf_x(i_dim, 0) = 0;
             lpf_y(i_dim, 0) = 0;
+            lpf_Y.y(i_dim, 0) = 0;
+            lpf_Y.dy(i_dim, 0) = 0;
+            lpf_Y.ddy(i_dim, 0) = 0;
         }
         Xqueue.clear();
         Vqueue.clear();
@@ -278,6 +287,36 @@ class OnlineInterpolator {
             time_queue.push_back(time);
         }
         pthread_mutex_unlock(&mtx);
+    }
+
+    void set_lpfY(double* Y) {
+        for (int i_dim = 0; i_dim < DIM; i_dim++) {
+            lpf_Y.y(i_dim, 0) = Y[i_dim];
+            lpf_Y.dy(i_dim, 0) = 0;
+            lpf_Y.ddy(i_dim, 0) = 0;
+        }
+    }
+
+    JointVecState& lpf_joint_state(JointVec& Y) {
+        JointVecState Ypre;
+        Ypre.y << lpf_Y.y;
+        Ypre.dy << lpf_Y.dy;
+        Ypre.ddy << lpf_Y.ddy;
+        lpf_Y.y << (1 - alpha_lpf) * Ypre.y + alpha_lpf * Y;
+        lpf_Y.dy << (lpf_Y.y - Ypre.y)/period_c;
+        double vmax = lpf_Y.dy.abs().maxCoeff();
+        if (vmax > V_INTP_SATURATE){
+            lpf_Y.dy << (lpf_Y.dy/vmax*V_INTP_SATURATE);
+            lpf_Y.y << (Ypre.y + lpf_Y.dy*period_c);
+        }
+        lpf_Y.ddy << (lpf_Y.dy - Ypre.dy)/period_c;
+        double amax = lpf_Y.ddy.abs().maxCoeff();
+        if (amax > A_INTP_SATURATE){
+            lpf_Y.ddy << (lpf_Y.ddy/amax*A_INTP_SATURATE);
+            lpf_Y.dy << (Ypre.dy + lpf_Y.ddy*period_c);
+            lpf_Y.y << (Ypre.y + lpf_Y.dy*period_c);
+        }
+        return lpf_Y;
     }
 
     JointVec& lpf(JointVec& X){
