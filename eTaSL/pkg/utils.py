@@ -160,6 +160,8 @@ def send_recv(sdict, host, port):
         rjson = client_socket.recv(1024)
         # rjson = "".join(map(chr, rjson))
         rdict = json.loads(rjson)
+        if rdict is None:
+            rdict = {}
         rdict = {str(k): v for k,v in rdict.items()}
     finally:
         client_socket.close()

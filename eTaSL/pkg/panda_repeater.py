@@ -6,18 +6,18 @@ import subprocess
 ROBOT_IP = '192.168.0.13'
 HOST = '192.168.0.172'
 PORT_REPEATER = 1189
-CONTROL_RATE_PANDA = 100
+DEFAULT_TRAJ_RATE_PANDA = 50
 
 class PandaRepeater:
-    def __init__(self, host=HOST, port=PORT_REPEATER, robot_ip=ROBOT_IP):
-        self.host, self.port, self.robot_ip = host, port, robot_ip
+    def __init__(self, host=HOST, port=PORT_REPEATER, robot_ip=ROBOT_IP, traj_freq=DEFAULT_TRAJ_RATE_PANDA):
+        self.host, self.port, self.robot_ip, self.traj_freq = host, port, robot_ip, traj_freq
         self.set_alpha_lpf(-1)
         self.set_k_gain(-1)
         self.set_d_gain(-1)
         self.get_qcur()
         self.clear()
         self.start_gripper_server()
-        self.rate = rospy.Rate(CONTROL_RATE_PANDA)  # 10hz
+        self.rate = rospy.Rate(traj_freq)  # 10hz
         self.finger_pub = rospy.Publisher('/franka_gripper/gripper_action/goal', GripperCommandActionGoal,
                                           tcp_nodelay=True, queue_size=1)
         self.finger_cmd = GripperCommandActionGoal()
@@ -58,13 +58,13 @@ class PandaRepeater:
         return send_recv({'qval': qval}, self.host, self.port)
 
     def stop_tracking(self):
-        return send_recv({'stop': True}, self.host, self.port)
+        return send_recv({'stop': 1}, self.host, self.port)
 
     def terminate_thread(self):
-        return send_recv({'terminate': True}, self.host, self.port)
+        return send_recv({'terminate': 1}, self.host, self.port)
 
     def reset(self):
-        return send_recv({'reset': True, "period_s": 1.0/CONTROL_RATE_PANDA}, self.host, self.port)
+        return send_recv({'reset': 1, "period_s": 1.0/self.traj_freq}, self.host, self.port)
 
     def move_finger(self, close_bool, max_width=0.039, min_width=0.025, effort=1):
         self.close_bool = close_bool

@@ -15,7 +15,6 @@
 #define ANSI_COLOR_CYAN         "\x1b[36m"
 
 #define LOG_QOUT false // generates error
-#define USE_GETQ_FUN false
 #include <mutex>          // std::mutex
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -33,9 +32,11 @@
 #include "netinet/in.h"
 #include <pthread.h>
 #include <arpa/inet.h>
-#include "json/json.h"
 #include <queue>
 #include <Eigen/Eigen>
+#include "json/json.h"
+#include "gason.h"
+#include <ctime>
 
 #define BUF_LEN 1024
 #define WBUF_LEN 1024
@@ -71,17 +72,17 @@ class OnlineInterpolator {
     AlphaVec Alpha;
     double time0;
 
-    double period_s = 1E-2;
-    double period_update = 1E-2;
+    double period_s = 2E-2;
     double period_c;
 
-    double k_gain=10.0;
+    double k_gain=50.0;
     double d_gain=5.0;
-    double alpha_lpf = 0.6;
+    double alpha_lpf = 0.8;
     int step = 0;
 
     pthread_mutex_t mtx;           // mutex for critical section
     JointVecState lpf_Y;
+    bool USE_GETQ_FUN = false;
 
   protected:
     pthread_t p_thread_online_interpolator = NULL;
@@ -102,8 +103,7 @@ class OnlineInterpolator {
     }
 
     void set_qreader_fun(void (*_get_qcur)(void*, double *), void* _p_handle){
-        if (!USE_GETQ_FUN)
-            printf(ANSI_COLOR_RED   "[Trajectory Server] USE_GETQ_FUN is disabled.\n"  ANSI_COLOR_RESET);
+        USE_GETQ_FUN = true;
         get_qcur_fun = _get_qcur;
         p_handle = _p_handle;
     }
@@ -149,7 +149,6 @@ class OnlineInterpolator {
     int set_sampling_period(double _period_s){
         pthread_mutex_lock(&mtx);
         period_s = _period_s;
-        period_update = period_s;
         TimeMat << period_s * period_s * period_s, period_s * period_s, \
                     8 * period_s * period_s * period_s, 4 * period_s * period_s;
         TimeMatInv << TimeMat.inverse();
@@ -179,42 +178,44 @@ class OnlineInterpolator {
     }
 
     int push_next_qs(double *qs_next) {
-        JointVec Xnew;
-        for(int i_dim=0;i_dim<DIM;i_dim++) {
-            Xnew(i_dim, 0) = qs_next[i_dim];
-        }
+       JointVec Xnew;
+       for(int i_dim=0;i_dim<DIM;i_dim++) {
+           Xnew(i_dim, 0) = qs_next[i_dim];
+       }
 //        std::cout<< "Xnew" << std::endl << Xnew <<std::endl;
 
-        Xqueue.push_back(Xnew); // --> Xqueue[2]
-        int qcount = Xqueue.size();
-        if (qcount < 3){
-            return qcount;
-        }
+       pthread_mutex_lock(&mtx);
+       Xqueue.push_back(Xnew); // --> Xqueue[2]
+       int qcount = Xqueue.size();
+       if (qcount < 3){
+           pthread_mutex_unlock(&mtx);
+           return qcount;
+       }
 
-        if(Vqueue.empty()){
-            pthread_mutex_lock(&mtx);
-            JointVec Xtmp;
-            JointVec Vtmp;
-            JointVec Atmp;
-            calc_xva(period_update, X0, V0, Alpha, Xtmp, Vtmp, Atmp);
-            Xqueue[0] << Xtmp;
-            // Xtmp == Xqueue[0]
+       if(Vqueue.empty()){
+           JointVec Xtmp;
+           JointVec Vtmp;
+           JointVec Atmp;
+           calc_xva(period_s, X0, V0, Alpha, Xtmp, Vtmp, Atmp);
+           Xqueue[0] << Xtmp;
+           // Xtmp == Xqueue[0]
 
-            Eigen::Matrix<double, 2, 1> Alphatmp;
-            AlphaVec Alphavectmp;
-            for(int i_dim=0;i_dim<DIM;i_dim++){
-                Alphatmp = calc_alpha(Xtmp(i_dim, 0), Vtmp(i_dim, 0), Xqueue[1](i_dim, 0), Xqueue[2](i_dim, 0));
-                Alphavectmp(i_dim,0) = Alphatmp(0,0);
-                Alphavectmp(i_dim,1) = Alphatmp(1,0);
-            }
+           Eigen::Matrix<double, 2, 1> Alphatmp;
+           AlphaVec Alphavectmp;
+           for(int i_dim=0;i_dim<DIM;i_dim++){
+               Alphatmp = calc_alpha(Xqueue[0](i_dim, 0), Vtmp(i_dim, 0), Xqueue[1](i_dim, 0), Xqueue[2](i_dim, 0));
+               Alphavectmp(i_dim,0) = Alphatmp(0,0);
+               Alphavectmp(i_dim,1) = Alphatmp(1,0);
+           }
 //        std::cout<< "Xtmp" << std::endl << Xtmp <<std::endl;
 //        std::cout<< "Vtmp" << std::endl << Vtmp <<std::endl;
 //        std::cout<< "Alphavectmp" << std::endl << Alphavectmp <<std::endl;
-            Vqueue.push_back(Vtmp); // --> Vqueue[0]
-            Alphaqueue.push_back(Alphavectmp); // --> Alphaqueue[0]
-            pthread_mutex_unlock(&mtx);
-        }
-        return qcount;
+           Vqueue.push_back(Vtmp); // --> Vqueue[0]
+           Alphaqueue.push_back(Alphavectmp); // --> Alphaqueue[0]
+       }
+       pthread_mutex_unlock(&mtx);
+       return qcount;
+        return 3;
     }
 
     Eigen::Matrix<double, 2, 1> calc_alpha(double x0, double v0, double x1, double x2) {
@@ -239,57 +240,57 @@ class OnlineInterpolator {
     }
 
     void get_next_qc(double time, JointVec &pd, JointVec &vd, JointVec &ad) {
-        pthread_mutex_lock(&mtx);
-        if(time - time0 > period_update){
-            if (!Xqueue.empty()) {
-                JointVec Xtmp = Xqueue.front();
-                Xqueue.pop_front();
-                if (!(Vqueue.empty() || Alphaqueue.empty())) {
-                    step += 1;
-                    period_update = 0;
-                    time0 = period_s*floor(time/period_s);
-                    X0 = Xtmp;
-                    V0 = Vqueue.front();
-                    Alpha = Alphaqueue.front();
-                    Vqueue.pop_front();
-                    Alphaqueue.pop_front();
-                }
-                else{
-                    calc_xva(period_update, X0, V0, Alpha, pd, vd, ad);
-                    period_update = 0;
-                    time0 = period_s*floor(time/period_s);
-                    X0 = Xtmp;
-                    for (int i_dim = 0; i_dim < DIM; i_dim++) {
-                        V0(i_dim, 0) = vd(i_dim, 0)/2;
-                        Alpha(i_dim, 0) = 0;
-                        Alpha(i_dim, 1) = 0;
-                    }
-                }
-            }
-            else{
-                calc_xva(period_update, X0, V0, Alpha, pd, vd, ad);
-                period_update = 0;
-                time0 = period_s*floor(time/period_s);
-                for (int i_dim = 0; i_dim < DIM; i_dim++) {
-                    V0(i_dim, 0) = vd(i_dim, 0)/2;
-                    Alpha(i_dim, 0) = 0;
-                    Alpha(i_dim, 1) = 0;
-                }
-            }
-            period_update = period_s*ceil((time - time0)/period_s);
+        for (int i_dim = 0; i_dim < DIM; i_dim++) {
+            pd(i_dim, 0) = 0;
+            vd(i_dim, 0) = 0;
+            ad(i_dim, 0) = 0;
         }
-        calc_xva(time - time0, X0, V0, Alpha, pd, vd, ad);
-        if (LOG_QOUT){
-            Xout_queue.push_back(pd);
-            Vout_queue.push_back(vd);
-            Aout_queue.push_back(ad);
-            step_queue.push_back(step);
-            time_queue.push_back(time);
-        }
-        pthread_mutex_unlock(&mtx);
+       pthread_mutex_lock(&mtx);
+       if(time - time0 > period_s){
+           if (!Xqueue.empty()) {
+               JointVec Xtmp = Xqueue.front();
+               Xqueue.pop_front();
+               if (!(Vqueue.empty() || Alphaqueue.empty())) {
+                   step += 1;
+                   X0 = Xtmp;
+                   V0 = Vqueue.front();
+                   Alpha = Alphaqueue.front();
+                   Vqueue.pop_front();
+                   Alphaqueue.pop_front();
+               }
+               else{
+                   calc_xva(period_s, X0, V0, Alpha, pd, vd, ad);
+                   X0 = Xtmp;
+                   for (int i_dim = 0; i_dim < DIM; i_dim++) {
+                       V0(i_dim, 0) = vd(i_dim, 0)/2;
+                       Alpha(i_dim, 0) = 0;
+                       Alpha(i_dim, 1) = 0;
+                   }
+               }
+           }
+           else{
+               calc_xva(period_s, X0, V0, Alpha, pd, vd, ad);
+               for (int i_dim = 0; i_dim < DIM; i_dim++) {
+                   X0(i_dim, 0) = pd(i_dim, 0);
+                   V0(i_dim, 0) = vd(i_dim, 0)/2;
+                   Alpha(i_dim, 0) = 0;
+                   Alpha(i_dim, 1) = 0;
+               }
+           }
+           time0 = period_s*floor(time/period_s);
+       }
+       calc_xva(time - time0, X0, V0, Alpha, pd, vd, ad);
+       if (LOG_QOUT){
+           Xout_queue.push_back(pd);
+           Vout_queue.push_back(vd);
+           Aout_queue.push_back(ad);
+           step_queue.push_back(step);
+           time_queue.push_back(std::time(0));
+       }
+       pthread_mutex_unlock(&mtx);
     }
 
-    void set_lpfY(double* Y) {
+    void set_lpf_joint_state(double* Y) {
         for (int i_dim = 0; i_dim < DIM; i_dim++) {
             lpf_Y.y(i_dim, 0) = Y[i_dim];
             lpf_Y.dy(i_dim, 0) = 0;
@@ -298,24 +299,26 @@ class OnlineInterpolator {
     }
 
     JointVecState& lpf_joint_state(JointVec& Y) {
+        pthread_mutex_lock(&mtx);
         JointVecState Ypre;
         Ypre.y << lpf_Y.y;
         Ypre.dy << lpf_Y.dy;
         Ypre.ddy << lpf_Y.ddy;
         lpf_Y.y << (1 - alpha_lpf) * Ypre.y + alpha_lpf * Y;
         lpf_Y.dy << (lpf_Y.y - Ypre.y)/period_c;
-        double vmax = lpf_Y.dy.abs().maxCoeff();
+        double vmax = lpf_Y.dy.cwiseAbs().maxCoeff();
         if (vmax > V_INTP_SATURATE){
             lpf_Y.dy << (lpf_Y.dy/vmax*V_INTP_SATURATE);
             lpf_Y.y << (Ypre.y + lpf_Y.dy*period_c);
         }
         lpf_Y.ddy << (lpf_Y.dy - Ypre.dy)/period_c;
-        double amax = lpf_Y.ddy.abs().maxCoeff();
+        double amax = lpf_Y.ddy.cwiseAbs().maxCoeff();
         if (amax > A_INTP_SATURATE){
             lpf_Y.ddy << (lpf_Y.ddy/amax*A_INTP_SATURATE);
             lpf_Y.dy << (Ypre.dy + lpf_Y.ddy*period_c);
             lpf_Y.y << (Ypre.y + lpf_Y.dy*period_c);
         }
+        pthread_mutex_unlock(&mtx);
         return lpf_Y;
     }
 
@@ -334,10 +337,9 @@ template<int DIM>
 void *socket_thread_vel(void *arg) {
     OnlineInterpolator<DIM> *jpr;
     jpr = (OnlineInterpolator<DIM> *) arg;
-    char buffer[BUF_LEN];
     char wbuffer[WBUF_LEN];
     struct sockaddr_in server_addr, client_addr;
-    char temp[20];
+    char temp[32];
     int server_fd, client_fd;
     //server_fd, client_fd : 각 소켓 번호
     socklen_t len, msg_size;
@@ -366,14 +368,17 @@ void *socket_thread_vel(void *arg) {
         printf(ANSI_COLOR_RED   "[Trajectory Server] Can't listening connect.\n"    ANSI_COLOR_RESET);
         exit(0);
     }
-
-    memset(buffer, 0x00, sizeof(buffer));
     printf(ANSI_COLOR_CYAN   "[Trajectory Server] wating connection request.\n"  ANSI_COLOR_RESET);
     len = sizeof(client_addr);
     bool terminate = false;
     while (!terminate) {
+        char buffer[BUF_LEN];
+        JsonValue read_json;
+        JsonAllocator allocator;
+        char* endptr;
         Json::Value send_json;
-        Json::Value read_json;
+        std::string errs;
+
         client_fd = accept(server_fd, (struct sockaddr *) &client_addr, &len);
         if (client_fd < 0) {
             printf(ANSI_COLOR_RED   "[Trajectory Server] accept failed.\n"  ANSI_COLOR_RESET);
@@ -382,76 +387,90 @@ void *socket_thread_vel(void *arg) {
         inet_ntop(AF_INET, &client_addr.sin_addr.s_addr, temp, sizeof(temp));
 //        printf("[Trajectory Server] %s client connected.\n", temp);
 
+        memset(buffer, 0x00, sizeof(buffer));
         msg_size = read(client_fd, buffer, BUF_LEN);
 //        printf("[Trajectory Server] read %d bytes.\n", (int) msg_size);
 
-        Json::CharReaderBuilder builder;
-        builder.settings_["indentation"] = "";
-        Json::CharReader *reader(builder.newCharReader());
-        std::string errs;
-        bool parsingRet = reader->parse((char *) buffer, (char *) buffer + strlen(buffer), &read_json, &errs);
+       int parsingRet = jsonParse(buffer, &endptr, &read_json, allocator);
 
-        Json::Value::Members members = read_json.getMemberNames();
+       if (parsingRet != JSON_OK){
+           printf(ANSI_COLOR_RED   "[Trajectory Server]  parse error %s at $zd.\n"  ANSI_COLOR_RESET,
+                  jsonStrError(parsingRet), endptr - buffer);
+           continue;
+       }
 
         double val;
-        double qval[DIM];
-        double period_s;
         int step_c;
         typename OnlineInterpolator<DIM>::JointVec pd, vd, ad;
         Json::Value qval_s;
         int qcount;
         bool ret;
 
-        for (const auto &membername : members) {
-            if (strcmp(membername.c_str(), "reset") == 0) {
-                if (USE_GETQ_FUN){
-                    step_c = jpr->reset(jpr->period_c, read_json["period_s"].asFloat());
+        bool _reset = false;
+
+        double _qval[DIM];
+        double _period_s;
+
+        for (auto i : read_json) {
+            if (strcmp(i->key, "reset") == 0) {
+                _reset = true;
+            } else if (strcmp(i->key, "period_s") == 0) {
+                _period_s = i->value.toNumber();
+            } else if (strcmp(i->key, "qcur") == 0) {
+                int i_dim = 0;
+                for (auto i_q:i->value) {
+                    _qval[i_dim] = i_q->value.toNumber();
+                    i_dim ++;
                 }
-                else{
-                    for (int i = 0; i < DIM; i++) {
-                        qval[i] = read_json["qcur"][i].asFloat();
-                    }
-                    step_c = jpr->reset(jpr->period_c, read_json["period_s"].asFloat(), qval);
-                }
-                send_json["step_c"] = step_c;
-            } else if (strcmp(membername.c_str(), "stop") == 0) {
+            } else if (strcmp(i->key, "stop") == 0) {
                 ret = jpr->stop();
                 send_json["stop"] = ret;
-            } else if (strcmp(membername.c_str(), "terminate") == 0) {
+            } else if (strcmp(i->key, "terminate") == 0) {
                 terminate = true;
                 send_json["terminate"] = true;
-            } else if(strcmp(membername.c_str(), "getq") == 0){
-                jpr->get_qcur(qval);
-                for (int i = 0; i < DIM; i++) {
-                    qval_s.append(qval[i]);
+            } else if (strcmp(i->key, "getq") == 0) {
+                jpr->get_qcur(_qval);
+                for (int i_dim = 0; i_dim < DIM; i_dim++) {
+                    qval_s.append(_qval[i_dim]);
                 }
                 send_json["qval"] = qval_s;
-            } else if (strcmp(membername.c_str(), "qval") == 0) {
-                for (int i = 0; i < DIM; i++) {
-                    qval[i] = read_json["qval"][i].asFloat();
-                    qval_s.append(qval[i]);
+            } else if (strcmp(i->key, "qval") == 0) {
+                int i_dim = 0;
+                for (auto i_q:i->value) {
+                    _qval[i_dim] = i_q->value.toNumber();
+                    qval_s.append(_qval[i_dim]);
+                    i_dim ++;
                 }
-                qcount = jpr->push_next_qs(qval);
+                qcount = jpr->push_next_qs(_qval);
                 send_json["qval"] = qval_s;
                 send_json["qcount"] = qcount;
-            }else if (strcmp(membername.c_str(), "qcount") == 0) {
-                send_json["qcount"] = jpr->Xqueue.size();
-            }else if (strcmp(membername.c_str(), "k_gain") == 0) {
-                val = read_json["k_gain"].asFloat();
+            } else if (strcmp(i->key, "qcount") == 0) {
+               send_json["qcount"] = jpr->Xqueue.size();
+            } else if (strcmp(i->key, "k_gain") == 0) {
+                val = i->value.toNumber();
                 if (val>=0)
                     jpr->k_gain = val;
                 send_json["k_gain"] = jpr->k_gain;
-            }else if (strcmp(membername.c_str(), "d_gain") == 0) {
-                val = read_json["d_gain"].asFloat();
+            } else if (strcmp(i->key, "d_gain") == 0) {
+                val = i->value.toNumber();
                 if (val>=0)
                     jpr->d_gain = val;
                 send_json["d_gain"] = jpr->d_gain;
-            }else if (strcmp(membername.c_str(), "alpha_lpf") == 0) {
-                val = read_json["alpha_lpf"].asFloat();
+            } else if (strcmp(i->key, "alpha_lpf") == 0) {
+                val = i->value.toNumber();
                 if (val>=0)
                     jpr->alpha_lpf = val;
                 send_json["alpha_lpf"] = jpr->alpha_lpf;
             }
+        }
+        if (_reset) {
+            if (jpr->USE_GETQ_FUN){
+                step_c = jpr->reset(jpr->period_c, _period_s);
+            }
+            else{
+                step_c = jpr->reset(jpr->period_c, _period_s, _qval);
+            }
+            send_json["step_c"] = step_c;
         }
 
         Json::StreamWriterBuilder wbuilder;
@@ -510,7 +529,7 @@ void OnlineInterpolator<DIM>::init_thread(double _period_c, double _period_s, do
     reset(_period_c, _period_s, qval);
 
     if (thr_id_online_interpolator == NULL){
-        pthread_mutex_init(&mtx, NULL);
+        //pthread_mutex_init(&mtx, NULL);
         thr_id_online_interpolator = pthread_create(&p_thread_online_interpolator, NULL, socket_thread_vel<DIM>, (void *) this);
         if (thr_id_online_interpolator < 0) {
             printf(ANSI_COLOR_RED "[Trajectory Server] thread create error" ANSI_COLOR_RESET);
