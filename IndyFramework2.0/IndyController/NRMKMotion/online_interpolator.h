@@ -15,7 +15,7 @@
 #define ANSI_COLOR_CYAN         "\x1b[36m"
 
 #define LOG_QOUT false // generates error
-#define USE_GETQ_FUN true
+#define USE_GETQ_FUN false
 #include <mutex>          // std::mutex
 
 ///////////////////////////////////////////////////////////////////////////////
