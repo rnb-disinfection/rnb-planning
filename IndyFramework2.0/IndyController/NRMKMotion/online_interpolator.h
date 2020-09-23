@@ -42,9 +42,6 @@
 
 #define PORT_REPEATER 1189
 
-#define V_INTP_SATURATE 1.0
-#define A_INTP_SATURATE 2.0
-
 template<int DIM>
 class OnlineInterpolator {
   public:
@@ -71,6 +68,9 @@ class OnlineInterpolator {
     AlphaVec Alpha;
     double time0;
 
+    double V_SATURATE = 1.0;
+    double A_SATURATE = 2.0;
+
     double period_s = 2E-2;
     double period_c;
 
@@ -81,7 +81,6 @@ class OnlineInterpolator {
 
     pthread_mutex_t mtx;           // mutex for critical section
     JointVecState lpf_Y;
-    bool USE_GETQ_FUN = false;
 
   protected:
     pthread_t p_thread_online_interpolator = NULL;
@@ -92,17 +91,22 @@ class OnlineInterpolator {
     JointVec lpf_y;
 
   public:
-    void (*get_qcur_fun)(void*, double *);
+    void (*get_qcur_fun)(void*, double *) = nullptr;
     void* p_handle;
 
     void get_qcur(double *qcur){
-        if (!USE_GETQ_FUN)
-            printf(ANSI_COLOR_RED   "[Trajectory Server] USE_GETQ_FUN is disabled.\n"  ANSI_COLOR_RESET);
-        get_qcur_fun(p_handle, qcur);
+        if (get_qcur_fun == nullptr) {
+            printf(ANSI_COLOR_RED   "[Trajectory Server] get_qcur_fun is not defined.\n"  ANSI_COLOR_RESET);
+            for (int i_dim = 0; i_dim < DIM; i_dim) {
+                qcur[i_dim] = 0.0;
+            }
+        }
+        else{
+            get_qcur_fun(p_handle, qcur);
+        }
     }
 
     void set_qreader_fun(void (*_get_qcur)(void*, double *), void* _p_handle){
-        USE_GETQ_FUN = true;
         get_qcur_fun = _get_qcur;
         p_handle = _p_handle;
     }
@@ -117,6 +121,7 @@ class OnlineInterpolator {
                 _qcur[i_dim] = _qcur_in[i_dim];
             }
         }
+        set_lpf_joint_state(_qcur);
         pthread_mutex_lock(&mtx);
         for (int i_dim = 0; i_dim < DIM; i_dim++) {
             time0 = 0;
@@ -232,12 +237,12 @@ class OnlineInterpolator {
             alpha = Alpha(i_dim, 0);
             beta = Alpha(i_dim, 1);
             pd(i_dim, 0) = alpha * t * t * t + beta * t * t + v0 * t + x0;
-            vd(i_dim, 0) = fmax(-V_INTP_SATURATE,fmin(V_INTP_SATURATE, 3 * alpha * t * t + 2 * beta * t + v0));
-            ad(i_dim, 0) = fmax(-A_INTP_SATURATE,fmin(A_INTP_SATURATE,6 * alpha * t + 2 * beta));
+            vd(i_dim, 0) = fmax(-V_SATURATE,fmin(V_SATURATE, 3 * alpha * t * t + 2 * beta * t + v0));
+            ad(i_dim, 0) = fmax(-A_SATURATE,fmin(A_SATURATE,6 * alpha * t + 2 * beta));
         }
     }
 
-    void get_next_qc(double time, JointVec &pd, JointVec &vd, JointVec &ad) {
+    void get_next_qc(double time, JointVec &pd, JointVec &vd, JointVec &ad, bool apply_state_lpf=false) {
         for (int i_dim = 0; i_dim < DIM; i_dim++) {
             pd(i_dim, 0) = 0;
             vd(i_dim, 0) = 0;
@@ -278,6 +283,8 @@ class OnlineInterpolator {
            time0 = period_s*floor(time/period_s);
        }
        calc_xva(time - time0, X0, V0, Alpha, pd, vd, ad);
+       if (apply_state_lpf)
+           lpf_joint_state(pd, vd, ad);
        if (LOG_QOUT){
            Xout_queue.push_back(pd);
            Vout_queue.push_back(vd);
@@ -296,8 +303,7 @@ class OnlineInterpolator {
         }
     }
 
-    JointVecState& lpf_joint_state(JointVec& Y) {
-        pthread_mutex_lock(&mtx);
+    JointVecState& lpf_joint_state(JointVec& Y, JointVec& dY, JointVec& ddY) {
         JointVecState Ypre;
         Ypre.y << lpf_Y.y;
         Ypre.dy << lpf_Y.dy;
@@ -305,22 +311,24 @@ class OnlineInterpolator {
         lpf_Y.y << (1 - alpha_lpf) * Ypre.y + alpha_lpf * Y;
         lpf_Y.dy << (lpf_Y.y - Ypre.y)/period_c;
         double vmax = lpf_Y.dy.cwiseAbs().maxCoeff();
-        if (vmax > V_INTP_SATURATE){
-            lpf_Y.dy << (lpf_Y.dy/vmax*V_INTP_SATURATE);
+        if (vmax > V_SATURATE){
+            lpf_Y.dy << (lpf_Y.dy/vmax*V_SATURATE);
             lpf_Y.y << (Ypre.y + lpf_Y.dy*period_c);
         }
         lpf_Y.ddy << (lpf_Y.dy - Ypre.dy)/period_c;
         double amax = lpf_Y.ddy.cwiseAbs().maxCoeff();
-        if (amax > A_INTP_SATURATE){
-            lpf_Y.ddy << (lpf_Y.ddy/amax*A_INTP_SATURATE);
+        if (amax > A_SATURATE){
+            lpf_Y.ddy << (lpf_Y.ddy/amax*A_SATURATE);
             lpf_Y.dy << (Ypre.dy + lpf_Y.ddy*period_c);
             lpf_Y.y << (Ypre.y + lpf_Y.dy*period_c);
         }
-        pthread_mutex_unlock(&mtx);
+        Y<<lpf_Y.y;
+        dY<<lpf_Y.dy;
+        ddY<<lpf_Y.ddy;
         return lpf_Y;
     }
 
-    JointVec& lpf(JointVec& X){
+    JointVec& kd_lpf(JointVec& X){
         JointVec y;
         y << (k_gain*X + d_gain*(X - lpf_x));
         lpf_x << X;
@@ -383,11 +391,13 @@ void *socket_thread_vel(void *arg) {
             exit(0);
         }
         inet_ntop(AF_INET, &client_addr.sin_addr.s_addr, temp, sizeof(temp));
-//        printf("[Trajectory Server] %s client connected.\n", temp);
+//        printf(ANSI_COLOR_BLUE"[Trajectory Server] %s client connected.\n" ANSI_COLOR_RESET, temp);
 
         memset(buffer, 0x00, sizeof(buffer));
         msg_size = read(client_fd, buffer, BUF_LEN);
-//        printf("[Trajectory Server] read %d bytes.\n", (int) msg_size);
+//        printf(ANSI_COLOR_BLUE "[Trajectory Server] read %d bytes.\n" ANSI_COLOR_RESET, (int) msg_size);
+//        printf(buffer);
+//        printf("\n");
 
        int parsingRet = jsonParse(buffer, &endptr, &read_json, allocator);
 
@@ -459,14 +469,24 @@ void *socket_thread_vel(void *arg) {
                 if (val>=0)
                     jpr->alpha_lpf = val;
                 send_json["alpha_lpf"] = jpr->alpha_lpf;
+            } else if (strcmp(i->key, "v_sat") == 0) {
+                val = i->value.toNumber();
+                if (val>=0)
+                    jpr->V_SATURATE = val;
+                send_json["v_sat"] = jpr->V_SATURATE;
+            } else if (strcmp(i->key, "a_sat") == 0) {
+                val = i->value.toNumber();
+                if (val>=0)
+                    jpr->A_SATURATE = val;
+                send_json["a_sat"] = jpr->A_SATURATE;
             }
         }
         if (_reset) {
-            if (jpr->USE_GETQ_FUN){
-                step_c = jpr->reset(jpr->period_c, _period_s);
+            if (jpr->get_qcur_fun == nullptr){
+                step_c = jpr->reset(jpr->period_c, _period_s, _qval);
             }
             else{
-                step_c = jpr->reset(jpr->period_c, _period_s, _qval);
+                step_c = jpr->reset(jpr->period_c, _period_s);
             }
             send_json["step_c"] = step_c;
         }

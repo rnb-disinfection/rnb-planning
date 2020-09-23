@@ -119,7 +119,6 @@ class ExternalJointInterpolator {
         {
             _flag_online = true;
             printf(ANSI_COLOR_CYAN   "[Trajectory Server] init thread.\n"   ANSI_COLOR_RESET);
-            online_interpolator.set_lpf_joint_state(_qd[0]);
             online_interpolator.init_thread(intprData->getPeriod(), online_interpolator.period_s, _qd[0]);
             printf(ANSI_COLOR_CYAN   "[Trajectory Server] thread started.\n"   ANSI_COLOR_RESET);
         }
@@ -145,11 +144,7 @@ class ExternalJointInterpolator {
             _idx = idx;
             _isTargetReached = false;
 
-            online_interpolator.get_next_qc(t, pd, vd, ad);
-//            online_interpolator.lpf_joint_state(pd);
-//            pd<<online_interpolator.lpf_Y.y;
-//            vd<<online_interpolator.lpf_Y.dy;
-//            ad<<online_interpolator.lpf_Y.ddy;
+            online_interpolator.get_next_qc(t, pd, vd, ad, true);
 
         } else if (idx > _length - 1)    //target reached
         {

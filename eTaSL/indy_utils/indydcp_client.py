@@ -447,7 +447,7 @@ def tcp_command(cmd, response_type=None):
 ###############################################################################
 # Indy Client Class                                                           #
 ###############################################################################
-class IndyDCPClient:
+class IndyDCPClient(object):
     def __init__(self, server_ip, robot_name, robot_version=""):
         global JOINT_DOF
 

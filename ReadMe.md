@@ -113,9 +113,13 @@
 * Clone IndyFramework2.0 project and replace "ExternalInterpolator.h" with the one in this project  
 * source /opt/neuromeka/NRMKFoundation/script/nrmk_env.sh  
 * build project  
-  * cmake -DROBOT_NAME=Indy7 -DSIMULATION=ON  
+  * cmake -DROBOT_NAME=Indy7 -DSIMULATION=OFF  
   * make install  
-* replace the file in the step and run TaskMan  
+* send the file to CB  
+  * scp /home/junsu/Projects/indyframework2.0/deployment/* root@192.168.0.63:/home/user/release/TasksDeployment  
+* Run TaskMan  
+  * cd /home/user/release/TasksDeployment  
+  * ./TaskManager -j indyDeploy.json  
 
 # Launch RVIZ
 * roslaunch "$TF_GMT_ETASL_DIR"/launch/gui_custom_robots_joint_panel.launch  

@@ -58,7 +58,7 @@ class GlobalTimer(Singleton):
     def tic(self, name):
         if self.__on:
             if name not in self.name_list:
-                self.name_list += [name]
+                self.name_list.append(name)
             self.ts_dict[name] = time.time()
         
     def toc(self, name, stack=False):
@@ -186,4 +186,12 @@ def createKF(dim_z, dt, P, R, Q, X0=None):
         f.Q[i_Q*2:i_Q*2+2,i_Q*2:i_Q*2+2] = Q_discrete_white_noise(dim=2, dt=dt, var=Q)
     return f
 
+import inspect
+
+def divide_kwargs(kwargs, func1, func2):
+    keys1 = inspect.getargspec(func1).args
+    keys2 = inspect.getargspec(func2).args
+    kwargs1 = {k:v for k,v in kwargs.items() if k in keys1}
+    kwargs2 = {k:v for k,v in kwargs.items() if k in keys2}
+    return kwargs1, kwargs2
 
