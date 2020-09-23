@@ -84,9 +84,11 @@ class Repeater(object):
             self.rate_x4.sleep()
         if self.qcount > 3:
             self.qcount = self.get_qcount()
+            sent = False
         else:
             self.qcount = self.send_qval(Q)['qcount']
-        return self.qcount
+            sent = True
+        return sent
 
     def move_joint_interpolated(self, qtar, q0=None, N_div=100, N_stop=None):
         if N_stop is None or N_stop > N_div or N_stop<0:
@@ -95,6 +97,7 @@ class Repeater(object):
         DQ = qtar - qcur
 
         self.reset(q0)
-        for i_step in range(N_stop):
-            Q = qcur + DQ * (np.sin(np.pi * (i_step / N_div - 1 / 2)) + 1) / 2
-            self.move_joint_possible_x4(Q)
+        i_step = 0
+        while i_step < N_stop:
+            Q = qcur + DQ * (np.sin(np.pi * (float(i_step) / N_div - 0.5)) + 1) / 2
+            i_step += self.move_joint_possible_x4(Q)
