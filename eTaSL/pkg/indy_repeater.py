@@ -33,6 +33,12 @@ class indytraj_client(IndyDCPClient, Repeater):
         IndyDCPClient.__init__(self, *args, server_ip=server_ip, **kwargs_indy)
         Repeater.__init__(self, repeater_ip=self.server_ip, disable_getq=True, **kwargs_otic)
 
+    def connect_and(self, func, *args, **kwargs):
+        self.connect()
+        res = func(*args, **kwargs)
+        self.disconnect()
+        return res
+
     @connect_indy
     def wait_motion(self, period=1e-1):
         while not self.get_robot_status()['movedone']:

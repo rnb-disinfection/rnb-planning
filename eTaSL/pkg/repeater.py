@@ -93,7 +93,8 @@ class Repeater(object):
     def move_joint_interpolated(self, qtar, q0=None, N_div=100, N_stop=None):
         if N_stop is None or N_stop > N_div or N_stop<0:
             N_stop = N_div + 1
-        qcur = np.array(self.get_qcur())
+
+        qcur = np.array(self.get_qcur()) if q0 is None else q0
         DQ = qtar - qcur
 
         self.reset(q0)

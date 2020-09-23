@@ -87,8 +87,8 @@ class OnlineInterpolator {
     int thr_id_online_interpolator = NULL;
 
     Eigen::Matrix<double, 2, 2> TimeMat;
-    JointVec lpf_x;
-    JointVec lpf_y;
+    JointVec kdlpf_x;
+    JointVec kdlpf_y;
 
   public:
     void (*get_qcur_fun)(void*, double *) = nullptr;
@@ -121,19 +121,20 @@ class OnlineInterpolator {
                 _qcur[i_dim] = _qcur_in[i_dim];
             }
         }
-        set_lpf_joint_state(_qcur);
+
+        printf(ANSI_COLOR_CYAN   "[Trajectory Server] reset queue on %.2f, %.2f, %.2f, %.2f, %.2f, %.2f\n"    ANSI_COLOR_RESET,
+               _qcur[0], _qcur[1], _qcur[2], _qcur[3], _qcur[4], _qcur[5]);
+
         pthread_mutex_lock(&mtx);
+        set_lpf_joint_state(_qcur);
         for (int i_dim = 0; i_dim < DIM; i_dim++) {
             time0 = 0;
             X0(i_dim,0) = _qcur[i_dim];
             V0(i_dim,0) = 0;
             Alpha(i_dim, 0) = 0;
             Alpha(i_dim, 1) = 0;
-            lpf_x(i_dim, 0) = 0;
-            lpf_y(i_dim, 0) = 0;
-            lpf_Y.y(i_dim, 0) = 0;
-            lpf_Y.dy(i_dim, 0) = 0;
-            lpf_Y.ddy(i_dim, 0) = 0;
+            kdlpf_x(i_dim, 0) = 0;
+            kdlpf_y(i_dim, 0) = 0;
         }
         Xqueue.clear();
         Vqueue.clear();
@@ -243,11 +244,6 @@ class OnlineInterpolator {
     }
 
     void get_next_qc(double time, JointVec &pd, JointVec &vd, JointVec &ad, bool apply_state_lpf=false) {
-        for (int i_dim = 0; i_dim < DIM; i_dim++) {
-            pd(i_dim, 0) = 0;
-            vd(i_dim, 0) = 0;
-            ad(i_dim, 0) = 0;
-        }
        pthread_mutex_lock(&mtx);
        if(time - time0 > period_s){
            if (!Xqueue.empty()) {
@@ -330,10 +326,10 @@ class OnlineInterpolator {
 
     JointVec& kd_lpf(JointVec& X){
         JointVec y;
-        y << (k_gain*X + d_gain*(X - lpf_x));
-        lpf_x << X;
-        lpf_y << (1 - alpha_lpf) * lpf_y + alpha_lpf * y;
-        return lpf_y;
+        y << (k_gain*X + d_gain*(X - kdlpf_x));
+        kdlpf_x << X;
+        kdlpf_y << (1 - alpha_lpf) * kdlpf_y + alpha_lpf * y;
+        return kdlpf_y;
     }
 
     void init_thread(double _period_c, double _period_s, double* qval=NULL);
