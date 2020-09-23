@@ -100,6 +100,8 @@
 * add below to ~./bashrc  
   * export TF_GMT_ETASL_DIR=/home/junsu/Projects/tf_gmt/eTaSL/  
   * source "$TF_GMT_ETASL_DIR"ws_ros/devel/setup.bash  
+  * start roscore if it's not on  
+    * nohup roscore &  
 
 # Setup and launch panda repeater
 * setup panda_ros_repeater on panda master pc (https://github.com/Cucumberkjs/panda_ros_repeater.git)  
