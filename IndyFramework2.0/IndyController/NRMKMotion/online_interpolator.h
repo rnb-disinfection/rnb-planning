@@ -36,7 +36,6 @@
 #include <Eigen/Eigen>
 #include "json/json.h"
 #include "gason.h"
-#include <ctime>
 
 #define BUF_LEN 1024
 #define WBUF_LEN 1024
@@ -215,7 +214,6 @@ class OnlineInterpolator {
        }
        pthread_mutex_unlock(&mtx);
        return qcount;
-        return 3;
     }
 
     Eigen::Matrix<double, 2, 1> calc_alpha(double x0, double v0, double x1, double x2) {
@@ -285,7 +283,7 @@ class OnlineInterpolator {
            Vout_queue.push_back(vd);
            Aout_queue.push_back(ad);
            step_queue.push_back(step);
-           time_queue.push_back(std::time(0));
+           time_queue.push_back(time);
        }
        pthread_mutex_unlock(&mtx);
     }
@@ -338,6 +336,7 @@ void *socket_thread_vel(void *arg) {
     OnlineInterpolator<DIM> *jpr;
     jpr = (OnlineInterpolator<DIM> *) arg;
     char wbuffer[WBUF_LEN];
+    char buffer[BUF_LEN];
     struct sockaddr_in server_addr, client_addr;
     char temp[32];
     int server_fd, client_fd;
@@ -372,7 +371,6 @@ void *socket_thread_vel(void *arg) {
     len = sizeof(client_addr);
     bool terminate = false;
     while (!terminate) {
-        char buffer[BUF_LEN];
         JsonValue read_json;
         JsonAllocator allocator;
         char* endptr;
@@ -482,6 +480,7 @@ void *socket_thread_vel(void *arg) {
         str = writer->write(send_json, &read_stream);
         str = read_stream.str();
 //        printf("[Trajectory Server] return %d bytes.\n", str.length());
+        memset(wbuffer, 0x00, sizeof(wbuffer));
         memcpy(wbuffer, str.c_str(), str.length());
         write(client_fd, wbuffer, str.length());
         close(client_fd);
