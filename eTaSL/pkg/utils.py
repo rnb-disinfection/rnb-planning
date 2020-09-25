@@ -195,3 +195,10 @@ def divide_kwargs(kwargs, func1, func2):
     kwargs2 = {k:v for k,v in kwargs.items() if k in keys2}
     return kwargs1, kwargs2
 
+def inspect_arguments(func):
+    argspec = inspect.getargspec(func)
+    defaults = argspec.defaults if argspec.defaults is not None else []
+    len_kwargs = len(defaults)
+    args = argspec.args[:-len_kwargs] if len_kwargs > 0 else argspec.args
+    return args, {k:v for k,v in zip(argspec.args[-len_kwargs:], defaults)}
+

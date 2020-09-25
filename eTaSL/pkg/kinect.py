@@ -167,9 +167,7 @@ def get_object_pose_dict(color_image, aruco_map, dictionary, cameraMatrix, distC
     corner_dict = {}
     for idx, corner4 in zip(ids, corners):
         corner_dict[idx[0]] = corner4[0]
-#         print("{}:{}".format(idx, corner4))
     objectPose_dict = {}
-    objectrtvec_dict = {}
     for obj_name, marker_list in aruco_map.items():
         objectPoints = np.zeros((0,3))
         imagePoints = np.zeros((0,2))
@@ -184,9 +182,6 @@ def get_object_pose_dict(color_image, aruco_map, dictionary, cameraMatrix, distC
         Tobj = SE3(R, tvec.flatten())
 
         objectPose_dict[obj_name] = Tobj
-    #     objectrtvec_dict[obj_name] = (rvec, tvec)
-    #     axis_len = 0.05
-    #     aruco.drawAxis(color_image, cameraMatrix, distCoeffs, rvec,tvec, axis_len)
     return objectPose_dict, corner_dict
 
 def refine_by_depth(depth_image, objectPose_dict, corner_dict, aruco_map, cameraMatrix, distCoeffs):
@@ -230,12 +225,17 @@ def print_markers(aruco_map, dictionary, px_size=800, dir_img="./markers"):
         
 def draw_objects(color_image, aruco_map, objectPose_dict, corner_dict, cameraMatrix, distCoeffs, axis_len=0.1):
     color_image_out = color_image.copy()
+    text_scale = float(color_image_out.shape[1])/2000
+    font_thickness = int(round(text_scale*2))
     for k,Tco in objectPose_dict.items():
         # draw object location
         marker_o = aruco_map[k]
         rvec,_ = cv2.Rodrigues(Tco[:3,:3])
         tvec = Tco[:3,3]
         aruco.drawAxis(color_image_out, cameraMatrix, distCoeffs, rvec,tvec, axis_len)
+        cco = np.matmul(cameraMatrix, tvec)
+        cco_px = (cco[:2]/cco[2:]).flatten().astype(np.int64)
+        cv2.putText(color_image_out, k, tuple(cco_px+np.array([40, -40])), cv2.FONT_HERSHEY_SIMPLEX, text_scale, (255,0,0), font_thickness)
 
         # draw model
         marker_o_list = aruco_map[k]

@@ -35,7 +35,7 @@
   </material>
   <link name="world"/>
   <joint name="indy0_joint_world" type="fixed">
-    <origin rpy="0.00439442802347 0.0134426877365 1.6405039255" xyz="-0.319578290246 -0.00410150076201 -0.000417835275873"/>
+    <origin rpy="-0.00641558405873 0.000878980837848 -1.58075939499" xyz="-0.507298350334 0.0459206104279 0.00660020112991"/>
     <parent link="world"/>
     <child link="indy0_link0"/>
   </joint>
@@ -223,7 +223,7 @@
     <limit effort="3.141592653589793" lower="-3.75245789179" upper="3.75245789179" velocity="1.5707963267948966"/>
   </joint>
   <joint name="indy0_tcp" type="fixed">
-    <origin rpy="-0.0288878882228 -0.016886431851 -0.0403732322458" xyz="-0.0125303795503 0.000417391292825 0.0652073328889"/>
+    <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.06"/>
     <parent link="indy0_link6"/>
     <child link="indy0_tcp"/>
   </joint>
@@ -282,7 +282,7 @@
     </actuator>
   </transmission>
   <joint name="panda1_joint_world" type="fixed">
-    <origin rpy="0.00305151779434 0.00181406569069 -1.57932698891" xyz="0.343492328869 0.459384615938 0.00433604585268"/>
+    <origin rpy="-0.00537314348419 -0.000365826033638 -1.57917701675" xyz="0.454326987267 -0.00940454006195 0.00411355495453"/>
     <parent link="world"/>
     <child link="panda1_link0"/>
   </joint>
@@ -446,7 +446,7 @@
     <child link="panda1_link8"/>
   </joint>
   <joint name="panda1_hand_joint" type="fixed">
-    <origin rpy="0.00799966069138 -0.00551973919069 -0.794669530373" xyz="0.0015538636864 0.00384081899101 0.00117409495442"/>
+    <origin rpy="0.0 0.0 -0.785398163397" xyz="0.0 0.0 0.0"/>
     <parent link="panda1_link8"/>
     <child link="panda1_hand"/>
   </joint>
