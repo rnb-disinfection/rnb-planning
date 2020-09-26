@@ -38,8 +38,8 @@ def add_objects_gen(graph, obj_gen_dict, color=(0.6,0.6,0.6,1), collision=True, 
 
 def add_cam_poles(graph, xyz_rvec_cams, color=(0.6,0.6,0.6,1), link_name="world"):
     graph.add_geometry_items(link_name,
-                             [GeoBox(np.subtract(xyzrvec[0], [0,0,xyzrvec[0][2]/2+0.1]),
-                                     (0.1,0.1,xyzrvec[0][2]),
+                             [GeoBox(np.subtract(xyzrvec[0], [0,0,xyzrvec[0][2]/2-0.1]),
+                                     (0.15,0.15,xyzrvec[0][2]),
                                      name="pole_{}".format(cname),
                                      link_name=link_name, urdf_content=graph.urdf_content,
                                      color=color, collision=True)

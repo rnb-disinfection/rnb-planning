@@ -272,14 +272,14 @@ def make_mesh_backup(meshname):
     np.save('./geometry_tmp/'+meshname+'_bak.npy', val)
 
 def refine_meshes():    
-    val = [0,  0.008, 0.05, 
-           0, 0.02, 0.035, 
-           0.012]
+    val = [0,  0.005, 0.053, 
+           0, 0.02, 0.02, 
+           0.018]
     np.save('./geometry_tmp/panda1_rightfinger_Mesh_0.npy', val)
     
-    val = [0,  0.008, 0.05, 
-           0, 0.02, 0.035, 
-           0.012]
+    val = [0,  0.005, 0.055, 
+           0, 0.02, 0.02, 
+           0.018]
     np.save('./geometry_tmp/panda1_leftfinger_Mesh_0.npy', val)
 
     meshname = 'panda1_link0_Mesh_0'

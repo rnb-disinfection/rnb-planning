@@ -19,6 +19,7 @@ from .kinect import *
 from .stereo import *
 from nrmkindy.indy_script import *
 from .indy_repeater import indytraj_client
+from etasl_py.etasl import array_to_dict,dict_to_array
 
 
 INDY_GRPC = False
@@ -877,29 +878,88 @@ class ConstraintGraph:
         return traj_data_list
 
     def init_online_etasl(self, from_state, to_state, T_step, control_freq=DEFAULT_TRAJ_FREQUENCY, playback_rate=0.5,
-                             **kwargs):
+                          **kwargs):
         dt = 1.0 / control_freq
         dt_sim = dt * playback_rate
         N = int(float(T_step) / dt_sim)
 
         full_context, pos_start, kwargs, binding_list = \
-                self.get_transition_context(from_state, to_state,
-                                            N=N, dt=dt_sim, **kwargs)
+            self.get_transition_context(from_state, to_state,
+                                        N=N, dt=dt_sim, **kwargs)
 
         e_sim = get_simulation(full_context)
-
-        self.inp_lbl=["target_{}".format(jname) for jname in self.joint_names]
-        e_sim.setInputTable(self.inp_lbl,
-                            inp=np.array([from_state.Q]))
+        self.inp_lbl = kwargs['inp_lbl'] if 'inp_lbl' in kwargs else []
+        self.inp = np.array(kwargs['inp'] if 'inp' in kwargs else [])
+        e_sim.setInputTable(self.inp_lbl, inp=self.inp)
 
         self.pos_lbl = augment_jnames_dot(self.joint_names)
-        initial_jpos_exp = augment_jvals_dot(pos_start , np.zeros_like(pos_start))
+        initial_jpos_exp = augment_jvals_dot(pos_start, np.zeros_like(pos_start))
         e_sim.initialize(initial_jpos_exp, self.pos_lbl)
 
         pos = e_sim.simulate_begin(N, dt_sim)
         e_sim.DT = dt_sim
 
-        return e_sim, pos
+        return e_sim, pos, kwargs
+
+    def execute_schedule_online(self, state_scedule, control_freq=DEFAULT_TRAJ_FREQUENCY, playback_rate=0.5,
+                                vel_conv=0, err_conv=5e-4):
+
+        T_step = 10
+        from_Q = state_scedule[0].Q
+        self.execute_grip(state_scedule[0])
+
+        for i_s in range(len(state_scedule) - 1):
+            from_state = state_scedule[i_s]
+            from_state.Q = from_Q
+            to_state = state_scedule[i_s + 1]
+
+            e_sim, pos, kwargs = self.init_online_etasl(from_state, to_state, T_step,
+                                                        control_freq=control_freq, playback_rate=playback_rate,
+                                                        vel_conv=vel_conv, err_conv=err_conv)
+
+            Q0 = dict_to_array(pos, self.joint_names)
+            self.indy.joint_move_make_sure(np.rad2deg(Q0[self.indy_idx]), N_repeat=2, connect=True)
+
+            print("wait for button input")
+            self.indy.connect_and(self.indy.wait_di, 16)
+
+            with MultiTracker([self.indy, self.panda],
+                              [self.indy_idx, self.panda_idx],
+                              Q0) as mt:
+                time.sleep(0.5)
+
+                i_q = 0
+
+                error_count = 0
+                max_err_count = 3
+                POS_CUR = from_state.Q
+                VEL_CUR = np.zeros_like(POS_CUR)
+                end_loop = False
+                while True:
+                    all_sent = mt.move_possible_joints_x4(POS_CUR)
+
+                    if all_sent:
+                        i_q += 1
+                        try:
+                            pos = e_sim.simulate_step(i_q, pos, dt=None, inp_cur=self.inp)
+                            VEL_CUR = VEL_CUR + e_sim.VEL[i_q, 1::2] * e_sim.DT
+                            POS_CUR = POS_CUR + VEL_CUR * e_sim.DT
+                        except EventException as e:
+                            print(e)
+                            end_loop = True
+                        except Exception as e:
+                            error_count += 1
+                            print("ERROR {}: {}".format(error_count, e))
+                            if error_count > max_err_count:
+                                print("MAX ERROR REACHED {}".format(error_count))
+                                raise (e)
+                            POS_CUR = dict_to_array(pos, self.joint_names)
+                        if i_q >= len(e_sim.TIME):
+                            break
+                    if end_loop:
+                        break
+            from_Q = POS_CUR.copy()
+            self.execute_grip(state_scedule[i_s + 1])
 
     def init_panda_sync_indy(self, from_state, to_state, N, control_freq_panda=100,
                              err_conv=0, sync_priority=2,
