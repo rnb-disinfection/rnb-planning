@@ -34,10 +34,8 @@ class indytraj_client(IndyDCPClient, Repeater):
         Repeater.__init__(self, repeater_ip=self.server_ip, disable_getq=True, **kwargs_otic)
 
     def connect_and(self, func, *args, **kwargs):
-        self.connect()
-        res = func(*args, **kwargs)
-        self.disconnect()
-        return res
+        with self:
+            return func(*args, **kwargs)
 
     @connect_indy
     def wait_motion(self, period=1e-1):
@@ -54,7 +52,7 @@ class indytraj_client(IndyDCPClient, Repeater):
     def reset_robot(self):
         IndyDCPClient.reset_robot(self)
 
-    def init_online_tracking(self, q0, connect=True):
+    def start_online_tracking(self, q0, connect=True):
         if connect:
             self.connect()
         self.move_ext_traj_txt(traj_type=1, traj_freq=INDY_CONTROL_FREQ, dat_size=INDY_DOF,
@@ -64,7 +62,7 @@ class indytraj_client(IndyDCPClient, Repeater):
             self.disconnect()
         return ret
 
-    def stop_online_tracking(self, connect=True):
+    def finish_online_tracking(self, connect=True):
         self.stop_tracking()
         self.terminate_loop()
         if connect:
@@ -72,3 +70,18 @@ class indytraj_client(IndyDCPClient, Repeater):
         self.stop_motion()
         if connect:
             self.disconnect()
+
+    def __enter__(self):
+        self.connect()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.disconnect()
+
+    @connect_indy
+    def wait_di(self, idx, period=1e-1):
+        while True:
+            time.sleep(period)
+            if self.get_di()[idx]:
+                break
+

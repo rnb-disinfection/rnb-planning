@@ -10,7 +10,7 @@ JOINT_NAMES = ["shoulder_pan_joint_1","shoulder_lift_joint_1","elbow_joint_1","w
 LINK_NAMES = ['world',
               'base_link_1', 'shoulder_link_1', 'upper_arm_link_1', 'forearm_link_1', 'wrist_1_link_1', 'wrist_2_link_1', 'wrist_3_link_1', 'tool0_1',
               'base_link_2', 'shoulder_link_2', 'upper_arm_link_2', 'forearm_link_2', 'wrist_1_link_2', 'wrist_2_link_2', 'wrist_3_link_2', 'tool0_2']
-ZERO_JOINT_POSE = np.array([0, -np.pi*0.6 , np.pi*0.6,0,0,0]+[0, -np.pi*0.6 , np.pi*0.6,0,0,0])
+ZERO_JOINT_POSE_DEFAULT = np.array([0, -np.pi*0.6 , np.pi*0.6,0,0,0]+[0, -np.pi*0.6 , np.pi*0.6,0,0,0])
 
 def get_geometry_items_dict(urdf_content, color=(0,1,0,0.5), display=True):
     geometry_items_dict = {

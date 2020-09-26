@@ -14,17 +14,22 @@ URDF_PATH_DEFAULT = '{}robots/custom_robots.urdf'.format(TF_GMT_ETASL_DIR)
 URDF_PATH = os.path.join(PROJ_DIR, "robots", "custom_robots.urdf")
 JOINT_NAMES = ["shoulder_pan_joint","shoulder_lift_joint","elbow_joint","wrist_1_joint","wrist_2_joint","wrist_3_joint"]
 LINK_NAMES = ['world', 'base_link', 'shoulder_link', 'upper_arm_link', 'forearm_link', 'wrist_1_link', 'wrist_2_link', 'wrist_3_link', 'tool0']
-ZERO_JOINT_POSE = np.array([0, -np.pi*0.6 , np.pi*0.6,0,0,0])
 
-class RobotType(Enum):
-    indy7_robot=0
-    panda_robot=1
-    
 class XacroCustomizer:
-    def __init__(self, xacro_path = XACRO_PATH_DEFAULT):
+    def __init__(self, rtuples, xyz_rpy_dict, xacro_path = XACRO_PATH_DEFAULT):
         self.xacro_path = xacro_path
         self.subp = None
         self.clear()
+        for rtuple in rtuples:
+            self.add_robot(rtuple[1], *xyz_rpy_dict[rtuple[0]])
+        self.write_xacro()
+
+    @classmethod
+    def update_limit_dict(cls, limit_dict, addkey, jnames, values):
+        for jname, val in zip(jnames, values):
+            if jname not in limit_dict:
+                limit_dict[jname] = {}
+            limit_dict[jname].update({addkey:val})
 
     def add_robot(self, rtype, xyz=[0,0,0], rpy=[0,0,0]):
         rexpression = \
@@ -62,10 +67,10 @@ class XacroCustomizer:
         urdf_content = subprocess.check_output(['xacro', self.xacro_path])
         self.urdf_content = URDF.from_xml_string(urdf_content)
         for joint in self.urdf_content.joints:
-            if joint.name in vel_limit_dict:
-                joint.limit.velocity = str(vel_limit_dict[joint.name])
-            if joint.name in effort_limit_dict:
-                joint.limit.effort = str(effort_limit_dict[joint.name])
+#             if joint.name in vel_limit_dict:
+#                 joint.limit.velocity = str(vel_limit_dict[joint.name])
+#             if joint.name in effort_limit_dict:
+#                 joint.limit.effort = str(effort_limit_dict[joint.name])
             if any([jkey in joint.name for jkey in joint_fix_dict.keys()]):
                 lim_dir = [v for k,v in joint_fix_dict.items() if k in joint.name][0]
                 joint.type='fixed'
@@ -86,6 +91,10 @@ class XacroCustomizer:
                     joint.limit.upper = jlim['upper']
                 if "lower" in jlim:
                     joint.limit.lower = jlim['lower']
+                if "vel" in jlim:
+                    joint.limit.velocity = jlim['vel']
+                if "acc" in jlim:
+                    joint.limit.effort = jlim['acc']
                 
         f = open(urdf_path, "w")
         f.write(URDF.to_xml_string(self.urdf_content))
@@ -93,8 +102,7 @@ class XacroCustomizer:
         
         self.joint_names = [joint.name for joint in self.urdf_content.joints if joint.type != 'fixed']
         self.link_names = [link.name for link in self.urdf_content.links]
-        self.zero_joint_pose = np.zeros((len(self.joint_names),))
-        return self.joint_names, self.link_names, self.zero_joint_pose, self.urdf_content
+        return self.joint_names, self.link_names, self.urdf_content
     
     def start_rviz(self):
         self.kill_existing_subprocess()
@@ -258,40 +266,73 @@ def get_geometry_items_dict(urdf_content, color=(0,1,0,0.5), display=True, colli
 #         transfer_fixed_links(col_items_dict, urdf_content, joint_names, exclude_parents)
 # transfer_fixed_links(col_items_dict, urdf_content, joint_names=JOINT_NAMES)
 
-def refine_meshes():
-    val = np.load('./geometry_tmp/panda1_hand_Mesh_0_bak.npy')
-#     print(val)
-    # np.save('./geometry_tmp/panda1_hand_Mesh_0_bak.npy', val)
-    val = [ 0.000,  0.07,  0.025, 
-           -0.000, -0.07,  0.025, 0.05]
-    np.save('./geometry_tmp/panda1_hand_Mesh_0.npy', val)
-#     print(val)
-    val = np.load('./geometry_tmp/panda1_link6_Mesh_0_bak.npy')
-#     print(val)
-    # np.save('./geometry_tmp/panda1_link6_Mesh_0_bak.npy', val)
-    val = [0.11, 0.02, 0, -0.04, 0.01, 0, 0.065]
-    np.save('./geometry_tmp/panda1_link6_Mesh_0.npy', val)
-#     print(val)
-    val = np.load('./geometry_tmp/panda1_link5_Mesh_0_bak.npy')
-#     print(val)
-    # np.save('./geometry_tmp/panda1_link6_Mesh_0_bak.npy', val)
-    val = [ 0.0005,  0.063, -0.004, -0.003,  0.009, -0.230, 0.065]
-    np.save('./geometry_tmp/panda1_link5_Mesh_0.npy', val)
-#     print(val)
-    val = np.load('./geometry_tmp/panda1_rightfinger_Mesh_0_bak.npy')
-#     print(val)
-    # np.save('./geometry_tmp/panda1_rightfinger_Mesh_0_bak.npy', val)
+def make_mesh_backup(meshname):
+    val = np.load('./geometry_tmp/'+meshname+'.npy')
+    print("["+", ".join(["%.3f"%v for v in val])+"]")
+    np.save('./geometry_tmp/'+meshname+'_bak.npy', val)
+
+def refine_meshes():    
     val = [0,  0.008, 0.05, 
            0, 0.02, 0.035, 
            0.012]
     np.save('./geometry_tmp/panda1_rightfinger_Mesh_0.npy', val)
-#     print(val)
-    val = np.load('./geometry_tmp/panda1_leftfinger_Mesh_0_bak.npy')
-#     print(val)
-    # np.save('./geometry_tmp/panda1_leftfinger_Mesh_0_bak.npy', val)
+    
     val = [0,  0.008, 0.05, 
            0, 0.02, 0.035, 
            0.012]
     np.save('./geometry_tmp/panda1_leftfinger_Mesh_0.npy', val)
-#     print(val)
+
+    meshname = 'panda1_link0_Mesh_0'
+    val = [0.02,  0.0,   0.04,  
+           -0.08, 0.0,  0.02,
+           0.10]
+    np.save('./geometry_tmp/'+meshname+'.npy', val)
+
+    meshname = 'panda1_link1_Mesh_0'
+    val = [0,  -0.055,   -0.015,  
+           0, -0.000,  -0.135,
+           0.11]
+    np.save('./geometry_tmp/'+meshname+'.npy', val)
+
+    meshname = 'panda1_link2_Mesh_0'
+
+    val = [0,  0.0,  0.07,  
+           0, -0.16,  0.00,
+           0.09]
+    np.save('./geometry_tmp/'+meshname+'.npy', val)
+
+    meshname = 'panda1_link3_Mesh_0'
+    val = [0.08, 0.054, 0.00,
+           0.00, 0, -0.07,
+           0.09]
+    np.save('./geometry_tmp/'+meshname+'.npy', val)
+
+    meshname = 'panda1_link4_Mesh_0'
+    val = [0, 0, 0.054, 
+           -0.111, 0.116, 0, 
+           0.08]
+    np.save('./geometry_tmp/'+meshname+'.npy', val)
+
+
+    meshname = 'panda1_link5_Mesh_0'
+    val = [0.00, 0.063, -0.00, 
+           -0.00, 0.00, -0.230, 
+           0.08]
+
+    np.save('./geometry_tmp/'+meshname+'.npy', val)
+
+    meshname = 'panda1_link6_Mesh_0'
+    val = [0.080, 0.000, 0.000, 
+           -0.010, 0.000, 0.000, 
+           0.09]
+
+    np.save('./geometry_tmp/'+meshname+'.npy', val)
+
+    meshname = 'panda1_hand_Mesh_0'
+    val = [0.000, 0.070, 0.01, 
+           -0.000, -0.070, 0.01, 
+           0.06]
+
+
+    np.save('./geometry_tmp/'+meshname+'.npy', val)
 

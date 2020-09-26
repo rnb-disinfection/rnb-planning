@@ -18,7 +18,7 @@ from .etasl_control import *
 from .kinect import *
 from .stereo import *
 from nrmkindy.indy_script import *
-from indy_utils import indydcp_client
+from .indy_repeater import indytraj_client
 
 
 INDY_GRPC = False
@@ -128,13 +128,13 @@ class ConstraintGraph:
                 self.indy_ip = indy_ip
                 self.indy_joint_vel_level = indy_joint_vel_level
                 self.indy_task_vel_level = indy_task_vel_level
-                self.indy = indydcp_client.IndyDCPClient(indy_ip, "NRMK-Indy7")
-                self.indy.connect()
-                self.indy.set_collision_level(5)
-                self.indy.set_joint_vel_level(indy_joint_vel_level)
-                self.indy.set_task_vel_level(indy_task_vel_level)
-                self.indy.set_joint_blend_radius(20)
-                self.indy.set_task_blend_radius(0.2)
+                self.indy = indytraj_client(server_ip=indy_ip, robot_name="NRMK-Indy7")
+                with self.indy:
+                    self.indy.set_collision_level(5)
+                    self.indy.set_joint_vel_level(indy_joint_vel_level)
+                    self.indy.set_task_vel_level(indy_task_vel_level)
+                    self.indy.set_joint_blend_radius(20)
+                    self.indy.set_task_blend_radius(0.2)
                 self.indy_grasp_DO = indy_grasp_DO
 
     def reset_panda(self):
@@ -164,15 +164,14 @@ class ConstraintGraph:
                 blending_type(self.btype)
                 task_vel(0.1, 0.2, 20, 20)
             else:
-                if hasattr(self, 'indy'):
-                    self.indy.disconnect()
-                self.indy = indydcp_client.IndyDCPClient(self.indy_ip, "NRMK-Indy7")
-                self.indy.connect()
-                self.indy.set_collision_level(5)
-                self.indy.set_joint_vel_level(self.indy_joint_vel_level)
-                self.indy.set_task_vel_level(self.indy_task_vel_level)
-                self.indy.set_joint_blend_radius(20)
-                self.indy.set_task_blend_radius(0.2)
+
+                self.indy = indytraj_client(server_ip=self.indy_ip, robot_name="NRMK-Indy7")
+                with self.indy:
+                    self.indy.set_collision_level(5)
+                    self.indy.set_joint_vel_level(self.indy_joint_vel_level)
+                    self.indy.set_task_vel_level(self.indy_task_vel_level)
+                    self.indy.set_joint_blend_radius(20)
+                    self.indy.set_task_blend_radius(0.2)
                 self.indy_grasp_DO = self.indy_grasp_DO
 
     def reset_robots(self):
@@ -183,8 +182,6 @@ class ConstraintGraph:
         try:
             if INDY_GRPC:
                 end_script()
-            else:
-                self.indy.disconnect()
         except: pass
 
     @record_time
@@ -500,7 +497,7 @@ class ConstraintGraph:
         if INDY_GRPC:
             raise(NotImplementedError("get pose for indy grpc"))
         else:
-            Q_indy = np.deg2rad(self.indy.get_joint_pos())
+            Q_indy = np.deg2rad(self.indy.connect_and(self.indy.get_joint_pos))
 
         if PANDA_ROS:
             raise(NotImplementedError("get pose for panda ros"))
@@ -576,14 +573,14 @@ class ConstraintGraph:
             else:
                 self.indy_release_fun()
         else:
-            self.indy.set_do(self.indy_grasp_DO, grasp)
+            self.indy.connect_and(self.indy.set_do, self.indy_grasp_DO, grasp)
                 
     def move_indy_async(self, *qval):
         if INDY_GRPC:
             amovej(JointPos(*qval),
                    jv=JointMotionVel(self.indy_speed,self.indy_acc))
         else:
-            self.indy.joint_move_to(qval)
+            self.indy.connect_and(self.indy.joint_move_to, qval)
 
     @record_time
     def execute_pose(self, pos):
@@ -817,7 +814,7 @@ class ConstraintGraph:
 
     @record_time
     def check_goal(self, state, goal):
-        return all([g is None or s==g for s,g in zip(state.get_tuple(), goal.get_tuple())])
+        return state.node == goal.node
 
     @record_time
     def print_snode_list(self):
@@ -846,7 +843,9 @@ class ConstraintGraph:
         show_motion([pose], self.marker_list, self.pub, self.joints, self.joint_names, **kwargs)
 
     @record_time
-    def show_motion(self, pose_list, **kwargs):
+    def show_motion(self, pose_list, from_state=None, **kwargs):
+        if from_state is not None:
+            self.set_object_state(from_state)
         show_motion(pose_list, self.marker_list, self.pub, self.joints, self.joint_names, **kwargs)
 
     @record_time
@@ -937,18 +936,4 @@ class ConstraintGraph:
         xyz_cam, rvec_cam = T2xyzrvec(T_po_cam)
         xyz_cal, rvec_cal = T2xyzrvec(T_po_cal)
         return xyz_cam, rvec_cam, xyz_cal, rvec_cal, color_image, objectPose_dict, corner_dict, err_dict
-
-    def indy_init_online_tracking(self):
-        qcur_indy = np.deg2rad(self.indy.get_joint_pos())
-        self.indy.move_ext_traj_txt(traj_type=1, traj_freq=4000, dat_size=len(self.indy_idx),
-                                     traj_data=qcur_indy.tolist()+[0]*2*len(self.indy_idx))
-        return send_recv({'reset': True, 'period_s': 1.0/CONTROL_FREQ, 'qcur': qcur_indy},
-                         self.indy.server_ip, PORT_REPEATER)
-
-    def indy_send_track_q(self, Q_indy):
-        return send_recv({'qval': Q_indy}, self.indy.server_ip, PORT_REPEATER)
-
-    def indy_end_online_tracking(self):
-        send_recv({'stop': True}, self.indy.server_ip, PORT_REPEATER)
-        # self.indy.stop_motion()
 

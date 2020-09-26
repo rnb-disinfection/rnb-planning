@@ -202,3 +202,10 @@ def inspect_arguments(func):
     args = argspec.args[:-len_kwargs] if len_kwargs > 0 else argspec.args
     return args, {k:v for k,v in zip(argspec.args[-len_kwargs:], defaults)}
 
+def CallHolder(caller, arg_keys, *args, **kwargs):
+    def fun(*args_rt, **kwargs_rt):
+        kwargs_rt.update({k:v for k,v in zip(arg_keys, args_rt) if k is not None})
+        kwargs_rt.update(kwargs)
+        return caller(*args, **kwargs_rt)
+    return fun
+

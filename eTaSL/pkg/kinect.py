@@ -235,7 +235,7 @@ def draw_objects(color_image, aruco_map, objectPose_dict, corner_dict, cameraMat
         aruco.drawAxis(color_image_out, cameraMatrix, distCoeffs, rvec,tvec, axis_len)
         cco = np.matmul(cameraMatrix, tvec)
         cco_px = (cco[:2]/cco[2:]).flatten().astype(np.int64)
-        cv2.putText(color_image_out, k, tuple(cco_px+np.array([40, -40])), cv2.FONT_HERSHEY_SIMPLEX, text_scale, (255,0,0), font_thickness)
+        cv2.putText(color_image_out, str(k), tuple(cco_px+np.array([40, -40])), cv2.FONT_HERSHEY_SIMPLEX, text_scale, (255,0,0), font_thickness)
 
         # draw model
         marker_o_list = aruco_map[k]

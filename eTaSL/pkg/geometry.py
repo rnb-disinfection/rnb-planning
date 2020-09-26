@@ -20,7 +20,8 @@ class GeometryItem(object):
         self.collision = collision
         self.urdf_content = urdf_content
         self.set_name(name)
-        self.set_link(link_name)
+        if self.urdf_content is not None:
+            self.set_link(link_name)
     
     def set_name(self, name):
         self.name = name
@@ -208,3 +209,9 @@ class GeoFrame:
 
     def get_frame_orientation_mat(self):
         return self.orientation_mat
+
+
+class GeoDefinition:
+    def __init__(self, gtype, scale):
+        self.gtype=gtype
+        self.scale=scale

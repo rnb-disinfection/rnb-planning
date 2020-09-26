@@ -70,38 +70,46 @@ def set_markers(geometry_items, joints, joint_names, link_names, urdf_content):
 
 class GeoMarker:
     ID_COUNT = 0
-    def __init__(self, geometry, urdf_content, mark_name='visualization_marker', node_name=None):
-        if node_name is None:
-            node_name = mark_name + "_pub"
+    def __init__(self, geometry, urdf_content, mark_name='visualization_marker'):
         self.geometry = geometry
         self.urdf_content = urdf_content
         self.pub = rospy.Publisher(mark_name, Marker, queue_size=10)
-#         rospy.init_node(node_name, anonymous=True)
-        rate = rospy.Rate(1) # 10hz
         # Publish the marker
         while self.pub.get_num_connections() < 1:
             print("Please create a subscriber to the marker");
             timer.sleep(1)
 #         print('publication OK')
+
+    @classmethod
+    def create_marker_template(cls, mtype, scale, color):
+        GeoMarker.ID_COUNT += 1
+        marker = Marker()
+        marker.header.frame_id = "/world"
+        marker.header.stamp = rospy.Time.now()
+        marker.ns = "basic_shapes"
+        marker.id = GeoMarker.ID_COUNT
+        marker.type = mtype
+        marker.action = Marker.ADD
+        marker.scale.x, marker.scale.y, marker.scale.z = scale
+        marker.color.r, marker.color.g, marker.color.b, marker.color.a  = color
+        marker.lifetime = rospy.Duration()
+        return marker
     
     def set_marker(self, joint_dict):
-        GeoMarker.ID_COUNT += 1
-        self.marker = Marker()
+        self.marker = GeoMarker.create_marker_template(self.get_type(), self.geometry.get_scale(), self.geometry.color)
 #         self.marker.header.frame_id = self.geometry.link_name # let rviz transform link - buggy
-        self.marker.header.frame_id = "/world"
-        self.marker.header.stamp = rospy.Time.now()
-        self.marker.ns = "basic_shapes"
-        self.marker.id = GeoMarker.ID_COUNT
-        self.marker.type = self.get_type()
         if hasattr(self.geometry, 'uri'):
             self.marker.mesh_resource = self.geometry.uri;
-        self.marker.action = Marker.ADD
-        self.marker.scale.x, self.marker.scale.y, self.marker.scale.z = self.geometry.get_scale()
-        self.marker.color.r, self.marker.color.g, self.marker.color.b, self.marker.color.a  = self.geometry.color
-        self.marker.lifetime = rospy.Duration()
+        self.submarkers = []
+        self.subTs = []
+        if isinstance(self.geometry, GeoSegment):
+            self.submarkers.append(GeoMarker.create_marker_template(Marker.SPHERE, [self.geometry.radius*2]*3, self.geometry.color))
+            self.subTs.append(SE3(np.identity(3), [0,0,self.geometry.length/2]))
+            self.submarkers.append(GeoMarker.create_marker_template(Marker.SPHERE, [self.geometry.radius*2]*3, self.geometry.color))
+            self.subTs.append(SE3(np.identity(3), [0,0,-self.geometry.length/2]))
         self.__set_position(joint_dict)
-        self.pub.publish(self.marker);
-        
+        self.publish_marker()
+
 #     def __set_position(self, joint_dict): # let rviz transform link - buggy
 #         T = self.geometry.get_offset_tf()
 #         self.marker.pose.orientation.x, self.marker.pose.orientation.y, \
@@ -113,16 +121,24 @@ class GeoMarker:
     def __set_position(self, joint_dict):
         T = self.geometry.get_tf(joint_dict)
         self.marker.pose.orientation.x, self.marker.pose.orientation.y, \
-            self.marker.pose.orientation.z, self.marker.pose.orientation.w = \
-            Rotation.from_dcm(T[:3,:3]).as_quat()
-        self.marker.pose.position.x, self.marker.pose.position.y, self.marker.pose.position.z = \
-            T[:3,3]
+            self.marker.pose.orientation.z, self.marker.pose.orientation.w = Rotation.from_dcm(T[:3,:3]).as_quat()
+        self.marker.pose.position.x, self.marker.pose.position.y, self.marker.pose.position.z = T[:3,3]
+        for smk, sT in zip(self.submarkers, self.subTs):
+            Tsub = np.matmul(T,sT)
+            smk.pose.orientation.x, smk.pose.orientation.y, \
+                smk.pose.orientation.z, smk.pose.orientation.w = Rotation.from_dcm(Tsub[:3,:3]).as_quat()
+            smk.pose.position.x, smk.pose.position.y, smk.pose.position.z = Tsub[:3,3]
         
     def move_marker(self, joint_dict = [0]*6):
         self.marker.action = Marker.MODIFY
         self.marker.header.stamp = rospy.Time.now()
         self.__set_position(joint_dict)
-        self.pub.publish(self.marker);
+        self.publish_marker()
+
+    def publish_marker(self):
+        self.pub.publish(self.marker)
+        for smk in self.submarkers:
+            self.pub.publish(smk)
         
     def get_type(self):
         if isinstance(self.geometry, GeoBox):
@@ -136,8 +152,10 @@ class GeoMarker:
         
     def delete(self):
         self.marker.action = Marker.DELETE
-        self.pub.publish(self.marker);
+        self.pub.publish(self.marker)
+        for smk in self.submarkers:
+            smk.action = Marker.DELETE
+            self.pub.publish(smk)
         
     def __del__(self):
-        self.marker.action = Marker.DELETE
-        self.pub.publish(self.marker);
+        self.delete()

@@ -40,3 +40,9 @@ class PandaRepeater(Repeater):
         self.finger_pub.publish(self.finger_cmd)
         return self.close_bool
 
+    def start_online_tracking(self, Q0):
+        self.reset()
+
+    def finish_online_tracking(self):
+        self.stop_tracking()
+

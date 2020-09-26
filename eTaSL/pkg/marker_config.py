@@ -14,15 +14,10 @@ def get_aruco_config():
                           ObjectMarker(23, 0.048, SE3(Rot_zyx(0,0,np.pi), [0.1132,-0.1212,0])),
                           ObjectMarker(24, 0.048, SE3(Rot_zyx(0,0,np.pi), [-0.1292,-0.1212,0]))
                          ],
-#                  'floor':[ObjectMarker(101, 0.048, SE3(Rot_zyx(0,0,np.pi), [-0.096,0.072,0])),
-#                           ObjectMarker(102, 0.048, SE3(Rot_zyx(0,0,np.pi), [0.096,0.072,0])),
-#                           ObjectMarker(103, 0.048, SE3(Rot_zyx(0,0,np.pi), [0.096,-0.072,0])),
-#                           ObjectMarker(104, 0.048, SE3(Rot_zyx(0,0,np.pi), [-0.096,-0.072,0]))
-#                          ],
-                 'floor':[ObjectMarker(101, 0.05, SE3(Rot_zyx(0,0,np.pi), [-0.1,0.075,0])),
-                          ObjectMarker(102, 0.05, SE3(Rot_zyx(0,0,np.pi), [0.1,0.075,0])),
-                          ObjectMarker(103, 0.05, SE3(Rot_zyx(0,0,np.pi), [0.1,-0.075,0])),
-                          ObjectMarker(104, 0.05, SE3(Rot_zyx(0,0,np.pi), [-0.1,-0.075,0]))
+                 'floor':[ObjectMarker(101, 0.05, SE3(Rot_zyx(0,0,np.pi), [-0.1,0.07,0.005])),
+                          ObjectMarker(102, 0.05, SE3(Rot_zyx(0,0,np.pi), [0.1,0.07,0.005])),
+                          ObjectMarker(103, 0.05, SE3(Rot_zyx(0,0,np.pi), [0.1,-0.07,0.005])),
+                          ObjectMarker(104, 0.05, SE3(Rot_zyx(0,0,np.pi), [-0.1,-0.07,0.005]))
                          ],
                  'wall':[ObjectMarker(91, 0.05, SE3(Rot_zyx(0,0,np.pi), [-0.1,0.075,0])),
                           ObjectMarker(92, 0.05, SE3(Rot_zyx(0,0,np.pi), [0.1,0.075,0])),
@@ -50,7 +45,7 @@ def get_aruco_config():
                           ObjectMarker(135, 0.04, SE3(Rot_zyx(0,-np.pi/2,0), [0.025,0,0])),
                           ObjectMarker(136, 0.04, SE3(Rot_zyx(0,np.pi/2,0), [-0.025,0,0]))
                          ],
-                 'goal':[ObjectMarker(201, 0.1, SE3(Rot_zyx(0,0,np.pi), [0,0,0]))]
+                 'goal':[ObjectMarker(201, 0.1, SE3(Rot_zyx(0,0,np.pi), [0,0,0.0025]))]
                 }
     return aruco_map, dictionary
         

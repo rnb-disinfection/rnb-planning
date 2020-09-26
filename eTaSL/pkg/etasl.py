@@ -167,7 +167,7 @@ def get_full_context(init_text, additional_constraints="", vel_conv="1E-2", err_
     
 def do_simulate(etasl, **kwargs):
     simulate(etasl=etasl, **kwargs)
-    if hasattr(etasl, 'POS'):
+    if hasattr(etasl, 'POS') and etasl.POS is not None and len(etasl.POS)>0:
         etasl.joint_dict_last = joint_list2dict(etasl.POS[-1], JOINT_NAMES_SIMULATION)
     output = etasl.etasl.getOutput()
     if 'global.error' in output:

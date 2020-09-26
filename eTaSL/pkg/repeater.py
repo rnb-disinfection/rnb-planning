@@ -2,6 +2,7 @@ import time
 import numpy as np
 import rospy
 from pkg.utils import *
+import abc
 
 DEFAULT_PORT_REPEATER = 1189
 DEFAULT_TRAJ_FREQUENCY = 50
@@ -79,7 +80,7 @@ class Repeater(object):
     def terminate_loop(self):
         return send_recv({'terminate': 1}, self.repeater_ip, self.repeater_port)
 
-    def move_joint_possible_x4(self, Q):
+    def move_possible_joints_x4(self, Q):
         if self.qcount >= 3:
             self.rate_x4.sleep()
         if self.qcount > 3:
@@ -101,4 +102,44 @@ class Repeater(object):
         i_step = 0
         while i_step < N_stop:
             Q = qcur + DQ * (np.sin(np.pi * (float(i_step) / N_div - 0.5)) + 1) / 2
-            i_step += self.move_joint_possible_x4(Q)
+            i_step += self.move_possible_joints_x4(Q)
+
+    @abc.abstractmethod
+    def start_online_tracking(self, Q0):
+        pass
+
+    @abc.abstractmethod
+    def finish_online_tracking(self):
+        pass
+
+
+class MultiTracker:
+    def __init__(self, robots, idx_list, Q0):
+        assert len(robots) == len(idx_list), \
+            "number of robots and indice for robot joints should be same"
+        assert len(Q0) == sum([len(idx) for idx in idx_list]), \
+            "total number joints does not match with inital Q"
+        self.num_robots = len(robots)
+        self.robots, self.idx_list, self.Q0 = robots, idx_list, Q0
+
+    def __enter__(self):
+        for rbt, idx in zip(self.robots, self.idx_list):
+            rbt.start_online_tracking(self.Q0)
+        self.sent_list = [False] * self.num_robots
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        for rbt in self.robots:
+            rbt.finish_online_tracking()
+
+    def move_possible_joints_x4(self, Q):
+        for i_rbt in range(self.num_robots):
+            rbt, idx, sent = self.robots[i_rbt], self.idx_list[i_rbt], self.sent_list[i_rbt]
+            if not sent:
+                self.sent_list[i_rbt] = rbt.move_possible_joints_x4(Q[idx])
+            else:
+                rbt.get_qcount()
+        sent_all = all(self.sent_list)
+        if sent_all:
+            self.sent_list = [False] * self.num_robots
+        return sent_all
