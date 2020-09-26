@@ -876,6 +876,31 @@ class ConstraintGraph:
         traj_data_list = traj_data[:].flatten().tolist()
         return traj_data_list
 
+    def init_online_etasl(self, from_state, to_state, T_step, control_freq=DEFAULT_TRAJ_FREQUENCY, playback_rate=0.5,
+                             **kwargs):
+        dt = 1.0 / control_freq
+        dt_sim = dt * playback_rate
+        N = int(float(T_step) / dt_sim)
+
+        full_context, pos_start, kwargs, binding_list = \
+                self.get_transition_context(from_state, to_state,
+                                            N=N, dt=dt_sim, **kwargs)
+
+        e_sim = get_simulation(full_context)
+
+        self.inp_lbl=["target_{}".format(jname) for jname in self.joint_names]
+        e_sim.setInputTable(self.inp_lbl,
+                            inp=np.array([from_state.Q]))
+
+        self.pos_lbl = augment_jnames_dot(self.joint_names)
+        initial_jpos_exp = augment_jvals_dot(pos_start , np.zeros_like(pos_start))
+        e_sim.initialize(initial_jpos_exp, self.pos_lbl)
+
+        pos = e_sim.simulate_begin(N, dt_sim)
+        e_sim.DT = dt_sim
+
+        return e_sim, pos
+
     def init_panda_sync_indy(self, from_state, to_state, N, control_freq_panda=100,
                              err_conv=0, sync_priority=2,
                              K_sync_indy="K", K_sync_panda=None):
