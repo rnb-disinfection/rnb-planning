@@ -20,6 +20,8 @@ from pymanopt.solvers import TrustRegions
 STEREO_TIMEOUT = 10
 
 T_c12_gl = None
+kn_config_gl = None
+rs_config_gl = None
 
 def init_stereo():
     init_rs()

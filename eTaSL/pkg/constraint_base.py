@@ -3,19 +3,19 @@ from .geometry import *
     
 
 # define distances
-def make_distance_bound_constraint(ctem1, ctem2, lower=0):
+def make_distance_bound_constraint(ctem1, ctem2, lower=0, soft=False, K="K"):
     return """
 Constraint{{
 context=ctx,
     name="{constraint_name}",
     expr = distance_between({T1},{ctem1},{ctem1radius},margin,{T2},{ctem2},{ctem2radius},margin),
     target_lower = {lower},
-    priority = 0
+    priority = {priority},
 }}""".format(
         constraint_name=ctem1.name+"_"+ctem2.name,
         T1=ctem1.get_tf_name(), ctem1=ctem1.name, ctem1radius=ctem1.get_radius(),
         T2=ctem2.get_tf_name(),ctem2=ctem2.name, ctem2radius=ctem2.get_radius(),
-        lower=lower
+        lower=lower, priority= (0 if not soft else "2,\n    K = {K}".format(K=K))
     )
 
 def make_point_pair_constraint(obj1, obj2, varname, constraint_name, make_error=True, point1=None, point2=None,
@@ -129,7 +129,7 @@ def make_oriented_point_constraint(framer1, framer2, name, make_error=True, poin
     ori_constraint = make_orientation_constraint(framer1, framer2, name=constraint_name_ori, constraint_name=constraint_name_ori, make_error=False)
     return pair_constraint + "\n" + ori_constraint + error_statement
 
-def make_collision_constraints(geometry_items1, geometry_items2=None):
+def make_collision_constraints(geometry_items1, geometry_items2=None, soft=False, K="K"):
     constraint_text = "\n"
     idx1 = 0
     for ctem1 in geometry_items1:
@@ -143,7 +143,7 @@ def make_collision_constraints(geometry_items1, geometry_items2=None):
             if ctem2.link_name in ctem1.adjacent_links or ctem1.link_name in ctem2.adjacent_links:
                 pass
             else:
-                constraint_text += make_distance_bound_constraint(ctem1, ctem2)
+                constraint_text += make_distance_bound_constraint(ctem1, ctem2, soft=soft, K=K)
     return constraint_text
 
 

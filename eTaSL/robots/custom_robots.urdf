@@ -35,7 +35,7 @@
   </material>
   <link name="world"/>
   <joint name="indy0_joint_world" type="fixed">
-    <origin rpy="-0.00696492979457 0.00859379540227 -1.57054465153" xyz="-0.449337929487 0.050374686718 0.0131216645241"/>
+    <origin rpy="-0.00240906491853 0.0122450997011 -1.56613393589" xyz="-0.450414001942 0.063992023468 0.00961089134216"/>
     <parent link="world"/>
     <child link="indy0_link0"/>
   </joint>
@@ -282,7 +282,7 @@
     </actuator>
   </transmission>
   <joint name="panda1_joint_world" type="fixed">
-    <origin rpy="-0.00362093238276 0.00786177695094 -1.59182997756" xyz="0.510402739048 -0.0169289112091 0.0088187456131"/>
+    <origin rpy="-0.00118356485613 0.0103462362728 -1.58600016203" xyz="0.510338068008 -0.00296866893768 0.0124877095222"/>
     <parent link="world"/>
     <child link="panda1_link0"/>
   </joint>
@@ -315,7 +315,7 @@
     <axis xyz="0.0 0.0 1.0"/>
     <parent link="panda1_link0"/>
     <child link="panda1_link1"/>
-    <limit effort="3.141592653589793" lower="-2.8973" upper="2.8973" velocity="1.3089969389957472"/>
+    <limit effort="3.141592653589793" lower="-2.75" upper="2.75" velocity="1.3089969389957472"/>
     <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>
   </joint>
   <link name="panda1_link2">
@@ -395,7 +395,7 @@
     <axis xyz="0.0 0.0 1.0"/>
     <parent link="panda1_link4"/>
     <child link="panda1_link5"/>
-    <limit effort="3.141592653589793" lower="-2.8973" upper="2.8973" velocity="1.5707963267948966"/>
+    <limit effort="3.141592653589793" lower="-2.75" upper="2.75" velocity="1.5707963267948966"/>
     <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>
   </joint>
   <link name="panda1_link6">
@@ -415,7 +415,7 @@
     <axis xyz="0.0 0.0 1.0"/>
     <parent link="panda1_link5"/>
     <child link="panda1_link6"/>
-    <limit effort="3.141592653589793" lower="-0.0175" upper="3.7525" velocity="1.5707963267948966"/>
+    <limit effort="3.141592653589793" lower="0.1" upper="3.6" velocity="1.5707963267948966"/>
     <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-0.0175" soft_upper_limit="3.7525"/>
   </joint>
   <link name="panda1_link7">
@@ -435,7 +435,7 @@
     <axis xyz="0.0 0.0 1.0"/>
     <parent link="panda1_link6"/>
     <child link="panda1_link7"/>
-    <limit effort="3.141592653589793" lower="-2.8973" upper="2.8973" velocity="1.5707963267948966"/>
+    <limit effort="3.141592653589793" lower="-2.75" upper="2.75" velocity="1.5707963267948966"/>
     <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>
   </joint>
   <link name="panda1_link8"/>

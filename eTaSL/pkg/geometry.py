@@ -106,7 +106,7 @@ class GeoSphere(GeometryItem):
         return 0
         
     def get_scale(self):
-        return [self.radius, self.radius, self.radius]
+        return [self.radius*2, self.radius*2, self.radius*2]
 
         
 class GeoBox(GeometryItem):

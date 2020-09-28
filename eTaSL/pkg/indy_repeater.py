@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import time
 import numpy as np
-from .utils import *
+from .rotation_utils import *
 from .repeater import *
 from indy_utils.indydcp_client import IndyDCPClient
 from functools import wraps
@@ -32,6 +32,7 @@ class indytraj_client(IndyDCPClient, Repeater):
         kwargs_indy, kwargs_otic = divide_kwargs(kwargs, IndyDCPClient.__init__, Repeater.__init__)
         IndyDCPClient.__init__(self, *args, server_ip=server_ip, **kwargs_indy)
         Repeater.__init__(self, repeater_ip=self.server_ip, disable_getq=True, **kwargs_otic)
+        self.indy_grasp_DO = 0
 
     def connect_and(self, func, *args, **kwargs):
         with self:
@@ -84,4 +85,20 @@ class indytraj_client(IndyDCPClient, Repeater):
             time.sleep(period)
             if self.get_di()[idx]:
                 break
+
+    @connect_indy
+    def grasp(self, grasp, depth=0.007):
+        gstate = self.get_do()[self.indy_grasp_DO]
+        if gstate != grasp:
+            self.set_do(self.indy_grasp_DO, int(grasp))
+            if grasp:
+                uvw_cur = self.get_task_pos()[3:]
+                Rbe_cur = Rot_zyx(*np.deg2rad(uvw_cur)[[2, 1, 0]])
+                time.sleep(0.1)
+                self.task_move_by(np.matmul(Rbe_cur, [0, 0, depth]).tolist() + [0] * 3)
+                time.sleep(0.1)
+                self.wait_motion()
+                self.task_move_by(np.matmul(Rbe_cur, [0, 0, -depth]).tolist() + [0] * 3)
+                time.sleep(0.1)
+                self.wait_motion()
 

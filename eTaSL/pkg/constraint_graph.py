@@ -20,6 +20,7 @@ from .stereo import *
 from nrmkindy.indy_script import *
 from .indy_repeater import indytraj_client
 from etasl_py.etasl import array_to_dict,dict_to_array
+from .environment_builder import *
 
 
 INDY_GRPC = False
@@ -77,7 +78,7 @@ class ConstraintGraph:
                  connect_panda=False, connect_indy=False,
                  indy_ip='192.168.0.63', indy_btype=BlendingType.OVERRIDE,
                  indy_joint_vel_level=3, indy_task_vel_level=3,
-                 indy_grasp_DO=16):
+                 indy_grasp_DO=8):
         self.joint_num = len(joint_names)
         self.urdf_path = urdf_path
         if urdf_content is None:
@@ -136,7 +137,7 @@ class ConstraintGraph:
                     self.indy.set_task_vel_level(indy_task_vel_level)
                     self.indy.set_joint_blend_radius(20)
                     self.indy.set_task_blend_radius(0.2)
-                self.indy_grasp_DO = indy_grasp_DO
+                self.indy.indy_grasp_DO = indy_grasp_DO
 
     def reset_panda(self):
         if self.connect_panda:
@@ -227,9 +228,9 @@ class ConstraintGraph:
         return self.geometry_items_dict
 
     @record_time
-    def add_geometry_items(self, link_name, collision_Items, fixed=False):
-        self.geometry_items_dict[link_name] += collision_Items
+    def add_geometry_items(self, collision_Items, fixed=False):
         for gtem in collision_Items:
+            self.geometry_items_dict[gtem.link_name] += collision_Items
             self.add_tf_items([gtem], fixed)
             if gtem.collision:
                 if fixed:
@@ -258,7 +259,7 @@ class ConstraintGraph:
                                        name=name, link_name=link_name,
                                        urdf_content=self.urdf_content, geometry_items_dict=self.geometry_items_dict, **kwargs)
         if _object is None:
-            self.add_geometry_items(link_name, [self.binder_dict[name].object])
+            self.add_geometry_items([self.binder_dict[name].object])
 
     @record_time
     def add_object(self, name, _object, binding=None):
@@ -421,9 +422,19 @@ class ConstraintGraph:
         if additional_constraints=="" and to_state.Q is not None and np.sum(np.abs(np.subtract(to_state.Q,from_state.Q)))>1e-2:
             self.gtimer.tic("start make_joint_constraints")
             additional_constraints=make_joint_constraints(joint_names=self.joint_names)
-            kwargs.update(dict(inp_lbl=['target_%s'%jname for jname in self.joint_names], 
-                               inp=list(to_state.Q)
-                              ))
+            kwargs_new = dict(inp_lbl=['target_%s'%jname for jname in self.joint_names],
+                                       inp= list(to_state.Q))
+            for k, v in kwargs_new.items():
+                if k in kwargs:
+                    if isinstance(v, list) and isinstance(v, list):
+                        kwargs[k] += v
+                    elif isinstance(v, dict) and isinstance(v, dict):
+                        kwargs[k].update(v)
+                    else:
+                        kwargs[k] = v
+                else:
+                    kwargs[k] = v
+
             self.gtimer.toc("start make_joint_constraints")
         return get_full_context(self.init_text + self.item_text + tf_text+col_text, 
                                 additional_constraints, vel_conv, err_conv), pos_start, kwargs, binding_list
@@ -555,26 +566,32 @@ class ConstraintGraph:
                 indy_grip = True
             elif 'panda' in bind_link_name:
                 panda_grip = True
+        grasp_seq = [(self.indy_grasp, indy_grip), (self.panda_grasp, panda_grip)]
+        grasp_seq = list(sorted(grasp_seq, key=lambda x: not x[1]))
+        for grasp in grasp_seq:
+            grasp[0](grasp[1])
+
+    @record_time
+    def indy_grasp(self, grasp=False):
         if self.connect_indy:
-            self.indy_grasp(indy_grip)
+            if INDY_GRPC:
+                if grasp:
+                    self.indy_grasp_fun()
+                else:
+                    self.indy_release_fun()
+            else:
+                self.indy.grasp(grasp, connect=True)
+
+    @record_time
+    def panda_grasp(self, grasp):
         if self.connect_panda:
             if PANDA_ROS:
-                if panda_grip:
+                if grasp:
                     self.pc.close_finger()
                 else:
                     self.pc.open_finger()
             else:
-                self.panda.move_finger(panda_grip)
-
-    @record_time
-    def indy_grasp(self, grasp=False):
-        if INDY_GRPC:
-            if grasp:
-                self.indy_grasp_fun()
-            else:
-                self.indy_release_fun()
-        else:
-            self.indy.connect_and(self.indy.set_do, self.indy_grasp_DO, grasp)
+                self.panda.move_finger(grasp)
                 
     def move_indy_async(self, *qval):
         if INDY_GRPC:
@@ -877,17 +894,56 @@ class ConstraintGraph:
         traj_data_list = traj_data[:].flatten().tolist()
         return traj_data_list
 
+    def idxSchedule2stateScedule(self, schedule, ZERO_JOINT_POSE=None):
+        state_schedule = [self.snode_dict[i_sc].state for i_sc in schedule]
+        state_schedule.append(state_schedule[-1].copy())
+        if ZERO_JOINT_POSE is not None:
+            state_schedule[-1].Q = ZERO_JOINT_POSE
+        return state_schedule
+
+    def update_obstacle(self, obsPos_dict):
+        for k, v in obsPos_dict.items():
+            _pos = v[:3, 3]
+            for _p, _k in zip(_pos, ["obs_{name}_{axis}".format(name=k, axis=axis) for axis in "xyz"]):
+                if _k in self.inp_lbl:
+                    self.inp[self.inp_lbl.index(_k)] = _p
+
+    def create_obstacle_context(self, obs_names=[], soft=True, K="K"):
+        obs_tf_text = ""
+        kwargs_obs = {}
+        obs_box = [mci for mci in self.geometry_items_dict['world'] if mci.name in obs_names]
+        avoiding_coltems = [fci for fci in \
+                            self.fixed_collision_items_list + self.movable_collision_items_list \
+                            if fci.link_name != "world"]
+        for obs_geo in obs_box:
+            obs_tf_text += """
+            obs_{name}_x = ctx:createInputChannelScalar("obs_{name}_x", 0)
+            obs_{name}_y = ctx:createInputChannelScalar("obs_{name}_y", 0)
+            obs_{name}_z = ctx:createInputChannelScalar("obs_{name}_z", 0)
+            T_{name}_obs = translate_x(obs_{name}_x)*translate_y(obs_{name}_y)*translate_z(obs_{name}_z)
+            """.format(name=obs_geo.name)
+            kwargs_obs.update(dict(inp_lbl=['obs_{name}_{axis}'.format(name=obs_geo.name,
+                                                                       axis=axis) for axis in "xyz"],
+                                   inp=obs_geo.get_offset_tf()[:3, 3].tolist()))
+            obs_geo.tf_name = "T_{name}_obs".format(name=obs_geo.name)
+        obs_col_text = obs_tf_text + make_collision_constraints(avoiding_coltems, obs_box, soft=soft, K=K)
+        return obs_col_text, kwargs_obs
+
     def init_online_etasl(self, from_state, to_state, T_step, control_freq=DEFAULT_TRAJ_FREQUENCY, playback_rate=0.5,
-                          **kwargs):
+                          obs_names=[], obs_soft=True, obs_K="K", **kwargs):
         dt = 1.0 / control_freq
         dt_sim = dt * playback_rate
         N = int(float(T_step) / dt_sim)
+
+        obs_col_text, kwargs_obs = self.create_obstacle_context(obs_names=obs_names, soft=obs_soft, K=obs_K)
+        kwargs.update(kwargs_obs)
 
         full_context, pos_start, kwargs, binding_list = \
             self.get_transition_context(from_state, to_state,
                                         N=N, dt=dt_sim, **kwargs)
 
-        e_sim = get_simulation(full_context)
+        e_sim = get_simulation(full_context+obs_col_text)
+
         self.inp_lbl = kwargs['inp_lbl'] if 'inp_lbl' in kwargs else []
         self.inp = np.array(kwargs['inp'] if 'inp' in kwargs else [])
         e_sim.setInputTable(self.inp_lbl, inp=self.inp)
@@ -901,27 +957,31 @@ class ConstraintGraph:
 
         return e_sim, pos, kwargs
 
-    def execute_schedule_online(self, state_scedule, control_freq=DEFAULT_TRAJ_FREQUENCY, playback_rate=0.5,
-                                vel_conv=0, err_conv=5e-4):
+    def execute_schedule_online(self, state_schedule, control_freq=DEFAULT_TRAJ_FREQUENCY, playback_rate=0.5,
+                                vel_conv=0, err_conv=5e-4, T_step = 100, on_rviz=False, obs_names=[], dynamic_detector=None):
 
-        T_step = 10
-        from_Q = state_scedule[0].Q
-        self.execute_grip(state_scedule[0])
 
-        for i_s in range(len(state_scedule) - 1):
-            from_state = state_scedule[i_s]
+        from_Q = state_schedule[0].Q
+        if not on_rviz:
+            self.execute_grip(state_schedule[0])
+
+        for i_s in range(len(state_schedule) - 1):
+            from_state = state_schedule[i_s]
             from_state.Q = from_Q
-            to_state = state_scedule[i_s + 1]
+            to_state = state_schedule[i_s + 1]
+            self.set_object_state(from_state)
 
             e_sim, pos, kwargs = self.init_online_etasl(from_state, to_state, T_step,
                                                         control_freq=control_freq, playback_rate=playback_rate,
-                                                        vel_conv=vel_conv, err_conv=err_conv)
+                                                        vel_conv=vel_conv, err_conv=err_conv,
+                                                        obs_names=obs_names, obs_soft=True, obs_K="40"
+                                                        )
 
             Q0 = dict_to_array(pos, self.joint_names)
-            self.indy.joint_move_make_sure(np.rad2deg(Q0[self.indy_idx]), N_repeat=2, connect=True)
-
-            print("wait for button input")
-            self.indy.connect_and(self.indy.wait_di, 16)
+            if not on_rviz:
+                self.indy.joint_move_make_sure(np.rad2deg(Q0[self.indy_idx]), N_repeat=2, connect=True)
+                print("wait for button input")
+                self.indy.connect_and(self.indy.wait_di, 16)
 
             with MultiTracker([self.indy, self.panda],
                               [self.indy_idx, self.panda_idx],
@@ -936,14 +996,21 @@ class ConstraintGraph:
                 VEL_CUR = np.zeros_like(POS_CUR)
                 end_loop = False
                 while True:
-                    all_sent = mt.move_possible_joints_x4(POS_CUR)
+                    all_sent = mt.move_possible_joints_x4(POS_CUR) if not on_rviz else True
 
                     if all_sent:
                         i_q += 1
                         try:
+                            obsPos_dict = dynamic_detector.get_dynPos_dict()
+                            self.update_obstacle(obsPos_dict)
                             pos = e_sim.simulate_step(i_q, pos, dt=None, inp_cur=self.inp)
                             VEL_CUR = VEL_CUR + e_sim.VEL[i_q, 1::2] * e_sim.DT
                             POS_CUR = POS_CUR + VEL_CUR * e_sim.DT
+                            if on_rviz:
+                                for oname in obs_names:
+                                    T_bo = obsPos_dict[oname]
+                                    GeometryItem.GLOBAL_GEO_DICT[oname].set_offset_tf(T_bo[:3, 3], T_bo[:3, :3])
+                                self.show_pose(POS_CUR)
                         except EventException as e:
                             print(e)
                             end_loop = True
@@ -959,7 +1026,8 @@ class ConstraintGraph:
                     if end_loop:
                         break
             from_Q = POS_CUR.copy()
-            self.execute_grip(state_scedule[i_s + 1])
+            if not on_rviz:
+                self.execute_grip(state_schedule[i_s + 1])
 
     def init_panda_sync_indy(self, from_state, to_state, N, control_freq_panda=100,
                              err_conv=0, sync_priority=2,

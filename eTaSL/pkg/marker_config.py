@@ -45,7 +45,7 @@ def get_aruco_config():
                           ObjectMarker(135, 0.04, SE3(Rot_zyx(0,-np.pi/2,0), [0.025,0,0])),
                           ObjectMarker(136, 0.04, SE3(Rot_zyx(0,np.pi/2,0), [-0.025,0,0]))
                          ],
-                 'goal':[ObjectMarker(201, 0.1, SE3(Rot_zyx(0,0,np.pi), [0,0,0.0025]))]
+                 'goal':[ObjectMarker(201, 0.1, SE3(Rot_zyx(0,0,np.pi), [0,0,0.000]))]
                 }
     return aruco_map, dictionary
         
