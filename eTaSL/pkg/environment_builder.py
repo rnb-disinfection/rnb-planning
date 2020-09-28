@@ -93,16 +93,16 @@ class DynamicDetector:
         self.dynamic_objects, self.aruco_map, self.dictionary, self.rs_config, self.T_c12, self.ref_T = \
             dynamic_objects, aruco_map, dictionary, rs_config, T_c12, ref_T
 
-    def detector_thread_fun(self, dynamic_objects, aruco_map, dictionary, rs_config, T_c12, ref_T):
+    def detector_thread_fun(self):
         self.detector_stop = False
-        aruco_map_dynamic = {k: v for k, v in aruco_map.items() if k in dynamic_objects}
+        aruco_map_dynamic = {k: v for k, v in self.aruco_map.items() if k in self.dynamic_objects}
         self.dynPos_dict = {}
         while not self.detector_stop:
             color_image = get_rs_image()
-            objectPose_dict_mv, corner_dict_mv = get_object_pose_dict(color_image, aruco_map_dynamic, dictionary,
-                                                                      *rs_config)
+            objectPose_dict_mv, corner_dict_mv = get_object_pose_dict(color_image, aruco_map_dynamic, self.dictionary,
+                                                                      *self.rs_config)
             for k, v in objectPose_dict_mv.items():
-                self.dynPos_dict[k] = np.matmul(SE3_inv(ref_T), np.matmul(T_c12, v))
+                self.dynPos_dict[k] = np.matmul(SE3_inv(self.ref_T), np.matmul(self.T_c12, v))
 
     def stop_detector(self):
         self.detector_stop = True
@@ -111,11 +111,41 @@ class DynamicDetector:
         return self.dynPos_dict
 
     def __enter__(self):
-        self.t_det = Thread(target=self.detector_thread_fun,
-                            args=(self.dynamic_objects, self.aruco_map, self.dictionary,
-                                  self.rs_config, self.T_c12, self.ref_T))
+        self.t_det = Thread(target=self.detector_thread_fun)
         self.t_det.start()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.stop_detector()
+
+class RvizPublisher:
+    def __init__(self, graph, obs_names):
+        self.graph, self.obs_names = graph, obs_names
+        self.obsPos_dict = None
+        self.POS_CUR = None
+
+    def rviz_thread_fun(self):
+        self.rviz_stop = False
+        while not self.rviz_stop:
+            if self.obsPos_dict is None or self.POS_CUR is None:
+                time.sleep(0.1)
+                continue
+            for oname in self.obs_names:
+                T_bo = self.obsPos_dict[oname]
+                GeometryItem.GLOBAL_GEO_DICT[oname].set_offset_tf(T_bo[:3, 3], T_bo[:3, :3])
+            self.graph.show_pose(self.POS_CUR)
+
+    def stop_rviz(self):
+        self.rviz_stop = True
+
+    def update(self, obsPos_dict, POS_CUR):
+        self.obsPos_dict = obsPos_dict
+        self.POS_CUR = POS_CUR
+
+    def __enter__(self):
+        self.t_rviz = Thread(target=self.rviz_thread_fun)
+        self.t_rviz.start()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.stop_rviz()

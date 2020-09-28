@@ -958,7 +958,8 @@ class ConstraintGraph:
         return e_sim, pos, kwargs
 
     def execute_schedule_online(self, state_schedule, control_freq=DEFAULT_TRAJ_FREQUENCY, playback_rate=0.5,
-                                vel_conv=0, err_conv=5e-4, T_step = 100, on_rviz=False, obs_names=[], dynamic_detector=None):
+                                vel_conv=0, err_conv=5e-4, T_step = 100, on_rviz=False, obs_names=[],
+                                dynamic_detector=None, rviz_pub=None):
 
 
         from_Q = state_schedule[0].Q
@@ -1006,11 +1007,8 @@ class ConstraintGraph:
                             pos = e_sim.simulate_step(i_q, pos, dt=None, inp_cur=self.inp)
                             VEL_CUR = VEL_CUR + e_sim.VEL[i_q, 1::2] * e_sim.DT
                             POS_CUR = POS_CUR + VEL_CUR * e_sim.DT
-                            if on_rviz:
-                                for oname in obs_names:
-                                    T_bo = obsPos_dict[oname]
-                                    GeometryItem.GLOBAL_GEO_DICT[oname].set_offset_tf(T_bo[:3, 3], T_bo[:3, :3])
-                                self.show_pose(POS_CUR)
+                            if rviz_pub is not None:
+                                rviz_pub.update(obsPos_dict, POS_CUR)
                         except EventException as e:
                             print(e)
                             end_loop = True
