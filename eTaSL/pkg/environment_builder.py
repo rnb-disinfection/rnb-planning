@@ -37,11 +37,11 @@ def add_objects_gen(graph, obj_gen_dict, color=(0.6,0.6,0.6,1), collision=True, 
              color=color, collision=collision) for oname, ogen in obj_gen_dict.items()], fixed=True)
 
 def add_cam_poles(graph, xyz_rvec_cams, color=(0.6,0.6,0.6,1), link_name="world"):
-    graph.add_geometry_items([GeoBox(np.subtract(xyzrvec[0], [0,0,xyzrvec[0][2]/2-0.1]),
-                                     (0.15,0.15,xyzrvec[0][2]),
-                                     name="pole_{}".format(cname),
-                                     link_name=link_name, urdf_content=graph.urdf_content,
-                                     color=color, collision=True)
+    graph.add_geometry_items([GeoSegment(np.subtract(xyzrvec[0], [0,0,xyzrvec[0][2]/2-0.05]),
+                                         (0,0,0), xyzrvec[0][2]+0.1, 0.075,
+                                         name="pole_{}".format(cname),
+                                         link_name=link_name, urdf_content=graph.urdf_content,
+                                         color=color, collision=True)
                               for cname, xyzrvec in xyz_rvec_cams.items()], fixed=True)
 
 def detect_objects(movable_generators, aruco_map, dictionary, stereo=True, kn_config=None):
@@ -56,7 +56,7 @@ def detect_objects(movable_generators, aruco_map, dictionary, stereo=True, kn_co
 
 def register_objects(graph, objectPose_dict_mv, object_generators, binder_dict, object_dict, ref_tuple, link_name="world"):
     objectPose_dict_mv.update({ref_tuple[0]: ref_tuple[1]})
-    xyz_rvec_mv_dict, put_point_dict = calc_put_point(objectPose_dict_mv, object_generators, object_dict, ref_tuple)
+    xyz_rvec_mv_dict, put_point_dict, _ = calc_put_point(objectPose_dict_mv, object_generators, object_dict, ref_tuple)
 
     for mname, mgen in object_generators.items():
         if mname in xyz_rvec_mv_dict:
@@ -81,11 +81,16 @@ def calc_put_point(objectPose_dict_mv, object_generators, object_dict, ref_tuple
     xyz_rvec_mv_dict = {mname: T2xyzrvec(Tv) for mname, Tv in T_mv_dict.items()}
 
     put_point_dict = {}
+    up_point_dict = {}
+    Rx180 = Rot_axis(1, np.pi)
     for mtem, xyz_rvec in xyz_rvec_mv_dict.items():
         if mtem in object_dict:
-            put_point_dict[mtem] = get_put_dir(Robj=Rotation.from_rotvec(xyz_rvec[1]).as_dcm(),
+            Robj = Rotation.from_rotvec(xyz_rvec[1]).as_dcm()
+            put_point_dict[mtem] = get_put_dir(Robj=Robj,
                                                dir_vec_dict=DIR_VEC_DICT) + "_p"
-    return xyz_rvec_mv_dict, put_point_dict
+            up_point_dict[mtem] = get_put_dir(Robj=np.matmul(Rx180, Robj),
+                                               dir_vec_dict=DIR_VEC_DICT) + "_p"
+    return xyz_rvec_mv_dict, put_point_dict, up_point_dict
 
 
 class DynamicDetector:
@@ -131,8 +136,9 @@ class RvizPublisher:
                 time.sleep(0.1)
                 continue
             for oname in self.obs_names:
-                T_bo = self.obsPos_dict[oname]
-                GeometryItem.GLOBAL_GEO_DICT[oname].set_offset_tf(T_bo[:3, 3], T_bo[:3, :3])
+                if oname in self.obsPos_dict:
+                    T_bo = self.obsPos_dict[oname]
+                    GeometryItem.GLOBAL_GEO_DICT[oname].set_offset_tf(T_bo[:3, 3], T_bo[:3, :3])
             self.graph.show_pose(self.POS_CUR)
 
     def stop_rviz(self):

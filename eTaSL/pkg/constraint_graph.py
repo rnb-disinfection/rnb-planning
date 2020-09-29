@@ -1,3 +1,7 @@
+import sys
+sys.setrecursionlimit(10000)
+
+
 from .constraint_action import *
 from .constraint_object import *
 from .etasl import *
@@ -61,7 +65,7 @@ class State:
                     {k: str(np.round(v, 2)) for k, v in self.obj_pos_dict.items()} if self.obj_pos_dict is not None else None,  
                     str(np.round(self.Q, 2)) if self.Q is not None else None))
 class ConstraintGraph:
-    DQ_MAX = np.deg2rad(90)
+    DQ_MAX = np.deg2rad(45)
     WEIGHT_DEFAULT = 2.0
 #     WEIGHT_INIT = 5.0
     WEIGHT_GOAL = 2.0
@@ -100,6 +104,8 @@ class ConstraintGraph:
         self.connect_panda = connect_panda
         self.connect_indy = connect_indy
         self.gtimer=GlobalTimer.instance()
+        self.joint_limits = np.array([(self.urdf_content.joint_map[jname].limit.lower,
+                                       self.urdf_content.joint_map[jname].limit.upper) for jname in self.joint_names])
 
 
         self.indy_idx = [idx for idx, jname in zip(range(self.joint_num), self.joint_names) if 'indy' in jname]
@@ -469,7 +475,6 @@ class ConstraintGraph:
                 success = False
         else:
             success = False
-            thread_display = None
             e = get_simulation(full_context)
             for i_sim in range(int(N/N_step)):
                 e = do_simulate(e, initial_jpos=np.array(pos_start), N=N_step, dt=dt, **kwargs)
@@ -477,20 +482,12 @@ class ConstraintGraph:
                     break
                 pos_start = e.POS[-1]
                 if display:
-                    if thread_display is not None:
-                        thread_display.join()
-                    thread_display = Thread(target=show_motion, 
-                                            args=(e.POS, self.marker_list, self.pub,
-                                                  self.joints, self.joint_names),
-                                            kwargs={'error_skip':error_skip, 'period':dt_vis}
-                                            )
-                    thread_display.start()
+                    self.show_motion(e.POS, from_state, **{'error_skip':error_skip, 'period':dt_vis})
                     
                 if hasattr(e, 'error') and e.error<err_conv:
                     success = True
                     break
-            if thread_display is not None:
-                thread_display.join()
+
             self.gtimer.tic("post")
             if from_state is not None:
                 self.set_object_state(from_state)
@@ -622,6 +619,12 @@ class ConstraintGraph:
 
     @record_time
     def score_graph(self, goal_node):
+        if isinstance(goal_node, list):
+            score_dicts = [self.score_graph(goal) for goal in goal_node]
+            score_dict = {}
+            for k in score_dicts[0].keys():
+                score_dict[k] = min([sdict[k] for sdict in score_dicts])
+            return score_dict
         frontier = PriorityQueue()
         frontier.put(goal_node, 0)
         came_from = {}
@@ -656,8 +659,8 @@ class ConstraintGraph:
     def reset_valid_node(self, margin=0, node=None):
         if node == None:
             node = self.initial_state.node
-            self.valid_node_dict = {self.goal_state.node:[]}
-        if node == self.goal_state.node or node in self.valid_node_dict:
+            self.valid_node_dict = {goal:[] for goal in self.goal_nodes}
+        if self.check_goal(node, self.goal_nodes) or node in self.valid_node_dict:
             return
         neighbor = self.get_valid_neighbor(node, margin=margin)
         if node in self.valid_node_dict and self.valid_node_dict[node] == neighbor:
@@ -670,10 +673,10 @@ class ConstraintGraph:
                 self.reset_valid_node(margin=new_margin, node=leaf)
 
     @record_time
-    def init_search(self, initial_state, goal_state, tree_margin, depth_margin):
+    def init_search(self, initial_state, goal_nodes, tree_margin, depth_margin):
         self.initial_state = initial_state
-        self.goal_state = goal_state
-        self.init_cost_dict, self.goal_cost_dict = self.score_graph(initial_state.node), self.score_graph(goal_state.node)
+        self.goal_nodes = goal_nodes
+        self.init_cost_dict, self.goal_cost_dict = self.score_graph(initial_state.node), self.score_graph(goal_nodes)
         self.reset_valid_node(tree_margin)
         self.depth_min = self.goal_cost_dict[initial_state.node]
         self.max_depth = self.depth_min+depth_margin
@@ -703,20 +706,22 @@ class ConstraintGraph:
             if leaf == state.node:
                 dQ = (1 - 2 * np.random.rand(self.DOF)) * ConstraintGraph.DQ_MAX
                 to_state.Q = np.sum([state.Q, dQ], axis=0)
+                to_state.Q = np.minimum(np.maximum(to_state.Q, self.joint_limits[:,0]), self.joint_limits[:,1])
             else:
                 to_state.node = leaf
-            self.snode_queue.put((snode, state, to_state), expected_depth * self.DSCALE - depth)
+            # self.snode_queue.put((snode, state, to_state), expected_depth * self.DSCALE - depth) ## breadth-first
+            self.snode_queue.put((snode, state, to_state), (expected_depth - depth) * self.DSCALE + depth) ## greedy
         return snode
 
     @record_time
-    def search_graph(self, initial_state, goal_state,
+    def search_graph(self, initial_state, goal_nodes,
                      tree_margin=0, depth_margin=0, joint_motion_num=10,
                      terminate_on_first=True, N_search=100, N_loop=1000,
                      display=False, dt_vis=None, verbose=False, print_expression=False, **kwargs):
         self.joint_motion_num = joint_motion_num
         self.t0 = timer.time()
         self.DOF = len(initial_state.Q)
-        self.init_search(initial_state, goal_state, tree_margin, depth_margin)
+        self.init_search(initial_state, goal_nodes, tree_margin, depth_margin)
 
         self.snode_counter = self.manager.Value('i', 0)
         self.stop_now =  self.manager.Value('i', 0)
@@ -728,7 +733,7 @@ class ConstraintGraph:
         self.__search_loop(terminate_on_first, N_search, N_loop, False, display, dt_vis, verbose, print_expression, **kwargs)
 
     @record_time
-    def search_graph_mp(self, initial_state, goal_state,
+    def search_graph_mp(self, initial_state, goal_nodes,
                         tree_margin=0, depth_margin=0, joint_motion_num=10,
                         terminate_on_first=True, N_search=100, N_loop=1000, N_agents=8,
                         display=False, dt_vis=None, verbose=False, print_expression=False, **kwargs):
@@ -738,7 +743,7 @@ class ConstraintGraph:
         self.joint_motion_num = joint_motion_num
         self.t0 = timer.time()
         self.DOF = len(initial_state.Q)
-        self.init_search(initial_state, goal_state, tree_margin, depth_margin)
+        self.init_search(initial_state, goal_nodes, tree_margin, depth_margin)
 
         self.snode_counter = self.manager.Value('i', 0)
         self.stop_now =  self.manager.Value('i', 0)
@@ -779,7 +784,7 @@ class ConstraintGraph:
                 snode_new = self.add_node_queue_leafs(snode_new)
                 snode.leafs += [snode_new.idx]
                 self.snode_dict[snode.idx] = snode
-                if self.check_goal(snode_new.state, self.goal_state):
+                if self.check_goal(snode_new.state.node, self.goal_nodes):
                     ret = True
             if verbose:
                 print('\n{} - Goal cost:{}->{} / Init cost:{}->{} / branching: {}->{} ({} s, err: {})'.format(
@@ -801,7 +806,7 @@ class ConstraintGraph:
         for i in range(self.snode_counter.value):
             snode = self.snode_dict[i]
             state = snode.state
-            if self.check_goal(state, self.goal_state):
+            if self.check_goal(state.node, self.goal_nodes):
                 self.idx_goal += [i]
                 schedule = snode.parents + [i]
                 schedule_dict[i] = schedule
@@ -831,8 +836,8 @@ class ConstraintGraph:
             self.execute_transition(from_state, to_state, **kwargs)
 
     @record_time
-    def check_goal(self, state, goal):
-        return state.node == goal.node
+    def check_goal(self, node, goals):
+        return node in goals
 
     @record_time
     def print_snode_list(self):
@@ -955,24 +960,26 @@ class ConstraintGraph:
         pos = e_sim.simulate_begin(N, dt_sim)
         e_sim.DT = dt_sim
 
-        return e_sim, pos, kwargs
+        return e_sim, pos, kwargs, binding_list
 
     def execute_schedule_online(self, state_schedule, control_freq=DEFAULT_TRAJ_FREQUENCY, playback_rate=0.5,
                                 vel_conv=0, err_conv=5e-4, T_step = 100, on_rviz=False, obs_names=[],
-                                dynamic_detector=None, rviz_pub=None):
+                                dynamic_detector=None, rviz_pub=None, stop_count_ref=25):
 
 
         from_Q = state_schedule[0].Q
+        object_pose_cur = state_schedule[0].obj_pos_dict
         if not on_rviz:
             self.execute_grip(state_schedule[0])
 
         for i_s in range(len(state_schedule) - 1):
             from_state = state_schedule[i_s]
             from_state.Q = from_Q
+            from_state.obj_pos_dict = object_pose_cur
             to_state = state_schedule[i_s + 1]
             self.set_object_state(from_state)
 
-            e_sim, pos, kwargs = self.init_online_etasl(from_state, to_state, T_step,
+            e_sim, pos, kwargs, binding_list = self.init_online_etasl(from_state, to_state, T_step,
                                                         control_freq=control_freq, playback_rate=playback_rate,
                                                         vel_conv=vel_conv, err_conv=err_conv,
                                                         obs_names=obs_names, obs_soft=True, obs_K="40"
@@ -984,9 +991,11 @@ class ConstraintGraph:
                 print("wait for button input")
                 self.indy.connect_and(self.indy.wait_di, 16)
 
+            stop_count = 0
+
             with MultiTracker([self.indy, self.panda],
                               [self.indy_idx, self.panda_idx],
-                              Q0) as mt:
+                              Q0, on_rviz=on_rviz) as mt:
                 time.sleep(0.5)
 
                 i_q = 0
@@ -997,9 +1006,19 @@ class ConstraintGraph:
                 VEL_CUR = np.zeros_like(POS_CUR)
                 end_loop = False
                 while True:
-                    all_sent = mt.move_possible_joints_x4(POS_CUR) if not on_rviz else True
+                    if on_rviz:
+                        self.indy.rate_x1.sleep()
+                        all_sent = True
+                    else:
+                        all_sent = mt.move_possible_joints_x4(POS_CUR)
 
                     if all_sent:
+                        if stop_count>0:
+                            if stop_count>stop_count_ref:
+                                break
+                            else:
+                                stop_count += 1
+                                continue
                         i_q += 1
                         try:
                             obsPos_dict = dynamic_detector.get_dynPos_dict()
@@ -1020,10 +1039,15 @@ class ConstraintGraph:
                                 raise (e)
                             POS_CUR = dict_to_array(pos, self.joint_names)
                         if i_q >= len(e_sim.TIME):
-                            break
+                            stop_count+=1
+                            continue
                     if end_loop:
-                        break
+                        stop_count+=1
+                        continue
             from_Q = POS_CUR.copy()
+            for bd in binding_list:
+                self.rebind(bd, array_to_dict(POS_CUR, self.joint_names))
+            object_pose_cur = self.get_object_state()[1]
             if not on_rviz:
                 self.execute_grip(state_schedule[i_s + 1])
 
@@ -1088,3 +1112,10 @@ class ConstraintGraph:
         xyz_cal, rvec_cal = T2xyzrvec(T_po_cal)
         return xyz_cam, rvec_cam, xyz_cal, rvec_cal, color_image, objectPose_dict, corner_dict, err_dict
 
+def get_goal_nodes(initial_state, obj_name, target_name):
+    return [tuple([(opair[0], ppoint, target_name) \
+                   if opair[0] == obj_name \
+                   else opair \
+                   for opair in initial_state.copy().node]) \
+            for ppoint in [dvkey+"_f"
+                           for dvkey in DIR_VEC_DICT.keys()]]

@@ -114,23 +114,25 @@ class Repeater(object):
 
 
 class MultiTracker:
-    def __init__(self, robots, idx_list, Q0):
+    def __init__(self, robots, idx_list, Q0, on_rviz=False):
         assert len(robots) == len(idx_list), \
             "number of robots and indice for robot joints should be same"
         assert len(Q0) == sum([len(idx) for idx in idx_list]), \
             "total number joints does not match with inital Q"
         self.num_robots = len(robots)
-        self.robots, self.idx_list, self.Q0 = robots, idx_list, Q0
+        self.robots, self.idx_list, self.Q0, self.on_rviz = robots, idx_list, Q0, on_rviz
 
     def __enter__(self):
-        for rbt, idx in zip(self.robots, self.idx_list):
-            rbt.start_online_tracking(self.Q0)
-        self.sent_list = [False] * self.num_robots
+        if not self.on_rviz:
+            for rbt, idx in zip(self.robots, self.idx_list):
+                rbt.start_online_tracking(self.Q0)
+            self.sent_list = [False] * self.num_robots
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        for rbt in self.robots:
-            rbt.finish_online_tracking()
+        if not self.on_rviz:
+            for rbt in self.robots:
+                rbt.finish_online_tracking()
 
     def move_possible_joints_x4(self, Q):
         for i_rbt in range(self.num_robots):
