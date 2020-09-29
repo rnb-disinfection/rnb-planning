@@ -36,7 +36,7 @@ def add_objects_gen(graph, obj_gen_dict, color=(0.6,0.6,0.6,1), collision=True, 
     graph.add_geometry_items([ogen[0](*ogen[1], name=oname, link_name=link_name, urdf_content=graph.urdf_content,
              color=color, collision=collision) for oname, ogen in obj_gen_dict.items()], fixed=True)
 
-def add_cam_poles(graph, xyz_rvec_cams, color=(0.6,0.6,0.6,1), link_name="world"):
+def add_cam_poles(graph, xyz_rvec_cams, color=(0.6,0.6,0.6,0.3), link_name="world"):
     graph.add_geometry_items([GeoSegment(np.subtract(xyzrvec[0], [0,0,xyzrvec[0][2]/2-0.05]),
                                          (0,0,0), xyzrvec[0][2]+0.1, 0.075,
                                          name="pole_{}".format(cname),
@@ -59,7 +59,7 @@ def register_objects(graph, objectPose_dict_mv, object_generators, binder_dict, 
     xyz_rvec_mv_dict, put_point_dict, _ = calc_put_point(objectPose_dict_mv, object_generators, object_dict, ref_tuple)
 
     for mname, mgen in object_generators.items():
-        if mname in xyz_rvec_mv_dict:
+        if mname in xyz_rvec_mv_dict and mname not in GeometryItem.GLOBAL_GEO_DICT:
             xyz_rvec = xyz_rvec_mv_dict[mname]
             graph.add_geometry_items([mgen(*xyz_rvec, name=mname,
                                            link_name=link_name, urdf_content=graph.urdf_content, color=(0.3, 0.3, 0.8, 1),
@@ -67,10 +67,11 @@ def register_objects(graph, objectPose_dict_mv, object_generators, binder_dict, 
                                      fixed=False)
 
     for bname, bkwargs in binder_dict.items():
-        graph.register_binder(name=bname, **bkwargs)
+        if bname not in graph.binder_dict:
+            graph.register_binder(name=bname, **bkwargs)
 
     for mtem, xyz_rvec in xyz_rvec_mv_dict.items():
-        if mtem in put_point_dict:
+        if mtem in put_point_dict and mtem not in graph.object_dict:
             graph.register_object(mtem, binding=(put_point_dict[mtem], "floor"), **object_dict[mtem])
 
     return put_point_dict
@@ -155,3 +156,12 @@ class RvizPublisher:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.stop_rviz()
+
+def update_geometries(onames, objectPose_dict_mv):
+    for gname in onames:
+        gtem = [gtem for gtem in GeometryItem.GLOBAL_GEO_LIST if gtem.name == gname]
+        if len(gtem)>0 and gname in objectPose_dict_mv:
+            gtem = gtem[0]
+            Tg = get_T_rel("floor", gname, objectPose_dict_mv)
+            gtem.set_offset_tf(Tg[:3,3], Tg[:3,:3])
+

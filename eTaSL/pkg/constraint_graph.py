@@ -236,7 +236,7 @@ class ConstraintGraph:
     @record_time
     def add_geometry_items(self, collision_Items, fixed=False):
         for gtem in collision_Items:
-            self.geometry_items_dict[gtem.link_name] += collision_Items
+            self.geometry_items_dict[gtem.link_name].append(gtem)
             self.add_tf_items([gtem], fixed)
             if gtem.collision:
                 if fixed:
@@ -947,7 +947,18 @@ class ConstraintGraph:
             self.get_transition_context(from_state, to_state,
                                         N=N, dt=dt_sim, **kwargs)
 
-        e_sim = get_simulation(full_context+obs_col_text)
+        if from_state.node != to_state.node:
+            joint_context = make_joint_constraints(self.joint_names, priority=2, K_joint=1)
+            if "inp_lbl" not in kwargs:
+                kwargs["inp_lbl"] = []
+            kwargs["inp_lbl"] += ["target_{joint_name}".format(joint_name=joint_name) for joint_name in self.joint_names]
+            if "inp" not in kwargs:
+                kwargs["inp"] = []
+            kwargs["inp"] += list(to_state.Q)
+        else:
+            joint_context = ""
+
+        e_sim = get_simulation(full_context+obs_col_text+joint_context)
 
         self.inp_lbl = kwargs['inp_lbl'] if 'inp_lbl' in kwargs else []
         self.inp = np.array(kwargs['inp'] if 'inp' in kwargs else [])
@@ -966,10 +977,11 @@ class ConstraintGraph:
                                 vel_conv=0, err_conv=5e-4, T_step = 100, on_rviz=False, obs_names=[],
                                 dynamic_detector=None, rviz_pub=None, stop_count_ref=25):
 
-
         from_Q = state_schedule[0].Q
         object_pose_cur = state_schedule[0].obj_pos_dict
         if not on_rviz:
+            self.panda.set_k_gain(70)
+            self.panda.set_d_gain(7)
             self.execute_grip(state_schedule[0])
 
         for i_s in range(len(state_schedule) - 1):
@@ -1112,10 +1124,10 @@ class ConstraintGraph:
         xyz_cal, rvec_cal = T2xyzrvec(T_po_cal)
         return xyz_cam, rvec_cam, xyz_cal, rvec_cal, color_image, objectPose_dict, corner_dict, err_dict
 
-def get_goal_nodes(initial_state, obj_name, target_name):
+def get_goal_nodes(initial_state, obj_name, target_name, postfix="_p"):
     return [tuple([(opair[0], ppoint, target_name) \
                    if opair[0] == obj_name \
                    else opair \
                    for opair in initial_state.copy().node]) \
-            for ppoint in [dvkey+"_f"
+            for ppoint in [dvkey+postfix
                            for dvkey in DIR_VEC_DICT.keys()]]
