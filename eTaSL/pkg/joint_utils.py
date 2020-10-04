@@ -1,9 +1,77 @@
 from __future__ import print_function
 import numpy as np
 from .rotation_utils import *
+from collections import defaultdict
 
 parent_joint_map = {}
 link_adjacency_map = {}
+mindist_dict = defaultdict(lambda: dict())
+
+def get_root_chain(lname, urdf_content):
+    chain_list = []
+    lname_cur = lname
+    chain_list.append(lname_cur)
+    while lname_cur in parent_joint_map:
+        jname_parent = parent_joint_map[lname_cur]
+        lname_cur = urdf_content.joint_map[jname_parent].parent
+        chain_list.append(lname_cur)
+    return chain_list
+
+def joint_dist_list(rchain, urdf_content):
+    jdist_list = []
+    for lname in rchain:
+        jname = get_parent_joint(lname)
+        joint = urdf_content.joint_map[jname]
+        if joint.type == 'fixed':
+            if len(jdist_list)>0:
+                jdist_list[-1] = np.add(joint.origin.xyz, np.matmul(Rot_rpy(joint.origin.rpy), jdist_list[-1]))
+            else:
+                jdist_list.append(np.array(joint.origin.xyz))
+        else:
+            jdist_list.append(np.array(joint.origin.xyz))
+    return jdist_list
+
+def get_link_min_distance(lname1, lname2, urdf_content):
+    if lname1 == lname2:
+        return 0
+    rchain1 = get_root_chain(lname1, urdf_content)
+    rchain2 = get_root_chain(lname2, urdf_content)
+    for root_common in rchain1:
+        if root_common in rchain2:
+            break
+
+    rchain1 = rchain1[:rchain1.index(root_common)]
+    rchain2 = rchain2[:rchain2.index(root_common)]
+    tf_chain1 = joint_dist_list(rchain1, urdf_content)
+    tf_chain2 = joint_dist_list(rchain2, urdf_content)
+    tf_chain2 = list(reversed(tf_chain2))
+    tf_chain = tf_chain1 + tf_chain2
+    if len(tf_chain1)>0 and len(tf_chain2)>0:
+        len1 = len(tf_chain1)
+        tf_chain = tf_chain[:len1-1] + [np.subtract(tf_chain1[-1], tf_chain2[0])]
+        if len(tf_chain2)>0:
+            tf_chain += tf_chain2[1:]
+    len_chain = np.linalg.norm(tf_chain, axis=-1)
+
+    max_len = max(len_chain)
+    rest_len = sum(len_chain) - max_len
+
+    min_distance = max_len - rest_len
+    return min_distance
+
+def set_min_distance_map(link_names, urdf_content):
+    global mindist_dict
+    mindist_dict = defaultdict(lambda: dict())
+    for idx1 in range(len(link_names)):
+        lname1 = link_names[idx1]
+        for lname2 in link_names[idx1:]:
+            mindist = get_link_min_distance(lname1,lname2, urdf_content)
+            mindist_dict[lname1][lname2] = mindist
+            mindist_dict[lname2][lname1] = mindist
+    return mindist_dict
+
+def get_min_distance_map():
+    return mindist_dict
 
 def set_parent_joint_map(urdf_content):
     global parent_joint_map

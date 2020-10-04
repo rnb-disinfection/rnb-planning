@@ -89,6 +89,11 @@ class GeometryItem(object):
     def get_frame(self):
         return SE3(self.orientation_mat, self.center)
 
+    def get_off_max(self):
+        Toff = self.get_offset_tf()
+        Roff, Poff = Toff[:3, :3], Toff[:3, 3]
+        return np.abs(Poff) + np.abs(np.matmul(Roff, self.get_scale()))/2
+
         
 class GeoSphere(GeometryItem):
     def __init__(self, center, radius, **kwargs):

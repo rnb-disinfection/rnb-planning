@@ -82,7 +82,10 @@
   * instruction in https://github.com/IntelRealSense/librealsense/blob/master/doc/distribution_linux.md  
   * install pyrealsense2  
     * pip install pyrealsense2  
-  
+* openGJK
+  * cd $TF_GMT_ETASL_DIR/openGJK/lib
+  * cmake -DCMAKE_BUILD_TYPE=Release
+  * make
   
 ## Install Tesseract  
   

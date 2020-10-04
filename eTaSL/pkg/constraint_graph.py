@@ -90,6 +90,7 @@ class ConstraintGraph:
         self.urdf_content = urdf_content
         set_parent_joint_map(urdf_content)
         set_link_adjacency_map(urdf_content)
+        self.min_distance_map = set_min_distance_map(link_names, urdf_content)
         self.joint_names = joint_names
         self.link_names = link_names
         self.geometry_items_dict = {}
@@ -205,7 +206,8 @@ class ConstraintGraph:
         self.init_text = get_init_text(timescale=timescale)
         self.item_text = get_item_text(GeometryItem.GLOBAL_GEO_LIST)
         self.fixed_tf_text = get_tf_text(self.fixed_tf_list)
-        self.fixed_collision_text = make_collision_constraints(self.fixed_collision_items_list)
+        self.fixed_collision_text = make_collision_constraints(self.fixed_collision_items_list,
+                                                               min_distance_map=self.min_distance_map)
         self.show_pose(np.zeros(len(self.joint_names)))
 
     @record_time
@@ -398,7 +400,8 @@ class ConstraintGraph:
         return node, pose_dict
     
     @record_time
-    def get_transition_context(self, from_state=None, to_state=None, vel_conv=1e-2, err_conv=1e-4, **kwargs):
+    def get_transition_context(self, from_state=None, to_state=None, vel_conv=1e-2, err_conv=1e-4, collision=True,
+                               **kwargs):
         if from_state is not None:
             pos_start = from_state.Q
             self.set_object_state(from_state)
@@ -408,9 +411,14 @@ class ConstraintGraph:
         self.gtimer.toc("start get_tf_text")
 
         self.gtimer.tic("start get_collision_text")
-        col_text = self.fixed_collision_text + \
-                   make_collision_constraints(self.fixed_collision_items_list, self.movable_collision_items_list) + \
-                   make_collision_constraints(self.movable_collision_items_list)
+        if collision:
+            col_text = self.fixed_collision_text + \
+                       make_collision_constraints(self.fixed_collision_items_list, self.movable_collision_items_list,
+                                                                   min_distance_map=self.min_distance_map) + \
+                       make_collision_constraints(self.movable_collision_items_list,
+                                                                   min_distance_map=self.min_distance_map)
+        else:
+            col_text = ""
         self.gtimer.toc("start get_collision_text")
 
         self.gtimer.tic("start make_constraints")
@@ -446,13 +454,15 @@ class ConstraintGraph:
                                 additional_constraints, vel_conv, err_conv), pos_start, kwargs, binding_list
 
     @record_time
-    def simulate_transition(self, from_state=None, to_state=None, display=False, dt_vis=None, error_skip=1e-4, lock=False,
-                            vel_conv=1e-2, err_conv=1e-4, N=1, dt=1e-2, N_step=10, print_expression=False, **kwargs):
+    def simulate_transition(self, from_state=None, to_state=None, display=False, dt_vis=None, error_skip=1e-4,
+                            collision=True, vel_conv=1e-2, err_conv=1e-4, N=1, dt=1e-2, N_step=10,
+                            print_expression=False, **kwargs):
         if dt_vis is None:
             dt_vis = dt/10
         self.gtimer = GlobalTimer.instance()
         self.gtimer.tic("start set transition")
-        full_context, pos_start, kwargs, binding_list = self.get_transition_context(from_state, to_state, vel_conv, err_conv, **kwargs)
+        full_context, pos_start, kwargs, binding_list = self.get_transition_context(
+            from_state, to_state, vel_conv, err_conv, collision=collision, **kwargs)
         self.gtimer.toc("start set transition")
         if print_expression:
             print(full_context)
@@ -730,7 +740,7 @@ class ConstraintGraph:
         self.add_node_queue_leafs(SearchNode(idx=0, state=initial_state, parents=[], leafs=[],
                                               leafs_P=[ConstraintGraph.WEIGHT_DEFAULT] * len(
                                                   self.valid_node_dict[initial_state.node])))
-        self.__search_loop(terminate_on_first, N_search, N_loop, False, display, dt_vis, verbose, print_expression, **kwargs)
+        self.__search_loop(terminate_on_first, N_search, N_loop, display, dt_vis, verbose, print_expression, **kwargs)
 
     @record_time
     def search_graph_mp(self, initial_state, goal_nodes,
@@ -755,7 +765,7 @@ class ConstraintGraph:
 
         self.proc_list = [Process(
             target=self.__search_loop,
-            args=(terminate_on_first, N_search, N_loop, True, False, dt_vis, verbose, print_expression),
+            args=(terminate_on_first, N_search, N_loop, False, dt_vis, verbose, print_expression),
             kwargs=kwargs) for id_agent in range(N_agents)]
         for proc in self.proc_list:
             proc.start()
@@ -764,7 +774,7 @@ class ConstraintGraph:
             proc.join()
 
     @record_time
-    def __search_loop(self, terminate_on_first, N_search, N_loop, lock=False,
+    def __search_loop(self, terminate_on_first, N_search, N_loop,
                       display=False, dt_vis=None, verbose=False, print_expression=False, **kwargs):
         loop_counter = 0
         while self.snode_counter.value < N_search and loop_counter < N_loop and not self.stop_now.value:
@@ -774,7 +784,7 @@ class ConstraintGraph:
                 break
             snode, from_state, to_state = self.snode_queue.get()
             self.que_lock.release()
-            e, new_state, succ = self.simulate_transition(from_state, to_state, display=display, dt_vis=dt_vis, lock=lock,
+            e, new_state, succ = self.simulate_transition(from_state, to_state, display=display, dt_vis=dt_vis,
                                                           print_expression=print_expression, **kwargs)
             ret = False
             if succ:
@@ -931,7 +941,8 @@ class ConstraintGraph:
                                                                        axis=axis) for axis in "xyz"],
                                    inp=obs_geo.get_offset_tf()[:3, 3].tolist()))
             obs_geo.tf_name = "T_{name}_obs".format(name=obs_geo.name)
-        obs_col_text = obs_tf_text + make_collision_constraints(avoiding_coltems, obs_box, soft=soft, K=K)
+        obs_col_text = obs_tf_text + make_collision_constraints(avoiding_coltems, obs_box, soft=soft, K=K,
+                                                               min_distance_map=self.min_distance_map)
         return obs_col_text, kwargs_obs
 
     def init_online_etasl(self, from_state, to_state, T_step, control_freq=DEFAULT_TRAJ_FREQUENCY, playback_rate=0.5,

@@ -67,10 +67,6 @@ class XacroCustomizer:
         urdf_content = subprocess.check_output(['xacro', self.xacro_path])
         self.urdf_content = URDF.from_xml_string(urdf_content)
         for joint in self.urdf_content.joints:
-#             if joint.name in vel_limit_dict:
-#                 joint.limit.velocity = str(vel_limit_dict[joint.name])
-#             if joint.name in effort_limit_dict:
-#                 joint.limit.effort = str(effort_limit_dict[joint.name])
             if any([jkey in joint.name for jkey in joint_fix_dict.keys()]):
                 lim_dir = [v for k,v in joint_fix_dict.items() if k in joint.name][0]
                 joint.type='fixed'
@@ -336,3 +332,69 @@ def refine_meshes():
 
     np.save('./geometry_tmp/'+meshname+'.npy', val)
 
+
+
+from xml.dom import minidom
+from .joint_utils import *
+import os
+
+def write_srdf(robot_names, binder_links, link_names, joint_names, urdf_content, urdf_path):
+    root = minidom.Document()
+
+    xml = root.createElement('robot')
+    xml.setAttribute('name', urdf_content.name)
+
+    for rname in robot_names:
+        grp = root.createElement("group")
+        grp.setAttribute('name', rname)
+
+        chain = root.createElement("chain")
+        chain.setAttribute('base_link', [lname for lname in link_names if rname in lname and urdf_content.joint_map[get_parent_joint(lname)].parent == "world"][0])
+        chain.setAttribute('tip_link', [bl_name for bl_name in binder_links if rname in bl_name][0])
+        grp.appendChild(chain)
+        xml.appendChild(grp)
+
+        grp_stat = root.createElement("group_state")
+        grp_stat.setAttribute('name', "all-zeros")
+        grp_stat.setAttribute('group', rname)
+
+        for jname in joint_names:
+            if rname in jname:
+                jstat = root.createElement("joint")
+                jstat.setAttribute('name', jname)
+                jstat.setAttribute('value', "0")
+                grp_stat.appendChild(jstat)
+
+        vjoint_elems = [joint for joint in urdf_content.joints if joint.type == "fixed" and rname in joint.name]
+        for vjoint_elem in vjoint_elems:
+            vjoint = root.createElement("virtual_joint")
+            vjoint.setAttribute('name', vjoint_elem.name)
+            vjoint.setAttribute('type', vjoint_elem.type)
+            vjoint.setAttribute('parent_frame', vjoint_elem.parent)
+            vjoint.setAttribute('child_link', vjoint_elem.child)
+            xml.appendChild(vjoint)
+
+        xml.appendChild(grp_stat)
+
+    for idx1 in range(len(link_names)):
+        lname1 = link_names[idx1]
+        for lname2 in link_names[idx1:]:
+            if lname1 == lname2 or lname1 == "world" or lname2 == "world":
+                continue
+            if lname2 in get_adjacent_links(lname1):
+                dcol = root.createElement("disable_collisions")
+                dcol.setAttribute('link1', lname1)
+                dcol.setAttribute('link2', lname2 )
+                dcol.setAttribute('reason', 'Adjacent')
+                xml.appendChild(dcol)
+
+
+    root.appendChild(xml)
+
+    xml_str = root.toprettyxml(indent ="\t")
+
+    save_path_file = urdf_path.replace("urdf", "srdf")
+
+    with open(save_path_file, "w") as f:
+        f.write(xml_str)
+    return save_path_file
