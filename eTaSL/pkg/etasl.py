@@ -130,7 +130,7 @@ def simulate(etasl, initial_jpos, joint_names = None, initial_jpos_dot=None,
         print('unknown eTaSL exception: {}'.format(str(e)))
         
 def get_full_context(init_text, additional_constraints="", vel_conv="1E-2", err_conv="1E-5"):
-    
+
     vel_statement=""
     for i in range(len(JOINT_NAMES_SIMULATION)):
         vel_statement += 'abs(previous_velocity(time, robot_jval[{index}]))+'\
@@ -150,7 +150,7 @@ def get_full_context(init_text, additional_constraints="", vel_conv="1E-2", err_
             actionname ="exit",
             argument = "converged"
         }}
-        """.format(vel_conv=vel_conv)
+        """.format(vel_conv=0)
     if "error_target" in additional_constraints:
         monitor_string += \
             """
@@ -163,6 +163,19 @@ def get_full_context(init_text, additional_constraints="", vel_conv="1E-2", err_
                 argument = "e_arrived"
             }}
             """.format(err_conv=err_conv)
+        monitor_string += \
+            """
+            vel_error = maximum(1-time, abs(previous_velocity(time, error_target)))
+            ctx:setOutputExpression("vel_error",vel_error)
+            Monitor {{
+                context = ctx,
+                name = "converged",
+                expr   = vel_error/error_target,
+                lower = {vel_conv},
+                actionname ="exit",
+                argument = "converged"
+            }}
+            """.format(vel_conv=vel_conv)
     return init_text + "\n" + additional_constraints + "\n" + monitor_string
     
 def do_simulate(etasl, **kwargs):

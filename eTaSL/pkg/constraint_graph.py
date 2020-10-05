@@ -791,6 +791,7 @@ class ConstraintGraph:
             snode, from_state, to_state = self.snode_queue.get()
             self.search_counter.value = self.search_counter.value + 1
             self.que_lock.release()
+            self.gtimer.tic("simulate_transition")
             go_test = True
             if from_state.node == to_state.node:
                 if self.swept_volume_test_jmotion:
@@ -816,12 +817,14 @@ class ConstraintGraph:
                 self.snode_dict[snode.idx] = snode
                 if self.check_goal(snode_new.state.node, self.goal_nodes):
                     ret = True
+            simtime = self.gtimer.toc("simulate_transition")
             if verbose:
-                print('\n{} - Goal cost:{}->{} / Init cost:{}->{} / branching: {}->{} ({} s, err: {})'.format(
+                print('\n{} - Goal cost:{}->{} / Init cost:{}->{} / branching: {}->{} ({} s, steps/err: {}({} ms)/{})'.format(
                     "success" if succ else "fail",
                     int(self.goal_cost_dict[from_state.node]), int(self.goal_cost_dict[to_state.node]),
                     int(self.init_cost_dict[from_state.node]), int(self.init_cost_dict[to_state.node]),
                     snode.idx, snode_new.idx if succ else "", round(timer.time() - self.t0, 2),
+                    len(e.POS) if hasattr(e, 'POS') else 'nan', simtime,
                     e.error if hasattr(e, 'error') else 'nan'))
                 print('node: {}->{}'.format(from_state.node, to_state.node))
                 print('=' * 150)
