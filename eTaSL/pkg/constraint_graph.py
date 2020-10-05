@@ -25,6 +25,7 @@ from nrmkindy.indy_script import *
 from .indy_repeater import indytraj_client
 from etasl_py.etasl import array_to_dict,dict_to_array
 from .environment_builder import *
+from .gjk import *
 
 
 INDY_GRPC = False
@@ -406,11 +407,11 @@ class ConstraintGraph:
             pos_start = from_state.Q
             self.set_object_state(from_state)
 
-        self.gtimer.tic("start get_tf_text")
+        self.gtimer.tic("get_tf_text")
         tf_text = self.fixed_tf_text + get_tf_text(self.movable_tf_list)
-        self.gtimer.toc("start get_tf_text")
+        self.gtimer.toc("get_tf_text")
 
-        self.gtimer.tic("start get_collision_text")
+        self.gtimer.tic("get_collision_text")
         if collision:
             col_text = self.fixed_collision_text + \
                        make_collision_constraints(self.fixed_collision_items_list, self.movable_collision_items_list,
@@ -419,9 +420,9 @@ class ConstraintGraph:
                                                                    min_distance_map=self.min_distance_map)
         else:
             col_text = ""
-        self.gtimer.toc("start get_collision_text")
+        self.gtimer.toc("get_collision_text")
 
-        self.gtimer.tic("start make_constraints")
+        self.gtimer.tic("make_constraints")
         additional_constraints = ""
         binding_list = []
         if to_state.node is not None:
@@ -431,13 +432,14 @@ class ConstraintGraph:
                     binding_list += [bd1]
                 else:
                     assert bd0[1] == bd1[1] , "impossible transition"
-        self.gtimer.toc("start make_constraints")
+        self.gtimer.toc("make_constraints")
 
         if additional_constraints=="" and to_state.Q is not None and np.sum(np.abs(np.subtract(to_state.Q,from_state.Q)))>1e-2:
-            self.gtimer.tic("start make_joint_constraints")
+            self.gtimer.tic("make_joint_constraints")
             additional_constraints=make_joint_constraints(joint_names=self.joint_names)
             kwargs_new = dict(inp_lbl=['target_%s'%jname for jname in self.joint_names],
                                        inp= list(to_state.Q))
+
             for k, v in kwargs_new.items():
                 if k in kwargs:
                     if isinstance(v, list) and isinstance(v, list):
@@ -449,7 +451,7 @@ class ConstraintGraph:
                 else:
                     kwargs[k] = v
 
-            self.gtimer.toc("start make_joint_constraints")
+            self.gtimer.toc("make_joint_constraints")
         return get_full_context(self.init_text + self.item_text + tf_text+col_text, 
                                 additional_constraints, vel_conv, err_conv), pos_start, kwargs, binding_list
 
@@ -724,16 +726,18 @@ class ConstraintGraph:
         return snode
 
     @record_time
-    def search_graph(self, initial_state, goal_nodes,
+    def search_graph(self, initial_state, goal_nodes, swept_volume_test_jmotion = True,
                      tree_margin=0, depth_margin=0, joint_motion_num=10,
                      terminate_on_first=True, N_search=100, N_loop=1000,
                      display=False, dt_vis=None, verbose=False, print_expression=False, **kwargs):
         self.joint_motion_num = joint_motion_num
+        self.swept_volume_test_jmotion = swept_volume_test_jmotion
         self.t0 = timer.time()
         self.DOF = len(initial_state.Q)
         self.init_search(initial_state, goal_nodes, tree_margin, depth_margin)
 
         self.snode_counter = self.manager.Value('i', 0)
+        self.search_counter = self.manager.Value('i', 0)
         self.stop_now =  self.manager.Value('i', 0)
         self.snode_dict = {}
         self.snode_queue = PriorityQueue()
@@ -743,7 +747,7 @@ class ConstraintGraph:
         self.__search_loop(terminate_on_first, N_search, N_loop, display, dt_vis, verbose, print_expression, **kwargs)
 
     @record_time
-    def search_graph_mp(self, initial_state, goal_nodes,
+    def search_graph_mp(self, initial_state, goal_nodes, swept_volume_test_jmotion = True,
                         tree_margin=0, depth_margin=0, joint_motion_num=10,
                         terminate_on_first=True, N_search=100, N_loop=1000, N_agents=8,
                         display=False, dt_vis=None, verbose=False, print_expression=False, **kwargs):
@@ -751,11 +755,13 @@ class ConstraintGraph:
             print("Cannot display motion in multiprocess")
 
         self.joint_motion_num = joint_motion_num
+        self.swept_volume_test_jmotion = swept_volume_test_jmotion
         self.t0 = timer.time()
         self.DOF = len(initial_state.Q)
         self.init_search(initial_state, goal_nodes, tree_margin, depth_margin)
 
         self.snode_counter = self.manager.Value('i', 0)
+        self.search_counter = self.manager.Value('i', 0)
         self.stop_now =  self.manager.Value('i', 0)
         self.snode_dict = self.manager.dict()
         self.snode_queue = self.manager.PriorityQueue()
@@ -783,9 +789,23 @@ class ConstraintGraph:
             if self.snode_queue.empty():
                 break
             snode, from_state, to_state = self.snode_queue.get()
+            self.search_counter.value = self.search_counter.value + 1
             self.que_lock.release()
-            e, new_state, succ = self.simulate_transition(from_state, to_state, display=display, dt_vis=dt_vis,
-                                                          print_expression=print_expression, **kwargs)
+            go_test = True
+            if from_state.node == to_state.node:
+                if self.swept_volume_test_jmotion:
+                    self.gtimer.tic("swept_volume_test")
+                    go_test = swept_volume_test(from_state.Q, to_state.Q, self.fixed_collision_items_list+self.movable_collision_items_list,
+                                      self.joint_names, self.urdf_content)
+                    self.gtimer.toc("swept_volume_test")
+            if go_test:
+                e, new_state, succ = self.simulate_transition(from_state, to_state, display=display, dt_vis=dt_vis,
+                                                              print_expression=print_expression, **kwargs)
+            else:
+                print("====================================")
+                print("===== cut by swept volume test =====")
+                print("====================================")
+                e, new_state, succ = None, to_state, False
             ret = False
             if succ:
                 snode_new = SearchNode(idx=0, state=new_state, parents=snode.parents + [snode.idx],
@@ -808,6 +828,9 @@ class ConstraintGraph:
             if terminate_on_first and ret:
                 self.stop_now.value = 1
                 break
+        print("=====================")
+        print("===== terminate =====")
+        print("=====================")
 
     @record_time
     def find_schedules(self):

@@ -1,54 +1,4 @@
-
-# coding: utf-8
-
-# In[2]:
-
-
-from pkg.global_config import *
-import ctypes
-from ctypes import *
-
-
-# In[3]:
-
-
-clib = ctypes.cdll.LoadLibrary(os.path.join(TF_GMT_ETASL_DIR, "openGJK/lib/libopenGJKlib.so"))
-clib.gjk_flat_batch.restype = ctypes.c_double
-
-
-# In[4]:
-
-
-OBJ_MAX = 100
-VTX_MAX = 20
-COL_MAX = 1000
-
-
-# In[5]:
-
-
-MAX_VTX_TYPE = c_double * 3 * VTX_MAX
-MAX_VTX_ARR_TYPE = c_double * (VTX_MAX * 3)
-IDX_ARR_TYPE = c_int * COL_MAX
-DIST_ARR_TYPE = c_double * COL_MAX
-
-class bd(Structure):
-    _fields_ = [("numpoints", c_int),
-                ("coord", POINTER(c_void_p)),
-                ("s", c_double*3),
-               ]
-
-class bd_flt(Structure):
-    _fields_ = [("numpoints", c_int),
-                ("vtx_flat", MAX_VTX_ARR_TYPE)
-               ]
-    
-BD_ARR_TYPE = bd * OBJ_MAX
-BD_FLT_ARR_TYPE = bd_flt * OBJ_MAX
-
-
-# In[6]:
-
+from pkg.gjk import *
 
 points = []
 for i in range(2):
@@ -57,47 +7,31 @@ for i in range(2):
             points.append((i,j,k))
 points = np.array(points)
 
-
-# In[7]:
-
-
 points1 = points.copy()
 points2 = points + 2
 
-
-# In[8]:
-
-
-bd_flt_arr = BD_FLT_ARR_TYPE()
-
-
-# In[9]:
-
-
 points_arr = [points1, points2]
 
+vtx_list = np.load("vtx_list.npy", allow_pickle=True).tolist()
+radius_list = np.load("radius_list.npy")
+idx1_list = np.load("idx1_list.npy")
+idx2_list = np.load("idx2_list.npy")
 
-# In[10]:
+to_idx = len(vtx_list)
+vtx_list_to = vtx_list[:to_idx]
+idx1_list_to = [idx1 for idx1, idx2 in zip(idx1_list, idx2_list) if idx1<to_idx and idx2<to_idx]
+idx2_list_to = [idx2 for idx1, idx2 in zip(idx1_list, idx2_list) if idx1<to_idx and idx2<to_idx]
 
+# def assign_points_c_bd(bd_flt_arr, points_arr):
+bd_flt_arr, points_arr = bd_flt_arr, vtx_list_to
+for bd_flt, points in zip(bd_flt_arr, points_arr):
+    bd_flt.numpoints = len(points)
+    bd_flt.vtx_flat = MAX_VTX_ARR_TYPE(*points.flatten().tolist())
 
-def assign_points_c_bd(bd_flt_arr, points_arr):
-    for bd_flt, points in zip(bd_flt_arr, points_arr):
-        bd_flt.numpoints = len(points)
-        bd_flt.vtx_flat = MAX_VTX_ARR_TYPE(*points.flatten().tolist())
-
-
-# In[11]:
-
-
-assign_points_c_bd(bd_flt_arr, points_arr)
-
-
-# In[16]:
-
-
-len_col = len(points_arr)
-dist_arr = (c_double*len_col)()
-out = clib.gjk_flat_batch(bd_flt_arr, c_int(len_col), 
-                   (c_int*len_col)(*[0]), (c_int*len_col)(*[1]), 
-                    c_int(1), cast(dist_arr, POINTER(c_double)))
-
+points_arr, idx1, idx2 = vtx_list_to, idx1_list_to, idx2_list_to
+len_obj = len(points_arr)
+len_col = len(idx1)
+dist_arr = (c_double * len_col)()
+clib.gjk_flat_batch(bd_flt_arr, c_int(len_obj),
+                    (c_int * len_col)(*idx1), (c_int * len_col)(*idx2),
+                    c_int(len_col), cast(dist_arr, POINTER(c_double)))

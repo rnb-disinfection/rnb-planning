@@ -129,6 +129,43 @@ def make_oriented_point_constraint(framer1, framer2, name, make_error=True, poin
     ori_constraint = make_orientation_constraint(framer1, framer2, name=constraint_name_ori, constraint_name=constraint_name_ori, make_error=False)
     return pair_constraint + "\n" + ori_constraint + error_statement
 
+
+def make_colliding_list(geometry_items1, geometry_items2=None, min_distance_map=None, link_adjacency_map_ext=None):
+    idx1 = 0
+    collision_list = []
+    collision_ext_list = []
+    for ctem1 in geometry_items1:
+        idx1 += 1
+        if geometry_items2 is None:
+            geometry_items_tmp = geometry_items1[idx1:]
+        else:
+            geometry_items_tmp = geometry_items2
+
+        for ctem2 in geometry_items_tmp:
+            if ctem2.link_name in ctem1.adjacent_links or ctem1.link_name in ctem2.adjacent_links:
+                continue
+            else:
+                if min_distance_map is not None:
+                    min_link_dist = min_distance_map[ctem1.link_name][ctem2.link_name]
+                    min_col_dist = min_link_dist - (np.linalg.norm(ctem1.get_off_max()) + np.linalg.norm(ctem2.get_off_max()))
+                    if min_col_dist > 0:
+                        continue
+                collision_list.append((ctem1, ctem2))
+                if ctem2.link_name not in link_adjacency_map_ext[ctem1.link_name] and \
+                        ctem1.link_name not in link_adjacency_map_ext[ctem2.link_name]:
+                    collision_ext_list.append((ctem1, ctem2))
+    if link_adjacency_map_ext is not None:
+        return collision_list, collision_ext_list
+    return collision_list
+
+
+def make_collision_constraints_listed(collision_list, soft=False, K="K"):
+    constraint_text = "\n"
+    for ctuple in collision_list:
+        constraint_text += make_distance_bound_constraint(ctuple[0], ctuple[1], soft=soft, K=K)
+    return constraint_text
+
+
 def make_collision_constraints(geometry_items1, geometry_items2=None, soft=False, K="K", min_distance_map=None):
     constraint_text = "\n"
     idx1 = 0

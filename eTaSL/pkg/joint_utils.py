@@ -5,6 +5,7 @@ from collections import defaultdict
 
 parent_joint_map = {}
 link_adjacency_map = {}
+link_adjacency_map_ext = {}
 mindist_dict = defaultdict(lambda: dict())
 
 def get_root_chain(lname, urdf_content):
@@ -87,9 +88,20 @@ def get_parent_joint(link_name):
     return parent_joint_map[link_name]
 
 def set_link_adjacency_map(urdf_content):
-    global link_adjacency_map
+    global link_adjacency_map, link_adjacency_map_ext
+    link_adjacency_map = {}
     for lname in urdf_content.link_map.keys():
         link_adjacency_map[lname] = __get_adjacent_links(lname, urdf_content)
+    link_adjacency_map_ext = {}
+    for k, v in link_adjacency_map.items():
+        adj_list = []
+        for k2 in v:
+            adj_list += link_adjacency_map[k2]
+        link_adjacency_map_ext[k] = list(set(adj_list))
+
+
+def get_link_adjacency_map_ext():
+    return link_adjacency_map_ext
 
 def __get_adjacent_links(link_name, urdf_content, adjacent_links=None, propagate=True):
     if adjacent_links is None:
@@ -108,6 +120,7 @@ def __get_adjacent_links(link_name, urdf_content, adjacent_links=None, propagate
             adjacent_links = __get_adjacent_links(v.parent, urdf_content, adjacent_links, propagate and v.type == 'fixed')
     return list(set(adjacent_links))
 
+
 def get_tf(to_link, joint_dict, urdf_content, from_link='world'):
     T = np.identity(4)
     link_cur = to_link
@@ -124,6 +137,30 @@ def get_tf(to_link, joint_dict, urdf_content, from_link='world'):
         T = matmul_series(Toff,T_J,T)
         link_cur = parent_joint.parent
     return T
+
+
+def get_tf_full(link_end, joint_dict, urdf_content, from_link='world'):
+    T = np.identity(4)
+    T_dict = {}
+    link_cur = link_end
+    while link_cur != from_link:
+        parent_joint = urdf_content.joint_map[get_parent_joint(link_cur)]
+        if parent_joint.type == 'revolute':
+            T_J = SE3(Rot_axis(np.where(parent_joint.axis)[0] + 1, joint_dict[parent_joint.name]), [0,0,0])
+        elif parent_joint.type == 'fixed':
+            T_J = np.identity(4)
+        else:
+            raise NotImplementedError
+        Toff = SE3(Rot_rpy(parent_joint.origin.rpy), parent_joint.origin.xyz)
+        # T = np.matmul(Toff, np.matmul(T_J,T))
+#         T = matmul_series(Toff,T_J,T)
+        Toff_cur = np.matmul(Toff,T_J)
+        for k in T_dict.keys():
+            T_dict[k] = np.matmul(Toff_cur, T_dict[k])
+        if link_cur not in T_dict:
+            T_dict[link_cur] = Toff_cur
+        link_cur = parent_joint.parent
+    return T_dict
 
 def get_transformation(link_name):
     return "T_{link_name}".format(link_name=link_name)

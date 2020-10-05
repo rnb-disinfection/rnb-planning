@@ -10,3 +10,13 @@ def plot_band(plt, X, Y,title=None, legend=True):
         plt.title(title)
     if legend:
         plt.legend()
+
+# import matplotlib.pyplot as plt
+# import mpl_toolkits.mplot3d as mplot3d
+#
+# fig = plt.figure(figsize=(15, 5))
+#
+# sub = fig.add_subplot(1, 1, 1, projection="3d")
+# x, y, z = np.transpose(BOX_DEFAULT)
+# sub.plot(x, y, z, '.')
+# sub.view_init(0, 90)

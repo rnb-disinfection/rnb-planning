@@ -7,7 +7,9 @@ from .rotation_utils import *
 from .joint_utils import get_tf, get_transformation, get_adjacent_links
 from scipy.spatial.transform import Rotation
 
-
+POINT_DEFAULT = np.array([[0,0,0]])
+SEG_DEFAULT = np.array([[0,0,1.0],[0,0,-1.0]])/2
+BOX_DEFAULT = np.array([[[(i,j,k) for k in range(2)] for j in range(2)] for i in range(2)], dtype=np.float).reshape((-1,3))-0.5
 
 class GeometryItem(object):
     GLOBAL_GEO_LIST = []
@@ -94,6 +96,9 @@ class GeometryItem(object):
         Roff, Poff = Toff[:3, :3], Toff[:3, 3]
         return np.abs(Poff) + np.abs(np.matmul(Roff, self.get_scale()))/2
 
+    def get_vertice_radius(self):
+        raise NotImplementedError
+
         
 class GeoSphere(GeometryItem):
     def __init__(self, center, radius, **kwargs):
@@ -113,6 +118,9 @@ class GeoSphere(GeometryItem):
     def get_scale(self):
         return [self.radius*2, self.radius*2, self.radius*2]
 
+    def get_vertice_radius(self):
+        return POINT_DEFAULT, self.radius
+
         
 class GeoBox(GeometryItem):
     def __init__(self, center, BLH, orientation=(0,0,0), **kwargs):
@@ -131,6 +139,9 @@ class GeoBox(GeometryItem):
         
     def get_scale(self):
         return self.BLH
+
+    def get_vertice_radius(self):
+        return np.multiply(BOX_DEFAULT, self.BLH), 0
 
 
 class GeoSegment(GeometryItem):
@@ -169,6 +180,9 @@ class GeoSegment(GeometryItem):
     def get_scale(self):
         return (self.radius*2, self.radius*2, self.length)
 
+    def get_vertice_radius(self):
+        return np.multiply(SEG_DEFAULT, self.length), self.radius
+
         
 class GeoMesh(GeometryItem):
     def __init__(self, uri, BLH, scale=(1,1,1), center=(0,0,0), orientation_mat=np.identity(3), **kwargs):
@@ -185,6 +199,9 @@ class GeoMesh(GeometryItem):
         
     def get_scale(self):
         return self.scale
+
+    def get_vertice_radius(self):
+        return np.multiply(BOX_DEFAULT, self.scale), 0
 
 class GeoPointer:
     def __init__(self, _object, direction=None):
