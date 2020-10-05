@@ -44,7 +44,8 @@ from .geometry import *
 from .joint_utils import *
 from .constraint_base import *
 
-def swept_volume_test(Q1, Q2, collision_items, joint_names, urdf_content):
+def swept_volume_test(Q1, Q2, collision_items, joint_names, urdf_content,
+                      fixed_collision_items=None, fixed_col_list=[], fixed_col_swept_list=[]):
     vtx1_list = []
     vtx2_list = []
     vtx_swept_list = []
@@ -83,8 +84,16 @@ def swept_volume_test(Q1, Q2, collision_items, joint_names, urdf_content):
     # gtimer.toc("vtx")
 
     # gtimer.tic("col_list")
-    col_list, col_swept_list = make_colliding_list(collision_items, min_distance_map=get_min_distance_map(),
+    colllision_items_2 = None
+    if fixed_collision_items is not None:
+        colllision_items_2 = fixed_collision_items+collision_items
+
+    col_list, col_swept_list = make_colliding_list(collision_items, colllision_items_2,
+                                                   min_distance_map=get_min_distance_map(),
                                                    link_adjacency_map_ext=get_link_adjacency_map_ext())
+    col_list += fixed_col_list
+    col_swept_list += fixed_col_swept_list
+
     idx1_list, idx2_list, dcut_list = [], [], []
     for col in col_list:
         idx1 = GeometryItem.GLOBAL_GEO_LIST.index(col[0])

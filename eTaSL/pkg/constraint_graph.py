@@ -209,6 +209,11 @@ class ConstraintGraph:
         self.fixed_tf_text = get_tf_text(self.fixed_tf_list)
         self.fixed_collision_text = make_collision_constraints(self.fixed_collision_items_list,
                                                                min_distance_map=self.min_distance_map)
+
+        self.fixed_col_list, self.fixed_col_swept_list = \
+            make_colliding_list(self.fixed_collision_items_list,
+                                min_distance_map=get_min_distance_map(),
+                                link_adjacency_map_ext=get_link_adjacency_map_ext())
         self.show_pose(np.zeros(len(self.joint_names)))
 
     @record_time
@@ -726,7 +731,7 @@ class ConstraintGraph:
         return snode
 
     @record_time
-    def search_graph(self, initial_state, goal_nodes, swept_volume_test_jmotion = True,
+    def search_graph(self, initial_state, goal_nodes, swept_volume_test_jmotion = False,
                      tree_margin=0, depth_margin=0, joint_motion_num=10,
                      terminate_on_first=True, N_search=100, N_loop=1000,
                      display=False, dt_vis=None, verbose=False, print_expression=False, **kwargs):
@@ -747,7 +752,7 @@ class ConstraintGraph:
         self.__search_loop(terminate_on_first, N_search, N_loop, display, dt_vis, verbose, print_expression, **kwargs)
 
     @record_time
-    def search_graph_mp(self, initial_state, goal_nodes, swept_volume_test_jmotion = True,
+    def search_graph_mp(self, initial_state, goal_nodes, swept_volume_test_jmotion = False,
                         tree_margin=0, depth_margin=0, joint_motion_num=10,
                         terminate_on_first=True, N_search=100, N_loop=1000, N_agents=8,
                         display=False, dt_vis=None, verbose=False, print_expression=False, **kwargs):
@@ -796,8 +801,12 @@ class ConstraintGraph:
             if from_state.node == to_state.node:
                 if self.swept_volume_test_jmotion:
                     self.gtimer.tic("swept_volume_test")
-                    go_test = swept_volume_test(from_state.Q, to_state.Q, self.fixed_collision_items_list+self.movable_collision_items_list,
-                                      self.joint_names, self.urdf_content)
+                    go_test = swept_volume_test(from_state.Q, to_state.Q, self.movable_collision_items_list,
+                                                self.joint_names, self.urdf_content,
+                                                fixed_collision_items=self.fixed_collision_items_list,
+                                                fixed_col_list=self.fixed_col_list,
+                                                fixed_col_swept_list=self.fixed_col_swept_list
+                                                )
                     self.gtimer.toc("swept_volume_test")
             if go_test:
                 e, new_state, succ = self.simulate_transition(from_state, to_state, display=display, dt_vis=dt_vis,

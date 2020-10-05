@@ -7,8 +7,9 @@ from pyKinectAzure import pyKinectAzure, _k4a
 import cv2
 
 from cv2 import aruco
-from pkg.utils import *
-from pkg.rotation_utils import *
+from .utils import *
+from .rotation_utils import *
+from .constants import *
 from scipy.spatial.transform import Rotation
 import time
 
@@ -161,7 +162,7 @@ class ObjectMarker:
         self.corners = np.matmul(self.__corners,np.transpose(Toff))[:, :3]
         
 def get_object_pose_dict(color_image, aruco_map, dictionary, cameraMatrix, distCoeffs):
-    corners, ids, rejectedImgPoints = aruco.detectMarkers(color_image, dictionary)
+    corners, ids, rejectedImgPoints = aruco.detectMarkers(color_image, dictionary, parameters=aruco_param)
     if ids is None:
         return {}, {}
     corner_dict = {}

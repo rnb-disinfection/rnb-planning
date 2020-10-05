@@ -1,10 +1,11 @@
-from pkg.realsense import *
-from pkg.kinect import *
+from .realsense import *
+from .kinect import *
 
 from scipy.spatial.transform import Rotation
-from pkg.rotation_utils import *
-from pkg.utils import *
-from pkg.global_config import *
+from .rotation_utils import *
+from .utils import *
+from .global_config import *
+from .constants import aruco_param
 import autograd.numpy as np
 from autograd.numpy import linalg
 
@@ -47,8 +48,8 @@ def calibrate_stereo(aruco_map, dictionary, N_trial=5):
         rs_config_res = (rs_camK, np.zeros_like(kn_config[1]))
         rs_img_res = cv2.resize(rs_img, imageSize)
 
-        kn_corners, kn_ids, kn_rejectedImgPoints = aruco.detectMarkers(kn_img, dictionary)
-        rs_corners, rs_ids, rs_rejectedImgPoints = aruco.detectMarkers(rs_img_res, dictionary)
+        kn_corners, kn_ids, kn_rejectedImgPoints = aruco.detectMarkers(kn_img, dictionary, parameters=aruco_param)
+        rs_corners, rs_ids, rs_rejectedImgPoints = aruco.detectMarkers(rs_img_res, dictionary, parameters=aruco_param)
 
         kn_corner_dict = {k[0]: v[0] for k, v in zip(kn_ids, kn_corners)}
         rs_corner_dict = {k[0]: v[0] for k, v in zip(rs_ids, rs_corners)}
@@ -168,8 +169,8 @@ def get_object_pose_dict_stereo_triangulate_error_mininize(aruco_map, dictionary
     kn_img = get_kn_image()
     rs_img = get_rs_image()
 
-    kn_corners, kn_ids, kn_rejectedImgPoints = aruco.detectMarkers(kn_img, dictionary)
-    rs_corners, rs_ids, rs_rejectedImgPoints = aruco.detectMarkers(rs_img, dictionary)
+    kn_corners, kn_ids, kn_rejectedImgPoints = aruco.detectMarkers(kn_img, dictionary, parameters=aruco_param)
+    rs_corners, rs_ids, rs_rejectedImgPoints = aruco.detectMarkers(rs_img, dictionary, parameters=aruco_param)
 
     projMatr1 = np.matmul(kn_config[0], np.identity(4)[:3])
     projMatr2 = np.matmul(rs_config[0], T_c21[:3])
