@@ -97,7 +97,7 @@ def get_simulation(init_text):
     return etasl
 
 def simulate(etasl, initial_jpos, joint_names = None, initial_jpos_dot=None,
-             inp_lbl=[], inp=[], N=100, dt=0.02, cut_dot=True):
+             inp_lbl=[], inp=[], N=100, dt=0.02, cut_dot=False):
     if joint_names is None:
         joint_names = JOINT_NAMES_SIMULATION
     if initial_jpos_dot is None:
@@ -118,14 +118,17 @@ def simulate(etasl, initial_jpos, joint_names = None, initial_jpos_dot=None,
                     etasl.VEL = integrate(etasl.VEL[:idx_end+1,1::2], dt)
                     etasl.POS = integrate(etasl.VEL, dt, initial_jpos)
                 else:
-                    etasl.POS = etasl.POS[:idx_end+1]
-                    etasl.VEL = etasl.VEL[:idx_end+1]
+                    etasl.POS = etasl.POS[:idx_end+1, ::2]
+                    etasl.VEL = etasl.VEL[:idx_end+1, ::2]
                 etasl.TIME = etasl.TIME[:idx_end+1]
                 etasl.OUTP = etasl.OUTP[:idx_end+1]
             return
         if cut_dot:
             etasl.VEL = integrate(etasl.VEL[:,1::2], dt)
             etasl.POS = integrate(etasl.VEL, dt, initial_jpos)
+        else:
+            etasl.POS = etasl.POS[:, ::2]
+            etasl.VEL = etasl.VEL[:, ::2]
     except Exception as e:
         print('unknown eTaSL exception: {}'.format(str(e)))
         

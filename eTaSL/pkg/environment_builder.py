@@ -167,8 +167,9 @@ def update_geometries(onames, objectPose_dict_mv):
 
 from joint_utils import *
 
-def match_point_binder(graph, initial_state, Q0, objectPose_dict_mv):
+def match_point_binder(graph, initial_state, objectPose_dict_mv):
     graph.set_object_state(initial_state)
+    Q0 = initial_state.Q
     Q0dict = joint_list2dict(Q0, graph.joint_names)
     binder_T_dict = {}
     binder_dir_dict = {}
@@ -196,6 +197,8 @@ def match_point_binder(graph, initial_state, Q0, objectPose_dict_mv):
             direction_cur = np.matmul(Tpt[:3,:3], point_dir[1])
 
             for kbd, Tbd in binder_T_dict.items():
+                if kobj == kbd:
+                    continue
                 point_diff = np.matmul(SE3_inv(Tbd), SE3(np.identity(3), point_cur))[:3,3]
                 point_diff_norm = np.linalg.norm(np.maximum(np.abs(point_diff) - binder_scale_dict[kbd],0))
                 dif_diff_norm = np.linalg.norm(direction_cur - binder_dir_dict[kbd])
@@ -206,4 +209,3 @@ def match_point_binder(graph, initial_state, Q0, objectPose_dict_mv):
         kpt_pair_dict[kobj] = min_point
 #         print("{} - {} ({})".format(kobj, min_point, min_val))
     return kpt_pair_dict
-

@@ -463,7 +463,7 @@ class ConstraintGraph:
     @record_time
     def simulate_transition(self, from_state=None, to_state=None, display=False, dt_vis=None, error_skip=1e-4,
                             collision=True, vel_conv=1e-2, err_conv=1e-4, N=1, dt=1e-2, N_step=10,
-                            print_expression=False, **kwargs):
+                            print_expression=False, cut_dot=False, **kwargs):
         if dt_vis is None:
             dt_vis = dt/10
         self.gtimer = GlobalTimer.instance()
@@ -476,7 +476,7 @@ class ConstraintGraph:
         if not display:
             self.gtimer.tic("set_simulate fun")
             e = set_simulate(full_context, initial_jpos=np.array(pos_start), 
-                             N=N, dt=dt, **kwargs)
+                             N=N, dt=dt, cut_dot=cut_dot, **kwargs)
             self.gtimer.toc("set_simulate fun")
             self.gtimer.tic("post")
             if from_state is not None:
@@ -494,7 +494,7 @@ class ConstraintGraph:
             success = False
             e = get_simulation(full_context)
             for i_sim in range(int(N/N_step)):
-                e = do_simulate(e, initial_jpos=np.array(pos_start), N=N_step, dt=dt, **kwargs)
+                e = do_simulate(e, initial_jpos=np.array(pos_start), N=N_step, dt=dt, cut_dot=cut_dot, **kwargs)
                 if not hasattr(e, 'POS'):
                     break
                 pos_start = e.POS[-1]
@@ -1170,10 +1170,10 @@ class ConstraintGraph:
         xyz_cal, rvec_cal = T2xyzrvec(T_po_cal)
         return xyz_cam, rvec_cam, xyz_cal, rvec_cal, color_image, objectPose_dict, corner_dict, err_dict
 
-def get_goal_nodes(initial_state, obj_name, target_name, postfix="_p"):
+def get_goal_nodes(initial_node, obj_name, target_name, postfix="_p"):
     return [tuple([(opair[0], ppoint, target_name) \
                    if opair[0] == obj_name \
                    else opair \
-                   for opair in initial_state.copy().node]) \
+                   for opair in initial_node]) \
             for ppoint in [dvkey+postfix
                            for dvkey in DIR_VEC_DICT.keys()]]

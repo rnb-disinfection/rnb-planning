@@ -87,7 +87,7 @@ class indytraj_client(IndyDCPClient, Repeater):
                 break
 
     @connect_indy
-    def grasp(self, grasp, depth=0.007):
+    def grasp(self, grasp, depth=0.009):
         gstate = self.get_do()[self.indy_grasp_DO]
         if gstate != grasp:
             self.set_do(self.indy_grasp_DO, int(grasp))
