@@ -165,3 +165,45 @@ def update_geometries(onames, objectPose_dict_mv):
             Tg = get_T_rel("floor", gname, objectPose_dict_mv)
             gtem.set_offset_tf(Tg[:3,3], Tg[:3,:3])
 
+from joint_utils import *
+
+def match_point_binder(graph, initial_state, Q0, objectPose_dict_mv):
+    graph.set_object_state(initial_state)
+    Q0dict = joint_list2dict(Q0, graph.joint_names)
+    binder_T_dict = {}
+    binder_dir_dict = {}
+    binder_scale_dict = {}
+    for k,binder in graph.binder_dict.items():
+        binder_T = binder.object.get_tf(Q0dict)
+        binder_scale_dict[k] = binder.object.get_scale()
+        if binder.point is not None:
+            binder_T = np.matmul(binder_T, SE3(np.identity(3), binder.point))
+            binder_scale_dict[k] = 0
+        binder_T_dict[k] = binder_T
+        binder_dir_dict[k] = binder.direction
+
+    kpt_pair_dict = {}
+    for kobj, Tobj in objectPose_dict_mv.items():
+
+        min_val = 1e10
+        min_point = ""
+        if kobj not in graph.object_dict:
+            continue
+        for kpt, bd in graph.object_dict[kobj].action_points_dict.items():
+            Tpt = bd.object.get_tf(Q0dict)
+            point_dir = bd.point_dir if hasattr(bd, "point_dir") else bd.point_ori
+            point_cur = np.matmul(Tpt, list(point_dir[0])+[1])[:3]
+            direction_cur = np.matmul(Tpt[:3,:3], point_dir[1])
+
+            for kbd, Tbd in binder_T_dict.items():
+                point_diff = np.matmul(SE3_inv(Tbd), SE3(np.identity(3), point_cur))[:3,3]
+                point_diff_norm = np.linalg.norm(np.maximum(np.abs(point_diff) - binder_scale_dict[kbd],0))
+                dif_diff_norm = np.linalg.norm(direction_cur - binder_dir_dict[kbd])
+                bd_val_norm = point_diff_norm# + dif_diff_norm
+                if bd_val_norm < min_val:
+                    min_val = bd_val_norm
+                    min_point = kbd
+        kpt_pair_dict[kobj] = min_point
+#         print("{} - {} ({})".format(kobj, min_point, min_val))
+    return kpt_pair_dict
+
