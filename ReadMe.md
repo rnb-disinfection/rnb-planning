@@ -6,7 +6,9 @@
   sudo add-apt-repository ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install gcc-5 g++-5 gcc-5-multilib g++-5-multilib  
   ```
 * pip3
-  * apt-get install python3-pip && pip3 install --upgrade pip  
+  ```
+  apt-get install python3-pip && pip3 install --upgrade pip  
+  ```
 
 * cuda, cudnn: follow tensorflow recommendation - https://www.tensorflow.org/install/gpu?hl=ko#install_cuda_with_apt
   ```
@@ -35,29 +37,6 @@
       libnvinfer-dev=6.0.1-1+cuda10.1 \
       libnvinfer-plugin6=6.0.1-1+cuda10.1
   ```
-  * cuda compatibility chart - https://docs.nvidia.com/deeplearning/cudnn/support-matrix/index.html#cudnn-versions-804  
-  * Check latest cudnn & compatible cuda & nvidia driver version 
-    * sudo add-apt-repository ppa:graphics-drivers/ppa && sudo apt update  
-    * sudo apt-get install nvidia-driver-{VERSION_NUMBER}  
-    * sudo reboot  
-  * install cuda - https://developer.nvidia.com/cuda-downloads  
-    * uncheck driver - it fails, so we installed compatible driver first
-    * add PATH, CUDADIR, LD_LIBRARY_PATH with correct **{version}**
-    ```
-    echo 'export PATH=$PATH:/usr/local/cuda-{version}/bin' > ~/.bashrc  
-    echo 'export CUDADIR=/usr/local/cuda-{version}' > ~/.bashrc  
-    echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-{version}/lib64' > ~/.bashrc  
-    ```
-
-  * install cudnn - https://developer.nvidia.com/rdp/cudnn-download
-    * runtime library & developer library
-    ```
-    sudo dpkg -i ./libcudnn{V}_{full_version}+cuda{cuda_version}_amd64.deb
-    sudo dpkg -i ./libcudnn{V}-dev_{full_version}+cuda{cuda_version}_amd64
-    ```
-
-* tensorflow
-  * pip3 install tensorflow-gpu (check version compatibility with cuda)
   * test GPU usage
     * in python3
     ```
