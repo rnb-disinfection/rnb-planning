@@ -35,6 +35,10 @@
       libcudnn7=7.6.5.32-1+cuda10.1  \
       libcudnn7-dev=7.6.5.32-1+cuda10.1
 
+  # Add PATH variables to environment
+  echo 'export PATH=$PATH:/usr/local/cuda-{version}/bin' >> ~/.bashrc  
+  echo 'export CUDADIR=/usr/local/cuda-{version}' >> ~/.bashrc  
+  echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-{version}/lib64' >> ~/.bashrc  
 
   # Install TensorRT. Requires that libcudnn7 is installed above.
   sudo apt-get install -y --no-install-recommends libnvinfer6=6.0.1-1+cuda10.1 \
