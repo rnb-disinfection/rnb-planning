@@ -11,7 +11,7 @@
   apt-get install python3-pip && pip3 install --upgrade pip  
   ```
 
-* cuda, cudnn: follow tensorflow recommendation - https://www.tensorflow.org/install/gpu?hl=ko#install_cuda_with_apt
+* vga driver, cuda, cudnn: follow tensorflow recommendation - https://www.tensorflow.org/install/gpu?hl=ko#install_cuda_with_apt
   ```
   # Add NVIDIA package repositories
   wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-repo-ubuntu1804_10.1.243-1_amd64.deb
@@ -26,8 +26,7 @@
   sudo apt-get install --no-install-recommends nvidia-driver-450
   # Reboot. Check that GPUs are visible using the command: nvidia-smi
   ```  
-  
-  
+* reboot and continue with cuda & cudnnn  
   ```
   # Install development and runtime libraries (~4GB)
   sudo apt-get install --no-install-recommends \
