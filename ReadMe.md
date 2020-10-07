@@ -19,7 +19,10 @@
 
   * install cudnn - https://developer.nvidia.com/rdp/cudnn-download
     * runtime library & developer library
-  * add PATH, LD_LIBRARY_PATH  
+    ```
+    sudo dpkg -i ./libcudnn{V}-dev_{full_version}+cuda{cuda_version}_amd64
+    sudo dpkg -i ./libcudnn{V}_{full_version}+cuda{cuda_version}_amd64.deb
+    ```
 
 * pip3 (apt-get install python3-pip && pip3 install --upgrade pip)  
 * tensorflow 2.3.0  
