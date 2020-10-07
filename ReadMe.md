@@ -6,9 +6,10 @@
   sudo add-apt-repository ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install gcc-7 g++-7 gcc-7-multilib g++-7-multilib  
   sudo add-apt-repository ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install gcc-5 g++-5 gcc-5-multilib g++-5-multilib  
   ```
-* pip3
+* pip
   ```
-  apt-get install python3-pip && pip3 install --upgrade pip  
+  sudo apt-get install python3-pip && pip3 install --upgrade pip  
+  sudo apt-get install python-pip && pip install --upgrade pip  
   ```
 
 * vga driver, cuda, cudnn: follow tensorflow recommendation - https://www.tensorflow.org/install/gpu?hl=ko#install_cuda_with_apt
