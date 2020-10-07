@@ -50,9 +50,9 @@
   pip3 install tensorflow-gpu
   ```
   * test GPU usage in python3
-    ```
-    import tensorflow as tf
-    tf.test.is_gpu_available()
+  ```
+  import tensorflow as tf
+  tf.test.is_gpu_available()
   ```
     
 
