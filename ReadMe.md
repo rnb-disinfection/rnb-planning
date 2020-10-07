@@ -1,4 +1,4 @@
-# Basic Setup
+# Basic Tensorflow Setup
 * Turn off "Fast boot" & "Secure boot" on Bios
 * Ubuntu 18.04  
 * install gcc7 & gcc5
@@ -40,12 +40,15 @@
       libnvinfer-dev=6.0.1-1+cuda10.1 \
       libnvinfer-plugin6=6.0.1-1+cuda10.1
   ```
-  * test GPU usage
-    * in python3
+  * Install tensorflow 
+  ```
+  pip3 install tensorflow-gpu
+  ```
+  * test GPU usage in python3
     ```
     import tensorflow as tf
     tf.test.is_gpu_available()
-    ```
+  ```
     
 
 # Requirements  
