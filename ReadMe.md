@@ -1,4 +1,5 @@
 # Basic Setup
+* Turn off "Fast boot" & "Secure boot" on Bios
 * Ubuntu 18.04  
 * install gcc7 & gcc5
   ```
