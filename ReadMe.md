@@ -12,7 +12,7 @@
   sudo apt-get install python-pip && pip install --upgrade pip  
   ```
 
-* vga driver, cuda, cudnn: follow tensorflow recommendation - https://www.tensorflow.org/install/gpu?hl=ko#install_cuda_with_apt
+* vga driver: follow tensorflow recommendation - https://www.tensorflow.org/install/gpu?hl=ko#install_cuda_with_apt
   ```
   # Add NVIDIA package repositories
   wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-repo-ubuntu1804_10.1.243-1_amd64.deb
