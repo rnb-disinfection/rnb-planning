@@ -20,8 +20,8 @@
   * install cudnn - https://developer.nvidia.com/rdp/cudnn-download
     * runtime library & developer library
     ```
-    sudo dpkg -i ./libcudnn{V}-dev_{full_version}+cuda{cuda_version}_amd64
     sudo dpkg -i ./libcudnn{V}_{full_version}+cuda{cuda_version}_amd64.deb
+    sudo dpkg -i ./libcudnn{V}-dev_{full_version}+cuda{cuda_version}_amd64
     ```
 
 * pip3 (apt-get install python3-pip && pip3 install --upgrade pip)  
