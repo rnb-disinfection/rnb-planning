@@ -51,16 +51,16 @@
       libnvinfer-dev=6.0.1-1+cuda10.1 \
       libnvinfer-plugin6=6.0.1-1+cuda10.1
   ```
-  * Install tensorflow - only 2.3.0 version, XLA-GPU BUG exists
+  * Install tensorflow
   ```
-  pip3 install tensorflow==2.3.0
+  pip3 install tensorflow
   ```
   * test GPU usage in python3
   ```
   import tensorflow as tf
   tf.test.is_gpu_available()
   from tensorflow.python.client import device_lib
-  device_lib.list_local_devices()
+  device_lib.list_local_devices() ##
   ```
     
 
