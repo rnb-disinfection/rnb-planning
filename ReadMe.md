@@ -2,12 +2,16 @@
 * Ubuntu 18.04  
 * install gcc7: sudo add-apt-repository ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install gcc-7 g++-7 gcc-7-multilib g++-7-multilib  
 * install gcc5: sudo add-apt-repository ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install gcc-5 g++-5 gcc-5-multilib g++-5-multilib  
-* cuda, cudnn (add PATH, LD_LIBRARY_PATH) 
-  * cuda compatibility chart - 
-  * (Just for information) Specific nvidia driver 
+* cuda, cudnn
+  * cuda compatibility chart - https://docs.nvidia.com/deeplearning/cudnn/support-matrix/index.html#cudnn-versions-804  
+  * Check latest cudnn & compatible cuda & nvidia driver version 
     * sudo add-apt-repository ppa:graphics-drivers/ppa && sudo apt update  
     * sudo apt-get install nvidia-driver-{VERSION_NUMBER}  
     * sudo reboot  
+  * install cuda - https://developer.nvidia.com/cuda-downloads  
+  * install cudnn - https://developer.nvidia.com/rdp/cudnn-download
+    * runtime library & developer library
+  * add PATH, LD_LIBRARY_PATH  
 
 * pip3 (apt-get install python3-pip && pip3 install --upgrade pip)  
 * tensorflow 2.3.0  
