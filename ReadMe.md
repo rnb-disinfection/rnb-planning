@@ -12,7 +12,7 @@
     * uncheck driver - it fails, so we installed compatible driver first
     * add PATH, CUDADIR, LD_LIBRARY_PATH with correct **{version}**
     ```
-    echo 'export PATH=$PATH:/usr/local/cuda-**{version}**/bin' > ~/.bashrc  
+    echo 'export PATH=$PATH:/usr/local/cuda-{version}/bin' > ~/.bashrc  
     echo 'export CUDADIR=/usr/local/cuda-{version}' > ~/.bashrc  
     echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-{version}/lib64' > ~/.bashrc  
     ```
