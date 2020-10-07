@@ -1,5 +1,7 @@
 # Requirements  
 * Ubuntu 18.04  
+* install gcc7: sudo add-apt-repository ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install gcc-7 g++-7 gcc-7-multilib g++-7-multilib  
+* install gcc5: sudo add-apt-repository ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install gcc-5 g++-5 gcc-5-multilib g++-5-multilib  
 * Nvidia driver 440  
   * sudo add-apt-repository ppa:graphics-drivers/ppa  
   * sudo apt update  
@@ -46,8 +48,6 @@
   * cd ~/catkin_ws && sudo rm -rf devel build  
   * cd ~/catkin_ws/src && git clone https://github.com/justagist/panda_simulator && cd panda_simulator && ./build_ws.sh  
 * eTaSL  
-  * install gcc7: sudo add-apt-repository ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install gcc-7 g++-7 gcc-7-multilib g++-7-multilib  
-  * install gcc5: sudo add-apt-repository ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install gcc-5 g++-5 gcc-5-multilib g++-5-multilib  
   * set gcc alternative versions:  
     * sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-5 20  
     * sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 40  
