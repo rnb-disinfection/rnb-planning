@@ -25,7 +25,10 @@
   # Install NVIDIA driver
   sudo apt-get install --no-install-recommends nvidia-driver-450
   # Reboot. Check that GPUs are visible using the command: nvidia-smi
-
+  ```  
+  
+  
+  ```
   # Install development and runtime libraries (~4GB)
   sudo apt-get install --no-install-recommends \
       cuda-10-1 \
