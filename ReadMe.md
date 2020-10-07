@@ -10,6 +10,8 @@
   ```
   sudo apt-get install python3-pip && pip3 install --upgrade pip  
   sudo apt-get install python-pip && pip install --upgrade pip  
+  pip3 install setuptools==41.0.0  
+  pip install setuptools==41.0.0  
   ```
 
 * vga driver: follow tensorflow recommendation - https://www.tensorflow.org/install/gpu?hl=ko#install_cuda_with_apt
