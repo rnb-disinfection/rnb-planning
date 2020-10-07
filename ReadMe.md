@@ -1,8 +1,40 @@
-# Requirements  
+# Basic Setup
 * Ubuntu 18.04  
-* install gcc7: sudo add-apt-repository ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install gcc-7 g++-7 gcc-7-multilib g++-7-multilib  
-* install gcc5: sudo add-apt-repository ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install gcc-5 g++-5 gcc-5-multilib g++-5-multilib  
-* cuda, cudnn
+* install gcc7 & gcc5
+  ```
+  sudo add-apt-repository ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install gcc-7 g++-7 gcc-7-multilib g++-7-multilib  
+  sudo add-apt-repository ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install gcc-5 g++-5 gcc-5-multilib g++-5-multilib  
+  ```
+* pip3
+  * apt-get install python3-pip && pip3 install --upgrade pip  
+
+* cuda, cudnn: follow tensorflow recommendation - https://www.tensorflow.org/install/gpu?hl=ko#install_cuda_with_apt
+  ```
+  # Add NVIDIA package repositories
+  wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-repo-ubuntu1804_10.1.243-1_amd64.deb
+  sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub
+  sudo dpkg -i cuda-repo-ubuntu1804_10.1.243-1_amd64.deb
+  sudo apt-get update
+  wget http://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64/nvidia-machine-learning-repo-ubuntu1804_1.0.0-1_amd64.deb
+  sudo apt install ./nvidia-machine-learning-repo-ubuntu1804_1.0.0-1_amd64.deb
+  sudo apt-get update
+
+  # Install NVIDIA driver
+  sudo apt-get install --no-install-recommends nvidia-driver-450
+  # Reboot. Check that GPUs are visible using the command: nvidia-smi
+
+  # Install development and runtime libraries (~4GB)
+  sudo apt-get install --no-install-recommends \
+      cuda-10-1 \
+      libcudnn7=7.6.5.32-1+cuda10.1  \
+      libcudnn7-dev=7.6.5.32-1+cuda10.1
+
+
+  # Install TensorRT. Requires that libcudnn7 is installed above.
+  sudo apt-get install -y --no-install-recommends libnvinfer6=6.0.1-1+cuda10.1 \
+      libnvinfer-dev=6.0.1-1+cuda10.1 \
+      libnvinfer-plugin6=6.0.1-1+cuda10.1
+  ```
   * cuda compatibility chart - https://docs.nvidia.com/deeplearning/cudnn/support-matrix/index.html#cudnn-versions-804  
   * Check latest cudnn & compatible cuda & nvidia driver version 
     * sudo add-apt-repository ppa:graphics-drivers/ppa && sudo apt update  
@@ -24,8 +56,17 @@
     sudo dpkg -i ./libcudnn{V}-dev_{full_version}+cuda{cuda_version}_amd64
     ```
 
-* pip3 (apt-get install python3-pip && pip3 install --upgrade pip)  
-* tensorflow 2.3.0  
+* tensorflow
+  * pip3 install tensorflow-gpu (check version compatibility with cuda)
+  * test GPU usage
+    * in python3
+    ```
+    import tensorflow as tf
+    tf.test.is_gpu_available()
+    ```
+    
+
+# Requirements  
 * ROS Melodic  
   * wget https://raw.githubusercontent.com/orocapangyo/meetup/master/190830/install_ros_melodic.sh && chmod 755 ./install_ros_melodic.sh && bash ./install_ros_melodic.sh  
   * sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'  
