@@ -155,8 +155,8 @@
   && git clone --recursive https://gitlab.kuleuven.be/rob-expressiongraphs/docker/etasl-install.git etasl \
   && cd etasl \
   && source install-dependencies.sh \
-  && source $OROCOS/install_isolated/setup.bash \
-  && echo 'source $OROCOS/install_isolated/setup.bash' >> ~/.bashrc
+  && source $HOME/orocos-install/orocos-2.9_ws/install_isolated/setup.bash \
+  && echo 'source $HOME/orocos-install/orocos-2.9_ws/install_isolated/setup.bash' >> ~/.bashrc
   ```
 * switch to gcc and g++ version to 7 to before installing etasl
   ```
