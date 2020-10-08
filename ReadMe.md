@@ -5,6 +5,7 @@
   ```
   sudo add-apt-repository ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install gcc-7 g++-7 gcc-7-multilib g++-7-multilib \
   && sudo add-apt-repository ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install gcc-5 g++-5 gcc-5-multilib g++-5-multilib  
+  
   ```
 * set gcc alternative versions:  
   ```
@@ -12,6 +13,7 @@
   && sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 40 \
   && sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-5 20 \
   && sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-7 40  
+  
   ```
 * check gcc/g++ alternative version  
   ```
@@ -23,6 +25,7 @@
   && sudo apt-get install python-pip && pip install --upgrade pip \
   && pip3 install setuptools==41.0.0 \
   && pip install setuptools==41.0.0  
+  
   ```
 
 * vga driver: follow tensorflow recommendation - https://www.tensorflow.org/install/gpu?hl=ko#install_cuda_with_apt
@@ -40,6 +43,7 @@
   # Install NVIDIA driver
   sudo apt-get install --no-install-recommends nvidia-driver-450
   # Reboot. Check that GPUs are visible using the command: nvidia-smi
+  
   ```  
 * reboot and continue with cuda & cudnnn  
   ```
@@ -62,6 +66,7 @@
   sudo apt-get install -y --no-install-recommends libnvinfer6=6.0.1-1+cuda10.1 \
       libnvinfer-dev=6.0.1-1+cuda10.1 \
       libnvinfer-plugin6=6.0.1-1+cuda10.1
+      
   ```
   * Install tensorflow
   ```
@@ -73,6 +78,7 @@
   tf.test.is_gpu_available()
   from tensorflow.python.client import device_lib
   device_lib.list_local_devices() ##
+  
   ```
     
 # Python Package Dependencies
@@ -103,15 +109,18 @@
   && sudo rosdep init \
   && rosdep update \
   && sudo apt-get install python-rosinstall -y  
+  
   ```
   * **RESTART TERMINAL!**
 * Moveit  
   ```
   sudo apt-get install -y ros-melodic-moveit ros-melodic-industrial-core ros-melodic-moveit-visual-tools ros-melodic-joint-state-publisher-gui  
+  
   ```
 * Gazebo  
   ```
   sudo apt-get install -y ros-melodic-gazebo-ros-pkgs ros-melodic-gazebo-ros-control ros-melodic-joint-state-controller ros-melodic-effort-controllers ros-melodic-position-controllers ros-melodic-joint-trajectory-controller  
+  
   ````
 * UR package  
   * link: https://github.com/ros-industrial/universal_robot  
@@ -122,11 +131,13 @@
   && rosdep update \
   && rosdep install --rosdistro $ROS_DISTRO --ignore-src --from-paths src \
   && catkin_make -DCMAKE_BUILD_TYPE=Release  
+  
   ```
 * Indy package
   ```
   cd ~/catkin_ws/src && git clone -b  release-2.3 https://github.com/neuromeka-robotics/indy-ros \
   && cd ~/catkin_ws && catkin_make -DCMAKE_BUILD_TYPE=Release
+  
   ```
   * (not used now) To update Indy to 3.0, Follow instruction on IndyFramework3.0/ReadMe.md
 * Franka package  
@@ -136,10 +147,12 @@
   && git clone https://github.com/justagist/franka_ros_interface src/franka_ros_interface \
   && catkin build franka_ros_interface # or catkin_make \
   && source devel/setup.bash
+  
   ```
   * Copy/move the franka.sh file to the root of the catkin_ws
   ```
   cp ~/catkin_ws/src/franka_ros_interface/franka.sh ~/catkin_ws/
+  
   ```
   * Change the values in the copied file (described in the file).
 * panda simulator  
@@ -147,6 +160,7 @@
   pip install numpy numpy-quaternion rospy-message-converter==0.4.0 \
   && cd ~/catkin_ws && sudo rm -rf devel build \
   && cd ~/catkin_ws/src && git clone https://github.com/justagist/panda_simulator && cd panda_simulator && ./build_ws.sh  
+  
   ```
 * python compatibility  
   ```
@@ -165,6 +179,7 @@
   ```
   sudo rm -rf devel && sudo rm -rf devel && catkin_make -DCMAKE_BUILD_TYPE=Release \
   && source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash   
+  
   ```
 * **if eTaSL simulation is slow (has to be under 300ms with 200 constraints), re-compile packages in release mode**  
   
@@ -175,12 +190,14 @@
   curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add - \
   && sudo apt-add-repository https://packages.microsoft.com/ubuntu/18.04/prod \
   && sudo apt-get update  
+  
   ```
   * install sdk  
   ```
   sudo apt install libk4a1.4 \
   && sudo apt install libk4a1.4-dev \
   && sudo apt install k4a-tools  
+  
   ```
   * allow non-root usage  
     * Copy 'azure/99-k4a.rules' into '/etc/udev/rules.d/'.  
@@ -200,6 +217,7 @@
   cd $TF_GMT_ETASL_DIR/openGJK/lib \
   && cmake -DCMAKE_BUILD_TYPE=Release \
   && make
+  
   ```
   
 ## Install Tesseract  
@@ -207,6 +225,7 @@
   ```
   cd ˜/Projects/tf_gmt/eTaSL/ws_ros \
   && git clone https://github.com/ros-industrial-consortium/tesseract.git  
+  
   ```
    
 * clone all dependencies in dependency.rosinstall  
@@ -217,6 +236,7 @@
   && git clone https://github.com/swri-robotics/descartes_light.git  descartes_light \
   && git clone https://github.com/Jmeyer1292/opw_kinematics.git opw_kinematics \
   && git clone https://github.com/ethz-adrl/ifopt.git ifopt  
+  
   ```
   * check if any other dependency is added on recent version.
   
@@ -225,23 +245,27 @@
   sudo apt-get install gcc g++ gfortran git patch wget pkg-config liblapack-dev libmetis-dev \
   && sudo apt install lcov \
   && sudo apt-get install cmake libeigen3-dev coinor-libipopt-dev  
+  
   ```
 
 * build workspace (-DCMAKE_BUILD_TYPE=Release is set by default)
   ```
   catkin build --force-cmake -DTESSERACT_ENABLE_TESTING=ON \
   && add export TESSERACT_SUPPORT_DIR='/home/junsu/Projects/tf_gmt/eTaSL/ws_ros/devel/share/tesseract_support'  
+  
   ```
   
 # Setup project  
 * rebuild custom workspace  
   ```
   cd eTaSL/ws_ros && rm -rf build devel && catkin_make -DCMAKE_BUILD_TYPE=Release  
+  
   ```
 * add below to ~./bashrc  
   ```
   export TF_GMT_ETASL_DIR=/home/junsu/Projects/tf_gmt/eTaSL/  
   source "$TF_GMT_ETASL_DIR"ws_ros/devel/setup.bash  
+  
   ```
 * start roscore if it's not on  
   ```
@@ -274,6 +298,7 @@
   ```
   cd /home/user/release/TasksDeployment  
   ./TaskManager -j indyDeploy.json  
+  
   ```
 
 # Launch RVIZ
@@ -319,6 +344,7 @@
   ```
   sudo apt-get install openssh-server \
   && sudo service ssh start
+  
   ```
   
 # How to make xacro for multi-robot  
