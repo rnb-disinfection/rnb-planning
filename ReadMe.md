@@ -115,12 +115,10 @@
 * Moveit  
   ```
   sudo apt-get install -y ros-melodic-moveit ros-melodic-industrial-core ros-melodic-moveit-visual-tools ros-melodic-joint-state-publisher-gui  
-  
   ```
 * Gazebo  
   ```
   sudo apt-get install -y ros-melodic-gazebo-ros-pkgs ros-melodic-gazebo-ros-control ros-melodic-joint-state-controller ros-melodic-effort-controllers ros-melodic-position-controllers ros-melodic-joint-trajectory-controller  
-  
   ````
 * UR package  
   * link: https://github.com/ros-industrial/universal_robot  
