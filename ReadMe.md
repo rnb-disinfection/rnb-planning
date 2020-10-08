@@ -194,7 +194,7 @@
   && sudo apt install k4a-tools  
   ```
   * allow non-root usage  
-    * Copy 'azure/99-k4a.rules' into '/etc/udev/rules.d/'.  
+    * Copy 'azure/99-k4a.rules' in this project into '/etc/udev/rules.d/'.  
     * Detach and reattach Azure Kinect devices if attached during this process.  
   * install open3d  
   ```
