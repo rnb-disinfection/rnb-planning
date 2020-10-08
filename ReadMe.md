@@ -3,15 +3,15 @@
 * Ubuntu 18.04  
 * install gcc7 & gcc5
   ```
-  sudo add-apt-repository ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install gcc-7 g++-7 gcc-7-multilib g++-7-multilib  
-  sudo add-apt-repository ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install gcc-5 g++-5 gcc-5-multilib g++-5-multilib  
+  sudo add-apt-repository ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install gcc-7 g++-7 gcc-7-multilib g++-7-multilib \  
+  && sudo add-apt-repository ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install gcc-5 g++-5 gcc-5-multilib g++-5-multilib  
   ```
 * set gcc alternative versions:  
   ```
-  sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-5 20  
-  sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 40  
-  sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-5 20  
-  sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-7 40  
+  sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-5 20  \  
+  && sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 40   \  
+  && sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-5 20   \  
+  && sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-7 40  
   ```
 * check gcc/g++ alternative version  
   ```
@@ -19,23 +19,23 @@
   ```
 * pip
   ```
-  sudo apt-get install python3-pip && pip3 install --upgrade pip  
-  sudo apt-get install python-pip && pip install --upgrade pip  
-  pip3 install setuptools==41.0.0  
-  pip install setuptools==41.0.0  
+  sudo apt-get install python3-pip && pip3 install --upgrade pip   \  
+  && sudo apt-get install python-pip && pip install --upgrade pip   \  
+  && pip3 install setuptools==41.0.0   \  
+  && pip install setuptools==41.0.0  
   ```
 
 * vga driver: follow tensorflow recommendation - https://www.tensorflow.org/install/gpu?hl=ko#install_cuda_with_apt
   ```
   # Add NVIDIA package repositories
-  mkdir ~/NVIDIA_TMP && cd ~/NVIDIA_TMP
-  wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-repo-ubuntu1804_10.1.243-1_amd64.deb
-  sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub
-  sudo dpkg -i cuda-repo-ubuntu1804_10.1.243-1_amd64.deb
-  sudo apt-get update
-  wget http://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64/nvidia-machine-learning-repo-ubuntu1804_1.0.0-1_amd64.deb
-  sudo apt install ./nvidia-machine-learning-repo-ubuntu1804_1.0.0-1_amd64.deb
-  sudo apt-get update
+  mkdir ~/NVIDIA_TMP && cd ~/NVIDIA_TMP \  
+  && wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-repo-ubuntu1804_10.1.243-1_amd64.deb \  
+  && sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub \  
+  && sudo dpkg -i cuda-repo-ubuntu1804_10.1.243-1_amd64.deb \  
+  && sudo apt-get update \  
+  && wget http://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64/nvidia-machine-learning-repo-ubuntu1804_1.0.0-1_amd64.deb \  
+  && sudo apt install ./nvidia-machine-learning-repo-ubuntu1804_1.0.0-1_amd64.deb \  
+  && sudo apt-get update
 
   # Install NVIDIA driver
   sudo apt-get install --no-install-recommends nvidia-driver-450
@@ -50,13 +50,13 @@
       libcudnn7-dev=7.6.5.32-1+cuda10.1
 
   # Add PATH variables to environment
-  echo 'export PATH=$PATH:/usr/local/cuda-10.2/bin' >> ~/.bashrc  
-  echo 'export CUDADIR=/usr/local/cuda-10.2' >> ~/.bashrc  
-  echo 'if [ -z $LD_LIBRARY_PATH ]; then' >> ~/.bashrc  
-  echo '  export LD_LIBRARY_PATH=/usr/local/cuda-10.2/lib64' >> ~/.bashrc  
-  echo 'else' >> ~/.bashrc  
-  echo '  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-10.2/lib64' >> ~/.bashrc  
-  echo 'fi' >> ~/.bashrc  
+  echo 'export PATH=$PATH:/usr/local/cuda-10.2/bin' >> ~/.bashrc   \  
+  && echo 'export CUDADIR=/usr/local/cuda-10.2' >> ~/.bashrc   \  
+  && echo 'if [ -z $LD_LIBRARY_PATH ]; then' >> ~/.bashrc   \  
+  && echo '  export LD_LIBRARY_PATH=/usr/local/cuda-10.2/lib64' >> ~/.bashrc   \  
+  && echo 'else' >> ~/.bashrc   \  
+  && echo '  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-10.2/lib64' >> ~/.bashrc   \  
+  && echo 'fi' >> ~/.bashrc  
 
   # Install TensorRT. Requires that libcudnn7 is installed above.
   sudo apt-get install -y --no-install-recommends libnvinfer6=6.0.1-1+cuda10.1 \
@@ -92,17 +92,17 @@
 # ROS Setup
 * ROS Melodic  
   ```
-  mkdir ~/ROS_TMP && cd ~/ROS_TMP
-  wget https://raw.githubusercontent.com/orocapangyo/meetup/master/190830/install_ros_melodic.sh && chmod 755 ./install_ros_melodic.sh && bash ./install_ros_melodic.sh  
-  sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'  
-  sudo apt-key adv --keyserver hkp://ha.pool.sks-keyservers.net:80 --recv-key 421C365BD9FF1F717815A3895523BAEEB01FA116  
-  sudo apt-get update && sudo apt-get upgrade -y  
-  sudo apt-get install ros-melodic-desktop-full -y  
-  sudo apt-get install ros-melodic-rqt* -y  
-  sudo apt-get install python-rosdep -y  
-  sudo rosdep init  
-  rosdep update  
-  sudo apt-get install python-rosinstall -y  
+  mkdir ~/ROS_TMP && cd ~/ROS_TMP \  
+  && wget https://raw.githubusercontent.com/orocapangyo/meetup/master/190830/install_ros_melodic.sh && chmod 755 ./install_ros_melodic.sh && bash ./install_ros_melodic.sh   \  
+  && sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'   \  
+  && sudo apt-key adv --keyserver hkp://ha.pool.sks-keyservers.net:80 --recv-key 421C365BD9FF1F717815A3895523BAEEB01FA116   \  
+  && sudo apt-get update && sudo apt-get upgrade -y   \  
+  && sudo apt-get install ros-melodic-desktop-full -y   \  
+  && sudo apt-get install ros-melodic-rqt* -y   \  
+  && sudo apt-get install python-rosdep -y   \  
+  && sudo rosdep init   \  
+  && rosdep update   \  
+  && sudo apt-get install python-rosinstall -y  
   ```
 * Moveit  
   ```
@@ -115,17 +115,17 @@
 * UR package  
   * link: https://github.com/ros-industrial/universal_robot  
   ```
-  cd $HOME/catkin_ws/src  
-  git clone -b $ROS_DISTRO-devel https://github.com/ros-industrial/universal_robot.git  
-  cd $HOME/catkin_ws  
-  rosdep update  
-  rosdep install --rosdistro $ROS_DISTRO --ignore-src --from-paths src  
-  catkin_make -DCMAKE_BUILD_TYPE=Release  
+  cd $HOME/catkin_ws/src   \  
+    && git clone -b $ROS_DISTRO-devel https://github.com/ros-industrial/universal_robot.git   \  
+    && cd $HOME/catkin_ws   \  
+    && rosdep update   \  
+    && rosdep install --rosdistro $ROS_DISTRO --ignore-src --from-paths src   \  
+    && catkin_make -DCMAKE_BUILD_TYPE=Release  
   ```
 * Indy package
   ```
-  cd ~/catkin_ws/src && git clone -b  release-2.3 https://github.com/neuromeka-robotics/indy-ros
-  cd ~/catkin_ws && catkin_make -DCMAKE_BUILD_TYPE=Release
+  cd ~/catkin_ws/src && git clone -b  release-2.3 https://github.com/neuromeka-robotics/indy-ros \  
+  && cd ~/catkin_ws && catkin_make -DCMAKE_BUILD_TYPE=Release
   ```
   * (not used now) To update Indy to 3.0, Follow instruction on IndyFramework3.0/ReadMe.md
 * Franka package  
@@ -139,9 +139,9 @@
   * Change the values in the copied file (described in the file).
 * panda simulator  
   ```
-  pip install numpy numpy-quaternion rospy-message-converter==0.4.0  
-  cd ~/catkin_ws && sudo rm -rf devel build  
-  cd ~/catkin_ws/src && git clone https://github.com/justagist/panda_simulator && cd panda_simulator && ./build_ws.sh  
+  pip install numpy numpy-quaternion rospy-message-converter==0.4.0   \  
+  && cd ~/catkin_ws && sudo rm -rf devel build   \  
+  && cd ~/catkin_ws/src && git clone https://github.com/justagist/panda_simulator && cd panda_simulator && ./build_ws.sh  
   ```
 * python compatibility  
   ```
@@ -158,8 +158,8 @@
 * overwrite custom etasl project from github and recompile etasl
 * in "\~/etasl_ws" AND "\~/etasl_ws/etasl/ws/etasl" AND "\~/etasl_ws/etasl/ws/etasl-py",  
   ```
-  sudo rm -rf devel && sudo rm -rf devel && catkin_make -DCMAKE_BUILD_TYPE=Release  
-  source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash   
+  sudo rm -rf devel && sudo rm -rf devel && catkin_make -DCMAKE_BUILD_TYPE=Release   \  
+  && source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash   
   ```
 * **if eTaSL simulation is slow (has to be under 300ms with 200 constraints), re-compile packages in release mode**  
   
@@ -167,15 +167,15 @@
 * Azure Kinect  
   * setup microsoft repository  
   ```
-  curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -  
-  sudo apt-add-repository https://packages.microsoft.com/ubuntu/18.04/prod  
-  sudo apt-get update  
+  curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -   \  
+  && sudo apt-add-repository https://packages.microsoft.com/ubuntu/18.04/prod   \  
+  && sudo apt-get update  
   ```
   * install sdk  
   ```
-  sudo apt install libk4a1.4  
-  sudo apt install libk4a1.4-dev  
-  sudo apt install k4a-tools  
+  sudo apt install libk4a1.4   \  
+  && sudo apt install libk4a1.4-dev   \  
+  && sudo apt install k4a-tools  
   ```
   * allow non-root usage  
     * Copy 'azure/99-k4a.rules' into '/etc/udev/rules.d/'.  
@@ -192,40 +192,40 @@
   ```
 * openGJK
   ```
-  cd $TF_GMT_ETASL_DIR/openGJK/lib
-  cmake -DCMAKE_BUILD_TYPE=Release
-  make
+  cd $TF_GMT_ETASL_DIR/openGJK/lib \  
+  && cmake -DCMAKE_BUILD_TYPE=Release \  
+  && make
   ```
   
 ## Install Tesseract  
 * clone tesseract on workspace  
   ```
-  cd ˜/Projects/tf_gmt/eTaSL/ws_ros  
-  git clone https://github.com/ros-industrial-consortium/tesseract.git  
+  cd ˜/Projects/tf_gmt/eTaSL/ws_ros   \  
+  && git clone https://github.com/ros-industrial-consortium/tesseract.git  
   ```
    
 * clone all dependencies in dependency.rosinstall  
   ```
-  git clone https://github.com/ros-industrial/cmake_common_scripts.git cmake_common_scripts  
-  git clone https://github.com/ros-industrial-consortium/tesseract_ext.git tesseract_ext  
-  git clone https://github.com/ros-industrial-consortium/trajopt_ros.git trajopt  
-  git clone https://github.com/swri-robotics/descartes_light.git  descartes_light  
-  git clone https://github.com/Jmeyer1292/opw_kinematics.git opw_kinematics  
-  git clone https://github.com/ethz-adrl/ifopt.git ifopt  
+  git clone https://github.com/ros-industrial/cmake_common_scripts.git cmake_common_scripts   \  
+  && git clone https://github.com/ros-industrial-consortium/tesseract_ext.git tesseract_ext   \  
+  && git clone https://github.com/ros-industrial-consortium/trajopt_ros.git trajopt   \  
+  && git clone https://github.com/swri-robotics/descartes_light.git  descartes_light   \  
+  && git clone https://github.com/Jmeyer1292/opw_kinematics.git opw_kinematics   \  
+  && git clone https://github.com/ethz-adrl/ifopt.git ifopt  
   ```
   * check if any other dependency is added on recent version.
   
 * install base dependency
   ```
-  sudo apt-get install gcc g++ gfortran git patch wget pkg-config liblapack-dev libmetis-dev  
-  sudo apt install lcov  
-  sudo apt-get install cmake libeigen3-dev coinor-libipopt-dev  
+  sudo apt-get install gcc g++ gfortran git patch wget pkg-config liblapack-dev libmetis-dev   \  
+  && sudo apt install lcov   \  
+  && sudo apt-get install cmake libeigen3-dev coinor-libipopt-dev  
   ```
 
 * build workspace (-DCMAKE_BUILD_TYPE=Release is set by default)
   ```
-  catkin build --force-cmake -DTESSERACT_ENABLE_TESTING=ON 
-  add export TESSERACT_SUPPORT_DIR='/home/junsu/Projects/tf_gmt/eTaSL/ws_ros/devel/share/tesseract_support'  
+  catkin build --force-cmake -DTESSERACT_ENABLE_TESTING=ON  \  
+  && add export TESSERACT_SUPPORT_DIR='/home/junsu/Projects/tf_gmt/eTaSL/ws_ros/devel/share/tesseract_support'  
   ```
   
 # Setup project  
@@ -312,8 +312,8 @@
   * add "export PATH=$PATH:{}/bin" to .bashrc  
 * openssh-server  
   ```
-  sudo apt-get install openssh-server
-  sudo service ssh start
+  sudo apt-get install openssh-server \  
+  && sudo service ssh start
   ```
   
 # How to make xacro for multi-robot  
