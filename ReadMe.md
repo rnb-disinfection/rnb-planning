@@ -143,12 +143,6 @@
   cp ~/catkin_ws/src/franka_ros_interface/franka.sh ~/catkin_ws/
   ```
   * Change the values in the copied file (described in the file).
-* panda simulator  
-  ```
-  pip install numpy numpy-quaternion rospy-message-converter==0.4.0 \
-  && cd ~/catkin_ws && sudo rm -rf devel build \
-  && cd ~/catkin_ws/src && git clone https://github.com/justagist/panda_simulator && cd panda_simulator && ./build_ws.sh  
-  ```
 * python compatibility  
   ```
   pip install rospkg  
@@ -282,7 +276,12 @@
   roslaunch "$TF_GMT_ETASL_DIR"/launch/gui_custom_robots_joint_panel.launch  
   ```
 
-# Launch Panda simulator
+# Installing and Launching Panda simulator
+  ```
+  pip install numpy numpy-quaternion rospy-message-converter==0.4.0 \
+  && cd ~/catkin_ws && sudo rm -rf devel build \
+  && cd ~/catkin_ws/src && git clone https://github.com/justagist/panda_simulator && cd panda_simulator && ./build_ws.sh  
+  ```
   ```
   roslaunch panda_gazebo panda_world.launch start_moveit:=false   
   ```
