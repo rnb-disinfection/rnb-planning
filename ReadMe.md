@@ -157,7 +157,9 @@
   cd ~ \
   && git clone --recursive https://gitlab.kuleuven.be/rob-expressiongraphs/docker/etasl-install.git etasl \
   && cd etasl \
-  && source install-dependencies.sh
+  && source install-dependencies.sh \
+  && echo 'source $OROCOS/install_isolated/setup.bash' >> ~/.bashrc \
+  && echo 'source $HOME/etasl_ws/devel/setup.sh' >> ~/.bashrc \
   ```
 * **ADD** "source $OROCOS/install_isolated/setup.bash" on top of user section of "~/.bashrc", and restart the terminal
 * ***If eTaSL is slow***, re-compile packages in release mode (has to be under 300ms with 200 constraints 500 step)  
