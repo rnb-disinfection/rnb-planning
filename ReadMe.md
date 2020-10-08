@@ -150,7 +150,6 @@
   * Copy/move the franka.sh file to the root of the catkin_ws
   ```
   cp ~/catkin_ws/src/franka_ros_interface/franka.sh ~/catkin_ws/
-  
   ```
   * Change the values in the copied file (described in the file).
 * panda simulator  
