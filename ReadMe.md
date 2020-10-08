@@ -117,11 +117,11 @@
   * link: https://github.com/ros-industrial/universal_robot  
   ```
   cd $HOME/catkin_ws/src \
-    && git clone -b $ROS_DISTRO-devel https://github.com/ros-industrial/universal_robot.git \
-    && cd $HOME/catkin_ws \
-    && rosdep update \
-    && rosdep install --rosdistro $ROS_DISTRO --ignore-src --from-paths src \
-    && catkin_make -DCMAKE_BUILD_TYPE=Release  
+  && git clone -b $ROS_DISTRO-devel https://github.com/ros-industrial/universal_robot.git \
+  && cd $HOME/catkin_ws \
+  && rosdep update \
+  && rosdep install --rosdistro $ROS_DISTRO --ignore-src --from-paths src \
+  && catkin_make -DCMAKE_BUILD_TYPE=Release  
   ```
 * Indy package
   ```
