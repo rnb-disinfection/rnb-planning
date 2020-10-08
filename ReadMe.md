@@ -215,15 +215,29 @@
   
 # Setup project  
 * overwrite custom etasl project from github and recompile etasl
+* **[IMPORTANT]** comment out lines below "source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash" in ~/.bashrc
+* switch to gcc and g++ version to 7 to before installing etasl
+  ```
+  sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
+  ```
+* rebuild etasl 
   ```
   cd ~/etasl/ws/etasl \
   && sudo rm -rf devel && sudo rm -rf devel && catkin_make -DCMAKE_BUILD_TYPE=Release \
-  && source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash   
-  ~/etasl/ws/etasl-py \
-  && sudo rm -rf devel && sudo rm -rf devel && catkin_make -DCMAKE_BUILD_TYPE=Release \
-  && source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash   
+  && source $HOME/etasl/ws/etasl-py/devel/setup.bash   
   ```
-* rebuild custom workspace  
+* switch to gcc and g++ version to 5 to before installing etasl-py
+  ```
+  sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
+  ```
+* rebuild etasl-py 
+  ```
+  cd ~/etasl/ws/etasl-py \
+  && sudo rm -rf devel && sudo rm -rf devel && catkin_make -DCMAKE_BUILD_TYPE=Release \
+  && source $HOME/etasl/ws/etasl-py/devel/setup.bash   
+  ```
+* **[IMPORTANT]** uncomment lines below "source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash" in ~/.bashrc
+* build custom workspace  
   ```
   cd eTaSL/ws_ros && rm -rf build devel && catkin_make -DCMAKE_BUILD_TYPE=Release  
   ```
