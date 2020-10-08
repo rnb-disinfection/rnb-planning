@@ -39,8 +39,8 @@
 
   # Install NVIDIA driver
   sudo apt-get install --no-install-recommends nvidia-driver-450
-  # Reboot. Check that GPUs are visible using the command: nvidia-smi
   ```  
+  * **Reboot! Check that GPUs are visible using the command: nvidia-smi**
 * reboot and continue with cuda & cudnnn  
   ```
   # Install development and runtime libraries (~4GB)
