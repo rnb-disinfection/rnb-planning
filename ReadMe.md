@@ -194,12 +194,17 @@
   && sudo apt install k4a-tools  
   ```
   * allow non-root usage  
-    * Copy 'azure/99-k4a.rules' in this project into '/etc/udev/rules.d/'.  
+    * Download 'azure/99-k4a.rules' in this project. From the downloaded directory,
+  ```
+  sudo cp ./99-k4a.rules /etc/udev/rules.d/  
+  ```
     * Detach and reattach Azure Kinect devices if attached during this process.  
   * install open3d  
   ```
   pip install open3d  
   ```
+  * test kinect by executing "k4aviewer" on terminal  
+  
 * Realsense
   * instruction in https://github.com/IntelRealSense/librealsense/blob/master/doc/distribution_linux.md  
   * install pyrealsense2  
