@@ -159,7 +159,7 @@
   && cd etasl \
   && source install-dependencies.sh
   ```
-* **ADD "source $OROCOS/install_isolated/setup.bash" on top of user section of "~/.bashrc", and restart the terminal**
+* **ADD** "source $OROCOS/install_isolated/setup.bash" on top of user section of "~/.bashrc", and restart the terminal
 * ***If eTaSL is slow***, re-compile packages in release mode (has to be under 300ms with 200 constraints 500 step)  
   
 # Camera Setup
