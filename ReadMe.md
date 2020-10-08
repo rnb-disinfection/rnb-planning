@@ -159,8 +159,8 @@
   && cd etasl \
   && source install-dependencies.sh
   ```
-* (add "source $OROCOS/install_isolated/setup.bash" on top of user section of "~/.bashrc")  
-* **if eTaSL simulation is slow (has to be under 300ms with 200 constraints), re-compile packages in release mode**  
+* **ADD "source $OROCOS/install_isolated/setup.bash" on top of user section of "~/.bashrc", and restart the terminal**
+* **if eTaSL simulation is slow, re-compile packages in release mode (has to be under 300ms with 200 constraints)**  
   
 # Camera Setup
 * Azure Kinect  
