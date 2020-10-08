@@ -149,19 +149,34 @@
   ```
   
 # eTaSL  
-* switch to recommended  gcc/g++ version for each install in the link - https://etasl.pages.gitlab.kuleuven.be/install-new.html  
-  ```
-  sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
-  ```
+* Follow install process in the link - https://etasl.pages.gitlab.kuleuven.be/install-new.html  
   ```
   cd ~ \
   && git clone --recursive https://gitlab.kuleuven.be/rob-expressiongraphs/docker/etasl-install.git etasl \
   && cd etasl \
   && source install-dependencies.sh \
-  && echo 'source $OROCOS/install_isolated/setup.bash' >> ~/.bashrc \
-  && echo 'source $HOME/etasl_ws/devel/setup.sh' >> ~/.bashrc \
+  && source $OROCOS/install_isolated/setup.bash \
+  && echo 'source $OROCOS/install_isolated/setup.bash' >> ~/.bashrc
   ```
-* **ADD** "source $OROCOS/install_isolated/setup.bash" on top of user section of "~/.bashrc", and restart the terminal
+* switch to gcc and g++ version to 7 to before installing etasl
+  ```
+  sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
+  ```
+* install etasl base
+  ```
+  source $HOME/etasl/etasl-install.sh
+  ```
+* switch to gcc and g++ version to 5 to before installing etasl-py
+  ```
+  sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
+  ```
+* install etasl-py base
+  ```
+  source $HOME/etasl/ws/etasl/devel/setup.sh \
+  && source python-etasl-install.sh \
+  && source $HOME/etasl/ws/etasl-py/devel/setup.bash \
+  && echo 'source $HOME/etasl/ws/etasl-py/devel/setup.bash' >> ~/.bashrc \
+  ```
 * ***If eTaSL is slow***, re-compile packages in release mode (has to be under 300ms with 200 constraints 500 step)  
   
 # Camera Setup
