@@ -229,12 +229,10 @@
 
 # Setup and launch indy online tracker
 * Download and install NRMK IndyFramework and PlatformSDK (framework 2.3.1 -> Platform 3.0.5)  
-* Clone IndyFramework2.0 project and replace "ExternalInterpolator.h" with the one in this project  
-  ```
-  source /opt/neuromeka/NRMKFoundation/script/nrmk_env.sh  
-  ```
+* Clone IndyFramework2.0 project and copy "IndyFramework2.0/IndyController/*" and "IndyFramework2.0/IndyHRI/*" frp, this project to corresponding folders in framework source.  
 * build project  
   ```
+  source /opt/neuromeka/NRMKFoundation/script/nrmk_env.sh  
   cmake -DROBOT_NAME=Indy7 -DSIMULATION=OFF  
   make install  
   ```
