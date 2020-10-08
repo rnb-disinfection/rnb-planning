@@ -131,7 +131,11 @@
   * (not used now) To update Indy to 3.0, Follow instruction on IndyFramework3.0/ReadMe.md
 * Franka package  
   ```
-  sudo apt install ros-melodic-libfranka ros-melodic-franka-ros  
+  sudo apt install ros-melodic-libfranka ros-melodic-franka-ros \
+  && cd ~/catkin_ws \
+  && git clone https://github.com/justagist/franka_ros_interface src/franka_ros_interface \
+  && catkin build franka_ros_interface # or catkin_make \
+  && source devel/setup.bash
   ```
   * Copy/move the franka.sh file to the root of the catkin_ws
   ```
