@@ -72,7 +72,7 @@
   import tensorflow as tf
   tf.test.is_gpu_available()
   from tensorflow.python.client import device_lib
-  device_lib.list_local_devices() ##
+  device_lib.list_local_devices()
   ```
     
 # Python Package Dependencies
@@ -135,7 +135,7 @@
   sudo apt install ros-melodic-libfranka ros-melodic-franka-ros \
   && cd ~/catkin_ws \
   && git clone https://github.com/justagist/franka_ros_interface src/franka_ros_interface \
-  && catkin build franka_ros_interface # or catkin_make \
+  && catkin build franka_ros_interface \
   && source devel/setup.bash
   ```
   * Copy/move the franka.sh file to the root of the catkin_ws
