@@ -108,7 +108,8 @@
   && sudo apt-get install python-rosdep -y \
   && sudo rosdep init \
   && rosdep update \
-  && sudo apt-get install python-rosinstall -y  
+  && sudo apt-get install python-rosinstall -y \
+  && sudo apt-get install ros-melodic-catkin python-catkin-tools -y
   
   ```
   * **RESTART TERMINAL!**
