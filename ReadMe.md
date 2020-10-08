@@ -329,18 +329,18 @@
 * delete "world" link and joint connected to it  
 * add macro:  
   ```
- \<xacro:macro name="robotname" params="robot_id:='0' description_pkg:='robot_description' connected_to:='' xyz:='0 0 0' rpy:='0 0 0'"\>  
- \<xacro:unless value="${not connected_to}"\>  
- \<joint name="robotname${robot_id}\_joint\_${connected_to}" type="fixed"\>  
- \<parent link="${connected_to}"/\>  
- \<child link="robotname${robot_id}_link0"/\>  
- \<origin rpy="${rpy}" xyz="${xyz}"/\>  
- \</joint\>  
- \</xacro:unless\>  
- \<!-- robot contents  --\>  
- \<!-- robot contents  --\>  
- \<!-- robot contents  --\>  
- \</xacro:macro\>  
+  \<xacro:macro name="robotname" params="robot_id:='0' description_pkg:='robot_description' connected_to:='' xyz:='0 0 0' rpy:='0 0 0'"\>  
+  \<xacro:unless value="${not connected_to}"\>  
+  \<joint name="robotname${robot_id}\_joint\_${connected_to}" type="fixed"\>  
+  \<parent link="${connected_to}"/\>  
+  \<child link="robotname${robot_id}_link0"/\>  
+  \<origin rpy="${rpy}" xyz="${xyz}"/\>  
+   \</joint\>  
+  \</xacro:unless\>  
+  \<!-- robot contents  --\>  
+  \<!-- robot contents  --\>  
+  \<!-- robot contents  --\>  
+  \</xacro:macro\>  
   ```
 * change all item names: selectively replace {name="} with {"name="robotname${robot_id}}  
 * include and call the xacro file in "custom_robots.urdf.xacro"  
