@@ -28,6 +28,7 @@
 * vga driver: follow tensorflow recommendation - https://www.tensorflow.org/install/gpu?hl=ko#install_cuda_with_apt
   ```
   # Add NVIDIA package repositories
+  mkdir ~/NVIDIA_TMP && cd ~/NVIDIA_TMP
   wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-repo-ubuntu1804_10.1.243-1_amd64.deb
   sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub
   sudo dpkg -i cuda-repo-ubuntu1804_10.1.243-1_amd64.deb
@@ -91,6 +92,7 @@
 # ROS Setup
 * ROS Melodic  
   ```
+  mkdir ~/ROS_TMP && cd ~/ROS_TMP
   wget https://raw.githubusercontent.com/orocapangyo/meetup/master/190830/install_ros_melodic.sh && chmod 755 ./install_ros_melodic.sh && bash ./install_ros_melodic.sh  
   sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'  
   sudo apt-key adv --keyserver hkp://ha.pool.sks-keyservers.net:80 --recv-key 421C365BD9FF1F717815A3895523BAEEB01FA116  
