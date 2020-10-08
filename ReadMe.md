@@ -104,6 +104,7 @@
   && rosdep update \
   && sudo apt-get install python-rosinstall -y  
   ```
+  * ** RESTART TERMINAL! **
 * Moveit  
   ```
   sudo apt-get install -y ros-melodic-moveit ros-melodic-industrial-core ros-melodic-moveit-visual-tools ros-melodic-joint-state-publisher-gui  
