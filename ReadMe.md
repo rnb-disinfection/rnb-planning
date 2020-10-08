@@ -149,18 +149,17 @@
   ```
   
 # eTaSL  
-* switch to recommended  gcc/g++ version for each install in below link  
+* switch to recommended  gcc/g++ version for each install in the link - https://etasl.pages.gitlab.kuleuven.be/install-new.html  
   ```
   sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
   ```
-* https://etasl.pages.gitlab.kuleuven.be/install-new.html  
+  ```
+  cd ~ \
+  && git clone --recursive https://gitlab.kuleuven.be/rob-expressiongraphs/docker/etasl-install.git etasl \
+  && cd etasl \
+  && source install-dependencies.sh
+  ```
 * (add "source $OROCOS/install_isolated/setup.bash" on top of user section of "~/.bashrc")  
-* overwrite custom etasl project from github and recompile etasl
-* in "\~/etasl_ws" AND "\~/etasl_ws/etasl/ws/etasl" AND "\~/etasl_ws/etasl/ws/etasl-py",  
-  ```
-  sudo rm -rf devel && sudo rm -rf devel && catkin_make -DCMAKE_BUILD_TYPE=Release \
-  && source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash   
-  ```
 * **if eTaSL simulation is slow (has to be under 300ms with 200 constraints), re-compile packages in release mode**  
   
 # Camera Setup
@@ -229,6 +228,15 @@
   ```
   
 # Setup project  
+* overwrite custom etasl project from github and recompile etasl
+  ```
+  cd ~/etasl/ws/etasl \
+  && sudo rm -rf devel && sudo rm -rf devel && catkin_make -DCMAKE_BUILD_TYPE=Release \
+  && source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash   
+  ~/etasl/ws/etasl-py \
+  && sudo rm -rf devel && sudo rm -rf devel && catkin_make -DCMAKE_BUILD_TYPE=Release \
+  && source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash   
+  ```
 * rebuild custom workspace  
   ```
   cd eTaSL/ws_ros && rm -rf build devel && catkin_make -DCMAKE_BUILD_TYPE=Release  
