@@ -276,7 +276,7 @@
   ```
   * build custom workspace  
   ```
-  cd eTaSL/ws_ros && rm -rf build devel && catkin_make -DCMAKE_BUILD_TYPE=Release  
+  cd "$TAMP_ETASL_DIR"ws_ros && rm -rf build devel && catkin_make -DCMAKE_BUILD_TYPE=Release  
   source "$TAMP_ETASL_DIR"ws_ros/devel/setup.bash
   echo 'source "$TAMP_ETASL_DIR"ws_ros/devel/setup.bash' >> ~/.bashrc
   ```
