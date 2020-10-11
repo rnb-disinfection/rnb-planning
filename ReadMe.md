@@ -135,7 +135,7 @@
   sudo apt install ros-melodic-libfranka ros-melodic-franka-ros \
   && cd ~/catkin_ws \
   && git clone https://github.com/justagist/franka_ros_interface src/franka_ros_interface \
-  && catkin_make_isolated -DCMAKE_BUILD_TYPE=Release \
+  && catkin_make -DCMAKE_BUILD_TYPE=Release \
   && source devel/setup.bash
   ```
   * Copy/move the franka.sh file to the root of the catkin_ws
