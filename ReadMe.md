@@ -238,7 +238,7 @@
   ```
   cd ~/etasl/ws/etasl \
   && sudo rm -rf devel && sudo rm -rf devel && catkin_make -DCMAKE_BUILD_TYPE=Release \
-  && source $HOME/etasl/ws/etasl-py/devel/setup.bash   
+  && source $HOME/etasl/ws/etasl/devel/setup.bash   
   ```
   * switch to gcc and g++ version to 5 to before installing etasl-py
   ```
