@@ -346,9 +346,12 @@
 export PATH=$PATH:~/.local/bin  
   
 \# cuda  
-export PATH=$PATH:/usr/local/cuda-10.1/bin  
-export CUDADIR=/usr/local/cuda-10.1  
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-10.1/lib64  
+export PATH=$PATH:/usr/local/cuda-10.2/bin
+export CUDADIR=/usr/local/cuda-10.2
+if [ -z $LD_LIBRARY_PATH ]; then
+  export LD_LIBRARY_PATH=/usr/local/cuda-10.2/lib64
+else
+  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-10.2/lib64
   
 \# OROCOS  
 source $HOME/orocos-install/orocos-2.9_ws/install_isolated/setup.bash  
@@ -367,13 +370,12 @@ export ROS_MASTER_URI=http://localhost:11311
 export ROS_HOSTNAME=localhost  
   
 \# etasl  
-\#source $HOME/etasl_ws/devel/setup.sh  
-source $HOME/etasl_ws/etasl/ws/etasl-py/devel/setup.bash  
-export TESSERACT_SUPPORT_DIR='$HOME/Projects/tamp_etasl/eTaSL/ws_ros/devel/share/tesseract_support'  
+source $HOME/etasl/ws/etasl-py/devel/setup.bash
+# export TESSERACT_SUPPORT_DIR='$HOME/Projects/tamp_etasl/eTaSL/ws_ros/devel/share/tesseract_support'  
 
 \# tamp_etasl  
-export TAMP_ETASL_DIR=$HOME/Projects/tamp_etasl/eTaSL/  
-source "$TAMP_ETASL_DIR"ws_ros/devel/setup.bash  
+export TAMP_ETASL_DIR=$HOME/Projects/tamp_etasl/eTaSL/
+source "$TAMP_ETASL_DIR"ws_ros/devel/setup.bash
   
 \# JetBrains  
 export PATH=$PATH:$HOME/pycharm-2020.2/bin  
