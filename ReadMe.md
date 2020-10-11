@@ -228,7 +228,7 @@
   && git clone https://github.com/Cucumberkjs/etasl.git \
   && git clone https://github.com/Cucumberkjs/etasl-py.git
   ```
-  * **[IMPORTANT]** comment out lines below "source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash" in ~/.bashrc
+  * **[IMPORTANT]** comment out "source $HOME/etasl/ws/etasl-py/devel/setup.bash" in ~/.bashrc
   * switch to gcc and g++ version to 7 to before installing etasl
   ```
   sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
@@ -249,7 +249,7 @@
   && sudo rm -rf devel && sudo rm -rf devel && catkin_make -DCMAKE_BUILD_TYPE=Release \
   && source $HOME/etasl/ws/etasl-py/devel/setup.bash   
   ```
-  * **[IMPORTANT]** uncomment lines below "source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash" in ~/.bashrc
+  * **[IMPORTANT]** uncomment "source $HOME/etasl/ws/etasl-py/devel/setup.bash" in ~/.bashrc
 
 * Get project
   ```
