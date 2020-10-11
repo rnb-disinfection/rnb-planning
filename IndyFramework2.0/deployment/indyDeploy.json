@@ -1,0 +1,34 @@
+{
+	"TimerRate" : 4000, /*Hz*/
+	"HighRate" : 4000, /*Hz*/
+	"MediumRate" : 20, /*Hz*/
+	"LowRate" : 1, /*Hz*/
+	
+	"QueueHigh" :
+	[
+		{
+			"TaskName" : "Indy7ControlTask",
+			"SharedLib" : "libIndy7ControlTask.so",
+			"Location" : "/home/user/release/TasksDeployment/"
+		},
+		{
+			"TaskName" : "Indy6DOFLoggingTask",
+			"SharedLib" : "libIndy6DOFLoggingTask.so",
+			"Location" : "/home/user/release/TasksDeployment/"
+		}
+	],
+
+	"QueueMedium" :
+	[
+		{
+			"TaskName" : "Indy7CadkitTask",
+			"SharedLib" : "libIndy7CadkitTask.so",
+			"Location" : "/home/user/release/TasksDeployment/"
+		},
+        {
+            "TaskName" : "Indy6DOFModbusTCPTask",
+            "SharedLib" : "libIndy6DOFModbusTCPTask.so",
+            "Location" : "/home/user/release/TasksDeployment/"
+        }
+	]
+}

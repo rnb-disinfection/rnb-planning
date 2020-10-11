@@ -1,0 +1,12 @@
+.catkin_tools
+build
+devel
+logs
+src/cmake-build-debug
+src/cmake_common_scripts
+src/descartes_light
+src/ifopt
+src/opw_kinematics
+src/tesseract
+src/tesseract_ext
+src/trajopt
