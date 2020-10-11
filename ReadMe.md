@@ -265,8 +265,8 @@
   ```
   mkdir ~/Projects && cd ~/Projects \
   && git clone https://github.com/Cucumberkjs/tamp_etasl.git \
-  && export TAMP_ETASL_DIR=/home/junsu/Projects/tamp_etasl/eTaSL/ \
-  && echo 'export TAMP_ETASL_DIR=/home/junsu/Projects/tamp_etasl/eTaSL/' >> ~/.bashrc
+  && export TAMP_ETASL_DIR=$HOME/Projects/tamp_etasl/eTaSL/ \
+  && echo 'export TAMP_ETASL_DIR=$HOME/Projects/tamp_etasl/eTaSL/' >> ~/.bashrc
   ```
   * build openGJK
   ```
@@ -303,7 +303,7 @@
   ```
 * send the file to CB  
   ```
-  scp /home/junsu/Projects/indyframework2.0/deployment/* root@192.168.0.63:/home/user/release/TasksDeployment  
+  scp $HOME/Projects/indyframework2.0/deployment/* root@192.168.0.63:/home/user/release/TasksDeployment  
   ```
 * Run TaskMan on CB, through ssh
   ```
@@ -369,14 +369,14 @@ export ROS_HOSTNAME=localhost
   
 \# etasl  
 \#source $HOME/etasl_ws/devel/setup.sh  
-source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash  
-export TESSERACT_SUPPORT_DIR='/home/junsu/Projects/tamp_etasl/eTaSL/ws_ros/devel/share/tesseract_support'  
+source $HOME/etasl_ws/etasl/ws/etasl-py/devel/setup.bash  
+export TESSERACT_SUPPORT_DIR='$HOME/Projects/tamp_etasl/eTaSL/ws_ros/devel/share/tesseract_support'  
 
 \# tamp_etasl  
-export TAMP_ETASL_DIR=/home/junsu/Projects/tamp_etasl/eTaSL/  
+export TAMP_ETASL_DIR=$HOME/Projects/tamp_etasl/eTaSL/  
 source "$TAMP_ETASL_DIR"ws_ros/devel/setup.bash  
   
 \# JetBrains  
-export PATH=$PATH:/home/junsu/pycharm-2020.2/bin  
-export PATH=$PATH:/home/junsu/clion-2020.2/bin  
+export PATH=$PATH:$HOME/pycharm-2020.2/bin  
+export PATH=$PATH:$HOME/clion-2020.2/bin  
 ```
