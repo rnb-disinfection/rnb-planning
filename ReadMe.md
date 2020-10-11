@@ -42,7 +42,9 @@
   ```  
   * **Reboot! Check that GPUs are visible using the command: nvidia-smi**
 * reboot and continue with cuda & cudnnn  
-  ```
+  ```cd $TAMP_ETASL_DIR/openGJK/lib \
+&& cmake -DCMAKE_BUILD_TYPE=Release \
+&& make
   # Install development and runtime libraries (~4GB)
   sudo apt-get install --no-install-recommends \
       cuda-10-1 \
@@ -230,7 +232,7 @@
   ```
   * **[IMPORTANT]** comment out "source $HOME/etasl/ws/etasl-py/devel/setup.bash" in ~/.bashrc
   * restart terminal  
-  * switch to gcc and g++ version to 7 to before installing etasl
+  * switch to gcc and g++ version to 7 before installing etasl
   ```
   sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
   ```
@@ -240,7 +242,7 @@
   && sudo rm -rf devel && sudo rm -rf devel && catkin_make -DCMAKE_BUILD_TYPE=Release \
   && source $HOME/etasl/ws/etasl/devel/setup.bash   
   ```
-  * switch to gcc and g++ version to 5 to before installing etasl-py
+  * switch to gcc and g++ version to 5 before installing etasl-py
   ```
   sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
   ```
@@ -252,6 +254,10 @@
   ```
   * **[IMPORTANT]** uncomment "source $HOME/etasl/ws/etasl-py/devel/setup.bash" in ~/.bashrc
   * restart terminal  
+  * switch to gcc and g++ version back to 7
+  ```
+  sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
+  ```
   
 * Get project and add path to ~/.bahsrc
   ```
