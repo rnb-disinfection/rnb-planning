@@ -261,8 +261,8 @@
   ```
   mkdir ~/Projects && cd ~/Projects \
   && git clone https://github.com/Cucumberkjs/tamp_etasl.git \
-  && export TAMP_ETASL_DIR=/home/junsu/Projects/tf_gmt/eTaSL/ \
-  && echo 'export TAMP_ETASL_DIR=/home/junsu/Projects/tf_gmt/eTaSL/' >> ~/.bashrc
+  && export TAMP_ETASL_DIR=/home/junsu/Projects/tamp_etasl/eTaSL/ \
+  && echo 'export TAMP_ETASL_DIR=/home/junsu/Projects/tamp_etasl/eTaSL/' >> ~/.bashrc
   ```
   * build openGJK
   ```
@@ -366,10 +366,10 @@ export ROS_HOSTNAME=localhost
 \# etasl  
 \#source $HOME/etasl_ws/devel/setup.sh  
 source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash  
-export TESSERACT_SUPPORT_DIR='/home/junsu/Projects/tf_gmt/eTaSL/ws_ros/devel/share/tesseract_support'  
+export TESSERACT_SUPPORT_DIR='/home/junsu/Projects/tamp_etasl/eTaSL/ws_ros/devel/share/tesseract_support'  
 
-\# tf_gmt  
-export TAMP_ETASL_DIR=/home/junsu/Projects/tf_gmt/eTaSL/  
+\# tamp_etasl  
+export TAMP_ETASL_DIR=/home/junsu/Projects/tamp_etasl/eTaSL/  
 source "$TAMP_ETASL_DIR"ws_ros/devel/setup.bash  
   
 \# JetBrains  
