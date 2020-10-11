@@ -270,7 +270,7 @@
   ```
   * build openGJK
   ```
-  cd $TAMP_ETASL_DIR/openGJK/lib \
+  cd "$TAMP_ETASL_DIR"openGJK/lib \
   && cmake -DCMAKE_BUILD_TYPE=Release \
   && make
   ```
@@ -314,7 +314,7 @@
 # TIPS 
 * Launching RVIZ
   ```
-  roslaunch "$TAMP_ETASL_DIR"/launch/gui_custom_robots_joint_panel.launch 
+  roslaunch "$TAMP_ETASL_DIR"launch/gui_custom_robots_joint_panel.launch 
   ``` 
 
 * Launch franka ros interface  
