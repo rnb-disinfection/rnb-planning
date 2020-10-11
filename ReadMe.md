@@ -220,6 +220,12 @@
   ```
   
 # Setup project  
+* Get project
+  ```
+  mkdir ~/Projects \
+  && mkdir ~/Projects
+  
+  ```
 * overwrite custom etasl project from github and recompile etasl
 * **[IMPORTANT]** comment out lines below "source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash" in ~/.bashrc
 * switch to gcc and g++ version to 7 to before installing etasl
