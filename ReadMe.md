@@ -225,46 +225,47 @@
   mkdir ~/Projects && cd ~/Projects \
   && git clone https://github.com/Cucumberkjs/tamp_etasl.git
   ```
-* overwrite custom etasl project from github and recompile etasl
-* **[IMPORTANT]** comment out lines below "source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash" in ~/.bashrc
-* switch to gcc and g++ version to 7 to before installing etasl
+* Build custom etasl
+  * overwrite custom etasl project from github and recompile etasl
+  * **[IMPORTANT]** comment out lines below "source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash" in ~/.bashrc
+  * switch to gcc and g++ version to 7 to before installing etasl
   ```
   sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
   ```
-* rebuild etasl 
+  * rebuild etasl 
   ```
   cd ~/etasl/ws/etasl \
   && sudo rm -rf devel && sudo rm -rf devel && catkin_make -DCMAKE_BUILD_TYPE=Release \
   && source $HOME/etasl/ws/etasl-py/devel/setup.bash   
   ```
-* switch to gcc and g++ version to 5 to before installing etasl-py
+  * switch to gcc and g++ version to 5 to before installing etasl-py
   ```
   sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
   ```
-* rebuild etasl-py 
+  * rebuild etasl-py 
   ```
   cd ~/etasl/ws/etasl-py \
   && sudo rm -rf devel && sudo rm -rf devel && catkin_make -DCMAKE_BUILD_TYPE=Release \
   && source $HOME/etasl/ws/etasl-py/devel/setup.bash   
   ```
-* **[IMPORTANT]** uncomment lines below "source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash" in ~/.bashrc
+  * **[IMPORTANT]** uncomment lines below "source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash" in ~/.bashrc
 
-* openGJK
+  * openGJK
   ```
   cd $TF_GMT_ETASL_DIR/openGJK/lib \
   && cmake -DCMAKE_BUILD_TYPE=Release \
   && make
   ```
-* build custom workspace  
+  * build custom workspace  
   ```
   cd eTaSL/ws_ros && rm -rf build devel && catkin_make -DCMAKE_BUILD_TYPE=Release  
   ```
-* add below to ~./bashrc  
+  * add below to ~./bashrc  
   ```
   export TF_GMT_ETASL_DIR=/home/junsu/Projects/tf_gmt/eTaSL/  
   source "$TF_GMT_ETASL_DIR"ws_ros/devel/setup.bash  
   ```
-* start roscore if it's not on  
+  * start roscore if it's not on  
   ```
   nohup roscore &  
   ```
