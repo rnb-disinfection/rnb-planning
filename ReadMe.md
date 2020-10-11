@@ -261,7 +261,7 @@
   ```
   * build openGJK
   ```
-  cd $TF_GMT_ETASL_DIR/openGJK/lib \
+  cd $TAMP_ETASL_DIR/openGJK/lib \
   && cmake -DCMAKE_BUILD_TYPE=Release \
   && make
   ```
@@ -305,7 +305,7 @@
 # TIPS 
 * Launching RVIZ
   ```
-  roslaunch "$TF_GMT_ETASL_DIR"/launch/gui_custom_robots_joint_panel.launch 
+  roslaunch "$TAMP_ETASL_DIR"/launch/gui_custom_robots_joint_panel.launch 
   ``` 
 
 * Launch franka ros interface  
@@ -364,8 +364,8 @@ source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash
 export TESSERACT_SUPPORT_DIR='/home/junsu/Projects/tf_gmt/eTaSL/ws_ros/devel/share/tesseract_support'  
 
 \# tf_gmt  
-export TF_GMT_ETASL_DIR=/home/junsu/Projects/tf_gmt/eTaSL/  
-source "$TF_GMT_ETASL_DIR"ws_ros/devel/setup.bash  
+export TAMP_ETASL_DIR=/home/junsu/Projects/tf_gmt/eTaSL/  
+source "$TAMP_ETASL_DIR"ws_ros/devel/setup.bash  
   
 \# JetBrains  
 export PATH=$PATH:/home/junsu/pycharm-2020.2/bin  
