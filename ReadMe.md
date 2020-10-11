@@ -218,12 +218,6 @@
   ```
   pip install pyrealsense2  
   ```
-* openGJK
-  ```
-  cd $TF_GMT_ETASL_DIR/openGJK/lib \
-  && cmake -DCMAKE_BUILD_TYPE=Release \
-  && make
-  ```
   
 # Setup project  
 * overwrite custom etasl project from github and recompile etasl
@@ -249,6 +243,13 @@
   && source $HOME/etasl/ws/etasl-py/devel/setup.bash   
   ```
 * **[IMPORTANT]** uncomment lines below "source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash" in ~/.bashrc
+
+* openGJK
+  ```
+  cd $TF_GMT_ETASL_DIR/openGJK/lib \
+  && cmake -DCMAKE_BUILD_TYPE=Release \
+  && make
+  ```
 * build custom workspace  
   ```
   cd eTaSL/ws_ros && rm -rf build devel && catkin_make -DCMAKE_BUILD_TYPE=Release  
