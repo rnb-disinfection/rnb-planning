@@ -257,6 +257,7 @@
   ```
   mkdir ~/Projects && cd ~/Projects \
   && git clone https://github.com/Cucumberkjs/tamp_etasl.git \
+  && export TAMP_ETASL_DIR=/home/junsu/Projects/tf_gmt/eTaSL/ \
   && echo 'export TAMP_ETASL_DIR=/home/junsu/Projects/tf_gmt/eTaSL/' >> ~/.bashrc
   ```
   * build openGJK
