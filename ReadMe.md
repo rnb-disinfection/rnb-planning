@@ -253,10 +253,11 @@
   * **[IMPORTANT]** uncomment "source $HOME/etasl/ws/etasl-py/devel/setup.bash" in ~/.bashrc
   * restart terminal  
   
-* Get project
+* Get project and add path to ~/.bahsrc
   ```
   mkdir ~/Projects && cd ~/Projects \
-  && git clone https://github.com/Cucumberkjs/tamp_etasl.git
+  && git clone https://github.com/Cucumberkjs/tamp_etasl.git \
+  && echo 'export TAMP_ETASL_DIR=/home/junsu/Projects/tf_gmt/eTaSL/' >> ~/.bashrc
   ```
   * build openGJK
   ```
@@ -267,11 +268,8 @@
   * build custom workspace  
   ```
   cd eTaSL/ws_ros && rm -rf build devel && catkin_make -DCMAKE_BUILD_TYPE=Release  
-  ```
-  * add below to ~./bashrc  
-  ```
-  export TF_GMT_ETASL_DIR=/home/junsu/Projects/tf_gmt/eTaSL/  
-  source "$TF_GMT_ETASL_DIR"ws_ros/devel/setup.bash  
+  source "$TAMP_ETASL_DIR"ws_ros/devel/setup.bash
+  echo 'source "$TAMP_ETASL_DIR"ws_ros/devel/setup.bash' >> ~/.bashrc
   ```
   * start roscore if it's not active  
   ```
