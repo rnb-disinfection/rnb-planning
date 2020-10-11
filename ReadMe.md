@@ -42,9 +42,7 @@
   ```  
   * **Reboot! Check that GPUs are visible using the command: nvidia-smi**
 * reboot and continue with cuda & cudnnn  
-  ```cd $TAMP_ETASL_DIR/openGJK/lib \
-&& cmake -DCMAKE_BUILD_TYPE=Release \
-&& make
+  ```
   # Install development and runtime libraries (~4GB)
   sudo apt-get install --no-install-recommends \
       cuda-10-1 \
@@ -115,7 +113,7 @@
 * Gazebo  
   ```
   sudo apt-get install -y ros-melodic-gazebo-ros-pkgs ros-melodic-gazebo-ros-control ros-melodic-joint-state-controller ros-melodic-effort-controllers ros-melodic-position-controllers ros-melodic-joint-trajectory-controller  
-  ````
+  ```
 * UR package  
   * link: https://github.com/ros-industrial/universal_robot  
   ```
