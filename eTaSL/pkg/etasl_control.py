@@ -3,7 +3,7 @@ from pkg.global_config import *
 
 import ctypes
 
-lib = ctypes.cdll.LoadLibrary(os.path.join(TF_GMT_ETASL_DIR, 'ws_ros/devel/lib/libetasl_ros_controllers.so'))
+lib = ctypes.cdll.LoadLibrary(os.path.join(TAMP_ETASL_DIR, 'ws_ros/devel/lib/libetasl_ros_controllers.so'))
 lib.etasl_create.argtypes = [ctypes.c_char_p, ctypes.c_double, ctypes.c_double, ctypes.c_double]
 lib.DoubleMap_get.restype = ctypes.c_double
 

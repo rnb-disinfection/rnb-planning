@@ -1,6 +1,6 @@
 import sys
 import os
-sys.path.insert(1, os.path.join(os.environ["TF_GMT_ETASL_DIR"],'pyKinectAzure/pyKinectAzure/'))
+sys.path.insert(1, os.path.join(os.environ["TAMP_ETASL_DIR"],'pyKinectAzure/pyKinectAzure/'))
 
 import numpy as np
 from pyKinectAzure import pyKinectAzure, _k4a

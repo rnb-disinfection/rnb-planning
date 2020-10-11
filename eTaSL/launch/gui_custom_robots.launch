@@ -1,12 +1,12 @@
 <?xml version="1.0"?>
 <launch>
 
-  <param name="robot_description" textfile="$(env TF_GMT_ETASL_DIR)/robots/custom_robots.urdf" />
+  <param name="robot_description" textfile="$(env TAMP_ETASL_DIR)/robots/custom_robots.urdf" />
 
   <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
 
   <param name="use_gui" value="true"/>
 
-  <node name="rviz" pkg="rviz" type="rviz" args="-d $(env TF_GMT_ETASL_DIR)/launch/custom_robots.rviz" />
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(env TAMP_ETASL_DIR)/launch/custom_robots.rviz" />
 </launch>
 

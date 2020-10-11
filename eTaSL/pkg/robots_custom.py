@@ -8,8 +8,8 @@ from .global_config import *
 from .geometry import GeoSegment
 from .rotation_utils import  *
 
-XACRO_PATH_DEFAULT = '{}robots/custom_robots.urdf.xacro'.format(TF_GMT_ETASL_DIR)
-URDF_PATH_DEFAULT = '{}robots/custom_robots.urdf'.format(TF_GMT_ETASL_DIR)
+XACRO_PATH_DEFAULT = '{}robots/custom_robots.urdf.xacro'.format(TAMP_ETASL_DIR)
+URDF_PATH_DEFAULT = '{}robots/custom_robots.urdf'.format(TAMP_ETASL_DIR)
 
 URDF_PATH = os.path.join(PROJ_DIR, "robots", "custom_robots.urdf")
 JOINT_NAMES = ["shoulder_pan_joint","shoulder_lift_joint","elbow_joint","wrist_1_joint","wrist_2_joint","wrist_3_joint"]
@@ -102,7 +102,7 @@ class XacroCustomizer:
     
     def start_rviz(self):
         self.kill_existing_subprocess()
-        self.subp = subprocess.Popen(['roslaunch', '{}launch/gui_custom_robots.launch'.format(TF_GMT_ETASL_DIR)])
+        self.subp = subprocess.Popen(['roslaunch', '{}launch/gui_custom_robots.launch'.format(TAMP_ETASL_DIR)])
         
     def kill_existing_subprocess(self):
         if self.subp is not None:
