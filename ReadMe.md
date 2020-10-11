@@ -220,13 +220,14 @@
   ```
   
 # Setup project  
-* Get project
-  ```
-  mkdir ~/Projects && cd ~/Projects \
-  && git clone https://github.com/Cucumberkjs/tamp_etasl.git
-  ```
 * Build custom etasl
-  * overwrite custom etasl project from github and recompile etasl
+  * get custom etasl project from github and recompile etasl
+  ```
+  cd ~/etasl/ws \
+  && mv ./etasl ./etasl_bak && mv ./etasl-py ./etasl-py_bak \
+  && git clone https://github.com/Cucumberkjs/etasl.git \
+  && git clone https://github.com/Cucumberkjs/etasl-py.git
+  ```
   * **[IMPORTANT]** comment out lines below "source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash" in ~/.bashrc
   * switch to gcc and g++ version to 7 to before installing etasl
   ```
@@ -250,7 +251,12 @@
   ```
   * **[IMPORTANT]** uncomment lines below "source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash" in ~/.bashrc
 
-  * openGJK
+* Get project
+  ```
+  mkdir ~/Projects && cd ~/Projects \
+  && git clone https://github.com/Cucumberkjs/tamp_etasl.git
+  ```
+  * build openGJK
   ```
   cd $TF_GMT_ETASL_DIR/openGJK/lib \
   && cmake -DCMAKE_BUILD_TYPE=Release \
@@ -265,7 +271,7 @@
   export TF_GMT_ETASL_DIR=/home/junsu/Projects/tf_gmt/eTaSL/  
   source "$TF_GMT_ETASL_DIR"ws_ros/devel/setup.bash  
   ```
-  * start roscore if it's not on  
+  * start roscore if it's not active  
   ```
   nohup roscore &  
   ```
