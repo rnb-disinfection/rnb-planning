@@ -135,7 +135,7 @@
   sudo apt install ros-melodic-libfranka ros-melodic-franka-ros \
   && cd ~/catkin_ws \
   && git clone https://github.com/justagist/franka_ros_interface src/franka_ros_interface \
-  && catkin build franka_ros_interface -DCMAKE_BUILD_TYPE=Release \
+  && catkin_make -DCMAKE_BUILD_TYPE=Release \
   && source devel/setup.bash
   ```
   * Copy/move the franka.sh file to the root of the catkin_ws
@@ -154,10 +154,9 @@
   cd ~ \
   && git clone --recursive https://gitlab.kuleuven.be/rob-expressiongraphs/docker/etasl-install.git etasl \
   && cd etasl \
-  && source install-dependencies.sh \
-  && source $HOME/orocos-install/orocos-2.9_ws/install_isolated/setup.bash \
-  && echo 'source $HOME/orocos-install/orocos-2.9_ws/install_isolated/setup.bash' >> ~/.bashrc
+  && source install-dependencies.sh
   ```
+* **ADD** "source $HOME/orocos-install/orocos-2.9_ws/install_isolated/setup.bash" on top of ~/.bashrc  
 * switch gcc and g++ version to 7 before installing etasl
   ```
   sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
@@ -276,7 +275,7 @@
   ```
   * build custom workspace  
   ```
-  cd eTaSL/ws_ros && rm -rf build devel && catkin_make -DCMAKE_BUILD_TYPE=Release  
+  cd "$TAMP_ETASL_DIR"ws_ros && rm -rf build devel && catkin_make -DCMAKE_BUILD_TYPE=Release  
   source "$TAMP_ETASL_DIR"ws_ros/devel/setup.bash
   echo 'source "$TAMP_ETASL_DIR"ws_ros/devel/setup.bash' >> ~/.bashrc
   ```
