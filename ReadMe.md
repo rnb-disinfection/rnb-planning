@@ -222,8 +222,8 @@
 # Setup project  
 * Get project
   ```
-  mkdir ~/Projects \
-  && mkdir ~/Projects
+  mkdir ~/Projects && mkdir ~/Projects && cd ~/Projects \
+  && git clone  \
   
   ```
 * overwrite custom etasl project from github and recompile etasl
