@@ -63,7 +63,7 @@ IF(USE_PREDICATES)
 ENDIF()
 
 # Create the (dynamic) library
-add_library(${PROJECT_NAME} STATIC ${SOURCE_FILES} ${SOURCE_HEADS})
+add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES} ${SOURCE_HEADS})
 add_definitions(-DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=TRUE -DBUILD_SHARED_LIBS=FALSE)
 
 # Link include file

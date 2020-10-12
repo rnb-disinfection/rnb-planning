@@ -46,6 +46,16 @@
  */
  #define SAMESIGN( a, b ) ( (a>0) == (b>0) )
 
+#define OBJ_MAX 100
+#define VTX_MAX 100
+
+/**
+ * @brief Structure of a body.
+ */
+struct bd_flt {
+    int numpoints;    /**< Number of points defining the body.            */
+    double  vtx_flat [VTX_MAX*3];  /**< Pointer to pointer to the points' coordinates. */
+};
 
 /**
  * @brief Structure of a body.
@@ -55,8 +65,6 @@ struct bd {
   double  **coord;  /**< Pointer to pointer to the points' coordinates. */
   double  s [3];    /**< Support mapping computed last.                 */
 };
-
-
 
 
 /**
@@ -71,13 +79,14 @@ struct simplex {
   double  q [4][3];	    /**< Points of Q that form the simplex  */ 
 };
 
-
-
-
 /**
  * @brief The GJK algorithm which returns the minimum distance between 
  * two bodies.
  */
-extern double gjk( struct bd, struct bd, struct simplex * ) ;
+extern double gjk( struct bd, struct bd, struct simplex * );
+
+extern void gjk_batch(struct bd *, int*, int*, int, double *);
+
+extern void gjk_flat_batch(struct bd_flt *, int, int*, int*, int, double *);
 
 #endif

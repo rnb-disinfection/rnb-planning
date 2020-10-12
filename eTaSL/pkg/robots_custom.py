@@ -268,6 +268,9 @@ def make_mesh_backup(meshname):
     np.save('./geometry_tmp/'+meshname+'_bak.npy', val)
 
 def refine_meshes():    
+    try: os.mkdir('./geometry_tmp')
+    except: pass
+    
     val = [0,  0.005, 0.055, 
            0, 0.02, 0.02, 
            0.018]

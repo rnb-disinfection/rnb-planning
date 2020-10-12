@@ -33,12 +33,12 @@ class PandaRepeater(Repeater):
         self.kill_existing_subprocess()
 
     def move_finger(self, close_bool, max_width=0.039, min_width=0.025, effort=1):
-        self.finger_cmd.goal.command.position = (max_width-min_width)*(1-close_bool)+min_width
-        self.finger_cmd.goal.command.max_effort = effort
-        self.finger_cmd.header.seq += 1
-        self.finger_cmd.goal_id.stamp = self.finger_cmd.header.stamp = rospy.Time.now()
-        self.finger_pub.publish(self.finger_cmd)
         if close_bool != self.close_bool:
+            self.finger_cmd.goal.command.position = (max_width-min_width)*(1-close_bool)+min_width
+            self.finger_cmd.goal.command.max_effort = effort
+            self.finger_cmd.header.seq += 1
+            self.finger_cmd.goal_id.stamp = self.finger_cmd.header.stamp = rospy.Time.now()
+            self.finger_pub.publish(self.finger_cmd)
             time.sleep(0.5)
         self.close_bool = close_bool
         return self.close_bool

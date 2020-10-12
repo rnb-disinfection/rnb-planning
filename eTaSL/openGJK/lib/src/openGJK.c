@@ -751,6 +751,40 @@ inline static void subalgorithm( struct simplex *s, double *v ) {
   }
 }
 
+void gjk_batch(struct bd * bd_arr, int* idx1_arr, int* idx2_arr, int num_col, double * dist_arr){
+    /* Structure of simplex used by openGJK.                                 */
+    for(int i=0; i<num_col; i++){
+        struct simplex  s;
+        s.nvrtx = 0;
+        struct bd bd1 = bd_arr[idx1_arr[i]];
+        struct bd bd2 = bd_arr[idx2_arr[i]];
+        dist_arr[i] = gjk (bd1, bd2, &s);
+    }
+}
+
+void gjk_flat_batch(struct bd_flt * bd_flt_arr, int num_bd, int* idx1_arr, int* idx2_arr, int num_col, double * dist_arr){
+    struct bd bd_arr[VTX_MAX];
+    double* double_pt_mat[OBJ_MAX][VTX_MAX];
+
+    for (int i=0; i<num_bd; i++){
+        for (int j=0; j<bd_flt_arr[i].numpoints; j++){
+            double_pt_mat[i][j] = bd_flt_arr[i].vtx_flat+j*3;
+        }
+        bd_arr[i].numpoints = bd_flt_arr[i].numpoints;
+        bd_arr[i].coord = double_pt_mat[i];
+    }
+
+    /* Structure of simplex used by openGJK.                                 */
+    for(int i=0; i<num_col; i++){
+        struct simplex  s;
+        s.nvrtx = 0;
+
+        struct bd bd1 = bd_arr[idx1_arr[i]];
+        struct bd bd2 = bd_arr[idx2_arr[i]];
+        dist_arr[i] = gjk (bd1, bd2, &s);
+    }
+}
+
 double gjk( struct bd bd1, struct bd bd2, struct simplex *s) {
 
   int    i;                   
@@ -839,7 +873,7 @@ double gjk( struct bd bd1, struct bd bd2, struct simplex *s) {
 
     /* 4th and 5th exit conditions */
   } while((s->nvrtx != 4) && (k != mk));
-  
+
   /* Compute and return distance */ 
   return sqrt(norm2(v));
 }
