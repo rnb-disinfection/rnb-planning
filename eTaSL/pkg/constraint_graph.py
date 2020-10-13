@@ -15,7 +15,7 @@ from urdf_parser_py.urdf import URDF
 from .plot_utils import *
 import threading
 from threading import Thread
-from multiprocessing import Process, Lock, Manager
+from multiprocessing import Process, Lock, Manager, cpu_count
 from .panda_ros_interface import *
 from .panda_repeater import *
 from .etasl_control import *
@@ -754,10 +754,13 @@ class ConstraintGraph:
     @record_time
     def search_graph_mp(self, initial_state, goal_nodes, swept_volume_test_jmotion = False,
                         tree_margin=0, depth_margin=0, joint_motion_num=10,
-                        terminate_on_first=True, N_search=100, N_loop=1000, N_agents=8,
+                        terminate_on_first=True, N_search=100, N_loop=1000, N_agents=None,
                         display=False, dt_vis=None, verbose=False, print_expression=False, **kwargs):
         if display:
             print("Cannot display motion in multiprocess")
+        if N_agents is None:
+            N_agents = cpu_count()
+        print("Use {}/{} agents".format(N_agents, cpu_count()))
 
         self.joint_motion_num = joint_motion_num
         self.swept_volume_test_jmotion = swept_volume_test_jmotion
