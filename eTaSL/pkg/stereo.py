@@ -136,6 +136,8 @@ def get_object_pose_dict_stereo(aruco_map, dictionary, kn_config=None, rs_config
                 objectPose_dict[oname] = kn_objectPose_dict[oname]
             else:
                 objectPose_dict[oname] = np.matmul(T_c12, rs_objectPose_dict[oname])
+        elif oname in kn_objectPose_dict:
+            objectPose_dict[oname] = kn_objectPose_dict[oname]
 
         if len(objectPoints_dp) > 0:
             objectPoints_dp = np.concatenate(objectPoints_dp, axis=0).astype(np.float32).transpose()

@@ -207,5 +207,9 @@ def CallHolder(caller, arg_keys, *args, **kwargs):
         kwargs_rt.update({k:v for k,v in zip(arg_keys, args_rt) if k is not None})
         kwargs_rt.update(kwargs)
         return caller(*args, **kwargs_rt)
+    fun.caller=caller
+    fun.arg_keys=arg_keys
+    fun.args=args
+    fun.kwargs=kwargs
     return fun
 

@@ -153,7 +153,7 @@ def get_full_context(init_text, additional_constraints="", vel_conv="1E-2", err_
             actionname ="exit",
             argument = "converged"
         }}
-        """.format(vel_conv=0)
+        """.format(vel_conv=vel_conv)
     if "error_target" in additional_constraints:
         monitor_string += \
             """

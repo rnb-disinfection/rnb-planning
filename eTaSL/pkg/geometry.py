@@ -14,12 +14,16 @@ BOX_DEFAULT = np.array([[[(i,j,k) for k in range(2)] for j in range(2)] for i in
 class GeometryItem(object):
     GLOBAL_GEO_LIST = []
     GLOBAL_GEO_DICT = {}
-    def __init__(self, name, link_name, urdf_content, color=(0,1,0,1), display=True, collision=True):
+    def __init__(self, name, link_name, urdf_content, color=(0,1,0,1), display=True, collision=True,
+                 soft=False, online=False, K_col=None):
         GeometryItem.GLOBAL_GEO_LIST += [self]
         GeometryItem.GLOBAL_GEO_DICT[name] = self
         self.color = color
         self.display = display
         self.collision = collision
+        self.soft = soft
+        self.online = online
+        self.K_col = K_col
         self.urdf_content = urdf_content
         self.set_name(name)
         if self.urdf_content is not None:

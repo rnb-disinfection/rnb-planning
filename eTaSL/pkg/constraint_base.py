@@ -3,7 +3,10 @@ from .geometry import *
     
 
 # define distances
-def make_distance_bound_constraint(ctem1, ctem2, lower=0, soft=False, K="K"):
+def make_distance_bound_constraint(ctem1, ctem2, lower=0, K="K"):
+    soft = ctem1.soft or ctem2.soft
+    if ctem1.K_col is not None or ctem2.K_col is not None:
+        K = max(ctem1.K_col, ctem2.K_col)
     return """
 Constraint{{
 context=ctx,
@@ -159,14 +162,14 @@ def make_colliding_list(geometry_items1, geometry_items2=None, min_distance_map=
     return collision_list
 
 
-def make_collision_constraints_listed(collision_list, soft=False, K="K"):
+def make_collision_constraints_listed(collision_list, K="K"):
     constraint_text = "\n"
     for ctuple in collision_list:
-        constraint_text += make_distance_bound_constraint(ctuple[0], ctuple[1], soft=soft, K=K)
+        constraint_text += make_distance_bound_constraint(ctuple[0], ctuple[1], K=K)
     return constraint_text
 
 
-def make_collision_constraints(geometry_items1, geometry_items2=None, soft=False, K="K", min_distance_map=None):
+def make_collision_constraints(geometry_items1, geometry_items2=None, K="K", min_distance_map=None):
     constraint_text = "\n"
     idx1 = 0
     for ctem1 in geometry_items1:
@@ -185,8 +188,27 @@ def make_collision_constraints(geometry_items1, geometry_items2=None, soft=False
                     min_col_dist = min_link_dist - (np.linalg.norm(ctem1.get_off_max()) + np.linalg.norm(ctem2.get_off_max()))
                     if min_col_dist > 0:
                         continue
-                constraint_text += make_distance_bound_constraint(ctem1, ctem2, soft=soft, K=K)
+                constraint_text += make_distance_bound_constraint(ctem1, ctem2, K=K)
     return constraint_text
+
+def get_online_input_text(ctems):
+    obs_tf_text = ""
+    kwargs_online = {}
+    online_names = []
+    for obs_geo in ctems:
+        if obs_geo.online:
+            online_names.append(obs_geo.name)
+            obs_tf_text += """
+            obs_{name}_x = ctx:createInputChannelScalar("obs_{name}_x", 0)
+            obs_{name}_y = ctx:createInputChannelScalar("obs_{name}_y", 0)
+            obs_{name}_z = ctx:createInputChannelScalar("obs_{name}_z", 0)
+            T_{name}_obs = translate_x(obs_{name}_x)*translate_y(obs_{name}_y)*translate_z(obs_{name}_z)
+            """.format(name=obs_geo.name)
+            kwargs_online.update(dict(inp_lbl=['obs_{name}_{axis}'.format(name=obs_geo.name,
+                                                                       axis=axis) for axis in "xyz"],
+                                   inp=obs_geo.get_offset_tf()[:3, 3].tolist()))
+            obs_geo.tf_name = "T_{name}_obs".format(name=obs_geo.name)
+    return obs_tf_text, kwargs_online, online_names
 
 
 def make_joint_constraints(joint_names, make_error=True, priority=2, K_joint="K"):

@@ -109,7 +109,8 @@ class ConstraintGraph:
         self.joint_limits = np.array([(self.urdf_content.joint_map[jname].limit.lower,
                                        self.urdf_content.joint_map[jname].limit.upper) for jname in self.joint_names])
 
-
+        self.indy = None
+        self.panda = None
         self.indy_idx = [idx for idx, jname in zip(range(self.joint_num), self.joint_names) if 'indy' in jname]
         self.panda_idx = [idx for idx, jname in zip(range(self.joint_num), self.joint_names) if 'panda' in jname]
         if connect_panda:
@@ -207,6 +208,8 @@ class ConstraintGraph:
         self.init_text = get_init_text(timescale=timescale)
         self.item_text = get_item_text(GeometryItem.GLOBAL_GEO_LIST)
         self.fixed_tf_text = get_tf_text(self.fixed_tf_list)
+        self.online_input_text, self.kwargs_online, self.online_names = \
+            get_online_input_text(GeometryItem.GLOBAL_GEO_LIST)
         self.fixed_collision_text = make_collision_constraints(self.fixed_collision_items_list,
                                                                min_distance_map=self.min_distance_map)
 
@@ -293,6 +296,29 @@ class ConstraintGraph:
             self.binder_dict[binding[1]].bind(self.object_dict[name], binding[0],
                                               joint_list2dict([0]*len(self.joint_names), joint_names=self.joint_names))
 
+    def register_object_gen(self, objectPose_dict_mv, object_generators, binder_dict, object_dict, ref_tuple, link_name="world"):
+        objectPose_dict_mv.update({ref_tuple[0]: ref_tuple[1]})
+        xyz_rvec_mv_dict, put_point_dict, _ = calc_put_point(objectPose_dict_mv, object_generators, object_dict, ref_tuple)
+
+        for mname, mgen in object_generators.items():
+            if mname in xyz_rvec_mv_dict and mname not in GeometryItem.GLOBAL_GEO_DICT:
+                xyz_rvec = xyz_rvec_mv_dict[mname]
+                self.add_geometry_items([mgen(*xyz_rvec, name=mname,
+                                               link_name=link_name, urdf_content=self.urdf_content, color=(0.3, 0.3, 0.8, 1),
+                                               collision=True)],
+                                         fixed=False)
+
+        for bname, bkwargs in binder_dict.items():
+            if bname not in self.binder_dict:
+                self.register_binder(name=bname, **bkwargs)
+
+        for mtem, xyz_rvec in xyz_rvec_mv_dict.items():
+            if mtem in put_point_dict and mtem not in self.object_dict:
+                self.register_object(mtem, binding=(put_point_dict[mtem], "floor"), **object_dict[mtem])
+
+        return put_point_dict
+
+
     @record_time
     def get_object_by_name(self, name):
         if name in GeometryItem.GLOBAL_GEO_DICT:
@@ -347,7 +373,7 @@ class ConstraintGraph:
                 bd_fixed = [node[idx] for idx in fixed_in]
                 bd_ctrl = [node[idx][2] for idx in ctrl_in]
                 pt_ctrl = [node[idx][1] for idx in ctrl_in]
-                obj_ctrl = [node[idx][0] for idx in ctrl_in]
+                # obj_ctrl = [node[idx][0] for idx in ctrl_in]
                 nodes_same_fix = [nd for nd in self.node_list if [nd[idx] for idx in fixed_in] == bd_fixed]
                 nodes_diff_ctrl = [nd for nd in nodes_same_fix if [nd[idx][2] for idx in ctrl_in] != bd_ctrl]
                 nodes_diff_pt = [nd for nd in nodes_diff_ctrl if [nd[idx][1] for idx in ctrl_in] != pt_ctrl]
@@ -408,12 +434,13 @@ class ConstraintGraph:
     @record_time
     def get_transition_context(self, from_state=None, to_state=None, vel_conv=1e-2, err_conv=1e-4, collision=True,
                                **kwargs):
+        kwargs.update(self.kwargs_online)
         if from_state is not None:
             pos_start = from_state.Q
             self.set_object_state(from_state)
 
         self.gtimer.tic("get_tf_text")
-        tf_text = self.fixed_tf_text + get_tf_text(self.movable_tf_list)
+        tf_text = self.fixed_tf_text + self.online_input_text + get_tf_text(self.movable_tf_list)
         self.gtimer.toc("get_tf_text")
 
         self.gtimer.tic("get_collision_text")
@@ -961,36 +988,10 @@ class ConstraintGraph:
                 if _k in self.inp_lbl:
                     self.inp[self.inp_lbl.index(_k)] = _p
 
-    def create_obstacle_context(self, obs_names=[], soft=True, K="K"):
-        obs_tf_text = ""
-        kwargs_obs = {}
-        obs_box = [mci for mci in self.geometry_items_dict['world'] if mci.name in obs_names]
-        avoiding_coltems = [fci for fci in \
-                            self.fixed_collision_items_list + self.movable_collision_items_list \
-                            if fci.link_name != "world"]
-        for obs_geo in obs_box:
-            obs_tf_text += """
-            obs_{name}_x = ctx:createInputChannelScalar("obs_{name}_x", 0)
-            obs_{name}_y = ctx:createInputChannelScalar("obs_{name}_y", 0)
-            obs_{name}_z = ctx:createInputChannelScalar("obs_{name}_z", 0)
-            T_{name}_obs = translate_x(obs_{name}_x)*translate_y(obs_{name}_y)*translate_z(obs_{name}_z)
-            """.format(name=obs_geo.name)
-            kwargs_obs.update(dict(inp_lbl=['obs_{name}_{axis}'.format(name=obs_geo.name,
-                                                                       axis=axis) for axis in "xyz"],
-                                   inp=obs_geo.get_offset_tf()[:3, 3].tolist()))
-            obs_geo.tf_name = "T_{name}_obs".format(name=obs_geo.name)
-        obs_col_text = obs_tf_text + make_collision_constraints(avoiding_coltems, obs_box, soft=soft, K=K,
-                                                               min_distance_map=self.min_distance_map)
-        return obs_col_text, kwargs_obs
-
-    def init_online_etasl(self, from_state, to_state, T_step, control_freq=DEFAULT_TRAJ_FREQUENCY, playback_rate=0.5,
-                          obs_names=[], obs_soft=True, obs_K="K", **kwargs):
+    def init_online_etasl(self, from_state, to_state, T_step, control_freq=DEFAULT_TRAJ_FREQUENCY, playback_rate=0.5, **kwargs):
         dt = 1.0 / control_freq
         dt_sim = dt * playback_rate
         N = int(float(T_step) / dt_sim)
-
-        obs_col_text, kwargs_obs = self.create_obstacle_context(obs_names=obs_names, soft=obs_soft, K=obs_K)
-        kwargs.update(kwargs_obs)
 
         full_context, pos_start, kwargs, binding_list = \
             self.get_transition_context(from_state, to_state,
@@ -1007,7 +1008,7 @@ class ConstraintGraph:
         else:
             joint_context = ""
 
-        e_sim = get_simulation(full_context+obs_col_text+joint_context)
+        e_sim = get_simulation(full_context+joint_context)
 
         self.inp_lbl = kwargs['inp_lbl'] if 'inp_lbl' in kwargs else []
         self.inp = np.array(kwargs['inp'] if 'inp' in kwargs else [])
@@ -1023,7 +1024,7 @@ class ConstraintGraph:
         return e_sim, pos, kwargs, binding_list
 
     def execute_schedule_online(self, state_schedule, control_freq=DEFAULT_TRAJ_FREQUENCY, playback_rate=0.5,
-                                vel_conv=0, err_conv=5e-4, T_step = 100, on_rviz=False, obs_names=[],
+                                vel_conv=0, err_conv=5e-4, T_step = 100, on_rviz=False,
                                 dynamic_detector=None, rviz_pub=None, stop_count_ref=25):
 
         from_Q = state_schedule[0].Q
@@ -1042,8 +1043,7 @@ class ConstraintGraph:
 
             e_sim, pos, kwargs, binding_list = self.init_online_etasl(from_state, to_state, T_step,
                                                         control_freq=control_freq, playback_rate=playback_rate,
-                                                        vel_conv=vel_conv, err_conv=err_conv,
-                                                        obs_names=obs_names, obs_soft=True, obs_K="40"
+                                                        vel_conv=vel_conv, err_conv=err_conv, obs_K="40"
                                                         )
 
             Q0 = dict_to_array(pos, self.joint_names)
@@ -1068,7 +1068,10 @@ class ConstraintGraph:
                 end_loop = False
                 while True:
                     if on_rviz:
-                        self.indy.rate_x1.sleep()
+                        if self.indy is not None:
+                            self.indy.rate_x1.sleep()
+                        else:
+                            self.rate.sleep()
                         all_sent = True
                     else:
                         all_sent = mt.move_possible_joints_x4(POS_CUR)

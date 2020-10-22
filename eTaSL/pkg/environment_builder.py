@@ -54,28 +54,6 @@ def detect_objects(movable_generators, aruco_map, dictionary, stereo=True, kn_co
         objectPose_dict_mv, corner_dict_mv = get_object_pose_dict(color_image, aruco_map, dictionary, *kn_config)
     return objectPose_dict_mv, corner_dict_mv, color_image, aruco_map_mv
 
-def register_objects(graph, objectPose_dict_mv, object_generators, binder_dict, object_dict, ref_tuple, link_name="world"):
-    objectPose_dict_mv.update({ref_tuple[0]: ref_tuple[1]})
-    xyz_rvec_mv_dict, put_point_dict, _ = calc_put_point(objectPose_dict_mv, object_generators, object_dict, ref_tuple)
-
-    for mname, mgen in object_generators.items():
-        if mname in xyz_rvec_mv_dict and mname not in GeometryItem.GLOBAL_GEO_DICT:
-            xyz_rvec = xyz_rvec_mv_dict[mname]
-            graph.add_geometry_items([mgen(*xyz_rvec, name=mname,
-                                           link_name=link_name, urdf_content=graph.urdf_content, color=(0.3, 0.3, 0.8, 1),
-                                           collision=True)],
-                                     fixed=False)
-
-    for bname, bkwargs in binder_dict.items():
-        if bname not in graph.binder_dict:
-            graph.register_binder(name=bname, **bkwargs)
-
-    for mtem, xyz_rvec in xyz_rvec_mv_dict.items():
-        if mtem in put_point_dict and mtem not in graph.object_dict:
-            graph.register_object(mtem, binding=(put_point_dict[mtem], "floor"), **object_dict[mtem])
-
-    return put_point_dict
-
 def calc_put_point(objectPose_dict_mv, object_generators, object_dict, ref_tuple):
     T_mv_dict = {mname: get_T_rel(ref_tuple[0], mname, objectPose_dict_mv) for mname in object_generators if
                  mname in objectPose_dict_mv}
