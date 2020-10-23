@@ -271,12 +271,12 @@ def refine_meshes():
     try: os.mkdir('./geometry_tmp')
     except: pass
     
-    val = [0,  0.005, 0.055, 
+    val = [0,  0.007, 0.050, 
            0, 0.02, 0.02, 
            0.018]
     np.save('./geometry_tmp/panda1_rightfinger_Mesh_0.npy', val)
     
-    val = [0,  0.005, 0.055, 
+    val = [0,  0.007, 0.050, 
            0, 0.02, 0.02, 
            0.018]
     np.save('./geometry_tmp/panda1_leftfinger_Mesh_0.npy', val)
@@ -328,8 +328,8 @@ def refine_meshes():
     np.save('./geometry_tmp/'+meshname+'.npy', val)
 
     meshname = 'panda1_hand_Mesh_0'
-    val = [0.000, 0.070, 0.01, 
-           -0.000, -0.070, 0.01, 
+    val = [0.000, 0.070, 0.02, 
+           -0.000, -0.070, 0.02, 
            0.06]
 
 

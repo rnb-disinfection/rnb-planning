@@ -88,17 +88,25 @@ class indytraj_client(IndyDCPClient, Repeater):
 
     @connect_indy
     def grasp(self, grasp, depth=0.009):
-        gstate = self.get_do()[self.indy_grasp_DO]
+        gstate = self.get_endtool_do(0)
         if gstate != grasp:
-            self.set_do(self.indy_grasp_DO, int(grasp))
-            if grasp:
-                uvw_cur = self.get_task_pos()[3:]
-                Rbe_cur = Rot_zyx(*np.deg2rad(uvw_cur)[[2, 1, 0]])
-                time.sleep(0.1)
-                self.task_move_by(np.matmul(Rbe_cur, [0, 0, depth]).tolist() + [0] * 3)
-                time.sleep(0.1)
-                self.wait_motion()
-                self.task_move_by(np.matmul(Rbe_cur, [0, 0, -depth]).tolist() + [0] * 3)
-                time.sleep(0.1)
-                self.wait_motion()
+            self.set_endtool_do(0, grasp)
+            time.sleep(0.5)
+
+## do vacuum mode
+    # @connect_indy
+    # def grasp(self, grasp, depth=0.009):
+    #     gstate = self.get_do()[self.indy_grasp_DO]
+    #     if gstate != grasp:
+    #         self.set_do(self.indy_grasp_DO, int(grasp))
+    #         if grasp:
+    #             uvw_cur = self.get_task_pos()[3:]
+    #             Rbe_cur = Rot_zyx(*np.deg2rad(uvw_cur)[[2, 1, 0]])
+    #             time.sleep(0.1)
+    #             self.task_move_by(np.matmul(Rbe_cur, [0, 0, depth]).tolist() + [0] * 3)
+    #             time.sleep(0.1)
+    #             self.wait_motion()
+    #             self.task_move_by(np.matmul(Rbe_cur, [0, 0, -depth]).tolist() + [0] * 3)
+    #             time.sleep(0.1)
+    #             self.wait_motion()
 

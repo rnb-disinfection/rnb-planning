@@ -35,7 +35,7 @@
   </material>
   <link name="world"/>
   <joint name="indy0_joint_world" type="fixed">
-    <origin rpy="-0.000634488292781 0.012427471275 -1.58258260087" xyz="-0.446847140789 0.250096917152 0.00919646024704"/>
+    <origin rpy="-0.000328128620623 0.0115290161139 -1.58381785638" xyz="-0.447144120932 0.252235591412 0.0095442533493"/>
     <parent link="world"/>
     <child link="indy0_link0"/>
   </joint>
@@ -173,9 +173,9 @@
       <material name="metal_grey"/>
     </visual>
     <collision>
-      <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 -0.054"/>
+      <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 -0.038"/>
       <geometry>
-        <cylinder length="0.218" radius="0.05"/>
+        <cylinder length="0.25" radius="0.05"/>
       </geometry>
     </collision>
   </link>
@@ -282,7 +282,7 @@
     </actuator>
   </transmission>
   <joint name="panda1_joint_world" type="fixed">
-    <origin rpy="0.00340208155202 0.0120826607184 -1.60351256569" xyz="0.511754155159 0.168157100677 0.0138661265373"/>
+    <origin rpy="0.00260427106974 0.0105923906964 -1.60387145407" xyz="0.511944293976 0.169146895409 0.0143564343452"/>
     <parent link="world"/>
     <child link="panda1_link0"/>
   </joint>
