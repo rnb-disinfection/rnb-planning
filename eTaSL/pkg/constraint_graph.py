@@ -26,6 +26,7 @@ from .indy_repeater import indytraj_client
 from etasl_py.etasl import array_to_dict,dict_to_array
 from .environment_builder import *
 from .gjk import *
+from copy import deepcopy
 
 
 INDY_GRPC = False
@@ -44,11 +45,27 @@ PriorityQueueManager.register("PriorityQueue", PriorityQueue)
 
 PROC_MODE = True
 PRINT_LOG = False
+TRAJ_COUNT = 1
+TRAJ_RADII = np.deg2rad(30)
 
 class SearchNode:
     def __init__(self, idx, state, parents, leafs, leafs_P, depth=None, edepth=None):
         self.idx, self.state, self.parents, self.leafs, self.leafs_P, self.depth, self.edepth = \
             idx, state, parents, leafs, leafs_P, depth, edepth
+        self.traj = None
+
+    def set_traj(self, traj_full):
+        traj_step = max(1,len(traj_full)/TRAJ_COUNT)
+        self.traj = np.array(list(reversed(traj_full[::-traj_step])))
+
+    def get_traj(self):
+        return self.traj
+
+    def copy(self):
+        return SearchNode(self.idx, State(self.state.node, self.state.obj_pos_dict, self.state.Q),
+                          self.parents, self.leafs, self.leafs_P, self.depth, self.edepth)
+
+
 class State:
     def __init__(self, node, obj_pos_dict, Q):
         self.node = node
@@ -434,7 +451,8 @@ class ConstraintGraph:
     @record_time
     def get_transition_context(self, from_state=None, to_state=None, vel_conv=1e-2, err_conv=1e-4, collision=True,
                                **kwargs):
-        kwargs.update(self.kwargs_online)
+        kwargs.update(deepcopy(self.kwargs_online))
+
         if from_state is not None:
             pos_start = from_state.Q
             self.set_object_state(from_state)
@@ -561,29 +579,6 @@ class ConstraintGraph:
         Q_all[self.indy_idx] = Q_indy
         Q_all[self.panda_idx] = Q_panda
         return Q_all
-
-    @record_time
-    def execute_transition(self, from_state, to_state, jerr_fin=1e-3, N=300, dt=0.01, dt_exec=None):
-        if dt_exec is None:
-            dt_exec=dt
-        full_context, pos_start, kwargs, binding_list = \
-                self.get_transition_context(from_state, to_state, N=N, dt=dt)
-        initialize_etasl_control(full_context, joint_names=self.joint_names, zeros_pose=pos_start)
-#         for _ in range(N):
-#             self.gtimer.tic("update")
-#             joint_vals = update_step(dt=dt)
-#             self.gtimer.toc("update")
-#             self.execute_pose(np.array(joint_vals))
-#             if np.sum(np.abs(np.subtract(to_state.Q,joint_vals))) < jerr_fin:
-#                 break
-        self.stop_execute = False
-        self.gtimer.tic("execute_step")
-        self.execute_steps_rec(dt, 0, N, to_state.Q, jerr_fin, dt_exec)
-        while(not self.stop_execute):
-            timer.sleep(dt*10)
-        self.execute_pose(np.array(to_state.Q))
-        self.gtimer.toc("execute_step")
-        self.execute_grip(to_state)
         
     def execute_steps_rec(self, dt, count, N, final_pos, jerr_fin, dt_exec): 
         count += 1
@@ -851,6 +846,7 @@ class ConstraintGraph:
                 snode_new = SearchNode(idx=0, state=new_state, parents=snode.parents + [snode.idx],
                                        leafs=[],
                                        leafs_P=[])
+                snode_new.set_traj(e.POS)
                 snode_new = self.add_node_queue_leafs(snode_new)
                 snode.leafs += [snode_new.idx]
                 self.snode_dict[snode.idx] = snode
@@ -902,13 +898,6 @@ class ConstraintGraph:
             e, new_state, succ = self.simulate_transition(state_cur, state_new, display=True, N=N, dt=dt,**kwargs)
             state_cur = state_new
         return e
-
-    @record_time
-    def execute_schedule(self, schedule, **kwargs):
-        for idx_sc in range(len(schedule)-1):
-            from_state = self.snode_dict[schedule[idx_sc]].state
-            to_state = self.snode_dict[schedule[idx_sc+1]].state
-            self.execute_transition(from_state, to_state, **kwargs)
 
     @record_time
     def check_goal(self, node, goals):
@@ -974,12 +963,14 @@ class ConstraintGraph:
         traj_data_list = traj_data[:].flatten().tolist()
         return traj_data_list
 
-    def idxSchedule2stateScedule(self, schedule, ZERO_JOINT_POSE=None):
-        state_schedule = [self.snode_dict[i_sc].state for i_sc in schedule]
-        state_schedule.append(state_schedule[-1].copy())
-        if ZERO_JOINT_POSE is not None:
-            state_schedule[-1].Q = ZERO_JOINT_POSE
-        return state_schedule
+    def idxSchedule2SnodeScedule(self, schedule, ZERO_JOINT_POSE=None):
+        snode_schedule = [self.snode_dict[i_sc] for i_sc in schedule]
+        snode_schedule.append(snode_schedule[-1].copy())
+        if ZERO_JOINT_POSE is None:
+            ZERO_JOINT_POSE = [0]*self.joint_num
+        snode_schedule[-1].state.Q = ZERO_JOINT_POSE
+        snode_schedule[-1].set_traj(np.array([ZERO_JOINT_POSE]))
+        return snode_schedule
 
     def update_obstacle(self, obsPos_dict):
         for k, v in obsPos_dict.items():
@@ -987,6 +978,18 @@ class ConstraintGraph:
             for _p, _k in zip(_pos, ["obs_{name}_{axis}".format(name=k, axis=axis) for axis in "xyz"]):
                 if _k in self.inp_lbl:
                     self.inp[self.inp_lbl.index(_k)] = _p
+
+    def update_target_joint(self, idx_cur, idx_jnt, traj, joint_cur):
+        error = np.sum(np.abs(joint_cur-traj[idx_cur]))
+        # print("joints: {}".format(joint_cur))
+        # print("traj: {}".format(traj[idx_cur]))
+        # print("error: {}".format(error))
+        if error < TRAJ_RADII:
+            if idx_cur+1 < len(traj)-1:
+                idx_cur += 1
+                # print("traj: {}".format(traj[idx_cur]))
+                self.inp[idx_jnt:idx_jnt+self.joint_num] = traj[idx_cur]
+        return idx_cur
 
     def init_online_etasl(self, from_state, to_state, T_step, control_freq=DEFAULT_TRAJ_FREQUENCY, playback_rate=0.5, **kwargs):
         dt = 1.0 / control_freq
@@ -997,14 +1000,16 @@ class ConstraintGraph:
             self.get_transition_context(from_state, to_state,
                                         N=N, dt=dt_sim, **kwargs)
 
+        idx_jnt = 0
         if from_state.node != to_state.node:
-            joint_context = make_joint_constraints(self.joint_names, priority=2, K_joint=1)
+            joint_context = make_joint_constraints(self.joint_names, priority=2, K_joint=1, make_error=False)
             if "inp_lbl" not in kwargs:
                 kwargs["inp_lbl"] = []
-            kwargs["inp_lbl"] += ["target_{joint_name}".format(joint_name=joint_name) for joint_name in self.joint_names]
+            kwargs["inp_lbl"] = list(kwargs["inp_lbl"]) + ["target_{joint_name}".format(joint_name=joint_name) for joint_name in self.joint_names]
             if "inp" not in kwargs:
                 kwargs["inp"] = []
-            kwargs["inp"] += list(to_state.Q)
+            idx_jnt = len(kwargs["inp"])
+            kwargs["inp"] = list(kwargs["inp"]) + list(to_state.Q)
         else:
             joint_context = ""
 
@@ -1021,27 +1026,31 @@ class ConstraintGraph:
         pos = e_sim.simulate_begin(N, dt_sim)
         e_sim.DT = dt_sim
 
-        return e_sim, pos, kwargs, binding_list
+        return e_sim, pos, kwargs, binding_list, idx_jnt
 
-    def execute_schedule_online(self, state_schedule, control_freq=DEFAULT_TRAJ_FREQUENCY, playback_rate=0.5,
+    def execute_schedule_online(self, snode_schedule, control_freq=DEFAULT_TRAJ_FREQUENCY, playback_rate=0.5,
                                 vel_conv=0, err_conv=5e-4, T_step = 100, on_rviz=False,
                                 dynamic_detector=None, rviz_pub=None, stop_count_ref=25):
 
-        from_Q = state_schedule[0].Q
-        object_pose_cur = state_schedule[0].obj_pos_dict
+        state_0 = snode_schedule[0].state
+        from_Q = state_0.Q
+        object_pose_cur = state_0.obj_pos_dict
         if not on_rviz:
             self.panda.set_k_gain(70)
             self.panda.set_d_gain(7)
-            self.execute_grip(state_schedule[0])
+            self.execute_grip(state_0)
 
-        for i_s in range(len(state_schedule) - 1):
-            from_state = state_schedule[i_s]
+        for i_s in range(len(snode_schedule) - 1):
+            from_state = snode_schedule[i_s].state
             from_state.Q = from_Q
             from_state.obj_pos_dict = object_pose_cur
-            to_state = state_schedule[i_s + 1]
+            to_snode = snode_schedule[i_s + 1]
+            to_state = to_snode.state
+            traj = to_snode.get_traj()
+            idx_cur = 0
             self.set_object_state(from_state)
 
-            e_sim, pos, kwargs, binding_list = self.init_online_etasl(from_state, to_state, T_step,
+            e_sim, pos, kwargs, binding_list, idx_jnt = self.init_online_etasl(from_state, to_state, T_step,
                                                         control_freq=control_freq, playback_rate=playback_rate,
                                                         vel_conv=vel_conv, err_conv=err_conv, obs_K="40"
                                                         )
@@ -1088,8 +1097,9 @@ class ConstraintGraph:
                             obsPos_dict = dynamic_detector.get_dynPos_dict()
                             self.update_obstacle(obsPos_dict)
                             pos = e_sim.simulate_step(i_q, pos, dt=None, inp_cur=self.inp)
-                            VEL_CUR = VEL_CUR + e_sim.VEL[i_q, 1::2] * e_sim.DT
-                            POS_CUR = POS_CUR + VEL_CUR * e_sim.DT
+                            POS_CUR = dict_to_array(pos, self.joint_names)
+                            # VEL_CUR = VEL_CUR + e_sim.VEL[i_q, 1::2] * e_sim.DT
+                            # POS_CUR = POS_CUR + VEL_CUR * e_sim.DT
                             if rviz_pub is not None:
                                 rviz_pub.update(obsPos_dict, POS_CUR)
                         except EventException as e:
@@ -1102,6 +1112,7 @@ class ConstraintGraph:
                                 print("MAX ERROR REACHED {}".format(error_count))
                                 raise (e)
                             POS_CUR = dict_to_array(pos, self.joint_names)
+                        idx_cur = self.update_target_joint(idx_cur, idx_jnt, traj, POS_CUR)
                         if i_q >= len(e_sim.TIME):
                             stop_count+=1
                             continue
@@ -1112,40 +1123,14 @@ class ConstraintGraph:
             for bd in binding_list:
                 self.rebind(bd, array_to_dict(POS_CUR, self.joint_names))
             object_pose_cur = self.get_object_state()[1]
-            if not on_rviz:
-                self.execute_grip(state_schedule[i_s + 1])
-
-    def init_panda_sync_indy(self, from_state, to_state, N, control_freq_panda=100,
-                             err_conv=0, sync_priority=2,
-                             K_sync_indy="K", K_sync_panda=None):
-        dt_panda = 1.0/control_freq_panda
-        pos_start = np.array(from_state.Q)[self.indy_idx]
-
-        full_context, pos_start, kwargs, binding_list = \
-                self.get_transition_context(from_state, to_state,
-                                            N=N, dt=dt_panda, err_conv=err_conv)
-        joint_constraint_indy = make_joint_constraints(
-            [self.joint_names[idx] for idx in self.indy_idx], make_error=False,
-            priority=sync_priority, K_joint=K_sync_indy)
-        joint_constraint_panda = "" if K_sync_panda is None else make_joint_constraints(
-            [self.joint_names[idx] for idx in self.panda_idx], make_error=False,
-            priority=sync_priority, K_joint=K_sync_panda)
-
-        e_sim = get_simulation(full_context+joint_constraint_indy+joint_constraint_panda)
-
-
-        self.inp_lbl=["target_{}".format(jname) for jname in self.joint_names]
-        e_sim.setInputTable(self.inp_lbl,
-                            inp=np.array([from_state.Q]))
-
-        self.pos_lbl = augment_jnames_dot(self.joint_names)
-        initial_jpos_exp = augment_jvals_dot(pos_start , np.zeros_like(pos_start))
-        e_sim.initialize(initial_jpos_exp, self.pos_lbl)
-
-        pos = e_sim.simulate_begin(N, dt_panda)
-        e_sim.DT = dt_panda
-
-        return e_sim, pos
+            eout = e_sim.etasl.getOutput()
+            if 'global.error' in eout and eout['global.error'] < err_conv*2:
+                if not on_rviz:
+                    self.execute_grip(to_state)
+            else:
+                print("FAIL ({}/{})".format(eout['global.error'] if 'global.error' in eout else "-" ,err_conv))
+                break
+        return e_sim
 
     def set_camera_config(self, aruco_map, dictionary, kn_config, rs_config, T_c21):
         self.aruco_map = aruco_map

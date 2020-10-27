@@ -35,7 +35,7 @@
   </material>
   <link name="world"/>
   <joint name="indy0_joint_world" type="fixed">
-    <origin rpy="-0.000328128620623 0.0115290161139 -1.58381785638" xyz="-0.447144120932 0.252235591412 0.0095442533493"/>
+    <origin rpy="-2.17016113899e-07 0.0128620837997 -1.58386984055" xyz="-0.446407794952 0.251397013664 0.0102092623711"/>
     <parent link="world"/>
     <child link="indy0_link0"/>
   </joint>
@@ -282,7 +282,7 @@
     </actuator>
   </transmission>
   <joint name="panda1_joint_world" type="fixed">
-    <origin rpy="0.00260427106974 0.0105923906964 -1.60387145407" xyz="0.511944293976 0.169146895409 0.0143564343452"/>
+    <origin rpy="0.00272143505924 0.0108322837398 -1.60386662363" xyz="0.511913180351 0.169161915779 0.0142871141434"/>
     <parent link="world"/>
     <child link="panda1_link0"/>
   </joint>
