@@ -1,5 +1,5 @@
 from __future__ import print_function
-from etasl_py.etasl import etasl_simulator, EventException
+from etasl_py.etasl import etasl_simulator, EventException, array_to_dict, dict_to_array
 
 from ...joint_utils import get_joint_names_csv, joint_list2dict, get_min_distance_map
 from .constraint_etasl import *
@@ -7,6 +7,7 @@ from ..interface import PlannerInterface
 from copy import deepcopy
 
 K_DEFAULT = 10
+TRAJ_RADII = np.deg2rad(30)
 
 def augment_jnames_dot(joint_names):
     return np.concatenate([[jname, jname + "_dot"] for jname in joint_names], axis=0).tolist()
@@ -81,8 +82,6 @@ class etasl_planner(PlannerInterface):
                         kwargs[k] = v
                 else:
                     kwargs[k] = v
-
-            self.gtimer.toc("make_joint_constraints")
         return self.get_full_context(self.init_text + self.item_text + tf_text+col_text,
                                 additional_constraints, vel_conv, err_conv), kwargs
 
@@ -129,6 +128,83 @@ class etasl_planner(PlannerInterface):
         self.etasl = etasl_simulator(nWSR=self.nWSR, cputime=self.cputime, regularization_factor= self.regularization_factor)
         self.etasl.readTaskSpecificationString(init_text)
         return self.etasl
+
+
+
+    def init_online_plan(self, from_state, to_state, binding_list, T_step, control_freq, playback_rate=0.5, **kwargs):
+        dt = 1.0 / control_freq
+        dt_sim = dt * playback_rate
+        N = int(float(T_step) / dt_sim)
+        pos_start = from_state.Q
+        self.err_conv = kwargs['err_conv']
+
+        full_context, kwargs = \
+            self.get_transition_context(from_state, to_state, binding_list,
+                                        N=N, dt=dt_sim, **kwargs)
+
+        idx_jnt = 0
+        if from_state.node != to_state.node:
+            joint_context = make_joint_constraints(self.joint_names, priority=2, K_joint=1, make_error=False)
+            if "inp_lbl" not in kwargs:
+                kwargs["inp_lbl"] = []
+            kwargs["inp_lbl"] = list(kwargs["inp_lbl"]) + ["target_{joint_name}".format(joint_name=joint_name) for joint_name in self.joint_names]
+            if "inp" not in kwargs:
+                kwargs["inp"] = []
+            idx_jnt = len(kwargs["inp"])
+            kwargs["inp"] = list(kwargs["inp"]) + list(to_state.Q)
+        else:
+            joint_context = ""
+
+        self.e_sim = self.get_simulation(full_context+joint_context)
+
+        self.inp_lbl = kwargs['inp_lbl'] if 'inp_lbl' in kwargs else []
+        self.inp = np.array(kwargs['inp'] if 'inp' in kwargs else [])
+        self.e_sim.setInputTable(self.inp_lbl, inp=self.inp)
+
+        self.pos_lbl = augment_jnames_dot(self.joint_names)
+        initial_jpos_exp = augment_jvals_dot(pos_start, np.zeros_like(pos_start))
+        self.e_sim.initialize(initial_jpos_exp, self.pos_lbl)
+
+        pos = self.e_sim.simulate_begin(N, dt_sim)
+        self.e_sim.DT = dt_sim
+        self.kwargs_online_tmp = kwargs
+        self.idx_jnt_online_tmp = idx_jnt
+
+        return pos, binding_list
+
+    def step_online_plan(self, i_q, pos):
+        end_loop = False
+        try:
+            pos = self.e_sim.simulate_step(i_q, pos, dt=None, inp_cur=self.inp)
+            # VEL_CUR = VEL_CUR + e_sim.VEL[i_q, 1::2] * e_sim.DT
+            # POS_CUR = POS_CUR + VEL_CUR * e_sim.DT
+        except EventException as e:
+            print(e)
+            end_loop = True
+        eout = self.e_sim.etasl.getOutput()
+        error = eout['global.error'] if 'global.error' in eout else None
+        success =  error < self.err_conv*2 if error is not None else False
+        return pos, end_loop, error, success
+
+
+    def update_online(self, obsPos_dict):
+        for k, v in obsPos_dict.items():
+            _pos = v[:3, 3]
+            for _p, _k in zip(_pos, ["obs_{name}_{axis}".format(name=k, axis=axis) for axis in "xyz"]):
+                if _k in self.inp_lbl:
+                    self.inp[self.inp_lbl.index(_k)] = _p
+
+    def update_target_joint(self, idx_cur, traj, joint_cur):
+        error = np.sum(np.abs(joint_cur-traj[idx_cur]))
+        # print("joints: {}".format(joint_cur))
+        # print("traj: {}".format(traj[idx_cur]))
+        # print("error: {}".format(error))
+        if error < TRAJ_RADII:
+            if idx_cur+1 < len(traj)-1:
+                idx_cur += 1
+                # print("traj: {}".format(traj[idx_cur]))
+                self.inp[self.idx_jnt_online_tmp:self.idx_jnt_online_tmp+self.joint_num] = traj[idx_cur]
+        return idx_cur
 
     def simulate(self, initial_jpos, joint_names = None, initial_jpos_dot=None,
                  inp_lbl=[], inp=[], N=100, dt=0.02, cut_dot=False):

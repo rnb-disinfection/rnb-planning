@@ -111,6 +111,7 @@ class RvizPublisher:
         self.graph, self.obs_names = graph, obs_names
         self.obsPos_dict = None
         self.POS_CUR = None
+        self.ghnd = GeometryHandle.instance()
 
     def rviz_thread_fun(self):
         self.rviz_stop = False
