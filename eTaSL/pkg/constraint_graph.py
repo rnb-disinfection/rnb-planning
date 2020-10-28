@@ -21,15 +21,12 @@ from .panda_repeater import *
 from .etasl_control import *
 from .kinect import *
 from .stereo import *
-from nrmkindy.indy_script import *
 from .indy_repeater import indytraj_client
 from etasl_py.etasl import array_to_dict,dict_to_array
 from .environment_builder import *
 from .gjk import *
 from copy import deepcopy
 
-
-INDY_GRPC = False
 PANDA_ROS = False
 PORT_REPEATER = 1189
 CONTROL_FREQ = 100
@@ -98,14 +95,14 @@ class ConstraintGraph:
 
     def __init__(self, urdf_path, joint_names, link_names, urdf_content=None,
                  connect_panda=False, connect_indy=False,
-                 indy_ip='192.168.0.63', indy_btype=BlendingType.OVERRIDE,
-                 indy_joint_vel_level=3, indy_task_vel_level=3,
+                 indy_ip='192.168.0.63', indy_joint_vel_level=3, indy_task_vel_level=3,
                  indy_grasp_DO=8):
         self.joint_num = len(joint_names)
         self.urdf_path = urdf_path
         if urdf_content is None:
             urdf_content = URDF.from_xml_file(urdf_path)
         self.urdf_content = urdf_content
+        self.ghnd = GeometryHandle.instance(urdf_content)
         set_parent_joint_map(urdf_content)
         set_link_adjacency_map(urdf_content)
         self.min_distance_map = set_min_distance_map(link_names, urdf_content)
@@ -141,29 +138,17 @@ class ConstraintGraph:
         if connect_indy:
             self.indy_speed = 180
             self.indy_acc = 360
-            if INDY_GRPC:
-                self.indy_grasp_fun = lambda:None
-                self.indy_release_fun = lambda:None
-                try: end_script()
-                except: pass
-                self.indy_ip = indy_ip
-                self.btype = indy_btype
-                config_script(NAME_INDY_7)
-                start_script(indy_ip)
-                blending_type(indy_btype)
-                task_vel(0.1, 0.2, 20, 20)
-            else:
-                self.indy_ip = indy_ip
-                self.indy_joint_vel_level = indy_joint_vel_level
-                self.indy_task_vel_level = indy_task_vel_level
-                self.indy = indytraj_client(server_ip=indy_ip, robot_name="NRMK-Indy7")
-                with self.indy:
-                    self.indy.set_collision_level(5)
-                    self.indy.set_joint_vel_level(indy_joint_vel_level)
-                    self.indy.set_task_vel_level(indy_task_vel_level)
-                    self.indy.set_joint_blend_radius(20)
-                    self.indy.set_task_blend_radius(0.2)
-                self.indy.indy_grasp_DO = indy_grasp_DO
+            self.indy_ip = indy_ip
+            self.indy_joint_vel_level = indy_joint_vel_level
+            self.indy_task_vel_level = indy_task_vel_level
+            self.indy = indytraj_client(server_ip=indy_ip, robot_name="NRMK-Indy7")
+            with self.indy:
+                self.indy.set_collision_level(5)
+                self.indy.set_joint_vel_level(indy_joint_vel_level)
+                self.indy.set_task_vel_level(indy_task_vel_level)
+                self.indy.set_joint_blend_radius(20)
+                self.indy.set_task_blend_radius(0.2)
+            self.indy.indy_grasp_DO = indy_grasp_DO
 
     def reset_panda(self):
         if self.connect_panda:
@@ -178,29 +163,14 @@ class ConstraintGraph:
 
     def reset_indy(self):
         if self.connect_indy:
-            if INDY_GRPC:
-                self.indy_speed = 180
-                self.indy_acc = 360
-                self.indy_grasp_fun = lambda: None
-                self.indy_release_fun = lambda: None
-                try:
-                    end_script()
-                except:
-                    pass
-                config_script(NAME_INDY_7)
-                start_script(self.indy_ip)
-                blending_type(self.btype)
-                task_vel(0.1, 0.2, 20, 20)
-            else:
-
-                self.indy = indytraj_client(server_ip=self.indy_ip, robot_name="NRMK-Indy7")
-                with self.indy:
-                    self.indy.set_collision_level(5)
-                    self.indy.set_joint_vel_level(self.indy_joint_vel_level)
-                    self.indy.set_task_vel_level(self.indy_task_vel_level)
-                    self.indy.set_joint_blend_radius(20)
-                    self.indy.set_task_blend_radius(0.2)
-                self.indy_grasp_DO = self.indy_grasp_DO
+            self.indy = indytraj_client(server_ip=self.indy_ip, robot_name="NRMK-Indy7")
+            with self.indy:
+                self.indy.set_collision_level(5)
+                self.indy.set_joint_vel_level(self.indy_joint_vel_level)
+                self.indy.set_task_vel_level(self.indy_task_vel_level)
+                self.indy.set_joint_blend_radius(20)
+                self.indy.set_task_blend_radius(0.2)
+            self.indy_grasp_DO = self.indy_grasp_DO
 
     def reset_robots(self):
         self.reset_panda()
@@ -208,8 +178,7 @@ class ConstraintGraph:
 
     def __del__(self):
         try:
-            if INDY_GRPC:
-                end_script()
+            pass
         except: pass
 
     @record_time
@@ -223,10 +192,10 @@ class ConstraintGraph:
                               geometry_items_dict=self.geometry_items_dict,
                               nWSR=nWSR, cputime=cputime, regularization_factor= regularization_factor)
         self.init_text = get_init_text(timescale=timescale)
-        self.item_text = get_item_text(GeometryItem.GLOBAL_GEO_LIST)
+        self.item_text = get_item_text(self.ghnd)
         self.fixed_tf_text = get_tf_text(self.fixed_tf_list)
         self.online_input_text, self.kwargs_online, self.online_names = \
-            get_online_input_text(GeometryItem.GLOBAL_GEO_LIST)
+            get_online_input_text(self.ghnd)
         self.fixed_collision_text = make_collision_constraints(self.fixed_collision_items_list,
                                                                min_distance_map=self.min_distance_map)
 
@@ -315,21 +284,21 @@ class ConstraintGraph:
 
     def register_object_gen(self, objectPose_dict_mv, object_generators, binder_dict, object_dict, ref_tuple, link_name="world"):
         objectPose_dict_mv.update({ref_tuple[0]: ref_tuple[1]})
-        xyz_rvec_mv_dict, put_point_dict, _ = calc_put_point(objectPose_dict_mv, object_generators, object_dict, ref_tuple)
+        xyz_rpy_mv_dict, put_point_dict, _ = calc_put_point(objectPose_dict_mv, object_generators, object_dict, ref_tuple)
 
         for mname, mgen in object_generators.items():
-            if mname in xyz_rvec_mv_dict and mname not in GeometryItem.GLOBAL_GEO_DICT:
-                xyz_rvec = xyz_rvec_mv_dict[mname]
-                self.add_geometry_items([mgen(*xyz_rvec, name=mname,
-                                               link_name=link_name, urdf_content=self.urdf_content, color=(0.3, 0.3, 0.8, 1),
-                                               collision=True)],
+            if mname in xyz_rpy_mv_dict and mname not in self.ghnd.NAME_DICT:
+                xyz_rpy = xyz_rpy_mv_dict[mname]
+                self.add_geometry_items([mgen(*xyz_rpy, name=mname, link_name=link_name,
+                                              color=(0.3, 0.3, 0.8, 1),
+                                              collision=True)],
                                          fixed=False)
 
         for bname, bkwargs in binder_dict.items():
             if bname not in self.binder_dict:
                 self.register_binder(name=bname, **bkwargs)
 
-        for mtem, xyz_rvec in xyz_rvec_mv_dict.items():
+        for mtem, xyz_rpy in xyz_rpy_mv_dict.items():
             if mtem in put_point_dict and mtem not in self.object_dict:
                 self.register_object(mtem, binding=(put_point_dict[mtem], "floor"), **object_dict[mtem])
 
@@ -338,8 +307,8 @@ class ConstraintGraph:
 
     @record_time
     def get_object_by_name(self, name):
-        if name in GeometryItem.GLOBAL_GEO_DICT:
-            return GeometryItem.GLOBAL_GEO_DICT[name]
+        if name in self.ghnd.NAME_DICT:
+            return self.ghnd.NAME_DICT[name]
         else:
             return None
 
@@ -564,12 +533,7 @@ class ConstraintGraph:
         return e, end_state, success
 
     def get_real_robot_pose(self):
-
-        if INDY_GRPC:
-            raise(NotImplementedError("get pose for indy grpc"))
-        else:
-            Q_indy = np.deg2rad(self.indy.connect_and(self.indy.get_joint_pos))
-
+        Q_indy = np.deg2rad(self.indy.connect_and(self.indy.get_joint_pos))
         if PANDA_ROS:
             raise(NotImplementedError("get pose for panda ros"))
         else:
@@ -610,13 +574,7 @@ class ConstraintGraph:
     @record_time
     def indy_grasp(self, grasp=False):
         if self.connect_indy:
-            if INDY_GRPC:
-                if grasp:
-                    self.indy_grasp_fun()
-                else:
-                    self.indy_release_fun()
-            else:
-                self.indy.grasp(grasp, connect=True)
+            self.indy.grasp(grasp, connect=True)
 
     @record_time
     def panda_grasp(self, grasp):
@@ -630,11 +588,7 @@ class ConstraintGraph:
                 self.panda.move_finger(grasp)
                 
     def move_indy_async(self, *qval):
-        if INDY_GRPC:
-            amovej(JointPos(*qval),
-                   jv=JointMotionVel(self.indy_speed,self.indy_acc))
-        else:
-            self.indy.connect_and(self.indy.joint_move_to, qval)
+        self.indy.connect_and(self.indy.joint_move_to, qval)
 
     @record_time
     def execute_pose(self, pos):

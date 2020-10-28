@@ -15,9 +15,8 @@ class Binding(object):
         self.geometry_items_dict = geometry_items_dict
         if _object is None:
             assert point is not None, "Give _object or point"
-            _object = GeoSphere(name=self.name, center=point, radius=0, 
-                                link_name=link_name, urdf_content=self.urdf_content,
-                                collision=False, display=False)
+            _object = GeometryItem(name=self.name, link_name=link_name, gtype=GEOTYPE.SPHERE,
+                                   center=point, dims=(0,0,0), collision=False, display=False)
             self.point = None
         else:
             self.point = point

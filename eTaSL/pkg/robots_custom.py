@@ -5,7 +5,7 @@ from enum import Enum
 from urdf_parser_py.urdf import URDF
 
 from .global_config import *
-from .geometry import GeoSegment
+from .geometry import *
 from .rotation_utils import  *
 
 XACRO_PATH_DEFAULT = '{}robots/custom_robots.urdf.xacro'.format(TAMP_ETASL_DIR)
@@ -185,10 +185,10 @@ def get_geometry_items_dict(urdf_content, color=(0,1,0,0.5), display=True, colli
                 rpy = col_item.origin.rpy
 
             if geotype == 'Cylinder':
-                geometry_items_dict[link.name] += [GeoSegment(xyz, rpy, geometry.length, geometry.radius,
-                                                               name="{}_{}_{}".format(link.name, geotype, len(geometry_items_dict[link.name])),
-                                                               link_name=link.name, urdf_content=urdf_content, 
-                                                               color=color, display=display, collision=collision
+                geometry_items_dict[link.name] += [GeometryItem(name="{}_{}_{}".format(link.name, geotype, len(geometry_items_dict[link.name])),
+                                                                link_name=link.name, gtype=GEOTYPE.SEGMENT,
+                                                                center=xyz, dims=(geometry.radius*2,geometry.radius*2,geometry.length), rpy=rpy,
+                                                                color=color, display=display, collision=collision
                                                               )]
             elif geotype == 'Mesh':
                 name = "{}_{}_{}".format(link.name, geotype, len(geometry_items_dict[link.name]))
@@ -228,12 +228,9 @@ def get_geometry_items_dict(urdf_content, color=(0,1,0,0.5), display=True, colli
                 xyz_rpy = np.matmul(rpy_mat, xyz)
                 dcm = np.matmul(rpy_mat, Rotation.from_rotvec(rotvec).as_dcm())
                 xyz_rpy = np.add(xyz_rpy, dcm[:,2]*length/2).tolist()
-#                 print('xyz_rpy: {}'.format(xyz_rpy))
-                quat = Rotation.from_dcm(dcm).as_quat()
-                geometry_items_dict[link.name] += [GeoSegment(xyz_rpy, quat, length, radius,
-                                                               name=name,
-                                                               link_name=link.name, urdf_content=urdf_content, 
-                                                               color=color, display=display, collision=collision
+                geometry_items_dict[link.name] += [GeometryItem(name=name, link_name=link.name, gtype=GEOTYPE.SEGMENT,
+                                                                center=xyz_rpy, rpy=Rot2rpy(dcm), dims=(radius*2,radius*2,length),
+                                                                color=color, display=display, collision=collision
                                                               )]
             else:
                 raise(NotImplementedError("collision geometry {} is not implemented".format(geotype)))

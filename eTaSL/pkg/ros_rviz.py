@@ -96,13 +96,15 @@ class GeoMarker:
         return marker
     
     def set_marker(self, joint_dict):
-        self.marker = GeoMarker.create_marker_template(self.get_type(), self.geometry.get_scale(), self.geometry.color)
+        self.marker = GeoMarker.create_marker_template(self.get_type(), self.geometry.get_dims(), self.geometry.color)
 #         self.marker.header.frame_id = self.geometry.link_name # let rviz transform link - buggy
         if hasattr(self.geometry, 'uri'):
             self.marker.mesh_resource = self.geometry.uri;
+        if self.geometry.gtype == GEOTYPE.MESH:
+            self.marker.scale.x, self.marker.scale.y, self.marker.scale.z = self.geometry.scale
         self.submarkers = []
         self.subTs = []
-        if isinstance(self.geometry, GeoSegment):
+        if self.geometry.gtype == GEOTYPE.SEGMENT:
             self.submarkers.append(GeoMarker.create_marker_template(Marker.SPHERE, [self.geometry.radius*2]*3, self.geometry.color))
             self.subTs.append(SE3(np.identity(3), [0,0,self.geometry.length/2]))
             self.submarkers.append(GeoMarker.create_marker_template(Marker.SPHERE, [self.geometry.radius*2]*3, self.geometry.color))
@@ -141,13 +143,13 @@ class GeoMarker:
             self.pub.publish(smk)
         
     def get_type(self):
-        if isinstance(self.geometry, GeoBox):
+        if self.geometry.gtype == GEOTYPE.BOX:
             return Marker.CUBE
-        elif isinstance(self.geometry, GeoSegment):
+        elif self.geometry.gtype == GEOTYPE.SEGMENT:
             return Marker.CYLINDER
-        elif isinstance(self.geometry, GeoSphere):
+        elif self.geometry.gtype == GEOTYPE.SPHERE:
             return Marker.SPHERE
-        elif isinstance(self.geometry, GeoMesh):
+        elif self.geometry.gtype == GEOTYPE.MESH:
             return Marker.MESH_RESOURCE
         
     def delete(self):

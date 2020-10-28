@@ -61,7 +61,8 @@ def swept_volume_test(Q1, Q2, collision_items, joint_names, urdf_content,
     T_dict2.update(get_tf_full('panda1_leftfinger', Q2dict, urdf_content))
     T_dict2.update({'panda1_rightfinger': get_tf('panda1_rightfinger', Q2dict, urdf_content),
                     'world': np.identity(4)})
-    for ctem in GeometryItem.GLOBAL_GEO_LIST:
+    ghnd = GeometryHandle.instance()
+    for ctem in ghnd:
         vtx_ref, radi = ctem.get_vertice_radius()
         Toff = ctem.get_offset_tf()
         T_c1 = np.matmul(T_dict1[ctem.link_name], Toff)
@@ -96,15 +97,15 @@ def swept_volume_test(Q1, Q2, collision_items, joint_names, urdf_content,
 
     idx1_list, idx2_list, dcut_list = [], [], []
     for col in col_list:
-        idx1 = GeometryItem.GLOBAL_GEO_LIST.index(col[0])
-        idx2 = GeometryItem.GLOBAL_GEO_LIST.index(col[1])
+        idx1 = ghnd.index(col[0])
+        idx2 = ghnd.index(col[1])
         idx1_list.append(idx1)
         idx2_list.append(idx2)
         dcut_list.append(radius_list[idx1] + radius_list[idx2])
     idx1swept_list, idx2swept_list, dcutswept_list = [], [], []
     for col in col_swept_list:
-        idx1 = GeometryItem.GLOBAL_GEO_LIST.index(col[0])
-        idx2 = GeometryItem.GLOBAL_GEO_LIST.index(col[1])
+        idx1 = ghnd.index(col[0])
+        idx2 = ghnd.index(col[1])
         idx1swept_list.append(idx1)
         idx2swept_list.append(idx2)
         dcutswept_list.append(radius_list[idx1] + radius_list[idx2])

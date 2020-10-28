@@ -162,9 +162,6 @@ def get_tf_full(link_end, joint_dict, urdf_content, from_link='world'):
         link_cur = parent_joint.parent
     return T_dict
 
-def get_transformation(link_name):
-    return "T_{link_name}".format(link_name=link_name)
-
 def joint_list2dict(joint_list, joint_names):
     return {joint_names[i]: joint_list[i] for i in range(len(joint_names))}
 

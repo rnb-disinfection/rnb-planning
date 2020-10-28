@@ -27,10 +27,9 @@ class DirectedPoint(ActionPoint):
             self.handle.set_pointer_direction(self.direction)
         else:
             self.handle = GeoPointer(direction=self.direction, 
-                                      _object=GeoSphere(
-                                          name=self.name_constraint, center=self.point, radius=0,
-                                          link_name=self.object.link_name, urdf_content=self.object.urdf_content,
-                                          collision=False, display=False)
+                                      _object=GeometryItem(
+                                          gtype=GEOTYPE.SPHERE, name=self.name_constraint, link_name=self.object.link_name,
+                                          center=self.point, dims=(0,0,0), collision=False, display=False)
                                      )
     
     def make_constraints(self, effector, point=None):
@@ -55,10 +54,9 @@ class FramedPoint(ActionPoint):
             self.handle.set_frame_orientation_mat(self.orientation_mat)
         else:
             self.handle = GeoFrame(orientation_mat=self.orientation_mat,
-                                   _object=GeoSphere(
-                                       name=self.name_constraint, center=self.point, radius=0,
-                                       link_name=self.object.link_name, urdf_content=self.object.urdf_content,
-                                       collision=False, display=False)
+                                   _object=GeometryItem(
+                                       gtype=GEOTYPE.SPHERE, name=self.name_constraint, link_name=self.object.link_name,
+                                       center=self.point, dims=(0,0,0), collision=False, display=False)
                                    )
     
     def make_constraints(self, effector, point=None):
@@ -90,7 +88,7 @@ class ObjectAction:
 class BoxAction(ObjectAction):
     def __init__(self, _object, hexahedral=False):
         self.object = _object
-        Xhalf, Yhalf, Zhalf = np.array(_object.BLH)/2
+        Xhalf, Yhalf, Zhalf = np.divide(_object.dims,2)
         self.action_points_dict = {
             "top_p": DirectedPoint("top_p", _object, ([0,0,Zhalf], [0,0,-1])),
             "bottom_p": DirectedPoint("bottom_p", _object, ([0,0,-Zhalf], [0,0,1])),

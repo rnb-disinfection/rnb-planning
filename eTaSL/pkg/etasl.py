@@ -4,7 +4,7 @@ from etasl_py.etasl import etasl_simulator
 from etasl_py.etasl import EventException
 import time as timer
 
-from .joint_utils import get_joint_names_csv, get_transformation, joint_list2dict
+from .joint_utils import get_joint_names_csv, joint_list2dict
 from .constraint_base import *
 
 JOINT_NAMES_SIMULATION = None
@@ -50,8 +50,8 @@ error_target=0
 """
     Texpression_text = ""
     for lname in link_names:
-        transform_text += 'u:addTransform("{T_link_name}","{link_name}","world")\n'.format(T_link_name=get_transformation(lname), link_name=lname)
-        Texpression_text += '{T_link_name} = r.{T_link_name}\n'.format(T_link_name=get_transformation(lname))
+        transform_text += 'u:addTransform("{T_link_name}","{link_name}","world")\n'.format(T_link_name=get_link_transformation(lname), link_name=lname)
+        Texpression_text += '{T_link_name} = r.{T_link_name}\n'.format(T_link_name=get_link_transformation(lname))
 
 
     definition_text = """
@@ -82,13 +82,14 @@ K={K_default}
 def get_item_text(geo_list):
     item_text = "\n"
     for gtem in geo_list:
-        item_text += """{name}={ctem}\n""".format(name=gtem.name, ctem=gtem.get_representation())
+        item_text += """{name}={ctem}\n""".format(name=gtem.name, ctem=get_representation(gtem))
     return item_text
 
 def get_tf_text(geo_list):
     transformation_text = ""
     for ctem in geo_list:
-        transformation_text += ctem.get_tf_representation()+"\n"
+        if not ctem.online:
+            transformation_text += get_tf_representation(ctem)+"\n"
     return transformation_text
 
 def get_simulation(init_text):

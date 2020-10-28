@@ -1,5 +1,48 @@
 from __future__ import print_function
 from .geometry import *
+
+def get_tf_name(gtem):
+    return "{}_tf".format(gtem.name)
+
+def get_link_transformation(link_name):
+    return "T_{link_name}".format(link_name=link_name)
+
+def get_tf_representation(gtem):
+    orientation_mat = gtem.orientation_mat
+    angle_option = ""
+    if (3 - np.sum(np.diag(orientation_mat))) > 1e-4:
+        zyxrot = Rot2zyx(orientation_mat)
+        for i in range(len(zyxrot)):
+            if abs(zyxrot[2 - i]) > 1e-4:
+                angle_option = "*rotate_{axis}({val})".format(axis="xyz"[i], val=zyxrot[2 - i]) + angle_option
+    center = gtem.get_center()
+    center_option = ""
+    if np.sum(np.abs(center)) > 1e-4:
+        for i in range(len(center)):
+            if abs(center[i]) > 1e-4:
+                center_option += "*translate_{axis}({val})".format(axis="xyz"[i], val=center[i])
+    tf_text = "{tf_name} = {Tname}{center_option}{angle_option}".format(
+        tf_name=get_tf_name(gtem), Tname=get_link_transformation(gtem.link_name), center_option=center_option, angle_option=angle_option)
+    return tf_text
+
+def get_representation(gtem, point=None):
+    if gtem.gtype == GEOTYPE.SPHERE:
+        if point is None:
+            return "MultiSphere({{Vector({},{},{})}},{{ {} }})".format(0, 0, 0, 0) #gtem.radius)
+        else:
+            raise NotImplementedError
+    elif gtem.gtype == GEOTYPE.BOX:
+        if point is None:
+            return "Box({},{},{})".format(*gtem.dims)
+        else:
+            return "MultiSphere({{Vector({},{},{})}},{{ {} }})".format(*(tuple(point)+(0,)))
+    elif gtem.gtype == GEOTYPE.SEGMENT:
+        if point is None:
+            return "CapsuleZ({radius},{length})".format(radius=gtem.radius,length=gtem.dims[2])
+        else:
+            raise NotImplementedError
+    elif gtem.gtype == GEOTYPE.MESH:
+        return "Box({},{},{})".format(*gtem.dims)
     
 
 # define distances
@@ -16,8 +59,8 @@ context=ctx,
     priority = {priority},
 }}""".format(
         constraint_name=ctem1.name+"_"+ctem2.name,
-        T1=ctem1.get_tf_name(), ctem1=ctem1.name, ctem1radius=ctem1.get_radius(),
-        T2=ctem2.get_tf_name(),ctem2=ctem2.name, ctem2radius=ctem2.get_radius(),
+        T1=get_tf_name(ctem1), ctem1=ctem1.name, ctem1radius=ctem1.radius,
+        T2=get_tf_name(ctem2),ctem2=ctem2.name, ctem2radius=ctem2.radius,
         lower=lower, priority= (0 if not soft else "2,\n    K = {K}".format(K=K))
     )
 
@@ -30,7 +73,7 @@ def make_point_pair_constraint(obj1, obj2, varname, constraint_name, make_error=
     return """
 local {varname}1 = {repre1}
 local {varname}2 = {repre2}""".format(
-    varname=varname, repre1=obj1.get_representation(point1), repre2=obj2.get_representation(point2)) + \
+    varname=varname, repre1=get_representation(obj1, point1), repre2=get_representation(obj2, point2)) + \
 """
 dist_{varname} = distance_between({T1},{varname}1,{ctem1radius},margin,{T2},{varname}2,{ctem2radius},margin)
 Constraint{{
@@ -41,8 +84,8 @@ Constraint{{
     K        = {K}
 }}""".format(
         constraint_name=constraint_name,
-        T1=obj1.get_tf_name(), ctem1radius=0,
-        T2=obj2.get_tf_name(), ctem2radius=0,
+        T1=get_tf_name(obj1), ctem1radius=0,
+        T2=get_tf_name(obj2), ctem2radius=0,
         varname=varname, K=K
     ) + error_statement
 
@@ -55,8 +98,8 @@ def make_dir_constraint(pointer1, pointer2, name, constraint_name, make_error=Tr
 vec1 = vector{vec1}
 vec2 = vector{vec2}
 angle_{name} = angle_between_vectors(vec1,rotation(inv({T1})*{T2})*vec2)""".format(
-    T1=pointer1.object.get_tf_name(),
-    T2=pointer2.object.get_tf_name(),
+    T1=get_tf_name(pointer1.object),
+    T2=get_tf_name(pointer2.object),
     vec1=tuple(pointer1.direction), vec2=tuple(pointer2.direction), name=name) + \
 """
 Constraint{{
@@ -91,8 +134,8 @@ angle1_{name} = angle_between_vectors(vec11,tf_{name}*vec21)
 angle2_{name} = angle_between_vectors(vec12,tf_{name}*vec22)
 orientation_{name} = angle1_{name} + angle2_{name}
 """.format(
-        T1=framer1.object.get_tf_name(),vec11=vec11, vec12=vec12,
-        T2=framer2.object.get_tf_name(),vec21=vec21, vec22=vec22,
+        T1=get_tf_name(framer1.object),vec11=vec11, vec12=vec12,
+        T2=get_tf_name(framer2.object),vec21=vec21, vec22=vec22,
         name=name) + \
     """
 Constraint{{
@@ -195,19 +238,18 @@ def get_online_input_text(ctems):
     obs_tf_text = ""
     kwargs_online = {}
     online_names = []
-    for obs_geo in ctems:
-        if obs_geo.online:
-            online_names.append(obs_geo.name)
+    for gtem in ctems:
+        if gtem.online:
+            online_names.append(gtem.name)
             obs_tf_text += """
-            obs_{name}_x = ctx:createInputChannelScalar("obs_{name}_x", 0)
-            obs_{name}_y = ctx:createInputChannelScalar("obs_{name}_y", 0)
-            obs_{name}_z = ctx:createInputChannelScalar("obs_{name}_z", 0)
-            T_{name}_obs = translate_x(obs_{name}_x)*translate_y(obs_{name}_y)*translate_z(obs_{name}_z)
-            """.format(name=obs_geo.name)
-            kwargs_online.update(dict(inp_lbl=['obs_{name}_{axis}'.format(name=obs_geo.name,
+            oln_{name}_x = ctx:createInputChannelScalar("oln_{name}_x", 0)
+            oln_{name}_y = ctx:createInputChannelScalar("oln_{name}_y", 0)
+            oln_{name}_z = ctx:createInputChannelScalar("oln_{name}_z", 0)
+            {tf_name} = translate_x(oln_{name}_x)*translate_y(oln_{name}_y)*translate_z(oln_{name}_z)
+            """.format(name=gtem.name, tf_name=get_tf_name(gtem))
+            kwargs_online.update(dict(inp_lbl=['oln_{name}_{axis}'.format(name=gtem.name,
                                                                        axis=axis) for axis in "xyz"],
-                                   inp=obs_geo.get_offset_tf()[:3, 3].tolist()))
-            obs_geo.tf_name = "T_{name}_obs".format(name=obs_geo.name)
+                                   inp=gtem.get_offset_tf()[:3, 3].tolist()))
     return obs_tf_text, kwargs_online, online_names
 
 
