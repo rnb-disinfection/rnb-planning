@@ -163,14 +163,42 @@ def get_tf_full(link_end, joint_dict, urdf_content, from_link='world'):
     return T_dict
 
 def joint_list2dict(joint_list, joint_names):
-    return {joint_names[i]: joint_list[i] for i in range(len(joint_names))}
+    return {jname: jval for jname, jval in zip(joint_names, joint_list)}
 
-def get_joint_names_csv(joint_names, urdf_content):
+def joint_dict2list(joint_dict, joint_names):
+    return [joint_dict[jname] for jname in joint_names]
+
+def get_joint_names_csv(joint_names):
     jnames_format = ""
     for jname in joint_names:
-        if jname not in urdf_content.joint_map \
-                or urdf_content.joint_map[jname].axis is  None:
-            raise("invalid joint name is defined")
         jnames_format = jnames_format+'"%s",'%jname
     jnames_format = jnames_format[:-1]
     return jnames_format
+
+def make_colliding_list(geometry_items1, geometry_items2=None, min_distance_map=None, link_adjacency_map_ext=None):
+    idx1 = 0
+    collision_list = []
+    collision_ext_list = []
+    for ctem1 in geometry_items1:
+        idx1 += 1
+        if geometry_items2 is None:
+            geometry_items_tmp = geometry_items1[idx1:]
+        else:
+            geometry_items_tmp = geometry_items2
+
+        for ctem2 in geometry_items_tmp:
+            if ctem2.link_name in ctem1.adjacent_links or ctem1.link_name in ctem2.adjacent_links:
+                continue
+            else:
+                if min_distance_map is not None:
+                    min_link_dist = min_distance_map[ctem1.link_name][ctem2.link_name]
+                    min_col_dist = min_link_dist - (np.linalg.norm(ctem1.get_off_max()) + np.linalg.norm(ctem2.get_off_max()))
+                    if min_col_dist > 0:
+                        continue
+                collision_list.append((ctem1, ctem2))
+                if ctem2.link_name not in link_adjacency_map_ext[ctem1.link_name] and \
+                        ctem1.link_name not in link_adjacency_map_ext[ctem2.link_name]:
+                    collision_ext_list.append((ctem1, ctem2))
+    if link_adjacency_map_ext is not None:
+        return collision_list, collision_ext_list
+    return collision_list

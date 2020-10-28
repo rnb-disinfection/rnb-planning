@@ -44,9 +44,16 @@ class GeometryHandle(Singleton, list):
         list.remove(self, geo)
         del self.NAME_DICT[geo.name]
 
+    def update(self):
+        self.fixed_gtems = [ctem for ctem in self if ctem.fixed]
+        self.movable_gtems = [ctem for ctem in self if not ctem.fixed]
+        self.fixed_ctems = [ctem for ctem in self.fixed_gtems if ctem.collision]
+        self.movable_ctems = [ctem for ctem in self.movable_gtems if ctem.collision]
+
 
 class GeometryItem(object):
-    def __init__(self, gtype, name, link_name, dims, center, rpy=(0,0,0), color=(0,1,0,1), display=True, collision=True,
+    def __init__(self, gtype, name, link_name, dims, center, rpy=(0,0,0), color=(0,1,0,1), display=True,
+                 collision=True, fixed=False,
                  soft=False, online=False, K_col=None, uri="", scale=(1,1,1)):
         self.ghnd = GeometryHandle.instance()
         self.uri, self.scale = uri, scale
@@ -58,6 +65,7 @@ class GeometryItem(object):
         self.color = color
         self.display = display
         self.collision = collision
+        self.fixed = fixed
         self.soft = soft
         self.online = online
         self.K_col = K_col
@@ -110,41 +118,4 @@ class GeometryItem(object):
 
     def get_vertice_radius(self):
         return np.multiply(DEFAULT_VERT_DICT[self.gtype], self.dims), self.radius
-
-
-class GeoPointer:
-    def __init__(self, _object, direction=None):
-        assert direction is not None, "GeoPoint need direction"
-        self.__direction = direction
-        self.direction = self.__direction
-        self.object = _object
-
-    def set_pointer_direction(self, direction):
-        self.direction = direction
-
-    def get_pointer_direction(self):
-        return self.direction
-
-
-class GeoFrame:
-    def __init__(self, _object, orientation=None, orientation_mat=None):
-        assert not (orientation is None and orientation_mat is None), "GeoFrame need orientation"
-        if orientation is not None:
-            assert len(orientation) == 3, "GeoFrame orientation should be rotation vector"
-            self.orientation_mat = Rotation.from_rotvec(orientation).as_dcm()
-        else:
-            self.orientation_mat = orientation_mat
-        self.object = _object
-
-    def set_frame_orientation_mat(self, orientation_mat):
-        self.orientation_mat = orientation_mat
-
-    def get_frame_orientation_mat(self):
-        return self.orientation_mat
-
-
-class GeoDefinition:
-    def __init__(self, gtype, scale):
-        self.gtype=gtype
-        self.scale=scale
 

@@ -161,8 +161,9 @@ def get_min_seg_radii(vertice):
     radii = dist_vertice_seg(vertice, seg)
     return seg, radii
 
-def get_geometry_items_dict(urdf_content, color=(0,1,0,0.5), display=True, collision=True, exclude_link=[]):
-    geometry_items_dict = defaultdict(lambda: list())
+def add_geometry_items(urdf_content, color=(0,1,0,0.5), display=True, collision=True, exclude_link=[]):
+    geometry_items = []
+    id_dict = defaultdict(lambda: -1)
     geometry_dir = "./geometry_tmp"
     try: os.mkdir(geometry_dir)
     except: pass
@@ -184,14 +185,15 @@ def get_geometry_items_dict(urdf_content, color=(0,1,0,0.5), display=True, colli
                 xyz = col_item.origin.xyz
                 rpy = col_item.origin.rpy
 
+            id_dict[link.name] += 1
             if geotype == 'Cylinder':
-                geometry_items_dict[link.name] += [GeometryItem(name="{}_{}_{}".format(link.name, geotype, len(geometry_items_dict[link.name])),
+                geometry_items += [GeometryItem(name="{}_{}_{}".format(link.name, geotype, id_dict[link.name]),
                                                                 link_name=link.name, gtype=GEOTYPE.SEGMENT,
                                                                 center=xyz, dims=(geometry.radius*2,geometry.radius*2,geometry.length), rpy=rpy,
-                                                                color=color, display=display, collision=collision
+                                                                color=color, display=display, collision=collision, fixed=True
                                                               )]
             elif geotype == 'Mesh':
-                name = "{}_{}_{}".format(link.name, geotype, len(geometry_items_dict[link.name]))
+                name = "{}_{}_{}".format(link.name, geotype, id_dict[link.name])
                 geo_file_name = os.path.join(geometry_dir, name+".npy")
                 geo_file_name_bak = os.path.join(geometry_dir, name+"_bak.npy")
                 if os.path.isfile(geo_file_name):
@@ -228,13 +230,13 @@ def get_geometry_items_dict(urdf_content, color=(0,1,0,0.5), display=True, colli
                 xyz_rpy = np.matmul(rpy_mat, xyz)
                 dcm = np.matmul(rpy_mat, Rotation.from_rotvec(rotvec).as_dcm())
                 xyz_rpy = np.add(xyz_rpy, dcm[:,2]*length/2).tolist()
-                geometry_items_dict[link.name] += [GeometryItem(name=name, link_name=link.name, gtype=GEOTYPE.SEGMENT,
+                geometry_items += [GeometryItem(name=name, link_name=link.name, gtype=GEOTYPE.SEGMENT,
                                                                 center=xyz_rpy, rpy=Rot2rpy(dcm), dims=(radius*2,radius*2,length),
-                                                                color=color, display=display, collision=collision
+                                                                color=color, display=display, collision=collision, fixed=True
                                                               )]
             else:
                 raise(NotImplementedError("collision geometry {} is not implemented".format(geotype)))
-    return geometry_items_dict
+    return geometry_items
 
 # exclude_parents=['world']
 # joint_names=JOINT_NAMES

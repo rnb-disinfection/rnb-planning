@@ -1,13 +1,9 @@
 from __future__ import print_function
-import numpy as np
-from scipy.spatial.transform import Rotation
-from .utils import *
 
-from .constraint_base import *
+from .binding import *
 
 class ActionPoint:
-    def make_constraints(self, *args, **kwargs):
-        raise NotImplementedError
+    pass
 
 class DirectedPoint(ActionPoint):
     def __init__(self, name, _object, point_dir):
@@ -29,11 +25,8 @@ class DirectedPoint(ActionPoint):
             self.handle = GeoPointer(direction=self.direction, 
                                       _object=GeometryItem(
                                           gtype=GEOTYPE.SPHERE, name=self.name_constraint, link_name=self.object.link_name,
-                                          center=self.point, dims=(0,0,0), collision=False, display=False)
+                                          center=self.point, dims=(0,0,0), collision=False, display=False, fixed=False)
                                      )
-    
-    def make_constraints(self, effector, point=None):
-        return make_directed_point_constraint(self.handle, effector, self.name_constraint, point2=point)
 
 class FramedPoint(ActionPoint):
     def __init__(self, name, _object, point_ori):
@@ -56,11 +49,8 @@ class FramedPoint(ActionPoint):
             self.handle = GeoFrame(orientation_mat=self.orientation_mat,
                                    _object=GeometryItem(
                                        gtype=GEOTYPE.SPHERE, name=self.name_constraint, link_name=self.object.link_name,
-                                       center=self.point, dims=(0,0,0), collision=False, display=False)
+                                       center=self.point, dims=(0,0,0), collision=False, display=False, fixed=False)
                                    )
-    
-    def make_constraints(self, effector, point=None):
-        return make_oriented_point_constraint(self.handle, effector, self.name_constraint, point2=point)
     
 class ObjectAction:
     def __init__(self):
@@ -69,9 +59,7 @@ class ObjectAction:
     def get_action_points(self):
         return self.action_points_dict
         
-    def set_state(self, frame, link_name, bind_point, binder, geometry_items_dict):
-        geometry_items_dict[self.object.link_name].remove(self.object)
-        geometry_items_dict[link_name].append(self.object)
+    def set_state(self, frame, link_name, bind_point, binder):
         self.object.set_offset_tf(frame[:3, 3], frame[:3,:3])
         self.object.set_link(link_name)
         self.bind(bind_point, binder)
@@ -80,10 +68,6 @@ class ObjectAction:
     
     def bind(self, point, target):
         self.binding = (point, target)
-        
-    def make_action_constraints(self, point_name, target, point=None):
-        const_txt = self.action_points_dict[point_name].make_constraints(target, point=point)
-        return const_txt
         
 class BoxAction(ObjectAction):
     def __init__(self, _object, hexahedral=False):

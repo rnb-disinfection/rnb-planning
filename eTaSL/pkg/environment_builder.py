@@ -33,15 +33,20 @@ def detect_environment(aruco_map, dictionary, robot_tuples, env_dict, camT_dict=
     return xyz_rpy_robots, xyz_rvec_cams, env_gen_dict, objectPose_dict, corner_dict, color_image
 
 def add_objects_gen(graph, obj_gen_dict, color=(0.6,0.6,0.6,1), collision=True, link_name="world"):
-    graph.add_geometry_items([ogen[0](*ogen[1], name=oname, link_name=link_name, color=color, collision=collision)
-                              for oname, ogen in obj_gen_dict.items()], fixed=True)
+    gtems = []
+    for oname, ogen in obj_gen_dict.items():
+        gtems.append(ogen[0](*ogen[1], name=oname, link_name=link_name, color=color, collision=collision, fixed=True))
+    return gtems
 
 def add_cam_poles(graph, xyz_rvec_cams, color=(0.6,0.6,0.6,0.3), link_name="world"):
-    graph.add_geometry_items([GeometryItem(name="pole_{}".format(cname), link_name=link_name, gtype=GEOTYPE.SEGMENT,
-                                           center= np.subtract(xyzrvec[0], [0,0,xyzrvec[0][2]/2-0.05]),
-                                           dims=(0.15, 0.15, xyzrvec[0][2]+0.1), rpy=(0,0,0),
-                                           color=color, collision=True)
-                              for cname, xyzrvec in xyz_rvec_cams.items()], fixed=True)
+    gtems = []
+    for cname, xyzrvec in xyz_rvec_cams.items():
+        gtems.append(GeometryItem(name="pole_{}".format(cname), link_name=link_name, gtype=GEOTYPE.SEGMENT,
+                                  center= np.subtract(xyzrvec[0], [0,0,xyzrvec[0][2]/2-0.05]),
+                                  dims=(0.15, 0.15, xyzrvec[0][2]+0.1), rpy=(0,0,0),
+                                  color=color, collision=True, fixed=True)
+                     )
+    return gtems
 
 def detect_objects(movable_generators, aruco_map, dictionary, stereo=True, kn_config=None):
     aruco_map_mv = {k: v for k, v in aruco_map.items() if k in movable_generators}

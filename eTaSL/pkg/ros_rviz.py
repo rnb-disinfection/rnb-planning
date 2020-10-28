@@ -57,22 +57,19 @@ def show_motion_dict(pose_list_dict, marker_list_dict, pub_dict, joints_dict, jo
             timer.sleep(period)
     #         print('published: {}'.format(joints.position), end="\r")
         
-def set_markers(geometry_items, joints, joint_names, link_names, urdf_content):
+def set_markers(geometry_items, joints, joint_names):
     marker_list = []
     joint_dict = {joints.name[i]: joints.position[i] for i in range(len(joint_names))}
-    for link_name in link_names:
-        ctems = geometry_items[link_name]
-        for ctem in ctems:
-            if ctem.display:
-                marker_list += [GeoMarker(geometry=ctem,urdf_content=urdf_content)]
-                marker_list[-1].set_marker(joint_dict)
+    for ctem in geometry_items:
+        if ctem.display:
+            marker_list += [GeoMarker(geometry=ctem)]
+            marker_list[-1].set_marker(joint_dict)
     return marker_list
 
 class GeoMarker:
     ID_COUNT = 0
-    def __init__(self, geometry, urdf_content, mark_name='visualization_marker'):
+    def __init__(self, geometry, mark_name='visualization_marker'):
         self.geometry = geometry
-        self.urdf_content = urdf_content
         self.pub = rospy.Publisher(mark_name, Marker, queue_size=10)
         # Publish the marker
         while self.pub.get_num_connections() < 1:

@@ -94,7 +94,7 @@ if current_scenario == Scenario.custom_robots:
 gtimer.toc("set_scene")
 
 gtimer.tic("set_sim")
-graph.set_simulation(nWSR=50, regularization_factor= 1e-1)
+graph.set_planner(nWSR=50, regularization_factor= 1e-1)
 gtimer.toc("set_sim")
 # graph.show_pose(ZERO_JOINT_POSE, execute=True)
 

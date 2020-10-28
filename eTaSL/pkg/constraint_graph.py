@@ -1,28 +1,13 @@
 import sys
 sys.setrecursionlimit(10000)
 
-
-from .constraint_action import *
-from .constraint_object import *
-from .etasl import *
-from .geometry import *
-from .global_config import *
-from .joint_utils import *
 from .ros_rviz import *
 from .utils_graph import *
-from .utils import *
 from urdf_parser_py.urdf import URDF
-from .plot_utils import *
-import threading
-from threading import Thread
-from multiprocessing import Process, Lock, Manager, cpu_count
+from multiprocessing import Process, Lock, cpu_count
 from .panda_ros_interface import *
 from .panda_repeater import *
-from .etasl_control import *
-from .kinect import *
-from .stereo import *
 from .indy_repeater import indytraj_client
-from etasl_py.etasl import array_to_dict,dict_to_array
 from .environment_builder import *
 from .gjk import *
 from copy import deepcopy
@@ -79,18 +64,12 @@ class State:
         return str((self.node, 
                     {k: str(np.round(v, 2)) for k, v in self.obj_pos_dict.items()} if self.obj_pos_dict is not None else None,  
                     str(np.round(self.Q, 2)) if self.Q is not None else None))
+
+
 class ConstraintGraph:
     DQ_MAX = np.deg2rad(45)
     WEIGHT_DEFAULT = 2.0
-#     WEIGHT_INIT = 5.0
-    WEIGHT_GOAL = 2.0
-    WEIGHT_MAX = 10.0
-    JOINT_DECAY = 0.90
-    NODE_DECAY = 0.9
-    JOINT_MULTIPLIER = 2.0
     DEFAULT_TRANSIT_COST = 1.0
-    MAX_AGENT_DELAY = 4
-    MAX_LEN_SIM_Q = 50
     DSCALE = 1e4
 
     def __init__(self, urdf_path, joint_names, link_names, urdf_content=None,
@@ -108,7 +87,6 @@ class ConstraintGraph:
         self.min_distance_map = set_min_distance_map(link_names, urdf_content)
         self.joint_names = joint_names
         self.link_names = link_names
-        self.geometry_items_dict = {}
         self.binder_dict = {}
         self.handle_dict = {}
         self.handle_list = []
@@ -182,64 +160,19 @@ class ConstraintGraph:
         except: pass
 
     @record_time
-    def set_simulation(self, nWSR=50, cputime=200, regularization_factor= 1e-4, timescale=0.25):
+    def set_rviz(self):
         # prepare ros
         self.pub, self.joints, self.rate = get_publisher(self.joint_names, control_freq=CONTROL_FREQ)
         # prepare visualization markers
-        self.marker_list = set_markers(self.geometry_items_dict, self.joints, self.joint_names, self.link_names, self.urdf_content)
-        set_simulation_config(joint_names = self.joint_names, link_names = self.link_names, 
-                              urdf_content = self.urdf_content, urdf_path = self.urdf_path,
-                              geometry_items_dict=self.geometry_items_dict,
-                              nWSR=nWSR, cputime=cputime, regularization_factor= regularization_factor)
-        self.init_text = get_init_text(timescale=timescale)
-        self.item_text = get_item_text(self.ghnd)
-        self.fixed_tf_text = get_tf_text(self.fixed_tf_list)
-        self.online_input_text, self.kwargs_online, self.online_names = \
-            get_online_input_text(self.ghnd)
-        self.fixed_collision_text = make_collision_constraints(self.fixed_collision_items_list,
-                                                               min_distance_map=self.min_distance_map)
-
-        self.fixed_col_list, self.fixed_col_swept_list = \
-            make_colliding_list(self.fixed_collision_items_list,
-                                min_distance_map=get_min_distance_map(),
-                                link_adjacency_map_ext=get_link_adjacency_map_ext())
+        self.marker_list = set_markers(self.ghnd, self.joints, self.joint_names)
         self.show_pose(np.zeros(len(self.joint_names)))
 
     @record_time
-    def reset_tf_list(self):
-        self.fixed_tf_list = []
-        self.movable_tf_list = []
-
-    def add_tf_items(self, gtems, fixed):
-        for gtem in gtems:
-            if fixed:
-                self.fixed_tf_list.append(gtem)
-            else:
-                self.movable_tf_list.append(gtem)
-
-    @record_time
-    def set_fixed_geometry_items(self, geometry_items_dict):
-        self.geometry_items_dict = geometry_items_dict
-        self.reset_tf_list()
-        self.fixed_collision_items_list = []
-        self.movable_collision_items_list = []
-        for v in geometry_items_dict.values():
-            for gtem in v:
-                self.add_tf_items([gtem], True)
-                if gtem.collision:
-                    self.fixed_collision_items_list.append(gtem)
-        return self.geometry_items_dict
-
-    @record_time
-    def add_geometry_items(self, collision_Items, fixed=False):
-        for gtem in collision_Items:
-            self.geometry_items_dict[gtem.link_name].append(gtem)
-            self.add_tf_items([gtem], fixed)
-            if gtem.collision:
-                if fixed:
-                    self.fixed_collision_items_list.append(gtem)
-                else:
-                    self.movable_collision_items_list.append(gtem)
+    def set_planner(self, planner):
+        self.planner = planner
+        planner.update_gtems()
+        planner.set_object_dict(self.object_dict)
+        planner.set_binder_dict(self.binder_dict)
 
     @record_time
     def add_binder(self, name, binder):
@@ -260,9 +193,9 @@ class ConstraintGraph:
             assert "point" in kwargs, "The object should be registered first or give interaction point"
         self.binder_dict[name] = _type(_object=_object,
                                        name=name, link_name=link_name,
-                                       urdf_content=self.urdf_content, geometry_items_dict=self.geometry_items_dict, **kwargs)
+                                       urdf_content=self.urdf_content, **kwargs)
         if _object is None:
-            self.add_geometry_items([self.binder_dict[name].object])
+            self.binder_dict[name].object
 
     @record_time
     def add_object(self, name, _object, binding=None):
@@ -275,9 +208,6 @@ class ConstraintGraph:
     def register_object(self, name, _type, binding=None, **kwargs):
         _object = self.get_object_by_name(name)
         self.object_dict[name] = _type(_object, **kwargs)
-        self.add_tf_items(
-            [ap.handle.object for ap in self.object_dict[name].get_action_points().values()],
-            _object in self.fixed_collision_items_list)
         if binding is not None:
             self.binder_dict[binding[1]].bind(self.object_dict[name], binding[0],
                                               joint_list2dict([0]*len(self.joint_names), joint_names=self.joint_names))
@@ -289,10 +219,8 @@ class ConstraintGraph:
         for mname, mgen in object_generators.items():
             if mname in xyz_rpy_mv_dict and mname not in self.ghnd.NAME_DICT:
                 xyz_rpy = xyz_rpy_mv_dict[mname]
-                self.add_geometry_items([mgen(*xyz_rpy, name=mname, link_name=link_name,
-                                              color=(0.3, 0.3, 0.8, 1),
-                                              collision=True)],
-                                         fixed=False)
+                mgen(*xyz_rpy, name=mname, link_name=link_name,
+                     color=(0.3, 0.3, 0.8, 1), collision=True, fixed=False)
 
         for bname, bkwargs in binder_dict.items():
             if bname not in self.binder_dict:
@@ -403,8 +331,7 @@ class ConstraintGraph:
                 obj = self.object_dict[bd[0]]
                 frame = state.obj_pos_dict[bd[0]]
                 binder.link_name = binder.object.link_name # sync linke name with parent
-                obj.set_state(frame, binder.link_name, bd[1], bd[2], 
-                              self.geometry_items_dict)
+                obj.set_state(frame, binder.link_name, bd[1], bd[2])
                 bd_list_done += [bd]
 
     @record_time
@@ -416,121 +343,39 @@ class ConstraintGraph:
             node += ((k,) + v.binding,)
             pose_dict[k] = v.object.get_frame()
         return node, pose_dict
-    
+
+
+
     @record_time
-    def get_transition_context(self, from_state=None, to_state=None, vel_conv=1e-2, err_conv=1e-4, collision=True,
-                               **kwargs):
-        kwargs.update(deepcopy(self.kwargs_online))
+    def test_transition(self, from_state=None, to_state=None, display=False, dt_vis=1e-2, error_skip=0, **kwargs):
+        self.gtimer = GlobalTimer.instance()
 
         if from_state is not None:
-            pos_start = from_state.Q
             self.set_object_state(from_state)
 
-        self.gtimer.tic("get_tf_text")
-        tf_text = self.fixed_tf_text + self.online_input_text + get_tf_text(self.movable_tf_list)
-        self.gtimer.toc("get_tf_text")
-
-        self.gtimer.tic("get_collision_text")
-        if collision:
-            col_text = self.fixed_collision_text + \
-                       make_collision_constraints(self.fixed_collision_items_list, self.movable_collision_items_list,
-                                                                   min_distance_map=self.min_distance_map) + \
-                       make_collision_constraints(self.movable_collision_items_list,
-                                                                   min_distance_map=self.min_distance_map)
-        else:
-            col_text = ""
-        self.gtimer.toc("get_collision_text")
-
-        self.gtimer.tic("make_constraints")
-        additional_constraints = ""
         binding_list = []
         if to_state.node is not None:
             for bd0, bd1 in zip(from_state.node, to_state.node):
                 if bd0[2] != bd1[2]: # check if new transition (slack)
-                    additional_constraints += self.binder_dict[bd1[2]].make_constraints(self.object_dict[bd1[0]], bd1[1])
                     binding_list += [bd1]
                 else:
                     assert bd0[1] == bd1[1] , "impossible transition"
-        self.gtimer.toc("make_constraints")
 
-        if additional_constraints=="" and to_state.Q is not None and np.sum(np.abs(np.subtract(to_state.Q,from_state.Q)))>1e-2:
-            self.gtimer.tic("make_joint_constraints")
-            additional_constraints=make_joint_constraints(joint_names=self.joint_names)
-            kwargs_new = dict(inp_lbl=['target_%s'%jname for jname in self.joint_names],
-                                       inp= list(to_state.Q))
+        Traj, LastQ, error, success = self.planner.plan_transition(from_state, to_state, binding_list, **kwargs)
 
-            for k, v in kwargs_new.items():
-                if k in kwargs:
-                    if isinstance(v, list) and isinstance(v, list):
-                        kwargs[k] += v
-                    elif isinstance(v, dict) and isinstance(v, dict):
-                        kwargs[k].update(v)
-                    else:
-                        kwargs[k] = v
-                else:
-                    kwargs[k] = v
+        if display:
+            self.show_motion(Traj, from_state, **{'error_skip':error_skip, 'period':dt_vis})
 
-            self.gtimer.toc("make_joint_constraints")
-        return get_full_context(self.init_text + self.item_text + tf_text+col_text, 
-                                additional_constraints, vel_conv, err_conv), pos_start, kwargs, binding_list
+        if from_state is not None:
+            self.set_object_state(from_state)
 
-    @record_time
-    def simulate_transition(self, from_state=None, to_state=None, display=False, dt_vis=None, error_skip=1e-4,
-                            collision=True, vel_conv=1e-2, err_conv=1e-4, N=1, dt=1e-2, N_step=10,
-                            print_expression=False, cut_dot=False, **kwargs):
-        if dt_vis is None:
-            dt_vis = dt/10
-        self.gtimer = GlobalTimer.instance()
-        self.gtimer.tic("start set transition")
-        full_context, pos_start, kwargs, binding_list = self.get_transition_context(
-            from_state, to_state, vel_conv, err_conv, collision=collision, **kwargs)
-        self.gtimer.toc("start set transition")
-        if print_expression:
-            print(full_context)
-        if not display:
-            self.gtimer.tic("set_simulate fun")
-            e = set_simulate(full_context, initial_jpos=np.array(pos_start), 
-                             N=N, dt=dt, cut_dot=cut_dot, **kwargs)
-            self.gtimer.toc("set_simulate fun")
-            self.gtimer.tic("post")
-            if from_state is not None:
-                self.set_object_state(from_state)
-            if hasattr(e, 'error') and e.error<err_conv:
-                self.gtimer.tic("post rebind")
-                success = True
-                for bd in binding_list:
-                    self.rebind(bd, e.joint_dict_last)
-                self.gtimer.toc("post rebind")
-
-            else:
-                success = False
-        else:
-            success = False
-            e = get_simulation(full_context)
-            for i_sim in range(int(N/N_step)):
-                e = do_simulate(e, initial_jpos=np.array(pos_start), N=N_step, dt=dt, cut_dot=cut_dot, **kwargs)
-                if not hasattr(e, 'POS'):
-                    break
-                pos_start = e.POS[-1]
-                if display:
-                    self.show_motion(e.POS, from_state, **{'error_skip':error_skip, 'period':dt_vis})
-                    
-                if hasattr(e, 'error') and e.error<err_conv:
-                    success = True
-                    break
-
-            self.gtimer.tic("post")
-            if from_state is not None:
-                self.set_object_state(from_state)
-            if success:
-                for bd in binding_list:
-                    self.rebind(bd, e.joint_dict_last)
+        if success:
+            for bd in binding_list:
+                self.rebind(bd, joint_list2dict(LastQ, self.joint_names))
 
         node, obj_pos_dict = self.get_object_state()
-        end_state = State(node, obj_pos_dict, list(e.POS[-1]) if hasattr(e, 'POS') else None)
-        self.gtimer.toc("post")
-        # print(self.gtimer)
-        return e, end_state, success
+        end_state = State(node, obj_pos_dict, list(LastQ))
+        return Traj, end_state, error, success
 
     def get_real_robot_pose(self):
         Q_indy = np.deg2rad(self.indy.connect_and(self.indy.get_joint_pos))
@@ -543,18 +388,6 @@ class ConstraintGraph:
         Q_all[self.indy_idx] = Q_indy
         Q_all[self.panda_idx] = Q_panda
         return Q_all
-        
-    def execute_steps_rec(self, dt, count, N, final_pos, jerr_fin, dt_exec): 
-        count += 1
-        if not self.stop_execute:
-            self.gtimer.toctic("execute_step", "execute_step")
-            threading.Timer(dt_exec, self.execute_steps_rec, 
-                            args=(dt, count, N, final_pos, jerr_fin, dt_exec)).start ()
-            self.gtimer.tic("update")
-            joint_vals, joint_vels = update_step(dt=dt)
-            self.gtimer.toc("update")
-            self.execute_pose(np.array(joint_vals))
-            self.stop_execute = count>=N or (np.sum(np.abs(np.subtract(final_pos,joint_vals))) < jerr_fin)
 
     @record_time
     def execute_grip(self, state):
@@ -589,15 +422,6 @@ class ConstraintGraph:
                 
     def move_indy_async(self, *qval):
         self.indy.connect_and(self.indy.joint_move_to, qval)
-
-    @record_time
-    def execute_pose(self, pos):
-        if self.connect_indy:
-            self.move_indy_async(*np.rad2deg(pos[self.indy_idx]))
-        if self.connect_panda:
-            self.pc.joint_move_arm(pos[self.panda_idx])
-        if not (self.connect_indy or self.connect_panda):
-            self.show_pose(pos)
 
     @record_time
     def rebind(self, binding, joint_dict_last):
@@ -707,12 +531,11 @@ class ConstraintGraph:
         return snode
 
     @record_time
-    def search_graph(self, initial_state, goal_nodes, swept_volume_test_jmotion = False,
+    def search_graph(self, initial_state, goal_nodes,
                      tree_margin=0, depth_margin=0, joint_motion_num=10,
                      terminate_on_first=True, N_search=100, N_loop=1000,
                      display=False, dt_vis=None, verbose=False, print_expression=False, **kwargs):
         self.joint_motion_num = joint_motion_num
-        self.swept_volume_test_jmotion = swept_volume_test_jmotion
         self.t0 = timer.time()
         self.DOF = len(initial_state.Q)
         self.init_search(initial_state, goal_nodes, tree_margin, depth_margin)
@@ -728,7 +551,7 @@ class ConstraintGraph:
         self.__search_loop(terminate_on_first, N_search, N_loop, display, dt_vis, verbose, print_expression, **kwargs)
 
     @record_time
-    def search_graph_mp(self, initial_state, goal_nodes, swept_volume_test_jmotion = False,
+    def search_graph_mp(self, initial_state, goal_nodes,
                         tree_margin=0, depth_margin=0, joint_motion_num=10,
                         terminate_on_first=True, N_search=100, N_loop=1000, N_agents=None,
                         display=False, dt_vis=None, verbose=False, print_expression=False, **kwargs):
@@ -739,7 +562,6 @@ class ConstraintGraph:
         print("Use {}/{} agents".format(N_agents, cpu_count()))
 
         self.joint_motion_num = joint_motion_num
-        self.swept_volume_test_jmotion = swept_volume_test_jmotion
         self.t0 = timer.time()
         self.DOF = len(initial_state.Q)
         self.init_search(initial_state, goal_nodes, tree_margin, depth_margin)
@@ -775,46 +597,29 @@ class ConstraintGraph:
             snode, from_state, to_state = self.snode_queue.get()
             self.search_counter.value = self.search_counter.value + 1
             self.que_lock.release()
-            self.gtimer.tic("simulate_transition")
-            go_test = True
-            if from_state.node == to_state.node:
-                if self.swept_volume_test_jmotion:
-                    self.gtimer.tic("swept_volume_test")
-                    go_test = swept_volume_test(from_state.Q, to_state.Q, self.movable_collision_items_list,
-                                                self.joint_names, self.urdf_content,
-                                                fixed_collision_items=self.fixed_collision_items_list,
-                                                fixed_col_list=self.fixed_col_list,
-                                                fixed_col_swept_list=self.fixed_col_swept_list
-                                                )
-                    self.gtimer.toc("swept_volume_test")
-            if go_test:
-                e, new_state, succ = self.simulate_transition(from_state, to_state, display=display, dt_vis=dt_vis,
-                                                              print_expression=print_expression, **kwargs)
-            else:
-                print("====================================")
-                print("===== cut by swept volume test =====")
-                print("====================================")
-                e, new_state, succ = None, to_state, False
+            self.gtimer.tic("test_transition")
+            traj, new_state, error, succ = self.test_transition(from_state, to_state, display=display, dt_vis=dt_vis,
+                                                          print_expression=print_expression, **kwargs)
             ret = False
             if succ:
                 snode_new = SearchNode(idx=0, state=new_state, parents=snode.parents + [snode.idx],
                                        leafs=[],
                                        leafs_P=[])
-                snode_new.set_traj(e.POS)
+                snode_new.set_traj(traj)
                 snode_new = self.add_node_queue_leafs(snode_new)
                 snode.leafs += [snode_new.idx]
                 self.snode_dict[snode.idx] = snode
                 if self.check_goal(snode_new.state.node, self.goal_nodes):
                     ret = True
-            simtime = self.gtimer.toc("simulate_transition")
+            simtime = self.gtimer.toc("test_transition")
             if verbose:
                 print('\n{} - Goal cost:{}->{} / Init cost:{}->{} / branching: {}->{} ({} s, steps/err: {}({} ms)/{})'.format(
                     "success" if succ else "fail",
                     int(self.goal_cost_dict[from_state.node]), int(self.goal_cost_dict[to_state.node]),
                     int(self.init_cost_dict[from_state.node]), int(self.init_cost_dict[to_state.node]),
                     snode.idx, snode_new.idx if succ else "", round(timer.time() - self.t0, 2),
-                    len(e.POS) if hasattr(e, 'POS') else 'nan', simtime,
-                    e.error if hasattr(e, 'error') else 'nan'))
+                    len(traj), simtime,
+                    error))
                 print('node: {}->{}'.format(from_state.node, to_state.node))
                 print('=' * 150)
             if terminate_on_first and ret:
@@ -849,9 +654,9 @@ class ConstraintGraph:
             print('')
             print('-'*20)
             print("{}-{}".format(i_state, state_new.node))
-            e, new_state, succ = self.simulate_transition(state_cur, state_new, display=True, N=N, dt=dt,**kwargs)
+            traj, new_state, error, succ = self.test_transition(state_cur, state_new, display=True, N=N, dt=dt,**kwargs)
             state_cur = state_new
-        return e
+        return traj
 
     @record_time
     def check_goal(self, node, goals):
@@ -895,7 +700,7 @@ class ConstraintGraph:
                  **kwargs):
         dt = 1.0 / control_freq * (2 ** downsample_log2)
         N = int(float(T_step) / dt)
-        e, new_state, succ = self.simulate_transition(from_state, to_state,
+        e, new_state, error, succ = self.test_transition(from_state, to_state,
                                                       N=N, dt=dt,
                                                       display=False, dt_vis=dt, N_step=N,
                                                       **kwargs)
@@ -950,7 +755,11 @@ class ConstraintGraph:
         dt_sim = dt * playback_rate
         N = int(float(T_step) / dt_sim)
 
-        full_context, pos_start, kwargs, binding_list = \
+        if from_state is not None:
+            pos_start = from_state.Q
+            self.set_object_state(from_state)
+
+        full_context, kwargs, binding_list = \
             self.get_transition_context(from_state, to_state,
                                         N=N, dt=dt_sim, **kwargs)
 
@@ -1009,7 +818,7 @@ class ConstraintGraph:
                                                         vel_conv=vel_conv, err_conv=err_conv, obs_K="40"
                                                         )
 
-            Q0 = dict_to_array(pos, self.joint_names)
+            Q0 = joint_(pos, self.joint_names)
             if not on_rviz:
                 self.indy.joint_move_make_sure(np.rad2deg(Q0[self.indy_idx]), N_repeat=2, connect=True)
                 print("wait for button input")
@@ -1051,7 +860,7 @@ class ConstraintGraph:
                             obsPos_dict = dynamic_detector.get_dynPos_dict()
                             self.update_obstacle(obsPos_dict)
                             pos = e_sim.simulate_step(i_q, pos, dt=None, inp_cur=self.inp)
-                            POS_CUR = dict_to_array(pos, self.joint_names)
+                            POS_CUR = np.array(joint_dict2list(pos, self.joint_names))
                             # VEL_CUR = VEL_CUR + e_sim.VEL[i_q, 1::2] * e_sim.DT
                             # POS_CUR = POS_CUR + VEL_CUR * e_sim.DT
                             if rviz_pub is not None:
@@ -1065,7 +874,7 @@ class ConstraintGraph:
                             if error_count > max_err_count:
                                 print("MAX ERROR REACHED {}".format(error_count))
                                 raise (e)
-                            POS_CUR = dict_to_array(pos, self.joint_names)
+                            POS_CUR = np.array(joint_dict2list(pos, self.joint_names))
                         idx_cur = self.update_target_joint(idx_cur, idx_jnt, traj, POS_CUR)
                         if i_q >= len(e_sim.TIME):
                             stop_count+=1
@@ -1075,7 +884,7 @@ class ConstraintGraph:
                         continue
             from_Q = POS_CUR.copy()
             for bd in binding_list:
-                self.rebind(bd, array_to_dict(POS_CUR, self.joint_names))
+                self.rebind(bd, joint_list2dict(POS_CUR, self.joint_names))
             object_pose_cur = self.get_object_state()[1]
             eout = e_sim.etasl.getOutput()
             if 'global.error' in eout and eout['global.error'] < err_conv*2:
