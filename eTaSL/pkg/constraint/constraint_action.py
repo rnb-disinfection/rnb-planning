@@ -27,6 +27,10 @@ class Binding(object):
     
     def check_type(self, action_point):
         return action_point.handle.__class__.__name__ == self.effector.__class__.__name__
+
+    @abstractmethod
+    def check_available(self):
+        pass
             
         
 class PointerBinding(Binding):
@@ -45,13 +49,24 @@ class FrameBinding(Binding):
 class PlacePlane(PointerBinding):
     controlled = False
     multiple = True
+    VERTICAL_CUT = np.cos(np.deg2rad(10))
+
+    def check_available(self, joint_dict):
+        return np.matmul(self.effector.object.get_tf(joint_dict)[:3,:3], self.direction)[2]>PlacePlane.VERTICAL_CUT
         
 class VacuumTool(PointerBinding):
     controlled = True
     multiple = False
+
+    def check_available(self, joint_dict):
+        return True
     
         
 class PlaceFrame(FrameBinding):
     controlled = False
     multiple = True
+    VERTICAL_CUT = np.cos(np.deg2rad(10))
+
+    def check_available(self, joint_dict):
+        return np.matmul(self.effector.object.get_tf(joint_dict)[:3,:3], self.direction)[2]>PlaceFrame.VERTICAL_CUT
         

@@ -26,21 +26,14 @@ def get_tf_representation(gtem):
     return tf_text
 
 def get_representation(gtem, point=None):
-    if gtem.gtype == GEOTYPE.SPHERE:
-        if point is None:
-            return "MultiSphere({{Vector({},{},{})}},{{ {} }})".format(0, 0, 0, 0) #gtem.radius)
-        else:
-            raise NotImplementedError
+    if point is not None:
+        return "MultiSphere({{Vector({},{},{})}},{{ {} }})".format(*(tuple(point)+(0,)))
+    elif gtem.gtype == GEOTYPE.SPHERE:
+        return "MultiSphere({{Vector({},{},{})}},{{ {} }})".format(0, 0, 0, 0) #gtem.radius)
     elif gtem.gtype == GEOTYPE.BOX:
-        if point is None:
-            return "Box({},{},{})".format(*gtem.dims)
-        else:
-            return "MultiSphere({{Vector({},{},{})}},{{ {} }})".format(*(tuple(point)+(0,)))
+        return "Box({},{},{})".format(*gtem.dims)
     elif gtem.gtype == GEOTYPE.SEGMENT:
-        if point is None:
-            return "CapsuleZ({radius},{length})".format(radius=gtem.radius,length=gtem.dims[2])
-        else:
-            raise NotImplementedError
+        return "CapsuleZ({radius},{length})".format(radius=gtem.radius,length=gtem.dims[2])
     elif gtem.gtype == GEOTYPE.MESH:
         return "Box({},{},{})".format(*gtem.dims)
     

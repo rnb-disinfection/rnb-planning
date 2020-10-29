@@ -382,10 +382,25 @@ class ConstraintGraph:
 
         binding_list = self.get_slack_bindings(from_state, to_state)
 
-        Traj, LastQ, error, success = self.planner.plan_transition(from_state, to_state, binding_list, **kwargs)
-
-        if display:
-            self.show_motion(Traj, from_state, **{'error_skip':error_skip, 'period':dt_vis})
+        success = True
+        for binding in binding_list:
+            if not self.binder_dict[binding[2]].check_available(joint_list2dict(from_state.Q, self.joint_names)):
+                success = False
+        if success:
+            Traj, LastQ, error, success = self.planner.plan_transition(from_state, to_state, binding_list, **kwargs)
+            if display:
+                self.show_motion(Traj, from_state, **{'error_skip':error_skip, 'period':dt_vis})
+        else:
+            print("=====================================================")
+            print("=====================================================")
+            print("=====================================================")
+            print("===============Unavailable binder====================")
+            print("=====================================================")
+            print("=====================================================")
+            print("=====================================================")
+            LastQ = from_state.Q
+            Traj = np.array([LastQ])
+            error = 1
 
         if from_state is not None:
             self.set_object_state(from_state)
@@ -647,9 +662,9 @@ class ConstraintGraph:
             if terminate_on_first and ret:
                 self.stop_now.value = 1
                 break
-        print("=====================")
-        print("===== terminate =====")
-        print("=====================")
+        print("=========================================================================================================")
+        print("=============================================== terminate ===============================================")
+        print("=========================================================================================================")
 
     @record_time
     def find_schedules(self):
