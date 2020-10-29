@@ -1,5 +1,5 @@
 import sys
-sys.setrecursionlimit(10000)
+sys.setrecursionlimit(1000000)
 
 from .geometry.ros_rviz import *
 from .utils.utils_graph import *

@@ -192,3 +192,10 @@ def match_point_binder(graph, initial_state, objectPose_dict_mv):
         kpt_pair_dict[kobj] = min_point
 #         print("{} - {} ({})".format(kobj, min_point, min_val))
     return kpt_pair_dict
+
+def register_hexahedral_binder(graph, object_name, _type):
+    for k, v in DIR_VEC_DICT.items():
+        graph.register_binder(name="{}_{}".format(object_name, k), object_name=object_name, _type=_type, direction=v)
+
+
+
