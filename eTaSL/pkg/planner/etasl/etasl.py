@@ -7,7 +7,7 @@ from ..interface import PlannerInterface
 from copy import deepcopy
 
 K_DEFAULT = 10
-TRAJ_RADII = np.deg2rad(30)
+TRAJ_RADII_MAX = np.deg2rad(10)
 
 def augment_jnames_dot(joint_names):
     return np.concatenate([[jname, jname + "_dot"] for jname in joint_names], axis=0).tolist()
@@ -216,11 +216,11 @@ class etasl_planner(PlannerInterface):
                     self.inp[self.inp_lbl.index(_k)] = _p
 
     def update_target_joint(self, idx_cur, traj, joint_cur):
-        error = np.sum(np.abs(joint_cur-traj[idx_cur]))
+        error_max = np.max(np.abs(joint_cur-traj[idx_cur]))
         # print("joints: {}".format(joint_cur))
         # print("traj: {}".format(traj[idx_cur]))
         # print("error: {}".format(error))
-        if error < TRAJ_RADII:
+        if error_max < TRAJ_RADII_MAX:
             if idx_cur+1 < len(traj):
                 idx_cur += 1
                 # print("traj: {}".format(traj[idx_cur]))

@@ -2,8 +2,18 @@ from __future__ import print_function
 
 from ..geometry.binding import *
 
+from abc import *
+__metaclass__ = type
+
+
 class ActionPoint:
-    pass
+    @abstractmethod
+    def update_handle(self):
+        pass
+
+    def __del__(self):
+        if self.handle is not None:
+            del self.handle
 
 class DirectedPoint(ActionPoint):
     def __init__(self, name, _object, point_dir):

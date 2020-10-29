@@ -173,7 +173,7 @@ class ConstraintGraph:
         for marker in self.marker_list:
             del_list.append(marker)
         self.marker_list.remove(marker)
-        
+
         if from_ghnd:
             self.ghnd.remove(gtem)
 
@@ -226,6 +226,11 @@ class ConstraintGraph:
             self.binder_dict[binding[1]].bind(self.object_dict[name], binding[0],
                                               joint_list2dict([0]*len(self.joint_names), joint_names=self.joint_names))
 
+    @record_time
+    def remove_object(self, name):
+        if name in self.object_dict:
+            del self.object_dict[name]
+
     def register_object_gen(self, objectPose_dict_mv, object_generators, binder_dict, object_dict, ref_tuple, link_name="world"):
         objectPose_dict_mv.update({ref_tuple[0]: ref_tuple[1]})
         xyz_rpy_mv_dict, put_point_dict, _ = calc_put_point(objectPose_dict_mv, object_generators, object_dict, ref_tuple)
@@ -245,7 +250,6 @@ class ConstraintGraph:
                 self.register_object(mtem, binding=(put_point_dict[mtem], "floor"), **object_dict[mtem])
 
         return put_point_dict
-
 
     @record_time
     def get_object_by_name(self, name):

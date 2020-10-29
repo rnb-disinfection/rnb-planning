@@ -1,6 +1,16 @@
 from .geometry import *
 
-class GeoPointer:
+from abc import *
+__metaclass__ = type
+
+
+class GeoBinding:
+    def __del__(self):
+        if self.object is not None:
+            self.object.ghnd.remove(self.object)
+
+
+class GeoPointer(GeoBinding):
     def __init__(self, _object, direction=None):
         assert direction is not None, "GeoPoint need direction"
         self.__direction = direction
@@ -14,7 +24,7 @@ class GeoPointer:
         return self.direction
 
 
-class GeoFrame:
+class GeoFrame(GeoBinding):
     def __init__(self, _object, orientation=None, orientation_mat=None):
         assert not (orientation is None and orientation_mat is None), "GeoFrame need orientation"
         if orientation is not None:
