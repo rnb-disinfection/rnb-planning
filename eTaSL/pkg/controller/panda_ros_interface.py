@@ -1,7 +1,4 @@
 from threading import Thread
-import numpy as np
-from copy import deepcopy
-
 import rospy
 from franka_interface import GripperInterface
 from sensor_msgs.msg import JointState

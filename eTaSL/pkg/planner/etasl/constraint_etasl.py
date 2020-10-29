@@ -1,6 +1,5 @@
 from __future__ import print_function
-from ...constraint_action import *
-from ...constraint_object import *
+from ...constraint.constraint_object import *
 
 def get_tf_name(gtem):
     return "{}_tf".format(gtem.name)

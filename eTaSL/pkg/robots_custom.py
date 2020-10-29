@@ -1,12 +1,8 @@
-import numpy as np
-import os
 import subprocess
-from enum import Enum
 from urdf_parser_py.urdf import URDF
 
 from .global_config import *
-from .geometry import *
-from .rotation_utils import  *
+from .geometry.geometry import *
 
 XACRO_PATH_DEFAULT = '{}robots/custom_robots.urdf.xacro'.format(TAMP_ETASL_DIR)
 URDF_PATH_DEFAULT = '{}robots/custom_robots.urdf'.format(TAMP_ETASL_DIR)
@@ -114,9 +110,7 @@ class XacroCustomizer:
         self.rid_count = 0
         self.kill_existing_subprocess()
 
-        
-from scipy.spatial.transform import Rotation
-from collections import defaultdict
+
 from stl import mesh
 from sklearn.decomposition import PCA
 from scipy import optimize
@@ -337,7 +331,7 @@ def refine_meshes():
 
 
 from xml.dom import minidom
-from .joint_utils import *
+from .utils.joint_utils import *
 import os
 
 def write_srdf(robot_names, binder_links, link_names, joint_names, urdf_content, urdf_path):

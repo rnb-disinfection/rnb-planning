@@ -1,4 +1,3 @@
-from .utils import *
 from .repeater import *
 import rospy
 from control_msgs.msg import GripperCommandActionGoal

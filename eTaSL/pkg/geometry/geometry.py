@@ -1,11 +1,8 @@
 from __future__ import print_function
-import numpy as np
-from collections import Iterable
 
-from .utils import *
-from .rotation_utils import *
-from .joint_utils import get_tf, get_adjacent_links
-from scipy.spatial.transform import Rotation
+from ..utils.rotation_utils import *
+from ..utils.singleton import *
+from ..utils.joint_utils import get_tf, get_adjacent_links
 from enum import Enum
 
 class GEOTYPE(Enum):

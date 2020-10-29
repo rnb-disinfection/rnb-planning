@@ -1,7 +1,7 @@
 import time
 import numpy as np
 import rospy
-from pkg.utils import *
+from ..utils.utils import *
 import abc
 
 DEFAULT_PORT_REPEATER = 1189

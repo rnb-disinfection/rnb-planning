@@ -1,4 +1,4 @@
-from pkg.gjk import *
+from .pkg.utils.gjk import *
 
 points = []
 for i in range(2):

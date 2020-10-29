@@ -1,4 +1,4 @@
-from .global_config import *
+from ..global_config import *
 import ctypes
 from ctypes import *
 
@@ -39,8 +39,7 @@ def get_distance_batch(points_arr, idx1, idx2):
 
 
 from scipy.spatial import ConvexHull
-from .utils import *
-from .geometry import *
+from ..geometry.geometry import *
 from .joint_utils import *
 
 class SweptVolumeTester:

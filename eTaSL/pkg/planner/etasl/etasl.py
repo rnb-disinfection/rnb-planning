@@ -1,7 +1,7 @@
 from __future__ import print_function
-from etasl_py.etasl import etasl_simulator, EventException, array_to_dict, dict_to_array
+from etasl_py.etasl import etasl_simulator, EventException
 
-from ...joint_utils import get_joint_names_csv, joint_list2dict, get_min_distance_map
+from ...utils.joint_utils import get_joint_names_csv, joint_list2dict, get_min_distance_map
 from .constraint_etasl import *
 from ..interface import PlannerInterface
 from copy import deepcopy

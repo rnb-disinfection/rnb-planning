@@ -1,15 +1,14 @@
 import sys
 sys.setrecursionlimit(10000)
 
-from .ros_rviz import *
-from .utils_graph import *
+from .geometry.ros_rviz import *
+from .utils.utils_graph import *
 from urdf_parser_py.urdf import URDF
 from multiprocessing import Process, Lock, cpu_count
-from .panda_ros_interface import *
-from .panda_repeater import *
-from .indy_repeater import indytraj_client
+from .controller.panda_ros_interface import *
+from .controller.panda_repeater import *
+from .controller.indy_repeater import indytraj_client
 from .environment_builder import *
-from .gjk import *
 
 PANDA_ROS = False
 PORT_REPEATER = 1189

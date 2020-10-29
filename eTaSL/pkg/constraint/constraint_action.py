@@ -1,6 +1,6 @@
 from __future__ import print_function
 
-from .binding import *
+from ..geometry.binding import *
 
 
 class Binding(object):

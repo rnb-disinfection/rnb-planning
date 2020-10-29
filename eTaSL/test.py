@@ -41,11 +41,9 @@ else:
     xcustom.start_rviz()
 
 from pkg.constraint_graph import *
-import matplotlib.pyplot as plt
-from pkg.plot_utils import *
-from pkg.utils import *
+from pkg.utils.plot_utils import *
+
 # from threading import Thread, Lock
-from multiprocessing import Process, Lock, Manager
 
 PROC_MODE = True
 rospy.init_node('task_planner', anonymous=True)

@@ -1,5 +1,5 @@
-from .stereo import *
-from .geometry import *
+from .sensor.stereo import *
+from .geometry.geometry import *
 from . constants import *
 from threading import Thread
 
@@ -148,7 +148,7 @@ def update_geometries(onames, objectPose_dict_mv):
             Tg = get_T_rel("floor", gname, objectPose_dict_mv)
             gtem.set_offset_tf(Tg[:3,3], Tg[:3,:3])
 
-from joint_utils import *
+from .utils.joint_utils import *
 
 def match_point_binder(graph, initial_state, objectPose_dict_mv):
     graph.set_object_state(initial_state)
