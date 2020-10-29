@@ -22,7 +22,7 @@ class PlannerInterface:
         pass
 
     @abstractmethod
-    def step_online_plan(self, i_q, pos):
+    def step_online_plan(self, i_q, pos, wp_action=False):
         pass
 
     @abstractmethod

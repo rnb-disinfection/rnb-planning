@@ -65,11 +65,11 @@ context=ctx,
     )
 
 def make_point_pair_constraint(obj1, obj2, varname, constraint_name, make_error=True, point1=None, point2=None,
-                               K='K'):
+                               K='K', activation=False):
     error_statement = ""
     if make_error:
         error_val = "\nerror_target = error_target + abs(dist_{varname}))".format(varname=varname)
-        error_statement = error_val+'\n ctx:setOutputExpression("error",error_target)'
+        error_statement = error_val+'\nctx:setOutputExpression("error",error_target)'
     return """
 local {varname}1 = {repre1}
 local {varname}2 = {repre2}""".format(
@@ -79,21 +79,21 @@ dist_{varname} = distance_between({T1},{varname}1,{ctem1radius},margin,{T2},{var
 Constraint{{
     context=ctx,
     name="{constraint_name}",
-    expr = dist_{varname},
+    expr = {activation_expr}dist_{varname},
     priority = 2,
     K        = {K}
 }}""".format(
         constraint_name=constraint_name,
         T1=get_tf_name(obj1), ctem1radius=0,
         T2=get_tf_name(obj2), ctem2radius=0,
-        varname=varname, K=K
+        varname=varname, K=K, activation_expr="constraint_activation*" if activation else ""
     ) + error_statement
 
-def make_dir_constraint(pointer1, pointer2, name, constraint_name, make_error=True, K='K'):
+def make_dir_constraint(pointer1, pointer2, name, constraint_name, make_error=True, K='K', activation=False):
     error_statement = ""
     if make_error:
         error_val = "\nerror_target = error_target + abs(angle_{name})".format(name=name)
-        error_statement = error_val+'\n ctx:setOutputExpression("error",error_target)'
+        error_statement = error_val+'\nctx:setOutputExpression("error",error_target)'
     return """
 vec1 = vector{vec1}
 vec2 = vector{vec2}
@@ -105,19 +105,19 @@ angle_{name} = angle_between_vectors(vec1,rotation(inv({T1})*{T2})*vec2)""".form
 Constraint{{
     context=ctx,
     name="{constraint_name}",
-    expr = angle_{name},
+    expr = {activation_expr}angle_{name},
     priority = 2,
     K        = {K}
 }}""".format(
         constraint_name=constraint_name,
-        name=name, K=K
+        name=name, K=K, activation_expr="constraint_activation*" if activation else ""
     ) + error_statement
 
-def make_orientation_constraint(framer1, framer2, name, constraint_name, make_error=True, K='K'):
+def make_orientation_constraint(framer1, framer2, name, constraint_name, make_error=True, K='K', activation=False):
     error_statement = ""
     if make_error:
         error_val = "\nerror_target = error_target + abs(orientation_{name})".format(name=name)
-        error_statement = error_val+'\n ctx:setOutputExpression("error",error_target)'
+        error_statement = error_val+'\nctx:setOutputExpression("error",error_target)'
     R1=framer1.orientation_mat
     R2=framer2.orientation_mat
     vec11 = tuple(np.dot(R1, (1,0,0)))
@@ -141,38 +141,40 @@ orientation_{name} = angle1_{name} + angle2_{name}
 Constraint{{
     context=ctx,
     name="{constraint_name}",
-    expr = orientation_{name},
+    expr = {activation_expr}orientation_{name},
     priority = 2,
     K        = {K}
 }}""".format(
         constraint_name=constraint_name,
-        name=name, K=K
+        name=name, K=K, activation_expr="constraint_activation*" if activation else ""
     ) + error_statement
 
-def make_directed_point_constraint(pointer1, pointer2, name, make_error=True, point1=None, point2=None):
+def make_directed_point_constraint(pointer1, pointer2, name, make_error=True, point1=None, point2=None, activation=False):
     error_statement = ""
     constraint_name_point = "point_pair_{name}".format(name=name)
     constraint_name_dir = "dir_pair_{name}".format(name=name)
     if make_error:
         error_val = "\nerror_target = error_target + abs(dist_{constraint_name_point})+abs(angle_{constraint_name_dir})".format(
             constraint_name_point=constraint_name_point, constraint_name_dir=constraint_name_dir)
-        error_statement = error_val+'\n ctx:setOutputExpression("error",error_target)'
+        error_statement = error_val+'\nctx:setOutputExpression("error",error_target)'
     pair_constraint = make_point_pair_constraint(pointer1.object, pointer2.object, constraint_name_point, constraint_name_point, 
-                                                 make_error=False, point1=point1, point2=point2)
-    dir_constraint = make_dir_constraint(pointer1, pointer2, name=constraint_name_dir, constraint_name=constraint_name_dir, make_error=False)
+                                                 make_error=False, point1=point1, point2=point2, activation=activation)
+    dir_constraint = make_dir_constraint(pointer1, pointer2, name=constraint_name_dir, constraint_name=constraint_name_dir,
+                                         make_error=False, activation=activation)
     return pair_constraint + "\n" + dir_constraint + error_statement
 
-def make_oriented_point_constraint(framer1, framer2, name, make_error=True, point1=None, point2=None):
+def make_oriented_point_constraint(framer1, framer2, name, make_error=True, point1=None, point2=None, activation=False):
     error_statement = ""
     constraint_name_point = "point_pair_{name}".format(name=name)
     constraint_name_ori = "ori_pair_{name}".format(name=name)
     if make_error:
         error_val = "\nerror_target = error_target + abs(dist_{constraint_name_point})+abs(orientation_{constraint_name_ori})".format(
             constraint_name_point=constraint_name_point, constraint_name_ori=constraint_name_ori)
-        error_statement = error_val+'\n ctx:setOutputExpression("error",error_target)'
+        error_statement = error_val+'\nctx:setOutputExpression("error",error_target)'
     pair_constraint = make_point_pair_constraint(framer1.object, framer2.object, constraint_name_point, constraint_name_point, make_error=False, 
-                                                 point1=point1, point2=point2)
-    ori_constraint = make_orientation_constraint(framer1, framer2, name=constraint_name_ori, constraint_name=constraint_name_ori, make_error=False)
+                                                 point1=point1, point2=point2, activation=activation)
+    ori_constraint = make_orientation_constraint(framer1, framer2, name=constraint_name_ori, constraint_name=constraint_name_ori,
+                                                 make_error=False, activation=activation)
     return pair_constraint + "\n" + ori_constraint + error_statement
 
 
@@ -224,9 +226,15 @@ def get_online_input_text(ctems):
     return obs_tf_text, kwargs_online, online_names
 
 
-def make_joint_constraints(joint_names, make_error=True, priority=2, K_joint="K"):
+def make_joint_constraints(joint_names, make_error=True, priority=2, K_joint="K", activation=False):
     joint_constraints = ""
     error_statement = ""
+    if activation:
+        joint_constraints += 'joint_activation = ctx:createInputChannelScalar("joint_activation",0.0) \n'
+        activation_expr = 'joint_activation*'
+    else:
+        activation_expr = ''
+
     for i in range(len(joint_names)):
         joint_constraints += """
 target_{joint_name} = ctx:createInputChannelScalar("target_{joint_name}",0.0)
@@ -234,25 +242,26 @@ error_{joint_name} = robot_jval[{index}]-target_{joint_name}
 Constraint{{
     context=ctx,
     name="constraint_{joint_name}",
-    expr=error_{joint_name},
+    expr={activation_expr}error_{joint_name},
     priority    = {priority},
     K           = {K_joint}
 }}
-            """.format(joint_name=joint_names[i], index=i+1, priority=priority, K_joint=K_joint)
+            """.format(joint_name=joint_names[i], index=i+1, priority=priority, K_joint=K_joint,
+                       activation_expr=activation_expr)
         if make_error:
             error_statement += 'abs(error_{joint_name})+'.format(joint_name=joint_names[i])
     if make_error:
         error_val = "\nerror_target = error_target + "+error_statement[:-1]
-        error_statement = error_val+'\n ctx:setOutputExpression("error",error_target)'
+        error_statement = error_val
     return joint_constraints + error_statement
 
-def make_action_constraints(object, point_name, effector, point=None):
+def make_action_constraints(object, point_name, effector, point=None, activation=False):
     ac_point = object.action_points_dict[point_name]
     if isinstance(ac_point, FramedPoint):
         make_constraint_fun = make_oriented_point_constraint
     elif isinstance(ac_point, DirectedPoint):
         make_constraint_fun = make_directed_point_constraint
-    const_txt = make_constraint_fun(ac_point.handle, effector, ac_point.name_constraint, point2=point)
+    const_txt = make_constraint_fun(ac_point.handle, effector, ac_point.name_constraint, point2=point, activation=activation)
     return const_txt
 
 

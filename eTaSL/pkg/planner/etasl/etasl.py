@@ -22,6 +22,7 @@ class etasl_planner(PlannerInterface):
                           nWSR=300, cputime=1000, regularization_factor= 1e-6, timescale=0.25):
         self.joint_names, self.link_names, self.urdf_path= joint_names, link_names, urdf_path
         self.nWSR, self.cputime, self.regularization_factor = nWSR, cputime, regularization_factor
+        self.joint_num = len(self.joint_names)
         self.init_text = self.get_init_text(timescale=timescale)
         self.ghnd = GeometryHandle.instance()
 
@@ -48,7 +49,7 @@ class etasl_planner(PlannerInterface):
         return e.POS, e.POS[-1], error, success
 
     def get_transition_context(self, from_state=None, to_state=None, binding_list=[], vel_conv=1e-2, err_conv=1e-4, collision=True,
-                               **kwargs):
+                               activation=False, **kwargs):
         kwargs.update(deepcopy(self.kwargs_online))
 
         tf_text = self.fixed_tf_text + self.online_input_text + get_tf_text(self.ghnd.movable_gtems)
@@ -62,12 +63,12 @@ class etasl_planner(PlannerInterface):
         else:
             col_text = ""
 
-        additional_constraints = ""
+        additional_constraints = '\nconstraint_activation = ctx:createInputChannelScalar("constraint_activation",0.0) \n' if activation else ""
         for bd1 in binding_list:
             additional_constraints += make_action_constraints(self.object_dict[bd1[0]], bd1[1], self.binder_dict[bd1[2]].effector,
-                                                              point=self.binder_dict[bd1[2]].point)
+                                                              point=self.binder_dict[bd1[2]].point, activation=activation)
 
-        if additional_constraints=="" and to_state.Q is not None and np.sum(np.abs(np.subtract(to_state.Q,from_state.Q)))>1e-2:
+        if additional_constraints=="" and to_state.Q is not None:# and np.sum(np.abs(np.subtract(to_state.Q,from_state.Q)))>1e-2:
             additional_constraints=make_joint_constraints(joint_names=self.joint_names)
             kwargs_new = dict(inp_lbl=['target_%s'%jname for jname in self.joint_names],
                                        inp= list(to_state.Q))
@@ -140,25 +141,41 @@ class etasl_planner(PlannerInterface):
 
         full_context, kwargs = \
             self.get_transition_context(from_state, to_state, binding_list,
-                                        N=N, dt=dt_sim, **kwargs)
+                                        N=N, dt=dt_sim, activation=(from_state.node != to_state.node),
+                                        **kwargs)
 
-        idx_jnt = 0
+        if "inp_lbl" not in kwargs:
+            kwargs["inp_lbl"] = []
+        if "inp" not in kwargs:
+            kwargs["inp"] = []
+        self.jact_idx = -1
+        self.cact_idx = -1
         if from_state.node != to_state.node:
-            joint_context = make_joint_constraints(self.joint_names, priority=2, K_joint=1, make_error=False)
-            if "inp_lbl" not in kwargs:
-                kwargs["inp_lbl"] = []
+            joint_context = make_joint_constraints(self.joint_names, priority=2, K_joint=1, make_error=False, activation=True)
             kwargs["inp_lbl"] = list(kwargs["inp_lbl"]) + ["target_{joint_name}".format(joint_name=joint_name) for joint_name in self.joint_names]
-            if "inp" not in kwargs:
-                kwargs["inp"] = []
-            idx_jnt = len(kwargs["inp"])
-            kwargs["inp"] = list(kwargs["inp"]) + list(to_state.Q)
+            kwargs["inp_lbl"] += ['joint_activation', 'constraint_activation']
+            kwargs["inp"] = list(kwargs["inp"]) + list(from_state.Q)
+            kwargs["inp"] += [0, 0]
+            self.jact_idx = kwargs["inp_lbl"].index('joint_activation')
+            self.cact_idx = kwargs["inp_lbl"].index('constraint_activation')
         else:
             joint_context = ""
 
-        self.e_sim = self.get_simulation(full_context+joint_context)
+        full_context += joint_context
+        self.e_sim = self.get_simulation(full_context)
+
+
+        # print("============================================================================")
+        # print("============================================================================")
+        # print("============================================================================")
+        # print("============================================================================")
+        # print(full_context)
 
         self.inp_lbl = kwargs['inp_lbl'] if 'inp_lbl' in kwargs else []
         self.inp = np.array(kwargs['inp'] if 'inp' in kwargs else [])
+        # print("self.inp_lbl: {}".format(self.inp_lbl))
+        # print("self.inp: {}".format(self.inp))
+
         self.e_sim.setInputTable(self.inp_lbl, inp=self.inp)
 
         self.pos_lbl = augment_jnames_dot(self.joint_names)
@@ -168,13 +185,17 @@ class etasl_planner(PlannerInterface):
         pos = self.e_sim.simulate_begin(N, dt_sim)
         self.e_sim.DT = dt_sim
         self.kwargs_online_tmp = kwargs
-        self.idx_jnt_online_tmp = idx_jnt
+        self.idx_jnt_online = [self.inp_lbl.index("target_{joint_name}".format(joint_name=joint_name)) for joint_name in self.joint_names]
 
         return pos, binding_list
 
-    def step_online_plan(self, i_q, pos):
+    def step_online_plan(self, i_q, pos, wp_action=False):
         end_loop = False
         try:
+            if self.jact_idx>=0 and self.cact_idx>=0:
+                self.inp[self.jact_idx] = int(wp_action)
+                self.inp[self.cact_idx] = int(not wp_action)
+                # print("{}: {}".format(wp_action, self.inp[[self.jact_idx, self.cact_idx]]))
             pos = self.e_sim.simulate_step(i_q, pos, dt=None, inp_cur=self.inp)
             # VEL_CUR = VEL_CUR + e_sim.VEL[i_q, 1::2] * e_sim.DT
             # POS_CUR = POS_CUR + VEL_CUR * e_sim.DT
@@ -200,10 +221,10 @@ class etasl_planner(PlannerInterface):
         # print("traj: {}".format(traj[idx_cur]))
         # print("error: {}".format(error))
         if error < TRAJ_RADII:
-            if idx_cur+1 < len(traj)-1:
+            if idx_cur+1 < len(traj):
                 idx_cur += 1
                 # print("traj: {}".format(traj[idx_cur]))
-                self.inp[self.idx_jnt_online_tmp:self.idx_jnt_online_tmp+self.joint_num] = traj[idx_cur]
+        self.inp[self.idx_jnt_online] = traj[idx_cur]
         return idx_cur
 
     def simulate(self, initial_jpos, joint_names = None, initial_jpos_dot=None,
@@ -266,6 +287,7 @@ class etasl_planner(PlannerInterface):
     #     vel_val = "\nvel_joints = normalized_velocity(time, robot_jval)"
         monitor_string = vel_val + \
             """
+            ctx:setOutputExpression("error",error_target)
             ctx:setOutputExpression("vel_joints",vel_joints)
             Monitor {{
                 context = ctx,
@@ -275,32 +297,25 @@ class etasl_planner(PlannerInterface):
                 actionname ="exit",
                 argument = "converged"
             }}
-            """.format(vel_conv=vel_conv)
-        if "error_target" in additional_constraints:
-            monitor_string += \
-                """
-                Monitor {{
-                    context = ctx,
-                    name = "goal_reached",
-                    expr   = error_target,
-                    lower = {err_conv},
-                    actionname ="exit",
-                    argument = "e_arrived"
-                }}
-                """.format(err_conv=err_conv)
-            monitor_string += \
-                """
-                vel_error = maximum(1-time, abs(previous_velocity(time, error_target)))
-                ctx:setOutputExpression("vel_error",vel_error)
-                Monitor {{
-                    context = ctx,
-                    name = "converged",
-                    expr   = vel_error/error_target,
-                    lower = {vel_conv},
-                    actionname ="exit",
-                    argument = "converged"
-                }}
-                """.format(vel_conv=vel_conv)
+            Monitor {{
+                context = ctx,
+                name = "goal_reached",
+                expr   = error_target,
+                lower = {err_conv},
+                actionname ="exit",
+                argument = "e_arrived"
+            }}
+            vel_error = maximum(1-time, abs(previous_velocity(time, error_target)))
+            ctx:setOutputExpression("vel_error",vel_error)
+            Monitor {{
+                context = ctx,
+                name = "converged",
+                expr   = vel_error/error_target,
+                lower = {vel_conv},
+                actionname ="exit",
+                argument = "converged"
+            }}
+            """.format(err_conv=err_conv, vel_conv=vel_conv)
         return init_text + "\n" + additional_constraints + "\n" + monitor_string
 
 def get_item_text(geo_list):

@@ -25,16 +25,20 @@ PriorityQueueManager.register("PriorityQueue", PriorityQueue)
 
 PROC_MODE = True
 PRINT_LOG = False
-TRAJ_COUNT = 1
+DEFAULT_TRAJ_COUNT = 10
 
 class SearchNode:
     def __init__(self, idx, state, parents, leafs, leafs_P, depth=None, edepth=None):
         self.idx, self.state, self.parents, self.leafs, self.leafs_P, self.depth, self.edepth = \
             idx, state, parents, leafs, leafs_P, depth, edepth
         self.traj = None
+        self.traj_size = 0
+        self.traj_length = 0
 
-    def set_traj(self, traj_full):
-        traj_step = max(1,len(traj_full)/TRAJ_COUNT)
+    def set_traj(self, traj_full, traj_count=DEFAULT_TRAJ_COUNT):
+        self.traj_size = len(traj_full)
+        self.traj_length = np.sum(differentiate(traj_full, 1)[:-1]) if self.traj_size > 1 else 0
+        traj_step = max(1,self.traj_size/traj_count)
         self.traj = np.array(list(reversed(traj_full[::-traj_step])))
 
     def get_traj(self):
@@ -588,7 +592,8 @@ class ConstraintGraph:
 
     @record_time
     def __search_loop(self, terminate_on_first, N_search, N_loop,
-                      display=False, dt_vis=None, verbose=False, print_expression=False, **kwargs):
+                      display=False, dt_vis=None, verbose=False, print_expression=False,
+                      traj_count=DEFAULT_TRAJ_COUNT, **kwargs):
         loop_counter = 0
         while self.snode_counter.value < N_search and loop_counter < N_loop and not self.stop_now.value:
             loop_counter += 1
@@ -606,7 +611,7 @@ class ConstraintGraph:
                 snode_new = SearchNode(idx=0, state=new_state, parents=snode.parents + [snode.idx],
                                        leafs=[],
                                        leafs_P=[])
-                snode_new.set_traj(traj)
+                snode_new.set_traj(traj, traj_count=traj_count)
                 snode_new = self.add_node_queue_leafs(snode_new)
                 snode.leafs += [snode_new.idx]
                 self.snode_dict[snode.idx] = snode
@@ -695,34 +700,6 @@ class ConstraintGraph:
             self.set_object_state(from_state)
         show_motion(pose_list, self.marker_list, self.pub, self.joints, self.joint_names, **kwargs)
 
-    @record_time
-    def get_traj(self, from_state, to_state,
-                 T_step=5, control_freq=4e3, downsample_log2=5, playback_speed_log2=1,
-                 **kwargs):
-        dt = 1.0 / control_freq * (2 ** downsample_log2)
-        N = int(float(T_step) / dt)
-        e, new_state, error, succ = self.test_transition(from_state, to_state,
-                                                      N=N, dt=dt,
-                                                      display=False, dt_vis=dt, N_step=N,
-                                                      **kwargs)
-        print("{} Hz / {} sec : {}".format(1 / dt, N * dt, N))
-        e_POS = e.POS
-        for _ in range(downsample_log2):
-            e_POS = interpolate_double(e_POS)
-            dt = dt / 2
-
-        for _ in range(playback_speed_log2):
-            e_POS = interpolate_double(e_POS)
-        return e_POS, dt, succ
-
-    @record_time
-    def get_traj_dat(self, e_POS, dt):
-        e_VEL = differentiate(e_POS, dt)
-        e_ACC = differentiate(e_VEL, dt)
-        traj_data = np.concatenate([e_POS, e_VEL, e_ACC], axis=1)
-        traj_data_list = traj_data[:].flatten().tolist()
-        return traj_data_list
-
     def idxSchedule2SnodeScedule(self, schedule, ZERO_JOINT_POSE=None):
         snode_schedule = [self.snode_dict[i_sc] for i_sc in schedule]
         snode_schedule.append(snode_schedule[-1].copy())
@@ -753,6 +730,7 @@ class ConstraintGraph:
             to_state = to_snode.state
             traj = to_snode.get_traj()
             idx_cur = 0
+            end_traj = len(traj)-1
 
             if from_state is not None:
                 self.set_object_state(from_state)
@@ -806,7 +784,8 @@ class ConstraintGraph:
                         try:
                             obsPos_dict = dynamic_detector.get_dynPos_dict()
                             planner.update_online(obsPos_dict)
-                            pos, end_loop, error, success = planner.step_online_plan(i_q, pos)
+                            pos, end_loop, error, success = planner.step_online_plan(i_q, pos, wp_action=idx_cur<end_traj)
+                            # print("{i_s} : {idx_cur}<{end_traj}:{wp}".format(i_s=i_s, idx_cur=idx_cur, end_traj=end_traj, wp=idx_cur<end_traj))
                             POS_CUR = np.array(joint_dict2list(pos, self.joint_names))
                             # VEL_CUR = VEL_CUR + e_sim.VEL[i_q, 1::2] * e_sim.DT
                             # POS_CUR = POS_CUR + VEL_CUR * e_sim.DT
