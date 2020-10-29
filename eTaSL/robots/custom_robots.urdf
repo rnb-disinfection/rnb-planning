@@ -35,7 +35,7 @@
   </material>
   <link name="world"/>
   <joint name="indy0_joint_world" type="fixed">
-    <origin rpy="0.000112986510724 0.0124107802243 -1.58381359361" xyz="-0.44688218832 0.251997053623 0.0096560716629"/>
+    <origin rpy="-0.000417408398833 0.0117274232265 -1.58323164053" xyz="-0.446289390326 0.251102805138 0.0102017521858"/>
     <parent link="world"/>
     <child link="indy0_link0"/>
   </joint>
@@ -52,6 +52,12 @@
       </geometry>
       <material name="metal_grey"/>
     </visual>
+    <collision>
+      <origin rpy="-0.0 1.57079633 0.0" xyz="-0.1 0.0 0.03"/>
+      <geometry>
+        <cylinder length="0.2" radius="0.05"/>
+      </geometry>
+    </collision>
   </link>
   <link name="indy0_link1">
     <inertial>
@@ -179,7 +185,39 @@
       </geometry>
     </collision>
   </link>
-  <link name="indy0_tcp"/>
+  <link name="indy0_tcp">
+    <visual>
+      <origin rpy="0.0 0.0 1.570796" xyz="0.0 0.0 0.0"/>
+      <geometry>
+        <mesh filename="package://my_mesh/meshes/stl/indy_gripper_asm2_ctd.STL" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="red"/>
+    </visual>
+    <collision>
+      <origin rpy="0.0 0.0 0.0" xyz="0.005 0.044 0.1"/>
+      <geometry>
+        <cylinder length="0.08" radius="0.016"/>
+      </geometry>
+    </collision>
+    <collision>
+      <origin rpy="0.0 0.0 0.0" xyz="-0.005 0.044 0.1"/>
+      <geometry>
+        <cylinder length="0.08" radius="0.016"/>
+      </geometry>
+    </collision>
+    <collision>
+      <origin rpy="0.0 0.0 0.0" xyz="0.005 -0.044 0.1"/>
+      <geometry>
+        <cylinder length="0.08" radius="0.016"/>
+      </geometry>
+    </collision>
+    <collision>
+      <origin rpy="0.0 0.0 0.0" xyz="-0.005 -0.044 0.1"/>
+      <geometry>
+        <cylinder length="0.08" radius="0.016"/>
+      </geometry>
+    </collision>
+  </link>
   <joint name="indy0_joint0" type="revolute">
     <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0775"/>
     <axis xyz="0.0 0.0 1.0"/>
@@ -282,7 +320,7 @@
     </actuator>
   </transmission>
   <joint name="panda1_joint_world" type="fixed">
-    <origin rpy="0.00301172885219 0.0100915657917 -1.60411686047" xyz="0.511956453323 0.168998122215 0.0146180391312"/>
+    <origin rpy="0.00296737500071 0.00948517817286 -1.60379212552" xyz="0.511917114258 0.169139146805 0.0143296122551"/>
     <parent link="world"/>
     <child link="panda1_link0"/>
   </joint>
@@ -293,8 +331,15 @@
       </geometry>
     </visual>
     <collision>
+      <origin rpy="3.14159265 -1.37340077 3.14159265" xyz="-0.03 0.0 0.03"/>
       <geometry>
-        <mesh filename="package://franka_description/meshes/collision/link0.stl"/>
+        <cylinder length="0.102" radius="0.1"/>
+      </geometry>
+    </collision>
+    <collision>
+      <origin rpy="1.57079633 0.0 0.0" xyz="-0.05 0.0 0.03"/>
+      <geometry>
+        <cylinder length="0.3" radius="0.05"/>
       </geometry>
     </collision>
   </link>
@@ -305,8 +350,9 @@
       </geometry>
     </visual>
     <collision>
+      <origin rpy="-2.71183037 0.0 0.0" xyz="0.0 -0.0275 -0.075"/>
       <geometry>
-        <mesh filename="package://franka_description/meshes/collision/link1.stl"/>
+        <cylinder length="0.132" radius="0.11"/>
       </geometry>
     </collision>
   </link>
@@ -325,8 +371,9 @@
       </geometry>
     </visual>
     <collision>
+      <origin rpy="1.98320677 -0.0 0.0" xyz="0.0 -0.08 0.035"/>
       <geometry>
-        <mesh filename="package://franka_description/meshes/collision/link2.stl"/>
+        <cylinder length="0.175" radius="0.09"/>
       </geometry>
     </collision>
   </link>
@@ -345,8 +392,9 @@
       </geometry>
     </visual>
     <collision>
+      <origin rpy="2.48451772 -0.7355124 -1.69290814" xyz="0.04 0.027 -0.035"/>
       <geometry>
-        <mesh filename="package://franka_description/meshes/collision/link3.stl"/>
+        <cylinder length="0.12" radius="0.09"/>
       </geometry>
     </collision>
   </link>
@@ -365,8 +413,9 @@
       </geometry>
     </visual>
     <collision>
+      <origin rpy="-2.0064792 -0.71456939 1.05945848" xyz="-0.0555 0.058 0.027"/>
       <geometry>
-        <mesh filename="package://franka_description/meshes/collision/link4.stl"/>
+        <cylinder length="0.17" radius="0.08"/>
       </geometry>
     </collision>
   </link>
@@ -385,8 +434,9 @@
       </geometry>
     </visual>
     <collision>
+      <origin rpy="2.87423726 -0.0 0.0" xyz="0.0 0.0315 -0.115"/>
       <geometry>
-        <mesh filename="package://franka_description/meshes/collision/link5.stl"/>
+        <cylinder length="0.238" radius="0.08"/>
       </geometry>
     </collision>
   </link>
@@ -405,8 +455,9 @@
       </geometry>
     </visual>
     <collision>
+      <origin rpy="-0.0 -1.57079633 0.0" xyz="0.035 0.0 0.0"/>
       <geometry>
-        <mesh filename="package://franka_description/meshes/collision/link6.stl"/>
+        <cylinder length="0.09" radius="0.09"/>
       </geometry>
     </collision>
   </link>
@@ -424,11 +475,6 @@
         <mesh filename="package://franka_description/meshes/visual/link7.dae"/>
       </geometry>
     </visual>
-    <collision>
-      <geometry>
-        <mesh filename="package://franka_description/meshes/collision/link7.stl"/>
-      </geometry>
-    </collision>
   </link>
   <joint name="panda1_joint7" type="revolute">
     <origin rpy="1.57079632679 0.0 0.0" xyz="0.088 0.0 0.0"/>
@@ -457,8 +503,9 @@
       </geometry>
     </visual>
     <collision>
+      <origin rpy="1.57079633 0.0 0.0" xyz="0.0 0.0 0.02"/>
       <geometry>
-        <mesh filename="package://franka_description/meshes/collision/hand.stl"/>
+        <cylinder length="0.14" radius="0.06"/>
       </geometry>
     </collision>
   </link>
@@ -469,8 +516,9 @@
       </geometry>
     </visual>
     <collision>
+      <origin rpy="-2.73268482 0.0 0.0" xyz="0.0 0.0135 0.035"/>
       <geometry>
-        <mesh filename="package://franka_description/meshes/collision/finger.stl"/>
+        <cylinder length="0.0325" radius="0.018"/>
       </geometry>
     </collision>
   </link>
@@ -482,9 +530,9 @@
       </geometry>
     </visual>
     <collision>
-      <origin rpy="0.0 0.0 3.14159265359" xyz="0.0 0.0 0.0"/>
+      <origin rpy="-2.73268482 0.0 -3.14159265" xyz="0.0 -0.0135 0.035"/>
       <geometry>
-        <mesh filename="package://franka_description/meshes/collision/finger.stl"/>
+        <cylinder length="0.0325" radius="0.018"/>
       </geometry>
     </collision>
   </link>

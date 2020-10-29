@@ -254,79 +254,79 @@ def add_geometry_items(urdf_content, color=(0,1,0,0.5), display=True, collision=
 #     if fixed:
 #         transfer_fixed_links(col_items_dict, urdf_content, joint_names, exclude_parents)
 # transfer_fixed_links(col_items_dict, urdf_content, joint_names=JOINT_NAMES)
-
-def make_mesh_backup(meshname):
-    val = np.load('./geometry_tmp/'+meshname+'.npy')
-    print("["+", ".join(["%.3f"%v for v in val])+"]")
-    np.save('./geometry_tmp/'+meshname+'_bak.npy', val)
-
-def refine_meshes():    
-    try: os.mkdir('./geometry_tmp')
-    except: pass
-    
-    val = [0,  0.007, 0.050, 
-           0, 0.02, 0.02, 
-           0.018]
-    np.save('./geometry_tmp/panda1_rightfinger_Mesh_0.npy', val)
-    
-    val = [0,  0.007, 0.050, 
-           0, 0.02, 0.02, 
-           0.018]
-    np.save('./geometry_tmp/panda1_leftfinger_Mesh_0.npy', val)
-
-    meshname = 'panda1_link0_Mesh_0'
-    val = [0.02,  0.0,   0.04,  
-           -0.08, 0.0,  0.02,
-           0.10]
-    np.save('./geometry_tmp/'+meshname+'.npy', val)
-
-    meshname = 'panda1_link1_Mesh_0'
-    val = [0,  -0.055,   -0.015,  
-           0, -0.000,  -0.135,
-           0.11]
-    np.save('./geometry_tmp/'+meshname+'.npy', val)
-
-    meshname = 'panda1_link2_Mesh_0'
-
-    val = [0,  0.0,  0.07,  
-           0, -0.16,  0.00,
-           0.09]
-    np.save('./geometry_tmp/'+meshname+'.npy', val)
-
-    meshname = 'panda1_link3_Mesh_0'
-    val = [0.08, 0.054, 0.00,
-           0.00, 0, -0.07,
-           0.09]
-    np.save('./geometry_tmp/'+meshname+'.npy', val)
-
-    meshname = 'panda1_link4_Mesh_0'
-    val = [0, 0, 0.054, 
-           -0.111, 0.116, 0, 
-           0.08]
-    np.save('./geometry_tmp/'+meshname+'.npy', val)
-
-
-    meshname = 'panda1_link5_Mesh_0'
-    val = [0.00, 0.063, -0.00, 
-           -0.00, 0.00, -0.230, 
-           0.08]
-
-    np.save('./geometry_tmp/'+meshname+'.npy', val)
-
-    meshname = 'panda1_link6_Mesh_0'
-    val = [0.080, 0.000, 0.000, 
-           -0.010, 0.000, 0.000, 
-           0.09]
-
-    np.save('./geometry_tmp/'+meshname+'.npy', val)
-
-    meshname = 'panda1_hand_Mesh_0'
-    val = [0.000, 0.070, 0.02, 
-           -0.000, -0.070, 0.02, 
-           0.06]
-
-
-    np.save('./geometry_tmp/'+meshname+'.npy', val)
+#
+# def make_mesh_backup(meshname):
+#     val = np.load('./geometry_tmp/'+meshname+'.npy')
+#     print("["+", ".join(["%.3f"%v for v in val])+"]")
+#     np.save('./geometry_tmp/'+meshname+'_bak.npy', val)
+#
+# def refine_meshes():
+#     try: os.mkdir('./geometry_tmp')
+#     except: pass
+#
+#     val = [0,  0.007, 0.050,
+#            0, 0.02, 0.02,
+#            0.018]
+#     np.save('./geometry_tmp/panda1_rightfinger_Mesh_0.npy', val)
+#
+#     val = [0,  0.007, 0.050,
+#            0, 0.02, 0.02,
+#            0.018]
+#     np.save('./geometry_tmp/panda1_leftfinger_Mesh_0.npy', val)
+#
+#     meshname = 'panda1_link0_Mesh_0'
+#     val = [0.02,  0.0,   0.04,
+#            -0.08, 0.0,  0.02,
+#            0.10]
+#     np.save('./geometry_tmp/'+meshname+'.npy', val)
+#
+#     meshname = 'panda1_link1_Mesh_0'
+#     val = [0,  -0.055,   -0.015,
+#            0, -0.000,  -0.135,
+#            0.11]
+#     np.save('./geometry_tmp/'+meshname+'.npy', val)
+#
+#     meshname = 'panda1_link2_Mesh_0'
+#
+#     val = [0,  0.0,  0.07,
+#            0, -0.16,  0.00,
+#            0.09]
+#     np.save('./geometry_tmp/'+meshname+'.npy', val)
+#
+#     meshname = 'panda1_link3_Mesh_0'
+#     val = [0.08, 0.054, 0.00,
+#            0.00, 0, -0.07,
+#            0.09]
+#     np.save('./geometry_tmp/'+meshname+'.npy', val)
+#
+#     meshname = 'panda1_link4_Mesh_0'
+#     val = [0, 0, 0.054,
+#            -0.111, 0.116, 0,
+#            0.08]
+#     np.save('./geometry_tmp/'+meshname+'.npy', val)
+#
+#
+#     meshname = 'panda1_link5_Mesh_0'
+#     val = [0.00, 0.063, -0.00,
+#            -0.00, 0.00, -0.230,
+#            0.08]
+#
+#     np.save('./geometry_tmp/'+meshname+'.npy', val)
+#
+#     meshname = 'panda1_link6_Mesh_0'
+#     val = [0.080, 0.000, 0.000,
+#            -0.010, 0.000, 0.000,
+#            0.09]
+#
+#     np.save('./geometry_tmp/'+meshname+'.npy', val)
+#
+#     meshname = 'panda1_hand_Mesh_0'
+#     val = [0.000, 0.070, 0.02,
+#            -0.000, -0.070, 0.02,
+#            0.06]
+#
+#
+#     np.save('./geometry_tmp/'+meshname+'.npy', val)
 
 
 
