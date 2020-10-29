@@ -168,6 +168,18 @@ class ConstraintGraph:
         self.marker_list = set_markers(self.ghnd, self.joints, self.joint_names)
         self.show_pose(np.zeros(len(self.joint_names)))
 
+    def remove_geometry(self, gtem, from_ghnd=True):
+        del_list = []
+        for marker in self.marker_list:
+            del_list.append(marker)
+        self.marker_list.remove(marker)
+        
+        if from_ghnd:
+            self.ghnd.remove(gtem)
+
+    def add_geometry(self, gtem):
+        self.marker_list += set_markers([gtem], self.joints, self.joint_names)
+
     @record_time
     def set_planner(self, planner, bind=True):
         if bind:
