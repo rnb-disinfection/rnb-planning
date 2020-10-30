@@ -2,7 +2,6 @@ import sys
 sys.setrecursionlimit(1000000)
 
 from .geometry.ros_rviz import *
-from .utils.utils_graph import *
 from urdf_parser_py.urdf import URDF
 from multiprocessing import Process, Lock, cpu_count
 from .controller.panda_ros_interface import *
@@ -14,10 +13,13 @@ PANDA_ROS = False
 PORT_REPEATER = 1189
 CONTROL_FREQ = 100
 
-# try:
-#     from queue import PriorityQueue
-# except:
-#     from Queue import PriorityQueue
+try:
+    from queue import PriorityQueue
+except:
+    from Queue import PriorityQueue
+
+# from .utils.utils_graph import *
+
 from multiprocessing.managers import SyncManager
 class PriorityQueueManager(SyncManager):
     pass
@@ -276,41 +278,68 @@ class ConstraintGraph:
         if update_handles:
             self.update_handles()
         self.node_dict = {}
-        bindings = get_all_mapping(self.handle_dict.keys(), self.binder_dict.keys())
-        handle_combinations = list(product(*[self.handle_dict[obj] for obj in self.object_list]))
-        uniq_binders = self.get_unique_binders()
-        ctrl_binders = self.get_controlled_binders()
+        bindings = get_all_mapping(self.handle_dict.keys(),
+                                   self.binder_dict.keys())  # all possible binding combinations
+        handle_combinations = list(
+            product(*[self.handle_dict[obj] for obj in self.object_list]))  # all possible handle combinations
+        uniq_binders = self.get_unique_binders()  # binders cannot be shared by multiple objects
+        ctrl_binders = self.get_controlled_binders()  # all controllable binders
         self.node_list = []
         self.node_dict = {}
-        for binding in bindings:
+        for binding in bindings:  # binding combination loop
             if all([np.sum([bd == ub for bd in binding.values()]) <= 1 for ub in uniq_binders]):
-                for hc in handle_combinations:
+                for hc in handle_combinations:  # handle combination loop
                     node = []
                     add_ok = True
-                    for i_o, obj in zip(range(len(self.object_list)), self.object_list):
-                        hndl = self.object_dict[obj].action_points_dict[hc[i_o]]
-                        binder = self.binder_dict[binding[obj]]
-                        if binder.check_type(hndl):
+                    for i_o, obj in zip(range(len(self.object_list)), self.object_list):  # object loop
+                        hndl = self.object_dict[obj].action_points_dict[hc[i_o]]  # handle object
+                        binder = self.binder_dict[binding[obj]]  # binder object
+                        if binder.check_type(hndl):  # match handle-binder type
                             node += [(obj, hc[i_o], binding[obj])]
                         else:
-                            add_ok = False
+                            add_ok = False  # exclude if mismatch
                     if add_ok:
                         node = tuple(node)
-                        self.node_list += [node]
+                        self.node_list += [node]  # save all matched node
                         self.node_dict[node] = []
+        fixed_idx_dict = {}
+        ctrl_idx_dict = {}
+        fixed_bdg_dict = {}
+        ctrl_bdg_dict = {}
+        fix_node_dict = defaultdict(lambda: list())
         for node in self.node_list:
-            fixed_in = [i_n for i_n in range(len(node)) if node[i_n][2] not in ctrl_binders]
-            ctrl_in = [i_n for i_n in range(len(node)) if node[i_n][2] in ctrl_binders]
-            if ctrl_in:
-                bd_fixed = [node[idx] for idx in fixed_in]
-                bd_ctrl = [node[idx][2] for idx in ctrl_in]
-                pt_ctrl = [node[idx][1] for idx in ctrl_in]
-                # obj_ctrl = [node[idx][0] for idx in ctrl_in]
-                nodes_same_fix = [nd for nd in self.node_list if [nd[idx] for idx in fixed_in] == bd_fixed]
-                nodes_diff_ctrl = [nd for nd in nodes_same_fix if [nd[idx][2] for idx in ctrl_in] != bd_ctrl]
-                nodes_diff_pt = [nd for nd in nodes_diff_ctrl if [nd[idx][1] for idx in ctrl_in] != pt_ctrl]
-                nodes_neighbor = [nd for nd in nodes_diff_pt if len(
-                    set([bd[2] for bd, bd0 in zip(nd, node) if bd != bd0]).intersection(bd_ctrl)) == 0]
+            fixed_idx = [i_n for i_n in range(len(node)) if node[i_n][2] not in ctrl_binders]  # fixed binding index
+            ctrl_idx = [i_n for i_n in range(len(node)) if node[i_n][2] in ctrl_binders]  # control binding index
+            fixed_bdg = tuple([node[idx] for idx in fixed_idx])  # fixed binding
+            ctrl_bdg = tuple([node[idx] for idx in ctrl_idx])  # control binding
+            for i in range(len(fixed_bdg) + 1):
+                for fixed_bdg_subset in combinations(fixed_bdg, i):
+                    fix_node_dict[fixed_bdg_subset].append(node)  # node list sharing same fixed binding combination
+            fixed_idx_dict[node] = fixed_idx
+            ctrl_idx_dict[node] = ctrl_idx
+            fixed_bdg_dict[node] = fixed_bdg
+            ctrl_bdg_dict[node] = ctrl_bdg
+
+        for node in self.node_list:
+            ctrl_idx = ctrl_idx_dict[node]
+            if ctrl_idx:
+                fixed_idx = fixed_idx_dict[node]
+                bdg_fixed = fixed_bdg_dict[node]
+                bdg_ctrl = ctrl_bdg_dict[node]
+                bdr_ctrl = [bdg[2] for bdg in bdg_ctrl]
+                ptr_ctrl = [bdg[1] for bdg in bdg_ctrl]
+                conflict_ptr_ctrl = [self.object_dict[bdg[0]].get_conflicting_handles(bdg[1]) for bdg in bdg_ctrl]
+
+                nodes_same_fix = fix_node_dict[bdg_fixed]
+                nodes_diff_ctrl = [nd for nd in nodes_same_fix if
+                                   [nd[idx][2] for idx in ctrl_idx] != bdr_ctrl]  # if any control binder is changed
+                nodes_diff_pt = [nd for nd in nodes_diff_ctrl if
+                                 all([hnew not in cprev for hnew, cprev in zip([nd[idx][1] for idx in ctrl_idx],
+                                                                               conflict_ptr_ctrl)])]  # if control handle is not conflicting
+                nodes_neighbor = [nd for nd in nodes_diff_pt if all(
+                    [bdr_new not in bdr_ctrl for bdr_new in
+                     [bd[2] for bd, bd0 in zip(nd, node) if
+                      bd != bd0]])]  # if no changed binder is not in the previous control binder
                 self.node_dict[node] += nodes_neighbor
                 for nd_n in nodes_neighbor:
                     self.node_dict[nd_n] += [node]
@@ -472,21 +501,27 @@ class ConstraintGraph:
 
     @record_time
     def score_graph(self, goal_node):
-        if isinstance(goal_node, list):
-            score_dicts = [self.score_graph(goal) for goal in goal_node]
-            score_dict = {}
-            for k in score_dicts[0].keys():
-                score_dict[k] = min([sdict[k] for sdict in score_dicts])
-            return score_dict
-        frontier = PriorityQueue()
-        frontier.put(goal_node, 0)
+        # if isinstance(goal_node, list):
+        #     score_dicts = [self.score_graph(goal) for goal in goal_node]
+        #     score_dict = {}
+        #     for k in score_dicts[0].keys():
+        #         score_dict[k] = min([sdict[k] for sdict in score_dicts])
+        #     return score_dict
         came_from = {}
         node_cost_dict = {}
-        came_from[goal_node] = None
-        node_cost_dict[goal_node] = 0
+        frontier = PriorityQueue()
+        if isinstance(goal_node, list):
+            for goal in goal_node:
+                frontier.put((0, goal))
+                came_from[goal] = None
+                node_cost_dict[goal] = 0
+        else:
+            frontier.put((0, goal_node))
+            came_from[goal_node] = None
+            node_cost_dict[goal_node] = 0
 
         while not frontier.empty():
-            current = frontier.get()
+            current = frontier.get()[1]
 
             for next in self.node_dict[current]:
                 if next == current:
@@ -495,11 +530,10 @@ class ConstraintGraph:
                 if next not in node_cost_dict or new_cost < node_cost_dict[next]:
                     node_cost_dict[next] = new_cost
                     priority = new_cost
-                    frontier.put(next, priority)
+                    frontier.put((priority, next))
                     came_from[next] = current
         return node_cost_dict
 
-    @record_time
     def get_valid_neighbor(self, node, margin=0):
         neighbor = self.node_dict[node]
         neighbor_valid = []
@@ -508,12 +542,11 @@ class ConstraintGraph:
                 neighbor_valid += [leaf]
         return neighbor_valid
 
-    @record_time
     def reset_valid_node(self, margin=0, node=None):
         if node == None:
             node = self.initial_state.node
             self.valid_node_dict = {goal:[] for goal in self.goal_nodes}
-        if self.check_goal(node, self.goal_nodes) or node in self.valid_node_dict:
+        if node in self.valid_node_dict or self.check_goal_by_score(node, self.goal_cost_dict):
             return
         neighbor = self.get_valid_neighbor(node, margin=margin)
         if node in self.valid_node_dict and self.valid_node_dict[node] == neighbor:
@@ -563,7 +596,7 @@ class ConstraintGraph:
             else:
                 to_state.node = leaf
             # self.snode_queue.put((snode, state, to_state), expected_depth * self.DSCALE - depth) ## breadth-first
-            self.snode_queue.put((snode, state, to_state), (expected_depth - depth) * self.DSCALE + depth) ## greedy
+            self.snode_queue.put(((expected_depth - depth) * self.DSCALE + depth, (snode, state, to_state))) ## greedy
         return snode
 
     @record_time
@@ -576,9 +609,9 @@ class ConstraintGraph:
         self.DOF = len(initial_state.Q)
         self.init_search(initial_state, goal_nodes, tree_margin, depth_margin)
 
-        self.snode_counter = self.manager.Value('i', 0)
-        self.search_counter = self.manager.Value('i', 0)
-        self.stop_now =  self.manager.Value('i', 0)
+        self.snode_counter = SingleValue('i', 0)
+        self.search_counter = SingleValue('i', 0)
+        self.stop_now =  SingleValue('i', 0)
         self.snode_dict = {}
         self.snode_queue = PriorityQueue()
         self.add_node_queue_leafs(SearchNode(idx=0, state=initial_state, parents=[], leafs=[],
@@ -631,7 +664,7 @@ class ConstraintGraph:
             self.que_lock.acquire()
             if self.snode_queue.empty():
                 break
-            snode, from_state, to_state = self.snode_queue.get()
+            snode, from_state, to_state = self.snode_queue.get()[1]
             self.search_counter.value = self.search_counter.value + 1
             self.que_lock.release()
             self.gtimer.tic("test_transition")
@@ -695,9 +728,11 @@ class ConstraintGraph:
             state_cur = state_new
         return traj
 
-    @record_time
     def check_goal(self, node, goals):
         return node in goals
+
+    def check_goal_by_score(self, node, goal_cost_dict):
+        return goal_cost_dict[node] == 0
 
     @record_time
     def print_snode_list(self):

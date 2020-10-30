@@ -5,3 +5,12 @@ DIR_VEC_DICT = {"top": [0,0,1],
                 "front": [0,-1,0],
                 "back": [0,1,0]}
 
+OPPOSITE_DICT={
+    "top": "bottom",
+    "bottom": "top",
+    "right": "left",
+    "left": "right",
+    "front": "back",
+    "back": "front"
+}
+

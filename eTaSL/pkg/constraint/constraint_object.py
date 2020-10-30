@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 from ..geometry.binding import *
+from .constraint_common import *
 
 from abc import *
 __metaclass__ = type
@@ -61,6 +62,20 @@ class FramedPoint(ActionPoint):
                                        gtype=GEOTYPE.SPHERE, name=self.name_constraint, link_name=self.object.link_name,
                                        center=self.point, dims=(0,0,0), collision=False, display=False, fixed=False)
                                    )
+
+################################# USABLE CLASS #########################################
+
+class PlacePoint(DirectedPoint):
+    ctype=ConstraintType.Place
+
+class FramePoint(FramedPoint):
+    ctype=ConstraintType.Frame
+
+class VacuumPoint(DirectedPoint):
+    ctype=ConstraintType.Vacuum
+
+class Grasp2Point(DirectedPoint):
+    ctype=ConstraintType.Grasp2
     
 class ObjectAction:
     def __init__(self):
@@ -78,25 +93,52 @@ class ObjectAction:
     
     def bind(self, point, target):
         self.binding = (point, target)
-        
+
+    @abstractmethod
+    def get_conflicting_handles(self, hname):
+        pass
+
+################################# USABLE CLASS #########################################
+
 class BoxAction(ObjectAction):
     def __init__(self, _object, hexahedral=False):
         self.object = _object
         Xhalf, Yhalf, Zhalf = np.divide(_object.dims,2)
         self.action_points_dict = {
-            "top_p": DirectedPoint("top_p", _object, ([0,0,Zhalf], [0,0,-1])),
-            "bottom_p": DirectedPoint("bottom_p", _object, ([0,0,-Zhalf], [0,0,1])),
-            "top_f": FramedPoint("top_f", _object, ([0,0,Zhalf], [np.pi,0,0])),
-            "bottom_f": FramedPoint("bottom_f", _object, ([0,0,-Zhalf], [0,0,0]))
+            "top_p": PlacePoint("top_p", _object, ([0,0,Zhalf], [0,0,-1])),
+            "bottom_p": PlacePoint("bottom_p", _object, ([0,0,-Zhalf], [0,0,1])),
+            # "top_v": VacuumPoint("top_v", _object, ([0,0,Zhalf], [0,0,-1])),
+            # "bottom_v": VacuumPoint("bottom_v", _object, ([0,0,-Zhalf], [0,0,1])),
+            "top_g": Grasp2Point("top_g", _object, ([0,0,0], [0,0,-1])),
+            "bottom_g": Grasp2Point("bottom_g", _object, ([0,0,0], [0,0,1])),
+            "top_f": FramePoint("top_f", _object, ([0,0,Zhalf], [np.pi,0,0])),
+            "bottom_f": FramePoint("bottom_f", _object, ([0,0,-Zhalf], [0,0,0]))
         }
         if hexahedral:
             self.action_points_dict.update({
-                "right_p": DirectedPoint("right_p", _object, ([Xhalf,0,0], [-1,0,0])),
-                "left_p": DirectedPoint("left_p", _object, ([-Xhalf,0,0], [1,0,0])),
-                "front_p": DirectedPoint("front_p", _object, ([0,-Yhalf,0], [0,1,0])),
-                "back_p": DirectedPoint("back_p", _object, ([0,Yhalf,0], [0,-1,0])),
-                "right_f": FramedPoint("right_f", _object, ([Xhalf,0,0], [0,-np.pi/2,0])),
-                "left_f": FramedPoint("left_f", _object, ([-Xhalf,0,0], [0,np.pi/2,0])),
-                "front_f": FramedPoint("front_f", _object, ([0,-Yhalf,0], [-np.pi/2,0,0])),
-                "back_f": FramedPoint("back_f", _object, ([0,Yhalf,0], [np.pi/2,0,0]))
+                "right_p": PlacePoint("right_p", _object, ([Xhalf,0,0], [-1,0,0])),
+                "left_p": PlacePoint("left_p", _object, ([-Xhalf,0,0], [1,0,0])),
+                "front_p": PlacePoint("front_p", _object, ([0,-Yhalf,0], [0,1,0])),
+                "back_p": PlacePoint("back_p", _object, ([0,Yhalf,0], [0,-1,0])),
+                # "right_v": VacuumPoint("right_v", _object, ([Xhalf,0,0], [-1,0,0])),
+                # "left_v": VacuumPoint("left_v", _object, ([-Xhalf,0,0], [1,0,0])),
+                # "front_v": VacuumPoint("front_v", _object, ([0,-Yhalf,0], [0,1,0])),
+                # "back_v": VacuumPoint("back_v", _object, ([0,Yhalf,0], [0,-1,0])),
+                "right_g": Grasp2Point("right_g", _object, ([0,0,0], [-1,0,0])),
+                "left_g": Grasp2Point("left_g", _object, ([0,0,0], [1,0,0])),
+                "front_g": Grasp2Point("front_g", _object, ([0,0,0], [0,1,0])),
+                "back_g": Grasp2Point("back_g", _object, ([0,0,0], [0,-1,0])),
+                "right_f": FramePoint("right_f", _object, ([Xhalf,0,0], [0,-np.pi/2,0])),
+                "left_f": FramePoint("left_f", _object, ([-Xhalf,0,0], [0,np.pi/2,0])),
+                "front_f": FramePoint("front_f", _object, ([0,-Yhalf,0], [-np.pi/2,0,0])),
+                "back_f": FramePoint("back_f", _object, ([0,Yhalf,0], [np.pi/2,0,0]))
             })
+            self.conflict_dict = {
+                hname: [hname[:-1]+postfix for postfix in "pgf"] +
+                       ([OPPOSITE_DICT[hname[:-2]]+"_"+postfix for postfix in "pgf"] \
+                            if hname[-1] == "g" else [OPPOSITE_DICT[hname[:-2]]+"_g"])
+                for hname in self.action_points_dict.keys()
+            }
+
+    def get_conflicting_handles(self, hname):
+        return self.conflict_dict[hname]

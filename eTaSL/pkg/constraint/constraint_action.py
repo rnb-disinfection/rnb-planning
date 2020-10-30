@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 from ..geometry.binding import *
+from .constraint_common import *
 
 
 class Binding(object):
@@ -24,9 +25,9 @@ class Binding(object):
         Tto = np.matmul(np.linalg.inv(Tbt), Tbo)
         action_obj.set_state(Tto, self.object.link_name,
                              bind_point, self.name)
-    
+
     def check_type(self, action_point):
-        return action_point.handle.__class__.__name__ == self.effector.__class__.__name__
+        return action_point.ctype == self.ctype
 
     @abstractmethod
     def check_available(self):
@@ -45,26 +46,40 @@ class FrameBinding(Binding):
         super(FrameBinding, self).__init__(**kwargs)
         self.orientation = orientation
         self.effector = GeoFrame(orientation=orientation, _object=self.object)
-        
+
+
+################################# USABLE CLASS #########################################
+
+class VacuumTool(PointerBinding):
+    controlled = True
+    multiple = False
+    ctype = ConstraintType.Vacuum
+
+    def check_available(self, joint_dict):
+        return True
+
+class Gripper2Tool(PointerBinding):
+    controlled = True
+    multiple = False
+    ctype = ConstraintType.Grasp2
+
+    def check_available(self, joint_dict):
+        return True
+
 class PlacePlane(PointerBinding):
     controlled = False
     multiple = True
+    ctype = ConstraintType.Place
     VERTICAL_CUT = np.cos(np.deg2rad(10))
 
     def check_available(self, joint_dict):
         return np.matmul(self.effector.object.get_tf(joint_dict)[:3,:3], self.direction)[2]>PlacePlane.VERTICAL_CUT
-        
-class VacuumTool(PointerBinding):
-    controlled = True
-    multiple = False
-
-    def check_available(self, joint_dict):
-        return True
     
         
 class PlaceFrame(FrameBinding):
     controlled = False
     multiple = True
+    ctype = ConstraintType.Frame
     VERTICAL_CUT = np.cos(np.deg2rad(10))
 
     def check_available(self, joint_dict):
