@@ -84,6 +84,10 @@
   ```
   pip install autograd && pip install --user pymanopt==0.2.4 
   ```
+* Dash
+  ```
+  pip install dash==1.17.0
+  ```
 * misc.  
   ```
   pip install matplotlib trimesh pathlib protobuf grpcio numpy-stl sklearn filterpy paramiko  
