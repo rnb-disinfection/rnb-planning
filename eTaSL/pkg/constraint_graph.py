@@ -228,6 +228,12 @@ class ConstraintGraph:
             self.binder_dict[binding[1]].bind(self.object_dict[name], binding[0],
                                               joint_list2dict([0]*len(self.joint_names), joint_names=self.joint_names))
 
+    def get_all_handles(self):
+        handles = []
+        for obj_hd in self.object_dict.values():
+            handles += obj_hd.get_action_points().values()
+        return handles
+
     @record_time
     def remove_object(self, name):
         if name in self.object_dict:

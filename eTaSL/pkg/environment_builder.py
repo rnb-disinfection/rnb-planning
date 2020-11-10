@@ -175,7 +175,7 @@ def match_point_binder(graph, initial_state, objectPose_dict_mv):
             continue
         for kpt, bd in graph.object_dict[kobj].action_points_dict.items():
             Tpt = bd.object.get_tf(Q0dict)
-            point_dir = bd.point_dir if hasattr(bd, "point_dir") else bd.point_ori
+            point_dir = bd.point_dir if hasattr(bd, "point_dir") else bd.point_dir
             point_cur = np.matmul(Tpt, list(point_dir[0])+[1])[:3]
             direction_cur = np.matmul(Tpt[:3,:3], point_dir[1])
 

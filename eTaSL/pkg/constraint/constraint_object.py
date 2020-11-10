@@ -40,17 +40,17 @@ class DirectedPoint(ActionPoint):
                                      )
 
 class FramedPoint(ActionPoint):
-    def __init__(self, name, _object, point_ori):
+    def __init__(self, name, _object, point_dir):
         self.name = name
         self.object = _object
-        self.point_ori = point_ori
-        self.R_point_ori = Rotation.from_rotvec(self.point_ori[1]).as_dcm()
+        self.point_dir = point_dir
+        self.R_point_ori = Rotation.from_rotvec(self.point_dir[1]).as_dcm()
         self.name_constraint = "framer_{objname}_{name}".format(objname=self.object.name, name=self.name)
         self.update_handle()
 
     def update_handle(self):
         Toff = self.object.get_offset_tf()
-        self.point = np.matmul(Toff, list(self.point_ori[0])+[1])[:3]
+        self.point = np.matmul(Toff, list(self.point_dir[0])+[1])[:3]
         self.orientation_mat = np.matmul(Toff[:3,:3], self.R_point_ori)
         if hasattr(self, "handle"):
             self.handle.object.set_link(self.object.link_name)
