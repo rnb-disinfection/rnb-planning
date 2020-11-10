@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <launch>
 
-   <param name="robot_description" textfile="$(env TF_GMT_ETASL_DIR)/robots/ur10_robot.urdf" />
+   <param name="robot_description" textfile="$(env TAMP_ETASL_DIR)/robots/ur10_robot.urdf" />
 
   <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
 
@@ -9,6 +9,6 @@
 
   <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />
 
-  <node name="rviz" pkg="rviz" type="rviz" args="-d $(env TF_GMT_ETASL_DIR)/launch/custom_robots.rviz" />
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(env TAMP_ETASL_DIR)/launch/custom_robots.rviz" />
 </launch>
 

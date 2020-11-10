@@ -41,11 +41,9 @@ else:
     xcustom.start_rviz()
 
 from pkg.constraint_graph import *
-import matplotlib.pyplot as plt
-from pkg.plot_utils import *
-from pkg.utils import *
+from pkg.utils.plot_utils import *
+
 # from threading import Thread, Lock
-from multiprocessing import Process, Lock, Manager
 
 PROC_MODE = True
 rospy.init_node('task_planner', anonymous=True)
@@ -94,7 +92,7 @@ if current_scenario == Scenario.custom_robots:
 gtimer.toc("set_scene")
 
 gtimer.tic("set_sim")
-graph.set_simulation(nWSR=50, regularization_factor= 1e-1)
+graph.set_planner(nWSR=50, regularization_factor= 1e-1)
 gtimer.toc("set_sim")
 # graph.show_pose(ZERO_JOINT_POSE, execute=True)
 

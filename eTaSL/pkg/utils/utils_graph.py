@@ -113,11 +113,11 @@ class PriorityQueue:
     def empty(self):
         return len(self.elements) == 0
     
-    def put(self, item, priority):
-        heapq.heappush(self.elements, (priority, item))
+    def put(self, item):
+        heapq.heappush(self.elements, item)
     
     def get(self):
-        return heapq.heappop(self.elements)[1]
+        return heapq.heappop(self.elements)
 
 def dijkstra_search(graph, start, goal):
     frontier = PriorityQueue()

@@ -8,18 +8,18 @@
 		<Option virtualFolders="CMake Files\;CMake Files\lib\;CMake Files\example1_c\;"/>
 		<Build>
 			<Target title="all">
-				<Option working_dir="/home/junsu/Projects/tf_gmt/eTaSL/openGJK/example1_c"/>
+				<Option working_dir="/home/junsu/Projects/tamp_etasl/eTaSL/openGJK/example1_c"/>
 				<Option type="4"/>
 				<MakeCommands>
-					<Build command="/usr/bin/make -j8 -f &quot;/home/junsu/Projects/tf_gmt/eTaSL/openGJK/example1_c/Makefile&quot;  VERBOSE=1 all"/>
-					<CompileFile command="/usr/bin/make -j8 -f &quot;/home/junsu/Projects/tf_gmt/eTaSL/openGJK/example1_c/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
-					<Clean command="/usr/bin/make -j8 -f &quot;/home/junsu/Projects/tf_gmt/eTaSL/openGJK/example1_c/Makefile&quot;  VERBOSE=1 clean"/>
-					<DistClean command="/usr/bin/make -j8 -f &quot;/home/junsu/Projects/tf_gmt/eTaSL/openGJK/example1_c/Makefile&quot;  VERBOSE=1 clean"/>
+					<Build command="/usr/bin/make -j8 -f &quot;/home/junsu/Projects/tamp_etasl/eTaSL/openGJK/example1_c/Makefile&quot;  VERBOSE=1 all"/>
+					<CompileFile command="/usr/bin/make -j8 -f &quot;/home/junsu/Projects/tamp_etasl/eTaSL/openGJK/example1_c/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j8 -f &quot;/home/junsu/Projects/tamp_etasl/eTaSL/openGJK/example1_c/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j8 -f &quot;/home/junsu/Projects/tamp_etasl/eTaSL/openGJK/example1_c/Makefile&quot;  VERBOSE=1 clean"/>
 				</MakeCommands>
 			</Target>
 			<Target title="demo">
-				<Option output="/home/junsu/Projects/tf_gmt/eTaSL/openGJK/example1_c/demo" prefix_auto="0" extension_auto="0"/>
-				<Option working_dir="/home/junsu/Projects/tf_gmt/eTaSL/openGJK/example1_c"/>
+				<Option output="/home/junsu/Projects/tamp_etasl/eTaSL/openGJK/example1_c/demo" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/junsu/Projects/tamp_etasl/eTaSL/openGJK/example1_c"/>
 				<Option object_output="./"/>
 				<Option type="1"/>
 				<Option compiler="gcc"/>
@@ -35,15 +35,15 @@
 					<Add directory="/usr/include"/>
 				</Compiler>
 				<MakeCommands>
-					<Build command="/usr/bin/make -j8 -f &quot;/home/junsu/Projects/tf_gmt/eTaSL/openGJK/example1_c/Makefile&quot;  VERBOSE=1 demo"/>
-					<CompileFile command="/usr/bin/make -j8 -f &quot;/home/junsu/Projects/tf_gmt/eTaSL/openGJK/example1_c/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
-					<Clean command="/usr/bin/make -j8 -f &quot;/home/junsu/Projects/tf_gmt/eTaSL/openGJK/example1_c/Makefile&quot;  VERBOSE=1 clean"/>
-					<DistClean command="/usr/bin/make -j8 -f &quot;/home/junsu/Projects/tf_gmt/eTaSL/openGJK/example1_c/Makefile&quot;  VERBOSE=1 clean"/>
+					<Build command="/usr/bin/make -j8 -f &quot;/home/junsu/Projects/tamp_etasl/eTaSL/openGJK/example1_c/Makefile&quot;  VERBOSE=1 demo"/>
+					<CompileFile command="/usr/bin/make -j8 -f &quot;/home/junsu/Projects/tamp_etasl/eTaSL/openGJK/example1_c/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j8 -f &quot;/home/junsu/Projects/tamp_etasl/eTaSL/openGJK/example1_c/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j8 -f &quot;/home/junsu/Projects/tamp_etasl/eTaSL/openGJK/example1_c/Makefile&quot;  VERBOSE=1 clean"/>
 				</MakeCommands>
 			</Target>
 			<Target title="demo/fast">
-				<Option output="/home/junsu/Projects/tf_gmt/eTaSL/openGJK/example1_c/demo" prefix_auto="0" extension_auto="0"/>
-				<Option working_dir="/home/junsu/Projects/tf_gmt/eTaSL/openGJK/example1_c"/>
+				<Option output="/home/junsu/Projects/tamp_etasl/eTaSL/openGJK/example1_c/demo" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/junsu/Projects/tamp_etasl/eTaSL/openGJK/example1_c"/>
 				<Option object_output="./"/>
 				<Option type="1"/>
 				<Option compiler="gcc"/>
@@ -59,23 +59,23 @@
 					<Add directory="/usr/include"/>
 				</Compiler>
 				<MakeCommands>
-					<Build command="/usr/bin/make -j8 -f &quot;/home/junsu/Projects/tf_gmt/eTaSL/openGJK/example1_c/Makefile&quot;  VERBOSE=1 demo/fast"/>
-					<CompileFile command="/usr/bin/make -j8 -f &quot;/home/junsu/Projects/tf_gmt/eTaSL/openGJK/example1_c/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
-					<Clean command="/usr/bin/make -j8 -f &quot;/home/junsu/Projects/tf_gmt/eTaSL/openGJK/example1_c/Makefile&quot;  VERBOSE=1 clean"/>
-					<DistClean command="/usr/bin/make -j8 -f &quot;/home/junsu/Projects/tf_gmt/eTaSL/openGJK/example1_c/Makefile&quot;  VERBOSE=1 clean"/>
+					<Build command="/usr/bin/make -j8 -f &quot;/home/junsu/Projects/tamp_etasl/eTaSL/openGJK/example1_c/Makefile&quot;  VERBOSE=1 demo/fast"/>
+					<CompileFile command="/usr/bin/make -j8 -f &quot;/home/junsu/Projects/tamp_etasl/eTaSL/openGJK/example1_c/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j8 -f &quot;/home/junsu/Projects/tamp_etasl/eTaSL/openGJK/example1_c/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j8 -f &quot;/home/junsu/Projects/tamp_etasl/eTaSL/openGJK/example1_c/Makefile&quot;  VERBOSE=1 clean"/>
 				</MakeCommands>
 			</Target>
 		</Build>
-		<Unit filename="/home/junsu/Projects/tf_gmt/eTaSL/openGJK/example1_c/main.c">
+		<Unit filename="/home/junsu/Projects/tamp_etasl/eTaSL/openGJK/example1_c/main.c">
 			<Option target="demo"/>
 		</Unit>
-		<Unit filename="/home/junsu/Projects/tf_gmt/eTaSL/openGJK/CMakeLists.txt">
+		<Unit filename="/home/junsu/Projects/tamp_etasl/eTaSL/openGJK/CMakeLists.txt">
 			<Option virtualFolder="CMake Files\"/>
 		</Unit>
-		<Unit filename="/home/junsu/Projects/tf_gmt/eTaSL/openGJK/lib/CMakeLists.txt">
+		<Unit filename="/home/junsu/Projects/tamp_etasl/eTaSL/openGJK/lib/CMakeLists.txt">
 			<Option virtualFolder="CMake Files\lib\"/>
 		</Unit>
-		<Unit filename="/home/junsu/Projects/tf_gmt/eTaSL/openGJK/example1_c/CMakeLists.txt">
+		<Unit filename="/home/junsu/Projects/tamp_etasl/eTaSL/openGJK/example1_c/CMakeLists.txt">
 			<Option virtualFolder="CMake Files\example1_c\"/>
 		</Unit>
 	</Project>

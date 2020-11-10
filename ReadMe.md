@@ -84,9 +84,13 @@
   ```
   pip install autograd && pip install --user pymanopt==0.2.4 
   ```
+* Dash
+  ```
+  pip install dash==1.17.0
+  ```
 * misc.  
   ```
-  pip install matplotlib trimesh pathlib protobuf grpcio numpy-stl sklearn filterpy  
+  pip install matplotlib trimesh pathlib protobuf grpcio numpy-stl sklearn filterpy paramiko  
   ```
 
 # ROS Setup
@@ -113,7 +117,7 @@
 * Gazebo  
   ```
   sudo apt-get install -y ros-melodic-gazebo-ros-pkgs ros-melodic-gazebo-ros-control ros-melodic-joint-state-controller ros-melodic-effort-controllers ros-melodic-position-controllers ros-melodic-joint-trajectory-controller  
-  ````
+  ```
 * UR package  
   * link: https://github.com/ros-industrial/universal_robot  
   ```
@@ -135,7 +139,7 @@
   sudo apt install ros-melodic-libfranka ros-melodic-franka-ros \
   && cd ~/catkin_ws \
   && git clone https://github.com/justagist/franka_ros_interface src/franka_ros_interface \
-  && catkin build franka_ros_interface -DCMAKE_BUILD_TYPE=Release \
+  && catkin_make -DCMAKE_BUILD_TYPE=Release \
   && source devel/setup.bash
   ```
   * Copy/move the franka.sh file to the root of the catkin_ws
@@ -154,11 +158,10 @@
   cd ~ \
   && git clone --recursive https://gitlab.kuleuven.be/rob-expressiongraphs/docker/etasl-install.git etasl \
   && cd etasl \
-  && source install-dependencies.sh \
-  && source $HOME/orocos-install/orocos-2.9_ws/install_isolated/setup.bash \
-  && echo 'source $HOME/orocos-install/orocos-2.9_ws/install_isolated/setup.bash' >> ~/.bashrc
+  && source install-dependencies.sh
   ```
-* switch to gcc and g++ version to 7 to before installing etasl
+* **ADD** "source $HOME/orocos-install/orocos-2.9_ws/install_isolated/setup.bash" on top of ~/.bashrc  
+* switch gcc and g++ version to 7 before installing etasl
   ```
   sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
   ```
@@ -166,7 +169,7 @@
   ```
   source $HOME/etasl/etasl-install.sh
   ```
-* switch to gcc and g++ version to 5 to before installing etasl-py
+* switch gcc and g++ version to 5 before installing etasl-py
   ```
   sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
   ```
@@ -176,6 +179,10 @@
   && source python-etasl-install.sh \
   && source $HOME/etasl/ws/etasl-py/devel/setup.bash \
   && echo 'source $HOME/etasl/ws/etasl-py/devel/setup.bash' >> ~/.bashrc \
+  ```
+* switch gcc and g++ version back to 7 before installing etasl-py
+  ```
+  sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
   ```
 * ***If eTaSL is slow***, re-compile packages in release mode (has to be under 300ms with 200 constraints 500 step)  
   
@@ -220,51 +227,63 @@
   ```
   
 # Setup project  
-* Get project
+* Build custom etasl
+  * get custom etasl project from github and recompile etasl
   ```
-  mkdir ~/Projects && cd ~/Projects \
-  && git clone https://github.com/Cucumberkjs/tamp_etasl.git
+  cd ~/etasl/ws \
+  && mv ./etasl ./etasl_bak && mv ./etasl-py ./etasl-py_bak \
+  && git clone https://github.com/Cucumberkjs/etasl.git \
+  && git clone https://github.com/Cucumberkjs/etasl-py.git
   ```
-* overwrite custom etasl project from github and recompile etasl
-* **[IMPORTANT]** comment out lines below "source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash" in ~/.bashrc
-* switch to gcc and g++ version to 7 to before installing etasl
+  * **[IMPORTANT]** comment out "source $HOME/etasl/ws/etasl-py/devel/setup.bash" in ~/.bashrc
+  * restart terminal  
+  * switch gcc and g++ version to 7 before installing etasl
   ```
   sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
   ```
-* rebuild etasl 
+  * rebuild etasl 
   ```
   cd ~/etasl/ws/etasl \
   && sudo rm -rf devel && sudo rm -rf devel && catkin_make -DCMAKE_BUILD_TYPE=Release \
-  && source $HOME/etasl/ws/etasl-py/devel/setup.bash   
+  && source $HOME/etasl/ws/etasl/devel/setup.bash   
   ```
-* switch to gcc and g++ version to 5 to before installing etasl-py
+  * switch gcc and g++ version to 5 before installing etasl-py
   ```
   sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
   ```
-* rebuild etasl-py 
+  * rebuild etasl-py 
   ```
   cd ~/etasl/ws/etasl-py \
   && sudo rm -rf devel && sudo rm -rf devel && catkin_make -DCMAKE_BUILD_TYPE=Release \
   && source $HOME/etasl/ws/etasl-py/devel/setup.bash   
   ```
-* **[IMPORTANT]** uncomment lines below "source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash" in ~/.bashrc
-
-* openGJK
+  * **[IMPORTANT]** uncomment "source $HOME/etasl/ws/etasl-py/devel/setup.bash" in ~/.bashrc
+  * restart terminal  
+  * switch gcc and g++ version back to 7
   ```
-  cd $TF_GMT_ETASL_DIR/openGJK/lib \
+  sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
+  ```
+  
+* Get project and add path to ~/.bahsrc
+  ```
+  mkdir ~/Projects && cd ~/Projects \
+  && git clone https://github.com/Cucumberkjs/tamp_etasl.git \
+  && export TAMP_ETASL_DIR=$HOME/Projects/tamp_etasl/eTaSL/ \
+  && echo 'export TAMP_ETASL_DIR=$HOME/Projects/tamp_etasl/eTaSL/' >> ~/.bashrc
+  ```
+  * build openGJK
+  ```
+  cd "$TAMP_ETASL_DIR"openGJK/lib \
   && cmake -DCMAKE_BUILD_TYPE=Release \
   && make
   ```
-* build custom workspace  
+  * build custom workspace  
   ```
-  cd eTaSL/ws_ros && rm -rf build devel && catkin_make -DCMAKE_BUILD_TYPE=Release  
+  cd "$TAMP_ETASL_DIR"ws_ros && rm -rf build devel && catkin_make -DCMAKE_BUILD_TYPE=Release  
+  source "$TAMP_ETASL_DIR"ws_ros/devel/setup.bash
+  echo 'source "$TAMP_ETASL_DIR"ws_ros/devel/setup.bash' >> ~/.bashrc
   ```
-* add below to ~./bashrc  
-  ```
-  export TF_GMT_ETASL_DIR=/home/junsu/Projects/tf_gmt/eTaSL/  
-  source "$TF_GMT_ETASL_DIR"ws_ros/devel/setup.bash  
-  ```
-* start roscore if it's not on  
+  * start roscore if it's not active  
   ```
   nohup roscore &  
   ```
@@ -287,7 +306,7 @@
   ```
 * send the file to CB  
   ```
-  scp /home/junsu/Projects/indyframework2.0/deployment/* root@192.168.0.63:/home/user/release/TasksDeployment  
+  scp $HOME/Projects/indyframework2.0/deployment/* root@192.168.0.63:/home/user/release/TasksDeployment  
   ```
 * Run TaskMan on CB, through ssh
   ```
@@ -298,7 +317,7 @@
 # TIPS 
 * Launching RVIZ
   ```
-  roslaunch "$TF_GMT_ETASL_DIR"/launch/gui_custom_robots_joint_panel.launch 
+  roslaunch "$TAMP_ETASL_DIR"launch/gui_custom_robots_joint_panel.launch 
   ``` 
 
 * Launch franka ros interface  
@@ -331,9 +350,12 @@
 export PATH=$PATH:~/.local/bin  
   
 \# cuda  
-export PATH=$PATH:/usr/local/cuda-10.1/bin  
-export CUDADIR=/usr/local/cuda-10.1  
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-10.1/lib64  
+export PATH=$PATH:/usr/local/cuda-10.2/bin
+export CUDADIR=/usr/local/cuda-10.2
+if [ -z $LD_LIBRARY_PATH ]; then
+  export LD_LIBRARY_PATH=/usr/local/cuda-10.2/lib64
+else
+  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-10.2/lib64
   
 \# OROCOS  
 source $HOME/orocos-install/orocos-2.9_ws/install_isolated/setup.bash  
@@ -352,15 +374,14 @@ export ROS_MASTER_URI=http://localhost:11311
 export ROS_HOSTNAME=localhost  
   
 \# etasl  
-\#source $HOME/etasl_ws/devel/setup.sh  
-source /home/junsu/etasl_ws/etasl/ws/etasl-py/devel/setup.bash  
-export TESSERACT_SUPPORT_DIR='/home/junsu/Projects/tf_gmt/eTaSL/ws_ros/devel/share/tesseract_support'  
+source $HOME/etasl/ws/etasl-py/devel/setup.bash
+# export TESSERACT_SUPPORT_DIR='$HOME/Projects/tamp_etasl/eTaSL/ws_ros/devel/share/tesseract_support'  
 
-\# tf_gmt  
-export TF_GMT_ETASL_DIR=/home/junsu/Projects/tf_gmt/eTaSL/  
-source "$TF_GMT_ETASL_DIR"ws_ros/devel/setup.bash  
+\# tamp_etasl  
+export TAMP_ETASL_DIR=$HOME/Projects/tamp_etasl/eTaSL/
+source "$TAMP_ETASL_DIR"ws_ros/devel/setup.bash
   
 \# JetBrains  
-export PATH=$PATH:/home/junsu/pycharm-2020.2/bin  
-export PATH=$PATH:/home/junsu/clion-2020.2/bin  
+export PATH=$PATH:$HOME/pycharm-2020.2/bin  
+export PATH=$PATH:$HOME/clion-2020.2/bin  
 ```

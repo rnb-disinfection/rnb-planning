@@ -1,15 +1,11 @@
-import numpy as np
-import os
 import subprocess
-from enum import Enum
 from urdf_parser_py.urdf import URDF
 
 from .global_config import *
-from .geometry import GeoSegment
-from .rotation_utils import  *
+from .geometry.geometry import *
 
-XACRO_PATH_DEFAULT = '{}robots/custom_robots.urdf.xacro'.format(TF_GMT_ETASL_DIR)
-URDF_PATH_DEFAULT = '{}robots/custom_robots.urdf'.format(TF_GMT_ETASL_DIR)
+XACRO_PATH_DEFAULT = '{}robots/custom_robots.urdf.xacro'.format(TAMP_ETASL_DIR)
+URDF_PATH_DEFAULT = '{}robots/custom_robots.urdf'.format(TAMP_ETASL_DIR)
 
 URDF_PATH = os.path.join(PROJ_DIR, "robots", "custom_robots.urdf")
 JOINT_NAMES = ["shoulder_pan_joint","shoulder_lift_joint","elbow_joint","wrist_1_joint","wrist_2_joint","wrist_3_joint"]
@@ -102,7 +98,7 @@ class XacroCustomizer:
     
     def start_rviz(self):
         self.kill_existing_subprocess()
-        self.subp = subprocess.Popen(['roslaunch', '{}launch/gui_custom_robots.launch'.format(TF_GMT_ETASL_DIR)])
+        self.subp = subprocess.Popen(['roslaunch', '{}launch/gui_custom_robots.launch'.format(TAMP_ETASL_DIR)])
         
     def kill_existing_subprocess(self):
         if self.subp is not None:
@@ -114,9 +110,7 @@ class XacroCustomizer:
         self.rid_count = 0
         self.kill_existing_subprocess()
 
-        
-from scipy.spatial.transform import Rotation
-from collections import defaultdict
+
 from stl import mesh
 from sklearn.decomposition import PCA
 from scipy import optimize
@@ -161,8 +155,9 @@ def get_min_seg_radii(vertice):
     radii = dist_vertice_seg(vertice, seg)
     return seg, radii
 
-def get_geometry_items_dict(urdf_content, color=(0,1,0,0.5), display=True, collision=True, exclude_link=[]):
-    geometry_items_dict = defaultdict(lambda: list())
+def add_geometry_items(urdf_content, color=(0,1,0,0.5), display=True, collision=True, exclude_link=[]):
+    geometry_items = []
+    id_dict = defaultdict(lambda: -1)
     geometry_dir = "./geometry_tmp"
     try: os.mkdir(geometry_dir)
     except: pass
@@ -184,14 +179,15 @@ def get_geometry_items_dict(urdf_content, color=(0,1,0,0.5), display=True, colli
                 xyz = col_item.origin.xyz
                 rpy = col_item.origin.rpy
 
+            id_dict[link.name] += 1
             if geotype == 'Cylinder':
-                geometry_items_dict[link.name] += [GeoSegment(xyz, rpy, geometry.length, geometry.radius,
-                                                               name="{}_{}_{}".format(link.name, geotype, len(geometry_items_dict[link.name])),
-                                                               link_name=link.name, urdf_content=urdf_content, 
-                                                               color=color, display=display, collision=collision
+                geometry_items += [GeometryItem(name="{}_{}_{}".format(link.name, geotype, id_dict[link.name]),
+                                                                link_name=link.name, gtype=GEOTYPE.SEGMENT,
+                                                                center=xyz, dims=(geometry.radius*2,geometry.radius*2,geometry.length), rpy=rpy,
+                                                                color=color, display=display, collision=collision, fixed=True
                                                               )]
             elif geotype == 'Mesh':
-                name = "{}_{}_{}".format(link.name, geotype, len(geometry_items_dict[link.name]))
+                name = "{}_{}_{}".format(link.name, geotype, id_dict[link.name])
                 geo_file_name = os.path.join(geometry_dir, name+".npy")
                 geo_file_name_bak = os.path.join(geometry_dir, name+"_bak.npy")
                 if os.path.isfile(geo_file_name):
@@ -228,16 +224,13 @@ def get_geometry_items_dict(urdf_content, color=(0,1,0,0.5), display=True, colli
                 xyz_rpy = np.matmul(rpy_mat, xyz)
                 dcm = np.matmul(rpy_mat, Rotation.from_rotvec(rotvec).as_dcm())
                 xyz_rpy = np.add(xyz_rpy, dcm[:,2]*length/2).tolist()
-#                 print('xyz_rpy: {}'.format(xyz_rpy))
-                quat = Rotation.from_dcm(dcm).as_quat()
-                geometry_items_dict[link.name] += [GeoSegment(xyz_rpy, quat, length, radius,
-                                                               name=name,
-                                                               link_name=link.name, urdf_content=urdf_content, 
-                                                               color=color, display=display, collision=collision
+                geometry_items += [GeometryItem(name=name, link_name=link.name, gtype=GEOTYPE.SEGMENT,
+                                                                center=xyz_rpy, rpy=Rot2rpy(dcm), dims=(radius*2,radius*2,length),
+                                                                color=color, display=display, collision=collision, fixed=True
                                                               )]
             else:
                 raise(NotImplementedError("collision geometry {} is not implemented".format(geotype)))
-    return geometry_items_dict
+    return geometry_items
 
 # exclude_parents=['world']
 # joint_names=JOINT_NAMES
@@ -261,81 +254,84 @@ def get_geometry_items_dict(urdf_content, color=(0,1,0,0.5), display=True, colli
 #     if fixed:
 #         transfer_fixed_links(col_items_dict, urdf_content, joint_names, exclude_parents)
 # transfer_fixed_links(col_items_dict, urdf_content, joint_names=JOINT_NAMES)
-
-def make_mesh_backup(meshname):
-    val = np.load('./geometry_tmp/'+meshname+'.npy')
-    print("["+", ".join(["%.3f"%v for v in val])+"]")
-    np.save('./geometry_tmp/'+meshname+'_bak.npy', val)
-
-def refine_meshes():    
-    val = [0,  0.005, 0.055, 
-           0, 0.02, 0.02, 
-           0.018]
-    np.save('./geometry_tmp/panda1_rightfinger_Mesh_0.npy', val)
-    
-    val = [0,  0.005, 0.055, 
-           0, 0.02, 0.02, 
-           0.018]
-    np.save('./geometry_tmp/panda1_leftfinger_Mesh_0.npy', val)
-
-    meshname = 'panda1_link0_Mesh_0'
-    val = [0.02,  0.0,   0.04,  
-           -0.08, 0.0,  0.02,
-           0.10]
-    np.save('./geometry_tmp/'+meshname+'.npy', val)
-
-    meshname = 'panda1_link1_Mesh_0'
-    val = [0,  -0.055,   -0.015,  
-           0, -0.000,  -0.135,
-           0.11]
-    np.save('./geometry_tmp/'+meshname+'.npy', val)
-
-    meshname = 'panda1_link2_Mesh_0'
-
-    val = [0,  0.0,  0.07,  
-           0, -0.16,  0.00,
-           0.09]
-    np.save('./geometry_tmp/'+meshname+'.npy', val)
-
-    meshname = 'panda1_link3_Mesh_0'
-    val = [0.08, 0.054, 0.00,
-           0.00, 0, -0.07,
-           0.09]
-    np.save('./geometry_tmp/'+meshname+'.npy', val)
-
-    meshname = 'panda1_link4_Mesh_0'
-    val = [0, 0, 0.054, 
-           -0.111, 0.116, 0, 
-           0.08]
-    np.save('./geometry_tmp/'+meshname+'.npy', val)
-
-
-    meshname = 'panda1_link5_Mesh_0'
-    val = [0.00, 0.063, -0.00, 
-           -0.00, 0.00, -0.230, 
-           0.08]
-
-    np.save('./geometry_tmp/'+meshname+'.npy', val)
-
-    meshname = 'panda1_link6_Mesh_0'
-    val = [0.080, 0.000, 0.000, 
-           -0.010, 0.000, 0.000, 
-           0.09]
-
-    np.save('./geometry_tmp/'+meshname+'.npy', val)
-
-    meshname = 'panda1_hand_Mesh_0'
-    val = [0.000, 0.070, 0.01, 
-           -0.000, -0.070, 0.01, 
-           0.06]
-
-
-    np.save('./geometry_tmp/'+meshname+'.npy', val)
+#
+# def make_mesh_backup(meshname):
+#     val = np.load('./geometry_tmp/'+meshname+'.npy')
+#     print("["+", ".join(["%.3f"%v for v in val])+"]")
+#     np.save('./geometry_tmp/'+meshname+'_bak.npy', val)
+#
+# def refine_meshes():
+#     try: os.mkdir('./geometry_tmp')
+#     except: pass
+#
+#     val = [0,  0.007, 0.050,
+#            0, 0.02, 0.02,
+#            0.018]
+#     np.save('./geometry_tmp/panda1_rightfinger_Mesh_0.npy', val)
+#
+#     val = [0,  0.007, 0.050,
+#            0, 0.02, 0.02,
+#            0.018]
+#     np.save('./geometry_tmp/panda1_leftfinger_Mesh_0.npy', val)
+#
+#     meshname = 'panda1_link0_Mesh_0'
+#     val = [0.02,  0.0,   0.04,
+#            -0.08, 0.0,  0.02,
+#            0.10]
+#     np.save('./geometry_tmp/'+meshname+'.npy', val)
+#
+#     meshname = 'panda1_link1_Mesh_0'
+#     val = [0,  -0.055,   -0.015,
+#            0, -0.000,  -0.135,
+#            0.11]
+#     np.save('./geometry_tmp/'+meshname+'.npy', val)
+#
+#     meshname = 'panda1_link2_Mesh_0'
+#
+#     val = [0,  0.0,  0.07,
+#            0, -0.16,  0.00,
+#            0.09]
+#     np.save('./geometry_tmp/'+meshname+'.npy', val)
+#
+#     meshname = 'panda1_link3_Mesh_0'
+#     val = [0.08, 0.054, 0.00,
+#            0.00, 0, -0.07,
+#            0.09]
+#     np.save('./geometry_tmp/'+meshname+'.npy', val)
+#
+#     meshname = 'panda1_link4_Mesh_0'
+#     val = [0, 0, 0.054,
+#            -0.111, 0.116, 0,
+#            0.08]
+#     np.save('./geometry_tmp/'+meshname+'.npy', val)
+#
+#
+#     meshname = 'panda1_link5_Mesh_0'
+#     val = [0.00, 0.063, -0.00,
+#            -0.00, 0.00, -0.230,
+#            0.08]
+#
+#     np.save('./geometry_tmp/'+meshname+'.npy', val)
+#
+#     meshname = 'panda1_link6_Mesh_0'
+#     val = [0.080, 0.000, 0.000,
+#            -0.010, 0.000, 0.000,
+#            0.09]
+#
+#     np.save('./geometry_tmp/'+meshname+'.npy', val)
+#
+#     meshname = 'panda1_hand_Mesh_0'
+#     val = [0.000, 0.070, 0.02,
+#            -0.000, -0.070, 0.02,
+#            0.06]
+#
+#
+#     np.save('./geometry_tmp/'+meshname+'.npy', val)
 
 
 
 from xml.dom import minidom
-from .joint_utils import *
+from .utils.joint_utils import *
 import os
 
 def write_srdf(robot_names, binder_links, link_names, joint_names, urdf_content, urdf_path):

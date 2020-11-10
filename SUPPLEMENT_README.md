@@ -1,7 +1,7 @@
 ## Install Tesseract  
 * clone tesseract on workspace  
   ```
-  cd ˜/Projects/tf_gmt/eTaSL/ws_ros \
+  cd ˜/Projects/tamp_etasl/eTaSL/ws_ros \
   && git clone https://github.com/ros-industrial-consortium/tesseract.git  
   ```
    
@@ -26,7 +26,7 @@
 * build workspace (-DCMAKE_BUILD_TYPE=Release is set by default)
   ```
   catkin build --force-cmake -DTESSERACT_ENABLE_TESTING=ON \
-  && add export TESSERACT_SUPPORT_DIR='/home/junsu/Projects/tf_gmt/eTaSL/ws_ros/devel/share/tesseract_support'  
+  && add export TESSERACT_SUPPORT_DIR='/home/junsu/Projects/tamp_etasl/eTaSL/ws_ros/devel/share/tesseract_support'  
   ```
   
 # Panda simulator
@@ -53,7 +53,7 @@
   
 # How to make xacro for multi-robot  
 * find xacro file in the description package for target robot  
-* copy the xacro file to "$TF_GMT_ETASL_DIR"/robots  
+* copy the xacro file to "$TAMP_ETASL_DIR"/robots  
 * delete "world" link and joint connected to it  
 * add macro:  
   ```
@@ -74,10 +74,10 @@
 * include and call the xacro file in "custom_robots.urdf.xacro"  
 * test generating URDF file  
   ```
-  rosrun xacro xacro "$TF_GMT_ETASL_DIR"robots/custom_robots.urdf.xacro \> "$TF_GMT_ETASL_DIR"robots/custom_robots.urdf  
+  rosrun xacro xacro "$TAMP_ETASL_DIR"robots/custom_robots.urdf.xacro \> "$TAMP_ETASL_DIR"robots/custom_robots.urdf  
   ```
 * run rviz  
   ```
-  roslaunch "$TF_GMT_ETASL_DIR"/launch/gui_custom_robots_joint_panel.launch  
+  roslaunch "$TAMP_ETASL_DIR"/launch/gui_custom_robots_joint_panel.launch  
   ```
   * for "not unique" error, remove it from individual xacro files and include the item on the top of "custom_robots.urdf.xacro"  

@@ -3,7 +3,7 @@ import numpy as np
 from enum import Enum
 
 PROJ_DIR = os.getcwd()
-TF_GMT_ETASL_DIR = os.environ['TF_GMT_ETASL_DIR']
+TAMP_ETASL_DIR = os.environ['TAMP_ETASL_DIR']
 
 OFFSET_DIR = "./offset/"
 try: os.mkdir(OFFSET_DIR)

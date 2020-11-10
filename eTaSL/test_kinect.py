@@ -1,5 +1,4 @@
-import time
-from pkg.kinect import *
+from .pkg.sensor.kinect import *
 
 dictionary = aruco.getPredefinedDictionary(aruco.DICT_6X6_250)
 params = aruco.DetectorParameters_create()

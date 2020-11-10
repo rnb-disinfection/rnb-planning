@@ -10,6 +10,8 @@
     </xacro:unless>
 	<xacro:property name="PI" value="3.1415926535897931"/>
 	<xacro:property name="indy_material" value="metal_grey"/>
+	<xacro:property name="tool_material" value="red"/>
+    
 	<!-- <material name="grey"> <color rgba="0.5 0.5 0.5 1"/> </material> -->
 
 	<link name="indy${robot_id}_link0">
@@ -20,6 +22,12 @@
 			</geometry>
 			<material name="${indy_material}"/>
 		</visual>
+		<collision>
+			<origin xyz="-0.1   0.    0.03" rpy="-0.          1.57079633  0."/>
+			<geometry>
+				<cylinder length="0.2" radius="0.05"/>
+			</geometry>
+		</collision>
 		<inertial>
 			<origin xyz="0 0 0" rpy="0 0 0"/>
 			<mass value="1.59306955"/>
@@ -86,7 +94,7 @@
 		<collision>
 			<origin xyz="0 0 0.03" rpy="0 0 0"/>
 			<geometry>
-				<cylinder length="0.2" radius="0.055"/>
+				<cylinder length="0.2" radius="0.065"/>
 			</geometry>
 		</collision>
 		<inertial>
@@ -107,7 +115,7 @@
 		<collision>
 			<origin xyz="0 0 -0.092" rpy="0 0 0"/>
 			<geometry>
-				<cylinder length="0.35" radius="0.055"/>
+				<cylinder length="0.35" radius="0.06"/>
 			</geometry>
 		</collision>
 		<inertial>
@@ -147,9 +155,9 @@
 			<material name="${indy_material}"/>
 		</visual>
 		<collision>
-			<origin xyz="0 0 -0.054" rpy="0 0 0"/>
+			<origin xyz="0 0 -0.038" rpy="0 0 0"/>
 			<geometry>
-				<cylinder length="0.218" radius="0.050"/>
+				<cylinder length="0.25" radius="0.06"/>
 			</geometry>
 		</collision>
 		<inertial>
@@ -158,7 +166,39 @@
 			<inertia ixx="0.00043534" iyy="0.00044549" izz="0.00059634" ixy="+0.00000013" iyz="+0.00000051" ixz="-0.00000002"/>
 		</inertial>
 	</link>
-	<link name="indy${robot_id}_tcp"/>
+	<link name="indy${robot_id}_tcp">
+		<visual>
+			<origin xyz="0 0 0" rpy="0 0 1.570796"/>
+			<geometry>
+				<mesh filename="package://my_mesh/meshes/stl/indy_gripper_asm2_ctd.STL" scale="0.001 0.001 0.001"/>
+			</geometry>
+			<material name="${tool_material}"/>
+		</visual>
+		<collision>
+			<origin xyz="0.005 0.044 0.1" rpy="0 0 0"/>
+			<geometry>
+				<cylinder length="0.08" radius="0.016"/>
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="-0.005  0.044  0.1" rpy="0 0 0"/>
+			<geometry>
+				<cylinder length="0.08" radius="0.016"/>
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="0.005 -0.044  0.1" rpy="0 0 0"/>
+			<geometry>
+				<cylinder length="0.08" radius="0.016"/>
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="-0.005 -0.044  0.1" rpy="0 0 0"/>
+			<geometry>
+				<cylinder length="0.08" radius="0.016"/>
+			</geometry>
+		</collision>
+	</link>
 
 	<joint name="indy${robot_id}_joint0" type="revolute">
 		<parent link="indy${robot_id}_link0"/>
