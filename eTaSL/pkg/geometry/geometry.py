@@ -10,6 +10,7 @@ class GEOTYPE(Enum):
     SEGMENT = 1
     BOX = 2
     MESH = 3
+    ARROW = 4
 
 POINT_DEFAULT = np.array([[0,0,0]])
 SEG_DEFAULT = np.array([[0,0,1.0],[0,0,-1.0]])/2
@@ -56,9 +57,7 @@ class GeometryItem(object):
         self.uri, self.scale = uri, scale
         self.gtype = gtype
         self.set_offset_tf(center=center, orientation_mat=Rot_rpy(rpy))
-        self.dims = dims
-        self.radius = np.mean(dims[:2])/2 if gtype in [GEOTYPE.SPHERE, GEOTYPE.SEGMENT] else 0
-        self.length = dims[2]
+        self.set_dims(dims)
         self.color = color
         self.display = display
         self.collision = collision
@@ -69,7 +68,12 @@ class GeometryItem(object):
         self.set_name(name)
         self.set_link(link_name)
         self.ghnd.append(self)
-    
+
+    def set_dims(self, dims):
+        self.dims = dims
+        self.radius = np.mean(dims[:2])/2 if self.gtype in [GEOTYPE.SPHERE, GEOTYPE.SEGMENT] else 0
+        self.length = dims[2]
+
     def set_name(self, name):
         self.name = name
         

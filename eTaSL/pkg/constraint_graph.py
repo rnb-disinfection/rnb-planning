@@ -168,7 +168,7 @@ class ConstraintGraph:
         self.pub, self.joints, self.rate = get_publisher(self.joint_names, control_freq=CONTROL_FREQ)
         # prepare visualization markers
         self.marker_list = set_markers(self.ghnd, self.joints, self.joint_names)
-        self.highlist_dict = {}
+        self.highlight_dict = defaultdict(lambda: dict())
         self.show_pose(np.zeros(len(self.joint_names)))
 
     def remove_geometry(self, gtem, from_ghnd=True):
@@ -234,6 +234,13 @@ class ConstraintGraph:
         for obj_hd in self.object_dict.values():
             handles += obj_hd.get_action_points().values()
         return handles
+
+    def get_all_handle_dict(self):
+        handle_dict = {}
+        for obj_hd in self.object_dict.values():
+            for hd in obj_hd.get_action_points().values():
+                handle_dict[hd.name_constraint] = hd
+        return handle_dict
 
     @record_time
     def remove_object(self, name):
@@ -772,6 +779,53 @@ class ConstraintGraph:
         if from_state is not None:
             self.set_object_state(from_state)
         show_motion(pose_list, self.marker_list, self.pub, self.joints, self.joint_names, **kwargs)
+
+    def clear_highlight(self, hl_keys=[]):
+        for hl_key, hl_set in self.highlight_dict.items():
+            if hl_key in hl_keys or not hl_keys:
+                for k,v in hl_set.items():
+                    self.remove_geometry(v)
+                    del self.highlight_dict[hl_key][k]
+
+    def highlight_geometry(self, hl_key, gname, color=(1, 0.3, 0.3, 0.5)):
+        gtem = self.ghnd.NAME_DICT[gname]
+        dims = gtem.dims if np.sum(gtem.dims) > 0.001 else (0.03, 0.03, 0.03)
+        if gtem.display:
+            htem = GeometryItem(gtype=gtem.gtype, name="hl_" + gtem.name, link_name=gtem.link_name,
+                                center=gtem.center, dims=dims, rpy=Rot2rpy(gtem.orientation_mat), color=color,
+                                collision=False)
+        else:
+            htem = GeometryItem(gtype=gtem.gtype, name="hl_" + gtem.name, link_name=gtem.link_name,
+                                center=gtem.center, dims=dims, rpy=Rot2rpy(gtem.orientation_mat), color=color,
+                                collision=False)
+
+        self.highlight_dict[hl_key][htem.name] = htem
+        self.add_geometry(htem)
+
+    def add_highlight_axis(self, hl_key, name, link_name, center, orientation_mat, color=None, axis="xyz", dims=(0.10, 0.01, 0.01)):
+        if 'x' in axis:
+            axtemx = GeometryItem(gtype=GEOTYPE.ARROW, name="axx_" + name, link_name=link_name,
+                                  center=center, dims=dims, rpy=Rot2rpy(orientation_mat), color=color or (1, 0, 0, 0.5),
+                                  collision=False)
+            self.add_geometry(axtemx)
+            self.highlight_dict[hl_key][axtemx.name] = axtemx
+
+        if 'y' in axis:
+            axtemy = GeometryItem(gtype=GEOTYPE.ARROW, name="axy_" + name, link_name=link_name,
+                                  center=center, dims=dims,
+                                  rpy=Rot2rpy(np.matmul(orientation_mat, Rot_axis(3, np.pi / 2))), color=color or (0, 1, 0, 0.5),
+                                  collision=False)
+            self.add_geometry(axtemy)
+            self.highlight_dict[hl_key][axtemy.name] = axtemy
+
+        if 'z' in axis:
+            axtemz = GeometryItem(gtype=GEOTYPE.ARROW, name="axz_" + name, link_name=link_name,
+                                  center=center, dims=dims,
+                                  rpy=Rot2rpy(np.matmul(orientation_mat, Rot_axis(2, -np.pi / 2))),
+                                  color=color or (0, 0, 1, 0.5),
+                                  collision=False)
+            self.add_geometry(axtemz)
+            self.highlight_dict[hl_key][axtemz.name] = axtemz
 
     def idxSchedule2SnodeScedule(self, schedule, ZERO_JOINT_POSE=None):
         snode_schedule = [self.snode_dict[i_sc] for i_sc in schedule]

@@ -7,10 +7,9 @@ import dash_html_components as html
 import dash_table
 from dash.dependencies import Input, Output
 
-def table_updater_default(selected_row_ids, active_row, active_col):
-    print("selected_row_ids: {}".format(selected_row_ids))
-    print("active_row: {}".format(active_row))
-    print("active_col: {}".format(active_col))
+def table_updater_default(*args):
+    print("table_updater_default-input: {}".format(args))
+    return True, ""
 
 class TabInfo:
     def __init__(self, tab_name, table_info_array):
@@ -18,9 +17,10 @@ class TabInfo:
         self.tab_id = get_tab_id(self.tab_name)
 
 class TableInfo:
-    def __init__(self, table_name, table_height, table_loader=lambda:(['Name'],[]), table_updater=table_updater_default):
-        self.table_name, self.table_height, self.table_loader, self.table_updater = \
-            table_name, table_height, table_loader, table_updater
+    def __init__(self, table_name, table_height, table_loader=lambda:(['Name'],[]),
+                 table_selector=table_updater_default, table_updater=table_updater_default):
+        self.table_name, self.table_height, self.table_loader, self.table_selector, self.table_updater = \
+            table_name, table_height, table_loader, table_selector,table_updater
 
 def get_tab_id(tab_name):
     return 'tab-'+tab_name.lower()
@@ -38,9 +38,11 @@ def set_tabs(tab_list, tab_defaults=[0,1]):
         for table in tab.table_info_array:
             __table_dict[table.table_name] = table
 
-def set_tables(table_loader_dict, table_updater_dict):
+def set_tables(table_loader_dict, table_selector_dict, table_updater_dict):
     for table_name, loader in table_loader_dict.items():
         __table_dict[table_name].table_loader = loader
+    for table_name, selecter_dict in table_selector_dict.items():
+        __table_dict[table_name].table_selector = selecter_dict
     for table_name, updater_dict in table_updater_dict.items():
         __table_dict[table_name].table_updater = updater_dict
 
@@ -84,7 +86,7 @@ def generate_table(columns, items, table_id, height="100%"):
                                        {
                                            'if': {'column_id': c},
                                            'fontSize': '12px'
-                                       } for c in ['Dims', 'Center', 'Rpy', 'Point', 'Dir']
+                                       } for c in ['Dims', 'Center', 'Rpy', 'Point', 'Direction']
                                    ]+[{
                 'if': {'row_index': 'even'},
                 'backgroundColor': '#F5F5F5'
@@ -135,8 +137,9 @@ def register_callback(table_id):
         Output(table_id+'-table-row-ids-container', 'children'),
         [Input(table_id+'-table-row-ids', 'derived_virtual_row_ids'),
          Input(table_id+'-table-row-ids', 'selected_row_ids'),
-         Input(table_id+'-table-row-ids', 'active_cell')])
-    def update_graphs(row_ids, selected_row_ids, active_cell):
+         Input(table_id+'-table-row-ids', 'active_cell'),
+         Input(table_id+'-table-row-ids', 'data')])
+    def update_graphs(row_ids, selected_row_ids, active_cell, data):
         # When the table is first rendered, `derived_virtual_data` and
         # `derived_virtual_selected_rows` will be `None`. This is due to an
         # idiosyncrasy in Dash (unsupplied properties are always None and Dash
@@ -146,11 +149,30 @@ def register_callback(table_id):
         # Instead of setting `None` in here, you could also set
         # `derived_virtual_data=df.to_rows('dict')` when you initialize
         # the component.
+        if update_graphs.__cell_prev:
+            row = update_graphs.__cell_prev['row']
+            row_id = update_graphs.__cell_prev['row_id']
+            col_id = update_graphs.__cell_prev['column_id']
+            if row is not None and col_id is not None:
+                __value = str(data[row][col_id])
+                res, msg = __table_dict[table_id].table_updater(row_id, col_id, __value)
+                if not res:
+                    print("==================================================")
+                    print("==================================================")
+                    print("=================Make Alert Window================")
+                    print("==================================================")
+                    print("==================================================")
+                    print(msg)
+            update_graphs.__cell_prev = None
+
         selected_id_list = map(str, selected_row_ids or [])
         if active_cell is None:
-            active_cell = {'row_id': None, 'column_id': None}
-        __table_dict[table_id].table_updater(selected_id_list, active_cell['row_id'], active_cell['column_id'])
+            active_cell = {'row':None, 'row_id': None, 'column': None, 'column_id': None}
+
+        update_graphs.__cell_prev = active_cell
+        __table_dict[table_id].table_selector(selected_id_list, active_cell['row_id'], active_cell['column_id'])
         return html.Div("")
+    update_graphs.__cell_prev = None
 
 
 def __render_content_func(tab):
@@ -182,7 +204,7 @@ if __name__ == '__main__':
                                                      [['indy0_link0_Cylinder_0', 'SEGMENT', 'indy0_link0', '0.100,0.100,0.200', '-0.100,0.000,0.030', '-0.000,1.571,0.000', 'True', 'True', 'True', 'False', 'False'], ['indy0_link1_Cylinder_0', 'SEGMENT', 'indy0_link1', '0.200,0.200,0.300', '0.000,0.000,0.072', '0.000,-0.000,0.000', 'True', 'True', 'True', 'False', 'False'], ['indy0_link2_Cylinder_0', 'SEGMENT', 'indy0_link2', '0.146,0.146,0.450', '-0.225,0.000,0.090', '1.571,-0.000,-1.571', 'True', 'True', 'True', 'False', 'False'], ['indy0_link2_Cylinder_1', 'SEGMENT', 'indy0_link2', '0.170,0.170,0.200', '0.000,0.000,-0.010', '0.000,-0.000,0.000', 'True', 'True', 'True', 'False', 'False'], ['indy0_link3_Cylinder_0', 'SEGMENT', 'indy0_link3', '0.130,0.130,0.200', '0.000,0.000,0.030', '0.000,-0.000,0.000', 'True', 'True', 'True', 'False', 'False'], ['indy0_link4_Cylinder_0', 'SEGMENT', 'indy0_link4', '0.120,0.120,0.350', '0.000,0.000,-0.092', '0.000,-0.000,0.000', 'True', 'True', 'True', 'False', 'False'], ['indy0_link5_Cylinder_0', 'SEGMENT', 'indy0_link5', '0.110,0.110,0.183', '-0.000,0.000,-0.022', '0.000,-0.000,0.000', 'True', 'True', 'True', 'False', 'False'], ['indy0_link6_Cylinder_0', 'SEGMENT', 'indy0_link6', '0.120,0.120,0.250', '0.000,0.000,-0.038', '0.000,-0.000,0.000', 'True', 'True', 'True', 'False', 'False'], ['indy0_tcp_Cylinder_0', 'SEGMENT', 'indy0_tcp', '0.032,0.032,0.080', '0.005,0.044,0.100', '0.000,-0.000,0.000', 'True', 'True', 'True', 'False', 'False'], ['indy0_tcp_Cylinder_1', 'SEGMENT', 'indy0_tcp', '0.032,0.032,0.080', '-0.005,0.044,0.100', '0.000,-0.000,0.000', 'True', 'True', 'True', 'False', 'False'], ['indy0_tcp_Cylinder_2', 'SEGMENT', 'indy0_tcp', '0.032,0.032,0.080', '0.005,-0.044,0.100', '0.000,-0.000,0.000', 'True', 'True', 'True', 'False', 'False'], ['indy0_tcp_Cylinder_3', 'SEGMENT', 'indy0_tcp', '0.032,0.032,0.080', '-0.005,-0.044,0.100', '0.000,-0.000,0.000', 'True', 'True', 'True', 'False', 'False'], ['panda1_link0_Cylinder_0', 'SEGMENT', 'panda1_link0', '0.200,0.200,0.102', '-0.030,0.000,0.030', '3.142,-1.373,3.142', 'True', 'True', 'True', 'False', 'False'], ['panda1_link0_Cylinder_1', 'SEGMENT', 'panda1_link0', '0.100,0.100,0.300', '-0.050,0.000,0.030', '1.571,-0.000,0.000', 'True', 'True', 'True', 'False', 'False'], ['panda1_link1_Cylinder_0', 'SEGMENT', 'panda1_link1', '0.220,0.220,0.132', '0.000,-0.028,-0.075', '-2.712,-0.000,0.000', 'True', 'True', 'True', 'False', 'False'], ['panda1_link2_Cylinder_0', 'SEGMENT', 'panda1_link2', '0.180,0.180,0.175', '0.000,-0.080,0.035', '1.983,-0.000,0.000', 'True', 'True', 'True', 'False', 'False'], ['panda1_link3_Cylinder_0', 'SEGMENT', 'panda1_link3', '0.180,0.180,0.120', '0.040,0.027,-0.035', '2.485,-0.736,-1.693', 'True', 'True', 'True', 'False', 'False'], ['panda1_link4_Cylinder_0', 'SEGMENT', 'panda1_link4', '0.160,0.160,0.170', '-0.056,0.058,0.027', '-2.006,-0.715,1.059', 'True', 'True', 'True', 'False', 'False'], ['panda1_link5_Cylinder_0', 'SEGMENT', 'panda1_link5', '0.160,0.160,0.238', '0.000,0.032,-0.115', '2.874,-0.000,0.000', 'True', 'True', 'True', 'False', 'False'], ['panda1_link6_Cylinder_0', 'SEGMENT', 'panda1_link6', '0.180,0.180,0.090', '0.035,0.000,0.000', '-0.000,-1.571,0.000', 'True', 'True', 'True', 'False', 'False'], ['panda1_hand_Cylinder_0', 'SEGMENT', 'panda1_hand', '0.120,0.120,0.140', '0.000,0.000,0.020', '1.571,-0.000,0.000', 'True', 'True', 'True', 'False', 'False'], ['panda1_leftfinger_Cylinder_0', 'SEGMENT', 'panda1_leftfinger', '0.036,0.036,0.033', '0.000,0.013,0.035', '-2.733,-0.000,0.000', 'True', 'True', 'True', 'False', 'False'], ['panda1_rightfinger_Cylinder_0', 'SEGMENT', 'panda1_rightfinger', '0.036,0.036,0.033', '0.000,-0.013,0.035', '-2.733,-0.000,-3.142', 'True', 'True', 'True', 'False', 'False'], ['pole_cam1', 'SEGMENT', 'world', '0.150,0.150,0.709', '0.702,-0.389,0.355', '0.000,-0.000,0.000', 'True', 'True', 'True', 'False', 'False'], ['pole_cam0', 'SEGMENT', 'world', '0.150,0.150,0.645', '0.051,-0.510,0.322', '0.000,-0.000,0.000', 'True', 'True', 'True', 'False', 'False'], ['wall', 'BOX', 'world', '3.000,3.000,0.010', '0.073,0.555,0.233', '1.577,0.063,-0.002', 'True', 'True', 'True', 'False', 'False'], ['floor', 'BOX', 'world', '1.520,0.720,0.016', '0.000,0.000,0.000', '0.000,-0.000,-0.000', 'True', 'True', 'True', 'False', 'False'], ['grip1', 'SPHERE', 'panda1_hand', '0.000,0.000,0.000', '0.000,0.000,0.112', '0.000,-0.000,0.000', 'False', 'False', 'True', 'False', 'False'], ['grip0', 'SPHERE', 'indy0_tcp', '0.000,0.000,0.000', '0.000,0.000,0.140', '0.000,-0.000,0.000', 'False', 'False', 'True', 'False', 'False'], ['box1', 'BOX', 'world', '0.050,0.050,0.050', '0.307,-0.180,0.031', '1.168,-1.560,2.933', 'True', 'True', 'False', 'False', 'False'], ['goal', 'BOX', 'world', '0.100,0.100,0.010', '0.031,0.263,0.012', '0.001,-0.003,1.394', 'True', 'True', 'False', 'False', 'False'], ['box3', 'SPHERE', 'world', '0.150,0.150,0.150', '0.613,-0.119,0.026', '0.000,-0.000,0.000', 'True', 'True', 'True', 'True', 'True'], ['box2', 'BOX', 'world', '0.050,0.050,0.050', '-0.213,-0.212,0.030', '-2.475,1.553,0.370', 'True', 'True', 'False', 'False', 'False'], ['pointer_box1_top_p', 'SPHERE', 'world', '0.000,0.000,0.000', '0.322,-0.159,0.031', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['pointer_box1_bottom_p', 'SPHERE', 'world', '0.000,0.000,0.000', '0.293,-0.200,0.031', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['pointer_box1_top_g', 'SPHERE', 'world', '0.000,0.000,0.000', '0.307,-0.180,0.031', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['pointer_box1_bottom_g', 'SPHERE', 'world', '0.000,0.000,0.000', '0.307,-0.180,0.031', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['framer_box1_top_f', 'SPHERE', 'world', '0.000,0.000,0.000', '0.322,-0.159,0.031', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['framer_box1_bottom_f', 'SPHERE', 'world', '0.000,0.000,0.000', '0.293,-0.200,0.031', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['pointer_box1_right_p', 'SPHERE', 'world', '0.000,0.000,0.000', '0.307,-0.180,0.056', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['pointer_box1_left_p', 'SPHERE', 'world', '0.000,0.000,0.000', '0.307,-0.180,0.006', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['pointer_box1_front_p', 'SPHERE', 'world', '0.000,0.000,0.000', '0.287,-0.165,0.031', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['pointer_box1_back_p', 'SPHERE', 'world', '0.000,0.000,0.000', '0.328,-0.194,0.031', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['pointer_box1_right_g', 'SPHERE', 'world', '0.000,0.000,0.000', '0.307,-0.180,0.031', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['pointer_box1_left_g', 'SPHERE', 'world', '0.000,0.000,0.000', '0.307,-0.180,0.031', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['pointer_box1_front_g', 'SPHERE', 'world', '0.000,0.000,0.000', '0.307,-0.180,0.031', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['pointer_box1_back_g', 'SPHERE', 'world', '0.000,0.000,0.000', '0.307,-0.180,0.031', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['framer_box1_right_f', 'SPHERE', 'world', '0.000,0.000,0.000', '0.307,-0.180,0.056', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['framer_box1_left_f', 'SPHERE', 'world', '0.000,0.000,0.000', '0.307,-0.180,0.006', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['framer_box1_front_f', 'SPHERE', 'world', '0.000,0.000,0.000', '0.287,-0.165,0.031', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['framer_box1_back_f', 'SPHERE', 'world', '0.000,0.000,0.000', '0.328,-0.194,0.031', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['pointer_box2_top_p', 'SPHERE', 'world', '0.000,0.000,0.000', '-0.237,-0.204,0.029', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['pointer_box2_bottom_p', 'SPHERE', 'world', '0.000,0.000,0.000', '-0.189,-0.219,0.030', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['pointer_box2_top_g', 'SPHERE', 'world', '0.000,0.000,0.000', '-0.213,-0.212,0.030', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['pointer_box2_bottom_g', 'SPHERE', 'world', '0.000,0.000,0.000', '-0.213,-0.212,0.030', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['framer_box2_top_f', 'SPHERE', 'world', '0.000,0.000,0.000', '-0.237,-0.204,0.029', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['framer_box2_bottom_f', 'SPHERE', 'world', '0.000,0.000,0.000', '-0.189,-0.219,0.030', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['pointer_box2_right_p', 'SPHERE', 'world', '0.000,0.000,0.000', '-0.213,-0.211,0.005', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['pointer_box2_left_p', 'SPHERE', 'world', '0.000,0.000,0.000', '-0.213,-0.212,0.055', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['pointer_box2_front_p', 'SPHERE', 'world', '0.000,0.000,0.000', '-0.206,-0.188,0.030', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['pointer_box2_back_p', 'SPHERE', 'world', '0.000,0.000,0.000', '-0.220,-0.235,0.029', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['pointer_box2_right_g', 'SPHERE', 'world', '0.000,0.000,0.000', '-0.213,-0.212,0.030', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['pointer_box2_left_g', 'SPHERE', 'world', '0.000,0.000,0.000', '-0.213,-0.212,0.030', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['pointer_box2_front_g', 'SPHERE', 'world', '0.000,0.000,0.000', '-0.213,-0.212,0.030', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['pointer_box2_back_g', 'SPHERE', 'world', '0.000,0.000,0.000', '-0.213,-0.212,0.030', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['framer_box2_right_f', 'SPHERE', 'world', '0.000,0.000,0.000', '-0.213,-0.211,0.005', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['framer_box2_left_f', 'SPHERE', 'world', '0.000,0.000,0.000', '-0.213,-0.212,0.055', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['framer_box2_front_f', 'SPHERE', 'world', '0.000,0.000,0.000', '-0.206,-0.188,0.030', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False'], ['framer_box2_back_f', 'SPHERE', 'world', '0.000,0.000,0.000', '-0.220,-0.235,0.029', '0.000,-0.000,0.000', 'False', 'False', 'False', 'False', 'False']]),
                                              table_updater_default)]),
               TabInfo("Binding", [TableInfo("Handle", '570px',
-                                            lambda: (['Object', 'OType', 'Handle', 'CType', 'Name', 'Point', 'Dir'],
+                                            lambda: (['Object', 'OType', 'Handle', 'CType', 'Name', 'Point', 'Direction'],
                                                      [['box1', 'GeometryItem', 'right_f', 'Frame', 'framer_box1_right_f', '0.025,0.000,0.000', '0.000,-1.571,0.000'], ['box1', 'GeometryItem', 'right_g', 'Grasp2', 'pointer_box1_right_g', '0.000,0.000,0.000', '-1.000,0.000,0.000'], ['box1', 'GeometryItem', 'back_f', 'Frame', 'framer_box1_back_f', '0.000,0.025,0.000', '1.571,0.000,0.000'], ['box1', 'GeometryItem', 'left_f', 'Frame', 'framer_box1_left_f', '-0.025,0.000,0.000', '0.000,1.571,0.000'], ['box1', 'GeometryItem', 'left_g', 'Grasp2', 'pointer_box1_left_g', '0.000,0.000,0.000', '1.000,0.000,0.000'], ['box1', 'GeometryItem', 'bottom_p', 'Place', 'pointer_box1_bottom_p', '0.000,0.000,-0.025', '0.000,0.000,1.000'], ['box1', 'GeometryItem', 'back_g', 'Grasp2', 'pointer_box1_back_g', '0.000,0.000,0.000', '0.000,-1.000,0.000'], ['box1', 'GeometryItem', 'top_g', 'Grasp2', 'pointer_box1_top_g', '0.000,0.000,0.000', '0.000,0.000,-1.000'], ['box1', 'GeometryItem', 'top_f', 'Frame', 'framer_box1_top_f', '0.000,0.000,0.025', '3.142,0.000,0.000'], ['box1', 'GeometryItem', 'right_p', 'Place', 'pointer_box1_right_p', '0.025,0.000,0.000', '-1.000,0.000,0.000'], ['box1', 'GeometryItem', 'front_f', 'Frame', 'framer_box1_front_f', '0.000,-0.025,0.000', '-1.571,0.000,0.000'], ['box1', 'GeometryItem', 'front_g', 'Grasp2', 'pointer_box1_front_g', '0.000,0.000,0.000', '0.000,1.000,0.000'], ['box1', 'GeometryItem', 'top_p', 'Place', 'pointer_box1_top_p', '0.000,0.000,0.025', '0.000,0.000,-1.000'], ['box1', 'GeometryItem', 'bottom_f', 'Frame', 'framer_box1_bottom_f', '0.000,0.000,-0.025', '0.000,0.000,0.000'], ['box1', 'GeometryItem', 'bottom_g', 'Grasp2', 'pointer_box1_bottom_g', '0.000,0.000,0.000', '0.000,0.000,1.000'], ['box1', 'GeometryItem', 'front_p', 'Place', 'pointer_box1_front_p', '0.000,-0.025,0.000', '0.000,1.000,0.000'], ['box1', 'GeometryItem', 'back_p', 'Place', 'pointer_box1_back_p', '0.000,0.025,0.000', '0.000,-1.000,0.000'], ['box1', 'GeometryItem', 'left_p', 'Place', 'pointer_box1_left_p', '-0.025,0.000,0.000', '1.000,0.000,0.000'], ['box2', 'GeometryItem', 'right_f', 'Frame', 'framer_box2_right_f', '0.025,0.000,0.000', '0.000,-1.571,0.000'], ['box2', 'GeometryItem', 'right_g', 'Grasp2', 'pointer_box2_right_g', '0.000,0.000,0.000', '-1.000,0.000,0.000'], ['box2', 'GeometryItem', 'back_f', 'Frame', 'framer_box2_back_f', '0.000,0.025,0.000', '1.571,0.000,0.000'], ['box2', 'GeometryItem', 'left_f', 'Frame', 'framer_box2_left_f', '-0.025,0.000,0.000', '0.000,1.571,0.000'], ['box2', 'GeometryItem', 'left_g', 'Grasp2', 'pointer_box2_left_g', '0.000,0.000,0.000', '1.000,0.000,0.000'], ['box2', 'GeometryItem', 'bottom_p', 'Place', 'pointer_box2_bottom_p', '0.000,0.000,-0.025', '0.000,0.000,1.000'], ['box2', 'GeometryItem', 'back_g', 'Grasp2', 'pointer_box2_back_g', '0.000,0.000,0.000', '0.000,-1.000,0.000'], ['box2', 'GeometryItem', 'top_g', 'Grasp2', 'pointer_box2_top_g', '0.000,0.000,0.000', '0.000,0.000,-1.000'], ['box2', 'GeometryItem', 'top_f', 'Frame', 'framer_box2_top_f', '0.000,0.000,0.025', '3.142,0.000,0.000'], ['box2', 'GeometryItem', 'right_p', 'Place', 'pointer_box2_right_p', '0.025,0.000,0.000', '-1.000,0.000,0.000'], ['box2', 'GeometryItem', 'front_f', 'Frame', 'framer_box2_front_f', '0.000,-0.025,0.000', '-1.571,0.000,0.000'], ['box2', 'GeometryItem', 'front_g', 'Grasp2', 'pointer_box2_front_g', '0.000,0.000,0.000', '0.000,1.000,0.000'], ['box2', 'GeometryItem', 'top_p', 'Place', 'pointer_box2_top_p', '0.000,0.000,0.025', '0.000,0.000,-1.000'], ['box2', 'GeometryItem', 'bottom_f', 'Frame', 'framer_box2_bottom_f', '0.000,0.000,-0.025', '0.000,0.000,0.000'], ['box2', 'GeometryItem', 'bottom_g', 'Grasp2', 'pointer_box2_bottom_g', '0.000,0.000,0.000', '0.000,0.000,1.000'], ['box2', 'GeometryItem', 'front_p', 'Place', 'pointer_box2_front_p', '0.000,-0.025,0.000', '0.000,1.000,0.000'], ['box2', 'GeometryItem', 'back_p', 'Place', 'pointer_box2_back_p', '0.000,0.025,0.000', '0.000,-1.000,0.000'], ['box2', 'GeometryItem', 'left_p', 'Place', 'pointer_box2_left_p', '-0.025,0.000,0.000', '1.000,0.000,0.000']]),
                                             table_updater_default
                                             ),

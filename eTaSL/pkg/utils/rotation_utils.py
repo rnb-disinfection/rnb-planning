@@ -173,3 +173,11 @@ Tx180[2,2]=-1
 Ty180 = np.identity(4, 'float32')
 Ty180[0,0]=-1
 Ty180[2,2]=-1
+
+def calc_rotvec_vecs(vec1, vec2):
+    cross_vec = np.cross(vec1, vec2)
+    dot_val = np.dot(vec1, vec2)
+    cross_abs = np.linalg.norm(cross_vec)
+    cross_nm = cross_vec/cross_abs
+    rotvec = cross_nm * np.arctan2(cross_abs, dot_val)
+    return rotvec

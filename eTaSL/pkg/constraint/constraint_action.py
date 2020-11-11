@@ -42,10 +42,10 @@ class PointerBinding(Binding):
             
         
 class FrameBinding(Binding):
-    def __init__(self, orientation=None, **kwargs):
+    def __init__(self, direction=None, **kwargs):
         super(FrameBinding, self).__init__(**kwargs)
-        self.orientation = orientation
-        self.effector = GeoFrame(orientation=orientation, _object=self.object)
+        self.direction = direction
+        self.effector = GeoFrame(direction=direction, _object=self.object)
 
 
 ################################# USABLE CLASS #########################################

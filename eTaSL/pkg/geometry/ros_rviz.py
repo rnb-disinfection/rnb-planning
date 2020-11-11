@@ -75,6 +75,8 @@ class GeoMarker:
         while self.pub.get_num_connections() < 1:
             print("Please create a subscriber to the marker");
             timer.sleep(1)
+        self.submarkers = []
+        self.subTs = []
 #         print('publication OK')
 
     @classmethod
@@ -92,20 +94,41 @@ class GeoMarker:
         marker.lifetime = rospy.Duration()
         return marker
     
-    def set_marker(self, joint_dict):
-        self.marker = GeoMarker.create_marker_template(self.get_type(), self.geometry.get_dims(), self.geometry.color)
+    def set_marker(self, joint_dict, create=True):
+        if create:
+            self.marker = GeoMarker.create_marker_template(self.get_type(), self.geometry.get_dims(), self.geometry.color)
+        else:
+            self.marker.type = self.get_type()
+            self.marker.scale.x, self.marker.scale.y, self.marker.scale.z = self.geometry.get_dims()
+
 #         self.marker.header.frame_id = self.geometry.link_name # let rviz transform link - buggy
         if hasattr(self.geometry, 'uri'):
             self.marker.mesh_resource = self.geometry.uri;
         if self.geometry.gtype == GEOTYPE.MESH:
             self.marker.scale.x, self.marker.scale.y, self.marker.scale.z = self.geometry.scale
-        self.submarkers = []
-        self.subTs = []
         if self.geometry.gtype == GEOTYPE.SEGMENT:
-            self.submarkers.append(GeoMarker.create_marker_template(Marker.SPHERE, [self.geometry.radius*2]*3, self.geometry.color))
-            self.subTs.append(SE3(np.identity(3), [0,0,self.geometry.length/2]))
-            self.submarkers.append(GeoMarker.create_marker_template(Marker.SPHERE, [self.geometry.radius*2]*3, self.geometry.color))
-            self.subTs.append(SE3(np.identity(3), [0,0,-self.geometry.length/2]))
+            if create or len(self.submarkers)==0:
+                self.submarkers.append(GeoMarker.create_marker_template(Marker.SPHERE, [self.geometry.radius*2]*3, self.geometry.color))
+                self.subTs.append(SE3(np.identity(3), [0,0,self.geometry.length/2]))
+                self.submarkers.append(GeoMarker.create_marker_template(Marker.SPHERE, [self.geometry.radius*2]*3, self.geometry.color))
+                self.subTs.append(SE3(np.identity(3), [0,0,-self.geometry.length/2]))
+            else:
+                sub_mk = self.submarkers[0]
+                sub_mk.scale.x, sub_mk.scale.y, sub_mk.scale.z = [self.geometry.radius*2]*3
+                self.subTs[0] = SE3(np.identity(3), [0,0,self.geometry.length/2])
+                sub_mk = self.submarkers[1]
+                sub_mk.scale.x, sub_mk.scale.y, sub_mk.scale.z = [self.geometry.radius*2]*3
+                self.subTs[1] = SE3(np.identity(3), [0,0,-self.geometry.length/2])
+        else:
+            for sub_idx in range(len(self.submarkers)-1, -1, -1):
+                sub_mk = self.submarkers[sub_idx]
+                sub_mk.action = Marker.DELETE
+                self.pub.publish(sub_mk)
+                del self.submarkers[sub_idx]
+                del self.subTs[sub_idx]
+                print("DELETE")
+
+
         self.__set_position(joint_dict)
         self.publish_marker()
 
@@ -148,6 +171,8 @@ class GeoMarker:
             return Marker.SPHERE
         elif self.geometry.gtype == GEOTYPE.MESH:
             return Marker.MESH_RESOURCE
+        elif self.geometry.gtype == GEOTYPE.ARROW:
+            return Marker.ARROW
         
     def delete(self):
         self.marker.action = Marker.DELETE
