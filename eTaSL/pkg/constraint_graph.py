@@ -168,6 +168,7 @@ class ConstraintGraph:
         self.pub, self.joints, self.rate = get_publisher(self.joint_names, control_freq=CONTROL_FREQ)
         # prepare visualization markers
         self.marker_list = set_markers(self.ghnd, self.joints, self.joint_names)
+        self.highlist_dict = {}
         self.show_pose(np.zeros(len(self.joint_names)))
 
     def remove_geometry(self, gtem, from_ghnd=True):
