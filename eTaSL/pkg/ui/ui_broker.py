@@ -281,6 +281,8 @@ class UIBroker:
     def geometry_table_button(self, button, *args, **kwargs):
         if button == TAB_BUTTON.APPLY:
             self.graph.set_rviz()
+            if hasattr(self.graph, "planner"):
+                self.graph.planner.update_gtems()
         elif button == TAB_BUTTON.SAVE:
             print("save button clicked")
             pass
@@ -290,8 +292,9 @@ class UIBroker:
 
     def handle_table_button(self, button, *args, **kwargs):
         if button == TAB_BUTTON.APPLY:
-            print("apply button clicked")
-            pass
+            self.graph.update_handles()
+            if hasattr(self.graph, "planner"):
+                self.graph.planner.set_object_dict(self.graph.object_dict)
         elif button == TAB_BUTTON.SAVE:
             print("save button clicked")
             pass
@@ -301,8 +304,8 @@ class UIBroker:
 
     def binder_table_button(self, button, *args, **kwargs):
         if button == TAB_BUTTON.APPLY:
-            print("apply button clicked")
-            pass
+            if hasattr(self.graph, "planner"):
+                self.graph.planner.set_binder_dict(self.graph.binder_dict)
         elif button == TAB_BUTTON.SAVE:
             print("save button clicked")
             pass

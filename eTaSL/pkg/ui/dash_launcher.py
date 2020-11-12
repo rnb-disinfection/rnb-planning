@@ -281,18 +281,12 @@ def register_callback(table_id):
     def add_row(a_clicks, s_clicks, l_clicks):
         if a_clicks-add_row.__a_clicks_prev:
             add_row.__a_clicks_prev = a_clicks
-            print('a_clicks')
-            print(a_clicks)
             __table_dict[table_id].table_button(TAB_BUTTON.APPLY)
         elif s_clicks-add_row.__s_clicks_prev:
             add_row.__s_clicks_prev = s_clicks
-            print('s_clicks')
-            print(s_clicks)
             __table_dict[table_id].table_button(TAB_BUTTON.SAVE)
         elif l_clicks-add_row.__l_clicks_prev:
             add_row.__l_clicks_prev = l_clicks
-            print('l_clicks')
-            print(l_clicks)
             __table_dict[table_id].table_button(TAB_BUTTON.LOAD)
         return ""
     add_row.__a_clicks_prev = 0
