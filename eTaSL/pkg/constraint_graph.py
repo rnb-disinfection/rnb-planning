@@ -103,6 +103,7 @@ class ConstraintGraph:
         self.gtimer=GlobalTimer.instance()
         self.joint_limits = np.array([(self.urdf_content.joint_map[jname].limit.lower,
                                        self.urdf_content.joint_map[jname].limit.upper) for jname in self.joint_names])
+        self.marker_list = []
 
         self.indy = None
         self.panda = None
@@ -165,11 +166,12 @@ class ConstraintGraph:
     @record_time
     def set_rviz(self):
         # prepare ros
-        self.pub, self.joints, self.rate = get_publisher(self.joint_names, control_freq=CONTROL_FREQ)
+        if not (hasattr(self, 'pub') and hasattr(self, 'joints') and hasattr(self, 'rate')):
+            self.pub, self.joints, self.rate = get_publisher(self.joint_names, control_freq=CONTROL_FREQ)
         # prepare visualization markers
+        self.clear_markers()
         self.marker_list = set_markers(self.ghnd, self.joints, self.joint_names)
-        self.highlight_dict = defaultdict(lambda: dict())
-        self.show_pose(np.zeros(len(self.joint_names)))
+        self.show_pose(self.joints.position)
 
     def remove_geometry(self, gtem, from_ghnd=True):
         del_list = []
@@ -177,10 +179,23 @@ class ConstraintGraph:
             if marker.geometry == gtem:
                 del_list.append(marker)
         for marker in del_list:
+            marker.delete()
             self.marker_list.remove(marker)
 
         if from_ghnd:
             self.ghnd.remove(gtem)
+
+    def clear_markers(self):
+        for mk in self.marker_list:
+            mk.delete()
+        self.marker_list = []
+        if hasattr(self, 'highlight_dict'):
+            for hkey, hset in self.highlight_dict.items():
+                for k,v in hset.items():
+                    self.remove_geometry(v)
+                    del self.highlight_dict[hkey][k]
+        else:
+            self.highlight_dict = defaultdict(lambda: dict())
 
     def add_geometry(self, gtem):
         self.marker_list += set_markers([gtem], self.joints, self.joint_names)

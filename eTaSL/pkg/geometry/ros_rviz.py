@@ -178,9 +178,12 @@ class GeoMarker:
     def delete(self):
         self.marker.action = Marker.DELETE
         self.pub.publish(self.marker)
+        timer.sleep(0.005)
         for smk in self.submarkers:
             smk.action = Marker.DELETE
             self.pub.publish(smk)
+            timer.sleep(0.005)
+        self.submarkers = []
         
     def __del__(self):
         self.delete()

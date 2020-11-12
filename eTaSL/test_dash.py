@@ -6,32 +6,16 @@ import dash_core_components as dcc
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+import dash_split_pane
 
-
-app.layout = html.Div([
-    dcc.ConfirmDialog(
-        id='confirm',
-        message='Danger danger! Are you sure you want to continue?',
-    ),
-
-    dcc.Dropdown(
-        options=[
-            {'label': i, 'value': i}
-            for i in ['Safe', 'Danger!!']
-        ],
-        id='dropdown'
-    ),
-    html.Div(id='output-confirm')
-])
-
-
-@app.callback(Output('confirm', 'displayed'),
-              [Input('dropdown', 'value')])
-def display_confirm(value):
-    if value == 'Danger!!':
-        return True
-    return False
-
+app.layout = html.Div(
+    dash_split_pane.DashSplitPane(
+        children=[html.Div("LEFT PANE"), html.Div("RIGHT PANE")],
+        id="splitter",
+        split="vertical",
+        size="60%",
+    )
+)
 
 if __name__ == '__main__':
     app.run_server(debug=True)

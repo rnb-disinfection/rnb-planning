@@ -9,6 +9,13 @@ from dash.dependencies import Input, Output, State
 from uuid import uuid1
 from collections import defaultdict
 import visdcc
+from enum import Enum
+import dash_split_pane
+
+class TAB_BUTTON(Enum):
+    APPLY = 0
+    SAVE = 1
+    LOAD = 2
 
 IDENTIFY_COL = 'Name'
 COLUMNS_SMALL_FONT = [IDENTIFY_COL, 'Dims', 'Center', 'Rpy', 'Point', 'Direction', 'Color']
@@ -25,9 +32,11 @@ class TabInfo:
 
 class TableInfo:
     def __init__(self, table_name, table_height, table_loader=lambda:([IDENTIFY_COL],[]),
-                 table_selector=table_updater_default, table_updater=table_updater_default):
-        self.table_name, self.table_height, self.table_loader, self.table_selector, self.table_updater = \
-            table_name, table_height, table_loader, table_selector,table_updater
+                 table_selector=table_updater_default, table_updater=table_updater_default,
+                 table_buttonset = table_updater_default):
+        self.table_name, self.table_height, \
+        self.table_loader, self.table_selector, self.table_updater, self.table_buttonset = \
+            table_name, table_height, table_loader, table_selector,table_updater, table_buttonset
 
 def get_tab_id(tab_name):
     return 'tab-'+tab_name.lower()
@@ -45,13 +54,15 @@ def set_tabs(tab_list, tab_defaults=[0,1]):
         for table in tab.table_info_array:
             __table_dict[table.table_name] = table
 
-def set_tables(table_loader_dict, table_selector_dict, table_updater_dict):
+def set_tables(table_loader_dict, table_selector_dict, table_updater_dict, table_button_dict):
     for table_name, loader in table_loader_dict.items():
         __table_dict[table_name].table_loader = loader
     for table_name, selecter_dict in table_selector_dict.items():
         __table_dict[table_name].table_selector = selecter_dict
     for table_name, updater_dict in table_updater_dict.items():
         __table_dict[table_name].table_updater = updater_dict
+    for table_name, button_dict in table_button_dict.items():
+        __table_dict[table_name].table_button = button_dict
 
 def get_tabs():
     return [
@@ -115,21 +126,44 @@ def generate_table(columns, items, table_id, height="100%"):
 
 def set_layout():
     app.layout = html.Div(className="full-screen", children=[
-        html.Div(className="column-left", children=[
-            dcc.Tabs(id='tabs-left', value=__tab_list[__tab_defaults[0]].tab_id,
-                     parent_className='custom-tabs',
-                     className='custom-tabs-container',
-                     children=get_tabs()),
-            html.Div(className='custom-content-container', id='tabs-left-content')]
-                 ),
-        html.Div(className="column-mid", children=[]),
-        html.Div(className="column-right", children=[
-            dcc.Tabs(id='tabs-right', value=__tab_list[__tab_defaults[1]].tab_id,
-                     parent_className='custom-tabs',
-                     className='custom-tabs-container',
-                     children=get_tabs()),
-            html.Div(className='custom-content-container', id='tabs-right-content')]
-                 )
+        dash_split_pane.DashSplitPane(
+            children=[
+                html.Div(className="column-common", children=[
+                    dcc.Tabs(id='tabs-left', value=__tab_list[__tab_defaults[0]].tab_id,
+                             parent_className='custom-tabs',
+                             className='custom-tabs-container',
+                             children=get_tabs()),
+                    html.Div(className='custom-content-container', id='tabs-left-content')]
+                         )
+                ,
+                html.Div(className="column-common", children=[
+                    dcc.Tabs(id='tabs-right', value=__tab_list[__tab_defaults[1]].tab_id,
+                             parent_className='custom-tabs',
+                             className='custom-tabs-container',
+                             children=get_tabs()),
+                    html.Div(className='custom-content-container', id='tabs-right-content')]
+                         )
+            ],
+            id="splitter",
+            split="vertical",
+            size="63%",
+            resizerStyle={},
+        )
+        # html.Div(className="column-left", children=[
+        #     dcc.Tabs(id='tabs-left', value=__tab_list[__tab_defaults[0]].tab_id,
+        #              parent_className='custom-tabs',
+        #              className='custom-tabs-container',
+        #              children=get_tabs()),
+        #     html.Div(className='custom-content-container', id='tabs-left-content')]
+        #          ),
+        # html.Div(className="column-mid", children=[]),
+        # html.Div(className="column-right", children=[
+        #     dcc.Tabs(id='tabs-right', value=__tab_list[__tab_defaults[1]].tab_id,
+        #              parent_className='custom-tabs',
+        #              className='custom-tabs-container',
+        #              children=get_tabs()),
+        #     html.Div(className='custom-content-container', id='tabs-right-content')]
+        #          )
     ])
     for tab_info in __tab_list:
         for table_info in tab_info.table_info_array:
@@ -239,6 +273,31 @@ def register_callback(table_id):
             rows.append({c['id']: '' if c['id']!='id' else uuid1().int for c in columns+[{'id':'id'}]})
         return rows
 
+    @app.callback(
+        Output(table_id+'-button-receiver', 'children'),
+        [Input(table_id+'-apply-button', 'n_clicks'),
+         Input(table_id + '-save-button', 'n_clicks'),
+         Input(table_id + '-load-button', 'n_clicks')])
+    def add_row(a_clicks, s_clicks, l_clicks):
+        if a_clicks-add_row.__a_clicks_prev:
+            add_row.__a_clicks_prev = a_clicks
+            print('a_clicks')
+            print(a_clicks)
+            __table_dict[table_id].table_button(TAB_BUTTON.APPLY)
+        elif s_clicks-add_row.__s_clicks_prev:
+            add_row.__s_clicks_prev = s_clicks
+            print('s_clicks')
+            print(s_clicks)
+            __table_dict[table_id].table_button(TAB_BUTTON.SAVE)
+        elif l_clicks-add_row.__l_clicks_prev:
+            add_row.__l_clicks_prev = l_clicks
+            print('l_clicks')
+            print(l_clicks)
+            __table_dict[table_id].table_button(TAB_BUTTON.LOAD)
+        return ""
+    add_row.__a_clicks_prev = 0
+    add_row.__s_clicks_prev = 0
+    add_row.__l_clicks_prev = 0
 
     @app.callback(Output(table_id+'javascript-refresh', 'run'),
                   [Input(table_id+'-alert-not-changeable', 'submit_n_clicks')])
@@ -253,8 +312,15 @@ def __render_content_func(tab):
             table_list = []
             for tableinfo in tabinfo.table_info_array:
                 table_list += [
+                    html.Div(id=tableinfo.table_name + "-button-receiver", children=[], style={'display':'none'}),
                     html.Div(className="row-header", children=[
                         tableinfo.table_name,
+                        html.Button(
+                            'Load', className="button-bb", id=tableinfo.table_name + '-load-button', n_clicks=0),
+                        html.Button(
+                            'Save', className="button-bb", id=tableinfo.table_name + '-save-button', n_clicks=0),
+                        html.Button(
+                            'Apply', className="button-bb", id=tableinfo.table_name + '-apply-button', n_clicks=0),
                         html.Button(
                             'Add Row', className="button-bb", id=tableinfo.table_name + '-add-row-button', n_clicks=0)
                     ]),

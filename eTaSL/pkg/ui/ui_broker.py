@@ -5,7 +5,7 @@ from ..constraint.constraint_object import ctype_to_htype
 from ..constraint.constraint_action import ctype_to_btype
 
 from ..ui import dash_launcher
-from ..ui.dash_launcher import TabInfo, TableInfo, table_updater_default, IDENTIFY_COL
+from ..ui.dash_launcher import TabInfo, TableInfo, table_updater_default, IDENTIFY_COL, TAB_BUTTON
 
 def start_ui_server():
     dash_launcher.set_tabs([
@@ -278,6 +278,38 @@ class UIBroker:
                 binder.multiple = value.lower() == 'true'
         return res, msg
 
+    def geometry_table_button(self, button, *args, **kwargs):
+        if button == TAB_BUTTON.APPLY:
+            self.graph.set_rviz()
+        elif button == TAB_BUTTON.SAVE:
+            print("save button clicked")
+            pass
+        elif button == TAB_BUTTON.LOAD:
+            print("load button clicked")
+            pass
+
+    def handle_table_button(self, button, *args, **kwargs):
+        if button == TAB_BUTTON.APPLY:
+            print("apply button clicked")
+            pass
+        elif button == TAB_BUTTON.SAVE:
+            print("save button clicked")
+            pass
+        elif button == TAB_BUTTON.LOAD:
+            print("load button clicked")
+            pass
+
+    def binder_table_button(self, button, *args, **kwargs):
+        if button == TAB_BUTTON.APPLY:
+            print("apply button clicked")
+            pass
+        elif button == TAB_BUTTON.SAVE:
+            print("save button clicked")
+            pass
+        elif button == TAB_BUTTON.LOAD:
+            print("load button clicked")
+            pass
+
     def set_tables(self):
         dash_launcher.set_tables(
             table_loader_dict={
@@ -294,5 +326,10 @@ class UIBroker:
                 "Geometry": self.geometry_table_updater,
                 "Handle": self.handle_table_updater,
                 "Binder": self.binder_table_updater,
+            },
+            table_button_dict={
+                "Geometry": self.geometry_table_button,
+                "Handle": self.handle_table_button,
+                "Binder": self.binder_table_button,
             }
         )

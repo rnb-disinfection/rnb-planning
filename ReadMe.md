@@ -86,7 +86,7 @@
   ```
 * Dash
   ```
-  pip install dash==1.17.0 visdcc
+  pip install dash==1.17.0 visdcc dash_split_pane
   ```
 * misc.  
   ```
