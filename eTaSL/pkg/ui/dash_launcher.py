@@ -7,8 +7,10 @@ import dash_html_components as html
 import dash_table
 from dash.dependencies import Input, Output, State
 from uuid import uuid1
+from collections import defaultdict
 
 IDENTIFY_COL = 'Name'
+__ID_DICT = defaultdict(lambda: uuid1().int)
 
 def table_updater_default(*args, **kwargs):
     print("table_updater_default-input: {}, {}".format(args, kwargs))
@@ -63,9 +65,14 @@ app.title = "TAMP_RNB"
 
 def generate_table(columns, items, table_id, height="100%"):
     data = [{k:v for k,v in zip(columns, item)} for item in items]
+    print("generate table - {}".format(table_id))
     for dtem in data:
-        dtem['id'] = uuid1().int
+        dtem['id'] = __ID_DICT[dtem[IDENTIFY_COL]]
     return [
+        dcc.ConfirmDialog(
+            id=table_id+'-alert-not-changeable',
+            message='Refresh window! You changed non-changeable value!',
+        ),
         dash_table.DataTable(
             id=table_id+'-table-row-ids',
             columns=[{'name': col, 'id': col, 'deletable': False} for col in columns],
@@ -137,7 +144,8 @@ def render_content_right(tab):
 
 def register_callback(table_id):
     @app.callback(
-        Output(table_id+'-table-row-ids-container', 'children'),
+        [Output(table_id+'-table-row-ids-container', 'children'),
+         Output(table_id+'-alert-not-changeable', 'displayed')],
         [Input(table_id+'-table-row-ids', 'derived_virtual_row_ids'),
          Input(table_id+'-table-row-ids', 'selected_row_ids'),
          Input(table_id+'-table-row-ids', 'active_cell'),
@@ -155,6 +163,7 @@ def register_callback(table_id):
         # `derived_virtual_data=df.to_rows('dict')` when you initialize
         # the component.
         ### delete ###
+        res = True
         id_del = None
         if filter_query == update_graphs.__filter_query_prev:
             if data_previous is not None and \
@@ -168,11 +177,6 @@ def register_callback(table_id):
                         res, msg = __table_dict[table_id].table_updater(id_del, IDENTIFY_COL, 0, delete=True)
                         update_graphs.__id_del_prev = id_del
                         if not res:
-                            print("==================================================")
-                            print("==================================================")
-                            print("=================Make Alert Window================")
-                            print("==================================================")
-                            print("==================================================")
                             print(msg)
                     else:
                         id_del = None
@@ -192,16 +196,16 @@ def register_callback(table_id):
                                                                         {str(k):str(v) for k,v in data[-1].items()},
                                                                         add=True)
                         update_graphs.__add_prev = data[-1]['id']
+                        __ID_DICT[data[-1][IDENTIFY_COL]] = update_graphs.__add_prev
                     else: # update
-                        __name = data[row][IDENTIFY_COL]
+                        if data_previous:
+                            row_prev = [dat['id'] for dat in data_previous].index(row_id)
+                            __name = data_previous[row_prev][IDENTIFY_COL]
+                        else:
+                            __name = data[row][IDENTIFY_COL]
                         __value = str(data[row][col_id])
                         res, msg = __table_dict[table_id].table_updater(__name, col_id, __value)
                     if not res:
-                        print("==================================================")
-                        print("==================================================")
-                        print("=================Make Alert Window================")
-                        print("==================================================")
-                        print("==================================================")
                         print(msg)
                 update_graphs.__cell_prev = None
 
@@ -212,11 +216,11 @@ def register_callback(table_id):
             else:
                 row = row_ids.index(active_cell['row_id'])
                 active_row, active_col = data[row][IDENTIFY_COL],  active_cell['column_id']
-                
+
             __table_dict[table_id].table_selector(selected_id_list, active_row, active_col)
         update_graphs.__cell_prev = active_cell
         update_graphs.__filter_query_prev = filter_query
-        return html.Div("")
+        return html.Div(""), not res
     update_graphs.__cell_prev = None
     update_graphs.__filter_query_prev = None
     update_graphs.__id_del_prev = None
@@ -232,6 +236,12 @@ def register_callback(table_id):
             rows.append({c['id']: '' if c['id']!='id' else uuid1().int for c in columns+[{'id':'id'}]})
         return rows
 
+@app.callback(Output('alert-not-changeable', 'displayed'),
+              [Input('dropdown', 'value')])
+def display_confirm(value):
+    if value == 'Danger!!':
+        return True
+    return False
 
 def __render_content_func(tab):
     for tabinfo in __tab_list:
