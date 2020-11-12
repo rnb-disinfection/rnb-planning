@@ -53,7 +53,6 @@
   padding-left: 5px;
   margin-bottom: 5px;
   font-size: 24px;
-  font-weight: normal;
   font-weight: bold;
   color: #3e4253;
 }
@@ -75,15 +74,35 @@
   height: 45%;
 }
 
+.text-filename {
+  float: right;
+  font-family: Roboto;
+  font-size: 14px;
+  font-weight: normal;
+  padding-left: 10px;
+  padding-right: 10px;
+  margin-right: 10px;
+  padding-bottom: 0px;
+  background-color: white;
+  color: white;
+  border: 2px solid #555555;
+  border-radius: 1px;
+}
+
 .button-bb {
   float: right;
-  background-color: white;
+  font-family: Roboto;
+  font-size: 14px;
+  font-weight: 500;
+  padding-left: 10px;
+  padding-right: 10px;
+  background-color: #eeeeee;
   color: black;
-  border: 2px solid #555555;
+  border: 2px solid #888888;
   border-radius: 3px;
 }
 
 .button-bb:hover {
-  background-color: #555555;
+  background-color: #888888;
   color: white;
 }

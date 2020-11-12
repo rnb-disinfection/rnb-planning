@@ -163,7 +163,6 @@ class ConstraintGraph:
             pass
         except: pass
 
-    @record_time
     def set_rviz(self):
         # prepare ros
         if not (hasattr(self, 'pub') and hasattr(self, 'joints') and hasattr(self, 'rate')):
@@ -185,6 +184,9 @@ class ConstraintGraph:
         if from_ghnd:
             self.ghnd.remove(gtem)
 
+    def add_geometry(self, gtem):
+        self.marker_list += set_markers([gtem], self.joints, self.joint_names)
+
     def clear_markers(self):
         for mk in self.marker_list:
             mk.delete()
@@ -197,10 +199,13 @@ class ConstraintGraph:
         else:
             self.highlight_dict = defaultdict(lambda: dict())
 
-    def add_geometry(self, gtem):
-        self.marker_list += set_markers([gtem], self.joints, self.joint_names)
+    def update_marker(self, gtem):
+        joint_dict = {self.joints.name[i]: self.joints.position[i] for i in range(len(self.joint_names))}
+        marks = [mk for mk in self.marker_list if mk.geometry == gtem]
+        for mk in marks:
+            mk.set_marker(joint_dict, create=False)
+        return marks
 
-    @record_time
     def set_planner(self, planner, bind=True):
         if bind:
             self.planner = planner
@@ -208,11 +213,9 @@ class ConstraintGraph:
         planner.set_object_dict(self.object_dict)
         planner.set_binder_dict(self.binder_dict)
 
-    @record_time
     def add_binder(self, name, binder):
         self.binder_dict[name] = binder
 
-    @record_time
     def register_binder(self, name, _type, link_name=None, object_name=None, **kwargs):
         if object_name is None:
             object_name = name
@@ -234,14 +237,12 @@ class ConstraintGraph:
     def remove_binder(self, bname):
         del self.binder_dict[bname]
 
-    @record_time
     def add_object(self, name, _object, binding=None):
         self.object_dict[name] = _object
         if binding is not None:
             self.binder_dict[binding[1]].bind(self.object_dict[name], binding[0],
                                               joint_list2dict([0]*len(self.joint_names), joint_names=self.joint_names))
 
-    @record_time
     def register_object(self, name, _type, binding=None, **kwargs):
         _object = self.get_object_by_name(name)
         self.object_dict[name] = _type(_object, **kwargs)
@@ -268,7 +269,6 @@ class ConstraintGraph:
         if not otem.action_points_dict.keys():
             self.remove_object(htem.object.name)
 
-    @record_time
     def remove_object(self, name):
         if name in self.object_dict:
             del self.object_dict[name]
@@ -293,7 +293,6 @@ class ConstraintGraph:
 
         return put_point_dict
 
-    @record_time
     def get_object_by_name(self, name):
         if name in self.ghnd.NAME_DICT:
             return self.ghnd.NAME_DICT[name]
@@ -389,7 +388,6 @@ class ConstraintGraph:
                 self.node_dict[node].remove(node)
             self.node_dict[node] = [node] + list(set(self.node_dict[node]))
 
-    @record_time
     def get_unique_binders(self):
         uniq_binders = []
         for k_b, binder in self.binder_dict.items():
@@ -397,7 +395,6 @@ class ConstraintGraph:
                 uniq_binders += [k_b]
         return uniq_binders
 
-    @record_time
     def get_controlled_binders(self):
         controlled_binders = []
         for k_b, binder in self.binder_dict.items():
@@ -405,7 +402,6 @@ class ConstraintGraph:
                 controlled_binders += [k_b]
         return controlled_binders
 
-    @record_time
     def set_object_state(self, state):
         bd_list = list(state.node)
         bd_list_done = []
@@ -421,7 +417,6 @@ class ConstraintGraph:
                 obj.set_state(frame, binder.link_name, bd[1], bd[2])
                 bd_list_done += [bd]
 
-    @record_time
     def get_object_state(self):
         node = ()
         pose_dict = {}
@@ -441,8 +436,6 @@ class ConstraintGraph:
                     assert bd0[1] == bd1[1] , "impossible transition"
         return binding_list
 
-
-    @record_time
     def test_transition(self, from_state=None, to_state=None, display=False, dt_vis=1e-2, error_skip=0, **kwargs):
         self.gtimer = GlobalTimer.instance()
 
@@ -494,7 +487,6 @@ class ConstraintGraph:
         Q_all[self.panda_idx] = Q_panda
         return Q_all
 
-    @record_time
     def execute_grip(self, state):
         indy_grip = False
         panda_grip = False
@@ -509,12 +501,10 @@ class ConstraintGraph:
         for grasp in grasp_seq:
             grasp[0](grasp[1])
 
-    @record_time
     def indy_grasp(self, grasp=False):
         if self.connect_indy:
             self.indy.grasp(grasp, connect=True)
 
-    @record_time
     def panda_grasp(self, grasp):
         if self.connect_panda:
             if PANDA_ROS:
@@ -528,7 +518,6 @@ class ConstraintGraph:
     def move_indy_async(self, *qval):
         self.indy.connect_and(self.indy.joint_move_to, qval)
 
-    @record_time
     def rebind(self, binding, joint_dict_last):
         binder = self.binder_dict[binding[2]]
         object_tar = self.object_dict[binding[0]]
@@ -539,7 +528,6 @@ class ConstraintGraph:
                 binding_sub += (binder_sub,)
                 self.rebind(binding_sub, joint_dict_last)
 
-    @record_time
     def score_graph(self, goal_node):
         # if isinstance(goal_node, list):
         #     score_dicts = [self.score_graph(goal) for goal in goal_node]
@@ -610,7 +598,6 @@ class ConstraintGraph:
         for k in self.valid_node_dict.keys():
             self.valid_node_dict[k].reverse()
 
-    @record_time
     def add_node_queue_leafs(self, snode):
         self.dict_lock.acquire()
         snode.idx = self.snode_counter.value
@@ -739,7 +726,6 @@ class ConstraintGraph:
         print("=============================================== terminate ===============================================")
         print("=========================================================================================================")
 
-    @record_time
     def find_schedules(self):
         self.idx_goal = []
         schedule_dict = {}
@@ -752,11 +738,9 @@ class ConstraintGraph:
                 schedule_dict[i] = schedule
         return schedule_dict
 
-    @record_time
     def sort_schedule(self, schedule_dict):
         return sorted(schedule_dict.values(), key=lambda x: len(x))
 
-    @record_time
     def replay(self, schedule, N=400, dt=0.005,**kwargs):
         state_cur = self.snode_dict[schedule[0]].state
         for i_state in schedule[1:]:
@@ -774,12 +758,10 @@ class ConstraintGraph:
     def check_goal_by_score(self, node, goal_cost_dict):
         return goal_cost_dict[node] == 0
 
-    @record_time
     def print_snode_list(self):
         for i_s, snode in sorted(self.snode_dict.items(), key=lambda x: x):
             print("{}{}<-{}{}".format(i_s, snode.state.node, snode.parents[-1] if snode.parents else "", self.snode_dict[snode.parents[-1]].state.node if snode.parents else ""))
 
-    @record_time
     def quiver_snodes(self, figsize=(10,10)):
         import matplotlib.pyplot as plt
         N_plot = self.snode_counter.value
@@ -796,11 +778,9 @@ class ConstraintGraph:
         plt.plot(X, parent_vec,'.')
         plt.axis([0,N_plot+1,-0.5,4.5])
 
-    @record_time
     def show_pose(self, pose, **kwargs):
         show_motion([pose], self.marker_list, self.pub, self.joints, self.joint_names, **kwargs)
 
-    @record_time
     def show_motion(self, pose_list, from_state=None, **kwargs):
         if from_state is not None:
             self.set_object_state(from_state)
@@ -852,6 +832,37 @@ class ConstraintGraph:
                                   collision=False)
             self.add_geometry(axtemz)
             self.highlight_dict[hl_key][axtemz.name] = axtemz
+    ############################### AXIS ADDER ######################################
+
+    def add_handle_axis(self, hl_key, handle, color=None):
+        hobj = handle.handle.object
+        if hasattr(handle, 'orientation_mat'):
+            orientation_mat = np.matmul(hobj.orientation_mat, handle.orientation_mat)
+            axis = "xyz"
+            color = None
+        elif hasattr(handle, 'direction'):
+            orientation_mat = np.matmul(hobj.orientation_mat,
+                                        Rotation.from_rotvec(calc_rotvec_vecs([1, 0, 0], handle.direction)).as_dcm())
+            axis = "x"
+            color = color
+        else:
+            raise (RuntimeError("direction or orientation not specified for handle"))
+        self.add_highlight_axis(hl_key, hobj.name, hobj.link_name, hobj.center, orientation_mat, color=color, axis=axis)
+
+    def add_binder_axis(self, hl_key, binder, color=None):
+        bobj = binder.effector.object
+        if hasattr(binder, 'orientation'):
+            orientation_mat = np.matmul(bobj.orientation_mat, binder.effector.orientation_mat)
+            axis = "xyz"
+            axis = "xyz"
+        elif hasattr(binder, 'direction'):
+            orientation_mat = np.matmul(bobj.orientation_mat, Rotation.from_rotvec(
+                calc_rotvec_vecs([1, 0, 0], binder.effector.direction)).as_dcm())
+            axis = "x"
+            color = color
+        else:
+            raise (RuntimeError("direction or orientation not specified for handle"))
+        self.add_highlight_axis(hl_key, bobj.name, bobj.link_name, bobj.center, orientation_mat, color=color, axis=axis)
 
     def idxSchedule2SnodeScedule(self, schedule, ZERO_JOINT_POSE=None):
         snode_schedule = [self.snode_dict[i_sc] for i_sc in schedule]
@@ -959,8 +970,9 @@ class ConstraintGraph:
                         stop_count+=1
                         continue
             from_Q = POS_CUR.copy()
+            joint_dict = joint_list2dict(POS_CUR, self.joint_names)
             for bd in binding_list:
-                self.rebind(bd, joint_list2dict(POS_CUR, self.joint_names))
+                self.rebind(bd, joint_dict)
             object_pose_cur = self.get_object_state()[1]
             if success:
                 if not on_rviz:

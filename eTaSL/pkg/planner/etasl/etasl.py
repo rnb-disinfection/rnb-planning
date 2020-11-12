@@ -19,7 +19,7 @@ def augment_jvals_dot(jvals, jdots=None):
 
 class etasl_planner(PlannerInterface):
     def __init__(self, joint_names, link_names, urdf_path,
-                          nWSR=300, cputime=1000, regularization_factor= 1e-6, timescale=0.25):
+                          nWSR=300, cputime=200, regularization_factor= 1e-6, timescale=0.25):
         self.joint_names, self.link_names, self.urdf_path= joint_names, link_names, urdf_path
         self.nWSR, self.cputime, self.regularization_factor = nWSR, cputime, regularization_factor
         self.joint_num = len(self.joint_names)

@@ -33,10 +33,10 @@ class TabInfo:
 class TableInfo:
     def __init__(self, table_name, table_height, table_loader=lambda:([IDENTIFY_COL],[]),
                  table_selector=table_updater_default, table_updater=table_updater_default,
-                 table_buttonset = table_updater_default):
+                 table_button = table_updater_default):
         self.table_name, self.table_height, \
-        self.table_loader, self.table_selector, self.table_updater, self.table_buttonset = \
-            table_name, table_height, table_loader, table_selector,table_updater, table_buttonset
+        self.table_loader, self.table_selector, self.table_updater, self.table_button = \
+            table_name, table_height, table_loader, table_selector,table_updater, table_button
 
 def get_tab_id(tab_name):
     return 'tab-'+tab_name.lower()
@@ -82,7 +82,7 @@ def generate_table(columns, items, table_id, height="100%"):
     for dtem in data:
         dtem['id'] = __ID_DICT[dtem[IDENTIFY_COL]]
     return [
-        visdcc.Run_js(table_id+'javascript-refresh'),
+        visdcc.Run_js(table_id+'-javascript-refresh'),
         dcc.ConfirmDialog(
             id=table_id+'-alert-not-changeable',
             message='You changed non-changeable value! Refresh the page!',
@@ -217,14 +217,13 @@ def register_callback(table_id):
                             print(msg)
                     else:
                         id_del = None
-
+        data_ids = [dtem['id'] for dtem in data]
         if id_del is None:
             ### update prev cell ###
             if update_graphs.__cell_prev:
                 row_id = update_graphs.__cell_prev['row_id']
                 col_id = update_graphs.__cell_prev['column_id']
                 if row_ids is not None and row_id and col_id:
-                    row = row_ids.index(row_id)
                     if (data and data_previous) and data[-1]['id']!=update_graphs.__add_prev and \
                             (len(data) == len(data_previous)) and \
                             "" in data_previous[-1].values() and \
@@ -235,6 +234,7 @@ def register_callback(table_id):
                         update_graphs.__add_prev = data[-1]['id']
                         __ID_DICT[data[-1][IDENTIFY_COL]] = update_graphs.__add_prev
                     else: # update
+                        row = data_ids.index(row_id)
                         if data_previous:
                             row_prev = [dat['id'] for dat in data_previous].index(row_id)
                             __name = data_previous[row_prev][IDENTIFY_COL]
@@ -247,14 +247,16 @@ def register_callback(table_id):
                 update_graphs.__cell_prev = None
 
             ### render selecteds ###
-            selected_id_list = map(str, selected_row_ids or [])
+
+            selected_row_list = map(lambda sid: str(data[data_ids.index(sid)][IDENTIFY_COL]),
+                                    selected_row_ids or [])
             if active_cell is None:
                 active_row, active_col = None, None
             else:
-                row = row_ids.index(active_cell['row_id'])
+                row = data_ids.index(active_cell['row_id'])
                 active_row, active_col = data[row][IDENTIFY_COL],  active_cell['column_id']
 
-            __table_dict[table_id].table_selector(selected_id_list, active_row, active_col)
+            __table_dict[table_id].table_selector(selected_row_list, active_row, active_col)
         update_graphs.__cell_prev = active_cell
         update_graphs.__filter_query_prev = filter_query
         return html.Div(""), not res
@@ -276,29 +278,47 @@ def register_callback(table_id):
     @app.callback(
         Output(table_id+'-button-receiver', 'children'),
         [Input(table_id+'-apply-button', 'n_clicks'),
-         Input(table_id + '-save-button', 'n_clicks'),
-         Input(table_id + '-load-button', 'n_clicks')])
-    def add_row(a_clicks, s_clicks, l_clicks):
+         Input(table_id + '-save-button', 'n_clicks')],
+        [State(table_id + '-filename', 'value'),
+         State(table_id + '-table-row-ids', 'data')])
+    def button_event(a_clicks, s_clicks, filename, data):
         if a_clicks-add_row.__a_clicks_prev:
             add_row.__a_clicks_prev = a_clicks
             __table_dict[table_id].table_button(TAB_BUTTON.APPLY)
         elif s_clicks-add_row.__s_clicks_prev:
             add_row.__s_clicks_prev = s_clicks
-            __table_dict[table_id].table_button(TAB_BUTTON.SAVE)
-        elif l_clicks-add_row.__l_clicks_prev:
-            add_row.__l_clicks_prev = l_clicks
-            __table_dict[table_id].table_button(TAB_BUTTON.LOAD)
+            if filename:
+                __table_dict[table_id].table_button(TAB_BUTTON.SAVE, filename=filename, data=data)
+                print("saved on :", filename)
+            else:
+                print("filname is empty")
         return ""
     add_row.__a_clicks_prev = 0
     add_row.__s_clicks_prev = 0
-    add_row.__l_clicks_prev = 0
 
-    @app.callback(Output(table_id+'javascript-refresh', 'run'),
-                  [Input(table_id+'-alert-not-changeable', 'submit_n_clicks')])
-    def refresh_page(submit_n_clicks):
-        if submit_n_clicks: return "location.reload();"
-        else: return ''
+    @app.callback(Output(table_id+'-javascript-refresh', 'run'),
+                  [Input(table_id+'-alert-not-changeable', 'submit_n_clicks'),
+                   Input(table_id + '-save-receiver', 'children')])
+    def refresh_page(submit_n_clicks, children):
+        if submit_n_clicks or children>0:
+            return "location.reload()"
+        else:
+            return ""
 
+
+    @app.callback([Output(table_id + '-save-receiver', 'children'),
+                   Output(table_id + '-filename', 'value')
+                   ],
+                  [Input(table_id + '-load-button', 'contents')],
+                  [State(table_id + '-load-button', 'filename'),
+                   State(table_id + '-table-row-ids', 'data'),
+                   State(table_id + '-save-receiver', 'children')])
+    def load_file(contents, filename, data, children):
+        if filename is not None:
+            print("load: {}".format(filename))
+            __table_dict[table_id].table_button(TAB_BUTTON.LOAD, filename, data)
+            return 1, filename
+        return 0, filename
 
 def __render_content_func(tab):
     for tabinfo in __tab_list:
@@ -307,16 +327,21 @@ def __render_content_func(tab):
             for tableinfo in tabinfo.table_info_array:
                 table_list += [
                     html.Div(id=tableinfo.table_name + "-button-receiver", children=[], style={'display':'none'}),
+                    html.Div(id=tableinfo.table_name + "-save-receiver", children=0, style={'display':'none'}),
                     html.Div(className="row-header", children=[
                         tableinfo.table_name,
                         html.Button(
-                            'Load', className="button-bb", id=tableinfo.table_name + '-load-button', n_clicks=0),
+                            'Load', className="button-bb"),
                         html.Button(
                             'Save', className="button-bb", id=tableinfo.table_name + '-save-button', n_clicks=0),
                         html.Button(
                             'Apply', className="button-bb", id=tableinfo.table_name + '-apply-button', n_clicks=0),
                         html.Button(
-                            'Add Row', className="button-bb", id=tableinfo.table_name + '-add-row-button', n_clicks=0)
+                            'Add Row', className="button-bb", id=tableinfo.table_name + '-add-row-button', n_clicks=0),
+                        dcc.Input(type="text", placeholder="*."+tableinfo.table_name.lower(), className="text-filename", id=tableinfo.table_name + '-filename'),
+                        html.Div('File:', style={"font-size":"14px", "font-family":"Roboto", "float":"right", 'margin-top':'3px', 'margin-right':'3px'}),
+                        dcc.Upload(className="button-bb", children='Load', id=tableinfo.table_name + '-load-button',
+                                   style={'margin-top': '-35px', 'align': 'top'} ),
                     ]),
                     html.Div(className="row-top", children=generate_table(*tableinfo.table_loader(),
                                                                           table_id=tableinfo.table_name,

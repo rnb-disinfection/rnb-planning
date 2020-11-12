@@ -159,3 +159,7 @@ def ctype_to_htype(cstr):
         return PlacePoint
     elif cstr == ConstraintType.Vacuum.name:
         return VacuumPoint
+
+def otype_to_class(ostr):
+    if ostr == 'BoxAction':
+        return BoxAction
