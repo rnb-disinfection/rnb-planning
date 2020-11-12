@@ -100,6 +100,7 @@ class GeoMarker:
         else:
             self.marker.type = self.get_type()
             self.marker.scale.x, self.marker.scale.y, self.marker.scale.z = self.geometry.get_dims()
+            self.marker.color.r, self.marker.color.g, self.marker.color.b, self.marker.color.a  = self.geometry.color
 
 #         self.marker.header.frame_id = self.geometry.link_name # let rviz transform link - buggy
         if hasattr(self.geometry, 'uri'):

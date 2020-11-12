@@ -16,7 +16,7 @@ def start_ui_server():
     dash_launcher.run_server(on_background=True, debug=False)
 
 class UIBroker:
-    GEOMETRY_HEADS = [IDENTIFY_COL, 'GType', 'Link', 'Dims', 'Center', 'Rpy', 'Disp', 'Coll', 'Fix', 'Soft', 'Online']
+    GEOMETRY_HEADS = [IDENTIFY_COL, 'GType', 'Link', 'Dims', 'Center', 'Rpy', 'Color', 'Disp', 'Coll', 'Fix', 'Soft', 'Online']
     HANDLE_HEADS = [IDENTIFY_COL, 'Object', 'Handle', 'CType', 'Point', 'Direction']
     BINDER_HEADS = [IDENTIFY_COL, 'CType', 'Geometry', 'Link', 'Direction', 'Point', 'Control', 'Multi']
     
@@ -28,7 +28,8 @@ class UIBroker:
     @classmethod
     def serialize_geometry(cls, gtem):
         return [gtem.name, gtem.gtype.name, gtem.link_name,
-                round_it_str(gtem.dims), round_it_str(gtem.center), round_it_str(Rot2rpy(gtem.orientation_mat)),
+                round_it_str(gtem.dims), round_it_str(gtem.center),
+                round_it_str(Rot2rpy(gtem.orientation_mat)), round_it_str(gtem.color, dec=1),
                 str(gtem.display), str(gtem.collision), str(gtem.fixed), str(gtem.soft), str(gtem.online)]
 
     @classmethod
@@ -146,6 +147,7 @@ class UIBroker:
             self.graph.add_geometry(GeometryItem(name=value[IDENTIFY_COL], gtype=getattr(GEOTYPE, value['GType']),
                                                  link_name=value["Link"], center=str_num_it(value["Center"]),
                                                  dims=str_num_it(value["Dims"]), rpy=str_num_it(value["Rpy"]),
+                                                 color=str_num_it(value["Color"]),
                                                  display=value["Disp"].lower()=="true",
                                                  collision=value["Coll"].lower()=="true",
                                                  fixed=value["Fix"].lower()=="true",
@@ -175,6 +177,8 @@ class UIBroker:
             elif active_col == 'Rpy':
                 gtem.set_orientation_mat(Rot_rpy(map(float, value.split(','))))
                 gtem.set_offset_tf()
+            elif active_col == 'Color':
+                gtem.color = map(float, value.split(','))
             elif active_col == 'Disp':
                 gtem.display = value.lower() == 'true'
             elif active_col == 'Coll':

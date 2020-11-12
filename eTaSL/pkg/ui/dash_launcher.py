@@ -8,8 +8,10 @@ import dash_table
 from dash.dependencies import Input, Output, State
 from uuid import uuid1
 from collections import defaultdict
+import visdcc
 
 IDENTIFY_COL = 'Name'
+COLUMNS_SMALL_FONT = [IDENTIFY_COL, 'Dims', 'Center', 'Rpy', 'Point', 'Direction', 'Color']
 __ID_DICT = defaultdict(lambda: uuid1().int)
 
 def table_updater_default(*args, **kwargs):
@@ -69,9 +71,10 @@ def generate_table(columns, items, table_id, height="100%"):
     for dtem in data:
         dtem['id'] = __ID_DICT[dtem[IDENTIFY_COL]]
     return [
+        visdcc.Run_js(table_id+'javascript-refresh'),
         dcc.ConfirmDialog(
             id=table_id+'-alert-not-changeable',
-            message='Refresh window! You changed non-changeable value!',
+            message='You changed non-changeable value! Refresh the page!',
         ),
         dash_table.DataTable(
             id=table_id+'-table-row-ids',
@@ -87,7 +90,7 @@ def generate_table(columns, items, table_id, height="100%"):
             style_table={
                 'height': height,
                 'overflowY': 'scroll',
-                'fontSize': '16px'
+                'fontSize': '14px'
             },
             style_header={'backgroundColor': 'rgb(27, 30, 36)',
                           'color': 'white',
@@ -96,7 +99,7 @@ def generate_table(columns, items, table_id, height="100%"):
                                        {
                                            'if': {'column_id': c},
                                            'fontSize': '12px'
-                                       } for c in ['Dims', 'Center', 'Rpy', 'Point', 'Direction']
+                                       } for c in COLUMNS_SMALL_FONT
                                    ]+[{
                 'if': {'row_index': 'even'},
                 'backgroundColor': '#F5F5F5'
@@ -236,12 +239,13 @@ def register_callback(table_id):
             rows.append({c['id']: '' if c['id']!='id' else uuid1().int for c in columns+[{'id':'id'}]})
         return rows
 
-@app.callback(Output('alert-not-changeable', 'displayed'),
-              [Input('dropdown', 'value')])
-def display_confirm(value):
-    if value == 'Danger!!':
-        return True
-    return False
+
+    @app.callback(Output(table_id+'javascript-refresh', 'run'),
+                  [Input(table_id+'-alert-not-changeable', 'submit_n_clicks')])
+    def refresh_page(submit_n_clicks):
+        if submit_n_clicks: return "location.reload();"
+        else: return ''
+
 
 def __render_content_func(tab):
     for tabinfo in __tab_list:
