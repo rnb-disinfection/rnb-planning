@@ -84,4 +84,13 @@ class PlaceFrame(FrameBinding):
 
     def check_available(self, joint_dict):
         return np.matmul(self.effector.object.get_tf(joint_dict)[:3,:3], self.direction)[2]>PlaceFrame.VERTICAL_CUT
-        
+
+def ctype_to_btype(cstr):
+    if cstr == ConstraintType.Grasp2.name:
+        return Gripper2Tool
+    elif cstr == ConstraintType.Frame.name:
+        return PlaceFrame
+    elif cstr == ConstraintType.Place.name:
+        return PlacePlane
+    elif cstr == ConstraintType.Vacuum.name:
+        return VacuumTool

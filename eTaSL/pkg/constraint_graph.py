@@ -174,8 +174,10 @@ class ConstraintGraph:
     def remove_geometry(self, gtem, from_ghnd=True):
         del_list = []
         for marker in self.marker_list:
-            del_list.append(marker)
-        self.marker_list.remove(marker)
+            if marker.geometry == gtem:
+                del_list.append(marker)
+        for marker in del_list:
+            self.marker_list.remove(marker)
 
         if from_ghnd:
             self.ghnd.remove(gtem)
@@ -211,8 +213,11 @@ class ConstraintGraph:
         self.binder_dict[name] = _type(_object=_object,
                                        name=name, link_name=link_name,
                                        urdf_content=self.urdf_content, **kwargs)
-        if _object is None:
-            self.binder_dict[name].object
+        # if _object is None:
+        #     self.binder_dict[name].object
+
+    def remove_binder(self, bname):
+        del self.binder_dict[bname]
 
     @record_time
     def add_object(self, name, _object, binding=None):
@@ -241,6 +246,12 @@ class ConstraintGraph:
             for hd in obj_hd.get_action_points().values():
                 handle_dict[hd.name_constraint] = hd
         return handle_dict
+
+    def delete_handle(self, htem):
+        otem = self.object_dict[htem.object.name]
+        del otem.action_points_dict[htem.name]
+        if not otem.action_points_dict.keys():
+            self.remove_object(htem.object.name)
 
     @record_time
     def remove_object(self, name):
@@ -788,16 +799,16 @@ class ConstraintGraph:
                     del self.highlight_dict[hl_key][k]
 
     def highlight_geometry(self, hl_key, gname, color=(1, 0.3, 0.3, 0.5)):
+        if gname not in self.ghnd.NAME_DICT:
+            return
         gtem = self.ghnd.NAME_DICT[gname]
         dims = gtem.dims if np.sum(gtem.dims) > 0.001 else (0.03, 0.03, 0.03)
-        if gtem.display:
-            htem = GeometryItem(gtype=gtem.gtype, name="hl_" + gtem.name, link_name=gtem.link_name,
-                                center=gtem.center, dims=dims, rpy=Rot2rpy(gtem.orientation_mat), color=color,
-                                collision=False)
-        else:
-            htem = GeometryItem(gtype=gtem.gtype, name="hl_" + gtem.name, link_name=gtem.link_name,
-                                center=gtem.center, dims=dims, rpy=Rot2rpy(gtem.orientation_mat), color=color,
-                                collision=False)
+        hname = "hl_" + gtem.name
+        if hname in self.ghnd.NAME_DICT:
+            return
+        htem = GeometryItem(gtype=gtem.gtype, name=hname, link_name=gtem.link_name,
+                            center=gtem.center, dims=dims, rpy=Rot2rpy(gtem.orientation_mat), color=color,
+                            collision=False)
 
         self.highlight_dict[hl_key][htem.name] = htem
         self.add_geometry(htem)
