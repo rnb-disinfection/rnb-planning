@@ -28,7 +28,7 @@ aruco_param.polygonalApproxAccuracyRate = 0.01
 
 from enum import Enum
 
-class DetectType(Enum):
+class TargetType(Enum):
     ENVIRONMENT = 0
     ROBOT = 1
     MOVABLE = 2
@@ -36,20 +36,20 @@ class DetectType(Enum):
 
     @classmethod
     def fixed(cls, item):
-        return item in [DetectType.ENVIRONMENT, DetectType.ROBOT, DetectType.ONLINE]
+        return item in [TargetType.ENVIRONMENT, TargetType.ROBOT, TargetType.ONLINE]
 
 
 class MarkerSet(list):
-    def __init__(self, dtype, gtype=None, dims=None, color=(0.6,0.6,0.6,1), soft=False, K_col=None, _list=[]):
-        self.dtype, self.gtype = dtype, gtype
+    def __init__(self, name, ttype, gtype=None, dims=None, color=(0.6,0.6,0.6,1), soft=False, K_col=None, _list=[]):
+        self.name, self.ttype, self.gtype = name, ttype, gtype
         self.dims, self.color = dims, color
         self.soft, self.K_col = soft, K_col
         self += _list
 
     def get_kwargs(self):
         return dict(gtype=self.gtype, dims=self.dims, color=self.color,
-                    fixed=DetectType.fixed(self.dtype), soft=self.soft,
-                    online=self.dtype==DetectType.ONLINE, K_col=self.K_col)
+                    fixed=TargetType.fixed(self.ttype), soft=self.soft,
+                    online=self.ttype==TargetType.ONLINE, K_col=self.K_col)
 
 
 # define aruco/charuco - object mapping
@@ -75,6 +75,12 @@ class ObjectMarker:
         self.point, self.direction = point, direction
         self.Toff = SE3(Rot_rpy(self.direction), self.point)
         self.corners = np.matmul(self.__corners, np.transpose(self.Toff))[:, :3]
+
+def change_marker_name(aruco_map, name_old, name_new):
+    atem = aruco_map[name_old]
+    atem.oname = name_new
+    aruco_map[name_new].append(atem)
+    del aruco_map[name_old][atem]
 
 def get_object_pose_dict(color_image, aruco_map, dictionary, cameraMatrix, distCoeffs):
     corners, ids, rejectedImgPoints = aruco.detectMarkers(color_image, dictionary, parameters=aruco_param)

@@ -44,7 +44,7 @@ def set_custom_robots(ROBOTS_ON_SCENE, xyz_rpy_robots, JOINT_NAMES_DEFINED, node
 def detect_environment(aruco_map, dictionary, robot_tuples, camT_dict={"cam0":np.identity(4)}, ref_name='floor'):
     env_dict = {k: CallHolder(GeometryHandle.instance().create_safe,
                               ["center", "rpy"], **v.get_kwargs()) for k, v in aruco_map.items() if
-                v.dtype == DetectType.ENVIRONMENT}
+                v.ttype == TargetType.ENVIRONMENT}
     xyz_rpy_robots = {}
     xyz_rvec_cams = {}
     env_gen_dict = {}
@@ -94,7 +94,7 @@ def add_cam_poles(graph, xyz_rvec_cams, color=(0.6,0.6,0.6,0.3), link_name="worl
     return gtems
 
 def detect_objects(aruco_map, dictionary, stereo=True, kn_config=None):
-    aruco_map_mv = {k: v for k, v in aruco_map.items() if v.dtype in [DetectType.MOVABLE, DetectType.ONLINE]}
+    aruco_map_mv = {k: v for k, v in aruco_map.items() if v.ttype in [TargetType.MOVABLE, TargetType.ONLINE]}
     if stereo:
         objectPose_dict_mv, corner_dict_mv, color_image, rs_image, rs_objectPose_dict, rs_corner_dict = \
             get_object_pose_dict_stereo(aruco_map_mv, dictionary)

@@ -269,7 +269,7 @@ class ConstraintGraph:
     def register_object_gen(self, objectPose_dict_mv, binder_dict, object_dict, ref_tuple, link_name="world"):
         object_generators = {k: CallHolder(GeometryHandle.instance().create_safe,
                                            ["center", "rpy"], **v.get_kwargs()) for k, v in
-                             self.aruco_map.items() if v.dtype in [DetectType.MOVABLE, DetectType.ONLINE]}
+                             self.aruco_map.items() if v.ttype in [TargetType.MOVABLE, TargetType.ONLINE]}
         objectPose_dict_mv.update({ref_tuple[0]: ref_tuple[1]})
         xyz_rpy_mv_dict, put_point_dict, _ = calc_put_point(objectPose_dict_mv, object_generators, object_dict, ref_tuple)
 
@@ -867,8 +867,9 @@ class ConstraintGraph:
             raise (RuntimeError("direction or orientation not specified for handle"))
         self.add_highlight_axis(hl_key, bobj.name, bobj.link_name, bobj.center, orientation_mat, color=color, axis=axis)
 
-    def add_aruco_axis(self, hl_key, atem):
+    def add_aruco_axis(self, hl_key, atem, axis_name=None):
         oname = atem.oname
+        axis_name = axis_name or oname
         if oname in self.robots_on_scene:
             link_name = RobotType.get_base_link(self.robots_on_scene[oname], oname)
             Toff = atem.Toff
@@ -876,7 +877,7 @@ class ConstraintGraph:
             aobj = self.ghnd.NAME_DICT[oname]
             link_name = aobj.link_name
             Toff = np.matmul(aobj.get_offset_tf(), atem.Toff)
-        self.add_highlight_axis(hl_key, oname, link_name, Toff[:3,3], Toff[:3,:3], axis="xyz")
+        self.add_highlight_axis(hl_key, axis_name, link_name, Toff[:3,3], Toff[:3,:3], axis="xyz")
 
     def idxSchedule2SnodeScedule(self, schedule, ZERO_JOINT_POSE=None):
         snode_schedule = [self.snode_dict[i_sc] for i_sc in schedule]

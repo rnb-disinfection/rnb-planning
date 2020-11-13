@@ -48,10 +48,13 @@ class MarkerTable(TableInterface):
         if active_col == 'Object':
             oname_old = atem.oname
             oname_new = str(value)
-            atem.oname = oname_new
-            self.graph.aruco_map[oname_new].append(atem)
-            del self.graph.aruco_map[oname_old][atem]
-        elif active_col == "IDENTIFY_COL":
+            if oname_new not in self.graph.aruco_map:
+                res, msg = False, "marker name not defined ({})".format(oname_new)
+            else:
+                atem.oname = oname_new
+                self.graph.aruco_map[oname_new].append(atem)
+                del self.graph.aruco_map[oname_old][atem]
+        elif active_col == IDENTIFY_COL:
             atem.idx = int(value)
         elif active_col == "Size":
             atem.size = float(value)
@@ -63,6 +66,6 @@ class MarkerTable(TableInterface):
 
     def button(self, button, *args, **kwargs):
         if button == TAB_BUTTON.APPLY:
-            raise(RuntimeError("apply marker not implemented!"))
+            print("No function on apply marker")
         else:
             TableInterface.button(self, button, *args, **kwargs)

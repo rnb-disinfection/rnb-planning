@@ -7,17 +7,19 @@ from .table.object_table import *
 from .table.handle_table import *
 from .table.binder_table import *
 from .table.marker_table import *
+from .table.marker_group_table import *
 
 class UIBroker:
 
     def __init__(self, graph):
         self.graph = graph
         self.tab_list = [
-            TabInfo("Instances", [TableInfo("Geometry", '570px', interface=GeometryTable(graph)),
-                                 TableInfo("Object", '270px', interface=ObjectTable(graph))]),
-            TabInfo("Binding", [TableInfo("Handle", '570px', interface=HandleTable(graph)),
-                                TableInfo("Binder", '270px', interface=BinderTable(graph))]),
-            TabInfo("Mark", [TableInfo("Marker", '850px', interface=MarkerTable(graph))])
+            TabInfo("Instances", [TableInfo("Geometry", '550px', interface=GeometryTable(graph)),
+                                 TableInfo("Object", '250px', interface=ObjectTable(graph))]),
+            TabInfo("Binding", [TableInfo("Handle", '550px', interface=HandleTable(graph)),
+                                TableInfo("Binder", '250px', interface=BinderTable(graph))]),
+            TabInfo("Mark", [TableInfo("Marker", '550px', interface=MarkerTable(graph)),
+                             TableInfo("MarkerGroup", '250px', interface=MarkerGroupTable(graph))])
         ]
 
     def start_server(self):
