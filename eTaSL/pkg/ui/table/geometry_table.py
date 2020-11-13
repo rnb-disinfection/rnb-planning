@@ -24,7 +24,7 @@ class GeometryTable(TableInterface):
 
     def add_item(self, value):
         self.graph.add_geometry(
-            self.ghnd.create_safe(name=value[IDENTIFY_COL], gtype=getattr(GEOTYPE, value['GType']),
+            self.graph.ghnd.create_safe(name=value[IDENTIFY_COL], gtype=getattr(GEOTYPE, value['GType']),
                                   link_name=value["Link"], center=str_num_it(value["Center"]),
                                   dims=str_num_it(value["Dims"]), rpy=str_num_it(value["Rpy"]),
                                   color=str_num_it(value["Color"]),

@@ -20,8 +20,11 @@ class ObjectTable(TableInterface):
         self.graph.highlight_geometry(self.HILIGHT_KEY, otem.object.name, color=color)
 
     def add_item(self, value):
-        self.graph.register_object(name=value[IDENTIFY_COL], _type=otype_to_class(value['OType']),
-                                   binding=(value['Binding'], value['Binder']))
+        try:
+            self.graph.register_object(name=value[IDENTIFY_COL], _type=otype_to_class(value['OType']),
+                                       binding=(value['Binding'], value['Binder']))
+        except Exception as e:
+            print(e)
 
     def delete_item(self, active_row):
         self.graph.remove_object(active_row)

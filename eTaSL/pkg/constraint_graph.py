@@ -280,7 +280,7 @@ class ConstraintGraph:
         if ref_tuple is None:
             ref_tuple = self.ref_tuple
         objectPose_dict_mv.update({ref_tuple[0]: ref_tuple[1]})
-        xyz_rpy_mv_dict, put_point_dict, _ = calc_put_point(objectPose_dict_mv, object_generators, object_dict, ref_tuple)
+        xyz_rpy_mv_dict, put_point_dict, _ = calc_put_point(objectPose_dict_mv, self.aruco_map, object_dict, ref_tuple)
 
         for mname, mgen in object_generators.items():
             if mname in xyz_rpy_mv_dict and mname not in self.ghnd.NAME_DICT:

@@ -13,11 +13,14 @@ class Binding(object):
         self.point_offset = point
         if _object is None:
             assert point is not None, "Give _object or point"
-            _object = GeometryItem(name=self.name, link_name=link_name, gtype=GEOTYPE.SPHERE,
+            _object = GeometryHandle.instance().create_safe(name=self.name, link_name=link_name, gtype=GEOTYPE.SPHERE,
                                    center=point, dims=(0,0,0), collision=False, display=False, fixed=True)
             self.point = None
         else:
-            self.point = point
+            if self.name == _object.name:
+                self.point = None
+            else:
+                self.point = point
         self.object = _object
         self.effector = None
         

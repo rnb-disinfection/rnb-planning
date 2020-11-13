@@ -23,7 +23,7 @@ class ActionPoint:
         pass
 
     def __del__(self):
-        if self.handle is not None:
+        if hasattr(self, 'handle') and self.handle is not None:
             del self.handle
 
 class DirectedPoint(ActionPoint):
@@ -41,7 +41,7 @@ class DirectedPoint(ActionPoint):
             self.handle.set_binding_direction(self.direction)
         else:
             self.handle = GeoPointer(direction=self.direction, 
-                                      _object=GeometryItem(
+                                      _object=GeometryHandle.instance().create_safe(
                                           gtype=GEOTYPE.SPHERE, name=self.name_constraint, link_name=self.object.link_name,
                                           center=self.point, dims=(0,0,0), collision=False, display=False, fixed=False)
                                      )
@@ -65,7 +65,7 @@ class FramedPoint(ActionPoint):
             self.handle.set_binding_orientation_mat(self.orientation_mat)
         else:
             self.handle = GeoFrame(orientation_mat=self.orientation_mat,
-                                   _object=GeometryItem(
+                                   _object=GeometryHandle.instance().create_safe(
                                        gtype=GEOTYPE.SPHERE, name=self.name_constraint, link_name=self.object.link_name,
                                        center=self.point, dims=(0,0,0), collision=False, display=False, fixed=False)
                                    )

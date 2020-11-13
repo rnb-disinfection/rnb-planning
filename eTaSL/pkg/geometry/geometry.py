@@ -33,7 +33,7 @@ class GeometryHandle(Singleton, list):
 
     def append(self, geo):
         list.append(self, geo)
-        assert geo.name not in self.NAME_DICT, "geometry name already registered"
+        assert geo.name not in self.NAME_DICT, "geometry name already registered - {}".format(geo.name)
         self.NAME_DICT[geo.name] = geo
 
     def clear(self):
