@@ -292,7 +292,7 @@ def register_callback(table_id):
         a_clicks_sub = np.maximum(np.subtract(a_clicks, add_row.__a_clicks_prev), 0)
         if np.sum(a_clicks_sub)>0:
             add_row.__a_clicks_prev = a_clicks
-            __table_dict[table_id].table_button(TAB_BUTTON.CUSTOM, a_clicks_sub)
+            __table_dict[table_id].table_button(TAB_BUTTON.CUSTOM, *a_clicks_sub)
         elif s_clicks-add_row.__s_clicks_prev:
             add_row.__s_clicks_prev = s_clicks
             if filename:

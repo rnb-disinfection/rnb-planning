@@ -10,6 +10,7 @@ class Binding(object):
     def __init__(self, name, link_name, urdf_content, point=None, _object=None):
         self.name = name
         self.urdf_content = urdf_content
+        self.point_offset = point
         if _object is None:
             assert point is not None, "Give _object or point"
             _object = GeometryItem(name=self.name, link_name=link_name, gtype=GEOTYPE.SPHERE,

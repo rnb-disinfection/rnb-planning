@@ -103,7 +103,10 @@ def detect_objects(aruco_map, dictionary, stereo=True, kn_config=None):
         objectPose_dict_mv, corner_dict_mv = get_object_pose_dict(color_image, aruco_map, dictionary, *kn_config)
     return objectPose_dict_mv, corner_dict_mv, color_image, aruco_map_mv
 
-def calc_put_point(objectPose_dict_mv, object_generators, object_dict, ref_tuple):
+def calc_put_point(objectPose_dict_mv, aruco_map, object_dict, ref_tuple):
+    object_generators = {k: CallHolder(GeometryHandle.instance().create_safe,
+                                       ["center", "rpy"], **v.get_kwargs()) for k, v in
+                         aruco_map.items() if v.ttype in [TargetType.MOVABLE, TargetType.ONLINE] and k in objectPose_dict_mv}
     T_mv_dict = {mname: get_T_rel(ref_tuple[0], mname, objectPose_dict_mv) for mname in object_generators if
                  mname in objectPose_dict_mv}
     xyz_rpy_mv_dict = {mname: T2xyzrpy(Tv) for mname, Tv in T_mv_dict.items()}

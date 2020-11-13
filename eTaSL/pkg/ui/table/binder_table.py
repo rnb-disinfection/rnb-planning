@@ -14,7 +14,7 @@ class BinderTable(TableInterface):
 
     def serialize(self, binder):
         return [binder.name, binder.ctype.name, binder.object.name, binder.object.link_name,
-                round_it_str(binder.direction, 0), "n" if binder.point is None else round_it_str(binder.point, 0),
+                round_it_str(binder.direction, 0), "n" if binder.point_offset is None else round_it_str(binder.point_offset, 3),
                 str(binder.controlled), str(binder.multiple)]
 
     def highlight_item(self, handle, color=None):
@@ -22,8 +22,6 @@ class BinderTable(TableInterface):
         self.graph.highlight_geometry(self.HILIGHT_KEY, handle.effector.object.name, color=color)
 
     def add_item(self, value):
-        print("add binder")
-        print(value)
         try:
             self.graph.register_binder(name=value[IDENTIFY_COL], object_name=value["Geometry"],
                                        _type=ctype_to_btype(value['CType']), link_name=value['Link'],
@@ -45,11 +43,15 @@ class BinderTable(TableInterface):
         elif active_col == "Link":
             res, msg = False, "Link is not changeable"
         elif active_col == "Direction":
-            binder.direction = (map(float, value.split(',')))
+            binder.direction = str_num_it(value)
             binder.effector.set_binding_direction(binder.direction)
         elif active_col == 'Point':
             if "," in value:
-                binder.point = (map(float, value.split(',')))
+                binder.point_offset = str_num_it(value)
+                if binder.point is None:
+                    binder.object.set_offset_tf(center=binder.point_offset)
+                else:
+                    binder.point = binder.point_offset
             else:
                 if binder.point is not None:
                     res, msg = False, "Invalid point"

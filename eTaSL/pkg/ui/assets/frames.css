@@ -87,6 +87,7 @@
   color: black;
   border: 2px solid #555555;
   border-radius: 1px;
+  width: 100px;
 }
 
 .button-bb {
@@ -94,8 +95,8 @@
   font-family: Roboto;
   font-size: 14px;
   font-weight: 500;
-  padding-left: 10px;
-  padding-right: 10px;
+  padding-left: 5px;
+  padding-right: 5px;
   background-color: #eeeeee;
   color: black;
   border: 2px solid #888888;

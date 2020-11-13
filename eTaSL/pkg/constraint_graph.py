@@ -77,7 +77,7 @@ class ConstraintGraph:
 
     def __init__(self, urdf_path, joint_names, link_names, urdf_content=None,
                  indy_ip='192.168.0.63', indy_joint_vel_level=3, indy_task_vel_level=3,
-                 indy_grasp_DO=8, robots_on_scene=None):
+                 indy_grasp_DO=8, robots_on_scene=None, ref_tuple=('floor',None)):
         self.joint_num = len(joint_names)
         self.urdf_path = urdf_path
         if urdf_content is None:
@@ -103,6 +103,8 @@ class ConstraintGraph:
                                        self.urdf_content.joint_map[jname].limit.upper) for jname in self.joint_names])
         self.marker_list = []
         self.robots_on_scene = robots_on_scene
+        self.ref_tuple = ref_tuple
+
         self.indy_idx = [idx for idx, jname in zip(range(self.joint_num), self.joint_names) if 'indy' in jname]
         self.panda_idx = [idx for idx, jname in zip(range(self.joint_num), self.joint_names) if 'panda' in jname]
 
@@ -155,10 +157,12 @@ class ConstraintGraph:
             pass
         except: pass
 
-    def set_rviz(self, joint_pose):
+    def set_rviz(self, joint_pose=None):
         # prepare ros
         if not (hasattr(self, 'pub') and hasattr(self, 'joints') and hasattr(self, 'rate')):
             self.pub, self.joints, self.rate = get_publisher(self.joint_names, control_freq=CONTROL_FREQ)
+        if joint_pose is None:
+            joint_pose = self.joints.position
         # prepare visualization markers
         self.clear_markers()
         self.marker_list = set_markers(self.ghnd, self.joints, self.joint_names)
@@ -210,6 +214,8 @@ class ConstraintGraph:
         self.binder_dict[name] = binder
 
     def register_binder(self, name, _type, link_name=None, object_name=None, **kwargs):
+        if name in self.binder_dict:
+            self.remove_binder(name)
         if object_name is None:
             object_name = name
 
@@ -235,6 +241,9 @@ class ConstraintGraph:
                                               joint_list2dict([0]*len(self.joint_names), joint_names=self.joint_names))
 
     def register_object(self, name, _type, binding=None, **kwargs):
+        if name in self.object_dict:
+            self.remove_object(name)
+
         _object = self.get_object_by_name(name)
         self.object_dict[name] = _type(_object, **kwargs)
         if binding is not None:
@@ -264,10 +273,12 @@ class ConstraintGraph:
         if name in self.object_dict:
             del self.object_dict[name]
 
-    def register_object_gen(self, objectPose_dict_mv, binder_dict, object_dict, ref_tuple, link_name="world"):
+    def register_object_gen(self, objectPose_dict_mv, binder_dict, object_dict, ref_tuple=None, link_name="world"):
         object_generators = {k: CallHolder(GeometryHandle.instance().create_safe,
                                            ["center", "rpy"], **v.get_kwargs()) for k, v in
                              self.aruco_map.items() if v.ttype in [TargetType.MOVABLE, TargetType.ONLINE]}
+        if ref_tuple is None:
+            ref_tuple = self.ref_tuple
         objectPose_dict_mv.update({ref_tuple[0]: ref_tuple[1]})
         xyz_rpy_mv_dict, put_point_dict, _ = calc_put_point(objectPose_dict_mv, object_generators, object_dict, ref_tuple)
 
@@ -285,7 +296,6 @@ class ConstraintGraph:
             if mtem in put_point_dict and mtem not in self.object_dict:
                 self.register_object(mtem, binding=(put_point_dict[mtem], ref_tuple[0]), **object_dict[mtem])
 
-        self.set_rviz(self.joints.position)
         return put_point_dict
 
     def set_cam_env_collision(self, xyz_rvec_cams, env_gen_dict):
@@ -293,7 +303,6 @@ class ConstraintGraph:
                            exclude_link=["panda1_link7"])
         add_cam_poles(self, xyz_rvec_cams)
         add_objects_gen(self, env_gen_dict)
-        self.set_rviz(self.joints.position)
 
     def get_object_by_name(self, name):
         if name in self.ghnd.NAME_DICT:
