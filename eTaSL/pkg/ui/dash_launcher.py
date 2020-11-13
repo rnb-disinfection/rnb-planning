@@ -235,14 +235,15 @@ def register_callback(table_id):
                         update_graphs.__add_prev = data[-1]['id']
                         __ID_DICT[data[-1][IDENTIFY_COL]] = update_graphs.__add_prev
                     else: # update
-                        row = data_ids.index(row_id)
-                        if data_previous:
-                            row_prev = [dat['id'] for dat in data_previous].index(row_id)
-                            __name = data_previous[row_prev][IDENTIFY_COL]
-                        else:
-                            __name = data[row][IDENTIFY_COL]
-                        __value = str(data[row][col_id])
-                        res, msg = __table_dict[table_id].table_updater(__name, col_id, __value)
+                        if row_id in data_ids:
+                            row = data_ids.index(row_id)
+                            if data_previous:
+                                row_prev = [dat['id'] for dat in data_previous].index(row_id)
+                                __name = data_previous[row_prev][IDENTIFY_COL]
+                            else:
+                                __name = data[row][IDENTIFY_COL]
+                            __value = str(data[row][col_id])
+                            res, msg = __table_dict[table_id].table_updater(__name, col_id, __value)
                     if not res:
                         print(msg)
                 update_graphs.__cell_prev = None

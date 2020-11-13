@@ -78,7 +78,7 @@ class ConstraintGraph:
     def __init__(self, urdf_path, joint_names, link_names, urdf_content=None,
                  connect_panda=False, connect_indy=False,
                  indy_ip='192.168.0.63', indy_joint_vel_level=3, indy_task_vel_level=3,
-                 indy_grasp_DO=8):
+                 indy_grasp_DO=8, robots_on_scene=None):
         self.joint_num = len(joint_names)
         self.urdf_path = urdf_path
         if urdf_content is None:
@@ -104,6 +104,7 @@ class ConstraintGraph:
         self.joint_limits = np.array([(self.urdf_content.joint_map[jname].limit.lower,
                                        self.urdf_content.joint_map[jname].limit.upper) for jname in self.joint_names])
         self.marker_list = []
+        self.robots_on_scene = robots_on_scene
 
         self.indy = None
         self.panda = None
@@ -854,7 +855,6 @@ class ConstraintGraph:
         if hasattr(binder, 'orientation'):
             orientation_mat = np.matmul(bobj.orientation_mat, binder.effector.orientation_mat)
             axis = "xyz"
-            axis = "xyz"
         elif hasattr(binder, 'direction'):
             orientation_mat = np.matmul(bobj.orientation_mat, Rotation.from_rotvec(
                 calc_rotvec_vecs([1, 0, 0], binder.effector.direction)).as_dcm())
@@ -863,6 +863,17 @@ class ConstraintGraph:
         else:
             raise (RuntimeError("direction or orientation not specified for handle"))
         self.add_highlight_axis(hl_key, bobj.name, bobj.link_name, bobj.center, orientation_mat, color=color, axis=axis)
+
+    def add_aruco_axis(self, hl_key, atem):
+        oname = atem.oname
+        if oname in self.robots_on_scene:
+            link_name = RobotType.get_base_link(self.robots_on_scene[oname], oname)
+            Toff = atem.Toff
+        else:
+            aobj = self.ghnd.NAME_DICT[oname]
+            link_name = aobj.link_name
+            Toff = np.matmul(aobj.get_offset_tf(), atem.Toff)
+        self.add_highlight_axis(hl_key, oname, link_name, Toff[:3,3], Toff[:3,:3], axis="xyz")
 
     def idxSchedule2SnodeScedule(self, schedule, ZERO_JOINT_POSE=None):
         snode_schedule = [self.snode_dict[i_sc] for i_sc in schedule]
@@ -981,13 +992,13 @@ class ConstraintGraph:
                 print("FAIL ({})".format(error))
                 break
 
-    def set_camera_config(self, aruco_map, dictionary, kn_config, rs_config, T_c21):
+    def set_camera_config(self, aruco_map, dictionary, kn_config, rs_config, T_c12):
         self.aruco_map = aruco_map
         self.dictionary = dictionary
         self.kn_config = kn_config
         self.rs_config = rs_config
         self.cameraMatrix, self.distCoeffs = kn_config
-        self.T_c21 = T_c21
+        self.T_c12 = T_c12
 
     def draw_objects_graph(self, color_image, objectPose_dict, corner_dict, axis_len=0.1):
         return draw_objects(color_image, self.aruco_map, objectPose_dict, corner_dict, self.cameraMatrix,
@@ -996,7 +1007,7 @@ class ConstraintGraph:
     def sample_Trel(self, obj_name, obj_link_name, coord_link_name, coord_name, Teo, objectPose_dict_ref):
         aruco_map_new  = {k: self.aruco_map[k] for k in [obj_name, coord_name] if k not in objectPose_dict_ref}
         objectPose_dict, corner_dict, color_image, rs_image, rs_corner_dict, objectPoints_dict, point3D_dict, err_dict = \
-            get_object_pose_dict_stereo(self.T_c21, self.kn_config, self.rs_config,
+            get_object_pose_dict_stereo(self.T_c12, self.kn_config, self.rs_config,
                                         aruco_map_new, self.dictionary)
         objectPose_dict.update(objectPose_dict_ref)
         T_co = objectPose_dict[obj_name]

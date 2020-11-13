@@ -6,6 +6,7 @@ from .table.geometry_table import *
 from .table.object_table import *
 from .table.handle_table import *
 from .table.binder_table import *
+from .table.marker_table import *
 
 class UIBroker:
 
@@ -15,7 +16,8 @@ class UIBroker:
             TabInfo("Instances", [TableInfo("Geometry", '570px', interface=GeometryTable(graph)),
                                  TableInfo("Object", '270px', interface=ObjectTable(graph))]),
             TabInfo("Binding", [TableInfo("Handle", '570px', interface=HandleTable(graph)),
-                                TableInfo("Binder", '270px', interface=BinderTable(graph))])
+                                TableInfo("Binder", '270px', interface=BinderTable(graph))]),
+            TabInfo("Mark", [TableInfo("Marker", '850px', interface=MarkerTable(graph))])
         ]
 
     def start_server(self):
@@ -34,12 +36,3 @@ class UIBroker:
             table_updater_dict={k: v.update for k,v in self.table_dict.items()},
             table_button_dict={k: v.button for k,v in self.table_dict.items()},
         )
-
-
-    def button(self, button, *args, **kwargs):
-        if button == TAB_BUTTON.APPLY:
-            self.graph.set_rviz()
-            if hasattr(self.graph, "planner"):
-                self.graph.planner.update_gtems()
-        else:
-            TableInterface.button(self, button, *args, **kwargs)

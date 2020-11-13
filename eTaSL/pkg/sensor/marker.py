@@ -29,17 +29,26 @@ aruco_param.polygonalApproxAccuracyRate = 0.01
 # define aruco/charuco - object mapping
 # should contain marker & offset
 class ObjectMarker:
-    def __init__(self, idx, size, Toff):
+    def __init__(self, oname, idx, size, point, direction):
+        self.oname = oname
         self.idx = idx
+        self.Toff = np.identity(4)
+        self.set_size(size)
+        self.set_offset(point, direction)
+
+    def set_size(self, size):
         self.size = size
-        self.Toff = Toff  # zero-offset orienation: z-axis inward, y-axis down-ward,  x-axis right-ward
         self.__corners = [[-size / 2, -size / 2, 0, 1],
                           [size / 2, -size / 2, 0, 1],
                           [size / 2, size / 2, 0, 1],
                           [-size / 2, size / 2, 0, 1],
                           ]
-        self.corners = np.matmul(self.__corners, np.transpose(Toff))[:, :3]
+        self.corners = np.matmul(self.__corners, np.transpose(self.Toff))[:, :3]
 
+    def set_offset(self, point, direction):
+        self.point, self.direction = point, direction
+        self.Toff = SE3(Rot_rpy(self.direction), self.point)
+        self.corners = np.matmul(self.__corners, np.transpose(self.Toff))[:, :3]
 
 def get_object_pose_dict(color_image, aruco_map, dictionary, cameraMatrix, distCoeffs):
     corners, ids, rejectedImgPoints = aruco.detectMarkers(color_image, dictionary, parameters=aruco_param)
