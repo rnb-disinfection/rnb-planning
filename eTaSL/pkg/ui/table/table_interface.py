@@ -11,6 +11,7 @@ except: pass
 class TableInterface:
     HEADS = None
     HILIGHT_KEY = None
+    CUSTOM_BUTTONS = []
 
     def __init__(self, graph):
         self.graph = graph

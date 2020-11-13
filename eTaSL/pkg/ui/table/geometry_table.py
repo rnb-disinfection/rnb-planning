@@ -5,6 +5,7 @@ from ...geometry.geometry import *
 class GeometryTable(TableInterface):
     HEADS = [IDENTIFY_COL, 'GType', 'Link', 'Dims', 'Center', 'Rpy', 'Color', 'Disp', 'Coll', 'Fix', 'Soft', 'Online']
     HILIGHT_KEY = 'geometry'
+    CUSTOM_BUTTONS = ["Apply"]
 
     def get_items(self):
         return self.graph.ghnd
@@ -68,7 +69,7 @@ class GeometryTable(TableInterface):
         return res, msg
 
     def button(self, button, *args, **kwargs):
-        if button == TAB_BUTTON.APPLY:
+        if button == TAB_BUTTON.CUSTOM:
             self.graph.set_rviz(self.graph.joints.position)
             if hasattr(self.graph, "planner"):
                 self.graph.planner.update_gtems()

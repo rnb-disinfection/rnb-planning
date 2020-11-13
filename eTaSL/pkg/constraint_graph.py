@@ -224,8 +224,6 @@ class ConstraintGraph:
         self.binder_dict[name] = _type(_object=_object,
                                        name=name, link_name=link_name,
                                        urdf_content=self.urdf_content, **kwargs)
-        # if _object is None:
-        #     self.binder_dict[name].object
 
     def remove_binder(self, bname):
         del self.binder_dict[bname]

@@ -5,6 +5,7 @@ from ...utils.joint_utils import joint_list2dict
 class ObjectTable(TableInterface):
     HEADS = [IDENTIFY_COL, 'OType', 'Binding', 'Binder']
     HILIGHT_KEY = 'object'
+    CUSTOM_BUTTONS = ["Apply"]
 
     def get_items(self):
         return map(lambda x: x[1], sorted(self.graph.object_dict.items(), key=lambda x:x[0]))
@@ -42,7 +43,7 @@ class ObjectTable(TableInterface):
         return res, msg
 
     def button(self, button, *args, **kwargs):
-        if button == TAB_BUTTON.APPLY:
+        if button == TAB_BUTTON.CUSTOM:
             self.graph.update_handles()
             if hasattr(self.graph, "planner"):
                 self.graph.planner.set_object_dict(self.graph.object_dict)

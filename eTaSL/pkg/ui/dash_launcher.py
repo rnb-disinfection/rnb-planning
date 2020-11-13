@@ -11,9 +11,10 @@ from collections import defaultdict
 import visdcc
 import dash_split_pane
 from enum import Enum
+import numpy as np
 
 class TAB_BUTTON(Enum):
-    APPLY = 0
+    CUSTOM = 0
     SAVE = 1
     LOAD = 2
 
@@ -33,10 +34,11 @@ class TabInfo:
 class TableInfo:
     def __init__(self, table_name, table_height, table_loader=lambda:([IDENTIFY_COL],[]),
                  table_selector=table_updater_default, table_updater=table_updater_default,
-                 table_button = table_updater_default, interface=None):
+                 table_button = table_updater_default, custom_buttons=[], interface=None):
         self.table_name, self.table_height, \
         self.table_loader, self.table_selector, self.table_updater, self.table_button = \
             table_name, table_height, table_loader, table_selector,table_updater, table_button
+        self.custom_buttons = custom_buttons
         self.interface = interface
 
 def get_tab_id(tab_name):
@@ -279,14 +281,18 @@ def register_callback(table_id):
 
     @app.callback(
         Output(table_id+'-button-receiver', 'children'),
-        [Input(table_id+'-apply-button', 'n_clicks'),
-         Input(table_id + '-save-button', 'n_clicks')],
+        [Input(table_id+'-{}-button'.format(cbn.lower()), 'n_clicks') for cbn in __table_dict[table_id].custom_buttons]+ \
+        [Input(table_id + '-save-button', 'n_clicks')],
         [State(table_id + '-filename', 'value'),
          State(table_id + '-table-row-ids', 'data')])
-    def button_event(a_clicks, s_clicks, filename, data):
-        if a_clicks-add_row.__a_clicks_prev:
+    def button_event(*args):
+
+        a_clicks = args[:-3]
+        s_clicks, filename, data = args[-3:]
+        a_clicks_sub = np.maximum(np.subtract(a_clicks, add_row.__a_clicks_prev), 0)
+        if np.sum(a_clicks_sub)>0:
             add_row.__a_clicks_prev = a_clicks
-            __table_dict[table_id].table_button(TAB_BUTTON.APPLY)
+            __table_dict[table_id].table_button(TAB_BUTTON.CUSTOM, a_clicks_sub)
         elif s_clicks-add_row.__s_clicks_prev:
             add_row.__s_clicks_prev = s_clicks
             if filename:
@@ -335,10 +341,11 @@ def __render_content_func(tab):
                         html.Button(
                             'Load', className="button-bb"),
                         html.Button(
-                            'Save', className="button-bb", id=tableinfo.table_name + '-save-button', n_clicks=0),
-                        html.Button(
-                            'Apply', className="button-bb", id=tableinfo.table_name + '-apply-button', n_clicks=0),
-                        html.Button(
+                            'Save', className="button-bb", id=tableinfo.table_name + '-save-button', n_clicks=0)] + \
+                        [html.Button(
+                            cbn, className="button-bb", id=tableinfo.table_name + '-{}-button'.format(cbn.lower()),
+                            n_clicks=0) for cbn in tableinfo.custom_buttons] + \
+                        [html.Button(
                             'Add Row', className="button-bb", id=tableinfo.table_name + '-add-row-button', n_clicks=0),
                         dcc.Input(type="text", placeholder="*."+tableinfo.table_name.lower(), className="text-filename", id=tableinfo.table_name + '-filename'),
                         html.Div('File:', style={"font-size":"14px", "font-family":"Roboto", "float":"right", 'margin-top':'3px', 'margin-right':'3px'}),

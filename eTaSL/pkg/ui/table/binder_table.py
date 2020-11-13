@@ -4,6 +4,7 @@ from ...constraint.constraint_action import ctype_to_btype
 class BinderTable(TableInterface):
     HEADS = [IDENTIFY_COL, 'CType', 'Geometry', 'Link', 'Direction', 'Point', 'Control', 'Multi']
     HILIGHT_KEY = 'binder'
+    CUSTOM_BUTTONS = ["Apply"]
 
     def get_items(self):
         return map(lambda x: x[1], sorted(self.graph.binder_dict.items(), key=lambda x:x[0]))
@@ -21,9 +22,14 @@ class BinderTable(TableInterface):
         self.graph.highlight_geometry(self.HILIGHT_KEY, handle.effector.object.name, color=color)
 
     def add_item(self, value):
-        self.graph.register_binder(name=value[IDENTIFY_COL], object_name=value["Geometry"],
-                                   _type=ctype_to_btype(value['CType']), link_name=value['Link'],
-                                   point=str_num_it(value['Point']), direction=str_num_it(value['Direction']))
+        print("add binder")
+        print(value)
+        try:
+            self.graph.register_binder(name=value[IDENTIFY_COL], object_name=value["Geometry"],
+                                       _type=ctype_to_btype(value['CType']), link_name=value['Link'],
+                                       point=str_num_it(value['Point']), direction=str_num_it(value['Direction']))
+        except Exception as e:
+            print(e)
 
     def delete_item(self, active_row):
         self.graph.remove_binder(active_row)
@@ -54,7 +60,7 @@ class BinderTable(TableInterface):
         return res, msg
 
     def button(self, button, *args, **kwargs):
-        if button == TAB_BUTTON.APPLY:
+        if button == TAB_BUTTON.CUSTOM:
             if hasattr(self.graph, "planner"):
                 self.graph.planner.set_binder_dict(self.graph.binder_dict)
         else:

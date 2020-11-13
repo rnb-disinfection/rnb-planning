@@ -70,7 +70,7 @@ class MarkerGroupTable(TableInterface):
         return res, msg
 
     def button(self, button, *args, **kwargs):
-        if button == TAB_BUTTON.APPLY:
+        if button == TAB_BUTTON.CUSTOM:
             print("No function on apply marker groups")
         else:
             TableInterface.button(self, button, *args, **kwargs)

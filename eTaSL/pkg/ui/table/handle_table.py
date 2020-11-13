@@ -4,6 +4,7 @@ from ...constraint.constraint_object import ctype_to_htype
 class HandleTable(TableInterface):
     HEADS = [IDENTIFY_COL, 'Object', 'Handle', 'CType', 'Point', 'Direction']
     HILIGHT_KEY = 'handle'
+    CUSTOM_BUTTONS = ["Apply"]
 
     def get_items(self):
         return self.graph.get_all_handles()
@@ -56,7 +57,7 @@ class HandleTable(TableInterface):
         return res, msg
 
     def button(self, button, *args, **kwargs):
-        if button == TAB_BUTTON.APPLY:
+        if button == TAB_BUTTON.CUSTOM:
             self.graph.update_handles()
             if hasattr(self.graph, "planner"):
                 self.graph.planner.set_object_dict(self.graph.object_dict)

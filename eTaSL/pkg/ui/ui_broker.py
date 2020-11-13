@@ -21,16 +21,17 @@ class UIBroker:
             TabInfo("Mark", [TableInfo("Marker", '550px', interface=MarkerTable(graph)),
                              TableInfo("MarkerGroup", '250px', interface=MarkerGroupTable(graph))])
         ]
+        self.table_dict = {}
+        for tab in self.tab_list:
+            for table in tab.table_info_array:
+                self.table_dict[table.table_name] = table.interface
+                table.custom_buttons = table.interface.CUSTOM_BUTTONS
 
     def start_server(self):
         dash_launcher.set_tabs(self.tab_list)
         dash_launcher.run_server(on_background=True, debug=False)
 
     def set_tables(self):
-        self.table_dict = {}
-        for tab in self.tab_list:
-            for table in tab.table_info_array:
-                self.table_dict[table.table_name] = table.interface
 
         dash_launcher.set_tables(
             table_loader_dict={k: v.get_table for k,v in self.table_dict.items()},
