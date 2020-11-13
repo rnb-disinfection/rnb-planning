@@ -108,7 +108,7 @@ class ObjectAction:
 ################################# USABLE CLASS #########################################
 
 class BoxAction(ObjectAction):
-    def __init__(self, _object, hexahedral=False):
+    def __init__(self, _object, hexahedral=True):
         self.object = _object
         Xhalf, Yhalf, Zhalf = np.divide(_object.dims,2)
         self.action_points_dict = {

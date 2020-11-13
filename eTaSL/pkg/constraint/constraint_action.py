@@ -18,6 +18,7 @@ class Binding(object):
         else:
             self.point = point
         self.object = _object
+        self.effector = None
         
     def bind(self, action_obj, bind_point, joint_dict_last):
         Tbo = action_obj.object.get_tf(joint_dict_last)
@@ -32,6 +33,21 @@ class Binding(object):
     @abstractmethod
     def check_available(self):
         pass
+
+    def __del__(self):
+        if self.object:
+            if self.name == self.object.name:
+                GeometryHandle.instance().remove(self.object)
+            else:
+                self.object = None
+
+        if self.effector:
+            if self.effector.object:
+                if self.name == self.effector.object.name:
+                    GeometryHandle.instance().remove(self.object)
+                else:
+                    self.effector.object = None
+
             
         
 class PointerBinding(Binding):
