@@ -9,8 +9,8 @@ from dash.dependencies import Input, Output, State
 from uuid import uuid1
 from collections import defaultdict
 import visdcc
-from enum import Enum
 import dash_split_pane
+from enum import Enum
 
 class TAB_BUTTON(Enum):
     APPLY = 0
@@ -33,10 +33,11 @@ class TabInfo:
 class TableInfo:
     def __init__(self, table_name, table_height, table_loader=lambda:([IDENTIFY_COL],[]),
                  table_selector=table_updater_default, table_updater=table_updater_default,
-                 table_button = table_updater_default):
+                 table_button = table_updater_default, interface=None):
         self.table_name, self.table_height, \
         self.table_loader, self.table_selector, self.table_updater, self.table_button = \
             table_name, table_height, table_loader, table_selector,table_updater, table_button
+        self.interface = interface
 
 def get_tab_id(tab_name):
     return 'tab-'+tab_name.lower()
