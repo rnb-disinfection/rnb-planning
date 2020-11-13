@@ -26,6 +26,32 @@ aruco_param.perspectiveRemoveIgnoredMarginPerCell = 0.13
 aruco_param.perspectiveRemovePixelPerCell = 4
 aruco_param.polygonalApproxAccuracyRate = 0.01
 
+from enum import Enum
+
+class DetectType(Enum):
+    ENVIRONMENT = 0
+    ROBOT = 1
+    MOVABLE = 2
+    ONLINE = 3
+
+    @classmethod
+    def fixed(cls, item):
+        return item in [DetectType.ENVIRONMENT, DetectType.ROBOT, DetectType.ONLINE]
+
+
+class MarkerSet(list):
+    def __init__(self, dtype, gtype=None, dims=None, color=(0.6,0.6,0.6,1), soft=False, K_col=None, _list=[]):
+        self.dtype, self.gtype = dtype, gtype
+        self.dims, self.color = dims, color
+        self.soft, self.K_col = soft, K_col
+        self += _list
+
+    def get_kwargs(self):
+        return dict(gtype=self.gtype, dims=self.dims, color=self.color,
+                    fixed=DetectType.fixed(self.dtype), soft=self.soft,
+                    online=self.dtype==DetectType.ONLINE, K_col=self.K_col)
+
+
 # define aruco/charuco - object mapping
 # should contain marker & offset
 class ObjectMarker:

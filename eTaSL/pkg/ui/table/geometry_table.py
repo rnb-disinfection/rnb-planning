@@ -22,14 +22,15 @@ class GeometryTable(TableInterface):
         self.graph.highlight_geometry(self.HILIGHT_KEY, gtem.name, color=color)
 
     def add_item(self, value):
-        self.graph.add_geometry(GeometryItem(name=value[IDENTIFY_COL], gtype=getattr(GEOTYPE, value['GType']),
-                                             link_name=value["Link"], center=str_num_it(value["Center"]),
-                                             dims=str_num_it(value["Dims"]), rpy=str_num_it(value["Rpy"]),
-                                             color=str_num_it(value["Color"]),
-                                             display=value["Disp"].lower()=="true",
-                                             collision=value["Coll"].lower()=="true",
-                                             fixed=value["Fix"].lower()=="true",
-                                             soft=value["Soft"].lower()=="true"))
+        self.graph.add_geometry(
+            self.ghnd.create_safe(name=value[IDENTIFY_COL], gtype=getattr(GEOTYPE, value['GType']),
+                                  link_name=value["Link"], center=str_num_it(value["Center"]),
+                                  dims=str_num_it(value["Dims"]), rpy=str_num_it(value["Rpy"]),
+                                  color=str_num_it(value["Color"]),
+                                  display=value["Disp"].lower()=="true",
+                                  collision=value["Coll"].lower()=="true",
+                                  fixed=value["Fix"].lower()=="true",
+                                  soft=value["Soft"].lower()=="true"))
 
     def delete_item(self, active_row):
         gtem = self.graph.ghnd.NAME_DICT[active_row]
@@ -68,7 +69,7 @@ class GeometryTable(TableInterface):
 
     def button(self, button, *args, **kwargs):
         if button == TAB_BUTTON.APPLY:
-            self.graph.set_rviz()
+            self.graph.set_rviz(self.graph.joints.position)
             if hasattr(self.graph, "planner"):
                 self.graph.planner.update_gtems()
         else:

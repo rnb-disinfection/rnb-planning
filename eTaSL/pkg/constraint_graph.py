@@ -76,7 +76,6 @@ class ConstraintGraph:
     DSCALE = 1e4
 
     def __init__(self, urdf_path, joint_names, link_names, urdf_content=None,
-                 connect_panda=False, connect_indy=False,
                  indy_ip='192.168.0.63', indy_joint_vel_level=3, indy_task_vel_level=3,
                  indy_grasp_DO=8, robots_on_scene=None):
         self.joint_num = len(joint_names)
@@ -84,7 +83,8 @@ class ConstraintGraph:
         if urdf_content is None:
             urdf_content = URDF.from_xml_file(urdf_path)
         self.urdf_content = urdf_content
-        self.ghnd = GeometryHandle.instance(urdf_content)
+        self.ghnd = GeometryHandle.instance()
+        self.ghnd.set_urdf_content(urdf_content)
         set_parent_joint_map(urdf_content)
         set_link_adjacency_map(urdf_content)
         self.min_distance_map = set_min_distance_map(link_names, urdf_content)
@@ -98,53 +98,48 @@ class ConstraintGraph:
         self.que_lock = Lock()
         self.manager = PriorityQueueManager()
         self.manager.start()
-        self.connect_panda = connect_panda
-        self.connect_indy = connect_indy
         self.gtimer=GlobalTimer.instance()
         self.joint_limits = np.array([(self.urdf_content.joint_map[jname].limit.lower,
                                        self.urdf_content.joint_map[jname].limit.upper) for jname in self.joint_names])
         self.marker_list = []
         self.robots_on_scene = robots_on_scene
+        self.indy_idx = [idx for idx, jname in zip(range(self.joint_num), self.joint_names) if 'indy' in jname]
+        self.panda_idx = [idx for idx, jname in zip(range(self.joint_num), self.joint_names) if 'panda' in jname]
 
         self.indy = None
         self.panda = None
-        self.indy_idx = [idx for idx, jname in zip(range(self.joint_num), self.joint_names) if 'indy' in jname]
-        self.panda_idx = [idx for idx, jname in zip(range(self.joint_num), self.joint_names) if 'panda' in jname]
-        if connect_panda:
-            if PANDA_ROS:
-                self.ps = PandaStateSubscriber(interface_name=PANDA_SIMULATION_INTERFACE)
-                self.ps.start_subsciption()
-                self.pc = PandaControlPublisher(interface_name=PANDA_SIMULATION_INTERFACE)
-            else:
-                self.panda = PandaRepeater()
+        self.indy_speed = 180
+        self.indy_acc = 360
+        self.indy_ip = indy_ip
+        self.indy_joint_vel_level = indy_joint_vel_level
+        self.indy_task_vel_level = indy_task_vel_level
+        self.indy_grasp_DO = indy_grasp_DO
 
-        if connect_indy:
-            self.indy_speed = 180
-            self.indy_acc = 360
-            self.indy_ip = indy_ip
-            self.indy_joint_vel_level = indy_joint_vel_level
-            self.indy_task_vel_level = indy_task_vel_level
-            self.indy = indytraj_client(server_ip=indy_ip, robot_name="NRMK-Indy7")
-            with self.indy:
-                self.indy.set_collision_level(5)
-                self.indy.set_joint_vel_level(indy_joint_vel_level)
-                self.indy.set_task_vel_level(indy_task_vel_level)
-                self.indy.set_joint_blend_radius(20)
-                self.indy.set_task_blend_radius(0.2)
-            self.indy.indy_grasp_DO = indy_grasp_DO
+    def reset_robots(self, connect_indy=None, connect_panda=None):
+        self.reset_indy(connect_indy)
+        self.reset_panda(connect_panda)
 
-    def reset_panda(self):
+    def reset_panda(self, connect=None):
+        if connect is not None:
+            self.connect_panda = connect
+
         if self.connect_panda:
             if PANDA_ROS:
                 self.ps = PandaStateSubscriber(interface_name=PANDA_SIMULATION_INTERFACE)
                 self.ps.start_subsciption()
                 self.pc = PandaControlPublisher(interface_name=PANDA_SIMULATION_INTERFACE)
             else:
-                self.panda.set_alpha_lpf(self.panda.alpha_lpf)
-                self.panda.set_d_gain(self.panda.d_gain)
-                self.panda.set_k_gain(self.panda.k_gain)
+                if self.panda:
+                    self.panda.set_alpha_lpf(self.panda.alpha_lpf)
+                    self.panda.set_d_gain(self.panda.d_gain)
+                    self.panda.set_k_gain(self.panda.k_gain)
+                else:
+                    self.panda = PandaRepeater()
 
-    def reset_indy(self):
+    def reset_indy(self, connect=None):
+        if connect is not None:
+            self.connect_indy = connect
+
         if self.connect_indy:
             self.indy = indytraj_client(server_ip=self.indy_ip, robot_name="NRMK-Indy7")
             with self.indy:
@@ -153,25 +148,22 @@ class ConstraintGraph:
                 self.indy.set_task_vel_level(self.indy_task_vel_level)
                 self.indy.set_joint_blend_radius(20)
                 self.indy.set_task_blend_radius(0.2)
-            self.indy_grasp_DO = self.indy_grasp_DO
-
-    def reset_robots(self):
-        self.reset_panda()
-        self.reset_indy()
+            self.indy.indy_grasp_DO = self.indy_grasp_DO
 
     def __del__(self):
         try:
             pass
         except: pass
 
-    def set_rviz(self):
+    def set_rviz(self, joint_pose):
         # prepare ros
         if not (hasattr(self, 'pub') and hasattr(self, 'joints') and hasattr(self, 'rate')):
             self.pub, self.joints, self.rate = get_publisher(self.joint_names, control_freq=CONTROL_FREQ)
         # prepare visualization markers
         self.clear_markers()
         self.marker_list = set_markers(self.ghnd, self.joints, self.joint_names)
-        self.show_pose(self.joints.position)
+        self.show_pose(joint_pose)
+        self.show_pose(joint_pose)
 
     def remove_geometry(self, gtem, from_ghnd=True):
         del_list = []
@@ -274,7 +266,10 @@ class ConstraintGraph:
         if name in self.object_dict:
             del self.object_dict[name]
 
-    def register_object_gen(self, objectPose_dict_mv, object_generators, binder_dict, object_dict, ref_tuple, link_name="world"):
+    def register_object_gen(self, objectPose_dict_mv, binder_dict, object_dict, ref_tuple, link_name="world"):
+        object_generators = {k: CallHolder(GeometryHandle.instance().create_safe,
+                                           ["center", "rpy"], **v.get_kwargs()) for k, v in
+                             self.aruco_map.items() if v.dtype in [DetectType.MOVABLE, DetectType.ONLINE]}
         objectPose_dict_mv.update({ref_tuple[0]: ref_tuple[1]})
         xyz_rpy_mv_dict, put_point_dict, _ = calc_put_point(objectPose_dict_mv, object_generators, object_dict, ref_tuple)
 
@@ -290,9 +285,17 @@ class ConstraintGraph:
 
         for mtem, xyz_rpy in xyz_rpy_mv_dict.items():
             if mtem in put_point_dict and mtem not in self.object_dict:
-                self.register_object(mtem, binding=(put_point_dict[mtem], "floor"), **object_dict[mtem])
+                self.register_object(mtem, binding=(put_point_dict[mtem], ref_tuple[0]), **object_dict[mtem])
 
+        self.set_rviz(self.joints.position)
         return put_point_dict
+
+    def set_cam_env_collision(self, xyz_rvec_cams, env_gen_dict):
+        add_geometry_items(self.urdf_content, color=(0, 1, 0, 0.3), display=True, collision=True,
+                           exclude_link=["panda1_link7"])
+        add_cam_poles(self, xyz_rvec_cams)
+        add_objects_gen(self, env_gen_dict)
+        self.set_rviz(self.joints.position)
 
     def get_object_by_name(self, name):
         if name in self.ghnd.NAME_DICT:
@@ -802,7 +805,7 @@ class ConstraintGraph:
         hname = "hl_" + gtem.name
         if hname in self.ghnd.NAME_DICT:
             return
-        htem = GeometryItem(gtype=gtem.gtype, name=hname, link_name=gtem.link_name,
+        htem = self.ghnd.create_safe(gtype=gtem.gtype, name=hname, link_name=gtem.link_name,
                             center=gtem.center, dims=dims, rpy=Rot2rpy(gtem.orientation_mat), color=color,
                             collision=False)
 
@@ -811,14 +814,14 @@ class ConstraintGraph:
 
     def add_highlight_axis(self, hl_key, name, link_name, center, orientation_mat, color=None, axis="xyz", dims=(0.10, 0.01, 0.01)):
         if 'x' in axis:
-            axtemx = GeometryItem(gtype=GEOTYPE.ARROW, name="axx_" + name, link_name=link_name,
+            axtemx = self.ghnd.create_safe(gtype=GEOTYPE.ARROW, name="axx_" + name, link_name=link_name,
                                   center=center, dims=dims, rpy=Rot2rpy(orientation_mat), color=color or (1, 0, 0, 0.5),
                                   collision=False)
             self.add_geometry(axtemx)
             self.highlight_dict[hl_key][axtemx.name] = axtemx
 
         if 'y' in axis:
-            axtemy = GeometryItem(gtype=GEOTYPE.ARROW, name="axy_" + name, link_name=link_name,
+            axtemy = self.ghnd.create_safe(gtype=GEOTYPE.ARROW, name="axy_" + name, link_name=link_name,
                                   center=center, dims=dims,
                                   rpy=Rot2rpy(np.matmul(orientation_mat, Rot_axis(3, np.pi / 2))), color=color or (0, 1, 0, 0.5),
                                   collision=False)
@@ -826,7 +829,7 @@ class ConstraintGraph:
             self.highlight_dict[hl_key][axtemy.name] = axtemy
 
         if 'z' in axis:
-            axtemz = GeometryItem(gtype=GEOTYPE.ARROW, name="axz_" + name, link_name=link_name,
+            axtemz = self.ghnd.create_safe(gtype=GEOTYPE.ARROW, name="axz_" + name, link_name=link_name,
                                   center=center, dims=dims,
                                   rpy=Rot2rpy(np.matmul(orientation_mat, Rot_axis(2, -np.pi / 2))),
                                   color=color or (0, 0, 1, 0.5),

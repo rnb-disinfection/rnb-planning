@@ -1,7 +1,7 @@
 from .table_interface import *
 from ...constraint.constraint_object import otype_to_class
 from ...utils.joint_utils import joint_list2dict
-from ...sensor.marker import ObjectMarker
+from ...sensor.marker import ObjectMarker, MarkerSet
 
 class MarkerTable(TableInterface):
     HEADS = ['Object', IDENTIFY_COL, 'Size', 'Point', 'Direction']
@@ -26,12 +26,13 @@ class MarkerTable(TableInterface):
 
     def add_item(self, value):
         oname = value["Object"]
-        if oname not in self.graph.aruco_map:
-            self.graph.aruco_map[oname] = []
-        self.graph.aruco_map[oname].append(
-            ObjectMarker(oname, int(value[IDENTIFY_COL]),
-                         float(value['Size']), str_num_it(value['Point']), str_num_it(value['Direction']))
-        )
+        if oname in self.graph.aruco_map:
+            self.graph.aruco_map[oname].append(
+                ObjectMarker(oname, int(value[IDENTIFY_COL]),
+                             float(value['Size']), str_num_it(value['Point']), str_num_it(value['Direction']))
+            )
+        else:
+            print("{} is not a registered marker group".format(oname))
 
     def delete_item(self, active_row):
         aruco_dict = self.get_items_dict()
