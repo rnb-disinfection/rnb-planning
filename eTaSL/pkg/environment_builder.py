@@ -2,15 +2,56 @@ from .sensor.stereo import *
 from .geometry.geometry import *
 from . constants import *
 from threading import Thread
+from .robots_custom import *
+import rospy
+from .utils.utils import *
 
-def detect_environment(aruco_map, dictionary, robot_tuples, env_dict, camT_dict={"cam0":np.identity(4)}, ref_name='floor'):
+__rospy_initialized = False
+
+def set_custom_robots(ROBOTS_ON_SCENE, xyz_rpy_robots, JOINT_NAMES_DEFINED, node_name='task_planner'):
+    urdf_content = None
+    xcustom = XacroCustomizer(ROBOTS_ON_SCENE, xyz_rpy_robots)
+
+    vel_scale, acc_scale = 0.5, 0.5
+    custom_limits = {}
+    XacroCustomizer.update_limit_dict(custom_limits, "vel", JOINT_NAMES_DEFINED,
+                                      vel_scale * np.deg2rad(
+                                          [150, 150, 150, 180, 180, 180, 150, 150, 150, 150, 180, 180, 180]))
+    XacroCustomizer.update_limit_dict(custom_limits, "acc", JOINT_NAMES_DEFINED,
+                                      acc_scale * np.deg2rad(
+                                          [360] * len(JOINT_NAMES_DEFINED)))
+    custom_limits['panda1_joint1']['lower'], custom_limits['panda1_joint1']['upper'] = -2.75, 2.75
+    custom_limits['panda1_joint2']['lower'], custom_limits['panda1_joint2']['upper'] = -1.70, 1.70
+    custom_limits['panda1_joint3']['lower'], custom_limits['panda1_joint3']['upper'] = -2.75, 2.75
+    custom_limits['panda1_joint4']['lower'], custom_limits['panda1_joint4']['upper'] = -2.9, -0.1
+    custom_limits['panda1_joint5']['lower'], custom_limits['panda1_joint5']['upper'] = -2.75, 2.75
+    custom_limits['panda1_joint6']['lower'], custom_limits['panda1_joint6']['upper'] = 0.1, 3.6
+    custom_limits['panda1_joint7']['lower'], custom_limits['panda1_joint7']['upper'] = -2.75, 2.75
+
+    JOINT_NAMES, LINK_NAMES, urdf_content = \
+        xcustom.convert_xacro_to_urdf(
+            joint_fix_dict={'finger': 'upper'},
+            joint_offset_dict={},
+            joint_limit_dict=custom_limits)
+    xcustom.start_rviz()
+
+    global __rospy_initialized
+    if not __rospy_initialized:
+        rospy.init_node(node_name, anonymous=True)
+        __rospy_initialized = True
+    return xcustom, JOINT_NAMES, LINK_NAMES, urdf_content
+
+def detect_environment(aruco_map, dictionary, robot_tuples, camT_dict={"cam0":np.identity(4)}, ref_name='floor'):
+    env_dict = {k: CallHolder(GeometryHandle.instance().create_safe,
+                              ["center", "rpy"], **v.get_kwargs()) for k, v in aruco_map.items() if
+                v.ttype == TargetType.ENVIRONMENT}
     xyz_rpy_robots = {}
     xyz_rvec_cams = {}
     env_gen_dict = {}
     while True:
         try:
-            objectPose_dict, corner_dict, color_image, rs_image, rs_corner_dict = get_object_pose_dict_stereo(aruco_map,
-                                                                                                              dictionary)
+            objectPose_dict, corner_dict, color_image, rs_image, rs_objectPose_dict, rs_corner_dict = \
+                get_object_pose_dict_stereo(aruco_map, dictionary)
 
             for rtuple in robot_tuples:
                 rname = rtuple[0]
@@ -30,7 +71,10 @@ def detect_environment(aruco_map, dictionary, robot_tuples, env_dict, camT_dict=
         except Exception as e:
             print(e)
             pass
-    return xyz_rpy_robots, xyz_rvec_cams, env_gen_dict, objectPose_dict, corner_dict, color_image
+    T0 = np.identity(4)
+    return xyz_rpy_robots, xyz_rvec_cams, env_gen_dict, \
+           objectPose_dict, corner_dict, color_image, \
+           {k:v for k,v in rs_objectPose_dict.items() if np.sum(np.abs(T0-v))>1e-5}, rs_corner_dict, rs_image
 
 def add_objects_gen(graph, obj_gen_dict, color=(0.6,0.6,0.6,1), collision=True, link_name="world"):
     gtems = []
@@ -40,25 +84,29 @@ def add_objects_gen(graph, obj_gen_dict, color=(0.6,0.6,0.6,1), collision=True, 
 
 def add_cam_poles(graph, xyz_rvec_cams, color=(0.6,0.6,0.6,0.3), link_name="world"):
     gtems = []
+    ghnd = GeometryHandle.instance()
     for cname, xyzrvec in xyz_rvec_cams.items():
-        gtems.append(GeometryItem(name="pole_{}".format(cname), link_name=link_name, gtype=GEOTYPE.SEGMENT,
+        gtems.append(ghnd.create_safe(name="pole_{}".format(cname), link_name=link_name, gtype=GEOTYPE.SEGMENT,
                                   center= np.subtract(xyzrvec[0], [0,0,xyzrvec[0][2]/2-0.05]),
                                   dims=(0.15, 0.15, xyzrvec[0][2]+0.1), rpy=(0,0,0),
                                   color=color, collision=True, fixed=True)
                      )
     return gtems
 
-def detect_objects(movable_generators, aruco_map, dictionary, stereo=True, kn_config=None):
-    aruco_map_mv = {k: v for k, v in aruco_map.items() if k in movable_generators}
+def detect_objects(aruco_map, dictionary, stereo=True, kn_config=None):
+    aruco_map_mv = {k: v for k, v in aruco_map.items() if v.ttype in [TargetType.MOVABLE, TargetType.ONLINE]}
     if stereo:
-        objectPose_dict_mv, corner_dict_mv, color_image, rs_image, rs_corner_dict = get_object_pose_dict_stereo(
-            aruco_map_mv, dictionary)
+        objectPose_dict_mv, corner_dict_mv, color_image, rs_image, rs_objectPose_dict, rs_corner_dict = \
+            get_object_pose_dict_stereo(aruco_map_mv, dictionary)
     else:
         color_image = get_kn_image()
         objectPose_dict_mv, corner_dict_mv = get_object_pose_dict(color_image, aruco_map, dictionary, *kn_config)
     return objectPose_dict_mv, corner_dict_mv, color_image, aruco_map_mv
 
-def calc_put_point(objectPose_dict_mv, object_generators, object_dict, ref_tuple):
+def calc_put_point(objectPose_dict_mv, aruco_map, object_dict, ref_tuple):
+    object_generators = {k: CallHolder(GeometryHandle.instance().create_safe,
+                                       ["center", "rpy"], **v.get_kwargs()) for k, v in
+                         aruco_map.items() if v.ttype in [TargetType.MOVABLE, TargetType.ONLINE] and k in objectPose_dict_mv}
     T_mv_dict = {mname: get_T_rel(ref_tuple[0], mname, objectPose_dict_mv) for mname in object_generators if
                  mname in objectPose_dict_mv}
     xyz_rpy_mv_dict = {mname: T2xyzrpy(Tv) for mname, Tv in T_mv_dict.items()}
@@ -175,7 +223,7 @@ def match_point_binder(graph, initial_state, objectPose_dict_mv):
             continue
         for kpt, bd in graph.object_dict[kobj].action_points_dict.items():
             Tpt = bd.object.get_tf(Q0dict)
-            point_dir = bd.point_dir if hasattr(bd, "point_dir") else bd.point_ori
+            point_dir = bd.point_dir if hasattr(bd, "point_dir") else bd.point_dir
             point_cur = np.matmul(Tpt, list(point_dir[0])+[1])[:3]
             direction_cur = np.matmul(Tpt[:3,:3], point_dir[1])
 

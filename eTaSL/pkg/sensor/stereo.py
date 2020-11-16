@@ -153,7 +153,7 @@ def get_object_pose_dict_stereo(aruco_map, dictionary, kn_config=None, rs_config
             dPco = np.mean(point3D_o - objectPoints_tf, axis=1)
             objectPose_dict[oname][:3, 3] += dPco
 
-    return objectPose_dict, kn_corner_dict, kn_img, rs_img, rs_corner_dict
+    return objectPose_dict, kn_corner_dict, kn_img, rs_img, rs_objectPose_dict, rs_corner_dict
 
 
 def get_object_pose_dict_stereo_triangulate_error_mininize(aruco_map, dictionary, kn_config=None, rs_config=None, T_c12=None):

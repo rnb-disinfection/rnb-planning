@@ -8,20 +8,27 @@ __metaclass__ = type
 
 
 class ActionPoint:
+    def __init__(self, name, _object, point_dir, name_constraint=None):
+        self.name = name
+        self.object = _object
+        self.set_point_dir(point_dir)
+        self.name_constraint = \
+            name_constraint if name_constraint else "{objname}_{name}".format(objname=self.object.name, name=self.name)
+
+    def set_point_dir(self, point_dir):
+        self.point_dir = point_dir
+
     @abstractmethod
     def update_handle(self):
         pass
 
     def __del__(self):
-        if self.handle is not None:
+        if hasattr(self, 'handle') and self.handle is not None:
             del self.handle
 
 class DirectedPoint(ActionPoint):
-    def __init__(self, name, _object, point_dir):
-        self.name = name
-        self.object = _object
-        self.point_dir = point_dir
-        self.name_constraint = "pointer_{objname}_{name}".format(objname=self.object.name, name=self.name)
+    def __init__(self, name, _object, point_dir, name_constraint=None):
+        ActionPoint.__init__(self, name, _object, point_dir, name_constraint)
         self.update_handle()
 
     def update_handle(self):
@@ -31,34 +38,34 @@ class DirectedPoint(ActionPoint):
         if hasattr(self, "handle"):
             self.handle.object.set_link(self.object.link_name)
             self.handle.object.set_center(self.point)
-            self.handle.set_pointer_direction(self.direction)
+            self.handle.set_binding_direction(self.direction)
         else:
             self.handle = GeoPointer(direction=self.direction, 
-                                      _object=GeometryItem(
+                                      _object=GeometryHandle.instance().create_safe(
                                           gtype=GEOTYPE.SPHERE, name=self.name_constraint, link_name=self.object.link_name,
                                           center=self.point, dims=(0,0,0), collision=False, display=False, fixed=False)
                                      )
 
 class FramedPoint(ActionPoint):
-    def __init__(self, name, _object, point_ori):
-        self.name = name
-        self.object = _object
-        self.point_ori = point_ori
-        self.R_point_ori = Rotation.from_rotvec(self.point_ori[1]).as_dcm()
-        self.name_constraint = "framer_{objname}_{name}".format(objname=self.object.name, name=self.name)
+    def __init__(self, name, _object, point_dir, name_constraint=None):
+        ActionPoint.__init__(self, name, _object, point_dir, name_constraint)
         self.update_handle()
+
+    def set_point_dir(self, point_dir):
+        self.point_dir = point_dir
+        self.R_point_ori = Rot_rpy(self.point_dir[1])
 
     def update_handle(self):
         Toff = self.object.get_offset_tf()
-        self.point = np.matmul(Toff, list(self.point_ori[0])+[1])[:3]
+        self.point = np.matmul(Toff, list(self.point_dir[0])+[1])[:3]
         self.orientation_mat = np.matmul(Toff[:3,:3], self.R_point_ori)
         if hasattr(self, "handle"):
             self.handle.object.set_link(self.object.link_name)
             self.handle.object.set_center(self.point)
-            self.handle.set_frame_orientation_mat(self.orientation_mat)
+            self.handle.set_binding_orientation_mat(self.orientation_mat)
         else:
             self.handle = GeoFrame(orientation_mat=self.orientation_mat,
-                                   _object=GeometryItem(
+                                   _object=GeometryHandle.instance().create_safe(
                                        gtype=GEOTYPE.SPHERE, name=self.name_constraint, link_name=self.object.link_name,
                                        center=self.point, dims=(0,0,0), collision=False, display=False, fixed=False)
                                    )
@@ -101,7 +108,7 @@ class ObjectAction:
 ################################# USABLE CLASS #########################################
 
 class BoxAction(ObjectAction):
-    def __init__(self, _object, hexahedral=False):
+    def __init__(self, _object, hexahedral=True):
         self.object = _object
         Xhalf, Yhalf, Zhalf = np.divide(_object.dims,2)
         self.action_points_dict = {
@@ -142,3 +149,17 @@ class BoxAction(ObjectAction):
 
     def get_conflicting_handles(self, hname):
         return self.conflict_dict[hname]
+
+def ctype_to_htype(cstr):
+    if cstr == ConstraintType.Grasp2.name:
+        return Grasp2Point
+    elif cstr == ConstraintType.Frame.name:
+        return FramePoint
+    elif cstr == ConstraintType.Place.name:
+        return PlacePoint
+    elif cstr == ConstraintType.Vacuum.name:
+        return VacuumPoint
+
+def otype_to_class(ostr):
+    if ostr == 'BoxAction':
+        return BoxAction

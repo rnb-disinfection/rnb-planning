@@ -26,20 +26,61 @@ aruco_param.perspectiveRemoveIgnoredMarginPerCell = 0.13
 aruco_param.perspectiveRemovePixelPerCell = 4
 aruco_param.polygonalApproxAccuracyRate = 0.01
 
+from enum import Enum
+
+class TargetType(Enum):
+    ENVIRONMENT = 0
+    ROBOT = 1
+    MOVABLE = 2
+    ONLINE = 3
+
+    @classmethod
+    def fixed(cls, item):
+        return item in [TargetType.ENVIRONMENT, TargetType.ROBOT, TargetType.ONLINE]
+
+
+class MarkerSet(list):
+    def __init__(self, name, ttype, gtype=None, dims=None, color=(0.6,0.6,0.6,1), soft=False, K_col=None, _list=[]):
+        self.name, self.ttype, self.gtype = name, ttype, gtype
+        self.dims, self.color = dims, color
+        self.soft, self.K_col = soft, K_col
+        self += _list
+
+    def get_kwargs(self):
+        return dict(gtype=self.gtype, dims=self.dims, color=self.color,
+                    fixed=TargetType.fixed(self.ttype), soft=self.soft,
+                    online=self.ttype==TargetType.ONLINE, K_col=self.K_col)
+
+
 # define aruco/charuco - object mapping
 # should contain marker & offset
 class ObjectMarker:
-    def __init__(self, idx, size, Toff):
+    def __init__(self, oname, idx, size, point, direction):
+        self.oname = oname
         self.idx = idx
+        self.Toff = np.identity(4)
+        self.set_size(size)
+        self.set_offset(point, direction)
+
+    def set_size(self, size):
         self.size = size
-        self.Toff = Toff  # zero-offset orienation: z-axis inward, y-axis down-ward,  x-axis right-ward
         self.__corners = [[-size / 2, -size / 2, 0, 1],
                           [size / 2, -size / 2, 0, 1],
                           [size / 2, size / 2, 0, 1],
                           [-size / 2, size / 2, 0, 1],
                           ]
-        self.corners = np.matmul(self.__corners, np.transpose(Toff))[:, :3]
+        self.corners = np.matmul(self.__corners, np.transpose(self.Toff))[:, :3]
 
+    def set_offset(self, point, direction):
+        self.point, self.direction = point, direction
+        self.Toff = SE3(Rot_rpy(self.direction), self.point)
+        self.corners = np.matmul(self.__corners, np.transpose(self.Toff))[:, :3]
+
+def change_marker_name(aruco_map, name_old, name_new):
+    atem = aruco_map[name_old]
+    atem.oname = name_new
+    aruco_map[name_new].append(atem)
+    del aruco_map[name_old][atem]
 
 def get_object_pose_dict(color_image, aruco_map, dictionary, cameraMatrix, distCoeffs):
     corners, ids, rejectedImgPoints = aruco.detectMarkers(color_image, dictionary, parameters=aruco_param)

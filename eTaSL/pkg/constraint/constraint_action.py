@@ -10,14 +10,19 @@ class Binding(object):
     def __init__(self, name, link_name, urdf_content, point=None, _object=None):
         self.name = name
         self.urdf_content = urdf_content
+        self.point_offset = point
         if _object is None:
             assert point is not None, "Give _object or point"
-            _object = GeometryItem(name=self.name, link_name=link_name, gtype=GEOTYPE.SPHERE,
+            _object = GeometryHandle.instance().create_safe(name=self.name, link_name=link_name, gtype=GEOTYPE.SPHERE,
                                    center=point, dims=(0,0,0), collision=False, display=False, fixed=True)
             self.point = None
         else:
-            self.point = point
+            if self.name == _object.name:
+                self.point = None
+            else:
+                self.point = point
         self.object = _object
+        self.effector = None
         
     def bind(self, action_obj, bind_point, joint_dict_last):
         Tbo = action_obj.object.get_tf(joint_dict_last)
@@ -32,6 +37,21 @@ class Binding(object):
     @abstractmethod
     def check_available(self):
         pass
+
+    def __del__(self):
+        if self.object:
+            if self.name == self.object.name:
+                GeometryHandle.instance().remove(self.object)
+            else:
+                self.object = None
+
+        if self.effector:
+            if self.effector.object:
+                if self.name == self.effector.object.name:
+                    GeometryHandle.instance().remove(self.object)
+                else:
+                    self.effector.object = None
+
             
         
 class PointerBinding(Binding):
@@ -42,10 +62,10 @@ class PointerBinding(Binding):
             
         
 class FrameBinding(Binding):
-    def __init__(self, orientation=None, **kwargs):
+    def __init__(self, direction=None, **kwargs):
         super(FrameBinding, self).__init__(**kwargs)
-        self.orientation = orientation
-        self.effector = GeoFrame(orientation=orientation, _object=self.object)
+        self.direction = direction
+        self.effector = GeoFrame(direction=direction, _object=self.object)
 
 
 ################################# USABLE CLASS #########################################
@@ -84,4 +104,13 @@ class PlaceFrame(FrameBinding):
 
     def check_available(self, joint_dict):
         return np.matmul(self.effector.object.get_tf(joint_dict)[:3,:3], self.direction)[2]>PlaceFrame.VERTICAL_CUT
-        
+
+def ctype_to_btype(cstr):
+    if cstr == ConstraintType.Grasp2.name:
+        return Gripper2Tool
+    elif cstr == ConstraintType.Frame.name:
+        return PlaceFrame
+    elif cstr == ConstraintType.Place.name:
+        return PlacePlane
+    elif cstr == ConstraintType.Vacuum.name:
+        return VacuumTool

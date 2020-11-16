@@ -3,13 +3,14 @@ from urdf_parser_py.urdf import URDF
 
 from .global_config import *
 from .geometry.geometry import *
+from time import sleep
 
 XACRO_PATH_DEFAULT = '{}robots/custom_robots.urdf.xacro'.format(TAMP_ETASL_DIR)
 URDF_PATH_DEFAULT = '{}robots/custom_robots.urdf'.format(TAMP_ETASL_DIR)
 
 URDF_PATH = os.path.join(PROJ_DIR, "robots", "custom_robots.urdf")
-JOINT_NAMES = ["shoulder_pan_joint","shoulder_lift_joint","elbow_joint","wrist_1_joint","wrist_2_joint","wrist_3_joint"]
-LINK_NAMES = ['world', 'base_link', 'shoulder_link', 'upper_arm_link', 'forearm_link', 'wrist_1_link', 'wrist_2_link', 'wrist_3_link', 'tool0']
+# JOINT_NAMES = ["shoulder_pan_joint","shoulder_lift_joint","elbow_joint","wrist_1_joint","wrist_2_joint","wrist_3_joint"]
+# LINK_NAMES = ['world', 'base_link', 'shoulder_link', 'upper_arm_link', 'forearm_link', 'wrist_1_link', 'wrist_2_link', 'wrist_3_link', 'tool0']
 
 class XacroCustomizer:
     def __init__(self, rtuples, xyz_rpy_dict, xacro_path = XACRO_PATH_DEFAULT):
@@ -159,6 +160,7 @@ def add_geometry_items(urdf_content, color=(0,1,0,0.5), display=True, collision=
     geometry_items = []
     id_dict = defaultdict(lambda: -1)
     geometry_dir = "./geometry_tmp"
+    ghnd = GeometryHandle.instance()
     try: os.mkdir(geometry_dir)
     except: pass
     for link in urdf_content.links:
@@ -181,11 +183,14 @@ def add_geometry_items(urdf_content, color=(0,1,0,0.5), display=True, collision=
 
             id_dict[link.name] += 1
             if geotype == 'Cylinder':
-                geometry_items += [GeometryItem(name="{}_{}_{}".format(link.name, geotype, id_dict[link.name]),
-                                                                link_name=link.name, gtype=GEOTYPE.SEGMENT,
-                                                                center=xyz, dims=(geometry.radius*2,geometry.radius*2,geometry.length), rpy=rpy,
-                                                                color=color, display=display, collision=collision, fixed=True
-                                                              )]
+                gname = "{}_{}_{}".format(link.name, geotype, id_dict[link.name])
+                geometry_items.append(
+                    ghnd.create_safe(
+                        name=gname, link_name=link.name, gtype=GEOTYPE.SEGMENT,
+                        center=xyz, dims=(geometry.radius*2,geometry.radius*2,geometry.length), rpy=rpy,
+                        color=color, display=display, collision=collision, fixed=True)
+                )
+
             elif geotype == 'Mesh':
                 name = "{}_{}_{}".format(link.name, geotype, id_dict[link.name])
                 geo_file_name = os.path.join(geometry_dir, name+".npy")
@@ -224,10 +229,12 @@ def add_geometry_items(urdf_content, color=(0,1,0,0.5), display=True, collision=
                 xyz_rpy = np.matmul(rpy_mat, xyz)
                 dcm = np.matmul(rpy_mat, Rotation.from_rotvec(rotvec).as_dcm())
                 xyz_rpy = np.add(xyz_rpy, dcm[:,2]*length/2).tolist()
-                geometry_items += [GeometryItem(name=name, link_name=link.name, gtype=GEOTYPE.SEGMENT,
-                                                                center=xyz_rpy, rpy=Rot2rpy(dcm), dims=(radius*2,radius*2,length),
-                                                                color=color, display=display, collision=collision, fixed=True
-                                                              )]
+
+
+                geometry_items.append(
+                    ghnd.create_safe(name=name, link_name=link.name, gtype=GEOTYPE.SEGMENT,
+                                  center=xyz_rpy, rpy=Rot2rpy(dcm), dims=(radius*2,radius*2,length),
+                                  color=color, display=display, collision=collision, fixed=True))
             else:
                 raise(NotImplementedError("collision geometry {} is not implemented".format(geotype)))
     return geometry_items
