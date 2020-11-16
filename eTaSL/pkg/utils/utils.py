@@ -218,3 +218,31 @@ class SingleValue:
         self.type = _type
         self.value = _value
 
+def round_it_str(iterable, dec=3):
+    dec_str="%.{}f".format(dec)
+    return ",".join(map(lambda x:dec_str%x, iterable))
+
+def str_num_it(strnum, deliminater=","):
+    if deliminater in strnum:
+        return map(float, strnum.split(deliminater))
+    else:
+        return None
+
+import pickle
+def save_pickle(filename, data):
+    with open(filename, 'wb') as f:
+        pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
+
+def load_pickle(filename):
+    with open(filename, 'rb') as f:
+        data = pickle.load(f)
+        return data
+
+def save_json(filename, data):
+    with open(filename, "w") as json_file:
+        json.dump(data, json_file, cls=NumpyEncoder)
+
+def load_json(filename):
+    with open(filename, "r") as st_json:
+        st_python = json.load(st_json)
+    return st_python

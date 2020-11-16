@@ -12,3 +12,8 @@ except: pass
 class RobotType(Enum):
     indy7_robot=0
     panda_robot=1
+
+    @classmethod
+    def get_base_link(cls, _type, name):
+        if _type in [RobotType.indy7_robot, RobotType.panda_robot]:
+            return name+'_link0'
