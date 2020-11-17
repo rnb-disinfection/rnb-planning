@@ -17,3 +17,10 @@ class RobotType(Enum):
     def get_base_link(cls, _type, name):
         if _type in [RobotType.indy7_robot, RobotType.panda_robot]:
             return name+'_link0'
+
+    @classmethod
+    def get_joints(cls, _type, name):
+        if _type == RobotType.indy7_robot:
+            return ["{}_joint{}".format(name, idx) for idx in range(6)]
+        elif _type == RobotType.panda_robot:
+            return ["{}_joint{}".format(name, idx) for idx in range(1,8)]

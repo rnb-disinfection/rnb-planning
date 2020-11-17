@@ -8,6 +8,10 @@ from .table.handle_table import *
 from .table.binder_table import *
 from .table.marker_table import *
 from .table.marker_group_table import *
+from .table.camera_table import  *
+from .table.robot_table import  *
+from .table.task_planner_table import *
+from .table.motion_planner_table import *
 
 class UIBroker:
 
@@ -19,7 +23,11 @@ class UIBroker:
             TabInfo("Binding", [TableInfo("Handle", '550px', interface=HandleTable(graph)),
                                 TableInfo("Binder", '250px', interface=BinderTable(graph))]),
             TabInfo("Mark", [TableInfo("Marker", '550px', interface=MarkerTable(graph)),
-                             TableInfo("MarkerGroup", '250px', interface=MarkerGroupTable(graph))])
+                             TableInfo("MarkerGroup", '250px', interface=MarkerGroupTable(graph))]),
+            TabInfo("Setting", [TableInfo("Camera", '200px', interface=CameraTable(graph)),
+                             TableInfo("Robot", '200px', interface=RobotTable(graph)),
+                             TableInfo("MotionPlan", '200px', row_selectable='single', interface=MotionPlanTable(graph)),
+                             TableInfo("TaskPlan", '200px', row_selectable='single', interface=TaskPlanTable(graph))])
         ]
         self.table_dict = {}
         for tab in self.tab_list:

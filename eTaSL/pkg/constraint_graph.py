@@ -4,9 +4,7 @@ sys.setrecursionlimit(1000000)
 from .geometry.ros_rviz import *
 from urdf_parser_py.urdf import URDF
 from multiprocessing import Process, Lock, cpu_count
-from .controller.panda_ros_interface import *
-from .controller.panda_repeater import *
-from .controller.indy_repeater import indytraj_client
+from .controller.repeater import *
 from .environment_builder import *
 
 PANDA_ROS = False
@@ -75,9 +73,7 @@ class ConstraintGraph:
     DEFAULT_TRANSIT_COST = 1.0
     DSCALE = 1e4
 
-    def __init__(self, urdf_path, joint_names, link_names, urdf_content=None,
-                 indy_ip='192.168.0.63', indy_joint_vel_level=3, indy_task_vel_level=3,
-                 indy_grasp_DO=8, robots_on_scene=None, ref_tuple=('floor',None)):
+    def __init__(self, urdf_path, joint_names, link_names, urdf_content=None, combined_robot=None):
         self.joint_num = len(joint_names)
         self.urdf_path = urdf_path
         if urdf_content is None:
@@ -102,55 +98,7 @@ class ConstraintGraph:
         self.joint_limits = np.array([(self.urdf_content.joint_map[jname].limit.lower,
                                        self.urdf_content.joint_map[jname].limit.upper) for jname in self.joint_names])
         self.marker_list = []
-        self.robots_on_scene = robots_on_scene
-        self.ref_tuple = ref_tuple
-
-        self.indy_idx = [idx for idx, jname in zip(range(self.joint_num), self.joint_names) if 'indy' in jname]
-        self.panda_idx = [idx for idx, jname in zip(range(self.joint_num), self.joint_names) if 'panda' in jname]
-
-        self.indy = None
-        self.panda = None
-        self.indy_speed = 180
-        self.indy_acc = 360
-        self.indy_ip = indy_ip
-        self.indy_joint_vel_level = indy_joint_vel_level
-        self.indy_task_vel_level = indy_task_vel_level
-        self.indy_grasp_DO = indy_grasp_DO
-
-    def reset_robots(self, connect_indy=None, connect_panda=None):
-        self.reset_indy(connect_indy)
-        self.reset_panda(connect_panda)
-
-    def reset_panda(self, connect=None):
-        if connect is not None:
-            self.connect_panda = connect
-
-        if self.connect_panda:
-            if PANDA_ROS:
-                self.ps = PandaStateSubscriber(interface_name=PANDA_SIMULATION_INTERFACE)
-                self.ps.start_subsciption()
-                self.pc = PandaControlPublisher(interface_name=PANDA_SIMULATION_INTERFACE)
-            else:
-                if self.panda:
-                    self.panda.set_alpha_lpf(self.panda.alpha_lpf)
-                    self.panda.set_d_gain(self.panda.d_gain)
-                    self.panda.set_k_gain(self.panda.k_gain)
-                else:
-                    self.panda = PandaRepeater()
-
-    def reset_indy(self, connect=None):
-        if connect is not None:
-            self.connect_indy = connect
-
-        if self.connect_indy:
-            self.indy = indytraj_client(server_ip=self.indy_ip, robot_name="NRMK-Indy7")
-            with self.indy:
-                self.indy.set_collision_level(5)
-                self.indy.set_joint_vel_level(self.indy_joint_vel_level)
-                self.indy.set_task_vel_level(self.indy_task_vel_level)
-                self.indy.set_joint_blend_radius(20)
-                self.indy.set_task_blend_radius(0.2)
-            self.indy.indy_grasp_DO = self.indy_grasp_DO
+        self.combined_robot = combined_robot
 
     def __del__(self):
         try:
@@ -276,11 +224,10 @@ class ConstraintGraph:
     def register_object_gen(self, objectPose_dict_mv, binder_dict, object_dict, ref_tuple=None, link_name="world"):
         object_generators = {k: CallHolder(GeometryHandle.instance().create_safe,
                                            ["center", "rpy"], **v.get_kwargs()) for k, v in
-                             self.aruco_map.items() if v.ttype in [TargetType.MOVABLE, TargetType.ONLINE]}
+                             self.cam.aruco_map.items() if v.ttype in [TargetType.MOVABLE, TargetType.ONLINE]}
         if ref_tuple is None:
-            ref_tuple = self.ref_tuple
-        objectPose_dict_mv.update({ref_tuple[0]: ref_tuple[1]})
-        xyz_rpy_mv_dict, put_point_dict, _ = calc_put_point(objectPose_dict_mv, self.aruco_map, object_dict, ref_tuple)
+            ref_tuple = self.cam.ref_tuple
+        xyz_rpy_mv_dict, put_point_dict, _ = calc_put_point(objectPose_dict_mv, self.cam.aruco_map, object_dict, ref_tuple)
 
         for mname, mgen in object_generators.items():
             if mname in xyz_rpy_mv_dict and mname not in self.ghnd.NAME_DICT:
@@ -298,11 +245,10 @@ class ConstraintGraph:
 
         return put_point_dict
 
-    def set_cam_env_collision(self, xyz_rvec_cams, env_gen_dict):
+    def set_cam_robot_collision(self):
         add_geometry_items(self.urdf_content, color=(0, 1, 0, 0.3), display=True, collision=True,
                            exclude_link=["panda1_link7"])
-        add_cam_poles(self, xyz_rvec_cams)
-        add_objects_gen(self, env_gen_dict)
+        add_cam_poles(self, self.cam.xyz_rpy_cams)
 
     def get_object_by_name(self, name):
         if name in self.ghnd.NAME_DICT:
@@ -487,47 +433,18 @@ class ConstraintGraph:
         return Traj, end_state, error, success
 
     def get_real_robot_pose(self):
-        Q_indy = np.deg2rad(self.indy.connect_and(self.indy.get_joint_pos))
-        if PANDA_ROS:
-            raise(NotImplementedError("get pose for panda ros"))
-        else:
-            Q_panda = self.panda.get_qcur()
-
-        Q_all = np.zeros(self.joint_num)
-        Q_all[self.indy_idx] = Q_indy
-        Q_all[self.panda_idx] = Q_panda
-        return Q_all
+        return self.combined_robot.get_real_robot_pose()
 
     def execute_grip(self, state):
-        indy_grip = False
-        panda_grip = False
+        grasp_dict = {}
+        for name, _type in self.combined_robot.robots_on_scene:
+            grasp_dict[name] = False
         for bd in state.node:
             bind_link_name = self.binder_dict[bd[2]].object.link_name
-            if 'indy' in bind_link_name:
-                indy_grip = True
-            elif 'panda' in bind_link_name:
-                panda_grip = True
-        grasp_seq = [(self.indy_grasp, indy_grip), (self.panda_grasp, panda_grip)]
-        grasp_seq = list(sorted(grasp_seq, key=lambda x: not x[1]))
-        for grasp in grasp_seq:
-            grasp[0](grasp[1])
-
-    def indy_grasp(self, grasp=False):
-        if self.connect_indy:
-            self.indy.grasp(grasp, connect=True)
-
-    def panda_grasp(self, grasp):
-        if self.connect_panda:
-            if PANDA_ROS:
-                if grasp:
-                    self.pc.close_finger()
-                else:
-                    self.pc.open_finger()
-            else:
-                self.panda.move_finger(grasp)
-                
-    def move_indy_async(self, *qval):
-        self.indy.connect_and(self.indy.joint_move_to, qval)
+            for name, _type in self.combined_robot.robots_on_scene:
+                if name in bind_link_name:
+                    grasp_dict[name] = True
+        self.combined_robot.grasp_by_dict(grasp_dict)
 
     def rebind(self, binding, joint_dict_last):
         binder = self.binder_dict[binding[2]]
@@ -877,8 +794,8 @@ class ConstraintGraph:
     def add_aruco_axis(self, hl_key, atem, axis_name=None):
         oname = atem.oname
         axis_name = axis_name or oname
-        if oname in self.robots_on_scene:
-            link_name = RobotType.get_base_link(self.robots_on_scene[oname], oname)
+        if oname in self.combined_robot.get_scene_dict():
+            link_name = RobotType.get_base_link(self.combined_robot.get_scene_dict()[oname], oname)
             Toff = atem.Toff
         else:
             aobj = self.ghnd.NAME_DICT[oname]
@@ -904,8 +821,6 @@ class ConstraintGraph:
         object_pose_cur = state_0.obj_pos_dict
         N_step = T_step*control_freq
         if not on_rviz:
-            self.panda.set_k_gain(70)
-            self.panda.set_d_gain(7)
             self.execute_grip(state_0)
 
         for i_s in range(len(snode_schedule) - 1):
@@ -931,14 +846,13 @@ class ConstraintGraph:
 
             Q0 = np.array(joint_dict2list(pos, self.joint_names))
             if not on_rviz:
-                self.indy.joint_move_make_sure(np.rad2deg(Q0[self.indy_idx]), N_repeat=2, connect=True)
-                print("wait for button input")
-                self.indy.connect_and(self.indy.wait_di, 16)
+                self.combined_robot.joint_make_sure(Q0)
+                # print("wait for button input")
+                # self.indy.connect_and(self.indy.wait_di, 16)
 
             stop_count = 0
 
-            with MultiTracker([self.indy, self.panda],
-                              [self.indy_idx, self.panda_idx],
+            with MultiTracker(self.combined_robot.get_robot_list(), self.combined_robot.get_indexing_list(),
                               Q0, on_rviz=on_rviz) as mt:
                 time.sleep(0.5)
 
@@ -951,10 +865,7 @@ class ConstraintGraph:
                 end_loop = False
                 while True:
                     if on_rviz:
-                        if self.indy is not None:
-                            self.indy.rate_x1.sleep()
-                        else:
-                            self.rate.sleep()
+                        self.combined_robot.wait_step(self.rate)
                         all_sent = True
                     else:
                         all_sent = mt.move_possible_joints_x4(POS_CUR)
@@ -1003,23 +914,18 @@ class ConstraintGraph:
                 print("FAIL ({})".format(error))
                 break
 
-    def set_camera_config(self, aruco_map, dictionary, kn_config, rs_config, T_c12):
-        self.aruco_map = aruco_map
-        self.dictionary = dictionary
-        self.kn_config = kn_config
-        self.rs_config = rs_config
-        self.cameraMatrix, self.distCoeffs = kn_config
-        self.T_c12 = T_c12
+    def set_camera(self, cam):
+        self.cam = cam
 
     def draw_objects_graph(self, color_image, objectPose_dict, corner_dict, axis_len=0.1):
-        return draw_objects(color_image, self.aruco_map, objectPose_dict, corner_dict, self.cameraMatrix,
-                            self.distCoeffs, axis_len=axis_len)
+        return draw_objects(color_image, self.cam.aruco_map, objectPose_dict, corner_dict, self.cam.rs_config[0],
+                            self.cam.rs_config[1], axis_len=axis_len)
 
     def sample_Trel(self, obj_name, obj_link_name, coord_link_name, coord_name, Teo, objectPose_dict_ref):
-        aruco_map_new  = {k: self.aruco_map[k] for k in [obj_name, coord_name] if k not in objectPose_dict_ref}
+        aruco_map_new  = {k: self.cam.aruco_map[k] for k in [obj_name, coord_name] if k not in objectPose_dict_ref}
         objectPose_dict, corner_dict, color_image, rs_image, rs_corner_dict, objectPoints_dict, point3D_dict, err_dict = \
-            get_object_pose_dict_stereo(self.T_c12, self.kn_config, self.rs_config,
-                                        aruco_map_new, self.dictionary)
+            get_object_pose_dict_stereo(self.cam.T_c12, self.cam.kn_config, self.cam.rs_config,
+                                        aruco_map_new, self.cam.dictionary)
         objectPose_dict.update(objectPose_dict_ref)
         T_co = objectPose_dict[obj_name]
         T_cp = objectPose_dict[coord_name]

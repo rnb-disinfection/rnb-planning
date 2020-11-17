@@ -5,6 +5,7 @@ from threading import Thread
 from .robots_custom import *
 import rospy
 from .utils.utils import *
+from .marker_config import *
 
 __rospy_initialized = False
 
@@ -41,26 +42,39 @@ def set_custom_robots(ROBOTS_ON_SCENE, xyz_rpy_robots, JOINT_NAMES_DEFINED, node
         __rospy_initialized = True
     return xcustom, JOINT_NAMES, LINK_NAMES, urdf_content
 
-def detect_environment(aruco_map, dictionary, robot_tuples, camT_dict={"cam0":np.identity(4)}, ref_name='floor'):
-    env_dict = {k: CallHolder(GeometryHandle.instance().create_safe,
-                              ["center", "rpy"], **v.get_kwargs()) for k, v in aruco_map.items() if
-                v.ttype == TargetType.ENVIRONMENT}
+def detect_robots(aruco_map, dictionary, robot_tuples, kn_config, rs_config, T_c12, ref_name='floor'):
     xyz_rpy_robots = {}
-    xyz_rvec_cams = {}
-    env_gen_dict = {}
     while True:
         try:
             objectPose_dict, corner_dict, color_image, rs_image, rs_objectPose_dict, rs_corner_dict = \
-                get_object_pose_dict_stereo(aruco_map, dictionary)
+                get_object_pose_dict_stereo(aruco_map, dictionary, kn_config=kn_config, rs_config=rs_config, T_c12=T_c12)
 
             for rtuple in robot_tuples:
                 rname = rtuple[0]
                 Tbr = get_T_rel(ref_name, rname, objectPose_dict)
                 xyz_rpy_robots[rname] = T2xyzrpy(Tbr)
 
-            T_bc = SE3_inv(objectPose_dict[ref_name])
-            for cname, camT in camT_dict.items():
-                xyz_rvec_cams[cname] = T2xyzrvec(np.matmul(T_bc, camT))
+            break
+        except KeyError as e:
+            print(e)
+            break
+        except Exception as e:
+            print(e)
+            pass
+    T0 = np.identity(4)
+    return xyz_rpy_robots, \
+           objectPose_dict, corner_dict, color_image, \
+           {k:v for k,v in rs_objectPose_dict.items() if np.sum(np.abs(T0-v))>1e-5}, rs_corner_dict, rs_image
+
+def detect_environment(aruco_map, dictionary, kn_config, rs_config, T_c12, ref_name='floor'):
+    env_dict = {k: CallHolder(GeometryHandle.instance().create_safe,
+                              ["center", "rpy"], **v.get_kwargs()) for k, v in aruco_map.items() if
+                v.ttype == TargetType.ENVIRONMENT}
+    env_gen_dict = {}
+    while True:
+        try:
+            objectPose_dict, corner_dict, color_image, rs_image, rs_objectPose_dict, rs_corner_dict = \
+                get_object_pose_dict_stereo(aruco_map, dictionary, kn_config=kn_config, rs_config=rs_config, T_c12=T_c12)
 
             for ename, ginfo in env_dict.items():
                 env_gen_dict[ename] = (ginfo, T2xyzrpy(get_T_rel(ref_name, ename, objectPose_dict)))
@@ -72,7 +86,7 @@ def detect_environment(aruco_map, dictionary, robot_tuples, camT_dict={"cam0":np
             print(e)
             pass
     T0 = np.identity(4)
-    return xyz_rpy_robots, xyz_rvec_cams, env_gen_dict, \
+    return env_gen_dict, \
            objectPose_dict, corner_dict, color_image, \
            {k:v for k,v in rs_objectPose_dict.items() if np.sum(np.abs(T0-v))>1e-5}, rs_corner_dict, rs_image
 
@@ -82,13 +96,13 @@ def add_objects_gen(graph, obj_gen_dict, color=(0.6,0.6,0.6,1), collision=True, 
         gtems.append(ogen[0](*ogen[1], name=oname, link_name=link_name, color=color, collision=collision, fixed=True))
     return gtems
 
-def add_cam_poles(graph, xyz_rvec_cams, color=(0.6,0.6,0.6,0.3), link_name="world"):
+def add_cam_poles(graph, xyz_rpy_cams, color=(0.6,0.6,0.6,0.3), link_name="world"):
     gtems = []
     ghnd = GeometryHandle.instance()
-    for cname, xyzrvec in xyz_rvec_cams.items():
+    for cname, xyzrpy in xyz_rpy_cams.items():
         gtems.append(ghnd.create_safe(name="pole_{}".format(cname), link_name=link_name, gtype=GEOTYPE.SEGMENT,
-                                  center= np.subtract(xyzrvec[0], [0,0,xyzrvec[0][2]/2-0.05]),
-                                  dims=(0.15, 0.15, xyzrvec[0][2]+0.1), rpy=(0,0,0),
+                                  center= np.subtract(xyzrpy[0], [0,0,xyzrpy[0][2]/2-0.05]),
+                                  dims=(0.15, 0.15, xyzrpy[0][2]+0.1), rpy=(0,0,0),
                                   color=color, collision=True, fixed=True)
                      )
     return gtems
@@ -107,7 +121,7 @@ def calc_put_point(objectPose_dict_mv, aruco_map, object_dict, ref_tuple):
     object_generators = {k: CallHolder(GeometryHandle.instance().create_safe,
                                        ["center", "rpy"], **v.get_kwargs()) for k, v in
                          aruco_map.items() if v.ttype in [TargetType.MOVABLE, TargetType.ONLINE] and k in objectPose_dict_mv}
-    T_mv_dict = {mname: get_T_rel(ref_tuple[0], mname, objectPose_dict_mv) for mname in object_generators if
+    T_mv_dict = {mname: np.matmul(SE3_inv(ref_tuple[1]), objectPose_dict_mv[mname]) for mname in object_generators if
                  mname in objectPose_dict_mv}
     xyz_rpy_mv_dict = {mname: T2xyzrpy(Tv) for mname, Tv in T_mv_dict.items()}
 
@@ -122,6 +136,84 @@ def calc_put_point(objectPose_dict_mv, aruco_map, object_dict, ref_tuple):
             up_point_dict[mtem] = get_put_dir(Robj=np.matmul(Rx180, Robj),
                                                dir_vec_dict=DIR_VEC_DICT) + "_p"
     return xyz_rpy_mv_dict, put_point_dict, up_point_dict
+
+
+STEREO_CONFIG_DEFAULT = ((np.array([[1.82983423e+03, 0.00000000e+00, 1.91572046e+03],
+                                    [0.00000000e+00, 1.82983423e+03, 1.09876086e+03],
+                                    [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]]),
+                          np.array([7.09966481e-01, -2.73409390e+00, 1.45804870e-03, -3.24774766e-04,
+                                    1.44911301e+00, 5.84310412e-01, -2.56374550e+00, 1.38472950e+00])),
+                         (np.array([[1.39560388e+03, 0.00000000e+00, 9.62751587e+02],
+                                    [0.00000000e+00, 1.39531934e+03, 5.47687012e+02],
+                                    [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]]),
+                          np.array([0., 0., 0., 0., 0.])),
+                         np.array([[0.8316497, -0.03031947, -0.55447227, 0.6465144],
+                                   [0.17082036, 0.964059, 0.20349611, -0.13999878],
+                                   [0.5283741, -0.26395264, 0.8069386, 0.06811327],
+                                   [0., 0., 0., 1.]],
+                                  dtype=np.float32)
+                         )
+
+CAM_XYZ_RPY_DEFAULT = {'cam0': ([0.04992591589689255, -0.5109567046165466, 0.5428988933563232],
+                                [-2.2611520414184096, 0.03879040388027996, -0.02012913871801042]),
+                       'cam1': ([0.7000014781951904, -0.39214593172073364, 0.6081380844116211],
+                                [-2.4248302293421484, -0.1538402791253786, 0.7300117151331913])}
+REF_POSE_DEFAULT = np.array([[0.9993871, -0.0349786, 0.00139052, -0.06847536],
+                             [-0.02122436, -0.6370408, -0.77053785, 0.09429896],
+                             [0.02783815, 0.77003604, -0.63739276, 0.7379357],
+                             [0., 0., 0., 1.]],
+                            dtype=np.float32)
+
+
+class StereoCamera(Singleton):
+    CAM0_NAME = "cam0"
+    CAM1_NAME = "cam1"
+    REF_NAME = 'floor'
+
+    def __init__(self):
+        init_stereo()
+        self.aruco_map, self.dictionary = get_aruco_config()
+        self.kn_config, self.rs_config, self.T_c12 = STEREO_CONFIG_DEFAULT
+        self.xyz_rpy_cams = CAM_XYZ_RPY_DEFAULT
+        self.ref_tuple = (self.REF_NAME, REF_POSE_DEFAULT)
+
+    def set_aruco_map(self, aruco_map):
+        self.aruco_map = aruco_map
+
+    def calibrate(self):
+        self.kn_config, self.rs_config, self.T_c12 = calibrate_stereo(self.aruco_map, self.dictionary)
+        self.env_gen_dict, objectPose_dict, corner_dict, color_image, rs_objectPose_dict, rs_corner_dict, rs_image = \
+            detect_environment({k: v for k, v in self.aruco_map.items() if k == self.REF_NAME}, self.dictionary,
+                               kn_config=self.kn_config, rs_config=self.rs_config, T_c12=self.T_c12,
+                               ref_name=self.REF_NAME)
+        self.ref_tuple = (self.REF_NAME, objectPose_dict[self.REF_NAME])
+        self.update_cam_coords()
+
+    def update_cam_coords(self):
+        T_bc = SE3_inv(self.ref_tuple[1])
+        self.xyz_rpy_cams = {}
+        for cname, camT in self.get_camT_dict().items():
+            self.xyz_rpy_cams[cname] = T2xyzrpy(np.matmul(T_bc, camT))
+
+    def get_camT_dict(self):
+        return {self.CAM0_NAME: np.identity(4), self.CAM1_NAME: self.T_c12}
+
+    def detect_robots(self, robots_on_scene):
+        self.xyz_rpy_robots, objectPose_dict, corner_dict, color_image, rs_objectPose_dict, rs_corner_dict, rs_image = \
+            detect_robots(self.aruco_map, self.dictionary, robots_on_scene,
+                          kn_config=self.kn_config, rs_config=self.rs_config, T_c12=self.T_c12, ref_name=self.REF_NAME)
+        self.robots_on_scene = robots_on_scene
+        return self.xyz_rpy_robots
+
+    def detect_environment(self):
+        self.env_gen_dict, objectPose_dict, corner_dict, color_image, rs_objectPose_dict, rs_corner_dict, rs_image = \
+            detect_environment(self.aruco_map, self.dictionary,
+                               kn_config=self.kn_config, rs_config=self.rs_config, T_c12=self.T_c12,
+                               ref_name=self.REF_NAME)
+        return self.env_gen_dict, objectPose_dict, corner_dict, color_image, rs_objectPose_dict, rs_corner_dict, rs_image
+
+    def __del__(self):
+        disconnect_stereo()
 
 
 class DynamicDetector:
@@ -188,12 +280,13 @@ class RvizPublisher:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.stop_rviz()
 
-def update_geometries(onames, objectPose_dict_mv):
+def update_geometries(onames, objectPose_dict_mv, refFrame):
+    refFrameinv = SE3_inv(refFrame)
     for gname in onames:
         gtem = [gtem for gtem in GeometryHandle.instance() if gtem.name == gname]
         if len(gtem)>0 and gname in objectPose_dict_mv:
             gtem = gtem[0]
-            Tg = get_T_rel("floor", gname, objectPose_dict_mv)
+            Tg = np.matmul(refFrameinv, objectPose_dict_mv[gname])
             gtem.set_offset_tf(Tg[:3,3], Tg[:3,:3])
 
 from .utils.joint_utils import *

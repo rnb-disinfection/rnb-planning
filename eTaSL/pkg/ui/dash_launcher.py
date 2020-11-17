@@ -19,7 +19,7 @@ class TAB_BUTTON(Enum):
     LOAD = 2
 
 IDENTIFY_COL = 'Name'
-COLUMNS_SMALL_FONT = [IDENTIFY_COL, 'Dims', 'Center', 'Rpy', 'Point', 'Direction', 'Color']
+COLUMNS_SMALL_FONT = [IDENTIFY_COL, 'Dims', 'Center', 'Rpy', 'Point', 'Position', 'Direction', 'Color', 'CameraMatrix', 'Distortion']
 __ID_DICT = defaultdict(lambda: uuid1().int)
 
 def table_updater_default(*args, **kwargs):
@@ -34,12 +34,14 @@ class TabInfo:
 class TableInfo:
     def __init__(self, table_name, table_height, table_loader=lambda:([IDENTIFY_COL],[]),
                  table_selector=table_updater_default, table_updater=table_updater_default,
-                 table_button = table_updater_default, custom_buttons=[], interface=None):
+                 table_button = table_updater_default, custom_buttons=[], row_selectable='multi', selected_rows=[], interface=None):
         self.table_name, self.table_height, \
         self.table_loader, self.table_selector, self.table_updater, self.table_button = \
             table_name, table_height, table_loader, table_selector,table_updater, table_button
         self.custom_buttons = custom_buttons
         self.interface = interface
+        self.row_selectable = row_selectable
+        self.selected_rows = selected_rows
 
 def get_tab_id(tab_name):
     return 'tab-'+tab_name.lower()
@@ -79,7 +81,7 @@ external_stylesheets = []
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 app.title = "TAMP_RNB"
 
-def generate_table(columns, items, table_id, height="100%"):
+def generate_table(columns, items, table_id, row_selectable='multi', selected_rows=[], height="100%"):
     data = [{k:v for k,v in zip(columns, item)} for item in items]
     print("generate table - {}".format(table_id))
     for dtem in data:
@@ -98,9 +100,9 @@ def generate_table(columns, items, table_id, height="100%"):
             filter_action="native",
             sort_action="native",
             sort_mode='multi',
-            row_selectable='multi',
+            row_selectable=row_selectable,
             row_deletable=True,
-            selected_rows=[],
+            selected_rows=selected_rows,
             style_table={
                 'height': height,
                 'overflowY': 'scroll',
@@ -352,9 +354,11 @@ def __render_content_func(tab):
                         dcc.Upload(className="button-bb", children='Load', id=tableinfo.table_name + '-load-button',
                                    style={'margin-top': '-35px', 'align': 'top'} ),
                     ]),
-                    html.Div(className="row-top", children=generate_table(*tableinfo.table_loader(),
+                    html.Div(className="row-content", children=generate_table(*tableinfo.table_loader(),
                                                                           table_id=tableinfo.table_name,
-                                                                          height=tableinfo.table_height)),
+                                                                          height=tableinfo.table_height,
+                                                                          row_selectable=tableinfo.row_selectable,
+                                                                          selected_rows=tableinfo.selected_rows)),
                 ]
             return html.Div(className="custom-tab-content", children=table_list)
 
