@@ -3,7 +3,7 @@ from ...environment_builder import *
 
 class CameraTable(TableInterface):
     HEADS = [IDENTIFY_COL, 'SType', 'Position', 'Direction', 'CameraMatrix', 'Distortion']
-    HILIGHT_KEY = 'marker_group'
+    HILIGHT_KEY = 'camera'
     CUSTOM_BUTTONS = ["Calibrate"]
 
     def get_items(self):

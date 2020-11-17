@@ -99,6 +99,33 @@ class ConstraintGraph:
                                        self.urdf_content.joint_map[jname].limit.upper) for jname in self.joint_names])
         self.marker_list = []
         self.combined_robot = combined_robot
+        self.task_plan_candi = {"single_thread": self.task_plan_single, "multi_thread": self.task_plan_multi}
+        self.task_plan_fun = self.task_plan_candi["multi_thread"]
+        self.planner = None
+
+
+    def task_plan_single(self, initial_state, goal_nodes):
+        dt_sim = 0.04
+        T_step = 10
+        N_fullstep = int(T_step / dt_sim)
+        self.search_graph(
+            initial_state=initial_state, goal_nodes=goal_nodes,
+            tree_margin=2, depth_margin=2, joint_motion_num=10,
+            terminate_on_first=True, N_search=100, N_loop=1000,
+            display=False, dt_vis=dt_sim / 4, verbose=True, print_expression=False, error_skip=0, traj_count=3,
+            **dict(N=N_fullstep, dt=dt_sim, vel_conv=0.5e-2, err_conv=1e-3))
+
+
+    def task_plan_multi(self, initial_state, goal_nodes):
+        dt_sim = 0.04
+        T_step = 10
+        N_fullstep = int(T_step / dt_sim)
+        self.search_graph_mp(
+            initial_state=initial_state, goal_nodes=goal_nodes,
+            tree_margin=2, depth_margin=2, joint_motion_num=10,
+            terminate_on_first=True, N_search=100, N_loop=1000,
+            display=False, dt_vis=dt_sim / 4, verbose=True, print_expression=False, error_skip=0, traj_count=3,
+            **dict(N=N_fullstep, dt=dt_sim, vel_conv=0.5e-2, err_conv=1e-3))
 
     def __del__(self):
         try:

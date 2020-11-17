@@ -20,7 +20,7 @@ class TAB_BUTTON(Enum):
 
 IDENTIFY_COL = 'Name'
 COLUMNS_SMALL_FONT = [IDENTIFY_COL, 'Dims', 'Center', 'Rpy', 'Point', 'Position', 'Direction', 'Color', 'CameraMatrix', 'Distortion']
-__ID_DICT = defaultdict(lambda: uuid1().int)
+__ID_DICT = defaultdict(lambda: str(uuid1().int))
 
 def table_updater_default(*args, **kwargs):
     print("table_updater_default-input: {}, {}".format(args, kwargs))
@@ -278,7 +278,7 @@ def register_callback(table_id):
          State(table_id+'-table-row-ids', 'columns')])
     def add_row(n_clicks, rows, columns):
         if n_clicks > 0:
-            rows.append({c['id']: '' if c['id']!='id' else uuid1().int for c in columns+[{'id':'id'}]})
+            rows.append({c['id']: '' if c['id']!='id' else str(uuid1().int) for c in columns+[{'id':'id'}]})
         return rows
 
     @app.callback(

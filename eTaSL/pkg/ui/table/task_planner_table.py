@@ -1,16 +1,14 @@
 from .table_interface import *
 from ...environment_builder import *
+from ...constraint_graph import *
 
 class TaskPlanTable(TableInterface):
-    HEADS = [IDENTIFY_COL, 'RType', 'Position', 'Direction']
-    HILIGHT_KEY = 'marker_group'
-    CUSTOM_BUTTONS = ["Apply", "Detect"]
+    HEADS = [IDENTIFY_COL]
+    HILIGHT_KEY = 'task'
+    CUSTOM_BUTTONS = ['Replay', 'Plan', 'Initialize', 'BuildGraph']
 
     def get_items(self):
-        cbot = self.graph.combined_robot
-        return [(rbt[0], rbt[1].name,
-                 round_it_str(cbot.xyz_rpy_robots[rbt[0]][0], 4),
-                 round_it_str(cbot.xyz_rpy_robots[rbt[0]][1], 4)) for rbt in cbot.robots_on_scene]
+        return [[k] for k in sorted(self.graph.task_plan_candi.keys())]
 
     def get_items_dict(self):
         return {item[0]: item for item in self.get_items()}
@@ -19,49 +17,72 @@ class TaskPlanTable(TableInterface):
         return gtem
 
     def highlight_item(self, gtem, color=None):
-        pass
+        if color == (0.3, 0.3, 1, 0.5):
+            self.graph.task_plan_fun = self.graph.task_plan_candi[gtem[0]]
 
     def add_item(self, value):
-        raise(RuntimeError("Cannot add or delete robot"))
+        raise(RuntimeError("Cannot add or delete planner"))
 
     def delete_item(self, active_row):
-        raise(RuntimeError("Cannot add or delete robot"))
+        raise(RuntimeError("Cannot add or delete planner"))
 
     def update_item(self, atem, active_col, value):
-        cbot = self.graph.combined_robot
         res, msg = True, ""
         if active_col == IDENTIFY_COL:
-            res, msg = False, "cannot change robot name"
-        elif active_col == 'RType':
-            res, msg = False, "cannot change robot type"
-        elif active_col == 'Position':
-            name = atem[0]
-            xyz_rpy_prev = cbot.xyz_rpy_robots[name]
-            cbot.xyz_rpy_robots[name] = (str_num_it(value), xyz_rpy_prev[1])
-        elif active_col == 'Direction':
-            name = atem[0]
-            xyz_rpy_prev = cbot.xyz_rpy_robots[name]
-            cbot.xyz_rpy_robots[name] = (xyz_rpy_prev[0], str_num_it(value))
+            res, msg = False, "cannot change planner name"
         return res, msg
 
     def button(self, button, *args, **kwargs):
         if button == TAB_BUTTON.CUSTOM:
             if args[0]:
                 graph = self.graph
-                cbot = self.graph.combined_robot
-                xcustom, JOINT_NAMES, LINK_NAMES, urdf_content = set_custom_robots(cbot.robots_on_scene, cbot.xyz_rpy_robots, cbot.joint_names)
-                graph.clear_markers()
-                graph.clear_highlight()
-                graph.ghnd.clear()
-                time.sleep(1)
-                graph.__init__(urdf_path=URDF_PATH, joint_names=JOINT_NAMES, link_names=LINK_NAMES,
-                               urdf_content=urdf_content, combined_robot=cbot)
-                add_geometry_items(graph.urdf_content, color=(0, 1, 0, 0.3), display=True, collision=True,
-                                   exclude_link=["panda1_link7"])
-                graph.set_cam_robot_collision()
-                graph.set_rviz()
+                schedule_dict = graph.find_schedules()
+                schedule_sorted = graph.sort_schedule(schedule_dict)
+                N_fullstep = 500
+                dt_sim = 0.04
+                # dt_sim = 0.04
+                for schedule in schedule_sorted:
+                    print(schedule)
+                for schedule, i_s in zip(schedule_sorted[:], range(len(schedule_sorted))):
+                    traj, end_state, error, success = graph.test_transition(
+                        graph.snode_dict[0].state, graph.snode_dict[0].state,
+                        N=10, dt=dt_sim, vel_conv=1e-2, err_conv=5e-4, print_expression=False)
+                    timer.sleep(0.1)
+                    #     try:
+                    e = graph.replay(schedule, N=N_fullstep, dt=dt_sim,
+                                     vel_conv=1e-3, err_conv=1e-3, error_skip=0)
+                #     except Exception as e:
+                #         print(e)
             elif args[1]:
-                self.graph.combined_robot.detect_robots(self.graph.cam)
+                if hasattr(self, 'initial_state') and hasattr(self, 'goal_nodes'):
+                    graph = self.graph
+                    graph.task_plan_fun(self.initial_state, self.goal_nodes)
+                else:
+                    res, msg = False, "not initialized"
+            elif args[2]:
+                graph = self.graph
+                OBJECT_DICT = {k: dict(_type=v.__class__) for k, v in graph.object_dict.items()}
+                objectPose_dict_mv, corner_dict_mv, color_image, aruco_map_mv = \
+                    detect_objects(graph.cam.aruco_map, graph.cam.dictionary)
+                xyz_rvec_mv_dict, put_point_dict, up_point_dict = calc_put_point(
+                    objectPose_dict_mv, graph.cam.aruco_map, OBJECT_DICT, graph.cam.ref_tuple)
+                update_geometries(objectPose_dict_mv.keys(), objectPose_dict_mv, graph.cam.ref_tuple[1])
+                initial_state = State(tuple([(oname, put_point_dict[oname], 'floor') for oname in graph.object_list]),
+                                      {oname: graph.object_dict[oname].object.get_offset_tf() for oname in
+                                       graph.object_list},
+                                      graph.get_real_robot_pose())
+                binding_dict = match_point_binder(graph, initial_state, objectPose_dict_mv)
+                self.initial_state = State(
+                    tuple([(oname, put_point_dict[oname], binding_dict[oname]) for oname in graph.object_list]),
+                    {oname: graph.object_dict[oname].object.get_offset_tf() for oname in graph.object_list},
+                    graph.get_real_robot_pose())
+                goal_nodes_1 = get_goal_nodes(initial_state.node, "box1", "goal_bd")
+                self.goal_nodes = []
+                for gnode in goal_nodes_1:
+                    self.goal_nodes += get_goal_nodes(gnode, "box2", "floor")
+            elif args[3]:
+                graph = self.graph
+                graph.build_graph()
             else:
                 print("Unknown button")
         else:

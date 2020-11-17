@@ -3,7 +3,7 @@ from ...environment_builder import *
 
 class RobotTable(TableInterface):
     HEADS = [IDENTIFY_COL, 'RType', 'Position', 'Direction']
-    HILIGHT_KEY = 'marker_group'
+    HILIGHT_KEY = 'robot'
     CUSTOM_BUTTONS = ["Apply", "Detect"]
 
     def get_items(self):

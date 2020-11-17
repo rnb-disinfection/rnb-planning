@@ -18,6 +18,8 @@ def augment_jvals_dot(jvals, jdots=None):
     return np.concatenate([[jval, jdot] for jval, jdot in zip(jvals, jdots)], axis=0)
 
 class etasl_planner(PlannerInterface):
+    NAME = 'eTaSL'
+
     def __init__(self, joint_names, link_names, urdf_path,
                           nWSR=300, cputime=200, regularization_factor= 1e-6, timescale=0.25):
         self.joint_names, self.link_names, self.urdf_path= joint_names, link_names, urdf_path

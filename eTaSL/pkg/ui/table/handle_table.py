@@ -59,7 +59,7 @@ class HandleTable(TableInterface):
     def button(self, button, *args, **kwargs):
         if button == TAB_BUTTON.CUSTOM:
             self.graph.update_handles()
-            if hasattr(self.graph, "planner"):
+            if self.graph.planner:
                 self.graph.planner.set_object_dict(self.graph.object_dict)
         else:
             TableInterface.button(self, button, *args, **kwargs)

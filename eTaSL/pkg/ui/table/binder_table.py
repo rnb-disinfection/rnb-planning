@@ -63,7 +63,7 @@ class BinderTable(TableInterface):
 
     def button(self, button, *args, **kwargs):
         if button == TAB_BUTTON.CUSTOM:
-            if hasattr(self.graph, "planner"):
+            if self.graph.planner:
                 self.graph.planner.set_binder_dict(self.graph.binder_dict)
         else:
             TableInterface.button(self, button, *args, **kwargs)

@@ -3,6 +3,8 @@ from abc import *
 __metaclass__ = type
 
 class PlannerInterface:
+    NAME = None
+
     def set_object_dict(self, object_dict):
         self.object_dict = object_dict
 

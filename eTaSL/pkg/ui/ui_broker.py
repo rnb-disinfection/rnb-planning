@@ -24,10 +24,10 @@ class UIBroker:
                                 TableInfo("Binder", '250px', interface=BinderTable(graph))]),
             TabInfo("Mark", [TableInfo("Marker", '550px', interface=MarkerTable(graph)),
                              TableInfo("MarkerGroup", '250px', interface=MarkerGroupTable(graph))]),
-            TabInfo("Setting", [TableInfo("Camera", '200px', interface=CameraTable(graph)),
-                             TableInfo("Robot", '200px', interface=RobotTable(graph)),
-                             TableInfo("MotionPlan", '200px', row_selectable='single', interface=MotionPlanTable(graph)),
-                             TableInfo("TaskPlan", '200px', row_selectable='single', interface=TaskPlanTable(graph))])
+            TabInfo("Setting", [TableInfo("Camera", '150px', interface=CameraTable(graph)),
+                             TableInfo("Robot", '150px', interface=RobotTable(graph)),
+                             TableInfo("MotionPlan", '150px', row_selectable='single', interface=MotionPlanTable(graph)),
+                             TableInfo("TaskPlan", '150px', row_selectable='single', interface=TaskPlanTable(graph))])
         ]
         self.table_dict = {}
         for tab in self.tab_list:
