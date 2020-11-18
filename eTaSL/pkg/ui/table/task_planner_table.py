@@ -1,7 +1,7 @@
 from .table_interface import *
-from ...environment_builder import *
 from ...constraint_graph import *
-from ...sampler.a_star.a_star import *
+from ...sampler.handle_a_star import *
+
 
 class TaskPlanTable(TableInterface):
     HEADS = [IDENTIFY_COL]
@@ -31,10 +31,10 @@ class TaskPlanTable(TableInterface):
                                       verbose=True, print_expression=False, error_skip=0, traj_count=3,
                                       ** dict(N=N_fullstep, dt=dt_sim, vel_conv=0.5e-2, err_conv=1e-3))
                 if gtem[0] == "Astar_single":
-                    sampler = AStarSampler(self.graph)
+                    sampler = HandleAstarSampler(self.graph)
                     self.pl_kwargs["multiprocess"] = False
                 elif gtem[0] == "Astar_multi":
-                    sampler = AStarSampler(self.graph)
+                    sampler = HandleAstarSampler(self.graph)
                     self.pl_kwargs["multiprocess"] = True
                 self.graph.set_sampler(sampler)
 
