@@ -9,11 +9,12 @@ except:
 
 from multiprocessing import Process, Lock, cpu_count
 from multiprocessing.managers import SyncManager
+import random
 class PriorityQueueManager(SyncManager):
     pass
 PriorityQueueManager.register("PriorityQueue", PriorityQueue)
 
-class HandleAstarSampler(SamplerInterface):
+class ObjectAstarSampler(SamplerInterface):
     DEFAULT_TRANSIT_COST = 1.0
     DQ_MAX = np.deg2rad(45)
     WEIGHT_DEFAULT = 2.0
@@ -27,78 +28,55 @@ class HandleAstarSampler(SamplerInterface):
         self.manager.start()
 
     def build_graph(self, update_handles=True):
+        graph = self.graph
         if update_handles:
-            self.graph.update_handles()
-        bindings = get_all_mapping(self.graph.handle_dict.keys(),
-                                   self.graph.binder_dict.keys())  # all possible binding combinations
-        handle_combinations = list(
-            product(*[self.graph.handle_dict[obj] for obj in self.graph.object_list]))  # all possible handle combinations
-        uniq_binders = self.graph.get_unique_binders()  # binders cannot be shared by multiple objects
-        ctrl_binders = self.graph.get_controlled_binders()  # all controllable binders
-        self.node_list = []
-        self.node_dict = {}
-        for binding in bindings:  # binding combination loop
-            if all([np.sum([bd == ub for bd in binding.values()]) <= 1 for ub in uniq_binders]):
-                for hc in handle_combinations:  # handle combination loop
-                    node = []
-                    add_ok = True
-                    for i_o, obj in zip(range(len(self.graph.object_list)), self.graph.object_list):  # object loop
-                        hndl = self.graph.object_dict[obj].action_points_dict[hc[i_o]]  # handle object
-                        binder = self.graph.binder_dict[binding[obj]]  # binder object
-                        if binder.check_type(hndl):  # match handle-binder type
-                            node += [(obj, hc[i_o], binding[obj])]
-                        else:
-                            add_ok = False  # exclude if mismatch
-                    if add_ok:
-                        node = tuple(node)
-                        self.node_list += [node]  # save all matched node
-                        self.node_dict[node] = []
-        fixed_idx_dict = {}
-        ctrl_idx_dict = {}
-        fixed_bdg_dict = {}
-        ctrl_bdg_dict = {}
-        fix_node_dict = defaultdict(list)
+            graph.update_handles()
+
+        oname_list = graph.object_list
+        boname_list = graph.object_binder_dict.keys()
+        obj_binding_dict = get_available_binder_dict(graph, oname_list,
+                                                     boname_list)  # matching possible binder dictionary
+        binder_combinations = list(
+            product(*[obj_binding_dict[oname] for oname in oname_list]))  # all possible binding combination list
+        uniq_binders = graph.get_unique_binders()  # binders cannot be shared by multiple objects
+        uniq_bo_list = [boname for boname in boname_list if
+                        (len(graph.object_binder_dict[boname]) == 1 and all(
+                            [bname in uniq_binders for bname in graph.object_binder_dict[boname]]))]
+        ctrl_binders = graph.get_controlled_binders()  # all controllable binders
+        ctrl_bo_list = [boname for boname in boname_list if
+                        all([bname in ctrl_binders for bname in graph.object_binder_dict[boname]])]
+
+        # filter out conflicting use of uniq binding object
+        usage_conflicts = []
+        self_binding = []
+        for bc in binder_combinations:
+            for ubo in uniq_bo_list:
+                if sum([ubo == bo for bo in bc]) > 1:
+                    usage_conflicts.append(bc)
+                    break
+            if any([oname == boname for oname, boname in zip(graph.object_list, bc)]):
+                self_binding.append(bc)
+
+        all_conflicts = list(set(self_binding + usage_conflicts))
+        for conflict in all_conflicts:
+            binder_combinations.remove(conflict)
+
+        # make all node connections
+        self.node_list = binder_combinations
+        self.node_dict = {k: list() for k in self.node_list}
         for node in self.node_list:
-            fixed_idx = [i_n for i_n in range(len(node)) if node[i_n][2] not in ctrl_binders]  # fixed binding index
-            ctrl_idx = [i_n for i_n in range(len(node)) if node[i_n][2] in ctrl_binders]  # control binding index
-            fixed_bdg = tuple([node[idx] for idx in fixed_idx])  # fixed binding
-            ctrl_bdg = tuple([node[idx] for idx in ctrl_idx])  # control binding
-            for i in range(len(fixed_bdg) + 1):
-                for fixed_bdg_subset in combinations(fixed_bdg, i):
-                    fix_node_dict[fixed_bdg_subset].append(node)  # node list sharing same fixed binding combination
-            fixed_idx_dict[node] = fixed_idx
-            ctrl_idx_dict[node] = ctrl_idx
-            fixed_bdg_dict[node] = fixed_bdg
-            ctrl_bdg_dict[node] = ctrl_bdg
-
+            fixed_idx = [i_n for i_n in range(len(node)) if node[i_n] not in ctrl_bo_list]  # fixed binding index
+            ctrl_idx = [i_n for i_n in range(len(node)) if node[i_n] in ctrl_bo_list]  # control binding index
+            for leaf in self.node_list:
+                if (all([node[fi] == leaf[fi] for fi in fixed_idx])  # fixed object is not changed
+                        and all([node[ci] == leaf[ci] or (node[ci] not in leaf) for ci in
+                                 ctrl_idx])  # controlled binder is empty or not changed
+                        and any([node[ci] != leaf[ci] for ci in ctrl_idx])
+                ):
+                    self.node_dict[node].append(leaf)
+                    self.node_dict[leaf].append(node)
         for node in self.node_list:
-            ctrl_idx = ctrl_idx_dict[node]
-            if ctrl_idx:
-                fixed_idx = fixed_idx_dict[node]
-                bdg_fixed = fixed_bdg_dict[node]
-                bdg_ctrl = ctrl_bdg_dict[node]
-                bdr_ctrl = [bdg[2] for bdg in bdg_ctrl]
-                ptr_ctrl = [bdg[1] for bdg in bdg_ctrl]
-                conflict_ptr_ctrl = [self.graph.object_dict[bdg[0]].get_conflicting_handles(bdg[1]) for bdg in bdg_ctrl]
-
-                nodes_same_fix = fix_node_dict[bdg_fixed]
-                nodes_diff_ctrl = [nd for nd in nodes_same_fix if
-                                   [nd[idx][2] for idx in ctrl_idx] != bdr_ctrl]  # if any control binder is changed
-                nodes_diff_pt = [nd for nd in nodes_diff_ctrl if
-                                 all([hnew not in cprev for hnew, cprev in zip([nd[idx][1] for idx in ctrl_idx],
-                                                                               conflict_ptr_ctrl)])]  # if control handle is not conflicting
-                nodes_neighbor = [nd for nd in nodes_diff_pt if all(
-                    [bdr_new not in bdr_ctrl for bdr_new in
-                     [bd[2] for bd, bd0 in zip(nd, node) if
-                      bd != bd0]])]  # if no changed binder is not in the previous control binder
-                self.node_dict[node] += nodes_neighbor
-                for nd_n in nodes_neighbor:
-                    self.node_dict[nd_n] += [node]
-
-        for node in self.node_dict.keys():
-            if node in self.node_dict[node]:
-                self.node_dict[node].remove(node)
-            self.node_dict[node] = [node] + list(set(self.node_dict[node]))
+            self.node_dict[node] = list(set(self.node_dict[node]))
 
     def score_graph(self, goal_node):
         came_from = {}
@@ -138,7 +116,7 @@ class HandleAstarSampler(SamplerInterface):
 
     def reset_valid_node(self, margin=0, node=None):
         if node == None:
-            node = self.initial_state.node
+            node = self.initial_state.onode
             self.valid_node_dict = {goal:[] for goal in self.goal_nodes}
         if node in self.valid_node_dict or self.check_goal_by_score(node, self.goal_cost_dict):
             return
@@ -156,9 +134,9 @@ class HandleAstarSampler(SamplerInterface):
     def init_search(self, initial_state, goal_nodes, tree_margin, depth_margin):
         self.initial_state = initial_state
         self.goal_nodes = goal_nodes
-        self.init_cost_dict, self.goal_cost_dict = self.score_graph(initial_state.node), self.score_graph(goal_nodes)
+        self.init_cost_dict, self.goal_cost_dict = self.score_graph(initial_state.onode), self.score_graph(goal_nodes)
         self.reset_valid_node(tree_margin)
-        self.depth_min = self.goal_cost_dict[initial_state.node]
+        self.depth_min = self.goal_cost_dict[initial_state.onode]
         self.max_depth = self.depth_min+depth_margin
 
         for k in self.valid_node_dict.keys():
@@ -171,37 +149,41 @@ class HandleAstarSampler(SamplerInterface):
         self.snode_counter.value = self.snode_counter.value+1
         self.dict_lock.release()
         state = snode.state
-        leafs = self.valid_node_dict[state.node]
+        leafs = self.valid_node_dict[state.onode]
         if len(leafs) == 0:
             return snode
-        leafs = leafs[:-1] + [leafs[-1]] * self.joint_motion_num
         for leaf in leafs:
             depth = len(snode.parents) + 1
             expected_depth = depth + self.goal_cost_dict[leaf]
             if expected_depth > self.max_depth:
                 continue
-            to_state = state.copy(self.graph)
-
-            if leaf == state.node:
-                dQ = (1 - 2 * np.random.rand(self.DOF)) * self.DQ_MAX
-                to_state.Q = np.sum([state.Q, dQ], axis=0)
-                to_state.Q = np.minimum(np.maximum(to_state.Q, self.graph.joint_limits[:,0]), self.graph.joint_limits[:,1])
-            else:
-                to_state.set_node(leaf, self.graph)
-            # self.snode_queue.put((snode, state, to_state), expected_depth * self.DSCALE - depth) ## breadth-first
-            self.snode_queue.put(((expected_depth - depth) * self.DSCALE + depth, (snode, state, to_state))) ## greedy
+            available_binding_dict = {oname:
+                                          get_available_bindings(self.graph, oname, boname, sbinding[1], sbinding[2])\
+                                              if sboname!=boname else [sbinding[1:]]
+                                      for oname, boname, sboname, sbinding
+                                      in zip(self.graph.object_list, leaf, state.onode, state.node)}
+            for _ in range(self.handle_num):
+                to_state = state.copy(self.graph)
+                to_node = tuple([(((oname,)+\
+                                   random.choice(available_binding_dict[oname]))
+                                  if sboname!=boname else sbinding)
+                                 for oname, boname, sboname, sbinding
+                                 in zip(self.graph.object_list, leaf, state.onode, state.node)])
+                to_state.set_node(to_node, self.graph)
+                # self.snode_queue.put((snode, state, to_state), expected_depth * self.DSCALE - depth) ## breadth-first
+                self.snode_queue.put(((expected_depth - depth) * self.DSCALE + depth, (snode, state, to_state))) ## greedy
         return snode
 
     @record_time
     def search_graph(self, initial_state, goal_nodes,
-                     tree_margin=0, depth_margin=0, joint_motion_num=10,
+                     tree_margin=0, depth_margin=0, handle_num=10, redundancy_div=10,
                      terminate_on_first=True, N_search=100, N_loop=1000, N_agents=None, multiprocess=False,
                      display=False, dt_vis=None, verbose=False, print_expression=False, **kwargs):
-
-        self.joint_motion_num = joint_motion_num
+        self.handle_num = handle_num
+        self.redundancy_div = redundancy_div
         self.t0 = time.time()
         self.DOF = len(initial_state.Q)
-        self.init_search(initial_state, goal_nodes, tree_margin, depth_margin)
+        self.init_search(initial_state, list(set([node2onode(self.graph, gnode) for gnode in goal_nodes])), tree_margin, depth_margin)
 
         if multiprocess:
             if display:
@@ -217,7 +199,7 @@ class HandleAstarSampler(SamplerInterface):
             self.snode_queue = self.manager.PriorityQueue()
             self.add_node_queue_leafs(SearchNode(idx=0, state=initial_state, parents=[], leafs=[],
                                                   leafs_P=[self.WEIGHT_DEFAULT] * len(
-                                                      self.valid_node_dict[initial_state.node])))
+                                                      self.valid_node_dict[initial_state.onode])))
             self.proc_list = [Process(
                 target=self.__search_loop,
                 args=(terminate_on_first, N_search, N_loop, False, dt_vis, verbose, print_expression),
@@ -235,7 +217,7 @@ class HandleAstarSampler(SamplerInterface):
             self.snode_queue = PriorityQueue()
             self.add_node_queue_leafs(SearchNode(idx=0, state=initial_state, parents=[], leafs=[],
                                                   leafs_P=[self.WEIGHT_DEFAULT] * len(
-                                                      self.valid_node_dict[initial_state.node])))
+                                                      self.valid_node_dict[initial_state.onode])))
             self.__search_loop(terminate_on_first, N_search, N_loop, display, dt_vis, verbose, print_expression, **kwargs)
 
     @record_time
@@ -263,18 +245,18 @@ class HandleAstarSampler(SamplerInterface):
                 snode_new = self.add_node_queue_leafs(snode_new)
                 snode.leafs += [snode_new.idx]
                 self.snode_dict[snode.idx] = snode
-                if self.check_goal(snode_new.state.node, self.goal_nodes):
+                if self.check_goal(snode_new.state.onode, self.goal_nodes):
                     ret = True
             simtime = self.gtimer.toc("test_transition")
             if verbose:
                 print('\n{} - Goal cost:{}->{} / Init cost:{}->{} / branching: {}->{} ({} s, steps/err: {}({} ms)/{})'.format(
                     "success" if succ else "fail",
-                    int(self.goal_cost_dict[from_state.node]), int(self.goal_cost_dict[to_state.node]),
-                    int(self.init_cost_dict[from_state.node]), int(self.init_cost_dict[to_state.node]),
+                    int(self.goal_cost_dict[from_state.onode]), int(self.goal_cost_dict[to_state.onode]),
+                    int(self.init_cost_dict[from_state.onode]), int(self.init_cost_dict[to_state.onode]),
                     snode.idx, snode_new.idx if succ else "", round(time.time() - self.t0, 2),
                     len(traj), simtime,
                     error))
-                print('node: {}->{}'.format(from_state.node, to_state.node))
+                print('node: {}->{}'.format(from_state.onode, to_state.onode))
                 print('=' * 150)
             if terminate_on_first and ret:
                 self.stop_now.value = 1
@@ -289,8 +271,45 @@ class HandleAstarSampler(SamplerInterface):
         for i in range(self.snode_counter.value):
             snode = self.snode_dict[i]
             state = snode.state
-            if self.check_goal(state.node, self.goal_nodes):
+            if self.check_goal(state.onode, self.goal_nodes):
                 self.idx_goal += [i]
                 schedule = snode.parents + [i]
                 schedule_dict[i] = schedule
         return schedule_dict
+
+
+def get_available_binder_dict(graph, oname_list, bname_list):
+    available_binder_dict = defaultdict(list)
+    for bname in bname_list:
+        for oname in oname_list:
+            pass_now = False
+            for binder_name in graph.object_binder_dict[bname]:
+                binder = graph.binder_dict[binder_name]
+                for ap in graph.object_dict[oname].get_action_points().values():
+                    if binder.check_type(ap):
+                        available_binder_dict[oname].append(binder.object.name)
+                        pass_now = True
+                        break
+                if pass_now:
+                    break
+    return available_binder_dict
+
+
+def get_available_bindings(graph, oname, boname, ap_exclude, bd_exclude):
+    obj = graph.object_dict[oname]
+    ap_dict = obj.get_action_points()
+    apk_list = ap_dict.keys()
+    bd_list = [graph.binder_dict[bname] for bname in graph.object_binder_dict[boname]]
+
+    apk_exclude = obj.get_conflicting_handles(ap_exclude)
+    ap_list = [ap_dict[apk] for apk in apk_list if apk not in apk_exclude]
+    bd_exclude = graph.binder_dict[bd_exclude]
+    if bd_exclude in bd_list:
+        bd_list.remove(graph.binder_dict[bd_exclude])
+
+    available_bindings = []
+    for bd in bd_list:
+        for ap in ap_list:
+            if bd.check_type(ap):
+                available_bindings.append((ap.name, bd.name))
+    return available_bindings
