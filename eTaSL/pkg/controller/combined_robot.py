@@ -58,9 +58,12 @@ class CombinedRobot:
                         self.robot_dict[name].set_task_blend_radius(0.2)
                 elif _type == RobotType.panda_robot:
                     if self.robot_dict[name]:
-                        self.robot_dict[name].set_alpha_lpf(self.robot_dict[name].alpha_lpf)
-                        self.robot_dict[name].set_d_gain(self.robot_dict[name].d_gain)
-                        self.robot_dict[name].set_k_gain(self.robot_dict[name].k_gain)
+                        if hasattr(self.robot_dict[name], 'alpha_lpf'):
+                            self.robot_dict[name].set_alpha_lpf(self.robot_dict[name].alpha_lpf)
+                        if hasattr(self.robot_dict[name], 'd_gain'):
+                            self.robot_dict[name].set_d_gain(self.robot_dict[name].d_gain)
+                        if hasattr(self.robot_dict[name], 'k_gain'):
+                            self.robot_dict[name].set_k_gain(self.robot_dict[name].k_gain)
                     else:
                         self.robot_dict[name] = PandaRepeater(*addr.split("/"))
             else:
@@ -107,7 +110,7 @@ class CombinedRobot:
         return np.array(Q)
 
     def wait_step(self, rate_off):
-        if self.connection_list[0]:
+        if all(self.connection_list):
             self.robot_dict[self.robots_on_scene[0][0]].rate_x1.sleep()
         else:
             rate_off.sleep()

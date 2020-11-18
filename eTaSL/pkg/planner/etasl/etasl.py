@@ -2,6 +2,7 @@ from __future__ import print_function
 from etasl_py.etasl import etasl_simulator, EventException
 
 from ...utils.joint_utils import get_joint_names_csv, joint_list2dict, get_min_distance_map
+from ...utils.utils import integrate
 from .constraint_etasl import *
 from ..interface import PlannerInterface
 from copy import deepcopy
@@ -132,8 +133,6 @@ class etasl_planner(PlannerInterface):
         self.etasl.readTaskSpecificationString(init_text)
         return self.etasl
 
-
-
     def init_online_plan(self, from_state, to_state, binding_list, T_step, control_freq, playback_rate=0.5, **kwargs):
         dt = 1.0 / control_freq
         dt_sim = dt * playback_rate
@@ -188,6 +187,8 @@ class etasl_planner(PlannerInterface):
         self.e_sim.DT = dt_sim
         self.kwargs_online_tmp = kwargs
         self.idx_jnt_online = [self.inp_lbl.index("target_{joint_name}".format(joint_name=joint_name)) for joint_name in self.joint_names]
+        self.VEL_CUR = np.zeros_like(pos_start)
+        self.POS_CUR = pos_start
 
         return pos, binding_list
 
@@ -199,8 +200,10 @@ class etasl_planner(PlannerInterface):
                 self.inp[self.cact_idx] = int(not wp_action)
                 # print("{}: {}".format(wp_action, self.inp[[self.jact_idx, self.cact_idx]]))
             pos = self.e_sim.simulate_step(i_q, pos, dt=None, inp_cur=self.inp)
-            # VEL_CUR = VEL_CUR + e_sim.VEL[i_q, 1::2] * e_sim.DT
-            # POS_CUR = POS_CUR + VEL_CUR * e_sim.DT
+            self.VEL_CUR = self.VEL_CUR + self.e_sim.VEL[i_q, 1::2] * self.e_sim.DT
+            self.POS_CUR = self.POS_CUR + self.VEL_CUR * self.e_sim.DT
+            pos = joint_list2dict(augment_jvals_dot(self.POS_CUR, self.VEL_CUR),
+                                  self.pos_lbl)
         except EventException as e:
             print(e)
             end_loop = True
@@ -213,20 +216,21 @@ class etasl_planner(PlannerInterface):
     def update_online(self, obsPos_dict):
         for k, v in obsPos_dict.items():
             _pos = v[:3, 3]
-            for _p, _k in zip(_pos, ["obs_{name}_{axis}".format(name=k, axis=axis) for axis in "xyz"]):
+            for _p, _k in zip(_pos, ["oln_{name}_{axis}".format(name=k, axis=axis) for axis in "xyz"]):
                 if _k in self.inp_lbl:
                     self.inp[self.inp_lbl.index(_k)] = _p
 
     def update_target_joint(self, idx_cur, traj, joint_cur):
-        error_max = np.max(np.abs(joint_cur-traj[idx_cur]))
-        # print("joints: {}".format(joint_cur))
-        # print("traj: {}".format(traj[idx_cur]))
-        # print("error: {}".format(error))
-        if error_max < TRAJ_RADII_MAX:
-            if idx_cur+1 < len(traj):
-                idx_cur += 1
-                # print("traj: {}".format(traj[idx_cur]))
-        self.inp[self.idx_jnt_online] = traj[idx_cur]
+        # error_max = np.max(np.abs(joint_cur-traj[idx_cur]))
+        # # print("joints: {}".format(joint_cur))
+        # # print("traj: {}".format(traj[idx_cur]))
+        # # print("error: {}".format(error))
+        # if error_max < TRAJ_RADII_MAX:
+        #     if idx_cur+1 < len(traj):
+        #         idx_cur += 1
+        #         # print("traj: {}".format(traj[idx_cur]))
+        # self.inp[self.idx_jnt_online] = traj[idx_cur]
+        self.inp[self.idx_jnt_online] = traj[-1]
         return idx_cur
 
     def simulate(self, initial_jpos, joint_names = None, initial_jpos_dot=None,

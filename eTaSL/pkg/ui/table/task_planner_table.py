@@ -3,8 +3,6 @@ from ...environment_builder import *
 from ...constraint_graph import *
 from ...sampler.a_star.a_star import *
 
-
-
 class TaskPlanTable(TableInterface):
     HEADS = [IDENTIFY_COL]
     HILIGHT_KEY = 'task'
@@ -60,8 +58,7 @@ class TaskPlanTable(TableInterface):
                 planner = graph.planner
                 schedule_dict = sampler.find_schedules()
                 schedule_sorted = sampler.sort_schedule(schedule_dict)
-                schedule = schedule_sorted[0]
-                snode_schedule = sampler.idxSchedule2SnodeScedule(schedule, graph.combined_robot.get_real_robot_pose())
+                snode_schedule = graph.sampler.find_best_schedule(schedule_sorted)
                 planner.update(graph)
 
                 with DynamicDetector(planner.online_names, graph.cam.aruco_map, graph.cam.dictionary, graph.cam.rs_config,

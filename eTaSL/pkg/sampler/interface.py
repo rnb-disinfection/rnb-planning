@@ -111,6 +111,18 @@ class SamplerInterface:
         snode_schedule[-1].set_traj(np.array([ZERO_JOINT_POSE]))
         return snode_schedule
 
+    def find_best_schedule(self, schedule_sorted):
+        best_snode_schedule = None
+        best_score = 1e10
+        for ss in schedule_sorted:
+            schedule = ss
+            snode_schedule_list = self.idxSchedule2SnodeScedule(schedule, self.graph.combined_robot.home_pose)
+            score = np.sum([snode.traj_length for snode in snode_schedule_list])
+            if score < best_score:
+                best_score = score
+                best_snode_schedule = snode_schedule_list
+        return best_snode_schedule
+
 def get_goal_nodes(initial_node, obj_name, target_name, postfix="_p"):
     return [tuple([(opair[0], ppoint, target_name) \
                    if opair[0] == obj_name \

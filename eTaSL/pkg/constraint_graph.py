@@ -520,11 +520,13 @@ class ConstraintGraph:
                 VEL_CUR = np.zeros_like(POS_CUR)
                 end_loop = False
                 while True:
+                    self.gtimer.tic("move_wait")
                     if on_rviz:
                         self.combined_robot.wait_step(self.rate)
                         all_sent = True
                     else:
                         all_sent = mt.move_possible_joints_x4(POS_CUR)
+                    self.gtimer.toc("move_wait", stack=True)
 
                     if all_sent:
                         if stop_count>0:
@@ -535,6 +537,7 @@ class ConstraintGraph:
                                 continue
                         i_q += 1
                         try:
+                            self.gtimer.tic("update")
                             obsPos_dict = dynamic_detector.get_dynPos_dict()
                             planner.update_online(obsPos_dict)
                             pos, end_loop, error, success = planner.step_online_plan(i_q, pos, wp_action=idx_cur<end_traj)
@@ -542,19 +545,24 @@ class ConstraintGraph:
                             POS_CUR = np.array(joint_dict2list(pos, self.joint_names))
                             # VEL_CUR = VEL_CUR + e_sim.VEL[i_q, 1::2] * e_sim.DT
                             # POS_CUR = POS_CUR + VEL_CUR * e_sim.DT
+                            self.gtimer.toc("update", stack=True)
                         except Exception as e:
+                            self.gtimer.tic("error")
                             error_count += 1
                             print("ERROR {}: {}".format(error_count, e))
                             if error_count > max_err_count:
                                 print("MAX ERROR REACHED {}".format(error_count))
                                 raise (e)
                             POS_CUR = np.array(joint_dict2list(pos, self.joint_names))
+                            self.gtimer.toc("error", stack=True)
+                        self.gtimer.tic("rviz")
                         if rviz_pub is not None:
                             rviz_pub.update(obsPos_dict, POS_CUR)
                         idx_cur = planner.update_target_joint(idx_cur, traj, POS_CUR)
                         if i_q >= N_step:
                             stop_count+=1
                             continue
+                        self.gtimer.toc("rviz", stack=True)
                     if end_loop:
                         stop_count+=1
                         continue
