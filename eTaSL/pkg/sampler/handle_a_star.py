@@ -1,5 +1,5 @@
-from ..interface import *
-from ...utils.utils import *
+from .interface import *
+from ..utils.utils import *
 from collections import defaultdict
 
 try:
@@ -13,7 +13,7 @@ class PriorityQueueManager(SyncManager):
     pass
 PriorityQueueManager.register("PriorityQueue", PriorityQueue)
 
-class AStarSampler(SamplerInterface):
+class HandleAstarSampler(SamplerInterface):
     DEFAULT_TRANSIT_COST = 1.0
     DQ_MAX = np.deg2rad(45)
     WEIGHT_DEFAULT = 2.0
