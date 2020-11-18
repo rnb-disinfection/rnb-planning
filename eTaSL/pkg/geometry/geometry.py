@@ -37,8 +37,8 @@ class GeometryHandle(Singleton, list):
         self.NAME_DICT[geo.name] = geo
 
     def clear(self):
-        list.clear(self)
-        self.NAME_DICT.clear()
+        for x in self:
+            self.remove(x)
 
     def remove(self, geo):
         list.remove(self, geo)

@@ -48,3 +48,6 @@ class PandaRepeater(Repeater):
     def finish_online_tracking(self):
         self.stop_tracking()
 
+    def disconnect(self):
+        pass
+

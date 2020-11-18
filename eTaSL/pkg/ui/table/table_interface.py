@@ -72,7 +72,10 @@ class TableInterface:
         res, msg = True, ""
 
         if delete:
-            self.delete_item(active_row)
+            try:
+                self.delete_item(active_row)
+            except Exception as e:
+                res, msg = False, str(e)
         else:
             col_idx = self.HEADS.index(active_col)
             item = items_dict[active_row]

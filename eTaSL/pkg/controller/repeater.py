@@ -135,12 +135,17 @@ class MultiTracker:
                 rbt.finish_online_tracking()
 
     def move_possible_joints_x4(self, Q):
+        gtimer = GlobalTimer.instance()
         for i_rbt in range(self.num_robots):
             rbt, idx, sent = self.robots[i_rbt], self.idx_list[i_rbt], self.sent_list[i_rbt]
             if not sent:
+                gtimer.tic("send-robot-{}".format(i_rbt))
                 self.sent_list[i_rbt] = rbt.move_possible_joints_x4(Q[idx])
+                gtimer.toc("send-robot-{}".format(i_rbt), stack=True)
             else:
+                gtimer.tic("count-robot-{}".format(i_rbt))
                 rbt.get_qcount()
+                gtimer.toc("count-robot-{}".format(i_rbt), stack=True)
         sent_all = all(self.sent_list)
         if sent_all:
             self.sent_list = [False] * self.num_robots

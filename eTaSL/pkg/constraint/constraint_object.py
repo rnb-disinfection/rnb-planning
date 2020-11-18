@@ -22,6 +22,10 @@ class ActionPoint:
     def update_handle(self):
         pass
 
+    @abstractmethod
+    def get_redundancy(self):
+        pass
+
     def __del__(self):
         if hasattr(self, 'handle') and self.handle is not None:
             del self.handle
@@ -46,6 +50,9 @@ class DirectedPoint(ActionPoint):
                                           center=self.point, dims=(0,0,0), collision=False, display=False, fixed=False)
                                      )
 
+    def get_redundancy(self):
+        return {"w":(-np.pi,np.pi)}
+
 class FramedPoint(ActionPoint):
     def __init__(self, name, _object, point_dir, name_constraint=None):
         ActionPoint.__init__(self, name, _object, point_dir, name_constraint)
@@ -69,6 +76,9 @@ class FramedPoint(ActionPoint):
                                        gtype=GEOTYPE.SPHERE, name=self.name_constraint, link_name=self.object.link_name,
                                        center=self.point, dims=(0,0,0), collision=False, display=False, fixed=False)
                                    )
+
+    def get_redundancy(self):
+        return {}
 
 ################################# USABLE CLASS #########################################
 

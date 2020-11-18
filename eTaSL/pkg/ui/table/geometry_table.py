@@ -71,7 +71,7 @@ class GeometryTable(TableInterface):
     def button(self, button, *args, **kwargs):
         if button == TAB_BUTTON.CUSTOM:
             self.graph.set_rviz(self.graph.joints.position)
-            if hasattr(self.graph, "planner"):
+            if self.graph.planner:
                 self.graph.planner.update_gtems()
         else:
             TableInterface.button(self, button, *args, **kwargs)

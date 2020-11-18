@@ -15,6 +15,7 @@ from pymanopt.manifolds import Product
 from pymanopt import Problem
 from pymanopt.solvers import TrustRegions
 
+
 STEREO_TIMEOUT = 10
 
 T_c12_gl = None

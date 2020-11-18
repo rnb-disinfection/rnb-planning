@@ -30,6 +30,9 @@ class indytraj_client(IndyDCPClient, Repeater):
         Repeater.__init__(self, repeater_ip=self.server_ip, disable_getq=True, **kwargs_otic)
         self.indy_grasp_DO = 0
 
+    def get_qcur(self):
+        return np.deg2rad(self.connect_and(self.get_joint_pos))
+
     def connect_and(self, func, *args, **kwargs):
         with self:
             return func(*args, **kwargs)

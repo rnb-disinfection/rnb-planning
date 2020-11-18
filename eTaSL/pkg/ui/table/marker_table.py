@@ -9,7 +9,7 @@ class MarkerTable(TableInterface):
 
     def get_items(self):
         aruco_list = []
-        for k, v in self.graph.aruco_map.items():
+        for k, v in self.graph.cam.aruco_map.items():
             aruco_list+=v
         return sorted(aruco_list, key=lambda x:x.idx)
 
@@ -26,8 +26,8 @@ class MarkerTable(TableInterface):
 
     def add_item(self, value):
         oname = value["Object"]
-        if oname in self.graph.aruco_map:
-            self.graph.aruco_map[oname].append(
+        if oname in self.graph.cam.aruco_map:
+            self.graph.cam.aruco_map[oname].append(
                 ObjectMarker(oname, int(value[IDENTIFY_COL]),
                              float(value['Size']), str_num_it(value['Point']), str_num_it(value['Direction']))
             )
@@ -38,22 +38,22 @@ class MarkerTable(TableInterface):
         aruco_dict = self.get_items_dict()
         atem = aruco_dict[active_row]
         oname = atem.oname
-        idx_atem =self.graph.aruco_map[oname].index(atem)
-        del self.graph.aruco_map[oname][idx_atem]
-        if not self.graph.aruco_map[oname]:
-            del self.graph.aruco_map[oname]
+        idx_atem =self.graph.cam.aruco_map[oname].index(atem)
+        del self.graph.cam.aruco_map[oname][idx_atem]
+        if not self.graph.cam.aruco_map[oname]:
+            del self.graph.cam.aruco_map[oname]
 
     def update_item(self, atem, active_col, value):
         res, msg = True, ""
         if active_col == 'Object':
             oname_old = atem.oname
             oname_new = str(value)
-            if oname_new not in self.graph.aruco_map:
+            if oname_new not in self.graph.cam.aruco_map:
                 res, msg = False, "marker name not defined ({})".format(oname_new)
             else:
                 atem.oname = oname_new
-                self.graph.aruco_map[oname_new].append(atem)
-                del self.graph.aruco_map[oname_old][atem]
+                self.graph.cam.aruco_map[oname_new].append(atem)
+                del self.graph.cam.aruco_map[oname_old][atem]
         elif active_col == IDENTIFY_COL:
             atem.idx = int(value)
         elif active_col == "Size":

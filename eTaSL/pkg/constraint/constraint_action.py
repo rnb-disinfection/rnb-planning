@@ -35,6 +35,10 @@ class Binding(object):
         return action_point.ctype == self.ctype
 
     @abstractmethod
+    def get_redundancy(self):
+        pass
+
+    @abstractmethod
     def check_available(self):
         pass
 
@@ -59,7 +63,15 @@ class PointerBinding(Binding):
         super(PointerBinding, self).__init__(**kwargs)
         self.direction = direction
         self.effector = GeoPointer(direction=direction, _object=self.object)
-            
+
+    def get_redundancy(self):
+        if self.point_offset:
+            return {"w":(-np.pi,np.pi)}
+        else:
+            dims =self.object.get_dims()
+            return {"x":(-dims[0]/2,dims[0]/2),
+                    "y":(-dims[1]/2,dims[1]/2), ## currently support only x-y plane
+                    "w":(-np.pi,np.pi)}
         
 class FrameBinding(Binding):
     def __init__(self, direction=None, **kwargs):
@@ -67,6 +79,13 @@ class FrameBinding(Binding):
         self.direction = direction
         self.effector = GeoFrame(direction=direction, _object=self.object)
 
+    def get_redundancy(self):
+        if self.point_offset:
+            return {}
+        else:
+            dims =self.object.get_dims()
+            return {"x":(-dims[0]/2,dims[0]/2),
+                    "y":(-dims[1]/2,dims[1]/2)} ## currently support only x-y plane
 
 ################################# USABLE CLASS #########################################
 

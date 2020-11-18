@@ -3,11 +3,18 @@ from abc import *
 __metaclass__ = type
 
 class PlannerInterface:
+    NAME = None
+
     def set_object_dict(self, object_dict):
         self.object_dict = object_dict
 
     def set_binder_dict(self, binder_dict):
         self.binder_dict = binder_dict
+
+    def update(self, graph):
+        self.update_gtems()
+        self.set_object_dict(graph.object_dict)
+        self.set_binder_dict(graph.binder_dict)
 
     @abstractmethod
     def update_gtems(self):
