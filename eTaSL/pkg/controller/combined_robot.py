@@ -41,12 +41,15 @@ class CombinedRobot:
     def reset_connection(self, connection_list, address_list=ROBOTS_ADDRESS_DEFAULT):
         self.connection_list = connection_list
         self.address_list = address_list
+        print("connection_list")
+        print(connection_list)
         for rbt, cnt, addr in zip(self.robots_on_scene, self.connection_list, self.address_list):
             name = rbt[0]
             _type = rbt[1]
             if cnt:
                 if _type == RobotType.indy7_robot:
-                    self.robot_dict[name] = indytraj_client(server_ip=addr, robot_name="NRMK-Indy7")
+                    if not self.robot_dict[name]:
+                        self.robot_dict[name] = indytraj_client(server_ip=addr, robot_name="NRMK-Indy7")
                     with self.robot_dict[name]:
                         self.robot_dict[name].set_collision_level(5)
                         self.robot_dict[name].set_joint_vel_level(self.indy_joint_vel_level)
@@ -77,22 +80,22 @@ class CombinedRobot:
     def joint_make_sure(self, Q):
         for name, _type in self.robots_on_scene:
             if _type == RobotType.indy7_robot:
-                self.robot_dict[name].joint_move_make_sure(np.rad2deg(Q[self.idx_list[name]]), N_repeat=2, connect=True)
+                self.robot_dict[name].joint_move_make_sure(np.rad2deg(Q[self.idx_dict[name]]), N_repeat=2, connect=True)
             elif _type == RobotType.panda_robot:
-                self.robot_dict[name].move_joint_interpolated(Q[self.idx_list[name]], N_div=200)
+                self.robot_dict[name].move_joint_interpolated(Q[self.idx_dict[name]], N_div=200)
 
     def grasp_by_dict(self, grasp_dict):
         grasp_seq = [(k, v) for k, v in grasp_dict.items()]
         grasp_seq = list(sorted(grasp_seq, key=lambda x: not x[1]))
         for grasp in grasp_seq:
-            grasp[0](grasp[1])
+            self.grasp_fun(grasp[0], grasp[1])
 
     def grasp_fun(self, name, grasp):
         scence_dict = self.get_scene_dict()
         if scence_dict[name] == RobotType.indy7_robot and self.robot_dict[name] is not None:
             self.robot_dict[name].grasp(grasp, connect=True)
         elif scence_dict[name] == RobotType.panda_robot and self.robot_dict[name] is not None:
-            self.panda.move_finger(grasp)
+            self.robot_dict[name].move_finger(grasp)
 
     def get_real_robot_pose(self):
         Q = []

@@ -21,6 +21,10 @@ class RobotTable(TableInterface):
     def highlight_item(self, gtem, color=None):
         pass
 
+    def select(self, selected_row_ids, active_row, active_col):
+        connection_list = [rbt_tup[0] in selected_row_ids for rbt_tup in self.graph.combined_robot.robots_on_scene]
+        self.graph.combined_robot.reset_connection(connection_list)
+
     def add_item(self, value):
         raise(RuntimeError("Cannot add or delete robot"))
 

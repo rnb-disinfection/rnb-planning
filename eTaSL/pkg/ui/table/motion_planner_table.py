@@ -29,7 +29,6 @@ class MotionPlanTable(TableInterface):
         raise(RuntimeError("Cannot add or delete planner"))
 
     def update_item(self, atem, active_col, value):
-        cbot = self.graph.combined_robot
         res, msg = True, ""
         if active_col == IDENTIFY_COL:
             res, msg = False, "cannot change planner name"
@@ -37,6 +36,6 @@ class MotionPlanTable(TableInterface):
 
     def button(self, button, *args, **kwargs):
         if button == TAB_BUTTON.CUSTOM:
-            self.graph.show_pose(self.graph.get_real_robot_pose())
+            self.graph.show_pose(self.graph.combined_robot.get_real_robot_pose())
         else:
             TableInterface.button(self, button, *args, **kwargs)

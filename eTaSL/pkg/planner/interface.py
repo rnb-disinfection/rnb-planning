@@ -11,6 +11,11 @@ class PlannerInterface:
     def set_binder_dict(self, binder_dict):
         self.binder_dict = binder_dict
 
+    def update(self, graph):
+        self.update_gtems()
+        self.set_object_dict(graph.object_dict)
+        self.set_binder_dict(graph.binder_dict)
+
     @abstractmethod
     def update_gtems(self):
         pass
