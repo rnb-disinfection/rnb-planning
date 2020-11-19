@@ -12,6 +12,7 @@ from .table.camera_table import  *
 from .table.robot_table import  *
 from .table.task_planner_table import *
 from .table.motion_planner_table import *
+from .table.plan_list_table import *
 
 class UIBroker:
 
@@ -24,10 +25,11 @@ class UIBroker:
                                 TableInfo("Binder", '250px', interface=BinderTable(graph))]),
             TabInfo("Mark", [TableInfo("Marker", '550px', interface=MarkerTable(graph)),
                              TableInfo("MarkerGroup", '250px', interface=MarkerGroupTable(graph))]),
-            TabInfo("Setting", [TableInfo("Camera", '150px', interface=CameraTable(graph)),
-                             TableInfo("Robot", '150px', interface=RobotTable(graph)),
-                             TableInfo("MotionPlan", '150px', row_selectable='single', interface=MotionPlanTable(graph)),
-                             TableInfo("TaskPlan", '150px', row_selectable='single', interface=TaskPlanTable(graph))])
+            TabInfo("Plan", [TableInfo("MotionPlan", '150px', row_selectable='single', interface=MotionPlanTable(graph)),
+                             TableInfo("TaskPlan", '150px', row_selectable='single', interface=TaskPlanTable(graph)),
+                             TableInfo("PlanList", '500px', row_selectable='single', interface=PlanListTable(graph))]),
+            TabInfo("Setting", [TableInfo("Camera", '300px', interface=CameraTable(graph)),
+                             TableInfo("Robot", '300px', interface=RobotTable(graph))])
         ]
         self.table_dict = {}
         for tab in self.tab_list:
