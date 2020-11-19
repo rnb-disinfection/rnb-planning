@@ -2,6 +2,7 @@ from .interface import *
 from ..utils.utils import *
 from ..utils.joint_utils import *
 from collections import defaultdict
+from copy import deepcopy
 
 try:
     from queue import PriorityQueue
@@ -112,7 +113,7 @@ class ObjectAstarSampler(SamplerInterface):
         neighbor = self.node_dict[node]
         neighbor_valid = []
         for leaf in neighbor:
-            if self.goal_cost_dict[leaf]<=self.goal_cost_dict[node]+margin:
+            if self.goal_cost_dict[leaf]<self.goal_cost_dict[node]+margin:
                 neighbor_valid += [leaf]
         return neighbor_valid
 
@@ -145,6 +146,7 @@ class ObjectAstarSampler(SamplerInterface):
             self.valid_node_dict[k].reverse()
 
     def add_node_queue_leafs(self, snode):
+        graph = self.graph
         self.dict_lock.acquire()
         snode.idx = self.snode_counter.value
         self.snode_dict[snode.idx] = snode
@@ -152,7 +154,7 @@ class ObjectAstarSampler(SamplerInterface):
         self.dict_lock.release()
         state = snode.state
         leafs = self.valid_node_dict[state.onode]
-        Q_dict = joint_list2dict(state.Q, self.graph.joint_names)
+        Q_dict = joint_list2dict(state.Q, graph.joint_names)
         if len(leafs) == 0:
             return snode
         for leaf in leafs:
@@ -161,30 +163,38 @@ class ObjectAstarSampler(SamplerInterface):
             if expected_depth > self.max_depth:
                 continue
             available_binding_dict = {oname:
-                                          get_available_bindings(self.graph, oname, boname, sbinding[1], sbinding[2],
+                                          get_available_bindings(graph, oname, boname, sbinding[1], sbinding[2],
                                                                  Q_dict=Q_dict)\
                                               if sboname!=boname else [sbinding[1:]]
                                       for oname, boname, sboname, sbinding
-                                      in zip(self.graph.object_list, leaf, state.onode, state.node)}
-            for _ in range(self.handle_num):
-                to_state = state.copy(self.graph)
+                                      in zip(graph.object_list, leaf, state.onode, state.node)}
+            for _ in range(self.sample_num):
+                to_state = state.copy(graph)
                 to_node = tuple([(((oname,)+\
                                    random.choice(available_binding_dict[oname]))
                                   if sboname!=boname else sbinding)
                                  for oname, boname, sboname, sbinding
-                                 in zip(self.graph.object_list, leaf, state.onode, state.node)])
-                to_state.set_node(to_node, self.graph)
+                                 in zip(graph.object_list, leaf, state.onode, state.node)])
+                to_state.set_node(to_node, graph)
+                redundancy_dict = {}
+                for from_binding, to_binding in zip(state.node, to_node):
+                    obj = graph.object_dict[from_binding[0]]
+                    to_ap = obj.action_points_dict[to_binding[1]]
+                    to_binder = graph.binder_dict[to_binding[2]]
+                    redundancy_tot = combine_redundancy(to_ap, to_binder)
+                    redundancy = sample_redundancy(redundancy_tot)
+                    redundancy_dict[from_binding[0]] = redundancy
+
                 # self.snode_queue.put((snode, state, to_state), expected_depth * self.DSCALE - depth) ## breadth-first
-                self.snode_queue.put(((expected_depth - depth) * self.DSCALE + depth, (snode, state, to_state))) ## greedy
+                self.snode_queue.put(((expected_depth - depth) * self.DSCALE + depth, (snode, state, to_state, redundancy_dict))) ## greedy
         return snode
 
     @record_time
     def search_graph(self, initial_state, goal_nodes,
-                     tree_margin=0, depth_margin=0, handle_num=10, redundancy_div=10,
+                     tree_margin=0, depth_margin=0, sample_num=20,
                      terminate_on_first=True, N_search=100, N_loop=1000, N_agents=None, multiprocess=False,
                      display=False, dt_vis=None, verbose=False, print_expression=False, **kwargs):
-        self.handle_num = handle_num
-        self.redundancy_div = redundancy_div
+        self.sample_num = sample_num
         self.t0 = time.time()
         self.DOF = len(initial_state.Q)
         self.init_search(initial_state, list(set([node2onode(self.graph, gnode) for gnode in goal_nodes])), tree_margin, depth_margin)
@@ -234,12 +244,14 @@ class ObjectAstarSampler(SamplerInterface):
             self.que_lock.acquire()
             if self.snode_queue.empty():
                 break
-            snode, from_state, to_state = self.snode_queue.get()[1]
+            snode, from_state, to_state, redundancy_dict = self.snode_queue.get()[1]
             self.search_counter.value = self.search_counter.value + 1
             self.que_lock.release()
             self.gtimer.tic("test_transition")
-            traj, new_state, error, succ = self.graph.test_transition(from_state, to_state, display=display, dt_vis=dt_vis,
-                                                          print_expression=print_expression, **kwargs)
+            traj, new_state, error, succ = self.graph.test_transition(from_state, to_state,
+                                                                      redundancy_dict=redundancy_dict,
+                                                                      display=display, dt_vis=dt_vis,
+                                                                      print_expression=print_expression, **kwargs)
             ret = False
             if succ:
                 snode_new = SearchNode(idx=0, state=new_state, parents=snode.parents + [snode.idx],
@@ -318,3 +330,17 @@ def get_available_bindings(graph, oname, boname, ap_exclude, bd_exclude, Q_dict)
             if bd.check_type(ap):
                 available_bindings.append((ap.name, bd.name))
     return available_bindings
+
+def combine_redundancy(to_ap, to_binder):
+    redundancy_bd = to_binder.get_redundancy()
+    redundancy_ap = to_ap.get_redundancy()
+    redundancy_tot = deepcopy(redundancy_bd)
+    for k in redundancy_ap.keys():
+        if k in redundancy_tot:
+            redundancy_tot[k] = tuple(np.add(redundancy_tot[k], redundancy_ap[k]))
+        else:
+            redundancy_tot[k] = redundancy_ap[k]
+    return redundancy_tot
+
+def sample_redundancy(redundancy_tot):
+    return {k: random.uniform(*red) for k, red in redundancy_tot.items()}

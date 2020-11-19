@@ -312,7 +312,7 @@ def match_point_binder(graph, initial_state, objectPose_dict_mv):
         if kobj not in graph.object_dict:
             continue
         for kpt, bd in graph.object_dict[kobj].action_points_dict.items():
-            handle_T = binder.get_tf_handle(Q0dict)
+            handle_T = bd.get_tf_handle(Q0dict)
             point_cur = handle_T[:3,3]
             direction_cur = handle_T[:3,2]
 

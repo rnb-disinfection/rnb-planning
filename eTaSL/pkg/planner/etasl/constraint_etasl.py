@@ -106,13 +106,20 @@ Constraint{{
         name=name, K=K, activation_expr="constraint_activation*" if activation else ""
     ) + error_statement
 
-def make_orientation_constraint(framer1, framer2, name, constraint_name, make_error=True, K='K', activation=False):
+def make_orientation_constraint(framer1, framer2, name, constraint_name, rpy_add=None, make_error=True, K='K', activation=False):
+    if rpy_add is not None:
+        R2 = np.matmul(framer2.R_point, Rot_rpy(rpy_add))
+    else:
+        R2 = framer2.R_point
+    # print("framer1.rpy_point: {}".format(framer1.rpy_point))
+    # print("framer2.rpy_point: {}".format(framer2.rpy_point))
+    # print("rpy_add: {}".format(Rot2rpy(R2)))
     error_statement = ""
     if make_error:
         error_val = "\nerror_target = error_target + abs(orientation_{name})".format(name=name)
         error_statement = error_val+'\nctx:setOutputExpression("error",error_target)'
     R1=framer1.R_point
-    R2=framer2.R_point
+    R2=R2
     vec11 = tuple(R1[:,0])
     vec12 = tuple(R1[:,2])
     vec21 = tuple(R2[:,0])
@@ -156,7 +163,7 @@ def make_directed_point_constraint(pointer1, pointer2, name, make_error=True, ac
                                          make_error=False, activation=activation)
     return pair_constraint + "\n" + dir_constraint + error_statement
 
-def make_oriented_point_constraint(framer1, framer2, name, make_error=True, activation=False):
+def make_oriented_point_constraint(framer1, framer2, name, make_error=True, activation=False, point_add=None, rpy_add=None):
     error_statement = ""
     constraint_name_point = "point_pair_{name}".format(name=name)
     constraint_name_ori = "ori_pair_{name}".format(name=name)
@@ -164,9 +171,18 @@ def make_oriented_point_constraint(framer1, framer2, name, make_error=True, acti
         error_val = "\nerror_target = error_target + abs(dist_{constraint_name_point})+abs(orientation_{constraint_name_ori})".format(
             constraint_name_point=constraint_name_point, constraint_name_ori=constraint_name_ori)
         error_statement = error_val+'\nctx:setOutputExpression("error",error_target)'
+    if point_add is not None:
+        point2 = tuple(np.add(framer2.point or (0,0,0), np.matmul(framer2.R_point, point_add)))
+    else:
+        point2 = framer2.point
+    # print("framer1.point: {}".format(framer1.point))
+    # print("framer2.point: {}".format(framer2.point))
+    # print("point_added: {}".format(point2))
     pair_constraint = make_point_pair_constraint(framer1.object, framer2.object, constraint_name_point, constraint_name_point, make_error=False, 
-                                                 point1=framer1.point, point2=framer2.point, activation=activation)
-    ori_constraint = make_orientation_constraint(framer1, framer2, name=constraint_name_ori, constraint_name=constraint_name_ori,
+                                                 point1=framer1.point, point2=point2, activation=activation)
+    ori_constraint = make_orientation_constraint(framer1, framer2, name=constraint_name_ori,
+                                                 rpy_add=rpy_add,
+                                                 constraint_name=constraint_name_ori,
                                                  make_error=False, activation=activation)
     return pair_constraint + "\n" + ori_constraint + error_statement
 
@@ -248,12 +264,27 @@ Constraint{{
         error_statement = error_val
     return joint_constraints + error_statement
 
-def make_action_constraints(handle, effector, activation=False):
-    if isinstance(handle, FramedPoint):
-        make_constraint_fun = make_oriented_point_constraint
-    elif isinstance(handle, DirectedPoint):
-        make_constraint_fun = make_directed_point_constraint
-    const_txt = make_constraint_fun(handle, effector, handle.name_full, activation=activation)
+def make_action_constraints(handle, effector, redundancy=None, activation=False):
+    if redundancy is None:
+        if isinstance(handle, FramedPoint):
+            make_constraint_fun = make_oriented_point_constraint
+        elif isinstance(handle, DirectedPoint):
+            make_constraint_fun = make_directed_point_constraint
+        else:
+            raise(NotImplementedError("non-implemented handle type"))
+        const_txt = make_constraint_fun(handle, effector, handle.name_full, activation=activation)
+    else:
+        point_add = [0,0,0]
+        rpy_add = [0,0,0]
+        for k, v in redundancy.items():
+            ax ="xyzuvw".index(k)
+            if ax<3:
+                point_add[ax] += redundancy[k]
+            else:
+                rpy_add[ax-3] += redundancy[k]
+        const_txt = make_oriented_point_constraint(handle, effector, handle.name_full,
+                                                   point_add=point_add, rpy_add=rpy_add,
+                                                   activation=activation)
     return const_txt
 
 
