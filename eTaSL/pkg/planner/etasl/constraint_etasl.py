@@ -282,6 +282,8 @@ def make_action_constraints(handle, effector, redundancy=None, activation=False)
                 point_add[ax] += redundancy[k]
             else:
                 rpy_add[ax-3] += redundancy[k]
+        if effector.point is None: # WARNING: CURRENTLY ASSUME UPPER PLANE
+            point_add[2] += effector.object.dims[2]/2
         const_txt = make_oriented_point_constraint(handle, effector, handle.name_full,
                                                    point_add=point_add, rpy_add=rpy_add,
                                                    activation=activation)

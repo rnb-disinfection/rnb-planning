@@ -29,13 +29,15 @@ class TaskPlanTable(TableInterface):
                 T_step = 10
                 N_fullstep = int(T_step / dt_sim)
                 self.pl_kwargs = dict(tree_margin=2, depth_margin=2, terminate_on_first=True,
-                                      N_search=100, N_loop=1000, display=False, dt_vis=dt_sim / 4,
+                                      N_search=100, N_loop=1000, display=True, dt_vis=dt_sim / 4,
                                       verbose=True, print_expression=False, error_skip=0, traj_count=3,
                                       ** dict(N=N_fullstep, dt=dt_sim, vel_conv=0.5e-2, err_conv=1e-3))
                 if gtem[0] == "ObjectAstarSampler":
                     sampler = ObjectAstarSampler(self.graph)
+                    print("Set ObjectAstarSampler")
                 elif gtem[0] == "HandleAstarSampler":
                     sampler = HandleAstarSampler(self.graph)
+                    print("Set HandleAstarSampler")
                 else:
                     raise(RuntimeError("Undefined sampler"))
                 self.graph.set_sampler(sampler)

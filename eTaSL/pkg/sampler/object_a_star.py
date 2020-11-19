@@ -74,7 +74,7 @@ class ObjectAstarSampler(SamplerInterface):
                 if (all([node[fi] == leaf[fi] for fi in fixed_idx])  # fixed object is not changed
                         and all([node[ci] == leaf[ci] or (node[ci] not in leaf) for ci in
                                  ctrl_idx])  # controlled binder is empty or not changed
-                        and any([node[ci] != leaf[ci] for ci in ctrl_idx])
+                        and sum([node[ci] != leaf[ci] for ci in ctrl_idx])==1  # at list one controlled binder is changed
                 ):
                     self.node_dict[node].append(leaf)
                     self.node_dict[leaf].append(node)
@@ -168,6 +168,9 @@ class ObjectAstarSampler(SamplerInterface):
                                               if sboname!=boname else [sbinding[1:]]
                                       for oname, boname, sboname, sbinding
                                       in zip(graph.object_list, leaf, state.onode, state.node)}
+            if not all([len(abds)>0 for abds in available_binding_dict.values()]):
+                print("============== Non-available transition: Break =====================")
+                break
             for _ in range(self.sample_num):
                 to_state = state.copy(graph)
                 to_node = tuple([(((oname,)+\
@@ -256,7 +259,7 @@ class ObjectAstarSampler(SamplerInterface):
                 depth_new = len(snode.parents) + 1
                 snode_new = SearchNode(
                     idx=0, state=new_state, parents=snode.parents + [snode.idx], leafs=[], leafs_P=[],
-                    depth=depth_new, edepth=depth_new+self.goal_cost_dict[new_state.onode])
+                    depth=depth_new, edepth=depth_new+self.goal_cost_dict[new_state.onode], redundancy=redundancy_dict)
                 snode_new.set_traj(traj, traj_count=traj_count)
                 snode_new = self.add_node_queue_leafs(snode_new)
                 snode.leafs += [snode_new.idx]
@@ -345,6 +348,16 @@ def get_available_bindings(graph, oname, boname, ap_exclude, bd_exclude, Q_dict)
         for ap in ap_list:
             if bd.check_type(ap):
                 available_bindings.append((ap.name, bd.name))
+    if not available_bindings:
+        print("=================================")
+        print("=================================")
+        print("=================================")
+        print("Not available:{}-{}".format(oname,boname))
+        print("np_exclude:{}".format(ap_exclude))
+        print("bd_exclude:{}".format(bd_exclude.name))
+        print("=================================")
+        print("=================================")
+        print("=================================")
     return available_bindings
 
 def combine_redundancy(to_ap, to_binder):

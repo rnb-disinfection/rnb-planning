@@ -465,6 +465,7 @@ class ConstraintGraph:
             to_snode = snode_schedule[i_s + 1]
             to_state = to_snode.state
             traj = to_snode.get_traj()
+            redundancy = to_snode.redundancy
             idx_cur = 0
             end_traj = len(traj)-1
 
@@ -474,7 +475,7 @@ class ConstraintGraph:
             binding_list = self.get_slack_bindings(from_state, to_state)
 
             pos, binding_list = \
-                planner.init_online_plan(from_state, to_state, binding_list,
+                planner.init_online_plan(from_state, to_state, binding_list, redundancy_dict=redundancy,
                                               control_freq=control_freq, playback_rate=playback_rate,
                                               T_step=T_step, **kwargs
                                               )

@@ -15,9 +15,9 @@
         </geometry>
       </visual>
       <collision>
-        <origin xyz="0 0 0.02" rpy="1.57079633 0 0"/>
+        <origin xyz="0 0 0.025" rpy="1.57079633 0 0"/>
         <geometry>
-          <cylinder length="0.14" radius="0.06"/>
+          <box size="0.06 0.094 0.22"/>
         </geometry>
       </collision>
     </link>

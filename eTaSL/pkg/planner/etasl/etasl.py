@@ -225,17 +225,17 @@ class etasl_planner(PlannerInterface):
                     self.inp[self.inp_lbl.index(_k)] = _p
 
     def update_target_joint(self, idx_cur, traj, joint_cur):
-        # error_max = np.max(np.abs(joint_cur-traj[idx_cur]))
-        # # print("joints: {}".format(joint_cur))
-        # # print("traj: {}".format(traj[idx_cur]))
-        # # print("error: {}".format(error))
-        # if error_max < TRAJ_RADII_MAX:
-        #     if idx_cur+1 < len(traj):
-        #         idx_cur += 1
-        #         # print("traj: {}".format(traj[idx_cur]))
-        # self.inp[self.idx_jnt_online] = traj[idx_cur]
-        self.inp[self.idx_jnt_online] = traj[-1]
-        return idx_cur
+        error_max = np.max(np.abs(joint_cur-traj[idx_cur]))
+        # print("joints: {}".format(joint_cur))
+        # print("traj: {}".format(traj[idx_cur]))
+        # print("error: {}".format(error))
+        if error_max < TRAJ_RADII_MAX:
+            if idx_cur+1 < len(traj):
+                idx_cur += 1
+                # print("traj: {}".format(traj[idx_cur]))
+        self.inp[self.idx_jnt_online] = traj[idx_cur]
+        # self.inp[self.idx_jnt_online] = traj[-1]
+        return idx_cur # len(traj)
 
     def simulate(self, initial_jpos, joint_names = None, initial_jpos_dot=None,
                  inp_lbl=[], inp=[], N=100, dt=0.02, cut_dot=False):

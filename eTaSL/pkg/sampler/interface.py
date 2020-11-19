@@ -5,12 +5,12 @@ from ..constants import DIR_VEC_DICT
 from collections import defaultdict
 
 __metaclass__ = type
-DEFAULT_TRAJ_COUNT = 10
+DEFAULT_TRAJ_COUNT = 20
 
 
 class SearchNode:
     def __init__(self, idx, state, parents, leafs, leafs_P, depth=None, edepth=None,
-                 redundancy=defaultdict(dict)):
+                 redundancy=None):
         self.idx, self.state, self.parents, self.leafs, self.leafs_P, self.depth, self.edepth, self.redundancy = \
             idx, state, parents, leafs, leafs_P, depth, edepth, redundancy
         self.traj = None
