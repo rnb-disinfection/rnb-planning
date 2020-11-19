@@ -19,7 +19,7 @@ class SearchNode:
 
     def set_traj(self, traj_full, traj_count=DEFAULT_TRAJ_COUNT):
         self.traj_size = len(traj_full)
-        self.traj_length = np.sum(differentiate(traj_full, 1)[:-1]) if self.traj_size > 1 else 0
+        self.traj_length = np.sum(np.abs(differentiate(traj_full, 1)[:-1])) if self.traj_size > 1 else 0
         traj_step = max(1, self.traj_size / traj_count)
         self.traj = np.array(list(reversed(traj_full[::-traj_step])))
 
@@ -81,22 +81,6 @@ class SamplerInterface:
     def print_snode_list(self):
         for i_s, snode in sorted(self.snode_dict.items(), key=lambda x: x):
             print("{}{}<-{}{}".format(i_s, snode.state.node, snode.parents[-1] if snode.parents else "", self.snode_dict[snode.parents[-1]].state.node if snode.parents else ""))
-
-    def quiver_snodes(self, figsize=(10,10)):
-        import matplotlib.pyplot as plt
-        N_plot = self.snode_counter.value
-        snode_vec = [v for k,v in sorted(self.snode_dict.items(), key=lambda x: x)]
-        cost_vec = [self.goal_cost_dict[snode.state.onode] for snode in snode_vec[1:N_plot]]
-        parent_vec = [self.goal_cost_dict[self.snode_dict[snode.parents[-1]].state.onode] for snode in snode_vec[1:N_plot]]
-        plt.figure(figsize=figsize)
-        X = list(range(1,N_plot))
-        plt.quiver(X, parent_vec,
-                   [0]*(N_plot-1),
-                   np.subtract(cost_vec, parent_vec),
-                   angles='xy', scale_units='xy', scale=1)
-        plt.plot(X, cost_vec,'.')
-        plt.plot(X, parent_vec,'.')
-        plt.axis([0,N_plot+1,-0.5,4.5])
 
     def sort_schedule(self, schedule_dict):
         return sorted(schedule_dict.values(), key=lambda x: len(x))

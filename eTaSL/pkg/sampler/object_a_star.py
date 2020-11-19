@@ -191,13 +191,16 @@ class ObjectAstarSampler(SamplerInterface):
 
     @record_time
     def search_graph(self, initial_state, goal_nodes,
-                     tree_margin=0, depth_margin=0, sample_num=20,
+                     tree_margin=0, depth_margin=0, sample_num=30,
                      terminate_on_first=True, N_search=100, N_loop=1000, N_agents=None, multiprocess=False,
                      display=False, dt_vis=None, verbose=False, print_expression=False, **kwargs):
         self.sample_num = sample_num
         self.t0 = time.time()
         self.DOF = len(initial_state.Q)
         self.init_search(initial_state, list(set([node2onode(self.graph, gnode) for gnode in goal_nodes])), tree_margin, depth_margin)
+        snode_root = SearchNode(idx=0, state=initial_state, parents=[], leafs=[],
+                                leafs_P=[self.WEIGHT_DEFAULT] * len(self.valid_node_dict[initial_state.onode]),
+                                depth=0, edepth=self.goal_cost_dict[initial_state.onode])
 
         if multiprocess:
             if display:
@@ -211,9 +214,7 @@ class ObjectAstarSampler(SamplerInterface):
             self.stop_now = self.manager.Value('i', 0)
             self.snode_dict = self.manager.dict()
             self.snode_queue = self.manager.PriorityQueue()
-            self.add_node_queue_leafs(SearchNode(idx=0, state=initial_state, parents=[], leafs=[],
-                                                  leafs_P=[self.WEIGHT_DEFAULT] * len(
-                                                      self.valid_node_dict[initial_state.onode])))
+            self.add_node_queue_leafs(snode_root)
             self.proc_list = [Process(
                 target=self.__search_loop,
                 args=(terminate_on_first, N_search, N_loop, False, dt_vis, verbose, print_expression),
@@ -229,9 +230,7 @@ class ObjectAstarSampler(SamplerInterface):
             self.stop_now =  SingleValue('i', 0)
             self.snode_dict = {}
             self.snode_queue = PriorityQueue()
-            self.add_node_queue_leafs(SearchNode(idx=0, state=initial_state, parents=[], leafs=[],
-                                                  leafs_P=[self.WEIGHT_DEFAULT] * len(
-                                                      self.valid_node_dict[initial_state.onode])))
+            self.add_node_queue_leafs(snode_root)
             self.__search_loop(terminate_on_first, N_search, N_loop, display, dt_vis, verbose, print_expression, **kwargs)
 
     @record_time
@@ -254,9 +253,10 @@ class ObjectAstarSampler(SamplerInterface):
                                                                       print_expression=print_expression, **kwargs)
             ret = False
             if succ:
-                snode_new = SearchNode(idx=0, state=new_state, parents=snode.parents + [snode.idx],
-                                       leafs=[],
-                                       leafs_P=[])
+                depth_new = len(snode.parents) + 1
+                snode_new = SearchNode(
+                    idx=0, state=new_state, parents=snode.parents + [snode.idx], leafs=[], leafs_P=[],
+                    depth=depth_new, edepth=depth_new+self.goal_cost_dict[new_state.onode])
                 snode_new.set_traj(traj, traj_count=traj_count)
                 snode_new = self.add_node_queue_leafs(snode_new)
                 snode.leafs += [snode_new.idx]
@@ -292,6 +292,22 @@ class ObjectAstarSampler(SamplerInterface):
                 schedule = snode.parents + [i]
                 schedule_dict[i] = schedule
         return schedule_dict
+
+    def quiver_snodes(self, figsize=(10,10)):
+        import matplotlib.pyplot as plt
+        N_plot = self.snode_counter.value
+        snode_vec = [v for k,v in sorted(self.snode_dict.items(), key=lambda x: x)]
+        cost_vec = [self.goal_cost_dict[snode.state.onode] for snode in snode_vec[1:N_plot]]
+        parent_vec = [self.goal_cost_dict[self.snode_dict[snode.parents[-1]].state.onode] for snode in snode_vec[1:N_plot]]
+        plt.figure(figsize=figsize)
+        X = list(range(1,N_plot))
+        plt.quiver(X, parent_vec,
+                   [0]*(N_plot-1),
+                   np.subtract(cost_vec, parent_vec),
+                   angles='xy', scale_units='xy', scale=1)
+        plt.plot(X, cost_vec,'.')
+        plt.plot(X, parent_vec,'.')
+        plt.axis([0,N_plot+1,-0.5,4.5])
 
 
 def get_available_binder_dict(graph, oname_list, bname_list):
