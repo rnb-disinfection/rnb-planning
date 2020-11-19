@@ -2,15 +2,17 @@ from abc import *
 import numpy as np
 from ..utils.utils import differentiate, GlobalTimer
 from ..constants import DIR_VEC_DICT
+from collections import defaultdict
 
 __metaclass__ = type
 DEFAULT_TRAJ_COUNT = 10
 
 
 class SearchNode:
-    def __init__(self, idx, state, parents, leafs, leafs_P, depth=None, edepth=None):
-        self.idx, self.state, self.parents, self.leafs, self.leafs_P, self.depth, self.edepth = \
-            idx, state, parents, leafs, leafs_P, depth, edepth
+    def __init__(self, idx, state, parents, leafs, leafs_P, depth=None, edepth=None,
+                 redundancy=defaultdict(dict)):
+        self.idx, self.state, self.parents, self.leafs, self.leafs_P, self.depth, self.edepth, self.redundancy = \
+            idx, state, parents, leafs, leafs_P, depth, edepth, redundancy
         self.traj = None
         self.traj_size = 0
         self.traj_length = 0
@@ -26,7 +28,7 @@ class SearchNode:
 
     def copy(self, graph):
         return SearchNode(self.idx, State(self.state.node, self.state.obj_pos_dict, self.state.Q, graph),
-                          self.parents, self.leafs, self.leafs_P, self.depth, self.edepth)
+                          self.parents, self.leafs, self.leafs_P, self.depth, self.edepth, self.redundancy)
 
 
 class State:

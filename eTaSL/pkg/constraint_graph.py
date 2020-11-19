@@ -83,7 +83,8 @@ class ConstraintGraph:
             self.marker_list.remove(marker)
 
         if from_ghnd:
-            self.ghnd.remove(gtem)
+            if gtem in self.ghnd:
+                self.ghnd.remove(gtem)
 
     def add_geometry(self, gtem):
         self.marker_list += set_markers([gtem], self.joints, self.joint_names)
@@ -123,10 +124,11 @@ class ConstraintGraph:
 
     #######################################################
     ##################### Bindings ########################
-    def add_binder(self, name, binder):
-        self.binder_dict[name] = binder
+    def add_binder(self, binder):
+        self.binder_dict[binder.name] = binder
+        self.object_binder_dict[binder.object.name].append(binder.name)
 
-    def register_binder(self, name, _type, link_name=None, object_name=None, **kwargs):
+    def register_binder(self, name, _type, point=None, rpy=(0,0,0), object_name=None, link_name=None):
         if name in self.binder_dict:
             self.remove_binder(name)
         if object_name is None:
@@ -134,16 +136,13 @@ class ConstraintGraph:
 
         _object = self.get_object_by_name(object_name)
 
-        if _object:
-            link_name = _object.link_name
-        else:
-            _object=None
-            assert link_name is not None, "The object should be registered first or give link name"
-            assert "point" in kwargs, "The object should be registered first or give interaction point"
-        self.binder_dict[name] = _type(_object=_object,
-                                       name=name, link_name=link_name,
-                                       urdf_content=self.urdf_content, **kwargs)
-        self.object_binder_dict[object_name].append(name)
+        if not _object:
+            _object = self.ghnd.create_safe(gtype=GEOTYPE.SPHERE, name=name, link_name=link_name,
+                                  center=point, dims=(0,0,0), rpy=rpy, collision=False, display=False)
+            point=None
+            rpy=(0,0,0)
+
+        self.add_binder(_type(name, _object=_object, point=point,rpy=rpy))
 
     def remove_binder(self, bname):
         self.object_binder_dict[self.binder_dict[bname].object.name].remove(bname)
@@ -152,14 +151,14 @@ class ConstraintGraph:
     def get_all_handles(self):
         handles = []
         for obj_hd in self.object_dict.values():
-            handles += obj_hd.get_action_points().values()
+            handles += obj_hd.action_points_dict.values()
         return handles
 
     def get_all_handle_dict(self):
         handle_dict = {}
         for obj_hd in self.object_dict.values():
-            for hd in obj_hd.get_action_points().values():
-                handle_dict[hd.name_constraint] = hd
+            for hd in obj_hd.action_points_dict.values():
+                handle_dict[hd.name_full] = hd
         return handle_dict
 
     def delete_handle(self, htem):
@@ -175,7 +174,7 @@ class ConstraintGraph:
         self.object_list = sorted(self.object_dict.keys())
         for k in self.object_list:
             v = self.object_dict[k]
-            ap_list = v.get_action_points()
+            ap_list = v.action_points_dict
             self.handle_dict[k] = []
             for ap in ap_list.keys():
                 self.handle_dict[k] += [ap]
@@ -283,7 +282,7 @@ class ConstraintGraph:
         for k in self.object_list:
             v = self.object_dict[k]
             node += ((k,) + v.binding,)
-            pose_dict[k] = v.object.get_frame()
+            pose_dict[k] = v.object.Toff
         return node, pose_dict
     ######################## State ########################
     #######################################################
@@ -414,33 +413,11 @@ class ConstraintGraph:
             self.highlight_dict[hl_key][axtemz.name] = axtemz
 
     def add_handle_axis(self, hl_key, handle, color=None):
-        hobj = handle.handle.object
-        if hasattr(handle, 'orientation_mat'):
-            orientation_mat = np.matmul(hobj.orientation_mat, handle.orientation_mat)
-            axis = "xyz"
-            color = None
-        elif hasattr(handle, 'direction'):
-            orientation_mat = np.matmul(hobj.orientation_mat,
-                                        Rotation.from_rotvec(calc_rotvec_vecs([1, 0, 0], handle.direction)).as_dcm())
-            axis = "x"
-            color = color
-        else:
-            raise (RuntimeError("direction or orientation not specified for handle"))
-        self.add_highlight_axis(hl_key, hobj.name, hobj.link_name, hobj.center, orientation_mat, color=color, axis=axis)
-
-    def add_binder_axis(self, hl_key, binder, color=None):
-        bobj = binder.effector.object
-        if hasattr(binder, 'orientation'):
-            orientation_mat = np.matmul(bobj.orientation_mat, binder.effector.orientation_mat)
-            axis = "xyz"
-        elif hasattr(binder, 'direction'):
-            orientation_mat = np.matmul(bobj.orientation_mat, Rotation.from_rotvec(
-                calc_rotvec_vecs([1, 0, 0], binder.effector.direction)).as_dcm())
-            axis = "x"
-            color = color
-        else:
-            raise (RuntimeError("direction or orientation not specified for handle"))
-        self.add_highlight_axis(hl_key, bobj.name, bobj.link_name, bobj.center, orientation_mat, color=color, axis=axis)
+        hobj = handle.object
+        Toff_lh = handle.Toff_lh
+        axis = "xyz"
+        color = None
+        self.add_highlight_axis(hl_key, hobj.name, hobj.link_name, Toff_lh[:3,3], Toff_lh[:3,:3], color=color, axis=axis)
 
     def add_aruco_axis(self, hl_key, atem, axis_name=None):
         oname = atem.oname
@@ -451,7 +428,7 @@ class ConstraintGraph:
         else:
             aobj = self.ghnd.NAME_DICT[oname]
             link_name = aobj.link_name
-            Toff = np.matmul(aobj.get_offset_tf(), atem.Toff)
+            Toff = np.matmul(aobj.Toff, atem.Toff)
         self.add_highlight_axis(hl_key, axis_name, link_name, Toff[:3,3], Toff[:3,:3], axis="xyz")
     ############ Visualize - Highlight ####################
     #######################################################

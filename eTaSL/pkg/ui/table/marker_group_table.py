@@ -72,7 +72,7 @@ class MarkerGroupTable(TableInterface):
         if button == TAB_BUTTON.CUSTOM:
             if args[0]:
                 graph = self.graph
-                BINDER_DICT = {k:dict(_type=v.__class__, object_name=v.object.name, point=v.point_offset, direction=v.direction) \
+                BINDER_DICT = {k:dict(_type=v.__class__, object_name=v.object.name, point=v.point, rpy=v.rpy_point) \
                                for k, v in graph.binder_dict.items() \
                                if (not v.controlled) and \
                                (v.object.name in graph.cam.aruco_map and graph.cam.aruco_map[v.object.name].ttype == TargetType.MOVABLE)}

@@ -6,6 +6,7 @@ from ...utils.utils import integrate
 from .constraint_etasl import *
 from ..interface import PlannerInterface
 from copy import deepcopy
+from collections import defaultdict
 
 K_DEFAULT = 10
 TRAJ_RADII_MAX = np.deg2rad(10)
@@ -39,7 +40,8 @@ class etasl_planner(PlannerInterface):
         self.fixed_collision_text = make_collision_constraints(self.ghnd.fixed_ctems,
                                                                min_distance_map=self.min_distance_map)
 
-    def plan_transition(self, from_state, to_state, binding_list, vel_conv=1e-2, err_conv=1e-4, collision=True,
+    def plan_transition(self, from_state, to_state, binding_list,
+                        vel_conv=1e-2, err_conv=1e-4, collision=True,
                         N=1, dt=1e-2, print_expression=False, cut_dot=False, **kwargs):
         full_context, kwargs = self.get_transition_context(
             from_state, to_state, binding_list, vel_conv, err_conv, collision=collision, **kwargs)
@@ -51,8 +53,9 @@ class etasl_planner(PlannerInterface):
         success = error<err_conv if error is not None else False
         return e.POS, e.POS[-1], error, success
 
-    def get_transition_context(self, from_state=None, to_state=None, binding_list=[], vel_conv=1e-2, err_conv=1e-4, collision=True,
-                               activation=False, **kwargs):
+    def get_transition_context(self, from_state=None, to_state=None, binding_list=[],
+                               vel_conv=1e-2, err_conv=1e-4, collision=True,
+                               activation=False, redundancy_dict=None, **kwargs):
         kwargs.update(deepcopy(self.kwargs_online))
 
         tf_text = self.fixed_tf_text + self.online_input_text + get_tf_text(self.ghnd.movable_gtems)
@@ -68,8 +71,9 @@ class etasl_planner(PlannerInterface):
 
         additional_constraints = '\nconstraint_activation = ctx:createInputChannelScalar("constraint_activation",0.0) \n' if activation else ""
         for bd1 in binding_list:
-            additional_constraints += make_action_constraints(self.object_dict[bd1[0]], bd1[1], self.binder_dict[bd1[2]].effector,
-                                                              point=self.binder_dict[bd1[2]].point, activation=activation)
+            additional_constraints += make_action_constraints(
+                self.object_dict[bd1[0]].action_points_dict[bd1[1]], self.binder_dict[bd1[2]],
+                redundancy=redundancy_dict[bd1[0]] if redundancy_dict else None, activation=activation)
 
         if additional_constraints=="" and to_state.Q is not None:# and np.sum(np.abs(np.subtract(to_state.Q,from_state.Q)))>1e-2:
             additional_constraints=make_joint_constraints(joint_names=self.joint_names)

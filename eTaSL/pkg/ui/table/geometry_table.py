@@ -3,7 +3,7 @@ from ...utils.rotation_utils import *
 from ...geometry.geometry import *
 
 class GeometryTable(TableInterface):
-    HEADS = [IDENTIFY_COL, 'GType', 'Link', 'Dims', 'Center', 'Rpy', 'Color', 'Disp', 'Coll', 'Fix', 'Soft', 'Online']
+    HEADS = [IDENTIFY_COL, 'GType', 'Link', 'Dims', 'Center', 'RPY', 'Color', 'Disp', 'Coll', 'Fix', 'Soft', 'Online']
     HILIGHT_KEY = 'geometry'
     CUSTOM_BUTTONS = ["Apply"]
 
@@ -26,7 +26,7 @@ class GeometryTable(TableInterface):
         self.graph.add_geometry(
             self.graph.ghnd.create_safe(name=value[IDENTIFY_COL], gtype=getattr(GEOTYPE, value['GType']),
                                   link_name=value["Link"], center=str_num_it(value["Center"]),
-                                  dims=str_num_it(value["Dims"]), rpy=str_num_it(value["Rpy"]),
+                                  dims=str_num_it(value["Dims"]), rpy=str_num_it(value["RPY"]),
                                   color=str_num_it(value["Color"]),
                                   display=value["Disp"].lower()=="true",
                                   collision=value["Coll"].lower()=="true",
@@ -48,11 +48,9 @@ class GeometryTable(TableInterface):
         elif active_col == "Dims":
             gtem.set_dims(map(float, value.split(',')))
         elif active_col == 'Center':
-            gtem.set_center(map(float, value.split(',')))
-            gtem.set_offset_tf()
-        elif active_col == 'Rpy':
-            gtem.set_orientation_mat(Rot_rpy(map(float, value.split(','))))
-            gtem.set_offset_tf()
+            gtem.set_offset_tf(center=map(float, value.split(',')))
+        elif active_col == 'RPY':
+            gtem.set_offset_tf(orientation_mat=Rot_rpy(map(float, value.split(','))))
         elif active_col == 'Color':
             gtem.color = map(float, value.split(','))
         elif active_col == 'Disp':
