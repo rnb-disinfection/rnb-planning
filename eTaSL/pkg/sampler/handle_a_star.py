@@ -26,6 +26,7 @@ class HandleAstarSampler(SamplerInterface):
         self.manager = PriorityQueueManager()
         self.manager.start()
 
+    @record_time
     def build_graph(self, update_handles=True):
         if update_handles:
             self.graph.update_handles()

@@ -15,7 +15,7 @@ def get_tf_representation(gtem):
         for i in range(len(zyxrot)):
             if abs(zyxrot[2 - i]) > 1e-4:
                 angle_option = "*rotate_{axis}({val})".format(axis="xyz"[i], val=zyxrot[2 - i]) + angle_option
-    center = gtem.get_center()
+    center = gtem.center
     center_option = ""
     if np.sum(np.abs(center)) > 1e-4:
         for i in range(len(center)):
@@ -93,7 +93,7 @@ vec2 = vector{vec2}
 angle_{name} = angle_between_vectors(vec1,rotation(inv({T1})*{T2})*vec2)""".format(
     T1=get_tf_name(pointer1.object),
     T2=get_tf_name(pointer2.object),
-    vec1=tuple(pointer1.direction), vec2=tuple(pointer2.direction), name=name) + \
+    vec1=tuple(pointer1.R_point[:,2]), vec2=tuple(pointer2.R_point[:,2]), name=name) + \
 """
 Constraint{{
     context=ctx,
@@ -111,12 +111,12 @@ def make_orientation_constraint(framer1, framer2, name, constraint_name, make_er
     if make_error:
         error_val = "\nerror_target = error_target + abs(orientation_{name})".format(name=name)
         error_statement = error_val+'\nctx:setOutputExpression("error",error_target)'
-    R1=framer1.orientation_mat
-    R2=framer2.orientation_mat
-    vec11 = tuple(np.dot(R1, (1,0,0)))
-    vec12 = tuple(np.dot(R1, (0,0,1)))
-    vec21 = tuple(np.dot(R2, (1,0,0)))
-    vec22 = tuple(np.dot(R2, (0,0,1)))
+    R1=framer1.R_point
+    R2=framer2.R_point
+    vec11 = tuple(R1[:,0])
+    vec12 = tuple(R1[:,2])
+    vec21 = tuple(R2[:,0])
+    vec22 = tuple(R2[:,2])
     return """
 vec11 = vector{vec11}
 vec12 = vector{vec12}
@@ -142,7 +142,7 @@ Constraint{{
         name=name, K=K, activation_expr="constraint_activation*" if activation else ""
     ) + error_statement
 
-def make_directed_point_constraint(pointer1, pointer2, name, make_error=True, point1=None, point2=None, activation=False):
+def make_directed_point_constraint(pointer1, pointer2, name, make_error=True, activation=False):
     error_statement = ""
     constraint_name_point = "point_pair_{name}".format(name=name)
     constraint_name_dir = "dir_pair_{name}".format(name=name)
@@ -151,12 +151,12 @@ def make_directed_point_constraint(pointer1, pointer2, name, make_error=True, po
             constraint_name_point=constraint_name_point, constraint_name_dir=constraint_name_dir)
         error_statement = error_val+'\nctx:setOutputExpression("error",error_target)'
     pair_constraint = make_point_pair_constraint(pointer1.object, pointer2.object, constraint_name_point, constraint_name_point, 
-                                                 make_error=False, point1=point1, point2=point2, activation=activation)
+                                                 make_error=False, point1=pointer1.point, point2=pointer2.point, activation=activation)
     dir_constraint = make_dir_constraint(pointer1, pointer2, name=constraint_name_dir, constraint_name=constraint_name_dir,
                                          make_error=False, activation=activation)
     return pair_constraint + "\n" + dir_constraint + error_statement
 
-def make_oriented_point_constraint(framer1, framer2, name, make_error=True, point1=None, point2=None, activation=False):
+def make_oriented_point_constraint(framer1, framer2, name, make_error=True, activation=False):
     error_statement = ""
     constraint_name_point = "point_pair_{name}".format(name=name)
     constraint_name_ori = "ori_pair_{name}".format(name=name)
@@ -165,7 +165,7 @@ def make_oriented_point_constraint(framer1, framer2, name, make_error=True, poin
             constraint_name_point=constraint_name_point, constraint_name_ori=constraint_name_ori)
         error_statement = error_val+'\nctx:setOutputExpression("error",error_target)'
     pair_constraint = make_point_pair_constraint(framer1.object, framer2.object, constraint_name_point, constraint_name_point, make_error=False, 
-                                                 point1=point1, point2=point2, activation=activation)
+                                                 point1=framer1.point, point2=framer2.point, activation=activation)
     ori_constraint = make_orientation_constraint(framer1, framer2, name=constraint_name_ori, constraint_name=constraint_name_ori,
                                                  make_error=False, activation=activation)
     return pair_constraint + "\n" + ori_constraint + error_statement
@@ -215,7 +215,7 @@ def get_online_input_text(ctems):
             """.format(name=gtem.name, tf_name=get_tf_name(gtem))
             kwargs_online.update(dict(inp_lbl=['oln_{name}_{axis}'.format(name=gtem.name,
                                                                        axis=axis) for axis in "xyz"],
-                                   inp=gtem.get_offset_tf()[:3, 3].tolist()))
+                                   inp=gtem.Toff[:3, 3].tolist()))
     return obs_tf_text, kwargs_online, online_names
 
 
@@ -248,13 +248,12 @@ Constraint{{
         error_statement = error_val
     return joint_constraints + error_statement
 
-def make_action_constraints(object, point_name, effector, point=None, activation=False):
-    ac_point = object.action_points_dict[point_name]
-    if isinstance(ac_point, FramedPoint):
+def make_action_constraints(handle, effector, activation=False):
+    if isinstance(handle, FramedPoint):
         make_constraint_fun = make_oriented_point_constraint
-    elif isinstance(ac_point, DirectedPoint):
+    elif isinstance(handle, DirectedPoint):
         make_constraint_fun = make_directed_point_constraint
-    const_txt = make_constraint_fun(ac_point.handle, effector, ac_point.name_constraint, point2=point, activation=activation)
+    const_txt = make_constraint_fun(handle, effector, handle.name_full, activation=activation)
     return const_txt
 
 

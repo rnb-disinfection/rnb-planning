@@ -1,7 +1,5 @@
 from .table_interface import *
-from ...constraint.constraint_object import otype_to_class
-from ...utils.joint_utils import joint_list2dict
-from ...sensor.marker import ObjectMarker, MarkerSet
+from ...sensor.marker import ObjectMarker
 
 class MarkerTable(TableInterface):
     HEADS = ['Object', IDENTIFY_COL, 'Size', 'Point', 'Direction']

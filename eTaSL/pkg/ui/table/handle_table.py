@@ -2,7 +2,7 @@ from .table_interface import *
 from ...constraint.constraint_object import ctype_to_htype
 
 class HandleTable(TableInterface):
-    HEADS = [IDENTIFY_COL, 'Object', 'Handle', 'CType', 'Point', 'Direction']
+    HEADS = [IDENTIFY_COL, 'Object', 'Handle', 'CType', 'Point', 'RPY']
     HILIGHT_KEY = 'handle'
     CUSTOM_BUTTONS = ["Apply"]
 
@@ -13,13 +13,13 @@ class HandleTable(TableInterface):
         return self.graph.get_all_handle_dict()
 
     def serialize(self, htem):
-        return [htem.name_constraint, htem.object.name,
+        return [htem.name_full, htem.object.name,
                 htem.name, htem.ctype.name,
-                round_it_str(htem.point_dir[0]), round_it_str(htem.point_dir[1])]
+                round_it_str(htem.point), round_it_str(htem.rpy_point)]
 
     def highlight_item(self, handle, color=None):
         self.graph.add_handle_axis(self.HILIGHT_KEY, handle, color=color)
-        self.graph.highlight_geometry(self.HILIGHT_KEY, handle.handle.object.name, color=color)
+        self.graph.highlight_geometry(self.HILIGHT_KEY, handle.object.name, color=color)
 
     def add_item(self, value):
         otem = self.graph.object_dict[value["Object"]]
@@ -27,8 +27,8 @@ class HandleTable(TableInterface):
         hname = value['Handle']
         otem.action_points_dict[hname] = ctype_to_htype(value['CType'])(hname, otem.object,
                                                                         (str_num_it(value["Point"]),
-                                                                         str_num_it(value["Direction"])),
-                                                                         name_constraint=cname)
+                                                                         str_num_it(value["RPY"])),
+                                                                         name_full=cname)
 
     def delete_item(self, active_row):
         hdict = self.graph.get_all_handle_dict()
@@ -49,10 +49,10 @@ class HandleTable(TableInterface):
         elif active_col == "CType":
             res, msg = False, "Constraint Type is not changeable"
         elif active_col == 'Point':
-            htem.set_point_dir(((map(float, value.split(','))), htem.point_dir[1]))
+            htem.set_point_rpy((map(float, value.split(','))), htem.rpy_point)
             htem.update_handle()
-        elif active_col == 'Direction':
-            htem.set_point_dir((htem.point_dir[0], (map(float, value.split(',')))))
+        elif active_col == 'RPY':
+            htem.set_point_rpy(htem.point, (map(float, value.split(','))))
             htem.update_handle()
         return res, msg
 

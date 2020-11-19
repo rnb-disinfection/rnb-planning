@@ -27,6 +27,7 @@ class ObjectAstarSampler(SamplerInterface):
         self.manager = PriorityQueueManager()
         self.manager.start()
 
+    @record_time
     def build_graph(self, update_handles=True):
         graph = self.graph
         if update_handles:
@@ -285,7 +286,7 @@ def get_available_binder_dict(graph, oname_list, bname_list):
             pass_now = False
             for binder_name in graph.object_binder_dict[bname]:
                 binder = graph.binder_dict[binder_name]
-                for ap in graph.object_dict[oname].get_action_points().values():
+                for ap in graph.object_dict[oname].action_points_dict.values():
                     if binder.check_type(ap):
                         available_binder_dict[oname].append(binder.object.name)
                         pass_now = True
@@ -297,7 +298,7 @@ def get_available_binder_dict(graph, oname_list, bname_list):
 
 def get_available_bindings(graph, oname, boname, ap_exclude, bd_exclude):
     obj = graph.object_dict[oname]
-    ap_dict = obj.get_action_points()
+    ap_dict = obj.action_points_dict
     apk_list = ap_dict.keys()
     bd_list = [graph.binder_dict[bname] for bname in graph.object_binder_dict[boname]]
 

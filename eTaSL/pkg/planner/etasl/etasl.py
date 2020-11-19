@@ -68,8 +68,8 @@ class etasl_planner(PlannerInterface):
 
         additional_constraints = '\nconstraint_activation = ctx:createInputChannelScalar("constraint_activation",0.0) \n' if activation else ""
         for bd1 in binding_list:
-            additional_constraints += make_action_constraints(self.object_dict[bd1[0]], bd1[1], self.binder_dict[bd1[2]].effector,
-                                                              point=self.binder_dict[bd1[2]].point, activation=activation)
+            additional_constraints += make_action_constraints(
+                self.object_dict[bd1[0]].action_points_dict[bd1[1]], self.binder_dict[bd1[2]], activation=activation)
 
         if additional_constraints=="" and to_state.Q is not None:# and np.sum(np.abs(np.subtract(to_state.Q,from_state.Q)))>1e-2:
             additional_constraints=make_joint_constraints(joint_names=self.joint_names)

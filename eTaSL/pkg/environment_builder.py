@@ -296,16 +296,13 @@ def match_point_binder(graph, initial_state, objectPose_dict_mv):
     Q0 = initial_state.Q
     Q0dict = joint_list2dict(Q0, graph.joint_names)
     binder_T_dict = {}
-    binder_dir_dict = {}
     binder_scale_dict = {}
     for k,binder in graph.binder_dict.items():
-        binder_T = binder.object.get_tf(Q0dict)
-        binder_scale_dict[k] = binder.object.get_dims()
+        binder_T = binder.get_tf_handle(Q0dict)
+        binder_scale_dict[k] = binder.object.dims
         if binder.point is not None:
-            binder_T = np.matmul(binder_T, SE3(np.identity(3), binder.point))
             binder_scale_dict[k] = 0
         binder_T_dict[k] = binder_T
-        binder_dir_dict[k] = binder.direction
 
     kpt_pair_dict = {}
     for kobj, Tobj in objectPose_dict_mv.items():
@@ -315,17 +312,16 @@ def match_point_binder(graph, initial_state, objectPose_dict_mv):
         if kobj not in graph.object_dict:
             continue
         for kpt, bd in graph.object_dict[kobj].action_points_dict.items():
-            Tpt = bd.object.get_tf(Q0dict)
-            point_dir = bd.point_dir if hasattr(bd, "point_dir") else bd.point_dir
-            point_cur = np.matmul(Tpt, list(point_dir[0])+[1])[:3]
-            direction_cur = np.matmul(Tpt[:3,:3], point_dir[1])
+            handle_T = binder.get_tf_handle(Q0dict)
+            point_cur = handle_T[:3,3]
+            direction_cur = handle_T[:3,2]
 
             for kbd, Tbd in binder_T_dict.items():
                 if kobj == kbd or kobj == graph.binder_dict[kbd].object.name:
                     continue
-                point_diff = np.matmul(SE3_inv(Tbd), SE3(np.identity(3), point_cur))[:3,3]
+                point_diff = Tbd[:3,3]-point_cur
                 point_diff_norm = np.linalg.norm(np.maximum(np.abs(point_diff) - binder_scale_dict[kbd],0))
-                dif_diff_norm = np.linalg.norm(direction_cur - binder_dir_dict[kbd])
+                dif_diff_norm = np.linalg.norm(direction_cur - Tbd[:3,2])
                 bd_val_norm = point_diff_norm# + dif_diff_norm
                 if bd_val_norm < min_val:
                     min_val = bd_val_norm
@@ -335,8 +331,12 @@ def match_point_binder(graph, initial_state, objectPose_dict_mv):
     return kpt_pair_dict
 
 def register_hexahedral_binder(graph, object_name, _type):
-    for k, v in DIR_VEC_DICT.items():
-        graph.register_binder(name="{}_{}".format(object_name, k), object_name=object_name, _type=_type, direction=v)
+    dims = graph.ghnd.NAME_DICT[object_name].dims
+    for k in DIR_RPY_DICT.keys():
+        rpy = DIR_RPY_DICT[k]
+        point = tuple(-np.multiply(DIR_VEC_DICT[k], dims)/2)
+        graph.register_binder(name="{}_{}".format(object_name, k), object_name=object_name, _type=_type,
+                              point=point, rpy=rpy)
 
 
 
