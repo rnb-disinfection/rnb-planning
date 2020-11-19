@@ -321,7 +321,7 @@ def match_point_binder(graph, initial_state, objectPose_dict_mv):
             direction_cur = np.matmul(Tpt[:3,:3], point_dir[1])
 
             for kbd, Tbd in binder_T_dict.items():
-                if kobj == kbd:
+                if kobj == kbd or kobj == graph.binder_dict[kbd].object.name:
                     continue
                 point_diff = np.matmul(SE3_inv(Tbd), SE3(np.identity(3), point_cur))[:3,3]
                 point_diff_norm = np.linalg.norm(np.maximum(np.abs(point_diff) - binder_scale_dict[kbd],0))

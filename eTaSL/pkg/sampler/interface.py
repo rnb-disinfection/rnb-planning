@@ -24,28 +24,35 @@ class SearchNode:
     def get_traj(self):
         return self.traj
 
-    def copy(self):
-        return SearchNode(self.idx, State(self.state.node, self.state.obj_pos_dict, self.state.Q),
+    def copy(self, graph):
+        return SearchNode(self.idx, State(self.state.node, self.state.obj_pos_dict, self.state.Q, graph),
                           self.parents, self.leafs, self.leafs_P, self.depth, self.edepth)
 
 
 class State:
-    def __init__(self, node, obj_pos_dict, Q):
-        self.node = node
+    def __init__(self, node, obj_pos_dict, Q, graph):
         self.obj_pos_dict = obj_pos_dict
         self.Q = Q
+        self.set_node(node, graph)
+
+    def set_node(self, node, graph):
+        self.node = node
+        self.onode = node2onode(graph, self.node)
 
     def get_tuple(self):
         return (self.node, self.obj_pos_dict, self.Q)
 
-    def copy(self):
-        return State(self.node, self.obj_pos_dict, self.Q)
+    def copy(self, graph):
+        return State(self.node, self.obj_pos_dict, self.Q, graph)
 
     def __str__(self):
         return str((self.node,
                     {k: str(np.round(v, 2)) for k, v in
                      self.obj_pos_dict.items()} if self.obj_pos_dict is not None else None,
                     str(np.round(self.Q, 2)) if self.Q is not None else None))
+
+def node2onode(graph, node):
+    return tuple([graph.binder_dict[binding[2]].object.name for binding in node])
 
 class SamplerInterface:
     NAME = None
@@ -77,8 +84,8 @@ class SamplerInterface:
         import matplotlib.pyplot as plt
         N_plot = self.snode_counter.value
         snode_vec = [v for k,v in sorted(self.snode_dict.items(), key=lambda x: x)]
-        cost_vec = [self.goal_cost_dict[snode.state.node] for snode in snode_vec[1:N_plot]]
-        parent_vec = [self.goal_cost_dict[self.snode_dict[snode.parents[-1]].state.node] for snode in snode_vec[1:N_plot]]
+        cost_vec = [self.goal_cost_dict[snode.state.onode] for snode in snode_vec[1:N_plot]]
+        parent_vec = [self.goal_cost_dict[self.snode_dict[snode.parents[-1]].state.onode] for snode in snode_vec[1:N_plot]]
         plt.figure(figsize=figsize)
         X = list(range(1,N_plot))
         plt.quiver(X, parent_vec,
@@ -89,24 +96,12 @@ class SamplerInterface:
         plt.plot(X, parent_vec,'.')
         plt.axis([0,N_plot+1,-0.5,4.5])
 
-    def find_schedules(self):
-        self.idx_goal = []
-        schedule_dict = {}
-        for i in range(self.snode_counter.value):
-            snode = self.snode_dict[i]
-            state = snode.state
-            if self.check_goal(state.node, self.goal_nodes):
-                self.idx_goal += [i]
-                schedule = snode.parents + [i]
-                schedule_dict[i] = schedule
-        return schedule_dict
-
     def sort_schedule(self, schedule_dict):
         return sorted(schedule_dict.values(), key=lambda x: len(x))
 
     def idxSchedule2SnodeScedule(self, schedule, ZERO_JOINT_POSE):
         snode_schedule = [self.snode_dict[i_sc] for i_sc in schedule]
-        snode_schedule.append(snode_schedule[-1].copy())
+        snode_schedule.append(snode_schedule[-1].copy(self.graph))
         snode_schedule[-1].state.Q = ZERO_JOINT_POSE
         snode_schedule[-1].set_traj(np.array([ZERO_JOINT_POSE]))
         return snode_schedule

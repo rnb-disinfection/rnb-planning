@@ -31,6 +31,7 @@ class ConstraintGraph:
         self.joint_names = joint_names
         self.link_names = link_names
         self.binder_dict = {}
+        self.object_binder_dict = defaultdict(list)
         self.handle_dict = {}
         self.handle_list = []
         self.object_dict = {}
@@ -97,7 +98,7 @@ class ConstraintGraph:
                     self.remove_geometry(v)
                     del self.highlight_dict[hkey][k]
         else:
-            self.highlight_dict = defaultdict(lambda: dict())
+            self.highlight_dict = defaultdict(dict)
 
     def update_marker(self, gtem):
         joint_dict = {self.joints.name[i]: self.joints.position[i] for i in range(len(self.joint_names))}
@@ -142,8 +143,10 @@ class ConstraintGraph:
         self.binder_dict[name] = _type(_object=_object,
                                        name=name, link_name=link_name,
                                        urdf_content=self.urdf_content, **kwargs)
+        self.object_binder_dict[object_name].append(name)
 
     def remove_binder(self, bname):
+        self.object_binder_dict[self.binder_dict[bname].object.name].remove(bname)
         del self.binder_dict[bname]
 
     def get_all_handles(self):
@@ -316,9 +319,8 @@ class ConstraintGraph:
         else:
             print("=====================================================")
             print("=====================================================")
-            print("=====================================================")
             print("===============Unavailable binder====================")
-            print("=====================================================")
+            print("================={}=======================".format(binding_list))
             print("=====================================================")
             print("=====================================================")
             LastQ = from_state.Q
@@ -333,7 +335,7 @@ class ConstraintGraph:
                 self.rebind(bd, joint_list2dict(LastQ, self.joint_names))
 
         node, obj_pos_dict = self.get_object_state()
-        end_state = State(node, obj_pos_dict, list(LastQ))
+        end_state = State(node, obj_pos_dict, list(LastQ), self)
         return Traj, end_state, error, success
 
     def get_real_robot_pose(self):

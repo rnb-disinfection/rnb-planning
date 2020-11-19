@@ -104,12 +104,12 @@ class TaskPlanTable(TableInterface):
                 initial_state = State(tuple([(oname, put_point_dict[oname], 'floor') for oname in graph.object_list]),
                                       {oname: graph.object_dict[oname].object.get_offset_tf() for oname in
                                        graph.object_list},
-                                      graph.get_real_robot_pose())
+                                      graph.get_real_robot_pose(), graph)
                 binding_dict = match_point_binder(graph, initial_state, objectPose_dict_mv)
                 self.initial_state = State(
                     tuple([(oname, put_point_dict[oname], binding_dict[oname]) for oname in graph.object_list]),
                     {oname: graph.object_dict[oname].object.get_offset_tf() for oname in graph.object_list},
-                    graph.get_real_robot_pose())
+                    graph.get_real_robot_pose(), graph)
                 goal_nodes_1 = get_goal_nodes(initial_state.node, "box1", "goal_bd")
                 self.goal_nodes = []
                 for gnode in goal_nodes_1:
