@@ -1,5 +1,6 @@
 from .interface import *
 from ..utils.utils import *
+from ..utils.joint_utils import *
 from collections import defaultdict
 
 try:
@@ -151,6 +152,7 @@ class ObjectAstarSampler(SamplerInterface):
         self.dict_lock.release()
         state = snode.state
         leafs = self.valid_node_dict[state.onode]
+        Q_dict = joint_list2dict(state.Q, self.graph.joint_names)
         if len(leafs) == 0:
             return snode
         for leaf in leafs:
@@ -159,7 +161,8 @@ class ObjectAstarSampler(SamplerInterface):
             if expected_depth > self.max_depth:
                 continue
             available_binding_dict = {oname:
-                                          get_available_bindings(self.graph, oname, boname, sbinding[1], sbinding[2])\
+                                          get_available_bindings(self.graph, oname, boname, sbinding[1], sbinding[2],
+                                                                 Q_dict=Q_dict)\
                                               if sboname!=boname else [sbinding[1:]]
                                       for oname, boname, sboname, sbinding
                                       in zip(self.graph.object_list, leaf, state.onode, state.node)}
@@ -296,11 +299,12 @@ def get_available_binder_dict(graph, oname_list, bname_list):
     return available_binder_dict
 
 
-def get_available_bindings(graph, oname, boname, ap_exclude, bd_exclude):
+def get_available_bindings(graph, oname, boname, ap_exclude, bd_exclude, Q_dict):
     obj = graph.object_dict[oname]
     ap_dict = obj.action_points_dict
     apk_list = ap_dict.keys()
-    bd_list = [graph.binder_dict[bname] for bname in graph.object_binder_dict[boname]]
+    bd_list = [graph.binder_dict[bname] for bname in graph.object_binder_dict[boname]
+               if graph.binder_dict[bname].check_available(Q_dict)]
 
     apk_exclude = obj.get_conflicting_handles(ap_exclude)
     ap_list = [ap_dict[apk] for apk in apk_list if apk not in apk_exclude]
