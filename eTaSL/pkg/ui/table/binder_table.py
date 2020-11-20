@@ -2,7 +2,7 @@ from .table_interface import *
 from ...constraint.constraint_action import ctype_to_btype
 
 class BinderTable(TableInterface):
-    HEADS = [IDENTIFY_COL, 'CType', 'Geometry', 'Link', 'Direction', 'Point', 'Control', 'Multi']
+    HEADS = [IDENTIFY_COL, 'CType', 'Geometry', 'Link', 'RPY', 'Point', 'Control', 'Multi']
     HILIGHT_KEY = 'binder'
     CUSTOM_BUTTONS = ["Apply"]
 
@@ -14,18 +14,18 @@ class BinderTable(TableInterface):
 
     def serialize(self, binder):
         return [binder.name, binder.ctype.name, binder.object.name, binder.object.link_name,
-                round_it_str(binder.direction, 0), "n" if binder.point_offset is None else round_it_str(binder.point_offset, 3),
+                round_it_str(binder.rpy_point, 3), "n" if binder.point is None else round_it_str(binder.point, 3),
                 str(binder.controlled), str(binder.multiple)]
 
-    def highlight_item(self, handle, color=None):
-        self.graph.add_binder_axis(self.HILIGHT_KEY, handle)
-        self.graph.highlight_geometry(self.HILIGHT_KEY, handle.effector.object.name, color=color)
+    def highlight_item(self, binder, color=None):
+        self.graph.add_handle_axis(self.HILIGHT_KEY, binder)
+        self.graph.highlight_geometry(self.HILIGHT_KEY, binder.object.name, color=color)
 
     def add_item(self, value):
         try:
             self.graph.register_binder(name=value[IDENTIFY_COL], object_name=value["Geometry"],
                                        _type=ctype_to_btype(value['CType']), link_name=value['Link'],
-                                       point=str_num_it(value['Point']), direction=str_num_it(value['Direction']))
+                                       point=str_num_it(value['Point']), direction=str_num_it(value['RPY']))
         except Exception as e:
             print(e)
 
@@ -42,23 +42,15 @@ class BinderTable(TableInterface):
             res, msg = False, "Geometry is not changeable"
         elif active_col == "Link":
             res, msg = False, "Link is not changeable"
-        elif active_col == "Direction":
-            binder.direction = str_num_it(value)
-            binder.effector.set_binding_direction(binder.direction)
+        elif active_col == "RPY":
+            binder.set_point_rpy(binder.point, str_num_it(value))
         elif active_col == 'Point':
-            if "," in value:
-                binder.point_offset = str_num_it(value)
-                if binder.point is None:
-                    binder.object.set_offset_tf(center=binder.point_offset)
-                else:
-                    binder.point = binder.point_offset
-            else:
-                if binder.point is not None:
-                    res, msg = False, "Invalid point"
+            value = str_num_it(value) if "," in value else None
+            binder.set_point_rpy(value, binder.rpy_point)
         elif active_col == 'Control':
-            binder.controlled = value.lower() == 'true'
+            binder.controlled = value.lower() in ["true", "t"]
         elif active_col == 'Multi':
-            binder.multiple = value.lower() == 'true'
+            binder.multiple = value.lower() in ["true", "t"]
         return res, msg
 
     def button(self, button, *args, **kwargs):

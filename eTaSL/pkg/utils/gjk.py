@@ -73,7 +73,7 @@ class SweptVolumeTester:
         ghnd = GeometryHandle.instance()
         for ctem in ghnd:
             vtx_ref, radi = ctem.get_vertice_radius()
-            Toff = ctem.get_offset_tf()
+            Toff = ctem.Toff
             T_c1 = np.matmul(T_dict1[ctem.link_name], Toff)
             vtx1 = np.matmul(vtx_ref, T_c1[:3, :3].transpose()) + T_c1[:3, 3]
             T_c2 = np.matmul(T_dict2[ctem.link_name], Toff)

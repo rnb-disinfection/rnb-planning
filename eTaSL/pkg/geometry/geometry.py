@@ -91,41 +91,29 @@ class GeometryItem(object):
         self.link_name = link_name
         self.adjacent_links = get_adjacent_links(self.link_name)
 
-    def get_radius(self):
-        raise NotImplementedError
-        
-    def get_dims(self):
-        return self.dims
-
     def get_tf(self, joint_dict):
         T = get_tf(to_link=self.link_name, joint_dict=joint_dict, urdf_content=self.ghnd.urdf_content)
-        T = np.matmul(T, self.get_offset_tf())
+        T = np.matmul(T, self.Toff)
         return T
-        
-    def get_offset_tf(self):
-        return self.Toff
-        
-    def get_center(self):
-        return self.center
-        
-    def set_center(self, center):
-        self.center = center
-        
-    def set_orientation_mat(self, orientation_mat):
-        self.orientation_mat = orientation_mat
+
+    def get_xvec(self):
+        return self.object.orientation_mat[:,0]
+
+    def get_yvec(self):
+        return self.object.orientation_mat[:,1]
+
+    def get_zvec(self):
+        return self.object.orientation_mat[:,2]
 
     def set_offset_tf(self, center=None, orientation_mat=None):
         self.center = center if center is not None else self.center
         self.orientation_mat = orientation_mat if orientation_mat is not None else self.orientation_mat
         self.Toff = SE3(self.orientation_mat, self.center)
 
-    def get_frame(self):
-        return SE3(self.orientation_mat, self.center)
-
     def get_off_max(self):
-        Toff = self.get_offset_tf()
+        Toff = self.Toff
         Roff, Poff = Toff[:3, :3], Toff[:3, 3]
-        return np.abs(Poff) + np.abs(np.matmul(Roff, self.get_dims()))/2
+        return np.abs(Poff) + np.abs(np.matmul(Roff, self.dims))/2
 
     def get_vertice_radius(self):
         return np.multiply(DEFAULT_VERT_DICT[self.gtype], self.dims), self.radius

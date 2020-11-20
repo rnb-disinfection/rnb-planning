@@ -96,10 +96,10 @@ class GeoMarker:
     
     def set_marker(self, joint_dict, create=True):
         if create:
-            self.marker = GeoMarker.create_marker_template(self.get_type(), self.geometry.get_dims(), self.geometry.color)
+            self.marker = GeoMarker.create_marker_template(self.get_type(), self.geometry.dims, self.geometry.color)
         else:
             self.marker.type = self.get_type()
-            self.marker.scale.x, self.marker.scale.y, self.marker.scale.z = self.geometry.get_dims()
+            self.marker.scale.x, self.marker.scale.y, self.marker.scale.z = self.geometry.dims
             self.marker.color.r, self.marker.color.g, self.marker.color.b, self.marker.color.a  = self.geometry.color
 
 #         self.marker.header.frame_id = self.geometry.link_name # let rviz transform link - buggy
@@ -134,7 +134,7 @@ class GeoMarker:
         self.publish_marker()
 
 #     def __set_position(self, joint_dict): # let rviz transform link - buggy
-#         T = self.geometry.get_offset_tf()
+#         T = self.geometry.Toff
 #         self.marker.pose.orientation.x, self.marker.pose.orientation.y, \
 #             self.marker.pose.orientation.z, self.marker.pose.orientation.w = \
 #             Rotation.from_dcm(T[:3,:3]).as_quat()

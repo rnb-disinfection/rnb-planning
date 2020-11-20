@@ -190,7 +190,22 @@ def add_geometry_items(urdf_content, color=(0,1,0,0.5), display=True, collision=
                         center=xyz, dims=(geometry.radius*2,geometry.radius*2,geometry.length), rpy=rpy,
                         color=color, display=display, collision=collision, fixed=True)
                 )
-
+            elif geotype == 'Box':
+                gname = "{}_{}_{}".format(link.name, geotype, id_dict[link.name])
+                geometry_items.append(
+                    ghnd.create_safe(
+                        name=gname, link_name=link.name, gtype=GEOTYPE.BOX,
+                        center=xyz, dims=geometry.size, rpy=rpy,
+                        color=color, display=display, collision=collision, fixed=True)
+                )
+            elif geotype == 'Sphere':
+                gname = "{}_{}_{}".format(link.name, geotype, id_dict[link.name])
+                geometry_items.append(
+                    ghnd.create_safe(
+                        name=gname, link_name=link.name, gtype=GEOTYPE.SPHERE,
+                        center=xyz, dims=[geometry.radius*2]*3, rpy=rpy,
+                        color=color, display=display, collision=collision, fixed=True)
+                )
             elif geotype == 'Mesh':
                 name = "{}_{}_{}".format(link.name, geotype, id_dict[link.name])
                 geo_file_name = os.path.join(geometry_dir, name+".npy")

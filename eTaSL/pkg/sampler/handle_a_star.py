@@ -21,11 +21,12 @@ class HandleAstarSampler(SamplerInterface):
 
     def __init__(self, *args, **kwargs):
         SamplerInterface.__init__(self, *args, **kwargs)
-        self.dict_lock = Lock()
-        self.que_lock = Lock()
         self.manager = PriorityQueueManager()
         self.manager.start()
+        self.dict_lock = self.manager.Lock()
+        self.que_lock = self.manager.Lock()
 
+    @record_time
     def build_graph(self, update_handles=True):
         if update_handles:
             self.graph.update_handles()
@@ -57,7 +58,7 @@ class HandleAstarSampler(SamplerInterface):
         ctrl_idx_dict = {}
         fixed_bdg_dict = {}
         ctrl_bdg_dict = {}
-        fix_node_dict = defaultdict(lambda: list())
+        fix_node_dict = defaultdict(list)
         for node in self.node_list:
             fixed_idx = [i_n for i_n in range(len(node)) if node[i_n][2] not in ctrl_binders]  # fixed binding index
             ctrl_idx = [i_n for i_n in range(len(node)) if node[i_n][2] in ctrl_binders]  # control binding index
@@ -180,18 +181,19 @@ class HandleAstarSampler(SamplerInterface):
             expected_depth = depth + self.goal_cost_dict[leaf]
             if expected_depth > self.max_depth:
                 continue
-            to_state = state.copy()
+            to_state = state.copy(self.graph)
 
             if leaf == state.node:
                 dQ = (1 - 2 * np.random.rand(self.DOF)) * self.DQ_MAX
                 to_state.Q = np.sum([state.Q, dQ], axis=0)
                 to_state.Q = np.minimum(np.maximum(to_state.Q, self.graph.joint_limits[:,0]), self.graph.joint_limits[:,1])
             else:
-                to_state.node = leaf
+                to_state.set_node(leaf, self.graph)
             # self.snode_queue.put((snode, state, to_state), expected_depth * self.DSCALE - depth) ## breadth-first
             self.snode_queue.put(((expected_depth - depth) * self.DSCALE + depth, (snode, state, to_state))) ## greedy
         return snode
 
+    @record_time
     def search_graph(self, initial_state, goal_nodes,
                      tree_margin=0, depth_margin=0, joint_motion_num=10,
                      terminate_on_first=True, N_search=100, N_loop=1000, N_agents=None, multiprocess=False,
@@ -202,24 +204,29 @@ class HandleAstarSampler(SamplerInterface):
         self.DOF = len(initial_state.Q)
         self.init_search(initial_state, goal_nodes, tree_margin, depth_margin)
 
+        snode_root = SearchNode(idx=0, state=initial_state, parents=[], leafs=[],
+                                leafs_P=[self.WEIGHT_DEFAULT] * len(self.valid_node_dict[initial_state.node]),
+                                depth=0, edepth=self.goal_cost_dict[initial_state.node])
+
         if multiprocess:
             if display:
                 print("Cannot display motion in multiprocess")
                 display = False
             if N_agents is None:
                 N_agents = cpu_count()
+            self.N_agents = N_agents
             print("Use {}/{} agents".format(N_agents, cpu_count()))
             self.snode_counter = self.manager.Value('i', 0)
             self.search_counter = self.manager.Value('i', 0)
             self.stop_now = self.manager.Value('i', 0)
             self.snode_dict = self.manager.dict()
+            self.stop_dict = self.manager.dict()
             self.snode_queue = self.manager.PriorityQueue()
-            self.add_node_queue_leafs(SearchNode(idx=0, state=initial_state, parents=[], leafs=[],
-                                                  leafs_P=[self.WEIGHT_DEFAULT] * len(
-                                                      self.valid_node_dict[initial_state.node])))
+            self.add_node_queue_leafs(snode_root)
+
             self.proc_list = [Process(
                 target=self.__search_loop,
-                args=(terminate_on_first, N_search, N_loop, False, dt_vis, verbose, print_expression),
+                args=(id_agent, terminate_on_first, N_search, N_loop, False, dt_vis, verbose, print_expression),
                 kwargs=kwargs) for id_agent in range(N_agents)]
             for proc in self.proc_list:
                 proc.start()
@@ -231,23 +238,36 @@ class HandleAstarSampler(SamplerInterface):
             self.search_counter = SingleValue('i', 0)
             self.stop_now =  SingleValue('i', 0)
             self.snode_dict = {}
+            self.stop_dict = {}
             self.snode_queue = PriorityQueue()
-            self.add_node_queue_leafs(SearchNode(idx=0, state=initial_state, parents=[], leafs=[],
-                                                  leafs_P=[self.WEIGHT_DEFAULT] * len(
-                                                      self.valid_node_dict[initial_state.node])))
-            self.__search_loop(terminate_on_first, N_search, N_loop, display, dt_vis, verbose, print_expression, **kwargs)
+            self.add_node_queue_leafs(snode_root)
+
+            self.__search_loop(0, terminate_on_first, N_search, N_loop, display, dt_vis, verbose, print_expression, **kwargs)
 
     @record_time
-    def __search_loop(self, terminate_on_first, N_search, N_loop,
+    def __search_loop(self, ID, terminate_on_first, N_search, N_loop,
                       display=False, dt_vis=None, verbose=False, print_expression=False,
                       traj_count=DEFAULT_TRAJ_COUNT, **kwargs):
         loop_counter = 0
+        self.stop_dict[ID] = False
         while self.snode_counter.value < N_search and loop_counter < N_loop and not self.stop_now.value:
             loop_counter += 1
             self.que_lock.acquire()
+            stop = False
             if self.snode_queue.empty():
-                break
-            snode, from_state, to_state = self.snode_queue.get()[1]
+                stop = True
+            else:
+                try:
+                    snode, from_state, to_state = self.snode_queue.get(timeout=1)[1]
+                except:
+                    stop=True
+            self.stop_dict[ID] = stop
+            if stop:
+                self.que_lock.release()
+                if all([self.stop_dict[i_proc] for i_proc in range(self.N_agents)]):
+                    break
+                else:
+                    continue
             self.search_counter.value = self.search_counter.value + 1
             self.que_lock.release()
             self.gtimer.tic("test_transition")
@@ -255,9 +275,9 @@ class HandleAstarSampler(SamplerInterface):
                                                           print_expression=print_expression, **kwargs)
             ret = False
             if succ:
-                snode_new = SearchNode(idx=0, state=new_state, parents=snode.parents + [snode.idx],
-                                       leafs=[],
-                                       leafs_P=[])
+                depth_new = len(snode.parents) + 1
+                snode_new = SearchNode(idx=0, state=new_state, parents=snode.parents + [snode.idx], leafs=[], leafs_P=[],
+                                       depth=depth_new, edepth=depth_new+self.goal_cost_dict[new_state.node])
                 snode_new.set_traj(traj, traj_count=traj_count)
                 snode_new = self.add_node_queue_leafs(snode_new)
                 snode.leafs += [snode_new.idx]
@@ -282,25 +302,30 @@ class HandleAstarSampler(SamplerInterface):
         print("=============================================== terminate ===============================================")
         print("=========================================================================================================")
 
-    def task_plan_single(self, initial_state, goal_nodes):
-        dt_sim = 0.04
-        T_step = 10
-        N_fullstep = int(T_step / dt_sim)
-        self.search_graph(
-            initial_state=initial_state, goal_nodes=goal_nodes,
-            tree_margin=2, depth_margin=2, joint_motion_num=10,
-            terminate_on_first=True, N_search=100, N_loop=1000,
-            display=False, dt_vis=dt_sim / 4, verbose=True, print_expression=False, error_skip=0, traj_count=3,
-            **dict(N=N_fullstep, dt=dt_sim, vel_conv=0.5e-2, err_conv=1e-3))
+    def find_schedules(self):
+        self.idx_goal = []
+        schedule_dict = {}
+        for i in range(self.snode_counter.value):
+            snode = self.snode_dict[i]
+            state = snode.state
+            if self.check_goal(state.node, self.goal_nodes):
+                self.idx_goal += [i]
+                schedule = snode.parents + [i]
+                schedule_dict[i] = schedule
+        return schedule_dict
 
-
-    def task_plan_multi(self, initial_state, goal_nodes):
-        dt_sim = 0.04
-        T_step = 10
-        N_fullstep = int(T_step / dt_sim)
-        self.search_graph_mp(
-            initial_state=initial_state, goal_nodes=goal_nodes,
-            tree_margin=2, depth_margin=2, joint_motion_num=10,
-            terminate_on_first=True, N_search=100, N_loop=1000,
-            display=False, dt_vis=dt_sim / 4, verbose=True, print_expression=False, error_skip=0, traj_count=3,
-            **dict(N=N_fullstep, dt=dt_sim, vel_conv=0.5e-2, err_conv=1e-3))
+    def quiver_snodes(self, figsize=(10,10)):
+        import matplotlib.pyplot as plt
+        N_plot = self.snode_counter.value
+        snode_vec = [v for k,v in sorted(self.snode_dict.items(), key=lambda x: x)]
+        cost_vec = [self.goal_cost_dict[snode.state.node] for snode in snode_vec[1:N_plot]]
+        parent_vec = [self.goal_cost_dict[self.snode_dict[snode.parents[-1]].state.node] for snode in snode_vec[1:N_plot]]
+        plt.figure(figsize=figsize)
+        X = list(range(1,N_plot))
+        plt.quiver(X, parent_vec,
+                   [0]*(N_plot-1),
+                   np.subtract(cost_vec, parent_vec),
+                   angles='xy', scale_units='xy', scale=1)
+        plt.plot(X, cost_vec,'.')
+        plt.plot(X, parent_vec,'.')
+        plt.axis([0,N_plot+1,-0.5,4.5])

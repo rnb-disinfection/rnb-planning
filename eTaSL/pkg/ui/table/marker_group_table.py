@@ -31,7 +31,7 @@ class MarkerGroupTable(TableInterface):
                                                gtype=getattr(GEOTYPE, value['GType']) if value['GType'] != "None" else None,
                                                dims=str_num_it(value["Dims"]) if value["Dims"] != "None" else None,
                                                color=str_num_it(value["Color"]),
-                                               soft=value["Soft"]=="True",
+                                               soft=value["Soft"].lower() in ["true", "t"],
                                                K_col=float(value["K_col"]) if value["K_col"] != "None" else None
                                                )
 
@@ -63,7 +63,7 @@ class MarkerGroupTable(TableInterface):
         elif active_col == 'Color':
             atem.color = str_num_it(value["Color"])
         elif active_col == 'Soft':
-            atem.soft = value["Soft"]=="True"
+            atem.soft = value["Soft"].lower() in ["true", "t"]
         elif active_col == 'K_col':
             atem.K_col = float(value["K_col"]) if value["K_col"] != "None" else None
         return res, msg
@@ -72,7 +72,7 @@ class MarkerGroupTable(TableInterface):
         if button == TAB_BUTTON.CUSTOM:
             if args[0]:
                 graph = self.graph
-                BINDER_DICT = {k:dict(_type=v.__class__, object_name=v.object.name, point=v.point_offset, direction=v.direction) \
+                BINDER_DICT = {k:dict(_type=v.__class__, object_name=v.object.name, point=v.point, rpy=v.rpy_point) \
                                for k, v in graph.binder_dict.items() \
                                if (not v.controlled) and \
                                (v.object.name in graph.cam.aruco_map and graph.cam.aruco_map[v.object.name].ttype == TargetType.MOVABLE)}

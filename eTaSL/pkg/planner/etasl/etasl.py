@@ -6,6 +6,7 @@ from ...utils.utils import integrate
 from .constraint_etasl import *
 from ..interface import PlannerInterface
 from copy import deepcopy
+from collections import defaultdict
 
 K_DEFAULT = 10
 TRAJ_RADII_MAX = np.deg2rad(10)
@@ -39,7 +40,8 @@ class etasl_planner(PlannerInterface):
         self.fixed_collision_text = make_collision_constraints(self.ghnd.fixed_ctems,
                                                                min_distance_map=self.min_distance_map)
 
-    def plan_transition(self, from_state, to_state, binding_list, vel_conv=1e-2, err_conv=1e-4, collision=True,
+    def plan_transition(self, from_state, to_state, binding_list,
+                        vel_conv=1e-2, err_conv=1e-4, collision=True,
                         N=1, dt=1e-2, print_expression=False, cut_dot=False, **kwargs):
         full_context, kwargs = self.get_transition_context(
             from_state, to_state, binding_list, vel_conv, err_conv, collision=collision, **kwargs)
@@ -48,11 +50,14 @@ class etasl_planner(PlannerInterface):
         e = self.set_simulate(full_context, initial_jpos=np.array(from_state.Q),
                          N=N, dt=dt, cut_dot=cut_dot, **kwargs)
         error = e.error if hasattr(e, 'error') else None
+        POS = e.POS if hasattr(e, 'POS') else []
+        POS_last = e.POS[-1] if hasattr(e, 'POS') else []
         success = error<err_conv if error is not None else False
         return e.POS, e.POS[-1], error, success
 
-    def get_transition_context(self, from_state=None, to_state=None, binding_list=[], vel_conv=1e-2, err_conv=1e-4, collision=True,
-                               activation=False, **kwargs):
+    def get_transition_context(self, from_state=None, to_state=None, binding_list=[],
+                               vel_conv=1e-2, err_conv=1e-4, collision=True,
+                               activation=False, redundancy_dict=None, **kwargs):
         kwargs.update(deepcopy(self.kwargs_online))
 
         tf_text = self.fixed_tf_text + self.online_input_text + get_tf_text(self.ghnd.movable_gtems)
@@ -68,8 +73,9 @@ class etasl_planner(PlannerInterface):
 
         additional_constraints = '\nconstraint_activation = ctx:createInputChannelScalar("constraint_activation",0.0) \n' if activation else ""
         for bd1 in binding_list:
-            additional_constraints += make_action_constraints(self.object_dict[bd1[0]], bd1[1], self.binder_dict[bd1[2]].effector,
-                                                              point=self.binder_dict[bd1[2]].point, activation=activation)
+            additional_constraints += make_action_constraints(
+                self.object_dict[bd1[0]].action_points_dict[bd1[1]], self.binder_dict[bd1[2]],
+                redundancy=redundancy_dict[bd1[0]] if redundancy_dict else None, activation=activation)
 
         if additional_constraints=="" and to_state.Q is not None:# and np.sum(np.abs(np.subtract(to_state.Q,from_state.Q)))>1e-2:
             additional_constraints=make_joint_constraints(joint_names=self.joint_names)
@@ -221,17 +227,17 @@ class etasl_planner(PlannerInterface):
                     self.inp[self.inp_lbl.index(_k)] = _p
 
     def update_target_joint(self, idx_cur, traj, joint_cur):
-        # error_max = np.max(np.abs(joint_cur-traj[idx_cur]))
-        # # print("joints: {}".format(joint_cur))
-        # # print("traj: {}".format(traj[idx_cur]))
-        # # print("error: {}".format(error))
-        # if error_max < TRAJ_RADII_MAX:
-        #     if idx_cur+1 < len(traj):
-        #         idx_cur += 1
-        #         # print("traj: {}".format(traj[idx_cur]))
-        # self.inp[self.idx_jnt_online] = traj[idx_cur]
-        self.inp[self.idx_jnt_online] = traj[-1]
-        return idx_cur
+        error_max = np.max(np.abs(joint_cur-traj[idx_cur]))
+        # print("joints: {}".format(joint_cur))
+        # print("traj: {}".format(traj[idx_cur]))
+        # print("error: {}".format(error))
+        if error_max < TRAJ_RADII_MAX:
+            if idx_cur+1 < len(traj):
+                idx_cur += 1
+                # print("traj: {}".format(traj[idx_cur]))
+        self.inp[self.idx_jnt_online] = traj[idx_cur]
+        # self.inp[self.idx_jnt_online] = traj[-1]
+        return idx_cur # len(traj)
 
     def simulate(self, initial_jpos, joint_names = None, initial_jpos_dot=None,
                  inp_lbl=[], inp=[], N=100, dt=0.02, cut_dot=False):
@@ -258,23 +264,30 @@ class etasl_planner(PlannerInterface):
                         self.etasl.VEL = self.etasl.VEL[:idx_end+1, ::2]
                     self.etasl.TIME = self.etasl.TIME[:idx_end+1]
                     self.etasl.OUTP = self.etasl.OUTP[:idx_end+1]
-                return
+                res = True
+                return res
             if cut_dot:
                 self.etasl.VEL = integrate(self.etasl.VEL[:,1::2], dt)
                 self.etasl.POS = integrate(self.etasl.VEL, dt, initial_jpos)
             else:
                 self.etasl.POS = self.etasl.POS[:, ::2]
                 self.etasl.VEL = self.etasl.VEL[:, ::2]
+            res = True
         except Exception as e:
-            print('unknown eTaSL exception: {}'.format(str(e)))
+            res = False
+            print('eTaSL exception: {}'.format(str(e)))
+        return res
 
     def do_simulate(self, **kwargs):
-        self.simulate(**kwargs)
-        if hasattr(self.etasl, 'POS') and self.etasl.POS is not None and len(self.etasl.POS)>0:
-            self.etasl.joint_dict_last = joint_list2dict(self.etasl.POS[-1], self.joint_names)
-        output = self.etasl.etasl.getOutput()
-        if 'global.error' in output:
-            self.etasl.error = output['global.error']
+        res = self.simulate(**kwargs)
+        if res:
+            if hasattr(self.etasl, 'POS') and self.etasl.POS is not None and len(self.etasl.POS)>0:
+                self.etasl.joint_dict_last = joint_list2dict(self.etasl.POS[-1], self.joint_names)
+            output = self.etasl.etasl.getOutput()
+            if 'global.error' in output:
+                self.etasl.error = output['global.error']
+        else:
+            self.etasl.error = None
         return self.etasl
 
     def set_simulate(self, full_context, initial_jpos=[], **kwargs):

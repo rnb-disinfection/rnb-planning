@@ -49,7 +49,7 @@ class GlobalTimer(Singleton):
         self.min_time_dict = collections.defaultdict(lambda: 1e10)
         self.max_time_dict = collections.defaultdict(lambda: 0)
         self.count_dict = collections.defaultdict(lambda: 0)
-        self.timelist_dict = collections.defaultdict(lambda: list())
+        self.timelist_dict = collections.defaultdict(list)
         self.switch(True)
         
     def switch(self, onoff):

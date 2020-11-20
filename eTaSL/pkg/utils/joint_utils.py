@@ -6,7 +6,7 @@ from collections import defaultdict
 parent_joint_map = {}
 link_adjacency_map = {}
 link_adjacency_map_ext = {}
-mindist_dict = defaultdict(lambda: dict())
+mindist_dict = defaultdict(dict)
 
 def get_root_chain(lname, urdf_content):
     chain_list = []
@@ -62,7 +62,7 @@ def get_link_min_distance(lname1, lname2, urdf_content):
 
 def set_min_distance_map(link_names, urdf_content):
     global mindist_dict
-    mindist_dict = defaultdict(lambda: dict())
+    mindist_dict = defaultdict(dict)
     for idx1 in range(len(link_names)):
         lname1 = link_names[idx1]
         for lname2 in link_names[idx1:]:

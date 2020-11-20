@@ -3,7 +3,7 @@ from ...utils.rotation_utils import *
 from ...geometry.geometry import *
 
 class GeometryTable(TableInterface):
-    HEADS = [IDENTIFY_COL, 'GType', 'Link', 'Dims', 'Center', 'Rpy', 'Color', 'Disp', 'Coll', 'Fix', 'Soft', 'Online']
+    HEADS = [IDENTIFY_COL, 'GType', 'Link', 'Dims', 'Center', 'RPY', 'Color', 'Disp', 'Coll', 'Fix', 'Soft', 'Online']
     HILIGHT_KEY = 'geometry'
     CUSTOM_BUTTONS = ["Apply"]
 
@@ -26,12 +26,12 @@ class GeometryTable(TableInterface):
         self.graph.add_geometry(
             self.graph.ghnd.create_safe(name=value[IDENTIFY_COL], gtype=getattr(GEOTYPE, value['GType']),
                                   link_name=value["Link"], center=str_num_it(value["Center"]),
-                                  dims=str_num_it(value["Dims"]), rpy=str_num_it(value["Rpy"]),
+                                  dims=str_num_it(value["Dims"]), rpy=str_num_it(value["RPY"]),
                                   color=str_num_it(value["Color"]),
-                                  display=value["Disp"].lower()=="true",
-                                  collision=value["Coll"].lower()=="true",
-                                  fixed=value["Fix"].lower()=="true",
-                                  soft=value["Soft"].lower()=="true"))
+                                  display=value["Disp"].lower() in ["true", "t"],
+                                  collision=value["Coll"].lower() in ["true", "t"],
+                                  fixed=value["Fix"].lower() in ["true", "t"],
+                                  soft=value["Soft"].lower() in ["true", "t"]))
 
     def delete_item(self, active_row):
         gtem = self.graph.ghnd.NAME_DICT[active_row]
@@ -48,23 +48,21 @@ class GeometryTable(TableInterface):
         elif active_col == "Dims":
             gtem.set_dims(map(float, value.split(',')))
         elif active_col == 'Center':
-            gtem.set_center(map(float, value.split(',')))
-            gtem.set_offset_tf()
-        elif active_col == 'Rpy':
-            gtem.set_orientation_mat(Rot_rpy(map(float, value.split(','))))
-            gtem.set_offset_tf()
+            gtem.set_offset_tf(center=map(float, value.split(',')))
+        elif active_col == 'RPY':
+            gtem.set_offset_tf(orientation_mat=Rot_rpy(map(float, value.split(','))))
         elif active_col == 'Color':
             gtem.color = map(float, value.split(','))
         elif active_col == 'Disp':
-            gtem.display = value.lower() == 'true'
+            gtem.display = value.lower() in ["true", "t"]
         elif active_col == 'Coll':
-            gtem.collision = value.lower() == 'true'
+            gtem.collision = value.lower() in ["true", "t"]
         elif active_col == 'Fix':
-            gtem.fixed = value.lower() == 'true'
+            gtem.fixed = value.lower() in ["true", "t"]
         elif active_col == 'Soft':
-            gtem.soft = value.lower() == 'true'
+            gtem.soft = value.lower() in ["true", "t"]
         elif active_col == 'Online':
-            gtem.online = value.lower() == 'true'
+            gtem.online = value.lower() in ["true", "t"]
         self.graph.update_marker(gtem)
         return res, msg
 
