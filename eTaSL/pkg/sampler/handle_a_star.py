@@ -21,10 +21,10 @@ class HandleAstarSampler(SamplerInterface):
 
     def __init__(self, *args, **kwargs):
         SamplerInterface.__init__(self, *args, **kwargs)
-        self.dict_lock = Lock()
-        self.que_lock = Lock()
         self.manager = PriorityQueueManager()
         self.manager.start()
+        self.dict_lock = self.manager.Lock()
+        self.que_lock = self.manager.Lock()
 
     @record_time
     def build_graph(self, update_handles=True):
@@ -214,17 +214,19 @@ class HandleAstarSampler(SamplerInterface):
                 display = False
             if N_agents is None:
                 N_agents = cpu_count()
+            self.N_agents = N_agents
             print("Use {}/{} agents".format(N_agents, cpu_count()))
             self.snode_counter = self.manager.Value('i', 0)
             self.search_counter = self.manager.Value('i', 0)
             self.stop_now = self.manager.Value('i', 0)
             self.snode_dict = self.manager.dict()
+            self.stop_dict = self.manager.dict()
             self.snode_queue = self.manager.PriorityQueue()
             self.add_node_queue_leafs(snode_root)
 
             self.proc_list = [Process(
                 target=self.__search_loop,
-                args=(terminate_on_first, N_search, N_loop, False, dt_vis, verbose, print_expression),
+                args=(id_agent, terminate_on_first, N_search, N_loop, False, dt_vis, verbose, print_expression),
                 kwargs=kwargs) for id_agent in range(N_agents)]
             for proc in self.proc_list:
                 proc.start()
@@ -236,22 +238,36 @@ class HandleAstarSampler(SamplerInterface):
             self.search_counter = SingleValue('i', 0)
             self.stop_now =  SingleValue('i', 0)
             self.snode_dict = {}
+            self.stop_dict = {}
             self.snode_queue = PriorityQueue()
             self.add_node_queue_leafs(snode_root)
 
-            self.__search_loop(terminate_on_first, N_search, N_loop, display, dt_vis, verbose, print_expression, **kwargs)
+            self.__search_loop(0, terminate_on_first, N_search, N_loop, display, dt_vis, verbose, print_expression, **kwargs)
 
     @record_time
-    def __search_loop(self, terminate_on_first, N_search, N_loop,
+    def __search_loop(self, ID, terminate_on_first, N_search, N_loop,
                       display=False, dt_vis=None, verbose=False, print_expression=False,
                       traj_count=DEFAULT_TRAJ_COUNT, **kwargs):
         loop_counter = 0
+        self.stop_dict[ID] = False
         while self.snode_counter.value < N_search and loop_counter < N_loop and not self.stop_now.value:
             loop_counter += 1
             self.que_lock.acquire()
+            stop = False
             if self.snode_queue.empty():
-                break
-            snode, from_state, to_state = self.snode_queue.get()[1]
+                stop = True
+            else:
+                try:
+                    snode, from_state, to_state = self.snode_queue.get(timeout=1)[1]
+                except:
+                    stop=True
+            self.stop_dict[ID] = stop
+            if stop:
+                self.que_lock.release()
+                if all([self.stop_dict[i_proc] for i_proc in range(self.N_agents)]):
+                    break
+                else:
+                    continue
             self.search_counter.value = self.search_counter.value + 1
             self.que_lock.release()
             self.gtimer.tic("test_transition")

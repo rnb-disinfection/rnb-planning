@@ -50,6 +50,8 @@ class etasl_planner(PlannerInterface):
         e = self.set_simulate(full_context, initial_jpos=np.array(from_state.Q),
                          N=N, dt=dt, cut_dot=cut_dot, **kwargs)
         error = e.error if hasattr(e, 'error') else None
+        POS = e.POS if hasattr(e, 'POS') else []
+        POS_last = e.POS[-1] if hasattr(e, 'POS') else []
         success = error<err_conv if error is not None else False
         return e.POS, e.POS[-1], error, success
 
@@ -262,23 +264,30 @@ class etasl_planner(PlannerInterface):
                         self.etasl.VEL = self.etasl.VEL[:idx_end+1, ::2]
                     self.etasl.TIME = self.etasl.TIME[:idx_end+1]
                     self.etasl.OUTP = self.etasl.OUTP[:idx_end+1]
-                return
+                res = True
+                return res
             if cut_dot:
                 self.etasl.VEL = integrate(self.etasl.VEL[:,1::2], dt)
                 self.etasl.POS = integrate(self.etasl.VEL, dt, initial_jpos)
             else:
                 self.etasl.POS = self.etasl.POS[:, ::2]
                 self.etasl.VEL = self.etasl.VEL[:, ::2]
+            res = True
         except Exception as e:
-            print('unknown eTaSL exception: {}'.format(str(e)))
+            res = False
+            print('eTaSL exception: {}'.format(str(e)))
+        return res
 
     def do_simulate(self, **kwargs):
-        self.simulate(**kwargs)
-        if hasattr(self.etasl, 'POS') and self.etasl.POS is not None and len(self.etasl.POS)>0:
-            self.etasl.joint_dict_last = joint_list2dict(self.etasl.POS[-1], self.joint_names)
-        output = self.etasl.etasl.getOutput()
-        if 'global.error' in output:
-            self.etasl.error = output['global.error']
+        res = self.simulate(**kwargs)
+        if res:
+            if hasattr(self.etasl, 'POS') and self.etasl.POS is not None and len(self.etasl.POS)>0:
+                self.etasl.joint_dict_last = joint_list2dict(self.etasl.POS[-1], self.joint_names)
+            output = self.etasl.etasl.getOutput()
+            if 'global.error' in output:
+                self.etasl.error = output['global.error']
+        else:
+            self.etasl.error = None
         return self.etasl
 
     def set_simulate(self, full_context, initial_jpos=[], **kwargs):

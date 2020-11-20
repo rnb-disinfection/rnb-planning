@@ -48,9 +48,9 @@ class BinderTable(TableInterface):
             value = str_num_it(value) if "," in value else None
             binder.set_point_rpy(value, binder.rpy_point)
         elif active_col == 'Control':
-            binder.controlled = value.lower() == 'true'
+            binder.controlled = value.lower() in ["true", "t"]
         elif active_col == 'Multi':
-            binder.multiple = value.lower() == 'true'
+            binder.multiple = value.lower() in ["true", "t"]
         return res, msg
 
     def button(self, button, *args, **kwargs):

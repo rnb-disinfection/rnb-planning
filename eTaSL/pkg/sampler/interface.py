@@ -5,7 +5,7 @@ from ..constants import DIR_VEC_DICT
 from collections import defaultdict
 
 __metaclass__ = type
-DEFAULT_TRAJ_COUNT = 20
+DEFAULT_TRAJ_COUNT = 10
 
 
 class SearchNode:

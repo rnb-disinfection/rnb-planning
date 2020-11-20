@@ -31,7 +31,7 @@ class MarkerGroupTable(TableInterface):
                                                gtype=getattr(GEOTYPE, value['GType']) if value['GType'] != "None" else None,
                                                dims=str_num_it(value["Dims"]) if value["Dims"] != "None" else None,
                                                color=str_num_it(value["Color"]),
-                                               soft=value["Soft"]=="True",
+                                               soft=value["Soft"].lower() in ["true", "t"],
                                                K_col=float(value["K_col"]) if value["K_col"] != "None" else None
                                                )
 
@@ -63,7 +63,7 @@ class MarkerGroupTable(TableInterface):
         elif active_col == 'Color':
             atem.color = str_num_it(value["Color"])
         elif active_col == 'Soft':
-            atem.soft = value["Soft"]=="True"
+            atem.soft = value["Soft"].lower() in ["true", "t"]
         elif active_col == 'K_col':
             atem.K_col = float(value["K_col"]) if value["K_col"] != "None" else None
         return res, msg

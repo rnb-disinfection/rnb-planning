@@ -30,7 +30,7 @@ class TaskPlanTable(TableInterface):
                 N_fullstep = int(T_step / dt_sim)
                 self.pl_kwargs = dict(tree_margin=2, depth_margin=2, terminate_on_first=True,
                                       N_search=100, N_loop=1000, display=True, dt_vis=dt_sim / 4,
-                                      verbose=True, print_expression=False, error_skip=0, traj_count=3,
+                                      verbose=True, print_expression=False, error_skip=0, traj_count=DEFAULT_TRAJ_COUNT,
                                       ** dict(N=N_fullstep, dt=dt_sim, vel_conv=0.5e-2, err_conv=1e-3))
                 if gtem[0] == "ObjectAstarSampler":
                     sampler = ObjectAstarSampler(self.graph)
@@ -53,7 +53,7 @@ class TaskPlanTable(TableInterface):
         if active_col == IDENTIFY_COL:
             res, msg = False, "cannot change planner name"
         elif active_col == "MultiProcess":
-            self.task_plan_candi[atem[0]]["MultiProcess"] = value.lower() == "true"
+            self.task_plan_candi[atem[0]]["MultiProcess"] = value.lower() in ["true", "t"]
         return res, msg
 
     def button(self, button, *args, **kwargs):

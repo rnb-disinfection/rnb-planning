@@ -28,10 +28,10 @@ class GeometryTable(TableInterface):
                                   link_name=value["Link"], center=str_num_it(value["Center"]),
                                   dims=str_num_it(value["Dims"]), rpy=str_num_it(value["RPY"]),
                                   color=str_num_it(value["Color"]),
-                                  display=value["Disp"].lower()=="true",
-                                  collision=value["Coll"].lower()=="true",
-                                  fixed=value["Fix"].lower()=="true",
-                                  soft=value["Soft"].lower()=="true"))
+                                  display=value["Disp"].lower() in ["true", "t"],
+                                  collision=value["Coll"].lower() in ["true", "t"],
+                                  fixed=value["Fix"].lower() in ["true", "t"],
+                                  soft=value["Soft"].lower() in ["true", "t"]))
 
     def delete_item(self, active_row):
         gtem = self.graph.ghnd.NAME_DICT[active_row]
@@ -54,15 +54,15 @@ class GeometryTable(TableInterface):
         elif active_col == 'Color':
             gtem.color = map(float, value.split(','))
         elif active_col == 'Disp':
-            gtem.display = value.lower() == 'true'
+            gtem.display = value.lower() in ["true", "t"]
         elif active_col == 'Coll':
-            gtem.collision = value.lower() == 'true'
+            gtem.collision = value.lower() in ["true", "t"]
         elif active_col == 'Fix':
-            gtem.fixed = value.lower() == 'true'
+            gtem.fixed = value.lower() in ["true", "t"]
         elif active_col == 'Soft':
-            gtem.soft = value.lower() == 'true'
+            gtem.soft = value.lower() in ["true", "t"]
         elif active_col == 'Online':
-            gtem.online = value.lower() == 'true'
+            gtem.online = value.lower() in ["true", "t"]
         self.graph.update_marker(gtem)
         return res, msg
 

@@ -73,8 +73,7 @@ class PlanListTable(TableInterface):
                         graph.sampler.snode_dict[0].state, graph.sampler.snode_dict[0].state,
                         N=10, dt=dt_sim, vel_conv=1e-2, err_conv=5e-4, print_expression=False)
                     timer.sleep(0.1)
-                    e = graph.replay(schedule, N=N_fullstep, dt=dt_sim,
-                                     vel_conv=1e-3, err_conv=1e-3, error_skip=0)
+                    e = graph.replay(schedule, N=N_fullstep, dt=dt_sim, vel_conv=0.5e-2, err_conv=1e-3, error_skip=0)
                 else:
                     print("===================================================")
                     print("============= PLAN NOT SELECTED ===================")
