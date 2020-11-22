@@ -1,4 +1,6 @@
 .catkin_tools
+build/
+devel/
 logs/
 src/cmake-build-debug
 src/cmake_common_scripts
