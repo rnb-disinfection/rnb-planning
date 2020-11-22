@@ -1,7 +1,9 @@
 .catkin_tools
-build
-devel
-logs
+build/
+build_isolated/
+devel/
+devel_isolated/
+logs/
 src/cmake-build-debug
 src/cmake_common_scripts
 src/descartes_light
