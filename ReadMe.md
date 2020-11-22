@@ -190,7 +190,7 @@
 # Tesseract  
 * clone tesseract on workspace  
   ```
-  cd ˜/Projects/tamp_etasl/eTaSL/ws_ros \
+  cd ~/Projects/tamp_etasl/eTaSL/ws_ros/src \
   && git clone https://github.com/ros-industrial-consortium/tesseract.git  
   ```
    
@@ -209,15 +209,21 @@
   ```
   sudo apt-get install gcc g++ gfortran git patch wget pkg-config liblapack-dev libmetis-dev \
   && sudo apt install lcov \
-  && sudo apt-get install cmake libeigen3-dev coinor-libipopt-dev  
+  && sudo apt-get install cmake libeigen3-dev coinor-libipopt-dev
+  && sudo apt-get install bison  
   ```
 
 * build workspace (-DCMAKE_BUILD_TYPE=Release is set by default)
   ```
+  cd .. && sudo rm -rf devel && sudo rm -rf build
   catkin build --force-cmake -DTESSERACT_ENABLE_TESTING=ON \
-  && add export TESSERACT_SUPPORT_DIR='/home/junsu/Projects/tamp_etasl/eTaSL/ws_ros/devel/share/tesseract_support'  
+  && add export TESSERACT_SUPPORT_DIR='~/Projects/tamp_etasl/eTaSL/ws_ros/devel/share/tesseract_support'  
   ```
   
+* source workspace (done in project setup section)
+  ```
+  source ~Projects/tamp_etasl/eTaSL/ws_ros/devel/setup.bash
+  ``` 
     
 # Camera Setup
 * Azure Kinect  
@@ -277,7 +283,7 @@
   * rebuild etasl 
   ```
   cd ~/etasl/ws/etasl \
-  && sudo rm -rf devel && sudo rm -rf devel && catkin_make -DCMAKE_BUILD_TYPE=Release \
+  && sudo rm -rf devel && sudo rm -rf build && catkin_make -DCMAKE_BUILD_TYPE=Release \
   && source $HOME/etasl/ws/etasl/devel/setup.bash   
   ```
   * switch gcc and g++ version to 5 before installing etasl-py
@@ -287,7 +293,7 @@
   * rebuild etasl-py 
   ```
   cd ~/etasl/ws/etasl-py \
-  && sudo rm -rf devel && sudo rm -rf devel && catkin_make -DCMAKE_BUILD_TYPE=Release \
+  && sudo rm -rf devel && sudo rm -rf build && catkin_make -DCMAKE_BUILD_TYPE=Release \
   && source $HOME/etasl/ws/etasl-py/devel/setup.bash   
   ```
   * **[IMPORTANT]** uncomment "source $HOME/etasl/ws/etasl-py/devel/setup.bash" in ~/.bashrc
