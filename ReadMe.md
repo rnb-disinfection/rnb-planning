@@ -186,44 +186,6 @@
   ```
 * ***If eTaSL is slow***, re-compile packages in release mode (has to be under 300ms with 200 constraints 500 step)  
 
-
-# Tesseract  
-* clone tesseract on workspace  
-  ```
-  cd ~/Projects/tamp_etasl/eTaSL/ws_ros/src \
-  && git clone https://github.com/ros-industrial-consortium/tesseract.git  
-  ```
-   
-* clone all dependencies in dependency.rosinstall  
-  ```
-  git clone https://github.com/ros-industrial/cmake_common_scripts.git cmake_common_scripts \
-  && git clone https://github.com/ros-industrial-consortium/tesseract_ext.git tesseract_ext \
-  && git clone https://github.com/ros-industrial-consortium/trajopt_ros.git trajopt \
-  && git clone https://github.com/swri-robotics/descartes_light.git  descartes_light \
-  && git clone https://github.com/Jmeyer1292/opw_kinematics.git opw_kinematics \
-  && git clone https://github.com/ethz-adrl/ifopt.git ifopt  
-  ```
-  * check if any other dependency is added on recent version.
-  
-* install base dependency
-  ```
-  sudo apt-get install gcc g++ gfortran git patch wget pkg-config liblapack-dev libmetis-dev \
-  && sudo apt install lcov \
-  && sudo apt-get install cmake libeigen3-dev coinor-libipopt-dev
-  && sudo apt-get install bison  
-  ```
-
-* build workspace
-  ```
-  cd .. && sudo rm -rf devel && sudo rm -rf build
-  catkin build --force-cmake -DTESSERACT_ENABLE_TESTING=ON -DCMAKE_BUILD_TYPE=Release \
-  && add export TESSERACT_SUPPORT_DIR='/home/tamp/Projects/tamp_etasl/eTaSL/ws_ros/devel/share/tesseract_support'  
-  ```
-  
-* source workspace (done in project setup section)
-  ```
-  source ~Projects/tamp_etasl/eTaSL/ws_ros/devel/setup.bash
-  ``` 
     
 # Camera Setup
 * Azure Kinect  
