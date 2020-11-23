@@ -39,8 +39,8 @@ class ActionPoint:
     def update_handle(self):
         self.Toff_lh = np.matmul(self.object.Toff, self.Toff_oh)
 
-    def get_tf_handle(self, joint_dict):
-        return np.matmul(self.object.get_tf(joint_dict), self.Toff_oh)
+    def get_tf_handle(self, joint_dict, from_link='world'):
+        return np.matmul(self.object.get_tf(joint_dict, from_link=from_link), self.Toff_oh)
 
     @abstractmethod
     def get_redundancy(self):

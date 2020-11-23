@@ -25,7 +25,7 @@ def get_publisher(joint_names, robot_name="", control_freq=100):
     print('published: {}'.format(joints.position))
     return pub, joints, rate
 
-def show_motion(pose_list, marker_list, pub, joints, joint_names, error_skip=1e-6, period=1e-6):
+def show_motion(pose_list, marker_list, pub, joints, joint_names, error_skip=0, period=1e-6):
     pvec_last = np.array(pose_list)+1
     for pvec in pose_list:
         if np.linalg.norm(pvec-pvec_last)<error_skip:

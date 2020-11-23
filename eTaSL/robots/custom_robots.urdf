@@ -189,9 +189,9 @@
     <visual>
       <origin rpy="0.0 0.0 1.570796" xyz="0.0 0.0 0.0"/>
       <geometry>
-        <mesh filename="package://my_mesh/meshes/stl/indy_gripper_asm2_ctd.STL" scale="0.001 0.001 0.001"/>
+        <mesh filename="package://my_mesh/meshes/stl/indy_gripper_asm2_res.STL"/>
       </geometry>
-      <material name="red"/>
+      <material name="metal_grey"/>
     </visual>
     <collision>
       <origin rpy="0.0 0.0 0.0" xyz="0.005 0.044 0.1"/>

@@ -1,108 +1,152 @@
-from __future__ import print_function
-from enum import Enum
+import tesseract
+import os
+import re
+import numpy as np
+import time
+from pkg.utils.utils import *
+from pkg.global_config import *
 
-class Scenario(Enum):
-    single_object_single_robot = 0
-    double_object_single_robot = 1
-    single_object_dual_robot = 2
-    assembly_3_piece = 3
-    custom_robots = 4
+import rospkg
+rospack = rospkg.RosPack()
+class RosResourceLocator(tesseract.ResourceLocator):
+    def __init__(self):
+        super(RosResourceLocator,self).__init__()
 
-current_scenario = Scenario.custom_robots
+    def locateResource(self, url):
+        fname = None
+        if "package://" in url:
+            url_split = url[10:].split("/")
+            pkg_name = url_split[0]
+            pkg_path = rospack.get_path(pkg_name)
+            fname = os.path.join(pkg_path, *url_split[1:])
+            with open(fname,'rb') as f:
+                resource_bytes = f.read()
+        else:
+            return None
 
-urdf_content = None
-if current_scenario in [Scenario.single_object_dual_robot, Scenario.assembly_3_piece]:
-    from pkg.ur10_dual import URDF_PATH, JOINT_NAMES, LINK_NAMES, ZERO_JOINT_POSE, get_geometry_items_dict
-elif current_scenario in [Scenario.single_object_single_robot, Scenario.double_object_single_robot]:
-    from pkg.ur10 import URDF_PATH, JOINT_NAMES, LINK_NAMES, ZERO_JOINT_POSE, get_geometry_items_dict
-else:
-    from pkg.robots_custom import *
+        resource = tesseract.BytesResource(url, resource_bytes)
 
-    xcustom = XacroCustomizer()
-    xcustom.clear()
-    xcustom.add_robot(RobotType.indy7_robot, xyz=[0, -0.5, 0], rpy=[0, 0, 0])
-    xcustom.add_robot(RobotType.panda_robot, xyz=[0, 0.5, 0], rpy=[0, 0, 0])
-    xcustom.write_xacro()
-    vel_scale = 1.0 / 2.0
-    JOINT_NAMES, LINK_NAMES, ZERO_JOINT_POSE, urdf_content = \
-        xcustom.convert_xacro_to_urdf(
-            joint_fix_dict={'finger': 'upper'},
-            vel_limit_dict={k: v * vel_scale for k, v in {
-                'panda1_joint1': np.deg2rad(150), 'panda1_joint2': np.deg2rad(150),
-                'panda1_joint3': np.deg2rad(150), 'panda1_joint4': np.deg2rad(150),
-                'panda1_joint5': np.deg2rad(180), 'panda1_joint6': np.deg2rad(180), 'panda1_joint7': np.deg2rad(180),
-                'indy0_joint0': np.deg2rad(150), 'indy0_joint1': np.deg2rad(150), 'indy0_joint2': np.deg2rad(150),
-                'indy0_joint3': np.deg2rad(180), 'indy0_joint4': np.deg2rad(180), 'indy0_joint5': np.deg2rad(180),
-            }.items()}
-        )
-    ZERO_JOINT_POSE = np.array([0, 0, -np.pi / 2, 0, -np.pi / 2, 0,
-                                0, -np.pi / 8, 0, -np.pi / 2, 0, np.pi / 2, 0])
-    refine_meshes()
-    xcustom.start_rviz()
+        return resource
 
-from pkg.constraint_graph import *
-from pkg.utils.plot_utils import *
+with open(os.path.join(PROJ_DIR, "robots", "custom_robots.urdf"),'r') as f:
+    robot_urdf = f.read()
 
-# from threading import Thread, Lock
+with open(os.path.join(PROJ_DIR, "robots", "custom_robots.srdf"),'r') as f:
+    robot_srdf = f.read()
 
-PROC_MODE = True
-rospy.init_node('task_planner', anonymous=True)
+t = tesseract.Tesseract()
 
+MANIPULATOR = "indy0"
+BASELINK = "indy0_link0"
+ENDLINK = "indy0_tcp"
+
+t.init(robot_urdf, robot_srdf, RosResourceLocator())
+
+pci = tesseract.ProblemConstructionInfo(t)
+
+pci.init_info.type = tesseract.InitInfo.STATIONARY
+# pci.init_info.data = np.array([0.0,0,0,0,0,0])
+
+pci.basic_info.n_steps = 10
+pci.basic_info.manip = MANIPULATOR
+pci.basic_info.start_fixed = False
+pci.basic_info.use_time = False
+pci.basic_info.dt_upper_lim = 1
+pci.basic_info.dt_lower_lim = 0.9999
+
+pci.opt_info.max_iter = 200
+pci.opt_info.min_approx_improve = 1e-3
+pci.opt_info.min_trust_box_size = 1e-3
+
+pci.kin = pci.getManipulator(pci.basic_info.manip)
+
+start_pos_terminfo = tesseract.JointPosTermInfo()
+start_pos_terminfo.name = "start"
+start_pos_terminfo.term_type = tesseract.TT_COST
+# start_pos_terminfo.coeffs=np.ones(6)
+start_pos_terminfo.first_step = 0
+start_pos_terminfo.last_step = 0
+# start_pos_terminfo.lower_tols=np.ones(6)*-0.01
+# start_pos_terminfo.upper_tols=np.ones(6)*0.01
+
+start_pos_terminfo.targets = np.array([0.0]*6, dtype=np.float64)
+
+end_pos_terminfo = tesseract.CartPoseTermInfo()
+jsonval = \
+"""
+{{
+    "type" : "cart_pose",
+    "params": {{
+      "xyz" : [0.4,0.0,0.4],
+      "wxyz" : [0.0,0.0,1.0,0.0],
+      "target" : "{target}",
+      "link" : "{link}"
+    }}
+}}
+
+""".format(target=BASELINK, link=ENDLINK)
+print(jsonval)
+end_pos_terminfo.fromJson(pci, jsonval)
+print("succ json")
+# end_pos_terminfo = tesseract.JointPosTermInfo()
+# # end_pos_terminfo = tesseract.CartPoseTermInfo()
+end_pos_terminfo.name = "end"
+end_pos_terminfo.term_type = tesseract.TT_COST
+# end_pos_terminfo.coeffs=np.ones(6)
+# end_pos_terminfo.targets=np.array([0.5]*6, dtype=np.float64)
+end_pos_terminfo.first_step = pci.basic_info.n_steps-1
+end_pos_terminfo.last_step = pci.basic_info.n_steps-1
+# #end_pos_terminfo.lower_tols=np.ones(6)*-0.01
+# #end_pos_terminfo.upper_tols=np.ones(6)*0.01
+
+joint_vel = tesseract.JointVelTermInfo()
+joint_vel.coeffs = np.ones(6)
+joint_vel.targets = np.zeros(6)
+joint_vel.first_step = 0
+joint_vel.last_step = pci.basic_info.n_steps - 1
+joint_vel.name = "Joint_vel"
+joint_vel.term_type = tesseract.TT_COST
+
+time_terminfo = tesseract.TotalTimeTermInfo()
+time_terminfo.coeff = 1
+time_terminfo.term_type = tesseract.TT_COST | tesseract.TT_USE_TIME
+time_terminfo.name = "time"
+
+collision = tesseract.CollisionTermInfo()
+collision.name = "collision"
+collision.term_type = tesseract.TT_CNT
+collision.continuous = True
+collision.first_step = 0
+collision.last_step = pci.basic_info.n_steps - 2
+collision.gap = 1
+collision_info = tesseract.createSafetyMarginDataVector(pci.basic_info.n_steps, .0001, 40)
+for i in collision_info:
+    collision.info.append(i)
+
+pci.cost_infos.append(start_pos_terminfo)
+pci.cost_infos.append(end_pos_terminfo)
+# pci.cost_infos.append(time_terminfo)
+pci.cnt_infos.push_back(collision)
+pci.cost_infos.push_back(joint_vel)
+
+print("construct problem")
+prob = tesseract.ConstructProblem(pci)
+print("construct config")
+config = tesseract.TrajOptPlannerConfig(prob)
+
+print("construct planner")
+planner = tesseract.TrajOptMotionPlanner()
+
+print("set config")
+planner.setConfiguration(config)
+from pkg.utils.utils import *
 gtimer = GlobalTimer.instance()
-gtimer.reset()
-graph = ConstraintGraph(urdf_path=URDF_PATH, joint_names=JOINT_NAMES, link_names=LINK_NAMES, urdf_content=urdf_content)
-col_items_dict = graph.set_fixed_geometry_items(
-    get_geometry_items_dict(graph.urdf_content, color=(0,1,0,0.5), display=True, collision=True,
-                             exclude_link=["panda1_link7"]))
+gtimer.tic("solve")
+planner_status_code, planner_response = planner.solve(True)
+print("solve: {}".format(gtimer.toc("solve")))
 
-gtimer.tic("set_scene")
-if current_scenario == Scenario.custom_robots:
-    collision = True
-    graph.add_geometry_items("world",
-                              [
-                                  GeoMesh(uri="package://my_mesh/meshes/stl/AirPick_cup_ctd.stl",
-                                          BLH=(0.01, 0.01, 0.01), scale=(1e-3, 1e-3, 1e-3), name="gripper1",
-                                          link_name="indy0_tcp",
-                                          urdf_content=graph.urdf_content, color=(0.1, 0.1, 0.1, 1), collision=False),
-                                  GeoBox((0.5, -0.2, 0.050), (0.05, 0.05, 0.05), name="box1", link_name="world",
-                                         urdf_content=graph.urdf_content, color=(0.3, 0.3, 0.8, 1),
-                                         collision=collision),
-                                  GeoBox((0, 0, -0.005), (3, 3, 0.01), name="floor", link_name="world",
-                                         urdf_content=graph.urdf_content, color=(0.6, 0.6, 0.6, 1),
-                                         collision=collision),
-                                  GeoBox((0.7, 0.0, 0.2), (0.7, 0.05, 0.4), name="wall", link_name="world",
-                                         urdf_content=graph.urdf_content, color=(0.4, 0.3, 0.0, 1),
-                                         collision=collision),
-                                  GeoBox((0.4, 0.4, 0.15), (0.15, 0.15, 0.3), name="stepper", link_name="world",
-                                         urdf_content=graph.urdf_content, color=(0.4, 0.3, 0.0, 1),
-                                         collision=collision),
-                                  GeoBox((0.4, 0.4, 0.3), (0.1, 0.1, 1e-3), name="goal_disp", link_name="world",
-                                         urdf_content=graph.urdf_content, color=(0.8, 0.0, 0.0, 1), collision=False)])
+assert planner_status_code.value() == 0, "Planning failed"
 
-    graph.register_binder(name='grip1', _type=VacuumTool, point=[0, -2.5e-2, 11e-2], link_name="panda1_hand",
-                          direction=[0, 1, 0])
-    graph.register_binder(name='vac2', _type=VacuumTool, point=[0, 0, 5e-2], link_name="indy0_tcp", direction=[0, 0, 1])
-    graph.register_binder(name='floor', _type=PlacePlane, direction=[0, 0, 1])
-    graph.register_binder(name='goal', _type=PlaceFrame, point=(0.4, 0.4, 0.3 + 5e-4), link_name="world",
-                          orientation=[0, 0, 0])
+print(planner_response)
 
-    graph.register_object('box1', _type=BoxAction, binding=("bottom_p", "floor"), hexahedral=True)
-
-    graph.build_graph()
-gtimer.toc("set_scene")
-
-gtimer.tic("set_sim")
-graph.set_planner(nWSR=50, regularization_factor= 1e-1)
-gtimer.toc("set_sim")
-# graph.show_pose(ZERO_JOINT_POSE, execute=True)
-
-gtimer.reset()
-if current_scenario == Scenario.custom_robots:
-    graph.search_graph(
-        initial_state = State((('box1','bottom_p','floor'),),
-                              {'box1': SE3(np.identity(3), [0.5,-0.3,0.05])}, ZERO_JOINT_POSE),
-        goal_state = State((('box1','front_f','goal'),), None, None),
-        tree_margin = 4, depth_margin = 2, joint_motion_num=10,
-        terminate_on_first = True, N_search = 100, N_loop=1000,
-        display=False, dt_vis=1e-3, verbose = True, print_expression=False,
-        **dict(N=300, dt=0.025, vel_conv=1e-2, err_conv=1e-3, N_step=300))
+print(planner_response.joint_trajectory.trajectory)

@@ -90,7 +90,7 @@
   ```
 * misc.  
   ```
-  pip install matplotlib trimesh pathlib protobuf grpcio numpy-stl sklearn filterpy paramiko klampt  
+  pip install matplotlib trimesh pathlib protobuf grpcio numpy-stl sklearn filterpy paramiko  
   ```
 
 # ROS Setup
@@ -185,7 +185,8 @@
   sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
   ```
 * ***If eTaSL is slow***, re-compile packages in release mode (has to be under 300ms with 200 constraints 500 step)  
-  
+
+    
 # Camera Setup
 * Azure Kinect  
   * setup microsoft repository  
@@ -244,7 +245,7 @@
   * rebuild etasl 
   ```
   cd ~/etasl/ws/etasl \
-  && sudo rm -rf devel && sudo rm -rf devel && catkin_make -DCMAKE_BUILD_TYPE=Release \
+  && sudo rm -rf devel && sudo rm -rf build && catkin_make -DCMAKE_BUILD_TYPE=Release \
   && source $HOME/etasl/ws/etasl/devel/setup.bash   
   ```
   * switch gcc and g++ version to 5 before installing etasl-py
@@ -254,7 +255,7 @@
   * rebuild etasl-py 
   ```
   cd ~/etasl/ws/etasl-py \
-  && sudo rm -rf devel && sudo rm -rf devel && catkin_make -DCMAKE_BUILD_TYPE=Release \
+  && sudo rm -rf devel && sudo rm -rf build && catkin_make -DCMAKE_BUILD_TYPE=Release \
   && source $HOME/etasl/ws/etasl-py/devel/setup.bash   
   ```
   * **[IMPORTANT]** uncomment "source $HOME/etasl/ws/etasl-py/devel/setup.bash" in ~/.bashrc

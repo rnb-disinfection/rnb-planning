@@ -1,7 +1,7 @@
 <?xml version="1.0" ?>
 <robot name="custom_robots">
 	<group name="indy0">
-		<chain base_link="indy0_link0" tip_link="indy0_tcp"/>
+		<chain base_link="world" tip_link="indy0_tcp"/>
 	</group>
 	<virtual_joint child_link="indy0_link0" name="indy0_joint_world" parent_frame="world" type="fixed"/>
 	<virtual_joint child_link="indy0_tcp" name="indy0_tcp" parent_frame="indy0_link6" type="fixed"/>
