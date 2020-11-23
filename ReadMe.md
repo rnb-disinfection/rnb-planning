@@ -213,11 +213,11 @@
   && sudo apt-get install bison  
   ```
 
-* build workspace (-DCMAKE_BUILD_TYPE=Release is set by default)
+* build workspace
   ```
   cd .. && sudo rm -rf devel && sudo rm -rf build
-  catkin build --force-cmake -DTESSERACT_ENABLE_TESTING=ON \
-  && add export TESSERACT_SUPPORT_DIR='~/Projects/tamp_etasl/eTaSL/ws_ros/devel/share/tesseract_support'  
+  catkin build --force-cmake -DTESSERACT_ENABLE_TESTING=ON -DCMAKE_BUILD_TYPE=Release \
+  && add export TESSERACT_SUPPORT_DIR='/home/tamp/Projects/tamp_etasl/eTaSL/ws_ros/devel/share/tesseract_support'  
   ```
   
 * source workspace (done in project setup section)
