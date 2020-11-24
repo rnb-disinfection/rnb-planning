@@ -60,25 +60,25 @@ char* hello_char() {
 void PlannerCompact::init_planner(c_string urdf, c_string srdf){
     if(!_ros_initialized){
         _node_handle = init_ros();
+
+        _node_handle->setParam("planning_plugin", "ompl_interface/OMPLPlanner");
+
+        _node_handle->setParam("indy0/kinematics_solver", "kdl_kinematics_plugin/KDLKinematicsPlugin");
+        _node_handle->setParam("indy0/kinematics_solver_search_resolution", 0.005);
+        _node_handle->setParam("indy0/kinematics_solver_timeout", 0.005);
+
+        _node_handle->setParam("panda1/kinematics_solver", "kdl_kinematics_plugin/KDLKinematicsPlugin");
+        _node_handle->setParam("panda1/kinematics_solver_search_resolution", 0.005);
+        _node_handle->setParam("panda1/kinematics_solver_timeout", 0.005);
+
+        _node_handle->setParam("indy0_to_panda1/kinematics_solver", "kdl_kinematics_plugin/KDLKinematicsPlugin");
+        _node_handle->setParam("indy0_to_panda1/kinematics_solver_search_resolution", 0.005);
+        _node_handle->setParam("indy0_to_panda1/kinematics_solver_timeout", 0.005);
+
+        _node_handle->setParam("panda1_to_indy0/kinematics_solver", "kdl_kinematics_plugin/KDLKinematicsPlugin");
+        _node_handle->setParam("panda1_to_indy0/kinematics_solver_search_resolution", 0.005);
+        _node_handle->setParam("panda1_to_indy0/kinematics_solver_timeout", 0.005);
     }
-
-    _node_handle->setParam("planning_plugin", "ompl_interface/OMPLPlanner");
-
-    _node_handle->setParam("indy0/kinematics_solver", "kdl_kinematics_plugin/KDLKinematicsPlugin");
-    _node_handle->setParam("indy0/kinematics_solver_search_resolution", 0.005);
-    _node_handle->setParam("indy0/kinematics_solver_timeout", 0.005);
-
-    _node_handle->setParam("panda1/kinematics_solver", "kdl_kinematics_plugin/KDLKinematicsPlugin");
-    _node_handle->setParam("panda1/kinematics_solver_search_resolution", 0.005);
-    _node_handle->setParam("panda1/kinematics_solver_timeout", 0.005);
-
-    _node_handle->setParam("indy0_to_panda1/kinematics_solver", "kdl_kinematics_plugin/KDLKinematicsPlugin");
-    _node_handle->setParam("indy0_to_panda1/kinematics_solver_search_resolution", 0.005);
-    _node_handle->setParam("indy0_to_panda1/kinematics_solver_timeout", 0.005);
-
-    _node_handle->setParam("panda1_to_indy0/kinematics_solver", "kdl_kinematics_plugin/KDLKinematicsPlugin");
-    _node_handle->setParam("panda1_to_indy0/kinematics_solver_search_resolution", 0.005);
-    _node_handle->setParam("panda1_to_indy0/kinematics_solver_timeout", 0.005);
 
 
 
@@ -111,7 +111,8 @@ void PlannerCompact::init_planner(c_string urdf, c_string srdf){
 }
 
 c_trajectory PlannerCompact::plan_compact(const char* group_name, const char* tool_link,
-                                          const double* goal_pose, const char* goal_link){
+                                          const double* goal_pose, const char* goal_link,
+                                          double allowed_planning_time){
     PRINT_FRAMED_LOG("set goal", true);
     geometry_msgs::PoseStamped _goal_pose;
     _goal_pose.header.frame_id = goal_link;
@@ -138,6 +139,7 @@ c_trajectory PlannerCompact::plan_compact(const char* group_name, const char* to
     planning_interface::MotionPlanRequest _req;
     planning_interface::MotionPlanResponse _res;
     _req.group_name = group_name; //"indy0"; // "indy0_tcp"
+    _req.allowed_planning_time = allowed_planning_time;
     _constrinat_pose_goal = kinematic_constraints::constructGoalConstraints(tool_link, _goal_pose, tolerance_pose, tolerance_angle);
     _req.goal_constraints.push_back(_constrinat_pose_goal);
 
@@ -173,6 +175,57 @@ c_trajectory PlannerCompact::plan_compact(const char* group_name, const char* to
     return trajectory_out;
 }
 
+void PlannerCompact::process_object(const char* name, const int type,
+                                double* pose, double *dims,
+                                const char* link_name, const int action){
+    moveit_msgs::AttachedCollisionObject object;
+    object.link_name = link_name;
+    /* The header must contain a valid TF frame*/
+    object.object.header.frame_id = link_name;
+    /* The id of the object */
+    object.object.id = name;
+
+    /* A default pose */
+    geometry_msgs::Pose _pose;
+    _pose.position.x = pose[0];
+    _pose.position.y = pose[1];
+    _pose.position.z = pose[2];
+    _pose.orientation.x = pose[3];
+    _pose.orientation.y = pose[4];
+    _pose.orientation.z = pose[5];
+    _pose.orientation.w = pose[6];
+
+    /* Define a box to be attached */
+    shape_msgs::SolidPrimitive primitive;
+    primitive.type = type;
+    switch(type){
+        case primitive.BOX:
+            primitive.dimensions.resize(3);
+            primitive.dimensions[0] = dims[0];
+            primitive.dimensions[1] = dims[1];
+            primitive.dimensions[2] = dims[2];
+            break;
+        case primitive.SPHERE:
+            primitive.dimensions.resize(1);
+            primitive.dimensions[0] = dims[0];
+            break;
+        case primitive.CYLINDER:
+            primitive.dimensions.resize(2);
+            primitive.dimensions[0] = dims[0];
+            primitive.dimensions[1] = dims[1];
+            break;
+    }
+    object.object.primitives.push_back(primitive);
+    object.object.primitive_poses.push_back(_pose);
+    object.object.operation = action;
+
+    _planning_scene->processAttachedCollisionObjectMsg(object);
+}
+
+void PlannerCompact::clear_all_objects(){
+    _planning_scene->removeAllCollisionObjects();
+}
+
 ros::NodeHandlePtr init_ros() {
     _ros_initialized = true;
     char **argv;
@@ -200,11 +253,24 @@ void terminate_ros(){
 }
 
 void init_planner(c_string urdf, c_string srdf){
-    planner_compact = new PlannerCompact();
+    if(planner_compact==NULL) {
+        planner_compact = new PlannerCompact();
+    }
     planner_compact->init_planner(urdf, srdf);
 }
+
+void process_object(c_object_msg omsg){
+    planner_compact->process_object(
+            omsg.name, omsg.type, omsg.pose, omsg.dims, omsg.link_name, omsg.action);
+}
+
+void clear_all_objects(){
+    planner_compact->clear_all_objects();
+}
+
 c_trajectory plan_compact(c_plan_goal goal){
-    return planner_compact->plan_compact(goal.group_name, goal.tool_link, goal.goal_pose, goal.goal_link);
+    return planner_compact->plan_compact(
+            goal.group_name, goal.tool_link, goal.goal_pose, goal.goal_link, goal.timeout);
 }
 
 int main(int argc, char** argv) {
@@ -233,10 +299,27 @@ int main(int argc, char** argv) {
     c_string srdf_cstr;
     memcpy(urdf_cstr.buffer, urdf_txt.c_str(), urdf_txt.length());
     memcpy(srdf_cstr.buffer, srdf_txt.c_str(), srdf_txt.length());
-    init_planner(urdf_cstr, srdf_cstr);
     double goal[7] = {-0.3,-0.2,0.4,0,0,0,1};
-    planner_compact->plan_compact("indy0", "indy0_tcp", goal, "base_link");
-    planner_compact->plan_compact("indy0", "indy0_tcp", goal, "base_link");
+    double dims[3] = {0.1,0.1,0.1};
+    init_planner(urdf_cstr, srdf_cstr);
+    planner_compact->plan_compact("indy0", "indy0_tcp", goal, "base_link", 0.1);
+
+    double goal_obs[7] = {-0.3,-0.2,0.0,0,0,0,1};
+    planner_compact->process_object(
+            "box", shape_msgs::SolidPrimitive::BOX,
+            goal_obs, dims,"base_link", moveit_msgs::CollisionObject::ADD);
+    planner_compact->plan_compact("indy0", "indy0_tcp", goal, "base_link", 0.1);
+
+    init_planner(urdf_cstr, srdf_cstr);
+    clear_all_objects();
+    planner_compact->plan_compact("indy0", "indy0_tcp", goal, "base_link", 0.1);
+
+    double goal_obs2[7] = {-0.3,-0.2,0.4,0,0,0,1};
+    planner_compact->process_object(
+            "box", shape_msgs::SolidPrimitive::BOX,
+            goal_obs2, dims,"base_link", moveit_msgs::CollisionObject::ADD);
+    planner_compact->plan_compact("indy0", "indy0_tcp", goal, "base_link", 0.1);
+
     terminate_ros();
     return 0;
 }

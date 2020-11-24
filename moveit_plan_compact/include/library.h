@@ -19,6 +19,15 @@
 #define TEXT_BLUE(STR) ("\x1B[34m" STR "\033[0m")
 #define TEXT_CYAN(STR) ("\x1B[36m" STR "\033[0m")
 
+//BOX = 1u,
+//SPHERE = 2u,
+//CYLINDER = 3u,
+
+//ADD = 0,
+//REMOVE = 1,
+//APPEND = 2,
+//MOVE = 3,
+
 struct c_string {
     char buffer [MAX_STR_LEN];
     int len=0;
@@ -39,6 +48,16 @@ struct c_plan_goal {
     char tool_link[MAX_NAME_LEN];
     char goal_link[MAX_NAME_LEN];
     double goal_pose[7];
+    double timeout=0.1;
+};
+
+struct c_object_msg {
+    char name[MAX_NAME_LEN];
+    char link_name[MAX_NAME_LEN];
+    double pose[7];
+    double dims[3];
+    int type;
+    int action;
 };
 
 class PlannerCompact{
@@ -51,10 +70,15 @@ public:
 
     void init_planner(c_string urdf, c_string srdf);
     c_trajectory plan_compact(const char* group_name, const char* link_name,
-                              const double* goal_pose, const char* goal_link);
+                              const double* goal_pose, const char* goal_link,
+                              double allowed_planning_time);
+    void process_object(const char* name, const int type,
+                    double* pose, double *dims,
+                    const char* link_name, const int action);
+    void clear_all_objects();
 };
 
-PlannerCompact* planner_compact;
+PlannerCompact* planner_compact=NULL;
 ros::NodeHandlePtr init_ros();
 
 extern "C" {
@@ -67,6 +91,8 @@ int get_max_str_len(){return MAX_STR_LEN;}
 // planner functions
 bool _ros_initialized = false;
 void init_planner(c_string urdf, c_string srdf);
+void process_object(c_object_msg omsg);
+void clear_all_objects();
 c_trajectory plan_compact(c_plan_goal goal);
 void terminate_ros();
 int get_max_name_len(){return MAX_NAME_LEN;}
