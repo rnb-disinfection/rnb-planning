@@ -110,17 +110,18 @@ void PlannerCompact::init_planner(c_string urdf, c_string srdf){
     PRINT_FRAMED_LOG("loaded pipeline", true);
 }
 
-c_trajectory PlannerCompact::plan_compact(){
+c_trajectory PlannerCompact::plan_compact(const char* group_name, const char* tool_link,
+                                          const double* goal_pose, const char* goal_link){
     PRINT_FRAMED_LOG("set goal", true);
     geometry_msgs::PoseStamped _goal_pose;
-    _goal_pose.header.frame_id = "base_link";
-    _goal_pose.pose.position.x = -0.3;
-    _goal_pose.pose.position.y = -0.2;
-    _goal_pose.pose.position.z = 0.4;
-    _goal_pose.pose.orientation.x = 0.0;
-    _goal_pose.pose.orientation.y = 0.0;
-    _goal_pose.pose.orientation.z = 0.0;
-    _goal_pose.pose.orientation.w = 1.0;
+    _goal_pose.header.frame_id = goal_link;
+    _goal_pose.pose.position.x = goal_pose[0];
+    _goal_pose.pose.position.y = goal_pose[1];
+    _goal_pose.pose.position.z = goal_pose[2];
+    _goal_pose.pose.orientation.x = goal_pose[3];
+    _goal_pose.pose.orientation.y = goal_pose[4];
+    _goal_pose.pose.orientation.z = goal_pose[5];
+    _goal_pose.pose.orientation.w = goal_pose[6];
 
     // A tolerance of 0.01 m is specified in position
     // and 0.01 radians in orientation
@@ -136,8 +137,8 @@ c_trajectory PlannerCompact::plan_compact(){
     moveit_msgs::Constraints _constrinat_pose_goal;
     planning_interface::MotionPlanRequest _req;
     planning_interface::MotionPlanResponse _res;
-    _req.group_name = "indy0";
-    _constrinat_pose_goal = kinematic_constraints::constructGoalConstraints("indy0_tcp", _goal_pose, tolerance_pose, tolerance_angle);
+    _req.group_name = group_name; //"indy0"; // "indy0_tcp"
+    _constrinat_pose_goal = kinematic_constraints::constructGoalConstraints(tool_link, _goal_pose, tolerance_pose, tolerance_angle);
     _req.goal_constraints.push_back(_constrinat_pose_goal);
 
     PRINT_FRAMED_LOG("generatePlan", true);
@@ -160,18 +161,12 @@ c_trajectory PlannerCompact::plan_compact(){
     trajectory_out.joint_count = 0;
     for(auto name_p=names.begin(); name_p!=names.end(); name_p++){
         auto name = *name_p;
-        std::cout<<name<<std::endl;
-        std::cout<<name.size()<<std::endl;
         memcpy(trajectory_out.names_flt+(trajectory_out.joint_count*trajectory_out.name_len),
                name.c_str(), name.size());
         trajectory_out.joint_count++;
     }
     for( int i=0; i<trajectory_out.traj_len; i++){
         auto wp_buff = _res.trajectory_->getWayPoint(i).getVariablePositions();
-        for(int wp_i=0;wp_i<trajectory_out.joint_count;wp_i++){
-            std::cout<<wp_buff[wp_i]<<",";
-        }
-        std::cout<<std::endl;
         memcpy(trajectory_out.joints+i*MAX_JOINT_NUM, wp_buff, sizeof(double)*trajectory_out.joint_count);
     }
     PRINT_FRAMED_LOG("done", true);
@@ -208,8 +203,8 @@ void init_planner(c_string urdf, c_string srdf){
     planner_compact = new PlannerCompact();
     planner_compact->init_planner(urdf, srdf);
 }
-c_trajectory plan_compact(){
-    return planner_compact->plan_compact();
+c_trajectory plan_compact(c_plan_goal goal){
+    return planner_compact->plan_compact(goal.group_name, goal.tool_link, goal.goal_pose, goal.goal_link);
 }
 
 int main(int argc, char** argv) {
@@ -239,8 +234,9 @@ int main(int argc, char** argv) {
     memcpy(urdf_cstr.buffer, urdf_txt.c_str(), urdf_txt.length());
     memcpy(srdf_cstr.buffer, srdf_txt.c_str(), srdf_txt.length());
     init_planner(urdf_cstr, srdf_cstr);
-    plan_compact();
-    plan_compact();
+    double goal[7] = {-0.3,-0.2,0.4,0,0,0,1};
+    planner_compact->plan_compact("indy0", "indy0_tcp", goal, "base_link");
+    planner_compact->plan_compact("indy0", "indy0_tcp", goal, "base_link");
     terminate_ros();
     return 0;
 }

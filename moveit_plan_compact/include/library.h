@@ -34,8 +34,11 @@ struct c_trajectory {
     bool success=true;
 };
 
-struct c_trajectory_tmp {
-    char names_flt[MAX_JOINT_NUM*MAX_NAME_LEN];
+struct c_plan_goal {
+    char group_name[MAX_NAME_LEN];
+    char tool_link[MAX_NAME_LEN];
+    char goal_link[MAX_NAME_LEN];
+    double goal_pose[7];
 };
 
 class PlannerCompact{
@@ -47,7 +50,8 @@ public:
     planning_pipeline::PlanningPipelinePtr _planning_pipeline;
 
     void init_planner(c_string urdf, c_string srdf);
-    c_trajectory plan_compact();
+    c_trajectory plan_compact(const char* group_name, const char* link_name,
+                              const double* goal_pose, const char* goal_link);
 };
 
 PlannerCompact* planner_compact;
@@ -63,7 +67,7 @@ int get_max_str_len(){return MAX_STR_LEN;}
 // planner functions
 bool _ros_initialized = false;
 void init_planner(c_string urdf, c_string srdf);
-c_trajectory plan_compact();
+c_trajectory plan_compact(c_plan_goal goal);
 void terminate_ros();
 int get_max_name_len(){return MAX_NAME_LEN;}
 int get_max_joint_num(){return MAX_JOINT_NUM;}
