@@ -37,12 +37,14 @@ def get_mean_std(X, outlier_count=2):
     X_ex = [x[0] for x in sorted(zip(X,np.linalg.norm(X-np.mean(X, axis=0), axis=1)), key=lambda x: x[1])][:-outlier_count]
     return np.mean(X_ex, axis=0), np.std(X_ex, axis=0)
 
+
 class GlobalTimer(Singleton):
-    def __init__(self, scale=1000):
-        self.scale = scale
-        self.reset()
+    def __init__(self, scale=1000, timeunit='ms'):
+        self.reset(scale, timeunit)
         
-    def reset(self):
+    def reset(self, scale=1000, timeunit='ms'):
+        self.scale = scale
+        self.timeunit = timeunit
         self.name_list = []
         self.ts_dict = {}
         self.time_dict = collections.defaultdict(lambda: 0)
@@ -77,25 +79,24 @@ class GlobalTimer(Singleton):
         self.tic(name_tic)
         return dt
         
-    def print_time_log(self, names=None, timeunit="ms"):
+    def print_time_log(self, names=None):
         if names is None:
             names = self.name_list
         for name in names:
             print("{name}: \t{tot_T} {timeunit}/{tot_C} = {per_T} {timeunit} ({minT}/{maxT})\n".format(
                 name=name, tot_T=np.round(np.sum(self.time_dict[name])), tot_C=self.count_dict[name], 
                 per_T= np.round(np.sum(self.time_dict[name])/self.count_dict[name], 3),
-                timeunit=timeunit, minT=round(self.min_time_dict[name],3), maxT=round(self.max_time_dict[name],3)
+                timeunit=self.timeunit, minT=round(self.min_time_dict[name],3), maxT=round(self.max_time_dict[name],3)
             ))
             
     def __str__(self):
         strout = "" 
-        timeunit="ms"
         names = self.name_list
         for name in names:
             strout += "{name}: \t{tot_T} {timeunit}/{tot_C} = {per_T} {timeunit} ({minT}/{maxT})\n".format(
                 name=name, tot_T=np.round(np.sum(self.time_dict[name])), tot_C=self.count_dict[name], 
                 per_T= np.round(np.sum(self.time_dict[name])/self.count_dict[name], 3),
-                timeunit=timeunit, minT=round(self.min_time_dict[name],3), maxT=round(self.max_time_dict[name],3)
+                timeunit=self.timeunit, minT=round(self.min_time_dict[name],3), maxT=round(self.max_time_dict[name],3)
             )
         return strout
     

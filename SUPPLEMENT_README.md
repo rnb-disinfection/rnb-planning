@@ -103,3 +103,34 @@ chmod +x *
   ```
   source ~Projects/tamp_etasl/eTaSL/ws_ros/devel/setup.bash
   ``` 
+  
+## Moveit
+* Install moveit (after ros-melodic and catkin)
+```
+sudo apt install ros-melodic-moveit
+```
+
+* Tutorial
+  * make workspace and clone tutorial repository
+  ```
+  mkdir -p ~/ws_moveit/src
+  cd ~/ws_moveit/src
+  git clone https://github.com/ros-planning/moveit_tutorials.git -b melodic-devel
+  git clone https://github.com/ros-planning/panda_moveit_config.git -b melodic-devel
+  ```
+  * install packages
+  ```
+  cd ~/ws_moveit/src
+  rosdep install -y --from-paths . --ignore-src --rosdistro melodic
+  cd ~/ws_moveit
+  catkin config --extend /opt/ros/${ROS_DISTRO} --cmake-args -DCMAKE_BUILD_TYPE=Release
+  catkin build
+  ```
+  * source workspace
+  ```
+  source ~/ws_moveit/devel/setup.bash
+  ```
+  * follow tutorial process in 
+  ``` 
+  http://docs.ros.org/en/melodic/api/moveit_tutorials/html/doc/move_group_python_interface/move_group_python_interface_tutorial.html#getting-started
+  ```

@@ -1,0 +1,77 @@
+#ifndef MOVIT_PLAN_PY_LIBRARY_H
+#define MOVIT_PLAN_PY_LIBRARY_H
+
+#include <ros/ros.h>
+#include <moveit/robot_model_loader/robot_model_loader.h>
+#include <moveit/planning_pipeline/planning_pipeline.h>
+#include <moveit/kinematic_constraints/utils.h>
+
+#define MAX_STR_LEN 50000
+#define MAX_NAME_LEN 32
+#define MAX_JOINT_NUM 32
+#define MAX_TRAJ_LEN 64
+
+#define LOG_FRAME_LINE "==================================================\n"
+#define LOG_FRAME_LEN 50
+#define TEXT_RED(STR) ("\x1B[31m" STR "\033[0m")
+#define TEXT_GREEN(STR) ("\x1B[32m" STR "\033[0m")
+#define TEXT_YELLOW(STR) ("\x1B[33m" STR "\033[0m")
+#define TEXT_BLUE(STR) ("\x1B[34m" STR "\033[0m")
+#define TEXT_CYAN(STR) ("\x1B[36m" STR "\033[0m")
+
+struct c_string {
+    char buffer [MAX_STR_LEN];
+    int len=0;
+};
+
+struct c_trajectory {
+    char names_flt[MAX_JOINT_NUM*MAX_NAME_LEN]={','};
+    double joints[MAX_JOINT_NUM*MAX_TRAJ_LEN];
+    int name_len=MAX_NAME_LEN;
+    int joint_count;
+    int joint_max=MAX_JOINT_NUM;
+    int traj_len;
+    bool success=true;
+};
+
+struct c_trajectory_tmp {
+    char names_flt[MAX_JOINT_NUM*MAX_NAME_LEN];
+};
+
+class PlannerCompact{
+public:
+    ros::NodeHandlePtr _node_handle;
+    robot_model_loader::RobotModelLoaderPtr _robot_model_loader;
+    robot_model::RobotModelPtr _robot_model;
+    planning_scene::PlanningScenePtr _planning_scene;
+    planning_pipeline::PlanningPipelinePtr _planning_pipeline;
+
+    void init_planner(c_string urdf, c_string srdf);
+    c_trajectory plan_compact();
+};
+
+PlannerCompact* planner_compact;
+ros::NodeHandlePtr init_ros();
+
+extern "C" {
+// testing hello
+c_string hello_buffer;
+c_string hello_cstr();
+char* hello_char();
+int get_max_str_len(){return MAX_STR_LEN;}
+
+// planner functions
+bool _ros_initialized = false;
+void init_planner(c_string urdf, c_string srdf);
+c_trajectory plan_compact();
+void terminate_ros();
+int get_max_name_len(){return MAX_NAME_LEN;}
+int get_max_joint_num(){return MAX_JOINT_NUM;}
+int get_max_traj_len(){return MAX_TRAJ_LEN;}
+}
+
+std::string WRAP_LOG_FRAME(const char* msg);
+void PRINT_ERROR(const char* msg);
+void PRINT_FRAMED_LOG(const char* msg, bool endl=false);
+
+#endif //MOVIT_PLAN_PY_LIBRARY_H
