@@ -27,7 +27,7 @@ class c_trajectory(ctypes.Structure):
                 ("success", ctypes.c_bool)
                 ]
 
-class c_plan_goal(ctypes.Structure):
+class c_plan_request(ctypes.Structure):
     _fields_ = [("group_name", ctypes.c_char*MAX_NAME_LEN),
                 ("tool_link", ctypes.c_char*MAX_NAME_LEN),
                 ("goal_link", ctypes.c_char*MAX_NAME_LEN),
@@ -37,7 +37,7 @@ class c_plan_goal(ctypes.Structure):
 clib.hello_cstr.restype = c_string
 clib.hello_char.restype = ndpointer(dtype=ctypes.c_char, shape=(MAX_STR_LEN,))
 clib.plan_compact.restype = c_trajectory
-clib.plan_compact.argtypes = [c_plan_goal]
+clib.plan_compact.argtypes = [c_plan_request]
 
 def convert_trajectory(traj):
     names = traj.names_flt.split()
@@ -78,7 +78,7 @@ gtimer.toc("init_ros")
 
 for _ in range(10):
     gtimer.tic("plan_compact")
-    goal = c_plan_goal()
+    goal = c_plan_request()
     goal.group_name = "indy0"
     goal.tool_link = "indy0_tcp"
     goal_pose = [-0.3, -0.2, 0.4, 0, 0, 0, 1]

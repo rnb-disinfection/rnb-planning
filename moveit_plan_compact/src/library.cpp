@@ -57,7 +57,7 @@ char* hello_char() {
     return hello_buffer.buffer;
 }
 
-void PlannerCompact::init_planner(c_string urdf, c_string srdf){
+c_string PlannerCompact::init_planner(c_string urdf, c_string srdf){
     if(!_ros_initialized){
         _node_handle = init_ros();
 
@@ -80,7 +80,7 @@ void PlannerCompact::init_planner(c_string urdf, c_string srdf){
         _node_handle->setParam("panda1_to_indy0/kinematics_solver_timeout", 0.005);
     }
 
-
+    c_string joint_names;
 
     PRINT_FRAMED_LOG("load robot model");
     _robot_model_loader = std::make_shared<robot_model_loader::RobotModelLoader>(
@@ -88,7 +88,7 @@ void PlannerCompact::init_planner(c_string urdf, c_string srdf){
     _robot_model = _robot_model_loader->getModel();
     if(_robot_model.get() == NULL) {
         PRINT_ERROR("failed to load robot model");
-        return;
+        return joint_names;
     }
     PRINT_FRAMED_LOG("loaded robot model", true);
 
@@ -96,7 +96,7 @@ void PlannerCompact::init_planner(c_string urdf, c_string srdf){
     _planning_scene = std::make_shared<planning_scene::PlanningScene>(_robot_model);
     if(_planning_scene==NULL){
         PRINT_ERROR("failed to load scene");
-        return;
+        return joint_names;
     }
     PRINT_FRAMED_LOG("loaded scene", true);
 
@@ -105,14 +105,25 @@ void PlannerCompact::init_planner(c_string urdf, c_string srdf){
                                                     "planning_plugin", "request_adapters");
     if(_planning_pipeline==NULL){
         PRINT_ERROR("failed to load pipeline");
-        return;
+        return joint_names;
     }
     PRINT_FRAMED_LOG("loaded pipeline", true);
+
+    std::fill_n(joint_names.buffer, sizeof(joint_names.buffer), ' ');
+    auto names = _planning_scene->getCurrentState().getVariableNames();
+    joint_num = 0;
+    for(auto name_p=names.begin(); name_p!=names.end(); name_p++){
+        auto name = *name_p;
+        memcpy(joint_names.buffer+(joint_num*MAX_NAME_LEN), name.c_str(), name.size());
+        joint_num++;
+    }
+    joint_names.len = joint_num;
+    return joint_names;
 }
 
 c_trajectory PlannerCompact::plan_compact(const char* group_name, const char* tool_link,
                                           const double* goal_pose, const char* goal_link,
-                                          double allowed_planning_time){
+                                          const double* init_state, double allowed_planning_time){
     PRINT_FRAMED_LOG("set goal", true);
     geometry_msgs::PoseStamped _goal_pose;
     _goal_pose.header.frame_id = goal_link;
@@ -143,12 +154,15 @@ c_trajectory PlannerCompact::plan_compact(const char* group_name, const char* to
     _constrinat_pose_goal = kinematic_constraints::constructGoalConstraints(tool_link, _goal_pose, tolerance_pose, tolerance_angle);
     _req.goal_constraints.push_back(_constrinat_pose_goal);
 
+    auto state_cur = _planning_scene->getCurrentState();
+    state_cur.setVariablePositions(init_state);
+    _planning_scene->setCurrentState(state_cur);
+
     PRINT_FRAMED_LOG("generatePlan", true);
     // Now, call the pipeline and check whether planning was successful.
     _planning_pipeline->generatePlan(_planning_scene, _req, _res);
     /* Check that the planning was successful */
     c_trajectory trajectory_out;
-    std::fill_n(trajectory_out.names_flt, sizeof(trajectory_out.names_flt), ' ');
     if (_res.error_code_.val != _res.error_code_.SUCCESS)
     {
         trajectory_out.success = false;
@@ -156,20 +170,11 @@ c_trajectory PlannerCompact::plan_compact(const char* group_name, const char* to
         return trajectory_out;
     }
 
-    trajectory_out.traj_len = _res.trajectory_->getWayPointCount();
     PRINT_FRAMED_LOG((std::string("convert trajectory - ")+std::to_string(trajectory_out.traj_len)).c_str(), true);
-
-    auto names = _res.trajectory_->getFirstWayPoint().getVariableNames();
-    trajectory_out.joint_count = 0;
-    for(auto name_p=names.begin(); name_p!=names.end(); name_p++){
-        auto name = *name_p;
-        memcpy(trajectory_out.names_flt+(trajectory_out.joint_count*trajectory_out.name_len),
-               name.c_str(), name.size());
-        trajectory_out.joint_count++;
-    }
+    trajectory_out.traj_len = _res.trajectory_->getWayPointCount();
     for( int i=0; i<trajectory_out.traj_len; i++){
         auto wp_buff = _res.trajectory_->getWayPoint(i).getVariablePositions();
-        memcpy(trajectory_out.joints+i*MAX_JOINT_NUM, wp_buff, sizeof(double)*trajectory_out.joint_count);
+        memcpy(trajectory_out.joints+i*MAX_JOINT_NUM, wp_buff, sizeof(double)*joint_num);
     }
     PRINT_FRAMED_LOG("done", true);
     return trajectory_out;
@@ -252,11 +257,11 @@ void terminate_ros(){
     PRINT_FRAMED_LOG("FINISHED", true);
 }
 
-void init_planner(c_string urdf, c_string srdf){
+c_string init_planner(c_string urdf, c_string srdf){
     if(planner_compact==NULL) {
         planner_compact = new PlannerCompact();
     }
-    planner_compact->init_planner(urdf, srdf);
+    return planner_compact->init_planner(urdf, srdf);
 }
 
 void process_object(c_object_msg omsg){
@@ -268,9 +273,10 @@ void clear_all_objects(){
     planner_compact->clear_all_objects();
 }
 
-c_trajectory plan_compact(c_plan_goal goal){
+c_trajectory plan_compact(c_plan_request goal){
     return planner_compact->plan_compact(
-            goal.group_name, goal.tool_link, goal.goal_pose, goal.goal_link, goal.timeout);
+            goal.group_name, goal.tool_link, goal.goal_pose, goal.goal_link,
+            goal.init_state, goal.timeout);
 }
 
 int main(int argc, char** argv) {
@@ -302,23 +308,25 @@ int main(int argc, char** argv) {
     double goal[7] = {-0.3,-0.2,0.4,0,0,0,1};
     double dims[3] = {0.1,0.1,0.1};
     init_planner(urdf_cstr, srdf_cstr);
-    planner_compact->plan_compact("indy0", "indy0_tcp", goal, "base_link", 0.1);
+
+    double init_state[13] = {0, 0, -1.57, 0, -1.57, 0, 0, -0.4, 0, -1.57, 0, 1.57, 1.57};
+    planner_compact->plan_compact("indy0", "indy0_tcp", goal, "base_link", init_state, 0.1);
 
     double goal_obs[7] = {-0.3,-0.2,0.0,0,0,0,1};
     planner_compact->process_object(
             "box", shape_msgs::SolidPrimitive::BOX,
             goal_obs, dims,"base_link", moveit_msgs::CollisionObject::ADD);
-    planner_compact->plan_compact("indy0", "indy0_tcp", goal, "base_link", 0.1);
+    planner_compact->plan_compact("indy0", "indy0_tcp", goal, "base_link", init_state, 0.1);
 
     init_planner(urdf_cstr, srdf_cstr);
     clear_all_objects();
-    planner_compact->plan_compact("indy0", "indy0_tcp", goal, "base_link", 0.1);
+    planner_compact->plan_compact("indy0", "indy0_tcp", goal, "base_link", init_state, 0.1);
 
     double goal_obs2[7] = {-0.3,-0.2,0.4,0,0,0,1};
     planner_compact->process_object(
             "box", shape_msgs::SolidPrimitive::BOX,
             goal_obs2, dims,"base_link", moveit_msgs::CollisionObject::ADD);
-    planner_compact->plan_compact("indy0", "indy0_tcp", goal, "base_link", 0.1);
+    planner_compact->plan_compact("indy0", "indy0_tcp", goal, "base_link", init_state, 0.1);
 
     terminate_ros();
     return 0;

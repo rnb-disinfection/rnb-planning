@@ -34,19 +34,17 @@ struct c_string {
 };
 
 struct c_trajectory {
-    char names_flt[MAX_JOINT_NUM*MAX_NAME_LEN]={','};
     double joints[MAX_JOINT_NUM*MAX_TRAJ_LEN];
     int name_len=MAX_NAME_LEN;
-    int joint_count;
-    int joint_max=MAX_JOINT_NUM;
     int traj_len;
     bool success=true;
 };
 
-struct c_plan_goal {
+struct c_plan_request {
     char group_name[MAX_NAME_LEN];
     char tool_link[MAX_NAME_LEN];
     char goal_link[MAX_NAME_LEN];
+    double init_state[MAX_JOINT_NUM];
     double goal_pose[7];
     double timeout=0.1;
 };
@@ -67,11 +65,12 @@ public:
     robot_model::RobotModelPtr _robot_model;
     planning_scene::PlanningScenePtr _planning_scene;
     planning_pipeline::PlanningPipelinePtr _planning_pipeline;
+    int joint_num;
 
-    void init_planner(c_string urdf, c_string srdf);
+    c_string init_planner(c_string urdf, c_string srdf);
     c_trajectory plan_compact(const char* group_name, const char* link_name,
                               const double* goal_pose, const char* goal_link,
-                              double allowed_planning_time);
+                              const double* init_state, double allowed_planning_time);
     void process_object(const char* name, const int type,
                     double* pose, double *dims,
                     const char* link_name, const int action);
@@ -90,10 +89,10 @@ int get_max_str_len(){return MAX_STR_LEN;}
 
 // planner functions
 bool _ros_initialized = false;
-void init_planner(c_string urdf, c_string srdf);
+c_string init_planner(c_string urdf, c_string srdf);
 void process_object(c_object_msg omsg);
 void clear_all_objects();
-c_trajectory plan_compact(c_plan_goal goal);
+c_trajectory plan_compact(c_plan_request goal);
 void terminate_ros();
 int get_max_name_len(){return MAX_NAME_LEN;}
 int get_max_joint_num(){return MAX_JOINT_NUM;}
