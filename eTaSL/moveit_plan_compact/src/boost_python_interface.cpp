@@ -38,6 +38,13 @@ BOOST_PYTHON_MODULE(moveit_plan_compact){
                  with_custodian_and_ward<1,2>()) // to let container keep value
             ;
 
+    class_<Vec3>("Vec3", init<>())
+            .def("__getitem__", &std_item<Vec3>::get,
+                 return_value_policy<copy_non_const_reference>())
+            .def("__setitem__", &std_item<Vec3>::set,
+                 with_custodian_and_ward<1,2>()) // to let container keep value
+            ;
+
     class_<JointState>("JointState", init<int>())
             .def("__getitem__", &std_item<JointState>::get,
                  return_value_policy<copy_non_const_reference>())
@@ -63,11 +70,13 @@ BOOST_PYTHON_MODULE(moveit_plan_compact){
             ;
 
     class_<Planner>("Planner")
+            .def_readonly("joint_names", &Planner::joint_names)
+            .def_readonly("joint_num", &Planner::joint_num)
             .def("init_planner", &Planner::init_planner)
             .def("init_planner_from_file", &Planner::init_planner_from_file)
             .def("plan", &Planner::plan,
                  return_value_policy<copy_non_const_reference>())
-            .def("process_object", &Planner::process_object)
+            .def("add_object", &Planner::add_object)
             .def("clear_all_objects", &Planner::clear_all_objects)
             ;
 

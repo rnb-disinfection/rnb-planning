@@ -37,6 +37,7 @@ namespace RNB {
 
         typedef vector<string> NameList;
         typedef Eigen::Matrix<double, 7, 1> CartPose;
+        typedef Eigen::Vector3d Vec3;
         typedef Eigen::VectorXd JointState;
         typedef vector<JointState> Trajectory;
 
@@ -62,11 +63,15 @@ namespace RNB {
 
             PlanResult &plan(string group_name, string tool_link,
                              CartPose goal_pose, string goal_link,
-                             JointState init_state, double allowed_planning_time);
+                             JointState init_state, double allowed_planning_time=0.1);
 
             bool process_object(string name, const int type,
-                                CartPose pose, Eigen::Vector3d dims,
+                                CartPose pose, Vec3 dims,
                                 string link_name, const int action);
+
+            bool add_object(string name, const int type,
+                            CartPose pose, Vec3 dims,
+                            string link_name);
 
             void clear_all_objects();
         };

@@ -229,6 +229,14 @@
   ```
   
 # Setup project  
+* Get project and add path to ~/.bahsrc
+  ```
+  mkdir ~/Projects && cd ~/Projects \
+  && git clone https://github.com/Cucumberkjs/tamp_etasl.git \
+  && export TAMP_ETASL_DIR=$HOME/Projects/tamp_etasl/eTaSL/ \
+  && echo 'export TAMP_ETASL_DIR=$HOME/Projects/tamp_etasl/eTaSL/' >> ~/.bashrc
+  ```
+  
 * Build custom etasl
   * get custom etasl project from github and recompile etasl
   ```
@@ -274,30 +282,22 @@ mkdir Release && cd Release
 cmake -DCMAKE_BUILD_TYPE=Release .. && make
 cd .. && cp ./Release/moveit_plan_compact.so ./ && rm -rf Release
 ```
-  
-* Get project and add path to ~/.bahsrc
-  ```
-  mkdir ~/Projects && cd ~/Projects \
-  && git clone https://github.com/Cucumberkjs/tamp_etasl.git \
-  && export TAMP_ETASL_DIR=$HOME/Projects/tamp_etasl/eTaSL/ \
-  && echo 'export TAMP_ETASL_DIR=$HOME/Projects/tamp_etasl/eTaSL/' >> ~/.bashrc
-  ```
-  * build openGJK
-  ```
-  cd "$TAMP_ETASL_DIR"openGJK/lib \
-  && cmake -DCMAKE_BUILD_TYPE=Release \
-  && make
-  ```
-  * build custom workspace  
-  ```
-  cd "$TAMP_ETASL_DIR"ws_ros && rm -rf build devel && catkin_make -DCMAKE_BUILD_TYPE=Release  
-  source "$TAMP_ETASL_DIR"ws_ros/devel/setup.bash
-  echo 'source "$TAMP_ETASL_DIR"ws_ros/devel/setup.bash' >> ~/.bashrc
-  ```
-  * start roscore if it's not active  
-  ```
-  nohup roscore &  
-  ```
+* build openGJK
+```
+cd "$TAMP_ETASL_DIR"openGJK/lib \
+&& cmake -DCMAKE_BUILD_TYPE=Release \
+&& make
+```
+* build custom workspace  
+```
+cd "$TAMP_ETASL_DIR"ws_ros && rm -rf build devel && catkin_make -DCMAKE_BUILD_TYPE=Release  
+source "$TAMP_ETASL_DIR"ws_ros/devel/setup.bash
+echo 'source "$TAMP_ETASL_DIR"ws_ros/devel/setup.bash' >> ~/.bashrc
+```
+* start roscore if it's not active  
+```
+nohup roscore &  
+```
 
 # Setup and launch panda repeater
 * setup panda_ros_repeater on panda master pc (https://github.com/Cucumberkjs/panda_ros_repeater.git)  

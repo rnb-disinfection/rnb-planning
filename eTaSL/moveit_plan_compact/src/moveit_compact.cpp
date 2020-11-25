@@ -182,7 +182,7 @@ PlanResult& Planner::plan(string group_name, string tool_link,
     return plan_result;
 }
 bool Planner::process_object(string name, const int type,
-                    CartPose pose, Eigen::Vector3d dims,
+                    CartPose pose, Vec3 dims,
                     string link_name, const int action){
     moveit_msgs::AttachedCollisionObject object;
     object.link_name = link_name;
@@ -226,6 +226,12 @@ bool Planner::process_object(string name, const int type,
     object.object.operation = action;
 
     return _planning_scene->processAttachedCollisionObjectMsg(object);
+}
+
+bool Planner::add_object(string name, const int type,
+                             CartPose pose, Vec3 dims,
+                             string link_name){
+    return process_object(name, type, pose, dims, link_name, moveit_msgs::CollisionObject::ADD);
 }
 
 void Planner::clear_all_objects(){
