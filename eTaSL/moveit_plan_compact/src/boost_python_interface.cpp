@@ -77,14 +77,7 @@ BOOST_PYTHON_MODULE(moveit_plan_compact){
             .def("plan", &Planner::plan,
                  return_value_policy<copy_non_const_reference>())
             .def("add_object", &Planner::add_object)
+            .def("process_object", &Planner::process_object)
             .def("clear_all_objects", &Planner::clear_all_objects)
             ;
-
-//    class_<JointState>("JointState");
-//    class_<Trajectory>("Trajectory");
-//    class_<CartPose>("CartPose");
-//    .def("__len__", &NameList::size)
-//            .def("__getitem__", &NameList::at)
-
-//    class_<PlanResult>("PlanResult");
 }

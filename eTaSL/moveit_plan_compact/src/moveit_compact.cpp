@@ -34,6 +34,7 @@ void RNB::MoveitCompact::PRINT_FRAMED_LOG(const char* msg, bool endl){
 }
 
 bool _ros_initialized = false;
+ros::NodeHandlePtr _node_handle;
 
 ros::NodeHandlePtr RNB::MoveitCompact::init_ros() {
     _ros_initialized = true;
@@ -74,15 +75,15 @@ bool Planner::init_planner_from_file(string urdf_filepath, string srdf_filepath,
 bool Planner::init_planner(string& urdf_txt, string& srdf_txt, NameList& group_names){
     if(!_ros_initialized){
         _node_handle = init_ros();
+    }
 
-        _node_handle->setParam("planning_plugin", "ompl_interface/OMPLPlanner");
+    _node_handle->setParam("planning_plugin", "ompl_interface/OMPLPlanner");
 
-        for(auto gname=group_names.begin(); gname!=group_names.end(); gname++){
+    for(auto gname=group_names.begin(); gname!=group_names.end(); gname++){
 
-            _node_handle->setParam((*gname)+"/kinematics_solver", "kdl_kinematics_plugin/KDLKinematicsPlugin");
-            _node_handle->setParam((*gname)+"/kinematics_solver_search_resolution", 0.005);
-            _node_handle->setParam((*gname)+"/kinematics_solver_timeout", 0.005);
-        }
+        _node_handle->setParam((*gname)+"/kinematics_solver", "kdl_kinematics_plugin/KDLKinematicsPlugin");
+        _node_handle->setParam((*gname)+"/kinematics_solver_search_resolution", 0.005);
+        _node_handle->setParam((*gname)+"/kinematics_solver_timeout", 0.005);
     }
 
     PRINT_FRAMED_LOG("load robot model");
@@ -179,20 +180,20 @@ PlanResult& Planner::plan(string group_name, string tool_link,
         plan_result.trajectory.push_back(wp);
     }
     PRINT_FRAMED_LOG("done", true);
+    plan_result.success = true;
     return plan_result;
 }
-bool Planner::process_object(string name, const int type,
-                    CartPose pose, Vec3 dims,
-                    string link_name, const int action){
-    moveit_msgs::AttachedCollisionObject object;
-    object.link_name = link_name;
-    /* The header must contain a valid TF frame*/
-    object.object.header.frame_id = link_name;
-    /* The id of the object */
-    object.object.id = name;
+bool Planner::process_object(string name, const int type, CartPose pose, Vec3 dims,
+                    string link_name, NameList touch_links, bool attach, const int action){
+    bool res = false;
+
+    moveit_msgs::PlanningScene scene_msg;
+    moveit_msgs::AttachedCollisionObject att_object;
+    moveit_msgs::CollisionObject object;
+    geometry_msgs::Pose _pose;
+    shape_msgs::SolidPrimitive primitive;
 
     /* A default pose */
-    geometry_msgs::Pose _pose;
     _pose.position.x = pose[0];
     _pose.position.y = pose[1];
     _pose.position.z = pose[2];
@@ -202,7 +203,6 @@ bool Planner::process_object(string name, const int type,
     _pose.orientation.w = pose[6];
 
     /* Define a box to be attached */
-    shape_msgs::SolidPrimitive primitive;
     primitive.type = type;
     switch(type){
         case primitive.BOX:
@@ -221,17 +221,36 @@ bool Planner::process_object(string name, const int type,
             primitive.dimensions[1] = dims[1];
             break;
     }
-    object.object.primitives.push_back(primitive);
-    object.object.primitive_poses.push_back(_pose);
-    object.object.operation = action;
 
-    return _planning_scene->processAttachedCollisionObjectMsg(object);
+    if (attach) {
+        att_object.link_name = link_name;
+        /* The header must contain a valid TF frame*/
+        att_object.object.header.frame_id = link_name;
+        /* The id of the object */
+        att_object.object.id = name;
+        att_object.object.primitives.push_back(primitive);
+        att_object.object.primitive_poses.push_back(_pose);
+        att_object.object.operation = action;
+        att_object.touch_links = touch_links;
+        res = _planning_scene->processAttachedCollisionObjectMsg(att_object);
+    }
+    else {
+        object.header.frame_id = link_name;
+        /* The id of the object */
+        object.id = name;
+        object.primitives.push_back(primitive);
+        object.primitive_poses.push_back(_pose);
+        object.operation = action;
+        res = _planning_scene->processCollisionObjectMsg(object);
+    }
+
+    return res;
 }
 
 bool Planner::add_object(string name, const int type,
                              CartPose pose, Vec3 dims,
-                             string link_name){
-    return process_object(name, type, pose, dims, link_name, moveit_msgs::CollisionObject::ADD);
+                             string link_name, NameList touch_links, bool attach){
+    return process_object(name, type, pose, dims, link_name, touch_links, attach, moveit_msgs::CollisionObject::ADD);
 }
 
 void Planner::clear_all_objects(){

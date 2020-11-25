@@ -277,10 +277,8 @@
 * Build moveit-python interpreter, copy it and clean Release folder  
 ```
 cd "$TAMP_ETASL_DIR"moveit_plan_compact
-rm -rf Release
-mkdir Release && cd Release
-cmake -DCMAKE_BUILD_TYPE=Release .. && make
-cd .. && cp ./Release/moveit_plan_compact.so ./ && rm -rf Release
+chmod +x ./build.sh
+./build.sh
 ```
 * build openGJK
 ```

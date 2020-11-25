@@ -43,12 +43,11 @@ namespace RNB {
 
         struct PlanResult {
             Trajectory trajectory;
-            bool success = true;
+            bool success;
         };
 
         class Planner {
         public:
-            ros::NodeHandlePtr _node_handle;
             robot_model_loader::RobotModelLoaderPtr _robot_model_loader;
             robot_model::RobotModelPtr _robot_model;
             planning_scene::PlanningScenePtr _planning_scene;
@@ -65,13 +64,12 @@ namespace RNB {
                              CartPose goal_pose, string goal_link,
                              JointState init_state, double allowed_planning_time=0.1);
 
-            bool process_object(string name, const int type,
-                                CartPose pose, Vec3 dims,
-                                string link_name, const int action);
+            bool process_object(string name, const int type, CartPose pose, Vec3 dims,
+                                string link_name, NameList touch_links, bool attach, const int action);
 
             bool add_object(string name, const int type,
                             CartPose pose, Vec3 dims,
-                            string link_name);
+                            string link_name, NameList touch_links, bool attach);
 
             void clear_all_objects();
         };
