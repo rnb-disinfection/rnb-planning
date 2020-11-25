@@ -247,3 +247,12 @@ def load_json(filename):
     with open(filename, "r") as st_json:
         st_python = json.load(st_json)
     return st_python
+
+def read_file(filename):
+    buffer = ""
+    with open(filename, 'r') as f:
+        while True:
+            line = f.readline()
+            buffer += line
+            if not line: break
+    return buffer

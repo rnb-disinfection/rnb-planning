@@ -22,11 +22,14 @@ find_package(catkin REQUIRED
         )
 
 find_package(Eigen3 REQUIRED)
-find_package(Boost REQUIRED system filesystem date_time thread)
+find_package(Boost REQUIRED system filesystem date_time thread python)
 
+include_directories(include)
 include_directories(${catkin_INCLUDE_DIRS})
 
-add_library(moveit_plan_compact SHARED src/library.cpp)
-#add_executable(moveit_plan_compact src/library.cpp include/library.h)
+set(CMAKE_SHARED_LIBRARY_PREFIX "") # output file name should match with BOOST_PYTHON_MODULE name
 
-target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
+add_library(${PROJECT_NAME} SHARED src/moveit_compact.cpp src/boost_python_interface.cpp include/bp_container_interface.h)
+#add_executable(${PROJECT_NAME} src/library.cpp include/library.h)
+
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${Boost_LIBRARIES})

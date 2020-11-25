@@ -272,7 +272,7 @@ cd "$TAMP_ETASL_DIR"moveit_plan_compact
 rm -rf Release
 mkdir Release && cd Release
 cmake -DCMAKE_BUILD_TYPE=Release .. && make
-cd .. && cp ./Release/libmoveit_plan_compact.so ./ && rm -rf Release
+cd .. && cp ./Release/moveit_plan_compact.so ./ && rm -rf Release
 ```
   
 * Get project and add path to ~/.bahsrc

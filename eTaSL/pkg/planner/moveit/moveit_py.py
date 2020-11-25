@@ -67,3 +67,38 @@ def convert_trajectory(traj, joint_num):
     for i_traj in range(traj.traj_len):
         joints.append(traj.joints[i_traj*MAX_JOINT_NUM:i_traj*MAX_JOINT_NUM+joint_num])
     return np.array(joints), traj.success
+
+def init_planner(urdf_string, srdf_string):
+    urdf_cstr = c_string()
+    srdf_cstr = c_string()
+    urdf_cstr.buffer += urdf_string
+    srdf_cstr.buffer += srdf_string
+    c_joint_names = clib.init_planner(urdf_cstr, srdf_cstr)
+    joint_names = c_joint_names.buffer.split()
+    joint_num = c_joint_names.len
+    return joint_names, joint_num
+
+def add_object(name, type, link_name, pose, dims):
+    omsg = c_object_msg()
+    omsg.name = name
+    omsg.type = type.value
+    omsg.link_name = link_name
+    for igp in range(7): omsg.pose[igp] = pose[igp]
+    for igp in range(3): omsg.dims[igp] = dims[igp]
+    omsg.action = ObjectAction.ADD.value
+    clib.process_object(omsg)
+
+def clear_objects():
+    clib.clear_all_objects()
+
+def plan(group_name, tool_link, goal_pose, goal_link, init_joints, joint_num, timeout=0.1):
+    goal = c_plan_request()
+    goal.group_name = group_name
+    goal.tool_link = tool_link
+    for igp in range(7): goal.goal_pose[igp] = goal_pose[igp]
+    for iis in range(joint_num): goal.init_state[iis] = init_joints[iis]
+    goal.goal_link = goal_link
+    goal.timeout = timeout
+    c_traj = clib.plan_compact(goal)
+    traj, succ = convert_trajectory(c_traj, joint_num)
+    return traj, succ
