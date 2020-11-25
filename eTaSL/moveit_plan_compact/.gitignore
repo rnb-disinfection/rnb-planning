@@ -12,3 +12,4 @@ __pycache__/
 *$py.class
 
 cmake-build-debug/
+Release/

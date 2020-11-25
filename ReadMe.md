@@ -109,11 +109,12 @@
   && sudo apt-get install python-rosinstall -y \
   && sudo apt-get install ros-melodic-catkin python-catkin-tools -y
   ```
-  * **RESTART TERMINAL!**
+  * **RESTART TERMINAL!**  
+  
 * Moveit  
   ```
   sudo apt-get install -y ros-melodic-moveit ros-melodic-industrial-core ros-melodic-moveit-visual-tools ros-melodic-joint-state-publisher-gui  
-  ```
+  ```  
 * Gazebo  
   ```
   sudo apt-get install -y ros-melodic-gazebo-ros-pkgs ros-melodic-gazebo-ros-control ros-melodic-joint-state-controller ros-melodic-effort-controllers ros-melodic-position-controllers ros-melodic-joint-trajectory-controller  
@@ -264,6 +265,15 @@
   ```
   sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
   ```
+  
+* Build moveit-python interpreter, copy it and clean Release folder  
+```
+cd "$TAMP_ETASL_DIR"moveit_plan_compact
+rm -rf Release
+mkdir Release && cd Release
+cmake -DCMAKE_BUILD_TYPE=Release .. && make
+cd .. && cp ./Release/libmoveit_plan_compact.so ./ && rm -rf Release
+```
   
 * Get project and add path to ~/.bahsrc
   ```
