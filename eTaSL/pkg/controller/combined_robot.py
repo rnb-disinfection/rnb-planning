@@ -38,6 +38,7 @@ class CombinedRobot:
             self.idx_dict[name] = range(i0, len(self.joint_names))
             self.robot_dict[name] = None
             self.robot_names.append(name)
+        self.joint_num = len(self.joint_names)
         self.home_pose = np.array(self.home_pose)
         self.home_dict = list2dict(self.home_pose, self.joint_names)
 

@@ -4,6 +4,7 @@ Panels:
     Name: Displays
     Property Tree Widget:
       Expanded:
+        - /Global Options1
         - /RobotModel1
         - /Marker1
         - /TF1
@@ -269,7 +270,7 @@ Visualization Manager:
       Value: true
   Enabled: true
   Global Options:
-    Background Color: 48; 48; 48
+    Background Color: 255; 255; 255
     Default Light: true
     Fixed Frame: base_link
     Frame Rate: 30
@@ -295,25 +296,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 4.272619724273682
+      Distance: 6.190205097198486
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.16304798424243927
-        Y: 0.6450418829917908
-        Z: 0.28193527460098267
+        X: 1.4530972242355347
+        Y: 1.03106689453125
+        Z: 1.5897421836853027
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.5603979825973511
+      Pitch: 0.7553978562355042
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.5535807609558105
+      Yaw: 3.8485682010650635
     Saved: ~
 Window Geometry:
   Displays:
