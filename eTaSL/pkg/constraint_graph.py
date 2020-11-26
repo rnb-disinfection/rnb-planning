@@ -252,10 +252,11 @@ class ConstraintGraph:
 
     #######################################################
     ##################### Environment #####################
-    def set_cam_robot_collision(self):
+    def set_cam_robot_collision(self, _add_cam_poles = True):
         add_geometry_items(self.urdf_content, color=(0, 1, 0, 0.3), display=True, collision=True,
                            exclude_link=["panda1_link7"])
-        add_cam_poles(self, self.cam.xyz_rpy_cams)
+        if _add_cam_poles:
+            add_cam_poles(self, self.cam.xyz_rpy_cams)
     ##################### Environment #####################
     #######################################################
 

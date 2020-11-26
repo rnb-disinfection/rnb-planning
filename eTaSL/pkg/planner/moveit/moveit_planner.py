@@ -7,6 +7,7 @@ from ...constraint.constraint_common import calc_redundancy
 from ...robots_custom import write_srdf
 from scipy.spatial.transform import Rotation
 import numpy as np
+import os
 
 def gtype_to_otype(gtype):
     if gtype==GEOTYPE.BOX:
@@ -40,7 +41,8 @@ class MoveitPlanner(PlannerInterface):
                                     link_names=self.link_names, joint_names=self.joint_names,
                                     urdf_content=self.urdf_content, urdf_path=self.urdf_path
                                     )
-        self.planner = MoveitCompactPlanner_BP(self.urdf_path, self.srdf_path, self.robot_names)
+        self.config_path = os.path.dirname(self.urdf_path)+"/"
+        self.planner = MoveitCompactPlanner_BP(self.urdf_path, self.srdf_path, self.robot_names, self.config_path)
         if not all([a==b for a,b in zip(self.joint_names, self.planner.joint_names_py)]):
             self.need_mapping = True
             self.idx_graph_to_mpc = [self.joint_names.index(jname) for jname in self.planner.joint_names_py]

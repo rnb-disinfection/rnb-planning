@@ -29,7 +29,9 @@ include_directories(${catkin_INCLUDE_DIRS})
 
 set(CMAKE_SHARED_LIBRARY_PREFIX "") # output file name should match with BOOST_PYTHON_MODULE name
 
-add_library(${PROJECT_NAME} SHARED src/moveit_compact.cpp src/boost_python_interface.cpp include/bp_container_interface.h)
-#add_executable(${PROJECT_NAME} src/library.cpp include/library.h)
+add_library(${PROJECT_NAME} SHARED src/moveit_compact.cpp include/moveit_compact.h
+        include/ros_load_yaml.h include/logger.h
+        src/boost_python_interface.cpp include/bp_container_interface.h)
+#add_executable(${PROJECT_NAME} src/moveit_compact.cpp include/moveit_compact.h include/ros_load_yaml.h include/logger.h)
 
-target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${Boost_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${Boost_LIBRARIES} yaml-cpp)

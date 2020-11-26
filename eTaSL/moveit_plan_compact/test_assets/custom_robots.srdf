@@ -3,7 +3,6 @@
 	<group name="indy0">
 		<chain base_link="indy0_link0" tip_link="indy0_tcp"/>
 	</group>
-	<virtual_joint child_link="indy0_link0" name="indy0_joint_base" parent_frame="base_link" type="fixed"/>
 	<group_state group="indy0" name="all-zeros">
 		<joint name="indy0_joint0" value="0"/>
 		<joint name="indy0_joint1" value="0"/>
@@ -15,7 +14,6 @@
 	<group name="panda1">
 		<chain base_link="panda1_link0" tip_link="panda1_hand"/>
 	</group>
-	<virtual_joint child_link="panda1_link0" name="panda1_joint_base" parent_frame="base_link" type="fixed"/>
 	<group_state group="panda1" name="all-zeros">
 		<joint name="panda1_joint1" value="0"/>
 		<joint name="panda1_joint2" value="0"/>
@@ -25,6 +23,7 @@
 		<joint name="panda1_joint6" value="0"/>
 		<joint name="panda1_joint7" value="0"/>
 	</group_state>
+	<virtual_joint child_link="base_link" name="fixed_base" parent_frame="world" type="fixed"/>
 	<disable_collisions link1="indy0_link0" link2="indy0_link1" reason="Adjacent"/>
 	<disable_collisions link1="indy0_link0" link2="panda1_link0" reason="Adjacent"/>
 	<disable_collisions link1="indy0_link0" link2="panda1_link1" reason="Adjacent"/>

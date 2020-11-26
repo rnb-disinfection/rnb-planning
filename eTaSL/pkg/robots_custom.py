@@ -383,16 +383,13 @@ def write_srdf(robot_names, binder_links, link_names, joint_names, urdf_content,
                 jstat.setAttribute('value', "0")
                 grp_stat.appendChild(jstat)
 
-        vjoint_elems = [joint for joint in urdf_content.joints if joint.parent == "base_link"]
-        for vjoint_elem in vjoint_elems:
-            vjoint = root.createElement("virtual_joint")
-            vjoint.setAttribute('name', vjoint_elem.name)
-            vjoint.setAttribute('type', vjoint_elem.type)
-            vjoint.setAttribute('parent_frame', vjoint_elem.parent)
-            vjoint.setAttribute('child_link', vjoint_elem.child)
-            xml.appendChild(vjoint)
-
         xml.appendChild(grp_stat)
+    vjoint = root.createElement("virtual_joint")
+    vjoint.setAttribute('name', "fixed_base")
+    vjoint.setAttribute('type', "fixed")
+    vjoint.setAttribute('parent_frame', "world")
+    vjoint.setAttribute('child_link', "base_link")
+    xml.appendChild(vjoint)
 
     for idx1 in range(len(link_names)):
         lname1 = link_names[idx1]

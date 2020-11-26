@@ -12,14 +12,6 @@
 #define MAX_JOINT_NUM 32
 #define MAX_TRAJ_LEN 64
 
-#define LOG_FRAME_LINE "==================================================\n"
-#define LOG_FRAME_LEN 50
-#define TEXT_RED(STR) ("\x1B[31m" STR "\033[0m")
-#define TEXT_GREEN(STR) ("\x1B[32m" STR "\033[0m")
-#define TEXT_YELLOW(STR) ("\x1B[33m" STR "\033[0m")
-#define TEXT_BLUE(STR) ("\x1B[34m" STR "\033[0m")
-#define TEXT_CYAN(STR) ("\x1B[36m" STR "\033[0m")
-
 //BOX = 1u,
 //SPHERE = 2u,
 //CYLINDER = 3u,
@@ -33,7 +25,7 @@ namespace RNB {
         using namespace std;
 
         //Planner* planner_compact=NULL;
-        ros::NodeHandlePtr init_ros();
+        ros::NodeHandlePtr init_ros(string name="moveit_plan_compact");
 
         typedef vector<string> NameList;
         typedef Eigen::Matrix<double, 7, 1> CartPose;
@@ -56,13 +48,14 @@ namespace RNB {
             NameList joint_names;
             int joint_num;
 
-            bool init_planner_from_file(string urdf_filepath, string srdf_filepath, NameList &group_names);
+            bool init_planner_from_file(string urdf_filepath, string srdf_filepath, NameList &group_names, string config_path);
 
-            bool init_planner(string &urdf_txt, string &srdf_txt, NameList &group_names);
+            bool init_planner(string &urdf_txt, string &srdf_txt, NameList &group_names, string config_path);
 
             PlanResult &plan(string group_name, string tool_link,
                              CartPose goal_pose, string goal_link,
-                             JointState init_state, double allowed_planning_time=0.1);
+                             JointState init_state, string planner_id="RRTConnectkConfigDefault",
+                             double allowed_planning_time=0.1);
 
             bool process_object(string name, const int type, CartPose pose, Vec3 dims,
                                 string link_name, NameList touch_links, bool attach, const int action);
@@ -73,12 +66,6 @@ namespace RNB {
 
             void clear_all_objects();
         };
-
-        string WRAP_LOG_FRAME(const char *msg);
-
-        void PRINT_ERROR(const char *msg);
-
-        void PRINT_FRAMED_LOG(const char *msg, bool endl = false);
     }
 }
 

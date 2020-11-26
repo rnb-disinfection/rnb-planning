@@ -9,8 +9,8 @@ from copy import deepcopy
 from collections import defaultdict
 
 K_DEFAULT = 30
-TRAJ_RADII_MAX = np.deg2rad(20)
-DEFAULT_TRAJ_COUNT = 10
+TRAJ_RADII_MAX = np.deg2rad(10)
+DEFAULT_TRAJ_COUNT = 50
 
 def augment_jnames_dot(joint_names):
     return np.concatenate([[jname, jname + "_dot"] for jname in joint_names], axis=0).tolist()

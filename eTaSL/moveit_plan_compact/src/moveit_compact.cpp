@@ -4,6 +4,8 @@
 #include <fstream>
 #include <string>
 #include <signal.h>
+#include <logger.h>
+#include <ros_load_yaml.h>
 
 using namespace RNB::MoveitCompact;
 
@@ -12,35 +14,17 @@ void SigintHandlerJ(int sig)
     ros::shutdown();
 }
 
-string RNB::MoveitCompact::WRAP_LOG_FRAME(const char* msg){
-    int msg_len = strlen(msg);
-    float margin = fmax(2, LOG_FRAME_LEN-msg_len);
-    std::string prefix(floor(margin/2)-1, '=');
-    std::string postfix(ceil(margin/2)-1, '=');
-    std::string msg_line = prefix + " " + msg + " " + postfix + "\n";
-    return msg_line;
-}
-
-void RNB::MoveitCompact::PRINT_ERROR(const char* msg){
-    std::string msg_line = "\x1B[31m" + WRAP_LOG_FRAME(msg) + "\033[0m";
-    std::cout<<TEXT_RED(LOG_FRAME_LINE);
-    std::cout<<msg_line.c_str();
-    std::cout<<TEXT_RED(LOG_FRAME_LINE "\n");
-}
-
-void RNB::MoveitCompact::PRINT_FRAMED_LOG(const char* msg, bool endl){
-    std::cout<<WRAP_LOG_FRAME(msg).c_str();
-    if(endl) std::cout<<std::endl;
-}
 
 bool _ros_initialized = false;
 ros::NodeHandlePtr _node_handle;
+string _node_name;
 
-ros::NodeHandlePtr RNB::MoveitCompact::init_ros() {
+ros::NodeHandlePtr RNB::MoveitCompact::init_ros(string name) {
     _ros_initialized = true;
     char **argv;
     int argc=0;
-    ros::init(argc, argv, "moveit_plan_compact");
+    ros::init(argc, argv, name);
+    _node_name = name;
     ros::NodeHandlePtr _node_handle = boost::make_shared<ros::NodeHandle>("~");
     signal(SIGINT, SigintHandlerJ);
     PRINT_FRAMED_LOG(LOG_FRAME_LINE);
@@ -49,7 +33,7 @@ ros::NodeHandlePtr RNB::MoveitCompact::init_ros() {
     return _node_handle;
 }
 
-bool Planner::init_planner_from_file(string urdf_filepath, string srdf_filepath, NameList& group_names){
+bool Planner::init_planner_from_file(string urdf_filepath, string srdf_filepath, NameList& group_names, string config_path){
     std::string urdf_txt;
     std::string srdf_txt;
     std::string tmp_txt;
@@ -62,29 +46,29 @@ bool Planner::init_planner_from_file(string urdf_filepath, string srdf_filepath,
     while (getline (urdf_file, tmp_txt)) {
         // Output the text from the file
         urdf_txt += tmp_txt;
-        std::cout << tmp_txt << std::endl;
+//        std::cout << tmp_txt << std::endl;
     }
+    PRINT_FRAMED_LOG("Load URDF from: "+urdf_filepath);
+
     while (getline (srdf_file, tmp_txt)) {
         srdf_txt += tmp_txt;
         // Output the text from the file
-        std::cout << tmp_txt <<std::endl;
+//        std::cout << tmp_txt <<std::endl;
     }
-    return init_planner(urdf_txt, srdf_txt, group_names);
+    PRINT_FRAMED_LOG("Loaded SRDF from: "+srdf_filepath);
+    return init_planner(urdf_txt, srdf_txt, group_names, config_path);
 }
 
-bool Planner::init_planner(string& urdf_txt, string& srdf_txt, NameList& group_names){
+
+bool Planner::init_planner(string& urdf_txt, string& srdf_txt, NameList& group_names, string config_path){
     if(!_ros_initialized){
         _node_handle = init_ros();
     }
 
-    _node_handle->setParam("planning_plugin", "ompl_interface/OMPLPlanner");
-
-    for(auto gname=group_names.begin(); gname!=group_names.end(); gname++){
-
-        _node_handle->setParam((*gname)+"/kinematics_solver", "kdl_kinematics_plugin/KDLKinematicsPlugin");
-        _node_handle->setParam((*gname)+"/kinematics_solver_search_resolution", 0.005);
-        _node_handle->setParam((*gname)+"/kinematics_solver_timeout", 0.005);
-    }
+    //------------------------parsing with Iterator
+    rosparam_load_yaml(_node_handle, "", config_path+"kinematics.yaml");
+    rosparam_load_yaml(_node_handle, "", config_path+"ompl_planning.yaml");
+    rosparam_load_yaml(_node_handle, "", config_path+"planning_plugin.yaml");
 
     PRINT_FRAMED_LOG("load robot model");
     _robot_model_loader = std::make_shared<robot_model_loader::RobotModelLoader>(
@@ -124,7 +108,7 @@ bool Planner::init_planner(string& urdf_txt, string& srdf_txt, NameList& group_n
 
 PlanResult& Planner::plan(string group_name, string tool_link,
                          CartPose goal_pose, string goal_link,
-                         JointState init_state, double allowed_planning_time){
+                         JointState init_state, string planner_id, double allowed_planning_time){
     PRINT_FRAMED_LOG("set goal", true);
     geometry_msgs::PoseStamped _goal_pose;
     _goal_pose.header.frame_id = goal_link;
@@ -151,6 +135,7 @@ PlanResult& Planner::plan(string group_name, string tool_link,
     planning_interface::MotionPlanRequest _req;
     planning_interface::MotionPlanResponse _res;
     _req.group_name = group_name; //"indy0"; // "indy0_tcp"
+    _req.planner_id = planner_id;
     _req.allowed_planning_time = allowed_planning_time;
     _constrinat_pose_goal = kinematic_constraints::constructGoalConstraints(tool_link, _goal_pose, tolerance_pose, tolerance_angle);
     _req.goal_constraints.push_back(_constrinat_pose_goal);
@@ -307,41 +292,13 @@ void Planner::clear_all_objects(){
 //}
 
 int main(int argc, char** argv) {
-    std::string urdf_txt;
-    std::string srdf_txt;
-    std::string tmp_txt;
+    NameList group_names;
+    group_names.push_back("indy0");
+    group_names.push_back("panda1");
 
-// Read from the text file
-    std::ifstream urdf_file("../test_assets/custom_robots.urdf");
-    std::ifstream srdf_file("../test_assets/custom_robots.srdf");
-
-// Use a while loop together with the getline() function to read the file line by line
-    while (getline (urdf_file, tmp_txt)) {
-        // Output the text from the file
-        urdf_txt += tmp_txt;
-        std::cout << tmp_txt << std::endl;
-    }
-    while (getline (srdf_file, tmp_txt)) {
-        srdf_txt += tmp_txt;
-        // Output the text from the file
-        std::cout << tmp_txt <<std::endl;
-    }
-    printf("urdf_len: %d \n",(int)urdf_txt.length());
-    printf("srdf_len: %d \n",(int)srdf_txt.length());
-//
-//    c_name_arr group_names_cstr;
-//    char gname1[MAX_NAME_LEN] = "indy0";
-//    char gname2[MAX_NAME_LEN] = "panda1";
-//
-//    memcpy(group_names_cstr.buffer, gname1, sizeof(gname1));
-//    memcpy(group_names_cstr.buffer+MAX_NAME_LEN, gname2, sizeof(gname2));
-//
-//    c_string urdf_cstr;
-//    c_string srdf_cstr;
-//    memcpy(urdf_cstr.buffer, urdf_txt.c_str(), urdf_txt.length());
-//    memcpy(srdf_cstr.buffer, srdf_txt.c_str(), srdf_txt.length());
-//
-//    init_planner(urdf_cstr, srdf_cstr, group_names_cstr);
+    Planner planner;
+    planner.init_planner_from_file("../test_assets/custom_robots.urdf", "../test_assets/custom_robots.srdf",
+                                   group_names, "../test_assets/");
 //    double init_state[13] = {0, 0, -1.57, 0, -1.57, 0, 0, -0.4, 0, -1.57, 0, 1.57, 1.57};
 //    double goal[7] = {-0.3,-0.2,0.4,0,0,0,1};
 //    planner_compact->plan_compact("indy0", "indy0_tcp", goal, "base_link", init_state, 0.1);

@@ -292,9 +292,13 @@ cd "$TAMP_ETASL_DIR"ws_ros && rm -rf build devel && catkin_make -DCMAKE_BUILD_TY
 source "$TAMP_ETASL_DIR"ws_ros/devel/setup.bash
 echo 'source "$TAMP_ETASL_DIR"ws_ros/devel/setup.bash' >> ~/.bashrc
 ```
-* start roscore if it's not active  
+* **start roscore if it's not active**  
 ```
 nohup roscore &  
+```
+* **to reset node/topic/params, kill and restart roscore**  
+```
+sudo killall -9 roscore && nohup roscore &  
 ```
 
 # Setup and launch panda repeater

@@ -57,12 +57,12 @@ class ObjectMPC:
 
 
 class MoveitCompactPlanner_BP(mpc.Planner):
-    def __init__(self, urdf_path, srdf_path, group_names):
+    def __init__(self, urdf_path, srdf_path, group_names, config_path):
         mpc.Planner.__init__(self)
-        self.urdf_path, self.srdf_path = urdf_path, srdf_path
+        self.urdf_path, self.srdf_path, self.config_path = urdf_path, srdf_path, config_path
         self.group_names = group_names
         self.__group_names = NameList(*group_names)
-        if not self.init_planner_from_file(urdf_path, srdf_path, self.__group_names):
+        if not self.init_planner_from_file(urdf_path, srdf_path, self.__group_names, self.config_path):
             raise (RuntimeError("Failed to initialize planner"))
         self.joint_names_py = spread(self.joint_names, self.joint_num)
         self.attached_dict = {}
@@ -91,9 +91,9 @@ class MoveitCompactPlanner_BP(mpc.Planner):
             self.remove_object(obj)
         self.__clear_all_objects()
 
-    def plan_py(self, robot_name, tool_link, goal_pose, goal_link, Q_init, timeout=0.1):
+    def plan_py(self, robot_name, tool_link, goal_pose, goal_link, Q_init, plannerconfig="RRTConnectkConfigDefault", timeout=0.1):
         plan = self.plan(robot_name, tool_link, CartPose(*goal_pose), goal_link,
-                         JointState(self.joint_num, *Q_init), timeout)
+                         JointState(self.joint_num, *Q_init), plannerconfig, timeout)
         return np.array(
             [spread(Q, self.joint_num) for Q in spread(plan.trajectory, len(plan.trajectory))]), plan.success
 
