@@ -37,4 +37,4 @@ base_link-base_fixed_joint
 tool0
 wrist_3_link-tool0_fixed_joint
 
-world
+base_link

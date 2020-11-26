@@ -54,8 +54,10 @@ class BinderTable(TableInterface):
         return res, msg
 
     def button(self, button, *args, **kwargs):
+        print("button clicked")
         if button == TAB_BUTTON.CUSTOM:
             if self.graph.planner:
                 self.graph.planner.set_binder_dict(self.graph.binder_dict)
         else:
             TableInterface.button(self, button, *args, **kwargs)
+        print("button action done")

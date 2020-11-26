@@ -5,7 +5,6 @@ from ..constants import DIR_VEC_DICT
 from collections import defaultdict
 
 __metaclass__ = type
-DEFAULT_TRAJ_COUNT = 10
 
 
 class SearchNode:
@@ -17,11 +16,10 @@ class SearchNode:
         self.traj_size = 0
         self.traj_length = 0
 
-    def set_traj(self, traj_full, traj_count=DEFAULT_TRAJ_COUNT):
+    def set_traj(self, traj_full):
         self.traj_size = len(traj_full)
         self.traj_length = np.sum(np.abs(differentiate(traj_full, 1)[:-1])) if self.traj_size > 1 else 0
-        traj_step = max(1, self.traj_size / traj_count)
-        self.traj = np.array(list(reversed(traj_full[::-traj_step])))
+        self.traj = np.array(traj_full)
 
     def get_traj(self):
         return self.traj
@@ -29,7 +27,6 @@ class SearchNode:
     def copy(self, graph):
         return SearchNode(self.idx, State(self.state.node, self.state.obj_pos_dict, self.state.Q, graph),
                           self.parents, self.leafs, self.leafs_P, self.depth, self.edepth, self.redundancy)
-
 
 class State:
     def __init__(self, node, obj_pos_dict, Q, graph):

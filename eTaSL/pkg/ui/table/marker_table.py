@@ -63,7 +63,9 @@ class MarkerTable(TableInterface):
         return res, msg
 
     def button(self, button, *args, **kwargs):
+        print("button clicked")
         if button == TAB_BUTTON.CUSTOM:
             print("No function on apply marker")
         else:
             TableInterface.button(self, button, *args, **kwargs)
+        print("button action done")

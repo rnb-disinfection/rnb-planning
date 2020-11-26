@@ -25,9 +25,9 @@ class UIBroker:
                                 TableInfo("Binder", '250px', interface=BinderTable(graph))]),
             TabInfo("Mark", [TableInfo("Marker", '550px', interface=MarkerTable(graph)),
                              TableInfo("MarkerGroup", '250px', interface=MarkerGroupTable(graph))]),
-            TabInfo("Plan", [TableInfo("MotionPlan", '150px', row_selectable='single', interface=MotionPlanTable(graph)),
+            TabInfo("Plan", [TableInfo("MotionPlan", '180px', row_selectable='single', interface=MotionPlanTable(graph)),
                              TableInfo("TaskPlan", '150px', row_selectable='single', interface=TaskPlanTable(graph)),
-                             TableInfo("PlanList", '450px', row_selectable='single', interface=PlanListTable(graph))]),
+                             TableInfo("PlanList", '420px', row_selectable='single', interface=PlanListTable(graph))]),
             TabInfo("Setting", [TableInfo("Camera", '300px', interface=CameraTable(graph)),
                              TableInfo("Robot", '300px', interface=RobotTable(graph))])
         ]

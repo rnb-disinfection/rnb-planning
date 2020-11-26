@@ -67,9 +67,11 @@ class GeometryTable(TableInterface):
         return res, msg
 
     def button(self, button, *args, **kwargs):
+        print("button clicked")
         if button == TAB_BUTTON.CUSTOM:
             self.graph.set_rviz(self.graph.joints.position)
             if self.graph.planner:
                 self.graph.planner.update(self.graph)
         else:
             TableInterface.button(self, button, *args, **kwargs)
+        print("button action done")

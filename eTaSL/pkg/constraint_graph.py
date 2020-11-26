@@ -202,7 +202,7 @@ class ConstraintGraph:
         self.object_dict[name] = _object
         if binding is not None:
             self.binder_dict[binding[1]].bind(self.object_dict[name], binding[0],
-                                              joint_list2dict([0]*len(self.joint_names), joint_names=self.joint_names))
+                                              list2dict([0]*len(self.joint_names), item_names=self.joint_names))
 
     def remove_object(self, name):
         if name in self.object_dict:
@@ -216,9 +216,9 @@ class ConstraintGraph:
         self.object_dict[name] = _type(_object, **kwargs)
         if binding is not None:
             self.binder_dict[binding[1]].bind(self.object_dict[name], binding[0],
-                                              joint_list2dict([0]*len(self.joint_names), joint_names=self.joint_names))
+                                              list2dict([0]*len(self.joint_names), item_names=self.joint_names))
 
-    def register_object_gen(self, objectPose_dict_mv, binder_dict, object_dict, ref_tuple=None, link_name="world"):
+    def register_object_gen(self, objectPose_dict_mv, binder_dict, object_dict, ref_tuple=None, link_name="base_link"):
         object_generators = {k: CallHolder(GeometryHandle.instance().create_safe,
                                            ["center", "rpy"], **v.get_kwargs()) for k, v in
                              self.cam.aruco_map.items() if v.ttype in [TargetType.MOVABLE, TargetType.ONLINE]}
@@ -309,7 +309,7 @@ class ConstraintGraph:
 
         success = True
         for binding in binding_list:
-            if not self.binder_dict[binding[2]].check_available(joint_list2dict(from_state.Q, self.joint_names)):
+            if not self.binder_dict[binding[2]].check_available(list2dict(from_state.Q, self.joint_names)):
                 success = False
         if success:
             Traj, LastQ, error, success = self.planner.plan_transition(from_state, to_state, binding_list, **kwargs)
@@ -331,7 +331,7 @@ class ConstraintGraph:
 
         if success:
             for bd in binding_list:
-                self.rebind(bd, joint_list2dict(LastQ, self.joint_names))
+                self.rebind(bd, list2dict(LastQ, self.joint_names))
 
         node, obj_pos_dict = self.get_object_state()
         end_state = State(node, obj_pos_dict, list(LastQ), self)
@@ -439,11 +439,16 @@ class ConstraintGraph:
     def replay(self, schedule, N=400, dt=0.005,**kwargs):
         state_cur = self.sampler.snode_dict[schedule[0]].state
         for i_state in schedule[1:]:
-            state_new = self.sampler.snode_dict[i_state].state
+            snode = self.sampler.snode_dict[i_state]
+            state_new = snode.state
             print('')
             print('-'*20)
             print("{}-{}".format(i_state, state_new.node))
-            traj, new_state, error, succ = self.test_transition(state_cur, state_new, display=True, N=N, dt=dt,**kwargs)
+            traj, new_state, error, succ = self.test_transition(state_cur, state_new, display=True,
+                                                                redundancy_dict=snode.redundancy, N=N, dt=dt,**kwargs)
+            try: self.show_pose(traj[-1])
+            except: pass
+            sleep(0.5)
             state_cur = state_new
         return traj
 
@@ -480,7 +485,7 @@ class ConstraintGraph:
                                               T_step=T_step, **kwargs
                                               )
 
-            Q0 = np.array(joint_dict2list(pos, self.joint_names))
+            Q0 = np.array(dict2list(pos, self.joint_names))
             if not on_rviz:
                 self.combined_robot.joint_make_sure(Q0)
                 # print("wait for button input")
@@ -522,7 +527,7 @@ class ConstraintGraph:
                             planner.update_online(obsPos_dict)
                             pos, end_loop, error, success = planner.step_online_plan(i_q, pos, wp_action=idx_cur<end_traj)
                             # print("{i_s} : {idx_cur}<{end_traj}:{wp}".format(i_s=i_s, idx_cur=idx_cur, end_traj=end_traj, wp=idx_cur<end_traj))
-                            POS_CUR = np.array(joint_dict2list(pos, self.joint_names))
+                            POS_CUR = np.array(dict2list(pos, self.joint_names))
                             # VEL_CUR = VEL_CUR + e_sim.VEL[i_q, 1::2] * e_sim.DT
                             # POS_CUR = POS_CUR + VEL_CUR * e_sim.DT
                             self.gtimer.toc("update", stack=True)
@@ -533,7 +538,7 @@ class ConstraintGraph:
                             if error_count > max_err_count:
                                 print("MAX ERROR REACHED {}".format(error_count))
                                 raise (e)
-                            POS_CUR = np.array(joint_dict2list(pos, self.joint_names))
+                            POS_CUR = np.array(dict2list(pos, self.joint_names))
                             self.gtimer.toc("error", stack=True)
                         self.gtimer.tic("rviz")
                         if rviz_pub is not None:
@@ -547,7 +552,7 @@ class ConstraintGraph:
                         stop_count+=1
                         continue
             from_Q = POS_CUR.copy()
-            joint_dict = joint_list2dict(POS_CUR, self.joint_names)
+            joint_dict = list2dict(POS_CUR, self.joint_names)
             for bd in binding_list:
                 self.rebind(bd, joint_dict)
             object_pose_cur = self.get_object_state()[1]
@@ -574,7 +579,7 @@ class ConstraintGraph:
         objectPose_dict.update(objectPose_dict_ref)
         T_co = objectPose_dict[obj_name]
         T_cp = objectPose_dict[coord_name]
-        T_p0e = get_tf(obj_link_name, joint_list2dict(self.get_real_robot_pose(), self.joint_names), self.urdf_content,
+        T_p0e = get_tf(obj_link_name, list2dict(self.get_real_robot_pose(), self.joint_names), self.urdf_content,
                        from_link=coord_link_name)
         T_peo = Teo  # SE3(Rot_zyx(0,-np.pi/2,-np.pi/2), [0,0,0.091])
         T_po_cam = np.matmul(SE3_inv(T_cp), T_co)

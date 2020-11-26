@@ -36,6 +36,7 @@ class PlanListTable(TableInterface):
         return res, msg
 
     def button(self, button, *args, **kwargs):
+        print("button clicked")
         if button == TAB_BUTTON.CUSTOM:
             if args[0]:
                 if self.selected_row_ids:
@@ -69,9 +70,9 @@ class PlanListTable(TableInterface):
                     schedule = snode_selected.parents + [snode_selected.idx]
                     N_fullstep = 500
                     dt_sim = 0.04
-                    traj, end_state, error, success = graph.test_transition(
-                        graph.sampler.snode_dict[0].state, graph.sampler.snode_dict[0].state,
-                        N=10, dt=dt_sim, vel_conv=1e-2, err_conv=5e-4, print_expression=False)
+                    initial_state = graph.sampler.snode_dict[0].state
+                    graph.set_object_state(initial_state)
+                    graph.show_pose(initial_state.Q)
                     timer.sleep(0.1)
                     e = graph.replay(schedule, N=N_fullstep, dt=dt_sim, vel_conv=0.5e-2, err_conv=1e-3, error_skip=0)
                 else:
@@ -80,3 +81,4 @@ class PlanListTable(TableInterface):
                     print("===================================================")
         else:
             TableInterface.button(self, button, *args, **kwargs)
+        print("button action done")

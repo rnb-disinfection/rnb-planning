@@ -10,7 +10,7 @@ URDF_PATH_DEFAULT = '{}robots/custom_robots.urdf'.format(TAMP_ETASL_DIR)
 
 URDF_PATH = os.path.join(PROJ_DIR, "robots", "custom_robots.urdf")
 # JOINT_NAMES = ["shoulder_pan_joint","shoulder_lift_joint","elbow_joint","wrist_1_joint","wrist_2_joint","wrist_3_joint"]
-# LINK_NAMES = ['world', 'base_link', 'shoulder_link', 'upper_arm_link', 'forearm_link', 'wrist_1_link', 'wrist_2_link', 'wrist_3_link', 'tool0']
+# LINK_NAMES = ['base_link', 'base_link', 'shoulder_link', 'upper_arm_link', 'forearm_link', 'wrist_1_link', 'wrist_2_link', 'wrist_3_link', 'tool0']
 
 class XacroCustomizer:
     def __init__(self, rtuples, xyz_rpy_dict, xacro_path = XACRO_PATH_DEFAULT):
@@ -30,7 +30,7 @@ class XacroCustomizer:
 
     def add_robot(self, rtype, xyz=[0,0,0], rpy=[0,0,0]):
         rexpression = \
-            '<xacro:{rtype} robot_id="{rid}" xyz="{xyz}" rpy="{rpy}" connected_to="world"/>'.format(
+            '<xacro:{rtype} robot_id="{rid}" xyz="{xyz}" rpy="{rpy}" connected_to="base_link"/>'.format(
                 rtype=rtype.name, rid=self.rid_count, xyz='{} {} {}'.format(*xyz), rpy='{} {} {}'.format(*rpy)
             )
         self.rexpression_list += [rexpression]
@@ -254,11 +254,11 @@ def add_geometry_items(urdf_content, color=(0,1,0,0.5), display=True, collision=
                 raise(NotImplementedError("collision geometry {} is not implemented".format(geotype)))
     return geometry_items
 
-# exclude_parents=['world']
+# exclude_parents=['base_link']
 # joint_names=JOINT_NAMES
-# def transfer_fixed_links(col_items_dict, urdf_content, joint_names, exclude_parents=['world']):
+# def transfer_fixed_links(col_items_dict, urdf_content, joint_names, exclude_parents=['base_link']):
 #     fixed = False
-#     zero_dict = joint_list2dict([0]*len(joint_names), joint_names)
+#     zero_dict = list2dict([0]*len(joint_names), joint_names)
 #     for joint in urdf_content.joints:
 #         parent_name = joint.parent
 #         if joint.type == 'fixed' and joint.parent not in exclude_parents:
@@ -367,7 +367,7 @@ def write_srdf(robot_names, binder_links, link_names, joint_names, urdf_content,
         grp.setAttribute('name', rname)
 
         chain = root.createElement("chain")
-        chain.setAttribute('base_link', [lname for lname in link_names if rname in lname and urdf_content.joint_map[get_parent_joint(lname)].parent == "world"][0])
+        chain.setAttribute('base_link', [lname for lname in link_names if rname in lname and urdf_content.joint_map[get_parent_joint(lname)].parent == "base_link"][0])
         chain.setAttribute('tip_link', [bl_name for bl_name in binder_links if rname in bl_name][0])
         grp.appendChild(chain)
         xml.appendChild(grp)
@@ -383,7 +383,7 @@ def write_srdf(robot_names, binder_links, link_names, joint_names, urdf_content,
                 jstat.setAttribute('value', "0")
                 grp_stat.appendChild(jstat)
 
-        vjoint_elems = [joint for joint in urdf_content.joints if joint.type == "fixed" and rname in joint.name]
+        vjoint_elems = [joint for joint in urdf_content.joints if joint.parent == "base_link"]
         for vjoint_elem in vjoint_elems:
             vjoint = root.createElement("virtual_joint")
             vjoint.setAttribute('name', vjoint_elem.name)
@@ -397,7 +397,7 @@ def write_srdf(robot_names, binder_links, link_names, joint_names, urdf_content,
     for idx1 in range(len(link_names)):
         lname1 = link_names[idx1]
         for lname2 in link_names[idx1:]:
-            if lname1 == lname2 or lname1 == "world" or lname2 == "world":
+            if lname1 == lname2 or lname1 == "base_link" or lname2 == "base_link":
                 continue
             if lname2 in get_adjacent_links(lname1):
                 dcol = root.createElement("disable_collisions")

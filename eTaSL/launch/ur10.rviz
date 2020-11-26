@@ -146,7 +146,7 @@ Visualization Manager:
         All Enabled: true
         base:
           Value: true
-        base_link:
+        world:
           Value: true
         ee_link:
           Value: true

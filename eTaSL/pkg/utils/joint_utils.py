@@ -121,7 +121,7 @@ def __get_adjacent_links(link_name, urdf_content, adjacent_links=None, propagate
     return list(set(adjacent_links))
 
 
-def get_tf(to_link, joint_dict, urdf_content, from_link='world'):
+def get_tf(to_link, joint_dict, urdf_content, from_link='base_link'):
     T = np.identity(4)
     link_cur = to_link
     while link_cur != from_link:
@@ -139,7 +139,7 @@ def get_tf(to_link, joint_dict, urdf_content, from_link='world'):
     return T
 
 
-def get_tf_full(link_end, joint_dict, urdf_content, from_link='world'):
+def get_tf_full(link_end, joint_dict, urdf_content, from_link='base_link'):
     T = np.identity(4)
     T_dict = {}
     link_cur = link_end
@@ -161,12 +161,6 @@ def get_tf_full(link_end, joint_dict, urdf_content, from_link='world'):
             T_dict[link_cur] = Toff_cur
         link_cur = parent_joint.parent
     return T_dict
-
-def joint_list2dict(joint_list, joint_names):
-    return {jname: jval for jname, jval in zip(joint_names, joint_list)}
-
-def joint_dict2list(joint_dict, joint_names):
-    return [joint_dict[jname] for jname in joint_names]
 
 def get_joint_names_csv(joint_names):
     jnames_format = ""

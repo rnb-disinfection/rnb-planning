@@ -154,7 +154,7 @@ class ObjectAstarSampler(SamplerInterface):
         self.dict_lock.release()
         state = snode.state
         leafs = self.valid_node_dict[state.onode]
-        Q_dict = joint_list2dict(state.Q, graph.joint_names)
+        Q_dict = list2dict(state.Q, graph.joint_names)
         if len(leafs) == 0:
             return snode
         for leaf in leafs:
@@ -195,7 +195,7 @@ class ObjectAstarSampler(SamplerInterface):
     @record_time
     def search_graph(self, initial_state, goal_nodes,
                      tree_margin=0, depth_margin=0, sample_num=30,
-                     terminate_on_first=True, N_search=100, N_loop=1000, N_agents=None, multiprocess=False,
+                     terminate_on_first=True, N_search=100, N_agents=None, multiprocess=False,
                      display=False, dt_vis=None, verbose=False, print_expression=False, **kwargs):
         self.sample_num = sample_num
         self.t0 = time.time()
@@ -222,7 +222,7 @@ class ObjectAstarSampler(SamplerInterface):
             self.add_node_queue_leafs(snode_root)
             self.proc_list = [Process(
                 target=self.__search_loop,
-                args=(id_agent, terminate_on_first, N_search, N_loop, False, dt_vis, verbose, print_expression),
+                args=(id_agent, terminate_on_first, N_search, False, dt_vis, verbose, print_expression),
                 kwargs=kwargs) for id_agent in range(N_agents)]
             for proc in self.proc_list:
                 proc.start()
@@ -230,6 +230,7 @@ class ObjectAstarSampler(SamplerInterface):
             for proc in self.proc_list:
                 proc.join()
         else:
+            self.N_agents = 1
             self.snode_counter = SingleValue('i', 0)
             self.search_counter = SingleValue('i', 0)
             self.stop_now =  SingleValue('i', 0)
@@ -237,15 +238,14 @@ class ObjectAstarSampler(SamplerInterface):
             self.stop_dict = {}
             self.snode_queue = PriorityQueue()
             self.add_node_queue_leafs(snode_root)
-            self.__search_loop(0, terminate_on_first, N_search, N_loop, display, dt_vis, verbose, print_expression, **kwargs)
+            self.__search_loop(0, terminate_on_first, N_search, display, dt_vis, verbose, print_expression, **kwargs)
 
     @record_time
-    def __search_loop(self, ID, terminate_on_first, N_search, N_loop,
-                      display=False, dt_vis=None, verbose=False, print_expression=False,
-                      traj_count=DEFAULT_TRAJ_COUNT, **kwargs):
+    def __search_loop(self, ID, terminate_on_first, N_search,
+                      display=False, dt_vis=None, verbose=False, print_expression=False, timeout_loop=600, **kwargs):
         loop_counter = 0
         self.stop_dict[ID] = False
-        while self.snode_counter.value < N_search and loop_counter < N_loop and not self.stop_now.value:
+        while self.snode_counter.value < N_search and (time.time() - self.t0) < timeout_loop and not self.stop_now.value:
             loop_counter += 1
             self.que_lock.acquire()
             stop = False
@@ -266,9 +266,9 @@ class ObjectAstarSampler(SamplerInterface):
             self.search_counter.value = self.search_counter.value + 1
             self.que_lock.release()
             self.gtimer.tic("test_transition")
-            traj, new_state, error, succ = self.graph.test_transition(from_state, to_state,
+            traj, new_state, error, succ = self.graph.test_transition(from_state, to_state, display=display,
                                                                       redundancy_dict=redundancy_dict,
-                                                                      display=display, dt_vis=dt_vis,
+                                                                      dt_vis=dt_vis,
                                                                       print_expression=print_expression, **kwargs)
             ret = False
             if succ:
@@ -276,7 +276,7 @@ class ObjectAstarSampler(SamplerInterface):
                 snode_new = SearchNode(
                     idx=0, state=new_state, parents=snode.parents + [snode.idx], leafs=[], leafs_P=[],
                     depth=depth_new, edepth=depth_new+self.goal_cost_dict[new_state.onode], redundancy=redundancy_dict)
-                snode_new.set_traj(traj, traj_count=traj_count)
+                snode_new.set_traj(traj)
                 snode_new = self.add_node_queue_leafs(snode_new)
                 snode.leafs += [snode_new.idx]
                 self.snode_dict[snode.idx] = snode
@@ -284,20 +284,32 @@ class ObjectAstarSampler(SamplerInterface):
                     ret = True
             simtime = self.gtimer.toc("test_transition")
             if verbose:
-                print('\n{} - Goal cost:{}->{} / Init cost:{}->{} / branching: {}->{} ({} s, steps/err: {}({} ms)/{})'.format(
-                    "success" if succ else "fail",
-                    int(self.goal_cost_dict[from_state.onode]), int(self.goal_cost_dict[to_state.onode]),
-                    int(self.init_cost_dict[from_state.onode]), int(self.init_cost_dict[to_state.onode]),
-                    snode.idx, snode_new.idx if succ else "", round(time.time() - self.t0, 2),
-                    len(traj), simtime,
-                    error))
-                print('node: {}->{}'.format(from_state.onode, to_state.onode))
-                print('=' * 150)
+                print('node: {}->{} = {}'.format(from_state.onode, to_state.onode, "success" if succ else "fail"))
+                if succ:
+                    print('Goal cost:{}->{} / Init cost:{}->{} / branching: {}->{} ({}/{} s, steps/err: {}({} ms)/{})'.format(
+                        int(self.goal_cost_dict[from_state.onode]), int(self.goal_cost_dict[to_state.onode]),
+                        int(self.init_cost_dict[from_state.onode]), int(self.init_cost_dict[to_state.onode]),
+                        snode.idx, snode_new.idx if succ else "", round(time.time() - self.t0, 2), round(timeout_loop, 2),
+                        len(traj), simtime,
+                        error))
+                    print('=' * 150)
             if terminate_on_first and ret:
                 self.stop_now.value = 1
                 break
+
+        if self.stop_dict[ID]:
+            term_reson = "node queue empty"
+        elif self.snode_counter.value >= N_search:
+            term_reson = "max search node count reached ({}/{})".format(self.snode_counter.value, N_search)
+        elif (time.time() - self.t0) >= timeout_loop:
+            term_reson = "max iteration time reached ({}/{} s)".format(int(time.time()), self.t0)
+        elif ret:
+            term_reson = "first answer acquired"
+        else:
+            term_reson = "first answer acquired from other agent"
+
         print("=========================================================================================================")
-        print("=============================================== terminate ===============================================")
+        print("======================= terminated {}: {} ===============================".format(ID, term_reson))
         print("=========================================================================================================")
 
     def find_schedules(self):

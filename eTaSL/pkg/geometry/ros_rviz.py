@@ -83,7 +83,7 @@ class GeoMarker:
     def create_marker_template(cls, mtype, scale, color):
         GeoMarker.ID_COUNT += 1
         marker = Marker()
-        marker.header.frame_id = "/world"
+        marker.header.frame_id = "/base_link"
         marker.header.stamp = rospy.Time.now()
         marker.ns = "basic_shapes"
         marker.id = GeoMarker.ID_COUNT

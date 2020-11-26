@@ -16,34 +16,34 @@ class ObjectOperation(Enum):
     ADD = 0
     REMOVE = 1
 
-def make_assign_arr(type, vals):
+def make_assign_arr(type, vals, cast):
     arr = type()
     for v in vals:
-        arr.append(v)
+        arr.append(cast(v))
     return arr
 
 
-def make_assign_vec(type, vals, dim):
+def make_assign_vec(type, vals, dim, cast):
     arr = type()
     for i, v in zip(range(dim), vals):
-        arr[i] = v
+        arr[i] = cast(v)
     return arr
 
 
 def CartPose(*vals):
-    return make_assign_vec(mpc.CartPose, vals, 7)
+    return make_assign_vec(mpc.CartPose, vals, 7, float)
 
 
 def Vec3(*vals):
-    return make_assign_vec(mpc.Vec3, vals, 3)
+    return make_assign_vec(mpc.Vec3, vals, 3, float)
 
 
 def JointState(dim, *vals):
-    return make_assign_vec(lambda: mpc.JointState(dim), vals, dim)
+    return make_assign_vec(lambda: mpc.JointState(dim), vals, dim, float)
 
 
 def NameList(*vals):
-    return make_assign_arr(mpc.NameList, vals)
+    return make_assign_arr(mpc.NameList, vals, str)
 
 
 def spread(bp_arr, size):
@@ -56,18 +56,18 @@ class ObjectMPC:
             name, type, pose, dims, link_name, touch_links, attach
 
 
-class MoveitCompactPlanner(mpc.Planner):
+class MoveitCompactPlanner_BP(mpc.Planner):
     def __init__(self, urdf_path, srdf_path, group_names):
         mpc.Planner.__init__(self)
         self.urdf_path, self.srdf_path = urdf_path, srdf_path
-        self.group_names_py = group_names
-        self.group_names = NameList(*group_names)
-        if not self.init_planner_from_file(urdf_path, srdf_path, self.group_names):
+        self.group_names = group_names
+        self.__group_names = NameList(*group_names)
+        if not self.init_planner_from_file(urdf_path, srdf_path, self.__group_names):
             raise (RuntimeError("Failed to initialize planner"))
         self.joint_names_py = spread(self.joint_names, self.joint_num)
         self.attached_dict = {}
         self.__clear_all_objects = self.clear_all_objects
-        self.clear_all_objects = None
+        self.clear_all_objects = "FORBIDDEN: Direct call for clear_all_objects does not remove attached objects"
 
     def set_scene(self, obj_list):
         self.clear_scene()

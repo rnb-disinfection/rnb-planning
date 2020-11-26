@@ -40,7 +40,7 @@ def get_distance_batch(points_arr, idx1, idx2):
 
 from scipy.spatial import ConvexHull
 from ..geometry.geometry import *
-from .joint_utils import *
+from .utils import list2dict
 
 class SweptVolumeTester:
     def __init__(self):
@@ -60,16 +60,16 @@ class SweptVolumeTester:
         vtx_swept_list = []
         radius_list = []
         # gtimer.tic("vtx")
-        Q1dict = joint_list2dict(Q1, joint_names)
+        Q1dict = list2dict(Q1, joint_names)
         T_dict1 = get_tf_full('indy0_tcp', Q1dict, urdf_content)
         T_dict1.update(get_tf_full('panda1_leftfinger', Q1dict, urdf_content))
         T_dict1.update({'panda1_rightfinger': get_tf('panda1_rightfinger', Q1dict, urdf_content),
-                        'world': np.identity(4)})
-        Q2dict = joint_list2dict(Q2, joint_names)
+                        'base_link': np.identity(4)})
+        Q2dict = list2dict(Q2, joint_names)
         T_dict2 = get_tf_full('indy0_tcp', Q2dict, urdf_content)
         T_dict2.update(get_tf_full('panda1_leftfinger', Q2dict, urdf_content))
         T_dict2.update({'panda1_rightfinger': get_tf('panda1_rightfinger', Q2dict, urdf_content),
-                        'world': np.identity(4)})
+                        'base_link': np.identity(4)})
         ghnd = GeometryHandle.instance()
         for ctem in ghnd:
             vtx_ref, radi = ctem.get_vertice_radius()

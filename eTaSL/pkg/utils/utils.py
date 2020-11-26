@@ -256,3 +256,9 @@ def read_file(filename):
             buffer += line
             if not line: break
     return buffer
+
+def list2dict(item_list, item_names):
+    return {jname: jval for jname, jval in zip(item_names, item_list)}
+
+def dict2list(item_dict, item_names):
+    return [item_dict[jname] for jname in item_names]

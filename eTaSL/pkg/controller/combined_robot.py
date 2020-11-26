@@ -30,14 +30,16 @@ class CombinedRobot:
         self.home_pose = []
         self.idx_dict = {}
         self.robot_dict = {}
+        self.robot_names = []
         for name, _type in self.robots_on_scene:
             i0 = len(self.joint_names)
             self.joint_names += RobotType.get_joints(_type, name)
             self.home_pose += JOINT_HOME_DICT[_type]
             self.idx_dict[name] = range(i0, len(self.joint_names))
             self.robot_dict[name] = None
+            self.robot_names.append(name)
         self.home_pose = np.array(self.home_pose)
-        self.home_dict = joint_list2dict(self.home_pose, self.joint_names)
+        self.home_dict = list2dict(self.home_pose, self.joint_names)
 
     def reset_connection(self, connection_list, address_list=ROBOTS_ADDRESS_DEFAULT):
         self.connection_list = connection_list

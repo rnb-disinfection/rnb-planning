@@ -91,7 +91,7 @@ class GeometryItem(object):
         self.link_name = link_name
         self.adjacent_links = get_adjacent_links(self.link_name)
 
-    def get_tf(self, joint_dict, from_link='world'):
+    def get_tf(self, joint_dict, from_link='base_link'):
         T = get_tf(to_link=self.link_name, joint_dict=joint_dict, urdf_content=self.ghnd.urdf_content, from_link=from_link)
         T = np.matmul(T, self.Toff)
         return T
@@ -107,7 +107,7 @@ class GeometryItem(object):
 
     def set_offset_tf(self, center=None, orientation_mat=None):
         self.center = center if center is not None else self.center
-        self.rpy = Rot2rpy(orientation_mat)
+        self.rpy = Rot2rpy(orientation_mat) if orientation_mat is not None else self.rpy
         self.orientation_mat = orientation_mat if orientation_mat is not None else self.orientation_mat
         self.Toff = SE3(self.orientation_mat, self.center)
 

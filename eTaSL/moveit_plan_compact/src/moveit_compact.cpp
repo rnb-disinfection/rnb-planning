@@ -138,10 +138,10 @@ PlanResult& Planner::plan(string group_name, string tool_link,
 
     // A tolerance of 0.01 m is specified in position
     // and 0.01 radians in orientation
-    std::vector<double> tolerance_pose(3, 0.01);
-    std::vector<double> tolerance_angle(3, 0.01);
+    std::vector<double> tolerance_pose(3, 0.001);
+    std::vector<double> tolerance_angle(3, 0.001);
 
-    PRINT_FRAMED_LOG("constructGoalConstraints", true);
+//    PRINT_FRAMED_LOG("constructGoalConstraints", true);
     // Pose Goal
     // ^^^^^^^^^
     // We will now create a motion plan request for the right arm of the Panda
@@ -160,7 +160,7 @@ PlanResult& Planner::plan(string group_name, string tool_link,
     _planning_scene->setCurrentState(state_cur);
 
     plan_result.trajectory.clear();
-    PRINT_FRAMED_LOG("generatePlan", true);
+//    PRINT_FRAMED_LOG("generatePlan", true);
     // Now, call the pipeline and check whether planning was successful.
     _planning_pipeline->generatePlan(_planning_scene, _req, _res);
     /* Check that the planning was successful */
@@ -170,16 +170,20 @@ PlanResult& Planner::plan(string group_name, string tool_link,
         PRINT_ERROR(("failed to generatePlan ("+std::to_string(_res.error_code_.val)+")").c_str());
         return plan_result;
     }
-
-    PRINT_FRAMED_LOG((std::string("convert trajectory - ")+std::to_string(plan_result.trajectory.size())).c_str(), true);
     int traj_len = _res.trajectory_->getWayPointCount();
     for( int i=0; i<traj_len; i++){
         const double* wp_buff = _res.trajectory_->getWayPoint(i).getVariablePositions();
         JointState wp(joint_num);
-        memcpy(wp.data(), wp_buff, sizeof(wp_buff));
+        memcpy(wp.data(), wp_buff, sizeof(double)*joint_num);
         plan_result.trajectory.push_back(wp);
     }
-    PRINT_FRAMED_LOG("done", true);
+
+    PRINT_FRAMED_LOG((std::string("got trajectory - ")+std::to_string(plan_result.trajectory.size())).c_str(), true);
+
+//    printf(LOG_FRAME_LINE);
+//    PRINT_FRAMED_LOG("last pose below");
+//    cout << *(plan_result.trajectory.end()-1) << endl;
+//    printf(LOG_FRAME_LINE "\n");
     plan_result.success = true;
     return plan_result;
 }
@@ -210,15 +214,18 @@ bool Planner::process_object(string name, const int type, CartPose pose, Vec3 di
             primitive.dimensions[0] = dims[0];
             primitive.dimensions[1] = dims[1];
             primitive.dimensions[2] = dims[2];
+            printf("BOX: %f, %f, %f \n", dims[0], dims[1], dims[2]);
             break;
         case primitive.SPHERE:
             primitive.dimensions.resize(1);
             primitive.dimensions[0] = dims[0];
+            printf("SPHERE: %f \n", dims[0]);
             break;
         case primitive.CYLINDER:
             primitive.dimensions.resize(2);
             primitive.dimensions[0] = dims[0];
             primitive.dimensions[1] = dims[1];
+            printf("CYLINDER: %f, %f \n", dims[0], dims[1]);
             break;
     }
 

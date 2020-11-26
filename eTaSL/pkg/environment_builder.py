@@ -90,13 +90,13 @@ def detect_environment(aruco_map, dictionary, kn_config, rs_config, T_c12, ref_n
            objectPose_dict, corner_dict, color_image, \
            {k:v for k,v in rs_objectPose_dict.items() if np.sum(np.abs(T0-v))>1e-5}, rs_corner_dict, rs_image
 
-def add_objects_gen(graph, obj_gen_dict, color=(0.6,0.6,0.6,1), collision=True, link_name="world"):
+def add_objects_gen(graph, obj_gen_dict, color=(0.6,0.6,0.6,1), collision=True, link_name="base_link"):
     gtems = []
     for oname, ogen in obj_gen_dict.items():
         gtems.append(ogen[0](*ogen[1], name=oname, link_name=link_name, color=color, collision=collision, fixed=True))
     return gtems
 
-def add_cam_poles(graph, xyz_rpy_cams, color=(0.6,0.6,0.6,0.3), link_name="world"):
+def add_cam_poles(graph, xyz_rpy_cams, color=(0.6,0.6,0.6,0.3), link_name="base_link"):
     gtems = []
     ghnd = GeometryHandle.instance()
     for cname, xyzrpy in xyz_rpy_cams.items():
@@ -289,12 +289,12 @@ def update_geometries(onames, objectPose_dict_mv, refFrame):
             Tg = np.matmul(refFrameinv, objectPose_dict_mv[gname])
             gtem.set_offset_tf(Tg[:3,3], Tg[:3,:3])
 
-from .utils.joint_utils import *
+from .utils.utils import list2dict
 
 def match_point_binder(graph, initial_state, objectPose_dict_mv):
     graph.set_object_state(initial_state)
     Q0 = initial_state.Q
-    Q0dict = joint_list2dict(Q0, graph.joint_names)
+    Q0dict = list2dict(Q0, graph.joint_names)
     binder_T_dict = {}
     binder_scale_dict = {}
     for k,binder in graph.binder_dict.items():

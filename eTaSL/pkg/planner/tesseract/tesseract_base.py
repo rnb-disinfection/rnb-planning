@@ -50,7 +50,7 @@ def load_custom_robot():
 
 
 @record_time
-def plan_manipulation(tes, robot_name, end_link, Tbe, base_link="world"):
+def plan_manipulation(tes, robot_name, end_link, Tbe, base_link="base_link"):
     pci = tesseract.ProblemConstructionInfo(tes)
 
     pci.init_info.type = tesseract.InitInfo.STATIONARY
@@ -155,7 +155,7 @@ def plan_manipulation(tes, robot_name, end_link, Tbe, base_link="world"):
     return planner_response.joint_trajectory.trajectory
 
 
-def plan_robot(tes, robot_name, binder, action_point, joint_dict, from_link='world'):
+def plan_robot(tes, robot_name, binder, action_point, joint_dict, from_link='base_link'):
     Tap = action_point.get_tf_handle(joint_dict, from_link=from_link)
     Tbe = np.matmul(Tap, SE3_inv(binder.Toff_lh))
     return plan_manipulation(tes, robot_name, binder.object.link_name, Tbe)

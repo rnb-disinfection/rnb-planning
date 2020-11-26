@@ -82,6 +82,7 @@ class CameraTable(TableInterface):
         return res, msg
 
     def button(self, button, *args, **kwargs):
+        print("button clicked")
         if button == TAB_BUTTON.CUSTOM:
             if args[0]:
                 print("============== start calibration =================")
@@ -93,3 +94,4 @@ class CameraTable(TableInterface):
                 print("Unknown button")
         else:
             TableInterface.button(self, button, *args, **kwargs)
+        print("button action done")
