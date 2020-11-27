@@ -6,6 +6,7 @@
 
 #include <boost/python.hpp>
 #include "moveit_compact.h"
+#include "bp_container_interface.h"
 
 char const* greet()
 {

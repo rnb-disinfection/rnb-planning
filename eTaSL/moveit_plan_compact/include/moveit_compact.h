@@ -5,8 +5,6 @@
 #include <moveit/robot_model_loader/robot_model_loader.h>
 #include <moveit/planning_pipeline/planning_pipeline.h>
 #include <moveit/kinematic_constraints/utils.h>
-
-#include "bp_container_interface.h"
 #define MAX_NAME_LEN 32
 #define MAX_NAME_NUM 32
 #define MAX_JOINT_NUM 32

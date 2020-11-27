@@ -39,6 +39,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "math.h"
+#include <vector>
 
 
 /**
@@ -46,26 +47,28 @@
  */
  #define SAMESIGN( a, b ) ( (a>0) == (b>0) )
 
-#define OBJ_MAX 100
-#define VTX_MAX 100
-
-/**
- * @brief Structure of a body.
- */
-struct bd_flt {
-    int numpoints;    /**< Number of points defining the body.            */
-    double  vtx_flat [VTX_MAX*3];  /**< Pointer to pointer to the points' coordinates. */
+class Point3: public std::vector<double> {
+public:
+    Point3(): std::vector<double>(){}
+    Point3(double x, double y, double z): std::vector<double>(){
+        this->push_back(x);
+        this->push_back(y);
+        this->push_back(z);
+    }
 };
+
+typedef std::vector<Point3> PointList;
+
+double gjk_cpp(PointList pl1, PointList pl2);
 
 /**
  * @brief Structure of a body.
  */
 struct bd {
   int numpoints;    /**< Number of points defining the body.            */
-  double  **coord;  /**< Pointer to pointer to the points' coordinates. */
+  PointList coord;  /**< Pointer to pointer to the points' coordinates. */
   double  s [3];    /**< Support mapping computed last.                 */
 };
-
 
 /**
  * @brief Structure for a simplex.
@@ -85,8 +88,6 @@ struct simplex {
  */
 extern double gjk( struct bd, struct bd, struct simplex * );
 
-extern void gjk_batch(struct bd *, int*, int*, int, double *);
-
-extern void gjk_flat_batch(struct bd_flt *, int, int*, int*, int, double *);
+//extern void gjk_batch(struct bd *, int*, int*, int, double *);
 
 #endif

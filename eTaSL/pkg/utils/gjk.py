@@ -6,7 +6,7 @@ OBJ_MAX = 100
 VTX_MAX = 100
 COL_MAX = 1000
 
-clib = ctypes.cdll.LoadLibrary(os.path.join(TAMP_ETASL_DIR, "openGJK/lib/libopenGJKlib.so"))
+clib = ctypes.cdll.LoadLibrary(os.path.join(TAMP_ETASL_DIR, "openGJK/lib/openGJKlib.so"))
 clib.gjk_flat_batch.restype = ctypes.c_double
 
 MAX_VTX_ARR_TYPE = c_double * (VTX_MAX * 3)
