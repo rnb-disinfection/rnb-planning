@@ -9,7 +9,7 @@ from visualization_msgs.msg import Marker
 from .geometry import *
 
 def get_publisher(joint_names, robot_name="", control_freq=100):
-    pub = rospy.Publisher(robot_name+'/joint_states', JointState, queue_size=10)
+    pub = rospy.Publisher(robot_name+'/joint_states', JointState, queue_size=10000)
     rate = rospy.Rate(control_freq) # 10hz
     joints = JointState()
     joints.header.seq += 1
@@ -70,7 +70,7 @@ class GeoMarker:
     ID_COUNT = 0
     def __init__(self, geometry, mark_name='visualization_marker'):
         self.geometry = geometry
-        self.pub = rospy.Publisher(mark_name, Marker, queue_size=10)
+        self.pub = rospy.Publisher(mark_name, Marker, queue_size=10000)
         # Publish the marker
         while self.pub.get_num_connections() < 1:
             print("Please create a subscriber to the marker");
@@ -175,14 +175,16 @@ class GeoMarker:
         elif self.geometry.gtype == GEOTYPE.ARROW:
             return Marker.ARROW
         
-    def delete(self):
+    def delete(self, sleep=True):
         self.marker.action = Marker.DELETE
         self.pub.publish(self.marker)
-        timer.sleep(0.005)
+        if sleep:
+            timer.sleep(0.005)
         for smk in self.submarkers:
             smk.action = Marker.DELETE
             self.pub.publish(smk)
-            timer.sleep(0.005)
+            if sleep:
+                timer.sleep(0.005)
         self.submarkers = []
         
     def __del__(self):

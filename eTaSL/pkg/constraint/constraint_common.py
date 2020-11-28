@@ -49,12 +49,13 @@ class ActionPoint:
 def calc_redundancy(redundancy, target):
     point_add = [0,0,0]
     rpy_add = [0,0,0]
-    for k, v in redundancy.items():
-        ax ="xyzuvw".index(k)
-        if ax<3:
-            point_add[ax] += redundancy[k]
-        else:
-            rpy_add[ax-3] += redundancy[k]
-    if target.point is None: # WARNING: CURRENTLY ASSUME UPPER PLANE
-        point_add[2] += target.object.dims[2]/2
+    if redundancy:
+        for k, v in redundancy.items():
+            ax ="xyzuvw".index(k)
+            if ax<3:
+                point_add[ax] += redundancy[k]
+            else:
+                rpy_add[ax-3] += redundancy[k]
+        if target.point is None: # WARNING: CURRENTLY ASSUME UPPER PLANE
+            point_add[2] += target.object.dims[2]/2
     return point_add, rpy_add

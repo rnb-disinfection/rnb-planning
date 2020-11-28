@@ -64,6 +64,14 @@ class Gripper2Tool(PointerBinding):
     def check_available(self, joint_dict):
         return True
 
+class FramedTool(PointerBinding):
+    controlled = True
+    multiple = False
+    ctype = ConstraintType.Frame
+
+    def check_available(self, joint_dict):
+        return True
+
 class PlacePlane(PointerBinding):
     controlled = False
     multiple = True

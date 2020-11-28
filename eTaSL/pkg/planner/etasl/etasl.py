@@ -43,7 +43,8 @@ class etasl_planner(PlannerInterface):
 
     def plan_transition(self, from_state, to_state, binding_list,
                         vel_conv=1e-2, err_conv=1e-4, collision=True,
-                        N=1, dt=1e-2, print_expression=False, cut_dot=False, traj_count=DEFAULT_TRAJ_COUNT, **kwargs):
+                        N=1, dt=1e-2, print_expression=False, cut_dot=False, traj_count=DEFAULT_TRAJ_COUNT,
+                        timeout=None, **kwargs):
         if len(binding_list)>1:
             print("===================== plan simultaneous manipulation =====================")
         if len(binding_list)==0:

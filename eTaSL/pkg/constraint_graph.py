@@ -63,6 +63,7 @@ class ConstraintGraph:
         self.clear_markers()
         self.marker_list = set_markers(self.ghnd, self.joints, self.joint_names)
         self.show_pose(joint_pose)
+        sleep(1)
         self.show_pose(joint_pose)
 
     def show_pose(self, pose, **kwargs):
@@ -73,40 +74,45 @@ class ConstraintGraph:
             self.set_object_state(from_state)
         show_motion(pose_list, self.marker_list, self.pub, self.joints, self.joint_names, **kwargs)
 
-    def remove_geometry(self, gtem, from_ghnd=True):
-        del_list = []
-        for marker in self.marker_list:
-            if marker.geometry == gtem:
-                del_list.append(marker)
-        for marker in del_list:
-            marker.delete()
-            self.marker_list.remove(marker)
+    def remove_geometry(self, gtem, sleep=True, vis=True):
+        self.remove_marker(gtem, sleep=sleep, vis=vis)
+        if gtem in self.ghnd:
+            self.ghnd.remove(gtem)
 
-        if from_ghnd:
-            if gtem in self.ghnd:
-                self.ghnd.remove(gtem)
+    def remove_marker(self, gtem, sleep=True, vis=True):
+        if vis:
+            del_list = []
+            for marker in self.marker_list:
+                if marker.geometry == gtem:
+                    del_list.append(marker)
+            for marker in del_list:
+                marker.delete(sleep=sleep)
+                self.marker_list.remove(marker)
 
-    def add_geometry(self, gtem):
-        self.marker_list += set_markers([gtem], self.joints, self.joint_names)
+    def add_marker(self, gtem, vis=True):
+        if vis:
+            self.marker_list += set_markers([gtem], self.joints, self.joint_names)
 
-    def clear_markers(self):
-        for mk in self.marker_list:
-            mk.delete()
-        self.marker_list = []
-        if hasattr(self, 'highlight_dict'):
-            for hkey, hset in self.highlight_dict.items():
-                for k,v in hset.items():
-                    self.remove_geometry(v)
-                    del self.highlight_dict[hkey][k]
-        else:
-            self.highlight_dict = defaultdict(dict)
+    def clear_markers(self, vis=True):
+        if vis:
+            for mk in self.marker_list:
+                mk.delete()
+            self.marker_list = []
+            if hasattr(self, 'highlight_dict'):
+                for hkey, hset in self.highlight_dict.items():
+                    for k,v in hset.items():
+                        self.remove_marker(v)
+                        del self.highlight_dict[hkey][k]
+            else:
+                self.highlight_dict = defaultdict(dict)
 
-    def update_marker(self, gtem):
-        joint_dict = {self.joints.name[i]: self.joints.position[i] for i in range(len(self.joint_names))}
-        marks = [mk for mk in self.marker_list if mk.geometry == gtem]
-        for mk in marks:
-            mk.set_marker(joint_dict, create=False)
-        return marks
+    def update_marker(self, gtem, vis=True):
+        if vis:
+            joint_dict = {self.joints.name[i]: self.joints.position[i] for i in range(len(self.joint_names))}
+            marks = [mk for mk in self.marker_list if mk.geometry == gtem]
+            for mk in marks:
+                mk.set_marker(joint_dict, create=False)
+            return marks
     ############ Visualize - Geometry #####################
     #######################################################
 
@@ -366,11 +372,11 @@ class ConstraintGraph:
 
     #######################################################
     ############ Visualize - Highlight ####################
-    def clear_highlight(self, hl_keys=[]):
+    def clear_highlight(self, hl_keys=[], sleep=True):
         for hl_key, hl_set in self.highlight_dict.items():
             if hl_key in hl_keys or not hl_keys:
                 for k,v in hl_set.items():
-                    self.remove_geometry(v)
+                    self.remove_marker(v,sleep=sleep)
                     del self.highlight_dict[hl_key][k]
 
     def highlight_geometry(self, hl_key, gname, color=(1, 0.3, 0.3, 0.5)):
@@ -386,14 +392,14 @@ class ConstraintGraph:
                             collision=False)
 
         self.highlight_dict[hl_key][htem.name] = htem
-        self.add_geometry(htem)
+        self.add_marker(htem)
 
     def add_highlight_axis(self, hl_key, name, link_name, center, orientation_mat, color=None, axis="xyz", dims=(0.10, 0.01, 0.01)):
         if 'x' in axis:
             axtemx = self.ghnd.create_safe(gtype=GEOTYPE.ARROW, name="axx_" + name, link_name=link_name,
                                   center=center, dims=dims, rpy=Rot2rpy(orientation_mat), color=color or (1, 0, 0, 0.5),
                                   collision=False)
-            self.add_geometry(axtemx)
+            self.add_marker(axtemx)
             self.highlight_dict[hl_key][axtemx.name] = axtemx
 
         if 'y' in axis:
@@ -401,7 +407,7 @@ class ConstraintGraph:
                                   center=center, dims=dims,
                                   rpy=Rot2rpy(np.matmul(orientation_mat, Rot_axis(3, np.pi / 2))), color=color or (0, 1, 0, 0.5),
                                   collision=False)
-            self.add_geometry(axtemy)
+            self.add_marker(axtemy)
             self.highlight_dict[hl_key][axtemy.name] = axtemy
 
         if 'z' in axis:
@@ -410,7 +416,7 @@ class ConstraintGraph:
                                   rpy=Rot2rpy(np.matmul(orientation_mat, Rot_axis(2, -np.pi / 2))),
                                   color=color or (0, 0, 1, 0.5),
                                   collision=False)
-            self.add_geometry(axtemz)
+            self.add_marker(axtemz)
             self.highlight_dict[hl_key][axtemz.name] = axtemz
 
     def add_handle_axis(self, hl_key, handle, color=None):

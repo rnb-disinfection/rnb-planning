@@ -19,28 +19,28 @@ def sample_Trbt(Nrbt, robot_names, _wdh_rbt_min, _wdh_rbt_max, _min_dist_robot):
 def show_workspace(graph, Nwdh, CENTER, L_CELL, thickness=1e-2, alpha=0.1):
     Nw, Nd, Nh = Nwdh
     Ws, Ds, Hs = WDH = tuple(np.multiply((Nw, Nd, Nh), L_CELL))
-    graph.add_geometry(graph.ghnd.create_safe(
+    graph.add_marker(graph.ghnd.create_safe(
         name="workspace", link_name="base_link", gtype=GEOTYPE.BOX,
         center=CENTER, rpy=(0, 0, 0), dims=WDH,
         color=(1, 1, 1, alpha), display=True, collision=False, fixed=True))
     time.sleep(0.01)
     for iw in range(int(Ws / L_CELL) + 1):
         for id in range(int(Ds / L_CELL) + 1):
-            graph.add_geometry(graph.ghnd.create_safe(
+            graph.add_marker(graph.ghnd.create_safe(
                 name="grid_xy_{}_{}".format(iw, id), link_name="base_link", gtype=GEOTYPE.BOX,
                 center=(iw * L_CELL, id * L_CELL, CENTER[2]), rpy=(0, 0, 0), dims=(thickness, thickness, Hs),
                 color=(0, 0, 0, alpha), display=True, collision=False, fixed=True))
             time.sleep(0.01)
     for id in range(int(Ds / L_CELL) + 1):
         for ih in range(int(Hs / L_CELL) + 1):
-            graph.add_geometry(graph.ghnd.create_safe(
+            graph.add_marker(graph.ghnd.create_safe(
                 name="grid_yz_{}_{}".format(id, ih), link_name="base_link", gtype=GEOTYPE.BOX,
                 center=(CENTER[0], id * L_CELL, ih * L_CELL,), rpy=(0, 0, 0), dims=(Ws, thickness, thickness),
                 color=(0, 0, 0, alpha), display=True, collision=False, fixed=True))
             time.sleep(0.01)
     for iw in range(int(Ws / L_CELL) + 1):
         for ih in range(int(Hs / L_CELL) + 1):
-            graph.add_geometry(graph.ghnd.create_safe(
+            graph.add_marker(graph.ghnd.create_safe(
                 name="grid_xz_{}_{}".format(iw, ih), link_name="base_link", gtype=GEOTYPE.BOX,
                 center=(iw * L_CELL, CENTER[1], ih * L_CELL,), rpy=(0, 0, 0), dims=(thickness, Hs, thickness),
                 color=(0, 0, 0, alpha), display=True, collision=False, fixed=True))
@@ -175,14 +175,12 @@ def remove_geometries_by_prefix(graph, ID):
 # draw cells
 def draw_cells(graph, ID, cells, L_CELL, color, link_name="base_link"):
     remove_geometries_by_prefix(graph, ID)
-    gtem_list=[]
     for cell in cells:
         gtem = graph.ghnd.create_safe(
             name="{}_{}_{}_{}".format(ID, *cell), link_name=link_name, gtype=GEOTYPE.BOX,
             center=tuple(np.multiply(cell, L_CELL)+L_CELL/2), rpy=(0, 0, 0), dims=(L_CELL, L_CELL, L_CELL),
             color=color, display=True, collision=False, fixed=True)
-        gtem_list.append(gtem)
-        graph.add_geometry(gtem)
+        graph.add_marker(gtem)
 
 def make_colliding_pairs(geometry_items1, geometry_items2=None, min_distance_map=None):
     collision_pairs = []
@@ -321,7 +319,7 @@ def dict_to_gtem(gdict):
 
 
 ########################### pick sampling functions @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-def sample_pick(GRIPPER_REFS, obj_list, L_MAX):
+def sample_pick(GRIPPER_REFS, obj_list, L_CELL):
     rname, gripper = random.choice(GRIPPER_REFS.items())
     depth_range = gripper['depth_range']
     width_range = gripper['width_range']
@@ -329,7 +327,7 @@ def sample_pick(GRIPPER_REFS, obj_list, L_MAX):
     color_bak = obj.color
     obj.color = (1,0,0,0.5)
     T_og, dims_new, dims_bak = sample_grasp(
-        obj, WIDTH_RANGE=width_range, DEPTH_RANGE=depth_range, DIM_MAX=L_MAX, fit_dim=True)
+        obj, WIDTH_RANGE=width_range, DEPTH_RANGE=depth_range, DIM_MAX=L_CELL, fit_dim=True)
     obj.dims = dims_new
     T_lg = SE3(np.identity(3), gripper['tcp_ref'])
     T_lgo = np.matmul(T_lg, SE3_inv(T_og))
@@ -356,6 +354,27 @@ def sample_place(GRIPPER_REFS, obj_list, L_CELL):
         color=(1,0,0,0.5), display=True, collision=True, fixed=False)
     return rname, inhand, ontarget, None, dims_bak, color_bak
 
+def sample_handover(GRIPPER_REFS, obj_list, L_CELL):
+    ghnd = GeometryHandle.instance()
+    src, tar = random.sample(GRIPPER_REFS.items(),2)
+    gtype, dims, color = random.choice(OBJ_GEN_LIST)(L_CELL)
+    handed = ghnd.create_safe(gtype=gtype, name="handed_in_src", link_name=src[1]['link_name'],
+                                    center=(0,0,0), rpy=(0,0,0), dims=dims, color=(0,1,1,0.5),
+                                    display=True, collision=True, fixed=False)
+    Ttar_ygrip, dims_new, dims_bak = sample_grasp(
+        handed, WIDTH_RANGE=tar[1]['width_range'], DEPTH_RANGE=tar[1]['depth_range'],
+        DIM_MAX=L_CELL, fit_dim=True)
+    handed.dims = dims_new
+    Tsrc_ygrip, dims_new, dims_bak = sample_grasp(
+        handed, WIDTH_RANGE=src[1]['width_range'], DEPTH_RANGE=src[1]['depth_range'],
+        DIM_MAX=L_CELL, fit_dim=False)
+    T_slo = np.matmul(SE3(np.identity(3),src[1]['tcp_ref']), SE3_inv(Tsrc_ygrip))
+    handed.set_offset_tf(center=T_slo[:3,3], orientation_mat=T_slo[:3,:3])
+    T_tlo = np.matmul(SE3(np.identity(3),tar[1]['tcp_ref']), SE3_inv(Ttar_ygrip))
+    intar = ghnd.create_safe(gtype=handed.gtype, name="handed_in_tar", link_name=tar[1]['link_name'],
+                                   center=T_tlo[:3,3], rpy=Rot2rpy(T_tlo[:3,:3]), dims=handed.dims, color=(1,0,0.5,0.5),
+                                   display=True, collision=False, fixed=False)
+    return src[0], handed, intar, tar[0], (0.1,)*3, (0.5,)*4
 
 def log_manipulation(SAMPLED_DATA, key, rname1, obj1, obj2, rname2, dims_bak, color_bak):
     SAMPLED_DATA["ACTION"][key] = {"rname1": rname1, "obj1": gtem_to_dict(obj1),
@@ -369,10 +388,10 @@ def load_manipulation(SAMPLED_DATA, key):
 
 def show_manip_coords(graph, GRIPPER_REFS, key, rname1, obj1, obj2, rname2, axis_len=0.05):
     ## show target objects
-    graph.remove_geometry(obj1)
-    graph.add_geometry(obj1)
-    graph.remove_geometry(obj2)
-    graph.add_geometry(obj2)
+    graph.remove_marker(obj1)
+    graph.add_marker(obj1)
+    graph.remove_marker(obj2)
+    graph.add_marker(obj2)
 
     gripper1 = GRIPPER_REFS[rname1] if rname1 else None
     show_grip_axis(graph, key, gripper1, obj1, obj2, axis_len)
@@ -381,26 +400,78 @@ def show_manip_coords(graph, GRIPPER_REFS, key, rname1, obj1, obj2, rname2, axis
 
 def show_grip_axis(graph, key, gripper, obj1, obj2, axis_len=0.5):
     T_lo, T_lo2 = obj1.Toff, obj2.Toff
-    graph.add_highlight_axis(key, "{}_grip".format(obj1.name), obj1.link_name, T_lo[:3, 3],
-                             T_lo[:3, :3], color=None, axis="xyz", dims=(axis_len, axis_len / 10, axis_len / 10))
+    graph.add_highlight_axis(key, "{}_grip".format(obj1.name), obj1.link_name, T_lo[:3, 3], T_lo[:3, :3],
+                             color=None, axis="xyz", dims=(axis_len, axis_len / 10, axis_len / 10))
     if gripper:
         T_lg = SE3(np.identity(3), gripper['tcp_ref'])
         glink =gripper["link_name"]
-        graph.add_highlight_axis(key, "{}_tcp".format(glink), glink, T_lg[:3, 3],
-                                 T_lg[:3, :3], color=None, axis="xyz", dims=(axis_len, axis_len / 10, axis_len / 10))
+        graph.add_highlight_axis(key, "{}_tcp".format(glink), glink, T_lg[:3, 3], T_lg[:3, :3],
+                                 color=None, axis="xyz", dims=(axis_len, axis_len / 10, axis_len / 10))
         T_go = np.matmul(SE3_inv(T_lg), T_lo)
         T_lo2g= np.matmul(T_lo2, SE3_inv(T_go))
-        graph.add_highlight_axis(key, "{}_grip".format(obj2.name), obj2.link_name, T_lo2g[:3, 3],
-                                 T_lo2g[:3, :3], color=None, axis="xyz", dims=(axis_len, axis_len / 10, axis_len / 10))
+        graph.add_highlight_axis(key, "{}_grip".format(obj2.name), obj2.link_name, T_lo2g[:3, 3], T_lo2g[:3, :3],
+                                 color=None, axis="xyz", dims=(axis_len, axis_len / 10, axis_len / 10))
 
 
-def reset_rendering(graph, key, obj_keep_list, obj_virtual_list, dims_bak=None, color_bak=None):
+def reset_rendering(graph, key, obj_keep_list, obj_virtual_list, dims_bak=None, color_bak=None, vis=True, sleep=False):
     graph.clear_highlight(key)
     for obj_keep in obj_keep_list:
-        obj_keep.dims, obj_keep.color = dims_bak, color_bak
-        graph.remove_geometry(obj_keep)
-        graph.add_geometry(obj_keep)
+        graph.ghnd.NAME_DICT[obj_keep.name].dims = dims_bak
+        graph.ghnd.NAME_DICT[obj_keep.name].color = color_bak
+        graph.remove_marker(obj_keep, vis=vis, sleep=sleep)
+        graph.add_marker(obj_keep, vis=vis)
     for obj_virtual in obj_virtual_list:
-        graph.remove_geometry(obj_virtual)
+        graph.remove_geometry(obj_virtual, sleep=sleep)
 
 ########################### place sampling functions @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+from ..constraint_graph import State
+def test_pick(graph, GRIPPER_REFS, rname, inhand, obj, tar, Q_s, mplan, **kwargs):
+    mplan.update(graph)
+    T_lgo, T_bo = inhand.Toff, obj.Toff
+    bname = GRIPPER_REFS[rname]["bname"]
+    T_lg = graph.binder_dict[bname].Toff_lh
+    T_bgl = np.matmul(T_bo, SE3_inv(T_lgo))
+    T_bg = np.matmul(T_bgl, T_lg)
+    state_s = State((("virtual", "point", "base"),), {"virtual":T_bg}, Q_s, graph)
+    graph.set_object_state(state_s)
+    state_g = state_s.copy(graph)
+    state_g.node = (("virtual", "point", bname),)
+    graph.set_planner(mplan)
+    return mplan.plan_transition(state_s, state_g, state_g.node, **kwargs)
+
+def test_place(graph, GRIPPER_REFS, rname, inhand, ontarget, tar, Q_s, mplan, **kwargs):
+    mplan.update(graph)
+    T_lgo, T_bo = inhand.Toff, ontarget.Toff
+    bname = GRIPPER_REFS[rname]["bname"]
+    T_lg = graph.binder_dict[bname].Toff_lh
+    T_bgl = np.matmul(T_bo, SE3_inv(T_lgo))
+    T_bg = np.matmul(T_bgl, T_lg)
+    state_s = State((("virtual", "point", "base"),), {"virtual":T_bg}, Q_s, graph)
+    graph.set_object_state(state_s)
+    state_g = state_s.copy(graph)
+    state_g.node = (("virtual", "point", bname),)
+    graph.set_planner(mplan)
+    return mplan.plan_transition(state_s, state_g, state_g.node, **kwargs)
+
+def test_handover(graph, GRIPPER_REFS, src, handed, intar, tar, Q_s, eplan,
+                  N=250, dt=0.04, vel_conv=0.5e-2, err_conv=1e-3, **kwargs):
+    eplan.update(graph)
+    T_lso, T_lto = handed.Toff, intar.Toff
+    sbname = GRIPPER_REFS[src]["bname"]
+    tbname = GRIPPER_REFS[tar]["bname"]
+    T_lt = graph.binder_dict[tbname].Toff_lh
+    T_lstl = np.matmul(T_lso, SE3_inv(T_lto))
+    T_lst = np.matmul(T_lstl, T_lt)
+    state_s = State((("virtual", "point", sbname),), {"virtual":T_lst}, Q_s, graph)
+    graph.set_object_state(state_s)
+    state_g = state_s.copy(graph)
+    state_g.node = (("virtual", "point", tbname),)
+    graph.set_planner(eplan)
+    return eplan.plan_transition(state_s, state_g, state_g.node,
+                                 N=N, dt=dt, vel_conv=vel_conv, err_conv=err_conv,
+                                 **kwargs)
+
+def load_manipulation_from_dict(dict_log):
+    rname1, obj1, obj2, rname2, dims_bak, color_bak, success, trajectory = [
+        dict_log[prm] for prm in ["rname1", "obj1", "obj2", "rname2", "dims_bak", "color_bak", "success", "trajectory"]]
+    return rname1, dict_to_gtem(obj1), dict_to_gtem(obj2), rname2, dims_bak, color_bak, success, trajectory

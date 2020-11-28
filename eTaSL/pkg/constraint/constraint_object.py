@@ -46,6 +46,13 @@ class ObjectAction:
         pass
 
 ################################# USABLE CLASS #########################################
+class SinglePointHandle(ObjectAction):
+    def __init__(self, _object, action_point):
+        self.object = _object
+        self.action_points_dict = {action_point.name: action_point}
+
+    def get_conflicting_handles(self, hname):
+        return self.conflict_dict[hname]
 
 class BoxAction(ObjectAction):
     def __init__(self, _object, hexahedral=True):
