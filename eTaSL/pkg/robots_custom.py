@@ -186,7 +186,7 @@ def add_geometry_items(urdf_content, color=(0,1,0,0.5), display=True, collision=
                 gname = "{}_{}_{}".format(link.name, geotype, id_dict[link.name])
                 geometry_items.append(
                     ghnd.create_safe(
-                        name=gname, link_name=link.name, gtype=GEOTYPE.SEGMENT,
+                        name=gname, link_name=link.name, gtype=GEOTYPE.CAPSULE,
                         center=xyz, dims=(geometry.radius*2,geometry.radius*2,geometry.length), rpy=rpy,
                         color=color, display=display, collision=collision, fixed=True)
                 )
@@ -247,7 +247,7 @@ def add_geometry_items(urdf_content, color=(0,1,0,0.5), display=True, collision=
 
 
                 geometry_items.append(
-                    ghnd.create_safe(name=name, link_name=link.name, gtype=GEOTYPE.SEGMENT,
+                    ghnd.create_safe(name=name, link_name=link.name, gtype=GEOTYPE.CAPSULE,
                                   center=xyz_rpy, rpy=Rot2rpy(dcm), dims=(radius*2,radius*2,length),
                                   color=color, display=display, collision=collision, fixed=True))
             else:

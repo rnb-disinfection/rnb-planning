@@ -100,7 +100,7 @@ def add_cam_poles(graph, xyz_rpy_cams, color=(0.6,0.6,0.6,0.3), link_name="base_
     gtems = []
     ghnd = GeometryHandle.instance()
     for cname, xyzrpy in xyz_rpy_cams.items():
-        gtems.append(ghnd.create_safe(name="pole_{}".format(cname), link_name=link_name, gtype=GEOTYPE.SEGMENT,
+        gtems.append(ghnd.create_safe(name="pole_{}".format(cname), link_name=link_name, gtype=GEOTYPE.CAPSULE,
                                   center= np.subtract(xyzrpy[0], [0,0,xyzrpy[0][2]/2-0.05]),
                                   dims=(0.15, 0.15, xyzrpy[0][2]+0.1), rpy=(0,0,0),
                                   color=color, collision=True, fixed=True)

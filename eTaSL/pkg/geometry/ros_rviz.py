@@ -107,7 +107,7 @@ class GeoMarker:
             self.marker.mesh_resource = self.geometry.uri;
         if self.geometry.gtype == GEOTYPE.MESH:
             self.marker.scale.x, self.marker.scale.y, self.marker.scale.z = self.geometry.scale
-        if self.geometry.gtype == GEOTYPE.SEGMENT:
+        if self.geometry.gtype == GEOTYPE.CAPSULE:
             if create or len(self.submarkers)==0:
                 self.submarkers.append(GeoMarker.create_marker_template(Marker.SPHERE, [self.geometry.radius*2]*3, self.geometry.color))
                 self.subTs.append(SE3(np.identity(3), [0,0,self.geometry.length/2]))
@@ -166,7 +166,7 @@ class GeoMarker:
     def get_type(self):
         if self.geometry.gtype == GEOTYPE.BOX:
             return Marker.CUBE
-        elif self.geometry.gtype == GEOTYPE.SEGMENT:
+        elif self.geometry.gtype in [GEOTYPE.CAPSULE, GEOTYPE.CYLINDER]:
             return Marker.CYLINDER
         elif self.geometry.gtype == GEOTYPE.SPHERE:
             return Marker.SPHERE

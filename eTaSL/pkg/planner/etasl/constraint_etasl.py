@@ -32,7 +32,7 @@ def get_representation(gtem, point=None):
         return "MultiSphere({{Vector({},{},{})}},{{ {} }})".format(0, 0, 0, 0) #gtem.radius)
     elif gtem.gtype == GEOTYPE.BOX:
         return "Box({},{},{})".format(*gtem.dims)
-    elif gtem.gtype == GEOTYPE.SEGMENT:
+    elif gtem.gtype in [GEOTYPE.CAPSULE, GEOTYPE.CYLINDER]:
         return "CapsuleZ({radius},{length})".format(radius=gtem.radius,length=gtem.dims[2])
     elif gtem.gtype == GEOTYPE.MESH:
         return "Box({},{},{})".format(*gtem.dims)

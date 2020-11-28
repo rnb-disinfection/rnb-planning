@@ -14,16 +14,16 @@ def gtype_to_otype(gtype):
         return ObjectType.BOX
     elif gtype==GEOTYPE.SPHERE:
         return ObjectType.SPHERE
-    elif gtype==GEOTYPE.SEGMENT:
+    elif gtype in [GEOTYPE.CAPSULE, GEOTYPE.CYLINDER]:
         return ObjectType.CYLINDER
 
 def get_mpc_dims(gtem):
     if gtem.gtype==GEOTYPE.BOX:
         return tuple(gtem.dims)
     elif gtem.gtype==GEOTYPE.SPHERE:
-        return (gtem.radius,)
-    elif gtem.gtype==GEOTYPE.SEGMENT:
-        return (gtem.length, gtem.radius)
+        return (gtem.radius,gtem.radius,gtem.radius,)
+    elif gtem.gtype in [GEOTYPE.CAPSULE, GEOTYPE.CYLINDER]:
+        return (gtem.length, gtem.radius, gtem.radius)
 
 def get_binder_links_in_order(links, robot_names):
     # links on robots should include robot names
@@ -104,7 +104,7 @@ class MoveitPlanner(PlannerInterface):
             from_Q = from_state.Q
 
         trajectory, success = self.planner.plan_py(
-            group_name, tool.object.link_name, goal_pose, target.object.link_name, tuple(from_Q), timeout)
+            group_name, tool.object.link_name, goal_pose, target.object.link_name, tuple(from_Q), timeout=timeout)
 
         if success:
             if self.need_mapping:

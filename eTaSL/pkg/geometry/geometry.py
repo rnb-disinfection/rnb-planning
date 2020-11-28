@@ -7,10 +7,11 @@ from enum import Enum
 
 class GEOTYPE(Enum):
     SPHERE = 0
-    SEGMENT = 1
+    CAPSULE = 1
     BOX = 2
     MESH = 3
     ARROW = 4
+    CYLINDER = 5
 
 POINT_DEFAULT = np.array([[0,0,0]])
 SEG_DEFAULT = np.array([[0,0,1.0],[0,0,-1.0]])/2
@@ -18,7 +19,7 @@ BOX_DEFAULT = np.array([[[(i,j,k) for k in range(2)] for j in range(2)] for i in
 
 DEFAULT_VERT_DICT = {
     GEOTYPE.SPHERE: POINT_DEFAULT,
-    GEOTYPE.SEGMENT: SEG_DEFAULT,
+    GEOTYPE.CAPSULE: SEG_DEFAULT,
     GEOTYPE.BOX: BOX_DEFAULT,
     GEOTYPE.MESH: BOX_DEFAULT
 }
@@ -81,7 +82,7 @@ class GeometryItem(object):
 
     def set_dims(self, dims):
         self.dims = dims
-        self.radius = np.mean(dims[:2])/2 if self.gtype in [GEOTYPE.SPHERE, GEOTYPE.SEGMENT] else 0
+        self.radius = np.mean(dims[:2])/2 if self.gtype in [GEOTYPE.SPHERE, GEOTYPE.CAPSULE, GEOTYPE.CYLINDER] else 0
         self.length = dims[2]
 
     def set_name(self, name):
