@@ -52,6 +52,8 @@ class GeometryHandle(Singleton, list):
         self.movable_ctems = [ctem for ctem in self.movable_gtems if ctem.collision]
 
     def create_safe(self, gtype, name, *args, **kwargs):
+        if isinstance(gtype, str):
+            gtype = getattr(GEOTYPE, gtype)
         if name in self.NAME_DICT:
             gtem = GeometryHandle.instance().NAME_DICT[name]
             gtem.__init__(gtype, name, *args, create=False, **kwargs)

@@ -51,7 +51,7 @@ import sys
 
 sys.path.append(os.path.join(os.environ["TAMP_ETASL_DIR"], "openGJK/lib"))
 import openGJKlib as oGJK
-from ..geometry.geometry import DEFAULT_VERT_DICT, GEOTYPE
+from ..geometry.geometry import DEFAULT_VERT_DICT, GEOTYPE, GeometryHandle
 from ..utils.rotation_utils import Rot_rpy
 from ..utils.utils import list2dict
 import numpy as np
@@ -294,17 +294,113 @@ def sample_putpoint(tar):
     P_zplace = [0, 0] + [tar.dims[ax_z] / 2]
     T_zplace = np.matmul(T_xy, np.matmul(SE3(R_zplace, [0, ] * 3), SE3(np.identity(3), P_zplace)))
     T_lp = np.matmul(tar.Toff, T_zplace)
-    return T_lp, T_zplace
+    return T_lp
 
-def sample_putobject(graph, tar, T_lp, L_MAX):
+def sample_putobject(tar, T_lp, L_MAX):
     geo_gen = random.choice(OBJ_GEN_LIST)
     gtype, dims, color = geo_gen(L_MAX)
     Rz = Rot_rpy(random.choice(DIR_RPY_DICT.values()))
     ax_z = np.argmax(np.abs(Rz[:, 2]))
     Tzoff = SE3(Rz, [0, 0, dims[ax_z] / 2])
     T_lo = np.matmul(T_lp, Tzoff)
-    ontarget = graph.ghnd.create_safe(
+    ontarget = GeometryHandle.instance().create_safe(
         name="ontarget", link_name=tar.link_name, gtype=gtype,
         center=T_lo[:3, 3], rpy=Rot2rpy(T_lo[:3, :3]), dims=dims,
         color=(1,0,0,0.5), display=True, collision=False, fixed=False)
     return ontarget, T_lo
+
+def gtem_to_dict(gtem):
+    return {"name":gtem.name, "gtype": gtem.gtype.name, "link_name":gtem.link_name,
+            "center":gtem.center, "rpy":gtem.rpy, "dims":gtem.dims,
+            "color":gtem.color, "display":gtem.display,
+            "collision": gtem.collision, "fixed": gtem.fixed, "soft": gtem.soft}
+
+def dict_to_gtem(gdict):
+    return GeometryHandle.instance().create_safe(**gdict)
+
+
+
+########################### pick sampling functions @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+def sample_pick(GRIPPER_REFS, obj_list, L_MAX):
+    rname, gripper = random.choice(GRIPPER_REFS.items())
+    depth_range = gripper['depth_range']
+    width_range = gripper['width_range']
+    obj = random.choice(obj_list)
+    color_bak = obj.color
+    obj.color = (1,0,0,0.5)
+    T_og, dims_new, dims_bak = sample_grasp(
+        obj, WIDTH_RANGE=width_range, DEPTH_RANGE=depth_range, DIM_MAX=L_MAX, fit_dim=True)
+    obj.dims = dims_new
+    T_lg = SE3(np.identity(3), gripper['tcp_ref'])
+    T_lgo = np.matmul(T_lg, SE3_inv(T_og))
+    inhand = GeometryHandle.instance().create_safe(
+        name="inhand", link_name=gripper["link_name"], gtype=obj.gtype,
+        center=T_lgo[:3, 3], rpy=Rot2rpy(T_lgo[:3, :3]), dims=obj.dims,
+        color=(1, 0, 0, 0.5), display=True, collision=False, fixed=False)
+    return rname, inhand, obj, None, dims_bak, color_bak
+
+def sample_place(GRIPPER_REFS, obj_list, L_CELL):
+    rname, gripper = random.choice(GRIPPER_REFS.items())
+    depth_range = gripper['depth_range']
+    width_range = gripper['width_range']
+    tar = random.choice(obj_list)
+    color_bak = tar.color
+    T_lp = sample_putpoint(tar)
+    ontarget, T_lo = sample_putobject(tar, T_lp, L_CELL)
+    T_ygrip, dims_new, dims_bak = sample_grasp(
+        ontarget, WIDTH_RANGE=width_range, DEPTH_RANGE=depth_range, DIM_MAX=L_CELL, fit_dim=False)
+    T_glo = np.matmul(SE3(np.identity(3),gripper['tcp_ref']), SE3_inv(T_ygrip))
+    inhand = GeometryHandle.instance().create_safe(
+        name="inhand", link_name=gripper["link_name"], gtype=ontarget.gtype,
+        center=T_glo[:3,3], rpy=Rot2rpy(T_glo[:3,:3]), dims=ontarget.dims,
+        color=(1,0,0,0.5), display=True, collision=True, fixed=False)
+    return rname, inhand, ontarget, None, dims_bak, color_bak
+
+
+def log_manipulation(SAMPLED_DATA, key, rname1, obj1, obj2, rname2, dims_bak, color_bak):
+    SAMPLED_DATA["ACTION"][key] = {"rname1": rname1, "obj1": gtem_to_dict(obj1),
+                                   "obj2": gtem_to_dict(obj2), "rname2": rname2,
+                                   "dims_bak":dims_bak, "color_bak":color_bak}
+
+def load_manipulation(SAMPLED_DATA, key):
+    rname1, obj1, obj2, rname2, dims_bak, color_bak = [
+        SAMPLED_DATA["ACTION"][key][prm] for prm in ["rname1", "obj1", "obj2", "rname2", "dims_bak", "color_bak"]]
+    return rname1, dict_to_gtem(obj1), dict_to_gtem(obj2), rname2, dims_bak, color_bak
+
+def show_manip_coords(graph, GRIPPER_REFS, key, rname1, obj1, obj2, rname2, axis_len=0.05):
+    ## show target objects
+    graph.remove_geometry(obj1)
+    graph.add_geometry(obj1)
+    graph.remove_geometry(obj2)
+    graph.add_geometry(obj2)
+
+    gripper1 = GRIPPER_REFS[rname1] if rname1 else None
+    show_grip_axis(graph, key, gripper1, obj1, obj2, axis_len)
+    gripper2 = GRIPPER_REFS[rname2] if rname2 else None
+    show_grip_axis(graph, key, gripper2, obj2, obj1, axis_len)
+
+def show_grip_axis(graph, key, gripper, obj1, obj2, axis_len=0.5):
+    T_lo, T_lo2 = obj1.Toff, obj2.Toff
+    graph.add_highlight_axis(key, "{}_grip".format(obj1.name), obj1.link_name, T_lo[:3, 3],
+                             T_lo[:3, :3], color=None, axis="xyz", dims=(axis_len, axis_len / 10, axis_len / 10))
+    if gripper:
+        T_lg = SE3(np.identity(3), gripper['tcp_ref'])
+        glink =gripper["link_name"]
+        graph.add_highlight_axis(key, "{}_tcp".format(glink), glink, T_lg[:3, 3],
+                                 T_lg[:3, :3], color=None, axis="xyz", dims=(axis_len, axis_len / 10, axis_len / 10))
+        T_go = np.matmul(SE3_inv(T_lg), T_lo)
+        T_lo2g= np.matmul(T_lo2, SE3_inv(T_go))
+        graph.add_highlight_axis(key, "{}_grip".format(obj2.name), obj2.link_name, T_lo2g[:3, 3],
+                                 T_lo2g[:3, :3], color=None, axis="xyz", dims=(axis_len, axis_len / 10, axis_len / 10))
+
+
+def reset_rendering(graph, key, obj_keep_list, obj_virtual_list, dims_bak=None, color_bak=None):
+    graph.clear_highlight(key)
+    for obj_keep in obj_keep_list:
+        obj_keep.dims, obj_keep.color = dims_bak, color_bak
+        graph.remove_geometry(obj_keep)
+        graph.add_geometry(obj_keep)
+    for obj_virtual in obj_virtual_list:
+        graph.remove_geometry(obj_virtual)
+
+########################### place sampling functions @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
