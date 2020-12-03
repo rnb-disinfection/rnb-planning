@@ -52,22 +52,23 @@ class MoveitPlanner(PlannerInterface):
 
     def update_gtems(self):
         self.ghnd.update()
-        obj_list = []
+        self.obj_list = []
         for gtem in self.ghnd:
             if gtem.collision:
                 if all([not gname in gtem.name for gname in self.robot_names]):
-                    obj_list.append(ObjectMPC(
+                    self.obj_list.append(ObjectMPC(
                         gtem.name, gtype_to_otype(gtem.gtype), gtem.link_name,
                         pose=tuple(gtem.center)+tuple(Rotation.from_dcm(gtem.orientation_mat).as_quat()),
                         dims=get_mpc_dims(gtem), touch_links=gtem.adjacent_links)
                     )
 
-        self.planner.set_scene(obj_list)
+        self.planner.set_scene(self.obj_list)
 
     def plan_transition(self, from_state, to_state, binding_list, redundancy_dict=None, timeout=0.1,
                         group_name_handle=None, group_name_binder=None, **kwargs):
         if len(binding_list)!=1:
             raise(RuntimeError("Only single manipulator operation is implemented with moveit!"))
+        self.update_gtems()
 
         obj_name, ap_name, binder_name = binding_list[0]
         redundancy = redundancy_dict[obj_name] if redundancy_dict else None
@@ -92,7 +93,11 @@ class MoveitPlanner(PlannerInterface):
             tool, T_tool = handle, T_handle
             target, T_tar = binder, T_binder
         else:
-            raise(RuntimeError("uncontrollable binding"))
+            print(binder.name, obj.object.name)
+            print(group_name_binder, group_name_handle)
+            print("uncontrollable binding")
+            # raise(RuntimeError("uncontrollable binding"))
+            return [], [0]*self.planner.joint_num, None, False
 
         T_tar_tool = np.matmul(T_tar, SE3_inv(T_tool))
         goal_pose = tuple(T_tar_tool[:3,3]) \

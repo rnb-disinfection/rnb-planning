@@ -245,6 +245,7 @@ class ObjectAstarSampler(SamplerInterface):
                       display=False, dt_vis=None, verbose=False, print_expression=False, timeout_loop=600, **kwargs):
         loop_counter = 0
         self.stop_dict[ID] = False
+        ret = False
         while self.snode_counter.value < N_search and (time.time() - self.t0) < timeout_loop and not self.stop_now.value:
             loop_counter += 1
             self.que_lock.acquire()
