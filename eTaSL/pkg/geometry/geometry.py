@@ -2,7 +2,7 @@ from __future__ import print_function
 
 from ..utils.rotation_utils import *
 from ..utils.singleton import *
-from ..utils.joint_utils import get_tf, get_adjacent_links
+from ..utils.joint_utils import get_tf, get_link_adjacency_map, get_min_distance_map
 from enum import Enum
 
 class GEOTYPE(Enum):
@@ -25,12 +25,15 @@ DEFAULT_VERT_DICT = {
 }
 
 
-class GeometryHandle(Singleton, list):
-    def __init__(self):
+class GeometryHandle(list):
+    def __init__(self, urdf_content):
         self.NAME_DICT = {}
+        self.set_urdf_content(urdf_content)
 
     def set_urdf_content(self, urdf_content):
         self.urdf_content = urdf_content
+        self.link_adjacency_map, self.link_adjacency_map_ext = get_link_adjacency_map(urdf_content)
+        self.min_distance_map = get_min_distance_map(urdf_content)
 
     def append(self, geo):
         if geo.name in self.NAME_DICT:
@@ -62,16 +65,16 @@ class GeometryHandle(Singleton, list):
         if isinstance(gtype, str):
             gtype = getattr(GEOTYPE, gtype)
         if name in self.NAME_DICT:
-            gtem = GeometryHandle.instance().NAME_DICT[name]
-            gtem.__init__(gtype, name, *args, create=False, **kwargs)
+            gtem = self.NAME_DICT[name]
+            gtem.__init__(self, gtype, name, *args, create=False, **kwargs)
         else:
-            gtem = GeometryItem(gtype, name, *args, **kwargs)
+            gtem = GeometryItem(self, gtype, name, *args, **kwargs)
         return gtem
 
 
 class GeometryItem(object):
-    def __init__(self, gtype, name, link_name, dims, center, rpy=(0,0,0), color=(0,1,0,1), display=True,
-                 collision=True, fixed=False, soft=False, online=False, K_col=None, uri="", scale=(1,1,1), create=True):
+    def __init__(self, ghnd, gtype, name, link_name, dims, center, rpy=(0,0,0), color=(0,1,0,1), display=True,
+                 collision=True, fixed=False, soft=False, online=False, K_col=None, uri="", scale=(1,1,1), create=True,):
         self.uri, self.scale = uri, scale
         self.gtype = gtype
         self.set_offset_tf(center=center, orientation_mat=Rot_rpy(rpy))
@@ -84,10 +87,10 @@ class GeometryItem(object):
         self.online = online
         self.K_col = K_col
         self.set_name(name)
-        self.set_link(link_name)
         if create:
-            self.ghnd = GeometryHandle.instance()
+            self.ghnd = ghnd
             self.ghnd.append(self)
+        self.set_link(link_name)
 
     def set_dims(self, dims):
         self.dims = dims
@@ -99,7 +102,7 @@ class GeometryItem(object):
         
     def set_link(self, link_name):
         self.link_name = link_name
-        self.adjacent_links = get_adjacent_links(self.link_name)
+        self.adjacent_links = self.ghnd.link_adjacency_map[self.link_name]
 
     def get_tf(self, joint_dict, from_link='base_link'):
         T = get_tf(to_link=self.link_name, joint_dict=joint_dict, urdf_content=self.ghnd.urdf_content, from_link=from_link)

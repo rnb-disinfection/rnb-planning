@@ -32,15 +32,18 @@ def get_binder_links_in_order(links, robot_names):
 class MoveitPlanner(PlannerInterface):
     NAME = "MoveIt"
 
-    def __init__(self, joint_names, link_names, urdf_path, urdf_content, robot_names, binder_links):
-        self.ghnd = GeometryHandle.instance()
+    def __init__(self, joint_names, link_names, urdf_path, urdf_content, robot_names, ghnd, binder_links=None):
+        self.ghnd = ghnd
         self.joint_names, self.link_names, self.urdf_path, self.urdf_content, self.robot_names\
             = joint_names, link_names, urdf_path, urdf_content, robot_names
-        self.binder_links = get_binder_links_in_order(binder_links, self.robot_names)
-        self.srdf_path = write_srdf(robot_names=self.robot_names, binder_links=self.binder_links,
-                                    link_names=self.link_names, joint_names=self.joint_names,
-                                    urdf_content=self.urdf_content, urdf_path=self.urdf_path
-                                    )
+        if binder_links:
+            self.binder_links = get_binder_links_in_order(binder_links, self.robot_names)
+            self.srdf_path = write_srdf(robot_names=self.robot_names, binder_links=self.binder_links,
+                                        link_names=self.link_names, joint_names=self.joint_names,
+                                        urdf_content=self.urdf_content, urdf_path=self.urdf_path
+                                        )
+        else:
+            self.srdf_path = self.urdf_path.replace("urdf", 'srdf')
         self.config_path = os.path.dirname(self.urdf_path)+"/"
         self.planner = MoveitCompactPlanner_BP(self.urdf_path, self.srdf_path, self.robot_names, self.config_path)
         if not all([a==b for a,b in zip(self.joint_names, self.planner.joint_names_py)]):

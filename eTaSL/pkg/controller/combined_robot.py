@@ -3,21 +3,23 @@ from .panda_repeater import *
 from ..global_config import *
 from ..environment_builder import *
 
-ROBOTS_ON_SCENE_DEFAULT = [("indy0", RobotType.indy7_robot), ("panda1", RobotType.panda_robot)]
+ROBOTS_ON_SCENE_DEFAULT = [("indy0", RobotType.indy7), ("panda1", RobotType.panda)]
 ROBOTS_ADDRESS_DEFAULT = [DEFAULT_INDY_IP, "{}/{}".format(DEFAULT_REPEATER_IP, DEFAULT_ROBOT_IP)]
 XYZ_RPY_ROBOTS_DEFAULT = {'indy0': ([-0.44648051261901855, 0.251528263092041, 0.009795188903808594],
                                     [7.722511439072125e-05, 0.012837732857963772, -1.5843305292051728]),
                           'panda1': ([0.5117020606994629, 0.16830319166183472, 0.014661192893981934],
                                      [0.0037190383704881766, 0.013066991871646852, -1.6051065831214242])}
 
-JOINT_HOME_DICT = {RobotType.indy7_robot: [0, 0, -np.pi / 2, 0, -np.pi / 2, 0],
-                   RobotType.panda_robot: [0, -np.pi / 8, 0, -np.pi / 2, 0, np.pi / 2, np.pi / 2]}
+JOINT_HOME_DICT = {RobotType.indy7: [0, 0, -np.pi / 2, 0, -np.pi / 2, 0],
+                   RobotType.panda: [0, -np.pi / 8, 0, -np.pi / 2, 0, np.pi / 2, np.pi / 2]}
+JOINT_LIM_DICT = []
 
 
 class CombinedRobot:
-    def __init__(self, connection_list,
-                 robots_on_scene=ROBOTS_ON_SCENE_DEFAULT, xyz_rpy_robots=XYZ_RPY_ROBOTS_DEFAULT,
-                 address_list=ROBOTS_ADDRESS_DEFAULT, indy_joint_vel_level=3, indy_task_vel_level=3):
+    def __init__(self, connection_list, robots_on_scene=ROBOTS_ON_SCENE_DEFAULT,
+                 xyz_rpy_robots=XYZ_RPY_ROBOTS_DEFAULT, address_list=ROBOTS_ADDRESS_DEFAULT,
+                 indy_joint_vel_level=3, indy_task_vel_level=3, vel_scale=0.5, acc_scale=0.5):
+        self.vel_scale, self.acc_scale = vel_scale, acc_scale
         self.set_robots_on_scene(robots_on_scene)
         self.reset_connection(connection_list, address_list)
         self.xyz_rpy_robots = xyz_rpy_robots
@@ -31,9 +33,15 @@ class CombinedRobot:
         self.idx_dict = {}
         self.robot_dict = {}
         self.robot_names = []
+        self.custom_limits = defaultdict(dict)
         for name, _type in self.robots_on_scene:
             i0 = len(self.joint_names)
-            self.joint_names += RobotType.get_joints(_type, name)
+            joint_names_cur = RobotSpecs.get_joint_names(_type, name)
+            self.joint_names += joint_names_cur
+            for jname, lim_pair, vellim, acclim in zip(joint_names_cur, RobotSpecs.get_joint_limits(_type),
+                                                        RobotSpecs.get_vel_limits(_type), RobotSpecs.get_acc_limits(_type)):
+                self.custom_limits[jname].update({"lower":lim_pair[0], "upper":lim_pair[1],
+                                                  "velocity": vellim*self.vel_scale, "effort": acclim*self.acc_scale})
             self.home_pose += JOINT_HOME_DICT[_type]
             self.idx_dict[name] = range(i0, len(self.joint_names))
             self.robot_dict[name] = None
@@ -51,7 +59,7 @@ class CombinedRobot:
             name = rbt[0]
             _type = rbt[1]
             if cnt:
-                if _type == RobotType.indy7_robot:
+                if _type == RobotType.indy7:
                     if not self.robot_dict[name]:
                         self.robot_dict[name] = indytraj_client(server_ip=addr, robot_name="NRMK-Indy7")
                     with self.robot_dict[name]:
@@ -60,7 +68,7 @@ class CombinedRobot:
                         self.robot_dict[name].set_task_vel_level(self.indy_task_vel_level)
                         self.robot_dict[name].set_joint_blend_radius(20)
                         self.robot_dict[name].set_task_blend_radius(0.2)
-                elif _type == RobotType.panda_robot:
+                elif _type == RobotType.panda:
                     if self.robot_dict[name]:
                         if hasattr(self.robot_dict[name], 'alpha_lpf'):
                             self.robot_dict[name].set_alpha_lpf(self.robot_dict[name].alpha_lpf)
@@ -86,9 +94,9 @@ class CombinedRobot:
 
     def joint_make_sure(self, Q):
         for name, _type in self.robots_on_scene:
-            if _type == RobotType.indy7_robot:
+            if _type == RobotType.indy7:
                 self.robot_dict[name].joint_move_make_sure(np.rad2deg(Q[self.idx_dict[name]]), N_repeat=2, connect=True)
-            elif _type == RobotType.panda_robot:
+            elif _type == RobotType.panda:
                 self.robot_dict[name].move_joint_interpolated(Q[self.idx_dict[name]], N_div=200)
 
     def grasp_by_dict(self, grasp_dict):
@@ -99,9 +107,9 @@ class CombinedRobot:
 
     def grasp_fun(self, name, grasp):
         scence_dict = self.get_scene_dict()
-        if scence_dict[name] == RobotType.indy7_robot and self.robot_dict[name] is not None:
+        if scence_dict[name] == RobotType.indy7 and self.robot_dict[name] is not None:
             self.robot_dict[name].grasp(grasp, connect=True)
-        elif scence_dict[name] == RobotType.panda_robot and self.robot_dict[name] is not None:
+        elif scence_dict[name] == RobotType.panda and self.robot_dict[name] is not None:
             self.robot_dict[name].move_finger(grasp)
 
     def get_real_robot_pose(self):

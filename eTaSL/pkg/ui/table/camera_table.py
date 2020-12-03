@@ -86,7 +86,7 @@ class CameraTable(TableInterface):
         if button == TAB_BUTTON.CUSTOM:
             if args[0]:
                 print("============== start calibration =================")
-                self.graph.cam.calibrate()
+                self.graph.cam.calibrate(self.graph.ghnd)
                 self.graph.set_cam_robot_collision()
                 self.graph.set_rviz()
                 print("============== finish calibration =================")

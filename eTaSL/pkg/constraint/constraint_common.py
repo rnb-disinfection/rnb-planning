@@ -23,7 +23,7 @@ OPPOSITE_DICT={
 class ActionPoint:
     ctype=None
     def __init__(self, name, _object, point, rpy, name_full=None):
-        self.ghnd = GeometryHandle.instance()
+        self.ghnd = _object.ghnd
         self.name = name
         self.object = _object
         self.set_point_rpy(point, rpy)

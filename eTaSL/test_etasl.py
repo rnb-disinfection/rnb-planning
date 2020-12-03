@@ -1,8 +1,8 @@
 from pkg.robots_custom import *
 xcustom = XacroCustomizer()
 xcustom.clear()
-xcustom.add_robot(RobotType.indy7_robot, xyz=[0,-0.5,0], rpy= [0,0,0])
-xcustom.add_robot(RobotType.panda_robot, xyz=[0,0.5,0], rpy= [0,0,0])
+xcustom.add_robot(RobotType.indy7, xyz=[0,-0.5,0], rpy= [0,0,0])
+xcustom.add_robot(RobotType.panda, xyz=[0,0.5,0], rpy= [0,0,0])
 xcustom.write_xacro()
 vel_scale = 1.0/2.0
 JOINT_NAMES, LINK_NAMES, ZERO_JOINT_POSE, urdf_content = \

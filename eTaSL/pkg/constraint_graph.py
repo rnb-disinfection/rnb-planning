@@ -17,17 +17,13 @@ PRINT_LOG = False
 
 class ConstraintGraph:
 
-    def __init__(self, urdf_path, joint_names, link_names, urdf_content=None, combined_robot=None):
+    def __init__(self, ghnd, urdf_path, joint_names, link_names, urdf_content=None, combined_robot=None):
         self.joint_num = len(joint_names)
         self.urdf_path = urdf_path
         if urdf_content is None:
             urdf_content = URDF.from_xml_file(urdf_path)
         self.urdf_content = urdf_content
-        self.ghnd = GeometryHandle.instance()
-        self.ghnd.set_urdf_content(urdf_content)
-        set_parent_joint_map(urdf_content)
-        set_link_adjacency_map(urdf_content)
-        self.min_distance_map = set_min_distance_map(link_names, urdf_content)
+        self.ghnd = ghnd
         self.joint_names = joint_names
         self.link_names = link_names
         self.binder_dict = {}
@@ -95,16 +91,14 @@ class ConstraintGraph:
 
     def clear_markers(self, vis=True):
         if vis:
+            if hasattr(self, 'highlight_dict'):
+                for hl_key in self.highlight_dict.keys():
+                    self.clear_highlight(hl_key)
+            else:
+                self.highlight_dict = defaultdict(dict)
             for mk in self.marker_list:
                 mk.delete()
             self.marker_list = []
-            if hasattr(self, 'highlight_dict'):
-                for hkey, hset in self.highlight_dict.items():
-                    for k,v in hset.items():
-                        self.remove_marker(v)
-                        del self.highlight_dict[hkey][k]
-            else:
-                self.highlight_dict = defaultdict(dict)
 
     def update_marker(self, gtem, vis=True):
         if vis:
@@ -225,7 +219,7 @@ class ConstraintGraph:
                                               list2dict([0]*len(self.joint_names), item_names=self.joint_names))
 
     def register_object_gen(self, objectPose_dict_mv, binder_dict, object_dict, ref_tuple=None, link_name="base_link"):
-        object_generators = {k: CallHolder(GeometryHandle.instance().create_safe,
+        object_generators = {k: CallHolder(self.ghnd.create_safe,
                                            ["center", "rpy"], **v.get_kwargs()) for k, v in
                              self.cam.aruco_map.items() if v.ttype in [TargetType.MOVABLE, TargetType.ONLINE]}
         if ref_tuple is None:
@@ -259,7 +253,7 @@ class ConstraintGraph:
     #######################################################
     ##################### Environment #####################
     def set_cam_robot_collision(self, _add_cam_poles = True, color=(0, 1, 0, 0.3), display=True):
-        add_geometry_items(self.urdf_content, color=color, display=display, collision=True,
+        add_geometry_items(self.urdf_content, ghnd=self.ghnd, color=color, display=display, collision=True,
                            exclude_link=["panda1_link7"])
         if _add_cam_poles:
             add_cam_poles(self, self.cam.xyz_rpy_cams)
@@ -376,8 +370,8 @@ class ConstraintGraph:
         for hl_key, hl_set in self.highlight_dict.items():
             if hl_key in hl_keys or not hl_keys:
                 for k,v in hl_set.items():
-                    self.remove_marker(v,sleep=sleep)
                     del self.highlight_dict[hl_key][k]
+                    self.remove_geometry(v,sleep=sleep)
 
     def highlight_geometry(self, hl_key, gname, color=(1, 0.3, 0.3, 0.5)):
         if gname not in self.ghnd.NAME_DICT:
@@ -430,7 +424,7 @@ class ConstraintGraph:
         oname = atem.oname
         axis_name = axis_name or oname
         if oname in self.combined_robot.get_scene_dict():
-            link_name = RobotType.get_base_link(self.combined_robot.get_scene_dict()[oname], oname)
+            link_name = RobotSpecs.get_base_link(self.combined_robot.get_scene_dict()[oname], oname)
             Toff = atem.Toff
         else:
             aobj = self.ghnd.NAME_DICT[oname]

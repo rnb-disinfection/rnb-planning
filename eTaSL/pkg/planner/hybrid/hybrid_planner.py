@@ -5,9 +5,9 @@ from ..interface import PlannerInterface
 class HybridPlanner(PlannerInterface):
     NAME = "Hybrid"
 
-    def __init__(self, joint_names, link_names, urdf_path, urdf_content, robot_names, binder_links):
-        self.eplan = etasl_planner(joint_names=joint_names, link_names=link_names, urdf_path=urdf_path)
-        self.mplan = MoveitPlanner(joint_names=joint_names, link_names=link_names, urdf_path=urdf_path,
+    def __init__(self, joint_names, link_names, urdf_path, urdf_content, robot_names, binder_links, ghnd):
+        self.eplan = etasl_planner(ghnd=ghnd, joint_names=joint_names, link_names=link_names, urdf_path=urdf_path)
+        self.mplan = MoveitPlanner(ghnd=ghnd, joint_names=joint_names, link_names=link_names, urdf_path=urdf_path,
                                    urdf_content=urdf_content,robot_names=robot_names,binder_links=binder_links)
 
     def set_object_dict(self, object_dict):

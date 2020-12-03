@@ -33,7 +33,6 @@
 	<disable_collisions link1="indy0_link3" link2="indy0_link4" reason="Adjacent"/>
 	<disable_collisions link1="indy0_link4" link2="indy0_link5" reason="Adjacent"/>
 	<disable_collisions link1="indy0_link5" link2="indy0_link6" reason="Adjacent"/>
-	<disable_collisions link1="indy0_link5" link2="indy0_tcp" reason="Adjacent"/>
 	<disable_collisions link1="indy0_link6" link2="indy0_tcp" reason="Adjacent"/>
 	<disable_collisions link1="panda1_link0" link2="panda1_link1" reason="Adjacent"/>
 	<disable_collisions link1="panda1_link1" link2="panda1_link2" reason="Adjacent"/>

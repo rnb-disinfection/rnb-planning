@@ -1,7 +1,7 @@
 from __future__ import print_function
 from etasl_py.etasl import etasl_simulator, EventException
 
-from ...utils.joint_utils import get_joint_names_csv, get_min_distance_map
+from ...utils.joint_utils import get_joint_names_csv
 from ...utils.utils import integrate, list2dict
 from .constraint_etasl import *
 from ..interface import PlannerInterface, downample_traj
@@ -23,17 +23,17 @@ def augment_jvals_dot(jvals, jdots=None):
 class etasl_planner(PlannerInterface):
     NAME = 'eTaSL'
 
-    def __init__(self, joint_names, link_names, urdf_path,
+    def __init__(self, joint_names, link_names, urdf_path, ghnd,
                           nWSR=300, cputime=200, regularization_factor= 1e-6, timescale=0.25):
         self.joint_names, self.link_names, self.urdf_path= joint_names, link_names, urdf_path
         self.nWSR, self.cputime, self.regularization_factor = nWSR, cputime, regularization_factor
         self.joint_num = len(self.joint_names)
         self.init_text = self.get_init_text(timescale=timescale)
-        self.ghnd = GeometryHandle.instance()
+        self.ghnd = ghnd
 
     def update_gtems(self):
         self.ghnd.update()
-        self.min_distance_map = get_min_distance_map()
+        self.min_distance_map = self.ghnd.min_distance_map
         self.item_text = get_item_text(self.ghnd)
         self.fixed_tf_text = get_tf_text(self.ghnd.fixed_gtems)
         self.online_input_text, self.kwargs_online, self.online_names = \

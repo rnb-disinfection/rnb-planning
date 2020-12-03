@@ -43,9 +43,9 @@ from ..geometry.geometry import *
 from .utils import list2dict
 
 class SweptVolumeTester:
-    def __init__(self):
+    def __init__(self, ghnd):
         self.fixed_col_list, self.fixed_col_swept_list = [], []
-        self.ghnd = GeometryHandle.instance()
+        self.ghnd = ghnd
 
     def update_colliding_list(self):
         self.fixed_col_list, self.fixed_col_swept_list = \
@@ -70,7 +70,7 @@ class SweptVolumeTester:
         T_dict2.update(get_tf_full('panda1_leftfinger', Q2dict, urdf_content))
         T_dict2.update({'panda1_rightfinger': get_tf('panda1_rightfinger', Q2dict, urdf_content),
                         'base_link': np.identity(4)})
-        ghnd = GeometryHandle.instance()
+        ghnd = self.ghnd
         for ctem in ghnd:
             vtx_ref, radi = ctem.get_vertice_radius()
             Toff = ctem.Toff

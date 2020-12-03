@@ -213,7 +213,7 @@ def sample_joint(graph, Q_s_loaded=None):
     joint_lims=np.array(joint_lims)
     Qmax, Qmin = joint_lims[:,0],joint_lims[:,1]
     colliding_pairs=None
-    while True:
+    for _ in range(100):
         Q_s = Q_s_loaded or np.random.uniform(Qmin, Qmax, size=Qmax.shape)
         links, link_verts, link_ctems, link_rads = get_links(graph, Q_s)
         colliding_pairs = colliding_pairs or make_colliding_pairs(links)
@@ -295,14 +295,14 @@ def sample_putpoint(tar):
     T_lp = np.matmul(tar.Toff, T_zplace)
     return T_lp
 
-def sample_putobject(tar, T_lp, L_MAX):
+def sample_putobject(tar, T_lp, L_MAX, ghnd):
     geo_gen = random.choice(OBJ_GEN_LIST)
     gtype, dims, color = geo_gen(L_MAX)
     Rz = Rot_rpy(random.choice(DIR_RPY_DICT.values()))
     ax_z = np.argmax(np.abs(Rz[:, 2]))
     Tzoff = SE3(Rz, [0, 0, dims[ax_z] / 2])
     T_lo = np.matmul(T_lp, Tzoff)
-    ontarget = GeometryHandle.instance().create_safe(
+    ontarget = ghnd.create_safe(
         name="ontarget", link_name=tar.link_name, gtype=gtype,
         center=T_lo[:3, 3], rpy=Rot2rpy(T_lo[:3, :3]), dims=dims,
         color=(1,0,0,0.5), display=True, collision=False, fixed=False)
@@ -314,53 +314,52 @@ def gtem_to_dict(gtem):
             "color":gtem.color, "display":gtem.display,
             "collision": gtem.collision, "fixed": gtem.fixed, "soft": gtem.soft}
 
-def dict_to_gtem(gdict):
-    return GeometryHandle.instance().create_safe(**gdict)
+def dict_to_gtem(gdict, ghnd):
+    return ghnd.create_safe(**gdict)
 
 
 
 ########################### pick sampling functions @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-def sample_pick(GRIPPER_REFS, obj_list, L_CELL):
+def sample_pick(GRIPPER_REFS, obj_list, L_CELL, ghnd):
     rname, gripper = random.choice(GRIPPER_REFS.items())
     depth_range = gripper['depth_range']
     width_range = gripper['width_range']
     obj = random.choice(obj_list)
     color_bak = obj.color
-    obj.color = (1,0,0,0.5)
+    obj.color = (1,0,0,1)
     T_og, dims_new, dims_bak = sample_grasp(
         obj, WIDTH_RANGE=width_range, DEPTH_RANGE=depth_range, DIM_MAX=L_CELL, fit_dim=True)
     obj.dims = dims_new
     T_lg = SE3(np.identity(3), gripper['tcp_ref'])
     T_lgo = np.matmul(T_lg, SE3_inv(T_og))
-    inhand = GeometryHandle.instance().create_safe(
+    inhand = ghnd.create_safe(
         name="inhand", link_name=gripper["link_name"], gtype=obj.gtype,
         center=T_lgo[:3, 3], rpy=Rot2rpy(T_lgo[:3, :3]), dims=obj.dims,
         color=(1, 0, 0, 0.5), display=True, collision=False, fixed=False)
     return rname, inhand, obj, None, dims_bak, color_bak
 
-def sample_place(GRIPPER_REFS, obj_list, L_CELL):
+def sample_place(GRIPPER_REFS, obj_list, L_CELL, ghnd):
     rname, gripper = random.choice(GRIPPER_REFS.items())
     depth_range = gripper['depth_range']
     width_range = gripper['width_range']
     tar = random.choice(obj_list)
     color_bak = tar.color
     T_lp = sample_putpoint(tar)
-    ontarget, T_lo = sample_putobject(tar, T_lp, L_CELL)
+    ontarget, T_lo = sample_putobject(tar, T_lp, L_CELL, ghnd)
     T_ygrip, dims_new, dims_bak = sample_grasp(
         ontarget, WIDTH_RANGE=width_range, DEPTH_RANGE=depth_range, DIM_MAX=L_CELL, fit_dim=False)
     T_glo = np.matmul(SE3(np.identity(3),gripper['tcp_ref']), SE3_inv(T_ygrip))
-    inhand = GeometryHandle.instance().create_safe(
+    inhand = ghnd.create_safe(
         name="inhand", link_name=gripper["link_name"], gtype=ontarget.gtype,
         center=T_glo[:3,3], rpy=Rot2rpy(T_glo[:3,:3]), dims=ontarget.dims,
-        color=(1,0,0,0.5), display=True, collision=True, fixed=False)
+        color=(1,0,0,1), display=True, collision=True, fixed=False)
     return rname, inhand, ontarget, None, dims_bak, color_bak
 
-def sample_handover(GRIPPER_REFS, obj_list, L_CELL):
-    ghnd = GeometryHandle.instance()
+def sample_handover(GRIPPER_REFS, obj_list, L_CELL, ghnd):
     src, tar = random.sample(GRIPPER_REFS.items(),2)
     gtype, dims, color = random.choice(OBJ_GEN_LIST)(L_CELL)
     handed = ghnd.create_safe(gtype=gtype, name="handed_in_src", link_name=src[1]['link_name'],
-                                    center=(0,0,0), rpy=(0,0,0), dims=dims, color=(0,1,1,0.5),
+                                    center=(0,0,0), rpy=(0,0,0), dims=dims, color=(0,1,1,1),
                                     display=True, collision=True, fixed=False)
     Ttar_ygrip, dims_new, dims_bak = sample_grasp(
         handed, WIDTH_RANGE=tar[1]['width_range'], DEPTH_RANGE=tar[1]['depth_range'],
@@ -382,10 +381,10 @@ def log_manipulation(SAMPLED_DATA, key, rname1, obj1, obj2, rname2, dims_bak, co
                                    "obj2": gtem_to_dict(obj2), "rname2": rname2,
                                    "dims_bak":dims_bak, "color_bak":color_bak}
 
-def load_manipulation(SAMPLED_DATA, key):
+def load_manipulation(SAMPLED_DATA, key, ghnd):
     rname1, obj1, obj2, rname2, dims_bak, color_bak = [
         SAMPLED_DATA["ACTION"][key][prm] for prm in ["rname1", "obj1", "obj2", "rname2", "dims_bak", "color_bak"]]
-    return rname1, dict_to_gtem(obj1), dict_to_gtem(obj2), rname2, dims_bak, color_bak
+    return rname1, dict_to_gtem(obj1, ghnd), dict_to_gtem(obj2, ghnd), rname2, dims_bak, color_bak
 
 def show_manip_coords(graph, GRIPPER_REFS, key, rname1, obj1, obj2, rname2, axis_len=0.05):
     ## show target objects
@@ -472,7 +471,7 @@ def test_handover(graph, GRIPPER_REFS, src, handed, intar, tar, Q_s, eplan,
                                  N=N, dt=dt, vel_conv=vel_conv, err_conv=err_conv,
                                  **kwargs)
 
-def load_manipulation_from_dict(dict_log):
+def load_manipulation_from_dict(dict_log, ghnd):
     rname1, obj1, obj2, rname2, dims_bak, color_bak, success, trajectory = [
         dict_log[prm] for prm in ["rname1", "obj1", "obj2", "rname2", "dims_bak", "color_bak", "success", "trajectory"]]
-    return rname1, dict_to_gtem(obj1), dict_to_gtem(obj2), rname2, dims_bak, color_bak, success, trajectory
+    return rname1, dict_to_gtem(obj1, ghnd), dict_to_gtem(obj2, ghnd), rname2, dims_bak, color_bak, success, trajectory
