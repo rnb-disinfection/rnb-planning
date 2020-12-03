@@ -456,7 +456,7 @@ class ConstraintGraph:
             try: self.show_pose(traj[-1])
             except: pass
             sleep(0.5)
-            state_cur = state_new
+            state_cur = new_state
         return traj
 
     def execute_schedule_online(self, snode_schedule, planner, control_freq=DEFAULT_TRAJ_FREQUENCY, playback_rate=0.5,
