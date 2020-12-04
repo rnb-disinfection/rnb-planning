@@ -3,6 +3,7 @@
 *.pdf
 *.npy
 eTaSL/markers/
+eTaSL/data/
 
 # Pycharm
 .idea/

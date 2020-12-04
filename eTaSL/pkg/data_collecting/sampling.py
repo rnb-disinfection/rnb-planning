@@ -485,3 +485,151 @@ def load_manipulation_from_dict(dict_log, ghnd):
     rname1, obj1, obj2, rname2, dims_bak, color_bak, success, trajectory = [
         dict_log[prm] for prm in ["rname1", "obj1", "obj2", "rname2", "dims_bak", "color_bak", "success", "trajectory"]]
     return rname1, dict_to_gtem(obj1, ghnd), dict_to_gtem(obj2, ghnd), rname2, dims_bak, color_bak, success, trajectory
+
+
+from multiprocessing import Process, Lock, cpu_count
+from multiprocessing.managers import SyncManager
+import random
+
+try:
+    from queue import PriorityQueue
+except:
+    from Queue import PriorityQueue
+
+class PriorityQueueManager(SyncManager):
+    pass
+PriorityQueueManager.register("PriorityQueue", PriorityQueue)
+
+class DataCollector:
+    def __init__(self, graph, GRIPPER_REFS, S_F_RATIO=2.0):
+        self.manager = PriorityQueueManager()
+        self.manager.start()
+        self.dict_lock = self.manager.Lock()
+        self.graph = graph
+        self.ghnd = graph.ghnd
+        self.GRIPPER_REFS = GRIPPER_REFS
+        self.S_F_RATIO = S_F_RATIO
+
+    def pick_search(self, ID, obj_list, Q_s, mplan, L_CELL, timeout=1, N_search=100, N_retry=5):
+        graph, GRIPPER_REFS = self.graph, self.GRIPPER_REFS
+        fail_count = 0
+        succ_count = 0
+        for i in range(N_search):
+            rname, inhand, obj, _, dims_bak, color_bak = sample_pick(GRIPPER_REFS, obj_list, L_CELL, self.ghnd)
+            for _ in range(N_retry):
+                trajectory, Q_last, error, success = test_pick(graph, GRIPPER_REFS, rname, inhand, obj, None, Q_s,
+                                                               mplan, timeout=timeout)
+                if success: break
+            print("{}: {} - {}".format(ID, "SUCCESS" if success else "FAILURE", i))
+            if success or fail_count < succ_count * self.S_F_RATIO:
+                self.dict_lock.acquire()
+                idx = self.snode_counter.value
+                self.snode_dict[idx] = {
+                    "rname1": rname, "obj1": gtem_to_dict(inhand),
+                    "obj2": gtem_to_dict(obj), "rname2": None, "dims_bak": dims_bak, "color_bak": color_bak,
+                    "success": success, "trajectory": trajectory}
+                self.snode_counter.value = self.snode_counter.value + 1
+                self.dict_lock.release()
+                if success:
+                    succ_count += 1
+                else:
+                    fail_count += 1
+                print(
+                    "=========== {} {} {} =========== - {}".format(rname, ID, "SUCCESS" if success else "FAILURE", idx))
+            reset_rendering(graph, "PICK", [obj], [inhand], dims_bak, color_bak, vis=False)
+        print("=============== TERMINATE {} ==============".format(ID))
+
+    def place_search(self, ID, obj_list, Q_s, mplan, L_CELL, timeout=1, N_search=100, N_retry=1):
+        graph, GRIPPER_REFS = self.graph, self.GRIPPER_REFS
+        fail_count = 0
+        succ_count = 0
+        for i in range(N_search):
+            rname, inhand, ontarget, _, dims_bak, color_bak = sample_place(GRIPPER_REFS, obj_list, L_CELL, self.ghnd)
+            for _ in range(N_retry):
+                trajectory, Q_last, error, success = test_place(graph, GRIPPER_REFS, rname, inhand, ontarget, None, Q_s,
+                                                                mplan, timeout=timeout)
+                if success: break
+            print("{}: {} - {}".format(ID, "SUCCESS" if success else "FAILURE", i))
+            if success or fail_count < succ_count * self.S_F_RATIO:
+                self.dict_lock.acquire()
+                idx = self.snode_counter.value
+                self.snode_dict[idx] = {
+                    "rname1": rname, "obj1": gtem_to_dict(inhand),
+                    "obj2": gtem_to_dict(ontarget), "rname2": None, "dims_bak": dims_bak, "color_bak": color_bak,
+                    "success": success, "trajectory": trajectory}
+                self.snode_counter.value = self.snode_counter.value + 1
+                self.dict_lock.release()
+                if success:
+                    succ_count += 1
+                else:
+                    fail_count += 1
+                print(
+                    "=========== {} {} {} =========== - {}".format(rname, ID, "SUCCESS" if success else "FAILURE", idx))
+            reset_rendering(graph, "PLACE", [], [ontarget, inhand], dims_bak, color_bak, vis=False)
+        print("=============== TERMINATE {} ==============".format(ID))
+
+    def handover_search(self, ID, obj_list, Q_s, mplan_dict, L_CELL, timeout=1, N_search=100, N_retry=1):
+        graph, GRIPPER_REFS = self.graph, self.GRIPPER_REFS
+        fail_count = 0
+        succ_count = 0
+        for i in range(N_search):
+            src, tar = random.sample(GRIPPER_REFS.items(), 2)
+            mplan = mplan_dict[(src[0], tar[0])]
+            src, handed, intar, tar, dims_bak, color_bak = sample_handover(src, tar, L_CELL, mplan.ghnd)
+            for _ in range(N_retry):
+                trajectory, Q_last, error, success = test_handover(graph, GRIPPER_REFS, src, handed, intar, tar, Q_s,
+                                                                   mplan, timeout=timeout)
+                if success: break
+            print("{}: {} - {}".format(ID, "SUCCESS" if success else "FAILURE", i))
+            if success or fail_count < succ_count * self.S_F_RATIO:
+                self.dict_lock.acquire()
+                idx = self.snode_counter.value
+                self.snode_dict[idx] = {
+                    "rname1": src, "obj1": gtem_to_dict(handed),
+                    "obj2": gtem_to_dict(intar), "rname2": tar, "dims_bak": dims_bak, "color_bak": color_bak,
+                    "success": success, "trajectory": trajectory}
+                self.snode_counter.value = self.snode_counter.value + 1
+                self.dict_lock.release()
+                if success:
+                    succ_count += 1
+                else:
+                    fail_count += 1
+                print(
+                    "=========== {}-{} {} {} =========== - {}".format(src, tar, ID, "SUCCESS" if success else "FAILURE",
+                                                                      idx))
+            reset_rendering(graph, "HANDOVER", [], [handed, intar], dims_bak, color_bak, vis=False)
+        print("=============== TERMINATE {} ==============".format(ID))
+
+    def search_loop_mp(self, Q_s, obj_list, mplan, search_fun, L_CELL, N_agents=None, timeout=1, N_search=100,
+                       N_retry=1):
+        if N_agents is None:
+            N_agents = cpu_count()
+        self.N_agents = N_agents
+        print("Use {}/{} agents".format(N_agents, cpu_count()))
+        self.snode_counter = self.manager.Value('i', 0)
+        self.snode_dict = self.manager.dict()
+        self.proc_list = [Process(
+            target=search_fun,
+            args=(id_agent, obj_list, Q_s, mplan, L_CELL),
+            kwargs={'timeout': timeout, 'N_search': N_search, 'N_retry': N_retry})
+            for id_agent in range(N_agents)]
+        for proc in self.proc_list:
+            proc.start()
+
+        for proc in self.proc_list:
+            proc.join()
+        print("================== FINISHED ( {} / {} ) =======================".format(self.snode_counter.value,
+                                                                                       N_agents * N_search))
+        print(self.snode_counter.value)
+
+    def play_all(self, graph, GRIPPER_REFS, key, test_fun, Q_s, period=0.05, remove_map=[[1], [0]]):
+        for k in range(self.snode_counter.value):
+            rname, inhand, obj, tar, dims_bak, color_bak, succ, trajectory = load_manipulation_from_dict(
+                self.snode_dict[k], graph.ghnd)
+            if succ:
+                show_manip_coords(graph, GRIPPER_REFS, key, rname, inhand, obj, rname2=tar)
+                graph.show_motion(trajectory, period=period)
+            print("DONE: {}".format(k))
+            remove1 = [[inhand, obj][iii] for iii in remove_map[0]]
+            remove2 = [[inhand, obj][iii] for iii in remove_map[1]]
+            reset_rendering(graph, key, remove1, remove2, dims_bak, color_bak, sleep=True, vis=True)

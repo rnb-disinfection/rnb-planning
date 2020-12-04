@@ -9,7 +9,7 @@ from .marker_config import *
 
 __rospy_initialized = False
 
-def set_custom_robots(ROBOTS_ON_SCENE, xyz_rpy_robots, custom_limits, node_name='task_planner'):
+def set_custom_robots(ROBOTS_ON_SCENE, xyz_rpy_robots, custom_limits, node_name='task_planner', start_rviz=True):
     urdf_content = None
     if XacroCustomizer._Singleton__instance:
         xcustom = XacroCustomizer.instance()
@@ -22,7 +22,9 @@ def set_custom_robots(ROBOTS_ON_SCENE, xyz_rpy_robots, custom_limits, node_name=
             joint_fix_dict={'finger': 'upper'},
             joint_offset_dict={},
             joint_limit_dict=custom_limits)
-    xcustom.start_rviz()
+
+    if start_rviz:
+        xcustom.start_rviz()
 
     global __rospy_initialized
     if not __rospy_initialized:
