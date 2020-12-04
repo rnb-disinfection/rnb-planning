@@ -444,21 +444,31 @@ def save_converted_chain(urdf_content, urdf_path, robot_new, base_link, end_link
 
     for linkage in reversed(chain_base):
         jname, lname = linkage
-        if jname is not None:
-            joint = urdf_content_new.joint_map[jname]
-            link = urdf_content_new.link_map[lname]
-            xyz_bak, rpy_bak = joint.origin.xyz, joint.origin.rpy
-            j_xyz, j_rpy = Tinv_joint_next[:3, 3], Rot2rpy(Tinv_joint_next[:3, :3])
-            joint.parent, joint.child = joint.child, joint.parent
-            joint.origin.xyz = j_xyz.tolist()
-            joint.origin.rpy = j_rpy.tolist()
-            for gtem in link.collisions + link.visuals:
-                if gtem.origin is None:
-                    gtem.origin = urdf_parser_py.urdf.Pose([0, 0, 0], [0, 0, 0])
-                Tg_new = np.matmul(Tinv_joint_next, SE3(Rot_rpy(gtem.origin.rpy), gtem.origin.xyz))
-                gtem.origin.xyz, gtem.origin.rpy = Tg_new[:3, 3].tolist(), Rot2rpy(Tg_new[:3, :3]).tolist()
-            T_joint = SE3(Rot_rpy(rpy_bak), xyz_bak)
-            Tinv_joint_next = SE3_inv(T_joint)
+        joint = urdf_content_new.joint_map[jname]
+        link = urdf_content_new.link_map[lname]
+        xyz_bak, rpy_bak = joint.origin.xyz, joint.origin.rpy
+        j_xyz, j_rpy = Tinv_joint_next[:3, 3], Rot2rpy(Tinv_joint_next[:3, :3])
+        joint.parent, joint.child = joint.child, joint.parent
+        joint.origin.xyz = j_xyz.tolist()
+        joint.origin.rpy = j_rpy.tolist()
+
+        if joint.limit:
+            joint.limit.lower, joint.limit.upper = -joint.limit.upper, -joint.limit.lower
+        if joint.safety_controller:
+            joint.safety_controller.soft_lower_limit, joint.safety_controller.soft_upper_limit = \
+                joint.limit.lower, joint.limit.upper
+        for gtem in link.collisions + link.visuals:
+            if gtem.origin is None:
+                gtem.origin = urdf_parser_py.urdf.Pose([0, 0, 0], [0, 0, 0])
+            Tg_new = np.matmul(Tinv_joint_next, SE3(Rot_rpy(gtem.origin.rpy), gtem.origin.xyz))
+            gtem.origin.xyz, gtem.origin.rpy = Tg_new[:3, 3].tolist(), Rot2rpy(Tg_new[:3, :3]).tolist()
+        T_joint = SE3(Rot_rpy(rpy_bak), xyz_bak)
+        Tinv_joint_next = SE3_inv(T_joint)
+    urdf_content_new.add_link(urdf_parser_py.urdf.Link(name="stem"))
+    urdf_content_new.add_joint(urdf_parser_py.urdf.Joint(
+        name="stem_joint_base_link", joint_type="fixed", parent="stem", child=joint.child,
+        origin=urdf_parser_py.urdf.Pose(Tinv_joint_next[:3, 3].tolist(), Rot2rpy(Tinv_joint_next[:3, :3]).tolist())))
+    joint.child = "stem"
 
     f = open(urdf_path_new, "w")
     f.write(URDF.to_xml_string(urdf_content_new))

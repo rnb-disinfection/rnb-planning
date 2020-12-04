@@ -32,10 +32,11 @@ def get_binder_links_in_order(links, robot_names):
 class MoveitPlanner(PlannerInterface):
     NAME = "MoveIt"
 
-    def __init__(self, joint_names, link_names, urdf_path, urdf_content, robot_names, ghnd, binder_links=None):
+    def __init__(self, joint_names, link_names, urdf_path, urdf_content, robot_names, ghnd, manipulator_names=None, binder_links=None):
         self.ghnd = ghnd
         self.joint_names, self.link_names, self.urdf_path, self.urdf_content, self.robot_names\
             = joint_names, link_names, urdf_path, urdf_content, robot_names
+        self.manipulator_names =  manipulator_names or robot_names
         if binder_links:
             self.binder_links = get_binder_links_in_order(binder_links, self.robot_names)
             self.srdf_path = write_srdf(robot_names=self.robot_names, binder_links=self.binder_links,
@@ -58,7 +59,7 @@ class MoveitPlanner(PlannerInterface):
         self.obj_list = []
         for gtem in self.ghnd:
             if gtem.collision:
-                if all([not gname in gtem.name for gname in self.robot_names]):
+                if all([not gname in gtem.name for gname in self.manipulator_names]):
                     self.obj_list.append(ObjectMPC(
                         gtem.name, gtype_to_otype(gtem.gtype), gtem.link_name,
                         pose=tuple(gtem.center)+tuple(Rotation.from_dcm(gtem.orientation_mat).as_quat()),
@@ -80,8 +81,12 @@ class MoveitPlanner(PlannerInterface):
         obj = self.object_dict[obj_name]
         handle = obj.action_points_dict[ap_name]
 
-        group_name_handle = group_name_handle or [gname for gname in self.planner.group_names if gname in handle.object.link_name]
-        group_name_binder = group_name_binder or [gname for gname in self.planner.group_names if gname in binder.object.link_name]
+        if len(self.planner.group_names)==1:
+            group_name_handle = self.planner.group_names if handle.object.link_name in self.urdf_content.parent_map else []
+            group_name_binder = self.planner.group_names if binder.object.link_name in self.urdf_content.parent_map else []
+        else:
+            group_name_handle = group_name_handle or [gname for gname in self.planner.group_names if gname in handle.object.link_name]
+            group_name_binder = group_name_binder or [gname for gname in self.planner.group_names if gname in binder.object.link_name]
 
         point_add, rpy_add = calc_redundancy(redundancy, binder)
 
@@ -138,3 +143,42 @@ class MoveitPlanner(PlannerInterface):
 
     def update_target_joint(self, idx_cur, traj, joint_cur):
         raise(RuntimeError("online operation not implemented with moveit"))
+
+
+from itertools import permutations
+from ...robots_custom import save_converted_chain
+
+def transfer_ctem(ghnd, ghnd_new):
+    link_chain = ghnd_new.urdf_content.get_chain(ghnd_new.urdf_content.get_root(), "stem", joints=False, links=True)
+    for gtem in ghnd:
+        if gtem.collision:
+            gtem_new = ghnd_new.create_safe(gtype=gtem.gtype, name=gtem.name, link_name=gtem.link_name,
+                                 dims=gtem.dims, center=gtem.center, rpy=gtem.rpy, color=gtem.color, display=gtem.display,
+                                 collision=gtem.collision, fixed=gtem.fixed, soft=gtem.soft, online=gtem.online, K_col=gtem.K_col)
+            if gtem_new.link_name in link_chain:
+#                 print("transfered: {}".format(gtem_new.name))
+                joint_child = ghnd_new.urdf_content.joint_map[ghnd_new.urdf_content.child_map[gtem_new.link_name][0][0]]
+                T_jp = SE3(Rot_rpy(joint_child.origin.rpy), joint_child.origin.xyz)
+                Toff_new = np.matmul(T_jp, gtem_new.Toff)
+                gtem_new.set_offset_tf(Toff_new[:3,3], Toff_new[:3,:3])
+#             else:
+#                 print("as-is: {}".format(gtem_new.name))
+#         else:
+#             print("no-collision: {}".format(gtem.name))
+
+def get_dual_planner_dict(GRIPPER_REFS, ghnd, urdf_content, urdf_path, link_names, robot_names):
+    glist = GRIPPER_REFS.keys()
+    dual_chain_list = list(permutations(glist,2))
+    dual_mplan_dict = {}
+    for grip_root_name, grip_end_name in dual_chain_list:
+        grip_root = GRIPPER_REFS[grip_root_name]
+        grip_end = GRIPPER_REFS[grip_end_name]
+        grip_root_link = urdf_content.link_map[grip_root['link_name']]
+        grip_end_link = urdf_content.link_map[grip_end['link_name']]
+        rname_new = "{}_{}".format(grip_root_name, grip_end_name)
+        urdf_content_new, urdf_path_new, srdf_path_new, new_joints = save_converted_chain(urdf_content, urdf_path, rname_new, grip_root_link.name, grip_end_link.name)
+        ghnd_new = GeometryHandle(urdf_content_new)
+        transfer_ctem(ghnd, ghnd_new)
+        dual_mplan_dict[(grip_root_name, grip_end_name)] = MoveitPlanner(ghnd=ghnd_new, joint_names=new_joints, link_names=link_names, urdf_path=urdf_path_new, urdf_content=urdf_content_new,
+                                                                         robot_names=[rname_new], manipulator_names=robot_names)
+    return dual_mplan_dict

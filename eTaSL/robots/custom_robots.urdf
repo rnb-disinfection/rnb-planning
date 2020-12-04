@@ -35,7 +35,7 @@
   </material>
   <link name="base_link"/>
   <joint name="indy0_joint_base_link" type="fixed">
-    <origin rpy="0.0 0.0 4.50243087359" xyz="1.90436312731 1.82265572042 0.570589558192"/>
+    <origin rpy="0.0 0.0 3.28684256351" xyz="1.14054548973 1.46580839478 0.582147288053"/>
     <parent link="base_link"/>
     <child link="indy0_link0"/>
   </joint>
@@ -320,7 +320,7 @@
     </actuator>
   </transmission>
   <joint name="panda1_joint_base_link" type="fixed">
-    <origin rpy="0.0 0.0 4.34286812062" xyz="1.43408856909 0.833387160458 0.818965615746"/>
+    <origin rpy="0.0 0.0 0.75277710184" xyz="2.23049371307 0.936092023629 0.921214813765"/>
     <parent link="base_link"/>
     <child link="panda1_link0"/>
   </joint>

@@ -37,7 +37,7 @@
   <joint name="indy0_joint_base_link" type="fixed">
     <origin rpy="0.0 -0.0 0.0" xyz="-0.0 -0.0 -0.077500000596"/>
     <parent link="indy0_link0"/>
-    <child link="base_link"/>
+    <child link="stem"/>
   </joint>
   <link name="indy0_link0">
     <inertial>
@@ -320,7 +320,7 @@
     </actuator>
   </transmission>
   <joint name="panda1_joint_base_link" type="fixed">
-    <origin rpy="0.0 0.0 2.67668032996" xyz="1.13134251381 0.991934190815 0.949680852372"/>
+    <origin rpy="0.0 0.0 0.75277710184" xyz="2.23049371307 0.936092023629 0.921214813765"/>
     <parent link="base_link"/>
     <child link="panda1_link0"/>
   </joint>
@@ -570,5 +570,11 @@
     <parent link="panda1_hand"/>
     <child link="panda1_rightfinger"/>
     <mimic joint="panda1_finger_joint1"/>
+  </joint>
+  <link name="stem"/>
+  <joint name="stem_joint_base_link" type="fixed">
+    <origin rpy="0.0 -0.0 2.99634273926" xyz="1.34069597721 1.28529083729 -0.582147300243"/>
+    <parent link="stem"/>
+    <child link="base_link"/>
   </joint>
 </robot>

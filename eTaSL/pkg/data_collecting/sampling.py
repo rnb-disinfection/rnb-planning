@@ -355,8 +355,7 @@ def sample_place(GRIPPER_REFS, obj_list, L_CELL, ghnd):
         color=(1,0,0,1), display=True, collision=True, fixed=False)
     return rname, inhand, ontarget, None, dims_bak, color_bak
 
-def sample_handover(GRIPPER_REFS, obj_list, L_CELL, ghnd):
-    src, tar = random.sample(GRIPPER_REFS.items(),2)
+def sample_handover(src, tar, L_CELL, ghnd):
     gtype, dims, color = random.choice(OBJ_GEN_LIST)(L_CELL)
     handed = ghnd.create_safe(gtype=gtype, name="handed_in_src", link_name=src[1]['link_name'],
                                     center=(0,0,0), rpy=(0,0,0), dims=dims, color=(0,1,1,1),
@@ -436,7 +435,7 @@ def test_pick(graph, GRIPPER_REFS, rname, inhand, obj, tar, Q_s, mplan, **kwargs
     graph.set_object_state(state_s)
     state_g = state_s.copy(graph)
     state_g.node = (("virtual", "point", bname),)
-    graph.set_planner(mplan)
+    mplan.update(graph)
     return mplan.plan_transition(state_s, state_g, state_g.node, **kwargs)
 
 def test_place(graph, GRIPPER_REFS, rname, inhand, ontarget, tar, Q_s, mplan, **kwargs):
@@ -450,26 +449,37 @@ def test_place(graph, GRIPPER_REFS, rname, inhand, ontarget, tar, Q_s, mplan, **
     graph.set_object_state(state_s)
     state_g = state_s.copy(graph)
     state_g.node = (("virtual", "point", bname),)
-    graph.set_planner(mplan)
+    mplan.update(graph)
     return mplan.plan_transition(state_s, state_g, state_g.node, **kwargs)
 
-def test_handover(graph, GRIPPER_REFS, src, handed, intar, tar, Q_s, eplan,
+from ..planner.moveit.moveit_planner import transfer_ctem
+from ..utils.utils import list2dict, dict2list
+
+def test_handover(graph, GRIPPER_REFS, src, handed, intar, tar, Q_s, mplan,
                   N=250, dt=0.04, vel_conv=0.5e-2, err_conv=1e-3, **kwargs):
-    eplan.update(graph)
+    Q_s_new = np.array(list(reversed(-Q_s[graph.combined_robot.idx_dict[src]])) + list(Q_s[graph.combined_robot.idx_dict[tar]]))
+    graph.ghnd.update()
     T_lso, T_lto = handed.Toff, intar.Toff
     sbname = GRIPPER_REFS[src]["bname"]
     tbname = GRIPPER_REFS[tar]["bname"]
     T_lt = graph.binder_dict[tbname].Toff_lh
     T_lstl = np.matmul(T_lso, SE3_inv(T_lto))
     T_lst = np.matmul(T_lstl, T_lt)
-    state_s = State((("virtual", "point", sbname),), {"virtual":T_lst}, Q_s, graph)
+    state_s = State((("virtual", "point", sbname),), {"virtual":T_lst}, Q_s_new, graph)
     graph.set_object_state(state_s)
     state_g = state_s.copy(graph)
     state_g.node = (("virtual", "point", tbname),)
-    graph.set_planner(eplan)
-    return eplan.plan_transition(state_s, state_g, state_g.node,
-                                 N=N, dt=dt, vel_conv=vel_conv, err_conv=err_conv,
-                                 **kwargs)
+    graph.ghnd.update()
+    transfer_ctem(graph.ghnd, mplan.ghnd)
+    mplan.update(graph)
+    transfer_ctem(graph.ghnd, mplan.ghnd)
+    trajectory, Q_last, error, success = mplan.plan_transition(state_s, state_g, state_g.node,
+                          N=N, dt=dt, vel_conv=vel_conv, err_conv=err_conv,
+                          **kwargs)
+    if success:
+        trajectory = np.array([dict2list(list2dict(traj, mplan.joint_names), graph.joint_names) for traj in trajectory])
+        trajectory[:, graph.combined_robot.idx_dict[src]] *= -1
+    return trajectory, Q_last, error, success
 
 def load_manipulation_from_dict(dict_log, ghnd):
     rname1, obj1, obj2, rname2, dims_bak, color_bak, success, trajectory = [
