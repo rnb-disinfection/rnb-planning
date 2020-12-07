@@ -52,7 +52,8 @@ WDH_MIN_RBT = (0.75,0.75,0.5)
 WDH_MAX_RBT = (2.25,2.25,1.0)
 L_CELL = 0.2
 MIN_DIST_ROBOT = 1
-No = 50
+NoMin = 30
+NoMax = 60
 RATIO_COVER = 2.0
 RATIO_DIMS = 2.0
 LINK_COLL_MARGIN = 0.01
@@ -61,9 +62,10 @@ N_retry = 1
 GLOBAL_FILENAME = "global.json"
 WORLD_FILENAME = "world.json"
 SCENE_FILENAME = "scene.json"
-SAMPLE_NUM_WORLD = 5
-SAMPLE_NUM_SCENE = 5
-SAMPLE_NUM_ACTION = 5
+SAMPLE_NUM_WORLD = 2
+SAMPLE_NUM_SCENE = 2
+SAMPLE_NUM_ACTION = 2
+S_F_RATIO = 5
 ######################## Global parameter section ##################################
 ####################################################################################
 __local_params = locals()
@@ -161,7 +163,7 @@ for _ in range(SAMPLE_NUM_WORLD):
 
         obj_dat = []
         for geo_gen in OBJ_GEN_LIST:
-            obj_boxes = random.sample(free_boxes,No)
+            obj_boxes = random.sample(free_boxes,int(random.uniform(NoMin, NoMax)))
         #     draw_cells(graph, "obj_cell", obj_boxes, L_CELL, color=(0.2, 0.2, 0.7, 0.1))
         #     remove_geometries_by_prefix(graph, "obj_cell")
             for nbox in obj_boxes:
@@ -225,7 +227,7 @@ for _ in range(SAMPLE_NUM_WORLD):
         ############################## Sample action #######################################
         ####################################################################################
         for _ in range(SAMPLE_NUM_ACTION):
-            dcol = DataCollector(graph, GRIPPER_REFS)
+            dcol = DataCollector(graph, GRIPPER_REFS, S_F_RATIO=S_F_RATIO)
             if VISUALIZE: graph.set_rviz()
 
             # planners
@@ -251,3 +253,4 @@ for _ in range(SAMPLE_NUM_WORLD):
             dcol.search_loop_mp(Q_s, obj_list, mplan, search_fun=dcol.place_search, L_CELL=L_CELL, N_agents=None, timeout=1, N_search=N_search, N_retry=N_retry)
             save_json(os.path.join(SCENE_PATH, get_now()+".json"),  {idx: {k:v for k,v in item.items() if k !="trajectory"} for idx, item in dcol.snode_dict.items()})
             if VISUALIZE: dcol.play_all(graph, GRIPPER_REFS, "PLACE", test_place, Q_s, remove_map=[[],[0,1]])
+print("======================== ALL FINISHED ====================================")

@@ -214,7 +214,7 @@ def sample_joint(graph, Q_s_loaded=None):
     Qmax, Qmin = joint_lims[:,0],joint_lims[:,1]
     colliding_pairs=None
     for _ in range(100):
-        Q_s = Q_s_loaded or np.random.uniform(Qmin, Qmax, size=Qmax.shape)
+        Q_s = np.random.uniform(Qmin, Qmax, size=Qmax.shape) if Q_s_loaded is None else Q_s_loaded
         links, link_verts, link_ctems, link_rads = get_links(graph, Q_s)
         colliding_pairs = colliding_pairs or make_colliding_pairs(links)
         valid_config = True
@@ -482,8 +482,9 @@ def test_handover(graph, GRIPPER_REFS, src, handed, intar, tar, Q_s, mplan,
     return trajectory, Q_last, error, success
 
 def load_manipulation_from_dict(dict_log, ghnd):
-    rname1, obj1, obj2, rname2, dims_bak, color_bak, success, trajectory = [
-        dict_log[prm] for prm in ["rname1", "obj1", "obj2", "rname2", "dims_bak", "color_bak", "success", "trajectory"]]
+    rname1, obj1, obj2, rname2, dims_bak, color_bak, success = [
+        dict_log[prm] for prm in ["rname1", "obj1", "obj2", "rname2", "dims_bak", "color_bak", "success"]]
+    trajectory = dict_log['trajectory'] if 'trajectory' in dict_log else []
     return rname1, dict_to_gtem(obj1, ghnd), dict_to_gtem(obj2, ghnd), rname2, dims_bak, color_bak, success, trajectory
 
 
@@ -626,10 +627,9 @@ class DataCollector:
         for k in range(self.snode_counter.value):
             rname, inhand, obj, tar, dims_bak, color_bak, succ, trajectory = load_manipulation_from_dict(
                 self.snode_dict[k], graph.ghnd)
-            if succ:
-                show_manip_coords(graph, GRIPPER_REFS, key, rname, inhand, obj, rname2=tar)
-                graph.show_motion(trajectory, period=period)
-            print("DONE: {}".format(k))
+            show_manip_coords(graph, GRIPPER_REFS, key, rname, inhand, obj, rname2=tar)
+            graph.show_motion(trajectory, period=period)
             remove1 = [[inhand, obj][iii] for iii in remove_map[0]]
             remove2 = [[inhand, obj][iii] for iii in remove_map[1]]
             reset_rendering(graph, key, remove1, remove2, dims_bak, color_bak, sleep=True, vis=True)
+            print("DONE: {}".format(k))

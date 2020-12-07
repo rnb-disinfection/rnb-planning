@@ -38,7 +38,7 @@ class ConstraintGraph:
         self.combined_robot = combined_robot
         self.planner = None
         self.sampler = None
-        self.highlight_dict = {}
+        self.highlight_dict = defaultdict(dict)
 
     def __del__(self):
         try:

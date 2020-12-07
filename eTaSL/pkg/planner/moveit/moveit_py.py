@@ -92,12 +92,12 @@ class MoveitCompactPlanner_BP(mpc.Planner):
         self.__clear_all_objects()
 
     def plan_py(self, robot_name, tool_link, goal_pose, goal_link, Q_init, plannerconfig="RRTConnectkConfigDefault", timeout=0.1):
-        plan = self.plan(robot_name, tool_link, CartPose(*goal_pose), goal_link,
+        plan = self.plan(robot_name, str(tool_link), CartPose(*goal_pose), str(goal_link),
                          JointState(self.joint_num, *Q_init), plannerconfig, timeout)
         return np.array(
             [spread(Q, self.joint_num) for Q in spread(plan.trajectory, len(plan.trajectory))]), plan.success
 
     def process_object_py(self, obj, action):
         return self.process_object(
-            obj.name, obj.type.value, CartPose(*obj.pose), Vec3(*obj.dims), obj.link_name,
+            str(obj.name), obj.type.value, CartPose(*obj.pose), Vec3(*obj.dims), str(obj.link_name),
             NameList(*obj.touch_links), obj.attach, action)

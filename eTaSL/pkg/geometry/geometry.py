@@ -76,7 +76,10 @@ class GeometryItem(object):
     def __init__(self, ghnd, gtype, name, link_name, dims, center, rpy=(0,0,0), color=(0,1,0,1), display=True,
                  collision=True, fixed=False, soft=False, online=False, K_col=None, uri="", scale=(1,1,1), create=True,):
         self.uri, self.scale = uri, scale
-        self.gtype = gtype
+        if gtype in GEOTYPE:
+            self.gtype = gtype
+        else:
+            self.gtype = GEOTYPE[gtype]
         self.set_offset_tf(center=center, orientation_mat=Rot_rpy(rpy))
         self.set_dims(dims)
         self.color = color
