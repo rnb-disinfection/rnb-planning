@@ -14,9 +14,13 @@ from .table.task_planner_table import *
 from .table.motion_planner_table import *
 from .table.plan_list_table import *
 
-class UIBroker:
+class UIBroker(Singleton):
 
-    def __init__(self, graph):
+    def __init__(self):
+        self.__server_on = False
+        pass
+
+    def initialize(self, graph):
         self.graph = graph
         self.tab_list = [
             TabInfo("Instances", [TableInfo("Geometry", '550px', interface=GeometryTable(graph)),
@@ -38,8 +42,10 @@ class UIBroker:
                 table.custom_buttons = table.interface.CUSTOM_BUTTONS
 
     def start_server(self):
-        dash_launcher.set_tabs(self.tab_list)
-        dash_launcher.run_server(on_background=True, debug=False)
+        if not self.__server_on:
+            dash_launcher.set_tabs(self.tab_list)
+            dash_launcher.run_server(on_background=True, debug=False)
+            self.__server_on = True
 
     def set_tables(self):
 

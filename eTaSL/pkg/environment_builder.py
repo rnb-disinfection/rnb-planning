@@ -11,11 +11,8 @@ __rospy_initialized = False
 
 def set_custom_robots(ROBOTS_ON_SCENE, xyz_rpy_robots, custom_limits, node_name='task_planner', start_rviz=True):
     urdf_content = None
-    if XacroCustomizer._Singleton__instance:
-        xcustom = XacroCustomizer.instance()
-        XacroCustomizer.__init__(xcustom, ROBOTS_ON_SCENE, xyz_rpy_robots)
-    else:
-        xcustom = XacroCustomizer.instance(ROBOTS_ON_SCENE, xyz_rpy_robots)
+    xcustom = XacroCustomizer.instance()
+    XacroCustomizer.initialize(xcustom, ROBOTS_ON_SCENE, xyz_rpy_robots)
 
     JOINT_NAMES, LINK_NAMES, urdf_content = \
         xcustom.convert_xacro_to_urdf(

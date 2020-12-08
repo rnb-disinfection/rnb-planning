@@ -1,7 +1,7 @@
 import numpy as np
 import time
 from ..geometry.geometry import GEOTYPE
-
+from ..utils.utils import Logger
 OBJ_GEN_LIST = [lambda L_MAX: (GEOTYPE.BOX, tuple(np.random.random((3,))*L_MAX), (0.0, 0.0, 0.9, 0.2)),
                 lambda L_MAX: (GEOTYPE.CYLINDER, tuple((np.random.random((2,))*L_MAX)[[0,0,1]]), (0.0, 0.9, 0.0, 0.3))]
 
@@ -481,6 +481,67 @@ def test_handover(graph, GRIPPER_REFS, src, handed, intar, tar, Q_s, mplan,
         trajectory[:, graph.combined_robot.idx_dict[src]] *= -1
     return trajectory, Q_last, error, success
 
+def test_full_mp(dcol, GRIPPER_REFS, Q_s, dual_mplan_dict, mplan, ID=None, UPDATE_DAT=True, VISUALIZE=False, timeout=1):
+    graph = dcol.graph
+    elog = Logger()
+    acquired = False
+    for skey in sorted(dcol.snode_dict.keys()):
+        try:
+            dcol.dict_lock.acquire()
+            acquired = True
+            snode = dcol.snode_dict[skey]
+            dcol.dict_lock.release()
+            acquired = False
+            rname, inhand, obj, tar, dims_bak, color_bak, succ, _ = load_manipulation_from_dict(snode,
+                                                                                                graph.ghnd)
+            success_now = False
+            if rname and tar:  # handover case
+                trajectory, Q_last, error, success_now = test_handover(graph, GRIPPER_REFS, rname, inhand,
+                                                                       obj, tar, Q_s,
+                                                                       dual_mplan_dict[(rname, tar)], timeout=timeout)
+                remove_map = [[], [0, 1]]
+                action_type = "HANDOVER"
+            elif inhand.collision:  # place case
+                trajectory, Q_last, error, success_now = test_place(graph, GRIPPER_REFS, rname, inhand, obj,
+                                                                    tar, Q_s, mplan, timeout=timeout)
+                remove_map = [[], [0, 1]]
+                action_type = "PLACE"
+            elif obj.collision:  # pick case
+                trajectory, Q_last, error, success_now = test_pick(graph, GRIPPER_REFS, rname, inhand, obj,
+                                                                   tar, Q_s, mplan, timeout=timeout)
+                remove_map = [[1], [0]]
+                action_type = "PICK"
+            else:
+                raise (RuntimeError("non-implemented case"))
+
+            check_result = succ == success_now
+            print("DATA CHECK {}: ({}->{})".format("SUCCESS" if check_result else "FAILURE", succ, success_now))
+            if UPDATE_DAT:
+                dcol.dict_lock.acquire()
+                acquired = True
+                snode = dcol.snode_dict[skey]
+                if "succ_count" not in snode:
+                    snode["succ_count"] = 0
+                snode["succ_count"] += success_now
+                dcol.snode_dict[skey] = snode
+                dcol.dict_lock.release()
+                acquired = False
+
+            if VISUALIZE and success_now:
+                show_manip_coords(graph, GRIPPER_REFS, action_type, rname, inhand, obj, rname2=tar)
+                graph.show_motion(trajectory, period=0.1)
+
+            remove1 = [[inhand, obj][iii] for iii in remove_map[0]]
+            remove2 = [[inhand, obj][iii] for iii in remove_map[1]]
+            reset_rendering(graph, action_type, remove1, remove2, dims_bak, color_bak, sleep=True,
+                            vis=VISUALIZE)
+        except Exception as e:
+            if acquired:
+                dcol.dict_lock.release()
+            if not elog.log(str(e)):
+                break
+    print("============================ TERMINATE {} ===================================".format(ID))
+
 def load_manipulation_from_dict(dict_log, ghnd):
     rname1, obj1, obj2, rname2, dims_bak, color_bak, success = [
         dict_log[prm] for prm in ["rname1", "obj1", "obj2", "rname2", "dims_bak", "color_bak", "success"]]
@@ -515,90 +576,120 @@ class DataCollector:
         graph, GRIPPER_REFS = self.graph, self.GRIPPER_REFS
         fail_count = 0
         succ_count = 0
+        elog = Logger()
+        acquired = False
         for i in range(N_search):
-            rname, inhand, obj, _, dims_bak, color_bak = sample_pick(GRIPPER_REFS, obj_list, L_CELL, self.ghnd)
-            for _ in range(N_retry):
-                trajectory, Q_last, error, success = test_pick(graph, GRIPPER_REFS, rname, inhand, obj, None, Q_s,
-                                                               mplan, timeout=timeout)
-                if success: break
-            print("{}: {} - {}".format(ID, "SUCCESS" if success else "FAILURE", i))
-            if success or fail_count < succ_count * self.S_F_RATIO:
-                self.dict_lock.acquire()
-                idx = self.snode_counter.value
-                self.snode_dict[idx] = {
-                    "rname1": rname, "obj1": gtem_to_dict(inhand),
-                    "obj2": gtem_to_dict(obj), "rname2": None, "dims_bak": dims_bak, "color_bak": color_bak,
-                    "success": success, "trajectory": trajectory}
-                self.snode_counter.value = self.snode_counter.value + 1
-                self.dict_lock.release()
-                if success:
-                    succ_count += 1
-                else:
-                    fail_count += 1
-                print(
-                    "=========== {} {} {} =========== - {}".format(rname, ID, "SUCCESS" if success else "FAILURE", idx))
-            reset_rendering(graph, "PICK", [obj], [inhand], dims_bak, color_bak, vis=False)
+            try:
+                rname, inhand, obj, _, dims_bak, color_bak = sample_pick(GRIPPER_REFS, obj_list, L_CELL, self.ghnd)
+                for _ in range(N_retry):
+                    trajectory, Q_last, error, success = test_pick(graph, GRIPPER_REFS, rname, inhand, obj, None, Q_s,
+                                                                   mplan, timeout=timeout)
+                    if success: break
+                print("{}: {} - {}".format(ID, "SUCCESS" if success else "FAILURE", i))
+                if success or fail_count < succ_count * self.S_F_RATIO:
+                    self.dict_lock.acquire()
+                    acquired = True
+                    idx = self.snode_counter.value
+                    self.snode_dict[idx] = {
+                        "rname1": rname, "obj1": gtem_to_dict(inhand),
+                        "obj2": gtem_to_dict(obj), "rname2": None, "dims_bak": dims_bak, "color_bak": color_bak,
+                        "success": success, "trajectory": trajectory}
+                    self.snode_counter.value = self.snode_counter.value + 1
+                    self.dict_lock.release()
+                    acquired = False
+                    if success:
+                        succ_count += 1
+                    else:
+                        fail_count += 1
+                    print(
+                        "=========== {} {} {} =========== - {}".format(rname, ID, "SUCCESS" if success else "FAILURE", idx))
+                reset_rendering(graph, "PICK", [obj], [inhand], dims_bak, color_bak, vis=False)
+            except Exception as e:
+                if acquired:
+                    self.dict_lock.release()
+                if not elog.log(str(e)):
+                    break
         print("=============== TERMINATE {} ==============".format(ID))
 
     def place_search(self, ID, obj_list, Q_s, mplan, L_CELL, timeout=1, N_search=100, N_retry=1):
         graph, GRIPPER_REFS = self.graph, self.GRIPPER_REFS
         fail_count = 0
         succ_count = 0
+        elog = Logger()
+        acquired = False
         for i in range(N_search):
-            rname, inhand, ontarget, _, dims_bak, color_bak = sample_place(GRIPPER_REFS, obj_list, L_CELL, self.ghnd)
-            for _ in range(N_retry):
-                trajectory, Q_last, error, success = test_place(graph, GRIPPER_REFS, rname, inhand, ontarget, None, Q_s,
-                                                                mplan, timeout=timeout)
-                if success: break
-            print("{}: {} - {}".format(ID, "SUCCESS" if success else "FAILURE", i))
-            if success or fail_count < succ_count * self.S_F_RATIO:
-                self.dict_lock.acquire()
-                idx = self.snode_counter.value
-                self.snode_dict[idx] = {
-                    "rname1": rname, "obj1": gtem_to_dict(inhand),
-                    "obj2": gtem_to_dict(ontarget), "rname2": None, "dims_bak": dims_bak, "color_bak": color_bak,
-                    "success": success, "trajectory": trajectory}
-                self.snode_counter.value = self.snode_counter.value + 1
-                self.dict_lock.release()
-                if success:
-                    succ_count += 1
-                else:
-                    fail_count += 1
-                print(
-                    "=========== {} {} {} =========== - {}".format(rname, ID, "SUCCESS" if success else "FAILURE", idx))
-            reset_rendering(graph, "PLACE", [], [ontarget, inhand], dims_bak, color_bak, vis=False)
+            try:
+                rname, inhand, ontarget, _, dims_bak, color_bak = sample_place(GRIPPER_REFS, obj_list, L_CELL, self.ghnd)
+                for _ in range(N_retry):
+                    trajectory, Q_last, error, success = test_place(graph, GRIPPER_REFS, rname, inhand, ontarget, None, Q_s,
+                                                                    mplan, timeout=timeout)
+                    if success: break
+                print("{}: {} - {}".format(ID, "SUCCESS" if success else "FAILURE", i))
+                if success or fail_count < succ_count * self.S_F_RATIO:
+                    self.dict_lock.acquire()
+                    acquired = True
+                    idx = self.snode_counter.value
+                    self.snode_dict[idx] = {
+                        "rname1": rname, "obj1": gtem_to_dict(inhand),
+                        "obj2": gtem_to_dict(ontarget), "rname2": None, "dims_bak": dims_bak, "color_bak": color_bak,
+                        "success": success, "trajectory": trajectory}
+                    self.snode_counter.value = self.snode_counter.value + 1
+                    self.dict_lock.release()
+                    acquired = False
+                    if success:
+                        succ_count += 1
+                    else:
+                        fail_count += 1
+                    print(
+                        "=========== {} {} {} =========== - {}".format(rname, ID, "SUCCESS" if success else "FAILURE", idx))
+                reset_rendering(graph, "PLACE", [], [ontarget, inhand], dims_bak, color_bak, vis=False)
+            except Exception as e:
+                if acquired:
+                    self.dict_lock.release()
+                if not elog.log(str(e)):
+                    break
         print("=============== TERMINATE {} ==============".format(ID))
 
     def handover_search(self, ID, obj_list, Q_s, mplan_dict, L_CELL, timeout=1, N_search=100, N_retry=1):
         graph, GRIPPER_REFS = self.graph, self.GRIPPER_REFS
         fail_count = 0
         succ_count = 0
+        elog = Logger()
+        acquired = False
         for i in range(N_search):
-            src, tar = random.sample(GRIPPER_REFS.items(), 2)
-            mplan = mplan_dict[(src[0], tar[0])]
-            src, handed, intar, tar, dims_bak, color_bak = sample_handover(src, tar, L_CELL, mplan.ghnd)
-            for _ in range(N_retry):
-                trajectory, Q_last, error, success = test_handover(graph, GRIPPER_REFS, src, handed, intar, tar, Q_s,
-                                                                   mplan, timeout=timeout)
-                if success: break
-            print("{}: {} - {}".format(ID, "SUCCESS" if success else "FAILURE", i))
-            if success or fail_count < succ_count * self.S_F_RATIO:
-                self.dict_lock.acquire()
-                idx = self.snode_counter.value
-                self.snode_dict[idx] = {
-                    "rname1": src, "obj1": gtem_to_dict(handed),
-                    "obj2": gtem_to_dict(intar), "rname2": tar, "dims_bak": dims_bak, "color_bak": color_bak,
-                    "success": success, "trajectory": trajectory}
-                self.snode_counter.value = self.snode_counter.value + 1
-                self.dict_lock.release()
-                if success:
-                    succ_count += 1
-                else:
-                    fail_count += 1
-                print(
-                    "=========== {}-{} {} {} =========== - {}".format(src, tar, ID, "SUCCESS" if success else "FAILURE",
-                                                                      idx))
-            reset_rendering(graph, "HANDOVER", [], [handed, intar], dims_bak, color_bak, vis=False)
+            try:
+                src, tar = random.sample(GRIPPER_REFS.items(), 2)
+                mplan = mplan_dict[(src[0], tar[0])]
+                src, handed, intar, tar, dims_bak, color_bak = sample_handover(src, tar, L_CELL, mplan.ghnd)
+                for _ in range(N_retry):
+                    trajectory, Q_last, error, success = test_handover(graph, GRIPPER_REFS, src, handed, intar, tar, Q_s,
+                                                                       mplan, timeout=timeout)
+                    if success: break
+                print("{}: {} - {}".format(ID, "SUCCESS" if success else "FAILURE", i))
+                if success or fail_count < succ_count * self.S_F_RATIO:
+                    self.dict_lock.acquire()
+                    acquired = True
+                    idx = self.snode_counter.value
+                    self.snode_dict[idx] = {
+                        "rname1": src, "obj1": gtem_to_dict(handed),
+                        "obj2": gtem_to_dict(intar), "rname2": tar, "dims_bak": dims_bak, "color_bak": color_bak,
+                        "success": success, "trajectory": trajectory}
+                    self.snode_counter.value = self.snode_counter.value + 1
+                    self.dict_lock.release()
+                    acquired = False
+                    if success:
+                        succ_count += 1
+                    else:
+                        fail_count += 1
+                    print(
+                        "=========== {}-{} {} {} =========== - {}".format(src, tar, ID, "SUCCESS" if success else "FAILURE",
+                                                                          idx))
+                reset_rendering(graph, "HANDOVER", [], [handed, intar], dims_bak, color_bak, vis=False)
+            except Exception as e:
+                if acquired:
+                    self.dict_lock.release()
+                if not elog.log(str(e)):
+                    break
         print("=============== TERMINATE {} ==============".format(ID))
 
     def search_loop_mp(self, Q_s, obj_list, mplan, search_fun, L_CELL, N_agents=None, timeout=1, N_search=100,
@@ -622,6 +713,23 @@ class DataCollector:
         print("================== FINISHED ( {} / {} ) =======================".format(self.snode_counter.value,
                                                                                        N_agents * N_search))
         print(self.snode_counter.value)
+
+    def check_loop_mp(self, test_fun, GRIPPER_REFS, Q_s, dual_mplan_dict, mplan, N_retry=None, timeout=1.0):
+        if N_retry is None:
+            N_retry = cpu_count()
+        self.N_retry = N_retry
+        print("Use {}/{} agents to retry {} times".format(N_retry, cpu_count(), N_retry))
+        self.proc_list = [Process(
+            target=test_fun, args=(self,),
+            kwargs={"ID": id_agent, "GRIPPER_REFS": GRIPPER_REFS,
+                    "Q_s": Q_s, "dual_mplan_dict": dual_mplan_dict, "mplan": mplan, "timeout": timeout})
+            for id_agent in range(N_retry)]
+        for proc in self.proc_list:
+            proc.start()
+
+        for proc in self.proc_list:
+            proc.join()
+        print("================== FINISHED =======================")
 
     def play_all(self, graph, GRIPPER_REFS, key, test_fun, Q_s, period=0.05, remove_map=[[1], [0]]):
         for k in range(self.snode_counter.value):

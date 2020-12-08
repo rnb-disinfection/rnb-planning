@@ -320,7 +320,7 @@
     </actuator>
   </transmission>
   <joint name="panda1_joint_base_link" type="fixed">
-    <origin rpy="0.0 0.0 3.14368247595" xyz="2.21749448523 2.07076125055 0.870863802837"/>
+    <origin rpy="0.0 0.0 3.83301494299" xyz="2.17124796286 0.872187764433 0.935632393364"/>
     <parent link="base_link"/>
     <child link="panda1_link0"/>
   </joint>
@@ -573,7 +573,7 @@
   </joint>
   <link name="stem"/>
   <joint name="stem_joint_base_link" type="fixed">
-    <origin rpy="0.0 -0.0 -0.528719678579" xyz="-1.92989742756 -1.4221791029 -0.957612931728"/>
+    <origin rpy="0.0 -0.0 -1.17753509843" xyz="-2.00119304657 0.475003302097 -0.621808350086"/>
     <parent link="stem"/>
     <child link="base_link"/>
   </joint>

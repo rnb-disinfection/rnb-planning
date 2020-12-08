@@ -4,6 +4,9 @@ from itertools import permutations, combinations, product
 def get_all_mapping(A, B):
     return [{a:b for a,b in zip(A,item)} for item in list(product(B,repeat=len(A)))]
 
+import datetime
+def get_now():
+    return str(datetime.datetime.now().strftime('%Y%m%d-%H%M%S'))
 
 
 import time
@@ -241,7 +244,7 @@ def load_pickle(filename):
 
 def save_json(filename, data):
     with open(filename, "w") as json_file:
-        json.dump(data, json_file, cls=NumpyEncoder)
+        json.dump(data, json_file, cls=NumpyEncoder,indent=2)
 
 def load_json(filename):
     with open(filename, "r") as st_json:
@@ -262,3 +265,19 @@ def list2dict(item_list, item_names):
 
 def dict2list(item_dict, item_names):
     return [item_dict[jname] for jname in item_names]
+
+class Logger:
+    ERROR_FOLDER = "logs"
+    def __init__(self, countout=3):
+        self.count=0
+        self.countout=countout
+        try: os.mkdir(self.ERROR_FOLDER)
+        except: pass
+
+    def log(self, error, prefix="", print_now=True):
+        if prefix != "":
+            prefix += "_"
+        if print_now: print(error)
+        self.count += 1
+        save_json(os.path.join(self.ERROR_FOLDER, prefix + get_now()), error)
+        return self.count < self.countout

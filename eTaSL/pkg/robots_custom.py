@@ -13,7 +13,10 @@ URDF_PATH = os.path.join(PROJ_DIR, "robots", "custom_robots.urdf")
 # LINK_NAMES = ['base_link', 'base_link', 'shoulder_link', 'upper_arm_link', 'forearm_link', 'wrist_1_link', 'wrist_2_link', 'wrist_3_link', 'tool0']
 
 class XacroCustomizer(Singleton):
-    def __init__(self, rtuples, xyz_rpy_dict, xacro_path = XACRO_PATH_DEFAULT):
+    def __init__(self):
+        pass
+
+    def initialize(self, rtuples, xyz_rpy_dict, xacro_path = XACRO_PATH_DEFAULT):
         self.xacro_path = xacro_path
         if not hasattr(self, 'subp'): self.subp = None
         self.clear()
