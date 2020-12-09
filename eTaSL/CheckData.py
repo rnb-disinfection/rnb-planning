@@ -36,6 +36,10 @@ def main(dataset_list=None, N_retry_test = None):
     gtimer = GlobalTimer.instance()
     elog = Logger()
     crob = CombinedRobot(connection_list=(False, False))
+    false_fail_accum = 0
+    false_succ_accum = 0
+    succ_accum = 0
+    fail_accum = 0
 
     CHECK_DICT = {}
 
@@ -199,10 +203,19 @@ def main(dataset_list=None, N_retry_test = None):
                     CHECK_DICT[DATASET][WORLD][SCENE][ACTION]["fail_corrects"] = np.mean(
                         check_results[np.where(np.logical_not(succ_old_list))])
                     CHECK_DICT[DATASET][WORLD][SCENE][ACTION]["num"] = len(check_results)
+                    
+                    false_fail_accum += np.sum(np.logical_not(check_results[np.where(np.logical_not(succ_old_list))]))
+                    false_succ_accum += np.sum(np.logical_not(check_results[np.where(succ_old_list)]))
+                    succ_accum += np.sum(succ_old_list)
+                    fail_accum += np.sum(np.logical_not(succ_old_list))
+                    CHECK_DICT[DATASET][WORLD][SCENE][ACTION]["false_fail_accum"] = false_fail_accum
+                    CHECK_DICT[DATASET][WORLD][SCENE][ACTION]["false_succ_accum"] = false_succ_accum
+                    CHECK_DICT[DATASET][WORLD][SCENE][ACTION]["succ_accum"] = succ_accum
+                    CHECK_DICT[DATASET][WORLD][SCENE][ACTION]["fail_accum"] = fail_accum
 
                     if UPDATE_DAT:
-                        for skey in snode_keys:
-                            if not snode_dict_bak[skey]["success"] and dcol.snode_dict[skey]["success"]:
+                        for isk, skey in zip(range(len(snode_keys)), snode_keys):
+                            if not succ_old_list[isk] and succ_now_list[isk]:
                                 snode_dict_bak[skey]["success"] = dcol.snode_dict[skey]["success"]
                         save_json(os.path.join(SCENE_PATH, ACTION), snode_dict_bak)
 

@@ -109,6 +109,17 @@ def __get_adjacent_links(link_name, urdf_content, adjacent_links=None, propagate
             adjacent_links = __get_adjacent_links(clname, urdf_content, adjacent_links, propagate and cjoint.type == 'fixed')
     return list(set(adjacent_links))
 
+def get_joint_tf(joint, joint_dict):
+    if joint.type == 'revolute':
+        T_J = SE3(Rot_axis(np.where(joint.axis)[0] + 1, joint_dict[joint.name]), [0,0,0])
+    elif joint.type == 'fixed':
+        T_J = np.identity(4)
+    else:
+        raise NotImplementedError
+    Toff = SE3(Rot_rpy(joint.origin.rpy), joint.origin.xyz)
+    # T = np.matmul(Toff, np.matmul(T_J,T))
+    return np.matmul(Toff,T_J)
+
 def get_tf(to_link, joint_dict, urdf_content, from_link='base_link'):
     T = np.identity(4)
     link_cur = to_link
@@ -117,15 +128,8 @@ def get_tf(to_link, joint_dict, urdf_content, from_link='base_link'):
         if pjname is None:
             break
         parent_joint = urdf_content.joint_map[pjname]
-        if parent_joint.type == 'revolute':
-            T_J = SE3(Rot_axis(np.where(parent_joint.axis)[0] + 1, joint_dict[parent_joint.name]), [0,0,0])
-        elif parent_joint.type == 'fixed':
-            T_J = np.identity(4)
-        else:
-            raise NotImplementedError
-        Toff = SE3(Rot_rpy(parent_joint.origin.rpy), parent_joint.origin.xyz)
-        # T = np.matmul(Toff, np.matmul(T_J,T))
-        T = matmul_series(Toff,T_J,T)
+        Tj = get_joint_tf(parent_joint, joint_dict)
+        T = np.matmul(Tj,T)
         link_cur = parent_joint.parent
     return T
 
@@ -136,22 +140,26 @@ def get_tf_full(link_end, joint_dict, urdf_content, from_link='base_link'):
     link_cur = link_end
     while link_cur != from_link:
         parent_joint = urdf_content.joint_map[get_parent_joint(link_cur, urdf_content)]
-        if parent_joint.type == 'revolute':
-            T_J = SE3(Rot_axis(np.where(parent_joint.axis)[0] + 1, joint_dict[parent_joint.name]), [0,0,0])
-        elif parent_joint.type == 'fixed':
-            T_J = np.identity(4)
-        else:
-            raise NotImplementedError
-        Toff = SE3(Rot_rpy(parent_joint.origin.rpy), parent_joint.origin.xyz)
-        # T = np.matmul(Toff, np.matmul(T_J,T))
-#         T = matmul_series(Toff,T_J,T)
-        Toff_cur = np.matmul(Toff,T_J)
+        Toff_cur = get_joint_tf(parent_joint, joint_dict)
         for k in T_dict.keys():
             T_dict[k] = np.matmul(Toff_cur, T_dict[k])
         if link_cur not in T_dict:
             T_dict[link_cur] = Toff_cur
         link_cur = parent_joint.parent
     return T_dict
+
+def build_T_chain(link_names, joint_dict, urdf_content, Tlink_dict={}):
+    for lname in link_names:
+        if lname not in Tlink_dict:
+            if lname not in urdf_content.parent_map:
+                Tlink_dict[lname] = np.identity(4)
+                continue
+            pjname, plname = urdf_content.parent_map[lname]
+            if plname not in Tlink_dict:
+                build_T_chain(list(set(link_names)-set([lname])), joint_dict, urdf_content, Tlink_dict)
+            Tp = Tlink_dict[plname]
+            Tlink_dict[lname] = np.matmul(Tp, get_joint_tf(urdf_content.joint_map[pjname], joint_dict))
+    return Tlink_dict            
 
 def get_joint_names_csv(joint_names):
     jnames_format = ""

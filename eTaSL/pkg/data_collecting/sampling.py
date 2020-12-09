@@ -140,9 +140,10 @@ def get_distance_mat(ctems_subj, ctems_ref, rads_subj, rads_ref):
          for ctem_sub, rad_subj in zip(ctems_subj, rads_subj)]
     )
 
-def get_reachable_cells(Nwdh, L_CELL, reach_center_dict, MAX_REACH_DICT, robot_names=None):
-    if robot_names is None:
-        robot_names = sorted(reach_center_dict.keys())
+def get_cell(center, L_CELL, Nwdh):
+    return tuple(np.clip(np.round(np.divide(center, L_CELL) - 0.5).astype(np.int),[0,0,0], np.subtract(Nwdh, 1)))
+
+def get_centers(Nwdh, L_CELL):
     Nw, Nd, Nh = Nwdh
     centers = np.zeros(Nwdh+(3,))
     for iw in range(Nw):
@@ -151,6 +152,14 @@ def get_reachable_cells(Nwdh, L_CELL, reach_center_dict, MAX_REACH_DICT, robot_n
         centers[:,id,:,1] = (id+0.5)*L_CELL
     for ih in range(Nh):
         centers[:,:,ih,2] = (ih+0.5)*L_CELL
+    return centers
+    
+
+def get_reachable_cells(Nwdh, L_CELL, reach_center_dict, MAX_REACH_DICT, robot_names=None):
+    if robot_names is None:
+        robot_names = sorted(reach_center_dict.keys())
+    Nw, Nd, Nh = Nwdh
+    centers = get_centers(Nwdh, L_CELL)
     reachable_bool_dict = {k: np.linalg.norm(np.subtract(centers, rcenter), axis=-1) < MAX_REACH_DICT[k] for k, rcenter in reach_center_dict.items()}
     reachable_bool_list = [reachable_bool_dict[k] for k in robot_names]
     reachable_bool_all = np.any(reachable_bool_list, axis=0)
@@ -494,24 +503,33 @@ def test_full_mp(dcol, GRIPPER_REFS, Q_s, dual_mplan_dict, mplan, ID=None, UPDAT
             acquired = False
             rname, inhand, obj, tar, dims_bak, color_bak, succ, _ = load_manipulation_from_dict(snode,
                                                                                                 graph.ghnd)
+        except Exception as e:
+            if acquired:
+                dcol.dict_lock.release()
+            if not elog.log(str(e)):
+                break
+            continue
+        try:
             success_now = False
             if rname and tar:  # handover case
+                remove_map = [[], [0, 1]]
+                action_type = "HANDOVER"
                 trajectory, Q_last, error, success_now = test_handover(graph, GRIPPER_REFS, rname, inhand,
                                                                        obj, tar, Q_s,
                                                                        dual_mplan_dict[(rname, tar)], timeout=timeout)
-                remove_map = [[], [0, 1]]
-                action_type = "HANDOVER"
             elif inhand.collision:  # place case
-                trajectory, Q_last, error, success_now = test_place(graph, GRIPPER_REFS, rname, inhand, obj,
-                                                                    tar, Q_s, mplan, timeout=timeout)
                 remove_map = [[], [0, 1]]
                 action_type = "PLACE"
+                trajectory, Q_last, error, success_now = test_place(graph, GRIPPER_REFS, rname, inhand, obj,
+                                                                    tar, Q_s, mplan, timeout=timeout)
             elif obj.collision:  # pick case
-                trajectory, Q_last, error, success_now = test_pick(graph, GRIPPER_REFS, rname, inhand, obj,
-                                                                   tar, Q_s, mplan, timeout=timeout)
                 remove_map = [[1], [0]]
                 action_type = "PICK"
+                trajectory, Q_last, error, success_now = test_pick(graph, GRIPPER_REFS, rname, inhand, obj,
+                                                                   tar, Q_s, mplan, timeout=timeout)
             else:
+                remove_map = [[], [0,1]]
+                action_type = "None"
                 raise (RuntimeError("non-implemented case"))
 
             check_result = succ == success_now
@@ -530,16 +548,17 @@ def test_full_mp(dcol, GRIPPER_REFS, Q_s, dual_mplan_dict, mplan, ID=None, UPDAT
             if VISUALIZE and success_now:
                 show_manip_coords(graph, GRIPPER_REFS, action_type, rname, inhand, obj, rname2=tar)
                 graph.show_motion(trajectory, period=0.1)
-
-            remove1 = [[inhand, obj][iii] for iii in remove_map[0]]
-            remove2 = [[inhand, obj][iii] for iii in remove_map[1]]
-            reset_rendering(graph, action_type, remove1, remove2, dims_bak, color_bak, sleep=True,
-                            vis=VISUALIZE)
         except Exception as e:
             if acquired:
                 dcol.dict_lock.release()
             if not elog.log(str(e)):
                 break
+        finally:
+            remove1 = [[inhand, obj][iii] for iii in remove_map[0]]
+            remove2 = [[inhand, obj][iii] for iii in remove_map[1]]
+            reset_rendering(graph, action_type, remove1, remove2, dims_bak, color_bak, sleep=True,
+                            vis=VISUALIZE)
+            
     print("============================ TERMINATE {} ===================================".format(ID))
 
 def load_manipulation_from_dict(dict_log, ghnd):
@@ -741,3 +760,74 @@ class DataCollector:
             remove2 = [[inhand, obj][iii] for iii in remove_map[1]]
             reset_rendering(graph, key, remove1, remove2, dims_bak, color_bak, sleep=True, vis=True)
             print("DONE: {}".format(k))
+
+def get_merge_pairs(ghnd):
+    merge_pairs = []
+    for idx1, ctem1 in zip(range(len(ghnd)), ghnd):
+        for ctem2 in ghnd[idx1+1:]:
+            if ctem1!=ctem2 and ctem1.link_name == ctem2.link_name and ctem1.gtype==ctem2.gtype and ctem1.collision and ctem2.collision:
+                if any(np.subtract(ctem1.rpy, ctem2.rpy)>1e-5):
+                    continue # not considering now
+                offs = np.subtract(ctem2.center, ctem1.center)    
+                dims = np.divide(np.add(ctem1.dims, ctem2.dims),2)
+                dims_rot = np.matmul(ctem1.orientation_mat,dims)
+                if all(np.abs(offs)<dims_rot):
+                    merge_pairs.append((ctem1.name, ctem2.name))
+    return merge_pairs
+
+def merge_paired_ctems(graph, merge_pairs, VISUALIZE):
+    ghnd = graph.ghnd
+    for mpair in merge_pairs:
+        ctem1, ctem2 = ghnd.NAME_DICT[mpair[0]], ghnd.NAME_DICT[mpair[1]]
+        offs = np.subtract(ctem2.center, ctem1.center)    
+        dims = np.divide(np.add(ctem1.dims, ctem2.dims),2)
+        new_center = tuple(np.add(ctem1.center, offs/2))
+        new_dims = tuple(dims+np.abs(np.matmul(ctem1.orientation_mat.transpose(), offs)))
+        ctem_new = ghnd.create_safe(gtype=GEOTYPE.BOX, name=ctem1.name+"_"+ctem2.name.split("_")[-1],
+                                    link_name=ctem1.link_name, dims=new_dims, center=new_center, rpy=ctem1.rpy, 
+                                    color=ctem1.color, display=ctem1.display,
+                                    collision=ctem1.collision, fixed=ctem1.fixed, soft=ctem1.soft, 
+                                    online=ctem1.online, K_col=ctem1.K_col)
+        graph.remove_geometry(ctem1)
+        graph.remove_geometry(ctem2)
+        graph.add_marker(ctem_new, vis=VISUALIZE)
+        
+        
+import cvxpy
+
+
+def select_minial_combination(diff_mat):
+    selection = cvxpy.Variable(shape=diff_mat.shape, boolean=True)
+    line_constraints = [
+        cvxpy.sum(sel_line) == 1 for sel_line in selection
+    ]
+    col_constraints = [
+        cvxpy.sum(selection[:, icol]) <= 1 for icol in range(diff_mat.shape[1])
+    ]
+    total_diff = cvxpy.sum(cvxpy.multiply(diff_mat, selection))
+    problem = cvxpy.Problem(cvxpy.Minimize(total_diff),
+                            line_constraints + col_constraints)
+    problem.solve()
+    if problem.status == "optimal":
+        return np.round(selection.value).astype(np.bool)
+    else:
+        raise (RuntimeError("Non-optimal"))
+
+
+def rearrange_cell_array(cell_array, idxset, L_CELL, ctem_TFs_cur, centers):
+    cell_center = cell_array[idxset[0]]
+    cells_near = get_centers((3, 3, 3), 1) - 1.5 + cell_center
+    center_coord = centers[cell_center[0]][cell_center[1]][cell_center[2]]
+    centers_local = get_centers((3, 3, 3), L_CELL) - L_CELL * 1.5
+    centers_global = centers_local + center_coord
+    idx_near = []
+    for cell in cells_near.reshape((-1, 3)):
+        idx_near += np.where(np.all(cell_array == cell, axis=-1))[0].tolist()
+    idx_near = sorted(idx_near)
+    diff_mat = np.linalg.norm(ctem_TFs_cur[idx_near][:, :3, 3].reshape((-1, 1, 3)) - centers_global.reshape((1, -1, 3)),
+                              axis=-1)
+    minimal_combs = select_minial_combination(diff_mat)
+    cell_idxes = np.where(minimal_combs)[1]
+    cells_new = cells_near.reshape((-1, 3))[cell_idxes].astype(np.int)
+    cell_array[idx_near] = cells_new
+    return cell_array
