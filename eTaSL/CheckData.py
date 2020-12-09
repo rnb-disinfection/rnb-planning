@@ -45,7 +45,7 @@ def main(dataset_list=None, N_retry_test = None):
 
     # ## Load Global params
     if dataset_list is None:
-        DATASET_LIST = sorted(filter(lambda x: x!="backup", os.listdir(DATA_PATH)))
+        DATASET_LIST = sorted(filter(lambda x: x not in ["backup", "converted"], os.listdir(DATA_PATH)))
     else:
         DATASET_LIST = dataset_list
     for DATASET in DATASET_LIST:
@@ -216,7 +216,7 @@ def main(dataset_list=None, N_retry_test = None):
                     if UPDATE_DAT:
                         for isk, skey in zip(range(len(snode_keys)), snode_keys):
                             if not succ_old_list[isk] and succ_now_list[isk]:
-                                snode_dict_bak[skey]["success"] = dcol.snode_dict[skey]["success"]
+                                snode_dict_bak[skey]["success"] = bool(succ_now_list[isk])
                         save_json(os.path.join(SCENE_PATH, ACTION), snode_dict_bak)
 
                     if VISUALIZE: graph.set_rviz()

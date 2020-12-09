@@ -761,10 +761,14 @@ class DataCollector:
             reset_rendering(graph, key, remove1, remove2, dims_bak, color_bak, sleep=True, vis=True)
             print("DONE: {}".format(k))
 
-def get_merge_pairs(ghnd):
+def get_merge_pairs(ghnd, BASE_LINK):
     merge_pairs = []
     for idx1, ctem1 in zip(range(len(ghnd)), ghnd):
+        if ctem1.link_name == BASE_LINK:
+            continue
         for ctem2 in ghnd[idx1+1:]:
+            if ctem2.link_name == BASE_LINK:
+                continue
             if ctem1!=ctem2 and ctem1.link_name == ctem2.link_name and ctem1.gtype==ctem2.gtype and ctem1.collision and ctem2.collision:
                 if any(np.subtract(ctem1.rpy, ctem2.rpy)>1e-5):
                     continue # not considering now
@@ -814,7 +818,30 @@ def select_minial_combination(diff_mat):
         raise (RuntimeError("Non-optimal"))
 
 
-def rearrange_cell_array(cell_array, idxset, L_CELL, ctem_TFs_cur, centers):
+
+def rearrange_cell_array(cell_array, idxset, L_CELL, Nwdh, ctem_TFs_cur, centers):
+    cell_center = cell_array[idxset[0]]
+    near_range = np.clip(
+        ((cell_center[0]-1,cell_center[0]+1),(cell_center[1]-1,cell_center[1]+1),(cell_center[2]-1,cell_center[2]+1)),
+        [[0,0]]*3, np.transpose([Nwdh]*2)-1)
+    cells_near = get_centers(tuple(near_range[:,1]-near_range[:,0]+1), 1) - 0.5 + near_range[:, 0]
+    center_coord = centers[cell_center[0]][cell_center[1]][cell_center[2]]
+    centers_local = (cells_near-cell_center) * L_CELL
+    centers_global = centers_local + center_coord
+    idx_near = []
+    for cell in cells_near.reshape((-1, 3)):
+        idx_near += np.where(np.all(cell_array == cell, axis=-1))[0].tolist()
+    idx_near = sorted(idx_near)
+    diff_mat = np.linalg.norm(ctem_TFs_cur[idx_near][:, :3, 3].reshape((-1, 1, 3)) - centers_global.reshape((1, -1, 3)),
+                              axis=-1)
+    minimal_combs = select_minial_combination(diff_mat)
+    cell_idxes = np.where(minimal_combs)[1]
+    cells_new = cells_near.reshape((-1, 3))[cell_idxes].astype(np.int)
+    cell_array[idx_near] = cells_new
+    return cell_array
+
+
+def rearrange_cell_array_bak(cell_array, idxset, L_CELL, ctem_TFs_cur, centers):
     cell_center = cell_array[idxset[0]]
     cells_near = get_centers((3, 3, 3), 1) - 1.5 + cell_center
     center_coord = centers[cell_center[0]][cell_center[1]][cell_center[2]]
@@ -831,3 +858,16 @@ def rearrange_cell_array(cell_array, idxset, L_CELL, ctem_TFs_cur, centers):
     cells_new = cells_near.reshape((-1, 3))[cell_idxes].astype(np.int)
     cell_array[idx_near] = cells_new
     return cell_array
+
+def get_cell_data(obj, L_CELL, Nwdh, Tlink_dict, chain_dict, gtype=None, cell=None):
+    Tobj = np.matmul(Tlink_dict[obj.link_name], obj.Toff)
+    center = Tobj[:3,3]
+    cell = np.array(get_cell(center, L_CELL, Nwdh)) if cell is None else cell
+    gtype = gtype or obj.gtype
+    verts_dim = np.multiply(DEFAULT_VERT_DICT[gtype], obj.dims)
+    verts = (np.matmul(Tobj[:3,:3], verts_dim.transpose())+Tobj[:3,3:4]).transpose()
+    verts_loc = (verts - (cell*L_CELL+L_CELL/2))
+    verts_loc = verts_loc.flatten()
+    if gtype in [GEOTYPE.CAPSULE, GEOTYPE.CYLINDER]:
+        verts_loc = np.concatenate([verts_loc, obj.dims[0:1]], axis=-1)
+    return cell, verts_loc, chain_dict[obj.link_name]

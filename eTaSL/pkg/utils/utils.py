@@ -8,6 +8,9 @@ import datetime
 def get_now():
     return str(datetime.datetime.now().strftime('%Y%m%d-%H%M%S'))
 
+def try_mkdir(path):
+    try: os.mkdir(path)
+    except: pass
 
 import time
 import collections
