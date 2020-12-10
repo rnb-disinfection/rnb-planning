@@ -871,3 +871,69 @@ def get_cell_data(obj, L_CELL, Nwdh, Tlink_dict, chain_dict, gtype=None, cell=No
     if gtype in [GEOTYPE.CAPSULE, GEOTYPE.CYLINDER]:
         verts_loc = np.concatenate([verts_loc, obj.dims[0:1]], axis=-1)
     return cell, verts_loc, chain_dict[obj.link_name]
+
+from ..utils.utils import load_pickle
+
+def get_action_count(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION):
+    action_data_list = load_pickle(os.path.join(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION.replace("json", "pkl")))
+    return len(action_data_list)
+
+def load_scene_data(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION, idx_act, joint_num):
+
+    N_vtx_box = 3*8
+    N_mask_box = 1
+    N_joint_box = joint_num
+    N_label_box = N_vtx_box+N_mask_box+N_joint_box
+    N_vtx_cyl = 3*2+1
+    N_mask_cyl = 1
+    N_joint_cyl = joint_num
+    N_label_cyl = N_vtx_cyl+N_mask_cyl+N_joint_cyl
+    N_vtx_init = 3*8
+    N_mask_init = 1
+    N_joint_init = joint_num
+    N_label_init = N_vtx_init+N_mask_init+N_joint_init
+    N_vtx_goal = 3*8
+    N_mask_goal = 1
+    N_joint_goal = joint_num
+    N_label_goal = N_vtx_goal+N_mask_goal+N_joint_goal
+    N_joint_label = 6*joint_num
+    N_cell_label = N_label_box+N_label_cyl+N_label_init+N_label_goal + N_joint_label
+    N_BEGIN_CYL = N_vtx_box+N_mask_box+N_joint_box
+    N_BEGIN_INIT = N_BEGIN_CYL+N_vtx_cyl+N_mask_cyl+N_joint_cyl
+    N_BEGIN_GOAL = N_BEGIN_INIT+N_vtx_init+N_mask_init+N_joint_init
+
+    scene_pickle = load_pickle(os.path.join(CONVERTED_PATH, DATASET, WORLD, SCENE, "scene.pkl"))
+    scene_data = scene_pickle["scene_data"]
+    ctem_names = scene_pickle["ctem_names"]
+    ctem_cells = scene_pickle["ctem_cells"]
+
+    action_data_list = load_pickle(os.path.join(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION.replace("json", "pkl")))
+    act_dat = action_data_list[idx_act]
+    init_box_dat = act_dat["init_box_dat"]
+    goal_box_dat = act_dat["goal_box_dat"]
+    ctem_dat_list = act_dat["ctem_dat_list"]
+    skey = int(act_dat["skey"])
+    success = act_dat["success"]
+    ### put init, goal item data
+    cell, verts, chain = init_box_dat
+    scene_data[cell[0],cell[1],cell[2],N_BEGIN_INIT:N_BEGIN_INIT+N_vtx_init] = verts
+    scene_data[cell[0],cell[1],cell[2],N_BEGIN_INIT+N_vtx_init:N_BEGIN_INIT+N_vtx_init+N_mask_init] = 1
+    scene_data[cell[0],cell[1],cell[2],N_BEGIN_INIT+N_vtx_init+N_mask_init:N_BEGIN_INIT+N_vtx_init+N_mask_init+N_joint_init] = chain
+
+    cell, verts, chain = goal_box_dat
+    scene_data[cell[0],cell[1],cell[2],N_BEGIN_GOAL:N_BEGIN_GOAL+N_vtx_goal] = verts
+    scene_data[cell[0],cell[1],cell[2],N_BEGIN_GOAL+N_vtx_goal:N_BEGIN_GOAL+N_vtx_goal+N_mask_goal] = 1
+    scene_data[cell[0],cell[1],cell[2],N_BEGIN_GOAL+N_vtx_goal+N_mask_goal:N_BEGIN_GOAL+N_vtx_goal+N_mask_goal+N_joint_goal] = chain
+
+    ### add/replace collilsion object
+    for cname, ctype, cell, verts, chain in ctem_dat_list:
+        if ctype == "BOX":
+            N_BEGIN_REP, N_vtx, N_mask, N_joint = 0, N_vtx_box, N_mask_box, N_joint_box
+        elif ctype == "CYLINDER":
+            N_BEGIN_REP, N_vtx, N_mask, N_joint = N_BEGIN_CYL, N_vtx_cyl, N_mask_cyl, N_joint_cyl
+        else:
+            raise(RuntimeError("Non considered shape key"))
+        scene_data[cell[0],cell[1],cell[2],N_BEGIN_REP:N_BEGIN_REP+N_vtx] = verts
+        scene_data[cell[0],cell[1],cell[2],N_BEGIN_REP+N_vtx:N_BEGIN_REP+N_vtx+N_mask] = 1
+        scene_data[cell[0],cell[1],cell[2],N_BEGIN_REP+N_vtx+N_mask:N_BEGIN_REP+N_vtx+N_mask+N_joint] = chain
+    return scene_data, success, skey

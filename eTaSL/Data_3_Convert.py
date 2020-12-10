@@ -424,7 +424,7 @@ for WORLD in WORLD_LIST:
                                     verts_res = verts.reshape((-1,3))
                                 center_loc = np.mean(verts_res, axis=0)
                                 if len(idx_free)==0:
-                                    raise(RuntimeError("No free nearby cell"))
+                                    raise (RuntimeError("No free cell near {}".format(cname)))
                                 idx_cell = idx_free[np.argmin(np.linalg.norm(centers_flt-center_loc, axis=-1))]
                                 cell_new = cells_near.reshape((-1,3))[idx_cell] + cell
                                 diff = np.subtract(cell, cell_new)*L_CELL
@@ -441,7 +441,7 @@ for WORLD in WORLD_LIST:
                         scene_data[cell[0],cell[1],cell[2],N_BEGIN_REP:N_BEGIN_REP+N_vtx] = verts
                         scene_data[cell[0],cell[1],cell[2],N_BEGIN_REP+N_vtx:N_BEGIN_REP+N_vtx+N_mask] = 1
                         scene_data[cell[0],cell[1],cell[2],N_BEGIN_REP+N_vtx+N_mask:N_BEGIN_REP+N_vtx+N_mask+N_joint] = chain
-                    action_data_list.append({"init_box_dat":init_box_dat, "goal_box_dat":goal_box_dat, "ctem_dat_list":ctem_dat_list, "success":succ})
+                    action_data_list.append({"init_box_dat":init_box_dat, "goal_box_dat":goal_box_dat, "ctem_dat_list":ctem_dat_list, "success":succ, "skey": skey})
                 except Exception as e:
                     if acquired:
                         dcol.dict_lock.release()
@@ -473,81 +473,5 @@ for WORLD in WORLD_LIST:
             save_pickle(os.path.join(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION.replace("json", "pkl")), action_data_list)
         print("============================ TERMINATE {} ===================================".format(ID))
 
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
+    xcustom.clear()
+    rospy.signal_shutdown("ALL FINISHED")

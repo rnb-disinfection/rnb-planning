@@ -15,7 +15,7 @@ from pkg.controller.combined_robot import *
 
 from pkg.controller.combined_robot import CombinedRobot, XYZ_RPY_ROBOTS_DEFAULT
 from pkg.data_collecting.sampling import *
-import CheckData
+import Data_2_Check
 
 ROBOT_DICT = {"indy0": RobotType.indy7, "panda1": RobotType.panda}
 
@@ -238,11 +238,13 @@ def main(root_dir=None, BASE_LINK="base_link", ROBOT_NAMES=["indy0", "panda1"], 
                 if VISUALIZE: dcol.play_all(graph, GRIPPER_REFS, "PLACE", test_place, Q_s, remove_map=[[],[0,1]])
 
     gtimer.tic("CheckData")
-    CheckData.main([DATASET])
+    Data_2_Check.main([DATASET])
     check_time = gtimer.toc("CheckData")
 
     print("check_time: {} s".format(int(check_time/1e3)))
     print("======================== ALL FINISHED ====================================")
+    xcustom.clear()
+    rospy.signal_shutdown("ALL FINISHED")
 
 if __name__ == "__main__":
     main(SAMPLE_NUM_WORLD=100)

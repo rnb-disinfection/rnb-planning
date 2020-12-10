@@ -225,6 +225,8 @@ def main(dataset_list=None, N_retry_test = None):
                     elog.log(CHECK_DICT[DATASET][WORLD][SCENE][ACTION], "{}-{}".format(SCENE, ACTION), print_now=False)
                     for k, v in CHECK_DICT[DATASET][WORLD][SCENE][ACTION].items():
                         print("{}: {}".format(k, str(v)))
+    xcustom.clear()
+    rospy.signal_shutdown("ALL FINISHED")
 
 if __name__ == "__main__":
     main()
