@@ -181,3 +181,10 @@ def calc_rotvec_vecs(vec1, vec2):
     cross_nm = cross_vec/cross_abs
     rotvec = cross_nm * np.arctan2(cross_abs, dot_val)
     return rotvec
+
+def calc_zvec_R(zvec):
+    v = np.arctan2(np.linalg.norm(zvec[:2]), zvec[2])
+    w = np.arctan2(zvec[1], zvec[0])
+    R = Rot_zyx(w,v,0)
+    return R
+

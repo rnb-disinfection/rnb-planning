@@ -937,3 +937,81 @@ def load_scene_data(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION, idx_act, join
         scene_data[cell[0],cell[1],cell[2],N_BEGIN_REP+N_vtx:N_BEGIN_REP+N_vtx+N_mask] = 1
         scene_data[cell[0],cell[1],cell[2],N_BEGIN_REP+N_vtx+N_mask:N_BEGIN_REP+N_vtx+N_mask+N_joint] = chain
     return scene_data, success, skey
+
+def get_box_diplay(ghnd, name, cell_dat, N_BEGIN, joint_num, center, color=(0.8,0.0,0.0,0.5), dim_offset=(0,0,0)):
+    N_vtx_box = 3*8
+    verts = cell_dat[N_BEGIN:N_BEGIN+N_vtx_box]
+    mask = bool(cell_dat[N_BEGIN+N_vtx_box])
+    chain = cell_dat[N_BEGIN+N_vtx_box+1:N_BEGIN+N_vtx_box+1+joint_num]
+    if mask:
+        verts_res = verts.reshape((-1,3))
+        center_loc = np.mean(verts_res, axis=0)
+        dim_x = float(np.linalg.norm(verts_res[4,:]-verts_res[0,:]))
+        dim_y = float(np.linalg.norm(verts_res[2,:]-verts_res[0,:]))
+        dim_z = float(np.linalg.norm(verts_res[1,:]-verts_res[0,:]))
+        dims = (dim_x, dim_y, dim_z)
+        verts_ref = BOX_DEFAULT*dims
+        verts_ctd = verts_res-center_loc
+        R = np.matmul(np.linalg.pinv(verts_ref), verts_ctd).transpose()
+        rpy = tuple(Rot2rpy(R))
+        center = tuple(np.add(center, center_loc))
+        box = ghnd.create_safe(name=name, gtype=GEOTYPE.BOX, link_name="base_link",
+                               dims=tuple(np.add(dims, dim_offset)), center=center, rpy=rpy,
+                               collision=False, display=True, color=color)
+    else:
+        box = None
+    return box, mask, chain
+
+from ..utils.rotation_utils import calc_zvec_R
+
+def get_cyl_diplay(ghnd, name, cell_dat, N_BEGIN, joint_num, center, color=(0.8,0.0,0.0,0.5), dim_offset=(0,0,0)):
+    N_vtx_cyl = 3*2+1
+    verts = cell_dat[N_BEGIN:N_BEGIN+N_vtx_cyl]
+    mask = bool(cell_dat[N_BEGIN+N_vtx_cyl])
+    chain = cell_dat[N_BEGIN+N_vtx_cyl+1:N_BEGIN+N_vtx_cyl+1+joint_num]
+    if mask:
+        verts_res = verts[:-1].reshape((-1,3))
+        center_loc = np.mean(verts_res, axis=0)
+        dim_z = float(np.linalg.norm(verts_res[1,:]-verts_res[0,:]))
+        dims = (verts[-1], verts[-1], dim_z)
+        verts_ref = SEG_DEFAULT*dims
+        verts_ctd = verts_res-center_loc
+        vec=(verts_ctd[1] -verts_ctd[0])/dims[2]
+        rpy = Rot2rpy(calc_zvec_R(vec))
+        center = tuple(np.add(center, center_loc))
+        cyl = ghnd.create_safe(name=name, gtype=GEOTYPE.CYLINDER, link_name="base_link",
+                               dims=tuple(np.add(dims, dim_offset)), center=center, rpy=rpy,
+                               collision=False, display=True, color=color)
+    else:
+        cyl = None
+    return cyl, mask, chain
+
+def get_twist_tems(ghnd, cell_dat, center, chain, idx_chain, joint_num, L_CELL):
+    N_joint_label = 6 * joint_num
+    i_j = np.where(chain)[0][idx_chain]
+    xi = cell_dat[-N_joint_label:].reshape((-1,6))
+    wv = xi[i_j]
+    __w = wv[:3]
+    __v = wv[3:]
+    w_abs = np.linalg.norm(__w)
+    v_abs = np.linalg.norm(__v)
+    q_abs = v_abs/w_abs
+    w_nm = __w/w_abs
+    v_nm = __v/v_abs
+    q_nm = np.cross(v_nm, w_nm)
+    __q = q_nm*q_abs
+    joint_point = center - __q
+    rpy = Rot2rpy(np.matmul(calc_zvec_R(q_nm), Rot_axis(2,np.pi/2)))
+    dims = (0.01,3,3)
+    ptem = ghnd.create_safe(name="joint_plane_{}".format(i_j), gtype=GEOTYPE.BOX, link_name="base_link", center = joint_point, rpy=rpy, dims=dims, collision=False, display=True, color=(0.5,0.5,0.5,0.5))
+    atem = ghnd.create_safe(name="joint_dir_{}".format(i_j), gtype=GEOTYPE.ARROW, link_name="base_link",
+                            center = center, rpy=rpy, dims=(q_abs,0.01,0.01,),
+                            collision=False, display=True, color=(1,0,0,1))
+    rpy_v = Rot2rpy(np.matmul(calc_zvec_R(v_nm), Rot_axis(2,np.pi/2)))
+    vtem = ghnd.create_safe(name="joint_vel_{}".format(i_j), gtype=GEOTYPE.ARROW, link_name="base_link",
+                            center = center, rpy=rpy_v, dims=(v_abs,0.01,0.01,),
+                            collision=False, display=True, color=(0,0,1,1))
+    btem = ghnd.create_safe(name="cell_{}".format(i_j), gtype=GEOTYPE.BOX, link_name="base_link",
+                            center = center, rpy=(0,0,0), dims=(L_CELL,L_CELL,L_CELL,),
+                            collision=False, display=True, color=(0.7,0.7,0.6,0.2))
+    return ptem, vtem, atem, btem
