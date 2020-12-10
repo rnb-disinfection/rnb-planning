@@ -90,7 +90,8 @@
   ```
 * misc.  
   ```
-  pip install matplotlib trimesh pathlib protobuf grpcio numpy-stl sklearn filterpy paramiko cvxpy  
+  pip install matplotlib trimesh pathlib protobuf grpcio numpy-stl sklearn filterpy paramiko cvxpy
+  pip3 install dill  
   ```
 
 # ROS Setup
