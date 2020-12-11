@@ -1,3 +1,29 @@
+# Recommended Tools  
+* jupyter 
+  ```
+  sudo apt install python3-notebook python-notebook jupyter jupyter-core python-ipykernel  
+  ```
+  * do server setting  
+* nvidia-smi-gui
+  * install  
+  ```
+  sudo apt-get install python3-pyqt4
+  mkdir ~/nvidia-smi-gui && cd ~/nvidia-smi-gui
+  git clone https://github.com/imkzh/nvidia-smi-gui.git .
+  ```
+  * launch  
+  ```
+  python3 ~/nvidia-smi-gui/nvidia-smi-gui.py
+  ```
+* Teamviewer (autostart, password)  
+* GitKraken  
+* PyCharm, Clion  
+  * add "export PATH=$PATH:{}/bin" to .bashrc  
+* openssh-server  
+  ```
+  sudo apt-get install openssh-server -y && sudo service ssh start
+  ```
+
 # Panda simulator
 * Install
   ```

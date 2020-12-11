@@ -343,21 +343,6 @@ sudo killall -9 roscore && nohup roscore &
   ```
   roslaunch franka_interface interface.launch
   ```
- 
-# Recommended Tools  
-* jupyter 
-  ```
-  sudo apt install python3-notebook python-notebook jupyter jupyter-core python-ipykernel  
-  ```
-  * do server setting  
-* Teamviewer (autostart, password)  
-* GitKraken  
-* PyCharm, Clion  
-  * add "export PATH=$PATH:{}/bin" to .bashrc  
-* openssh-server  
-  ```
-  sudo apt-get install openssh-server -y && sudo service ssh start
-  ```
 
 # Check final .bashrc  
 ```
