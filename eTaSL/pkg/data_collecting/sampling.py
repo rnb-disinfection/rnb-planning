@@ -622,12 +622,13 @@ class DataCollector:
                         fail_count += 1
                     print(
                         "=========== {} {} {} =========== - {}".format(rname, ID, "SUCCESS" if success else "FAILURE", idx))
-                reset_rendering(graph, "PICK", [obj], [inhand], dims_bak, color_bak, vis=False)
             except Exception as e:
-                if acquired:
-                    self.dict_lock.release()
                 if not elog.log(str(e)):
                     break
+                if acquired:
+                    self.dict_lock.release()
+            finally:
+                reset_rendering(graph, "PICK", [obj], [inhand], dims_bak, color_bak, vis=False)
         print("=============== TERMINATE {} ==============".format(ID))
 
     def place_search(self, ID, obj_list, Q_s, mplan, L_CELL, timeout=1, N_search=100, N_retry=1):
@@ -661,12 +662,13 @@ class DataCollector:
                         fail_count += 1
                     print(
                         "=========== {} {} {} =========== - {}".format(rname, ID, "SUCCESS" if success else "FAILURE", idx))
-                reset_rendering(graph, "PLACE", [], [ontarget, inhand], dims_bak, color_bak, vis=False)
             except Exception as e:
-                if acquired:
-                    self.dict_lock.release()
                 if not elog.log(str(e)):
                     break
+                if acquired:
+                    self.dict_lock.release()
+            finally:
+                reset_rendering(graph, "PLACE", [], [ontarget, inhand], dims_bak, color_bak, vis=False)
         print("=============== TERMINATE {} ==============".format(ID))
 
     def handover_search(self, ID, obj_list, Q_s, mplan_dict, L_CELL, timeout=1, N_search=100, N_retry=1):
@@ -703,12 +705,13 @@ class DataCollector:
                     print(
                         "=========== {}-{} {} {} =========== - {}".format(src, tar, ID, "SUCCESS" if success else "FAILURE",
                                                                           idx))
-                reset_rendering(graph, "HANDOVER", [], [handed, intar], dims_bak, color_bak, vis=False)
             except Exception as e:
-                if acquired:
-                    self.dict_lock.release()
                 if not elog.log(str(e)):
                     break
+                if acquired:
+                    self.dict_lock.release()
+            finally:
+                reset_rendering(graph, "HANDOVER", [], [handed, intar], dims_bak, color_bak, vis=False)
         print("=============== TERMINATE {} ==============".format(ID))
 
     def search_loop_mp(self, Q_s, obj_list, mplan, search_fun, L_CELL, N_agents=None, timeout=1, N_search=100,
@@ -728,7 +731,7 @@ class DataCollector:
             proc.start()
 
         for proc in self.proc_list:
-            proc.join()
+            proc.join(timeout=300)
         print("================== FINISHED ( {} / {} ) =======================".format(self.snode_counter.value,
                                                                                        N_agents * N_search))
         print(self.snode_counter.value)
@@ -747,7 +750,7 @@ class DataCollector:
             proc.start()
 
         for proc in self.proc_list:
-            proc.join()
+            proc.join(timeout=300)
         print("================== FINISHED =======================")
 
     def play_all(self, graph, GRIPPER_REFS, key, test_fun, Q_s, period=0.05, remove_map=[[1], [0]]):

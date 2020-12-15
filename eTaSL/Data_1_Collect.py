@@ -247,4 +247,4 @@ def main(root_dir=None, BASE_LINK="base_link", ROBOT_NAMES=["indy0", "panda1"], 
     rospy.signal_shutdown("ALL FINISHED")
 
 if __name__ == "__main__":
-    main(SAMPLE_NUM_WORLD=100)
+    main(SAMPLE_NUM_WORLD=300)
