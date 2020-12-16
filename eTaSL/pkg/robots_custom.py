@@ -105,9 +105,9 @@ class XacroCustomizer(Singleton):
         self.subp = None
 
     def clear(self):
+        self.kill_existing_subprocess()
         self.rexpression_list = []
         self.rid_count = 0
-        self.kill_existing_subprocess()
 
 
 from stl import mesh

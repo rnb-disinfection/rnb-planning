@@ -8,11 +8,18 @@ from .utils.utils import *
 from .marker_config import *
 
 __rospy_initialized = False
+__roscore = None
 
 def set_custom_robots(ROBOTS_ON_SCENE, xyz_rpy_robots, custom_limits, node_name='task_planner', start_rviz=True):
+    global __rospy_initialized, __roscore
+    if not __rospy_initialized:
+        __roscore = subprocess.Popen(['roscore'])
+        rospy.init_node(node_name, anonymous=True)
+        __rospy_initialized = True
+
     urdf_content = None
     xcustom = XacroCustomizer.instance()
-    XacroCustomizer.initialize(xcustom, ROBOTS_ON_SCENE, xyz_rpy_robots)
+    xcustom.initialize(ROBOTS_ON_SCENE, xyz_rpy_robots)
 
     JOINT_NAMES, LINK_NAMES, urdf_content = \
         xcustom.convert_xacro_to_urdf(
@@ -23,10 +30,6 @@ def set_custom_robots(ROBOTS_ON_SCENE, xyz_rpy_robots, custom_limits, node_name=
     if start_rviz:
         xcustom.start_rviz()
 
-    global __rospy_initialized
-    if not __rospy_initialized:
-        rospy.init_node(node_name, anonymous=True)
-        __rospy_initialized = True
     return xcustom, JOINT_NAMES, LINK_NAMES, urdf_content
 
 def detect_robots(aruco_map, dictionary, robot_tuples, kn_config, rs_config, T_c12, ref_name='floor'):

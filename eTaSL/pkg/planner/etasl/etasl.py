@@ -166,7 +166,7 @@ class etasl_planner(PlannerInterface):
         self.jact_idx = -1
         self.cact_idx = -1
         if from_state.node != to_state.node:
-            joint_context = make_joint_constraints(self.joint_names, priority=2, K_joint=1, make_error=False, activation=True)
+            joint_context = make_joint_constraints(self.joint_names, priority=2, make_error=False, activation=True)
             kwargs["inp_lbl"] = list(kwargs["inp_lbl"]) + ["target_{joint_name}".format(joint_name=joint_name) for joint_name in self.joint_names]
             kwargs["inp_lbl"] += ['joint_activation', 'constraint_activation']
             kwargs["inp"] = list(kwargs["inp"]) + list(from_state.Q)

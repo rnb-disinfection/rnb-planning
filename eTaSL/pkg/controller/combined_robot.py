@@ -133,5 +133,5 @@ class CombinedRobot:
     def update_urdf(self):
         xcustom, self.joint_names, self.link_names, self.urdf_content = set_custom_robots(self.robots_on_scene,
                                                                                           self.xyz_rpy_robots,
-                                                                                          self.joint_names)
+                                                                                          self.custom_limits)
         return xcustom, self.joint_names, self.link_names, self.urdf_content

@@ -31,9 +31,9 @@ GLOBAL_FILENAME = "global.json"
 WORLD_FILENAME = "world.json"
 SCENE_FILENAME = "scene.json"
 DATA_PATH = "./data"
+gtimer = GlobalTimer.instance()
 
 def main(dataset_list=None, N_retry_test = None):
-    gtimer = GlobalTimer.instance()
     elog = Logger()
     crob = CombinedRobot(connection_list=(False, False))
     false_fail_accum = 0
@@ -229,4 +229,6 @@ def main(dataset_list=None, N_retry_test = None):
     rospy.signal_shutdown("ALL FINISHED")
 
 if __name__ == "__main__":
-    main()
+    import Data_3_Convert
+    main(['20201216-021416'])
+    Data_3_Convert.main(['20201216-021416'])

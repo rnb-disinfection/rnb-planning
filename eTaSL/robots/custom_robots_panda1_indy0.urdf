@@ -35,7 +35,7 @@
   </material>
   <link name="base_link"/>
   <joint name="indy0_joint_base_link" type="fixed">
-    <origin rpy="0.0 0.0 5.95316536284" xyz="1.84112781679 0.933416006597 0.64192495556"/>
+    <origin rpy="0.0 0.0 4.61505156013" xyz="2.22645352325 0.880392530093 0.845345268103"/>
     <parent link="base_link"/>
     <child link="indy0_link0"/>
   </joint>
@@ -582,7 +582,7 @@
   </joint>
   <link name="stem"/>
   <joint name="stem_joint_base_link" type="fixed">
-    <origin rpy="0.0 -0.0 -1.0299310913" xyz="-1.68474316597 0.03768658638 -0.960543334484"/>
+    <origin rpy="0.0 -0.0 1.773352385" xyz="1.2865408659 -0.630126595497 -0.685762405396"/>
     <parent link="stem"/>
     <child link="base_link"/>
   </joint>

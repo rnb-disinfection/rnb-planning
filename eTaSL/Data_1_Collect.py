@@ -16,8 +16,10 @@ from pkg.controller.combined_robot import *
 from pkg.controller.combined_robot import CombinedRobot, XYZ_RPY_ROBOTS_DEFAULT
 from pkg.data_collecting.sampling import *
 import Data_2_Check
+import Data_3_Convert
 
 ROBOT_DICT = {"indy0": RobotType.indy7, "panda1": RobotType.panda}
+gtimer = GlobalTimer.instance()
 
 def main(root_dir=None, BASE_LINK="base_link", ROBOT_NAMES=["indy0", "panda1"], MAX_REACH_DICT = {'indy0': 1.5, 'panda1': 1.5},
          REACH_OFFSET_DICT = {'indy0': (0, 0, 0.3), 'panda1': (0, 0, 0.3)},
@@ -32,7 +34,6 @@ def main(root_dir=None, BASE_LINK="base_link", ROBOT_NAMES=["indy0", "panda1"], 
          GLOBAL_FILENAME = "global.json", WORLD_FILENAME = "world.json", SCENE_FILENAME = "scene.json",
          SAMPLE_NUM_WORLD = 1, SAMPLE_NUM_SCENE = 1, SAMPLE_NUM_ACTION = 1, S_F_RATIO = 3, TIMEOUT = 1.0
          ):
-    gtimer = GlobalTimer.instance()
     gtimer.reset()
 
     Nrbt = len(ROBOT_NAMES) # 2
@@ -237,14 +238,22 @@ def main(root_dir=None, BASE_LINK="base_link", ROBOT_NAMES=["indy0", "panda1"], 
                 save_json(os.path.join(SCENE_PATH, get_now()+".json"),  {idx: {k:v for k,v in item.items() if k !="trajectory"} for idx, item in dcol.snode_dict.items()})
                 if VISUALIZE: dcol.play_all(graph, GRIPPER_REFS, "PLACE", test_place, Q_s, remove_map=[[],[0,1]])
 
-    gtimer.tic("CheckData")
-    Data_2_Check.main([DATASET])
-    check_time = gtimer.toc("CheckData")
 
-    print("check_time: {} s".format(int(check_time/1e3)))
     print("======================== ALL FINISHED ====================================")
     xcustom.clear()
     rospy.signal_shutdown("ALL FINISHED")
+    return DATASET
 
 if __name__ == "__main__":
-    main(SAMPLE_NUM_WORLD=300)
+    gtimer.tic("Collect")
+    DATASET = main(SAMPLE_NUM_WORLD=300)
+    collect_time = gtimer.toc("Collect")
+    gtimer.tic("Check")
+    Data_2_Check.main([DATASET])
+    check_time = gtimer.toc("Check")
+    gtimer.tic("Convert")
+    Data_3_Convert.main([DATASET])
+    convert_time = gtimer.toc("Convert")
+    print("colleted data for {} s".format(collect_time))
+    print("checked data for {} s".format(check_time))
+    print("converted data for {} s".format(convert_time))

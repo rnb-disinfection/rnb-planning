@@ -225,7 +225,7 @@ class ConstraintGraph:
                              self.cam.aruco_map.items() if v.ttype in [TargetType.MOVABLE, TargetType.ONLINE]}
         if ref_tuple is None:
             ref_tuple = self.cam.ref_tuple
-        xyz_rpy_mv_dict, put_point_dict, _ = calc_put_point(objectPose_dict_mv, self.cam.aruco_map, object_dict, ref_tuple)
+        xyz_rpy_mv_dict, put_point_dict, _ = calc_put_point(self.ghnd, objectPose_dict_mv, self.cam.aruco_map, object_dict, ref_tuple)
 
         for mname, mgen in object_generators.items():
             if mname in xyz_rpy_mv_dict and mname not in self.ghnd.NAME_DICT:
