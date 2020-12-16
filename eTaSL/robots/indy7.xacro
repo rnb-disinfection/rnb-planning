@@ -175,27 +175,27 @@
 			<material name="${indy_material}"/>
 		</visual>
 		<collision>
-			<origin xyz="0.005 0.044 0.1" rpy="0 0 0"/>
+			<origin xyz="0.006 0.045 0.1" rpy="0 0 0"/>
 			<geometry>
-				<cylinder length="0.08" radius="0.016"/>
+				<cylinder length="0.083" radius="0.015"/>
 			</geometry>
 		</collision>
 		<collision>
-			<origin xyz="-0.005  0.044  0.1" rpy="0 0 0"/>
+			<origin xyz="-0.006  0.045  0.1" rpy="0 0 0"/>
 			<geometry>
-				<cylinder length="0.08" radius="0.016"/>
+				<cylinder length="0.083" radius="0.015"/>
 			</geometry>
 		</collision>
 		<collision>
-			<origin xyz="0.005 -0.044  0.1" rpy="0 0 0"/>
+			<origin xyz="0.006 -0.045  0.1" rpy="0 0 0"/>
 			<geometry>
-				<cylinder length="0.08" radius="0.016"/>
+				<cylinder length="0.083" radius="0.015"/>
 			</geometry>
 		</collision>
 		<collision>
-			<origin xyz="-0.005 -0.044  0.1" rpy="0 0 0"/>
+			<origin xyz="-0.006 -0.045  0.1" rpy="0 0 0"/>
 			<geometry>
-				<cylinder length="0.08" radius="0.016"/>
+				<cylinder length="0.083" radius="0.015"/>
 			</geometry>
 		</collision>
 	</link>

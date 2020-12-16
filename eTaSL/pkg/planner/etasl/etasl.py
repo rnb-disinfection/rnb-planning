@@ -208,10 +208,12 @@ class etasl_planner(PlannerInterface):
                 self.inp[self.cact_idx] = int(not wp_action)
                 # print("{}: {}".format(wp_action, self.inp[[self.jact_idx, self.cact_idx]]))
             pos = self.e_sim.simulate_step(i_q, pos, dt=None, inp_cur=self.inp)
-            self.VEL_CUR = self.VEL_CUR + self.e_sim.VEL[i_q, 1::2] * self.e_sim.DT
-            self.POS_CUR = self.POS_CUR + self.VEL_CUR * self.e_sim.DT
-            pos = list2dict(augment_jvals_dot(self.POS_CUR, self.VEL_CUR),
-                                  self.pos_lbl)
+            # self.VEL_CUR = self.VEL_CUR + self.e_sim.VEL[i_q, 1::2] * self.e_sim.DT
+            # self.POS_CUR = self.POS_CUR + self.VEL_CUR * self.e_sim.DT
+            self.VEL_CUR = self.e_sim.POS[i_q, 1::2]
+            self.POS_CUR = self.e_sim.POS[i_q, 0::2]
+            # pos = list2dict(augment_jvals_dot(self.POS_CUR, self.VEL_CUR),
+            #                       self.pos_lbl)
         except EventException as e:
             err_msg = str(e)
             if len(err_msg)>100:

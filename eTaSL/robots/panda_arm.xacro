@@ -120,7 +120,13 @@
       <collision>
         <origin xyz="0.      0.0315 -0.115" rpy="2.87423726 -0.          0. "/>
         <geometry>
-          <cylinder length="0.238" radius="0.08"/>
+          <cylinder length="0.20" radius="0.08"/>
+        </geometry>
+      </collision>
+      <collision>
+        <origin xyz="0.      0.0315 0" rpy="0 1.57079633 1.57079633"/>
+        <geometry>
+          <cylinder length="0.12" radius="0.06"/>
         </geometry>
       </collision>
     </link>

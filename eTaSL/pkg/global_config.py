@@ -22,12 +22,12 @@ class RobotSpecs:
     SPEC_DICT = {
         RobotType.indy7: RobotTemplate(base_name="link0", joint_names=["joint{}".format(idx) for idx in range(6)],
                                        joint_limits=[(-3.05432619099, 3.05432619099)]*5+[(-3.75245789179, 3.75245789179)],
-                                       vel_limits=np.deg2rad([150, 150, 150, 180, 180, 180]),
+                                       vel_limits=np.deg2rad([150, 150, 150, 180, 180, 180])/2,
                                        acc_limits=np.deg2rad([360]*6)),
         RobotType.panda: RobotTemplate(base_name="link0", joint_names=["joint{}".format(idx) for idx in range(1,8)],
                                        joint_limits=[(-2.75, 2.75), (-1.70, 1.70), (-2.75, 2.75),
                                                      (-2.9, -0.1), (-2.75, 2.75), (0.1, 3.6), (-2.75, 2.75)],
-                                       vel_limits=np.deg2rad([150, 150, 150, 150, 180, 180, 180]),
+                                       vel_limits=np.deg2rad([150, 150, 150, 150, 180, 180, 180])/2,
                                        acc_limits=np.deg2rad([360]*7))
     }
     @classmethod
