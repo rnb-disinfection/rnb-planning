@@ -9,6 +9,7 @@ class ConstraintType(Enum):
     Frame = 1
     Vacuum = 2
     Grasp2 = 3
+    Fixture = 4
 
 OPPOSITE_DICT={
     "top": "bottom",
@@ -22,7 +23,7 @@ OPPOSITE_DICT={
 class ActionPoint:
     ctype=None
     def __init__(self, name, _object, point, rpy, name_full=None):
-        self.ghnd = GeometryHandle.instance()
+        self.ghnd = _object.ghnd
         self.name = name
         self.object = _object
         self.set_point_rpy(point, rpy)
@@ -39,9 +40,23 @@ class ActionPoint:
     def update_handle(self):
         self.Toff_lh = np.matmul(self.object.Toff, self.Toff_oh)
 
-    def get_tf_handle(self, joint_dict, from_link='world'):
+    def get_tf_handle(self, joint_dict, from_link='base_link'):
         return np.matmul(self.object.get_tf(joint_dict, from_link=from_link), self.Toff_oh)
 
     @abstractmethod
     def get_redundancy(self):
         pass
+
+def calc_redundancy(redundancy, target):
+    point_add = [0,0,0]
+    rpy_add = [0,0,0]
+    if redundancy:
+        for k, v in redundancy.items():
+            ax ="xyzuvw".index(k)
+            if ax<3:
+                point_add[ax] += redundancy[k]
+            else:
+                rpy_add[ax-3] += redundancy[k]
+        if target.point is None: # WARNING: CURRENTLY ASSUME UPPER PLANE
+            point_add[2] += target.object.dims[2]/2
+    return point_add, rpy_add

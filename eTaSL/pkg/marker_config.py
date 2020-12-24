@@ -54,7 +54,7 @@ def get_aruco_config():
             ]),
         'box3':MarkerSet('box3',
             ttype=TargetType.ONLINE, gtype=GEOTYPE.SPHERE, dims=(0.15,0.15,0.15), color=(0.8,0.8,0.0,0.3),
-            soft=True, #K_col=100,
+            soft=False, #K_col=100,
             _list=[
                 ObjectMarker('box3', 131, 0.04, [0,0,0.025], (np.pi,0,0)),
                 ObjectMarker('box3', 132, 0.04, [0,0.025,0], (np.pi/2,0,0)),

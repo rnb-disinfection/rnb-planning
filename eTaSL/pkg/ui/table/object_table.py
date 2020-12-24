@@ -1,6 +1,6 @@
 from .table_interface import *
 from ...constraint.constraint_object import otype_to_class
-from ...utils.joint_utils import joint_list2dict
+from ...utils.utils import list2dict
 
 class ObjectTable(TableInterface):
     HEADS = [IDENTIFY_COL, 'OType', 'Binding', 'Binder']
@@ -37,18 +37,20 @@ class ObjectTable(TableInterface):
             res, msg = False, "Object Type is not changeable"
         elif active_col == "Binding":
             binding = (otem.object.name,value, otem.binding[1])
-            joint_dict = joint_list2dict(self.graph.joints.position, self.graph.joint_names)
+            joint_dict = list2dict(self.graph.joints.position, self.graph.joint_names)
             self.graph.rebind(binding, joint_dict)
         elif active_col == "Binder":
             binding = (otem.object.name, otem.binding[0],value)
-            joint_dict = joint_list2dict(self.graph.joints.position, self.graph.joint_names)
+            joint_dict = list2dict(self.graph.joints.position, self.graph.joint_names)
             self.graph.rebind(binding, joint_dict)
         return res, msg
 
     def button(self, button, *args, **kwargs):
+        print("button clicked")
         if button == TAB_BUTTON.CUSTOM:
             self.graph.update_handles()
             if self.graph.planner:
                 self.graph.planner.set_object_dict(self.graph.object_dict)
         else:
             TableInterface.button(self, button, *args, **kwargs)
+        print("button action done")

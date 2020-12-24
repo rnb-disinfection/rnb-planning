@@ -1,10 +1,8 @@
 <?xml version="1.0" ?>
 <robot name="custom_robots">
 	<group name="indy0">
-		<chain base_link="world" tip_link="indy0_tcp"/>
+		<chain base_link="indy0_link0" tip_link="indy0_tcp"/>
 	</group>
-	<virtual_joint child_link="indy0_link0" name="indy0_joint_world" parent_frame="world" type="fixed"/>
-	<virtual_joint child_link="indy0_tcp" name="indy0_tcp" parent_frame="indy0_link6" type="fixed"/>
 	<group_state group="indy0" name="all-zeros">
 		<joint name="indy0_joint0" value="0"/>
 		<joint name="indy0_joint1" value="0"/>
@@ -16,11 +14,6 @@
 	<group name="panda1">
 		<chain base_link="panda1_link0" tip_link="panda1_hand"/>
 	</group>
-	<virtual_joint child_link="panda1_link0" name="panda1_joint_world" parent_frame="world" type="fixed"/>
-	<virtual_joint child_link="panda1_link8" name="panda1_joint8" parent_frame="panda1_link7" type="fixed"/>
-	<virtual_joint child_link="panda1_hand" name="panda1_hand_joint" parent_frame="panda1_link8" type="fixed"/>
-	<virtual_joint child_link="panda1_leftfinger" name="panda1_finger_joint1" parent_frame="panda1_hand" type="fixed"/>
-	<virtual_joint child_link="panda1_rightfinger" name="panda1_finger_joint2" parent_frame="panda1_hand" type="fixed"/>
 	<group_state group="panda1" name="all-zeros">
 		<joint name="panda1_joint1" value="0"/>
 		<joint name="panda1_joint2" value="0"/>
@@ -30,6 +23,7 @@
 		<joint name="panda1_joint6" value="0"/>
 		<joint name="panda1_joint7" value="0"/>
 	</group_state>
+	<virtual_joint child_link="base_link" name="fixed_base" parent_frame="world" type="fixed"/>
 	<disable_collisions link1="indy0_link0" link2="indy0_link1" reason="Adjacent"/>
 	<disable_collisions link1="indy0_link0" link2="panda1_link0" reason="Adjacent"/>
 	<disable_collisions link1="indy0_link0" link2="panda1_link1" reason="Adjacent"/>
@@ -39,7 +33,6 @@
 	<disable_collisions link1="indy0_link3" link2="indy0_link4" reason="Adjacent"/>
 	<disable_collisions link1="indy0_link4" link2="indy0_link5" reason="Adjacent"/>
 	<disable_collisions link1="indy0_link5" link2="indy0_link6" reason="Adjacent"/>
-	<disable_collisions link1="indy0_link5" link2="indy0_tcp" reason="Adjacent"/>
 	<disable_collisions link1="indy0_link6" link2="indy0_tcp" reason="Adjacent"/>
 	<disable_collisions link1="panda1_link0" link2="panda1_link1" reason="Adjacent"/>
 	<disable_collisions link1="panda1_link1" link2="panda1_link2" reason="Adjacent"/>

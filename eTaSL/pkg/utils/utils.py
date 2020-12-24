@@ -4,7 +4,13 @@ from itertools import permutations, combinations, product
 def get_all_mapping(A, B):
     return [{a:b for a,b in zip(A,item)} for item in list(product(B,repeat=len(A)))]
 
+import datetime
+def get_now():
+    return str(datetime.datetime.now().strftime('%Y%m%d-%H%M%S'))
 
+def try_mkdir(path):
+    try: os.mkdir(path)
+    except: pass
 
 import time
 import collections
@@ -37,12 +43,14 @@ def get_mean_std(X, outlier_count=2):
     X_ex = [x[0] for x in sorted(zip(X,np.linalg.norm(X-np.mean(X, axis=0), axis=1)), key=lambda x: x[1])][:-outlier_count]
     return np.mean(X_ex, axis=0), np.std(X_ex, axis=0)
 
+
 class GlobalTimer(Singleton):
-    def __init__(self, scale=1000):
-        self.scale = scale
-        self.reset()
+    def __init__(self, scale=1000, timeunit='ms'):
+        self.reset(scale, timeunit)
         
-    def reset(self):
+    def reset(self, scale=1000, timeunit='ms'):
+        self.scale = scale
+        self.timeunit = timeunit
         self.name_list = []
         self.ts_dict = {}
         self.time_dict = collections.defaultdict(lambda: 0)
@@ -77,25 +85,24 @@ class GlobalTimer(Singleton):
         self.tic(name_tic)
         return dt
         
-    def print_time_log(self, names=None, timeunit="ms"):
+    def print_time_log(self, names=None):
         if names is None:
             names = self.name_list
         for name in names:
             print("{name}: \t{tot_T} {timeunit}/{tot_C} = {per_T} {timeunit} ({minT}/{maxT})\n".format(
                 name=name, tot_T=np.round(np.sum(self.time_dict[name])), tot_C=self.count_dict[name], 
                 per_T= np.round(np.sum(self.time_dict[name])/self.count_dict[name], 3),
-                timeunit=timeunit, minT=round(self.min_time_dict[name],3), maxT=round(self.max_time_dict[name],3)
+                timeunit=self.timeunit, minT=round(self.min_time_dict[name],3), maxT=round(self.max_time_dict[name],3)
             ))
             
     def __str__(self):
         strout = "" 
-        timeunit="ms"
         names = self.name_list
         for name in names:
             strout += "{name}: \t{tot_T} {timeunit}/{tot_C} = {per_T} {timeunit} ({minT}/{maxT})\n".format(
                 name=name, tot_T=np.round(np.sum(self.time_dict[name])), tot_C=self.count_dict[name], 
                 per_T= np.round(np.sum(self.time_dict[name])/self.count_dict[name], 3),
-                timeunit=timeunit, minT=round(self.min_time_dict[name],3), maxT=round(self.max_time_dict[name],3)
+                timeunit=self.timeunit, minT=round(self.min_time_dict[name],3), maxT=round(self.max_time_dict[name],3)
             )
         return strout
     
@@ -218,6 +225,26 @@ class SingleValue:
         self.type = _type
         self.value = _value
 
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise (RuntimeError('Boolean value expected.'))
+
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise(RuntimeError('Boolean value expected.'))
+        
 def round_it_str(iterable, dec=3):
     dec_str="%.{}f".format(dec)
     return ",".join(map(lambda x:dec_str%x, iterable))
@@ -240,9 +267,40 @@ def load_pickle(filename):
 
 def save_json(filename, data):
     with open(filename, "w") as json_file:
-        json.dump(data, json_file, cls=NumpyEncoder)
+        json.dump(data, json_file, cls=NumpyEncoder,indent=2)
 
 def load_json(filename):
     with open(filename, "r") as st_json:
         st_python = json.load(st_json)
     return st_python
+
+def read_file(filename):
+    buffer = ""
+    with open(filename, 'r') as f:
+        while True:
+            line = f.readline()
+            buffer += line
+            if not line: break
+    return buffer
+
+def list2dict(item_list, item_names):
+    return {jname: jval for jname, jval in zip(item_names, item_list)}
+
+def dict2list(item_dict, item_names):
+    return [item_dict[jname] for jname in item_names]
+
+class Logger:
+    ERROR_FOLDER = "logs"
+    def __init__(self, countout=3):
+        self.count=0
+        self.countout=countout
+        try: os.mkdir(self.ERROR_FOLDER)
+        except: pass
+
+    def log(self, error, prefix="", print_now=True):
+        if prefix != "":
+            prefix += "_"
+        if print_now: print(error)
+        self.count += 1
+        save_json(os.path.join(self.ERROR_FOLDER, prefix + get_now()), error)
+        return self.count < self.countout

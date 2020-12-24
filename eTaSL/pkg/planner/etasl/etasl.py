@@ -1,15 +1,16 @@
 from __future__ import print_function
 from etasl_py.etasl import etasl_simulator, EventException
 
-from ...utils.joint_utils import get_joint_names_csv, joint_list2dict, get_min_distance_map
-from ...utils.utils import integrate
+from ...utils.joint_utils import get_joint_names_csv
+from ...utils.utils import integrate, list2dict
 from .constraint_etasl import *
-from ..interface import PlannerInterface
+from ..interface import PlannerInterface, downample_traj
 from copy import deepcopy
 from collections import defaultdict
 
-K_DEFAULT = 10
+K_DEFAULT = 30
 TRAJ_RADII_MAX = np.deg2rad(10)
+DEFAULT_TRAJ_COUNT = 50
 
 def augment_jnames_dot(joint_names):
     return np.concatenate([[jname, jname + "_dot"] for jname in joint_names], axis=0).tolist()
@@ -22,17 +23,17 @@ def augment_jvals_dot(jvals, jdots=None):
 class etasl_planner(PlannerInterface):
     NAME = 'eTaSL'
 
-    def __init__(self, joint_names, link_names, urdf_path,
+    def __init__(self, joint_names, link_names, urdf_path, ghnd,
                           nWSR=300, cputime=200, regularization_factor= 1e-6, timescale=0.25):
         self.joint_names, self.link_names, self.urdf_path= joint_names, link_names, urdf_path
         self.nWSR, self.cputime, self.regularization_factor = nWSR, cputime, regularization_factor
         self.joint_num = len(self.joint_names)
         self.init_text = self.get_init_text(timescale=timescale)
-        self.ghnd = GeometryHandle.instance()
+        self.ghnd = ghnd
 
     def update_gtems(self):
         self.ghnd.update()
-        self.min_distance_map = get_min_distance_map()
+        self.min_distance_map = self.ghnd.min_distance_map
         self.item_text = get_item_text(self.ghnd)
         self.fixed_tf_text = get_tf_text(self.ghnd.fixed_gtems)
         self.online_input_text, self.kwargs_online, self.online_names = \
@@ -42,7 +43,12 @@ class etasl_planner(PlannerInterface):
 
     def plan_transition(self, from_state, to_state, binding_list,
                         vel_conv=1e-2, err_conv=1e-4, collision=True,
-                        N=1, dt=1e-2, print_expression=False, cut_dot=False, **kwargs):
+                        N=1, dt=1e-2, print_expression=False, cut_dot=False, traj_count=DEFAULT_TRAJ_COUNT,
+                        timeout=None, **kwargs):
+        if len(binding_list)>1:
+            print("===================== plan simultaneous manipulation =====================")
+        if len(binding_list)==0:
+            print("===================== plan joint manipulation =====================")
         full_context, kwargs = self.get_transition_context(
             from_state, to_state, binding_list, vel_conv, err_conv, collision=collision, **kwargs)
         if print_expression:
@@ -51,9 +57,11 @@ class etasl_planner(PlannerInterface):
                          N=N, dt=dt, cut_dot=cut_dot, **kwargs)
         error = e.error if hasattr(e, 'error') else None
         POS = e.POS if hasattr(e, 'POS') else []
-        POS_last = e.POS[-1] if hasattr(e, 'POS') else []
+        POS_last = e.POS[-1] if hasattr(e, 'POS') else [0]*self.joint_num
         success = error<err_conv if error is not None else False
-        return e.POS, e.POS[-1], error, success
+        if len(POS)>0 and traj_count:
+            POS = downample_traj(POS, traj_count)
+        return POS, POS_last, error, success
 
     def get_transition_context(self, from_state=None, to_state=None, binding_list=[],
                                vel_conv=1e-2, err_conv=1e-4, collision=True,
@@ -105,7 +113,7 @@ class etasl_planner(PlannerInterface):
     """
         Texpression_text = ""
         for lname in self.link_names:
-            transform_text += 'u:addTransform("{T_link_name}","{link_name}","world")\n'.format(T_link_name=get_link_transformation(lname), link_name=lname)
+            transform_text += 'u:addTransform("{T_link_name}","{link_name}","base_link")\n'.format(T_link_name=get_link_transformation(lname), link_name=lname)
             Texpression_text += '{T_link_name} = r.{T_link_name}\n'.format(T_link_name=get_link_transformation(lname))
 
 
@@ -158,7 +166,7 @@ class etasl_planner(PlannerInterface):
         self.jact_idx = -1
         self.cact_idx = -1
         if from_state.node != to_state.node:
-            joint_context = make_joint_constraints(self.joint_names, priority=2, K_joint=1, make_error=False, activation=True)
+            joint_context = make_joint_constraints(self.joint_names, priority=2, make_error=False, activation=True)
             kwargs["inp_lbl"] = list(kwargs["inp_lbl"]) + ["target_{joint_name}".format(joint_name=joint_name) for joint_name in self.joint_names]
             kwargs["inp_lbl"] += ['joint_activation', 'constraint_activation']
             kwargs["inp"] = list(kwargs["inp"]) + list(from_state.Q)
@@ -171,12 +179,6 @@ class etasl_planner(PlannerInterface):
         full_context += joint_context
         self.e_sim = self.get_simulation(full_context)
 
-
-        # print("============================================================================")
-        # print("============================================================================")
-        # print("============================================================================")
-        # print("============================================================================")
-        # print(full_context)
 
         self.inp_lbl = kwargs['inp_lbl'] if 'inp_lbl' in kwargs else []
         self.inp = np.array(kwargs['inp'] if 'inp' in kwargs else [])
@@ -206,12 +208,17 @@ class etasl_planner(PlannerInterface):
                 self.inp[self.cact_idx] = int(not wp_action)
                 # print("{}: {}".format(wp_action, self.inp[[self.jact_idx, self.cact_idx]]))
             pos = self.e_sim.simulate_step(i_q, pos, dt=None, inp_cur=self.inp)
-            self.VEL_CUR = self.VEL_CUR + self.e_sim.VEL[i_q, 1::2] * self.e_sim.DT
-            self.POS_CUR = self.POS_CUR + self.VEL_CUR * self.e_sim.DT
-            pos = joint_list2dict(augment_jvals_dot(self.POS_CUR, self.VEL_CUR),
-                                  self.pos_lbl)
+            # self.VEL_CUR = self.VEL_CUR + self.e_sim.VEL[i_q, 1::2] * self.e_sim.DT
+            # self.POS_CUR = self.POS_CUR + self.VEL_CUR * self.e_sim.DT
+            self.VEL_CUR = self.e_sim.POS[i_q, 1::2]
+            self.POS_CUR = self.e_sim.POS[i_q, 0::2]
+            # pos = list2dict(augment_jvals_dot(self.POS_CUR, self.VEL_CUR),
+            #                       self.pos_lbl)
         except EventException as e:
-            print(e)
+            err_msg = str(e)
+            if len(err_msg)>100:
+                err_msg = err_msg[:100]
+            print('step eTaSL exception: {}'.format(err_msg))
             end_loop = True
         eout = self.e_sim.etasl.getOutput()
         error = eout['global.error'] if 'global.error' in eout else None
@@ -275,14 +282,17 @@ class etasl_planner(PlannerInterface):
             res = True
         except Exception as e:
             res = False
-            print('eTaSL exception: {}'.format(str(e)))
+            err_msg = str(e)
+            if len(err_msg)>100:
+                err_msg = err_msg[:100]
+            print('eTaSL exception: {}'.format(err_msg))
         return res
 
     def do_simulate(self, **kwargs):
         res = self.simulate(**kwargs)
         if res:
             if hasattr(self.etasl, 'POS') and self.etasl.POS is not None and len(self.etasl.POS)>0:
-                self.etasl.joint_dict_last = joint_list2dict(self.etasl.POS[-1], self.joint_names)
+                self.etasl.joint_dict_last = list2dict(self.etasl.POS[-1], self.joint_names)
             output = self.etasl.etasl.getOutput()
             if 'global.error' in output:
                 self.etasl.error = output['global.error']

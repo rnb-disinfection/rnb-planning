@@ -49,18 +49,19 @@ class RobotTable(TableInterface):
         return res, msg
 
     def button(self, button, *args, **kwargs):
+        print("button clicked")
         if button == TAB_BUTTON.CUSTOM:
             if args[0]:
                 graph = self.graph
                 cbot = self.graph.combined_robot
-                xcustom, JOINT_NAMES, LINK_NAMES, urdf_content = set_custom_robots(cbot.robots_on_scene, cbot.xyz_rpy_robots, cbot.joint_names)
+                xcustom, JOINT_NAMES, LINK_NAMES, urdf_content = set_custom_robots(cbot.robots_on_scene, cbot.xyz_rpy_robots, cbot.custom_limits)
                 graph.clear_markers()
                 graph.clear_highlight()
                 graph.ghnd.clear()
                 time.sleep(1)
-                graph.__init__(urdf_path=URDF_PATH, joint_names=JOINT_NAMES, link_names=LINK_NAMES,
+                graph.__init__(ghnd=graph.ghnd, urdf_path=URDF_PATH, joint_names=JOINT_NAMES, link_names=LINK_NAMES,
                                urdf_content=urdf_content, combined_robot=cbot)
-                add_geometry_items(graph.urdf_content, color=(0, 1, 0, 0.3), display=True, collision=True,
+                add_geometry_items(graph.urdf_content, ghnd=graph.ghnd, color=(0, 1, 0, 0.3), display=True, collision=True,
                                    exclude_link=["panda1_link7"])
                 graph.set_cam_robot_collision()
                 graph.set_rviz()
@@ -70,3 +71,4 @@ class RobotTable(TableInterface):
                 print("Unknown button")
         else:
             TableInterface.button(self, button, *args, **kwargs)
+        print("button action done")

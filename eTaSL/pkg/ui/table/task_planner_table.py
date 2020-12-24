@@ -7,13 +7,14 @@ from ...sampler.object_a_star import *
 class TaskPlanTable(TableInterface):
     HEADS = [IDENTIFY_COL, "MultiProcess"]
     HILIGHT_KEY = 'task'
-    CUSTOM_BUTTONS = ['Plan', 'Initialize', 'BuildGraph']
+    CUSTOM_BUTTONS = ['Plan', 'Initialize']
     task_plan_candi = {"ObjectAstarSampler": {"MultiProcess":True},
                        "HandleAstarSampler": {"MultiProcess":True}}
+    task_plan_names = ["ObjectAstarSampler", "HandleAstarSampler"]
     task_plan_fun = None
 
     def get_items(self):
-        return [[k, self.task_plan_candi[k]['MultiProcess']] for k in sorted(self.task_plan_candi.keys())]
+        return [[k, self.task_plan_candi[k]['MultiProcess']] for k in self.task_plan_names]
 
     def get_items_dict(self):
         return {item[0]: item for item in self.get_items()}
@@ -29,8 +30,8 @@ class TaskPlanTable(TableInterface):
                 T_step = 10
                 N_fullstep = int(T_step / dt_sim)
                 self.pl_kwargs = dict(tree_margin=2, depth_margin=2, terminate_on_first=True,
-                                      N_search=100, N_loop=1000, display=True, dt_vis=dt_sim / 4,
-                                      verbose=True, print_expression=False, error_skip=0, traj_count=DEFAULT_TRAJ_COUNT,
+                                      N_search=100000, display=True, dt_vis=dt_sim / 4,
+                                      verbose=True, print_expression=False, error_skip=0,
                                       ** dict(N=N_fullstep, dt=dt_sim, vel_conv=0.5e-2, err_conv=1e-3))
                 if gtem[0] == "ObjectAstarSampler":
                     sampler = ObjectAstarSampler(self.graph)
@@ -57,6 +58,7 @@ class TaskPlanTable(TableInterface):
         return res, msg
 
     def button(self, button, *args, **kwargs):
+        print("button clicked")
         if button == TAB_BUTTON.CUSTOM:
             if args[0]:
                 if hasattr(self, 'initial_state') and hasattr(self, 'goal_nodes'):
@@ -67,13 +69,14 @@ class TaskPlanTable(TableInterface):
                     print("not initialized")
             elif args[1]:
                 graph = self.graph
+                graph.sampler.build_graph()
                 sampler = graph.sampler
                 OBJECT_DICT = {k: dict(_type=v.__class__) for k, v in graph.object_dict.items()}
                 objectPose_dict_mv, corner_dict_mv, color_image, aruco_map_mv = \
                     detect_objects(graph.cam.aruco_map, graph.cam.dictionary)
-                xyz_rvec_mv_dict, put_point_dict, up_point_dict = calc_put_point(
+                xyz_rvec_mv_dict, put_point_dict, up_point_dict = calc_put_point(graph.ghnd,
                     objectPose_dict_mv, graph.cam.aruco_map, OBJECT_DICT, graph.cam.ref_tuple)
-                update_geometries(objectPose_dict_mv.keys(), objectPose_dict_mv, graph.cam.ref_tuple[1])
+                update_geometries(graph.ghnd, objectPose_dict_mv.keys(), objectPose_dict_mv, graph.cam.ref_tuple[1])
                 initial_state = State(tuple([(oname, put_point_dict[oname], 'floor') for oname in graph.object_list]),
                                       {oname: graph.object_dict[oname].object.Toff for oname in
                                        graph.object_list},
@@ -87,10 +90,8 @@ class TaskPlanTable(TableInterface):
                 self.goal_nodes = []
                 for gnode in goal_nodes_1:
                     self.goal_nodes += get_goal_nodes(gnode, "box2", "floor")
-            elif args[2]:
-                graph = self.graph
-                graph.sampler.build_graph()
             else:
                 print("Unknown button")
         else:
             TableInterface.button(self, button, *args, **kwargs)
+        print("button action done")

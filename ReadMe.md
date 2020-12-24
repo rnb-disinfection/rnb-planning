@@ -90,7 +90,8 @@
   ```
 * misc.  
   ```
-  pip install matplotlib trimesh pathlib protobuf grpcio numpy-stl sklearn filterpy paramiko  
+  pip install matplotlib trimesh pathlib protobuf grpcio numpy-stl sklearn filterpy paramiko cvxpy
+  pip3 install dill matplotlib sklearn  
   ```
 
 # ROS Setup
@@ -109,11 +110,12 @@
   && sudo apt-get install python-rosinstall -y \
   && sudo apt-get install ros-melodic-catkin python-catkin-tools -y
   ```
-  * **RESTART TERMINAL!**
+  * **RESTART TERMINAL!**  
+  
 * Moveit  
   ```
   sudo apt-get install -y ros-melodic-moveit ros-melodic-industrial-core ros-melodic-moveit-visual-tools ros-melodic-joint-state-publisher-gui  
-  ```
+  ```  
 * Gazebo  
   ```
   sudo apt-get install -y ros-melodic-gazebo-ros-pkgs ros-melodic-gazebo-ros-control ros-melodic-joint-state-controller ros-melodic-effort-controllers ros-melodic-position-controllers ros-melodic-joint-trajectory-controller  
@@ -228,6 +230,14 @@
   ```
   
 # Setup project  
+* Get project and add path to ~/.bahsrc
+  ```
+  mkdir ~/Projects && cd ~/Projects \
+  && git clone https://github.com/Cucumberkjs/tamp_etasl.git \
+  && export TAMP_ETASL_DIR=$HOME/Projects/tamp_etasl/eTaSL/ \
+  && echo 'export TAMP_ETASL_DIR=$HOME/Projects/tamp_etasl/eTaSL/' >> ~/.bashrc
+  ```
+  
 * Build custom etasl
   * get custom etasl project from github and recompile etasl
   ```
@@ -265,29 +275,32 @@
   sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
   ```
   
-* Get project and add path to ~/.bahsrc
-  ```
-  mkdir ~/Projects && cd ~/Projects \
-  && git clone https://github.com/Cucumberkjs/tamp_etasl.git \
-  && export TAMP_ETASL_DIR=$HOME/Projects/tamp_etasl/eTaSL/ \
-  && echo 'export TAMP_ETASL_DIR=$HOME/Projects/tamp_etasl/eTaSL/' >> ~/.bashrc
-  ```
-  * build openGJK
-  ```
-  cd "$TAMP_ETASL_DIR"openGJK/lib \
-  && cmake -DCMAKE_BUILD_TYPE=Release \
-  && make
-  ```
-  * build custom workspace  
-  ```
-  cd "$TAMP_ETASL_DIR"ws_ros && rm -rf build devel && catkin_make -DCMAKE_BUILD_TYPE=Release  
-  source "$TAMP_ETASL_DIR"ws_ros/devel/setup.bash
-  echo 'source "$TAMP_ETASL_DIR"ws_ros/devel/setup.bash' >> ~/.bashrc
-  ```
-  * start roscore if it's not active  
-  ```
-  nohup roscore &  
-  ```
+* Build moveit-python interpreter, copy it and clean Release folder  
+```
+cd "$TAMP_ETASL_DIR"moveit_plan_compact
+chmod +x ./build.sh
+./build.sh
+```
+* build openGJK
+```
+cd "$TAMP_ETASL_DIR"openGJK/lib \
+&& cmake -DCMAKE_BUILD_TYPE=Release \
+&& make
+```
+* build custom workspace  
+```
+cd "$TAMP_ETASL_DIR"ws_ros && rm -rf build devel && catkin_make -DCMAKE_BUILD_TYPE=Release  
+source "$TAMP_ETASL_DIR"ws_ros/devel/setup.bash
+echo 'source "$TAMP_ETASL_DIR"ws_ros/devel/setup.bash' >> ~/.bashrc
+```
+* **start roscore if it's not active**  
+```
+nohup roscore &  
+```
+* **to reset node/topic/params, kill and restart roscore**  
+```
+sudo killall -9 roscore && nohup roscore &  
+```
 
 # Setup and launch panda repeater
 * setup panda_ros_repeater on panda master pc (https://github.com/Cucumberkjs/panda_ros_repeater.git)  
@@ -329,21 +342,6 @@
   * launch interface: 
   ```
   roslaunch franka_interface interface.launch
-  ```
- 
-# Recommended Tools  
-* jupyter 
-  ```
-  sudo apt install python3-notebook python-notebook jupyter jupyter-core python-ipykernel  
-  ```
-  * do server setting  
-* Teamviewer (autostart, password)  
-* GitKraken  
-* PyCharm, Clion  
-  * add "export PATH=$PATH:{}/bin" to .bashrc  
-* openssh-server  
-  ```
-  sudo apt-get install openssh-server -y && sudo service ssh start
   ```
 
 # Check final .bashrc  

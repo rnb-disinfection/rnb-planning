@@ -86,6 +86,7 @@ class TableInterface:
         return res, msg
 
     def button(self, button, filename=None, data=None):
+        print("button clicked")
         if button == TAB_BUTTON.SAVE:
             save_json(os.path.join(CONFIG_DIR, filename), data)
             pass
@@ -112,6 +113,7 @@ class TableInterface:
                     if v_old != v_new:
                         print("update {} - {} : {} -> {}".format(name, col, v_old, v_new))
                         self.update(name, col, v_new)
+        print("button action done")
 
     def get_table(self):
         return (self.HEADS, [self.serialize(item) for item in self.get_items()])

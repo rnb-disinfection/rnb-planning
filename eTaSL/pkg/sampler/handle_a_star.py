@@ -196,7 +196,7 @@ class HandleAstarSampler(SamplerInterface):
     @record_time
     def search_graph(self, initial_state, goal_nodes,
                      tree_margin=0, depth_margin=0, joint_motion_num=10,
-                     terminate_on_first=True, N_search=100, N_loop=1000, N_agents=None, multiprocess=False,
+                     terminate_on_first=True, N_search=100, N_agents=None, multiprocess=False,
                      display=False, dt_vis=None, verbose=False, print_expression=False, **kwargs):
 
         self.joint_motion_num = joint_motion_num
@@ -226,7 +226,7 @@ class HandleAstarSampler(SamplerInterface):
 
             self.proc_list = [Process(
                 target=self.__search_loop,
-                args=(id_agent, terminate_on_first, N_search, N_loop, False, dt_vis, verbose, print_expression),
+                args=(id_agent, terminate_on_first, N_search, False, dt_vis, verbose, print_expression),
                 kwargs=kwargs) for id_agent in range(N_agents)]
             for proc in self.proc_list:
                 proc.start()
@@ -242,15 +242,14 @@ class HandleAstarSampler(SamplerInterface):
             self.snode_queue = PriorityQueue()
             self.add_node_queue_leafs(snode_root)
 
-            self.__search_loop(0, terminate_on_first, N_search, N_loop, display, dt_vis, verbose, print_expression, **kwargs)
+            self.__search_loop(0, terminate_on_first, N_search, display, dt_vis, verbose, print_expression, **kwargs)
 
     @record_time
-    def __search_loop(self, ID, terminate_on_first, N_search, N_loop,
-                      display=False, dt_vis=None, verbose=False, print_expression=False,
-                      traj_count=DEFAULT_TRAJ_COUNT, **kwargs):
+    def __search_loop(self, ID, terminate_on_first, N_search,
+                      display=False, dt_vis=None, verbose=False, print_expression=False, timeout_loop=600, **kwargs):
         loop_counter = 0
         self.stop_dict[ID] = False
-        while self.snode_counter.value < N_search and loop_counter < N_loop and not self.stop_now.value:
+        while self.snode_counter.value < N_search and (time.time() - self.t0) < timeout_loop and not self.stop_now.value:
             loop_counter += 1
             self.que_lock.acquire()
             stop = False
@@ -278,7 +277,7 @@ class HandleAstarSampler(SamplerInterface):
                 depth_new = len(snode.parents) + 1
                 snode_new = SearchNode(idx=0, state=new_state, parents=snode.parents + [snode.idx], leafs=[], leafs_P=[],
                                        depth=depth_new, edepth=depth_new+self.goal_cost_dict[new_state.node])
-                snode_new.set_traj(traj, traj_count=traj_count)
+                snode_new.set_traj(traj)
                 snode_new = self.add_node_queue_leafs(snode_new)
                 snode.leafs += [snode_new.idx]
                 self.snode_dict[snode.idx] = snode
@@ -286,11 +285,11 @@ class HandleAstarSampler(SamplerInterface):
                     ret = True
             simtime = self.gtimer.toc("test_transition")
             if verbose:
-                print('\n{} - Goal cost:{}->{} / Init cost:{}->{} / branching: {}->{} ({} s, steps/err: {}({} ms)/{})'.format(
+                print('\n{} - Goal cost:{}->{} / Init cost:{}->{} / branching: {}->{} ({}/{} s, steps/err: {}({} ms)/{})'.format(
                     "success" if succ else "fail",
                     int(self.goal_cost_dict[from_state.node]), int(self.goal_cost_dict[to_state.node]),
                     int(self.init_cost_dict[from_state.node]), int(self.init_cost_dict[to_state.node]),
-                    snode.idx, snode_new.idx if succ else "", round(time.time() - self.t0, 2),
+                    snode.idx, snode_new.idx if succ else "", round(time.time() - self.t0, 2), round(timeout_loop, 2),
                     len(traj), simtime,
                     error))
                 print('node: {}->{}'.format(from_state.node, to_state.node))

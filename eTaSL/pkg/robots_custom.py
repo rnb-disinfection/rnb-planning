@@ -10,12 +10,15 @@ URDF_PATH_DEFAULT = '{}robots/custom_robots.urdf'.format(TAMP_ETASL_DIR)
 
 URDF_PATH = os.path.join(PROJ_DIR, "robots", "custom_robots.urdf")
 # JOINT_NAMES = ["shoulder_pan_joint","shoulder_lift_joint","elbow_joint","wrist_1_joint","wrist_2_joint","wrist_3_joint"]
-# LINK_NAMES = ['world', 'base_link', 'shoulder_link', 'upper_arm_link', 'forearm_link', 'wrist_1_link', 'wrist_2_link', 'wrist_3_link', 'tool0']
+# LINK_NAMES = ['base_link', 'base_link', 'shoulder_link', 'upper_arm_link', 'forearm_link', 'wrist_1_link', 'wrist_2_link', 'wrist_3_link', 'tool0']
 
-class XacroCustomizer:
-    def __init__(self, rtuples, xyz_rpy_dict, xacro_path = XACRO_PATH_DEFAULT):
+class XacroCustomizer(Singleton):
+    def __init__(self):
+        pass
+
+    def initialize(self, rtuples, xyz_rpy_dict, xacro_path = XACRO_PATH_DEFAULT):
         self.xacro_path = xacro_path
-        self.subp = None
+        if not hasattr(self, 'subp'): self.subp = None
         self.clear()
         for rtuple in rtuples:
             self.add_robot(rtuple[1], *xyz_rpy_dict[rtuple[0]])
@@ -30,7 +33,7 @@ class XacroCustomizer:
 
     def add_robot(self, rtype, xyz=[0,0,0], rpy=[0,0,0]):
         rexpression = \
-            '<xacro:{rtype} robot_id="{rid}" xyz="{xyz}" rpy="{rpy}" connected_to="world"/>'.format(
+            '<xacro:{rtype} robot_id="{rid}" xyz="{xyz}" rpy="{rpy}" connected_to="base_link"/>'.format(
                 rtype=rtype.name, rid=self.rid_count, xyz='{} {} {}'.format(*xyz), rpy='{} {} {}'.format(*rpy)
             )
         self.rexpression_list += [rexpression]
@@ -60,7 +63,7 @@ class XacroCustomizer:
         xacro_file.close()
 
     def convert_xacro_to_urdf(self, urdf_path=URDF_PATH_DEFAULT, joint_offset_dict={}, joint_limit_dict={},
-                              joint_fix_dict={}, vel_limit_dict={}, effort_limit_dict={}):
+                              joint_fix_dict={}):
         urdf_content = subprocess.check_output(['xacro', self.xacro_path])
         self.urdf_content = URDF.from_xml_string(urdf_content)
         for joint in self.urdf_content.joints:
@@ -78,16 +81,11 @@ class XacroCustomizer:
                 T_e = SE3(Rot_rpy(joint.origin.rpy), joint.origin.xyz)
                 T_e = np.matmul(T_e, T_reeo_load)
                 joint.origin.xyz, joint.origin.rpy = T2xyzrpy(T_e)
+
             if joint.name in joint_limit_dict.keys():
                 jlim = joint_limit_dict[joint.name]
-                if "upper" in jlim:
-                    joint.limit.upper = jlim['upper']
-                if "lower" in jlim:
-                    joint.limit.lower = jlim['lower']
-                if "vel" in jlim:
-                    joint.limit.velocity = jlim['vel']
-                if "acc" in jlim:
-                    joint.limit.effort = jlim['acc']
+                for key in jlim:
+                    setattr(joint.limit, key, jlim[key])
                 
         f = open(urdf_path, "w")
         f.write(URDF.to_xml_string(self.urdf_content))
@@ -107,9 +105,9 @@ class XacroCustomizer:
         self.subp = None
 
     def clear(self):
+        self.kill_existing_subprocess()
         self.rexpression_list = []
         self.rid_count = 0
-        self.kill_existing_subprocess()
 
 
 from stl import mesh
@@ -156,11 +154,10 @@ def get_min_seg_radii(vertice):
     radii = dist_vertice_seg(vertice, seg)
     return seg, radii
 
-def add_geometry_items(urdf_content, color=(0,1,0,0.5), display=True, collision=True, exclude_link=[]):
+def add_geometry_items(urdf_content, ghnd, color=(0,1,0,0.5), display=True, collision=True, exclude_link=[]):
     geometry_items = []
     id_dict = defaultdict(lambda: -1)
     geometry_dir = "./geometry_tmp"
-    ghnd = GeometryHandle.instance()
     try: os.mkdir(geometry_dir)
     except: pass
     for link in urdf_content.links:
@@ -186,7 +183,7 @@ def add_geometry_items(urdf_content, color=(0,1,0,0.5), display=True, collision=
                 gname = "{}_{}_{}".format(link.name, geotype, id_dict[link.name])
                 geometry_items.append(
                     ghnd.create_safe(
-                        name=gname, link_name=link.name, gtype=GEOTYPE.SEGMENT,
+                        name=gname, link_name=link.name, gtype=GEOTYPE.CAPSULE,
                         center=xyz, dims=(geometry.radius*2,geometry.radius*2,geometry.length), rpy=rpy,
                         color=color, display=display, collision=collision, fixed=True)
                 )
@@ -247,18 +244,18 @@ def add_geometry_items(urdf_content, color=(0,1,0,0.5), display=True, collision=
 
 
                 geometry_items.append(
-                    ghnd.create_safe(name=name, link_name=link.name, gtype=GEOTYPE.SEGMENT,
+                    ghnd.create_safe(name=name, link_name=link.name, gtype=GEOTYPE.CAPSULE,
                                   center=xyz_rpy, rpy=Rot2rpy(dcm), dims=(radius*2,radius*2,length),
                                   color=color, display=display, collision=collision, fixed=True))
             else:
                 raise(NotImplementedError("collision geometry {} is not implemented".format(geotype)))
     return geometry_items
 
-# exclude_parents=['world']
+# exclude_parents=['base_link']
 # joint_names=JOINT_NAMES
-# def transfer_fixed_links(col_items_dict, urdf_content, joint_names, exclude_parents=['world']):
+# def transfer_fixed_links(col_items_dict, urdf_content, joint_names, exclude_parents=['base_link']):
 #     fixed = False
-#     zero_dict = joint_list2dict([0]*len(joint_names), joint_names)
+#     zero_dict = list2dict([0]*len(joint_names), joint_names)
 #     for joint in urdf_content.joints:
 #         parent_name = joint.parent
 #         if joint.type == 'fixed' and joint.parent not in exclude_parents:
@@ -356,7 +353,8 @@ from xml.dom import minidom
 from .utils.joint_utils import *
 import os
 
-def write_srdf(robot_names, binder_links, link_names, joint_names, urdf_content, urdf_path):
+def write_srdf(robot_names, urdf_content, urdf_path, link_names, joint_names,
+               binder_links=None, chain_dict=None, base_link="base_link"):
     root = minidom.Document()
 
     xml = root.createElement('robot')
@@ -367,8 +365,12 @@ def write_srdf(robot_names, binder_links, link_names, joint_names, urdf_content,
         grp.setAttribute('name', rname)
 
         chain = root.createElement("chain")
-        chain.setAttribute('base_link', [lname for lname in link_names if rname in lname and urdf_content.joint_map[get_parent_joint(lname)].parent == "world"][0])
-        chain.setAttribute('tip_link', [bl_name for bl_name in binder_links if rname in bl_name][0])
+        if chain_dict is None:
+            chain.setAttribute('base_link', [lname for lname in link_names if rname in lname and urdf_content.parent_map[lname][1] == "base_link"][0])
+            chain.setAttribute('tip_link', [bl_name for bl_name in binder_links if rname in bl_name][0])
+        else:
+            chain.setAttribute('base_link', base_link)
+            chain.setAttribute('tip_link', chain_dict[rname]['tip_link'])
         grp.appendChild(chain)
         xml.appendChild(grp)
 
@@ -376,30 +378,36 @@ def write_srdf(robot_names, binder_links, link_names, joint_names, urdf_content,
         grp_stat.setAttribute('name', "all-zeros")
         grp_stat.setAttribute('group', rname)
 
-        for jname in joint_names:
-            if rname in jname:
+        if chain_dict is None:
+            for jname in joint_names:
+                if rname in jname:
+                    jstat = root.createElement("joint")
+                    jstat.setAttribute('name', jname)
+                    jstat.setAttribute('value', "0")
+                    grp_stat.appendChild(jstat)
+        else:
+            for jname in chain_dict[rname]['joint_names']:
                 jstat = root.createElement("joint")
                 jstat.setAttribute('name', jname)
                 jstat.setAttribute('value', "0")
                 grp_stat.appendChild(jstat)
 
-        vjoint_elems = [joint for joint in urdf_content.joints if joint.type == "fixed" and rname in joint.name]
-        for vjoint_elem in vjoint_elems:
-            vjoint = root.createElement("virtual_joint")
-            vjoint.setAttribute('name', vjoint_elem.name)
-            vjoint.setAttribute('type', vjoint_elem.type)
-            vjoint.setAttribute('parent_frame', vjoint_elem.parent)
-            vjoint.setAttribute('child_link', vjoint_elem.child)
-            xml.appendChild(vjoint)
 
         xml.appendChild(grp_stat)
+    vjoint = root.createElement("virtual_joint")
+    vjoint.setAttribute('name', "fixed_base")
+    vjoint.setAttribute('type', "fixed")
+    vjoint.setAttribute('parent_frame', "world")
+    vjoint.setAttribute('child_link', base_link)
+    xml.appendChild(vjoint)
 
+    link_adjacency_map, link_adjacency_map_ext = get_link_adjacency_map(urdf_content)
     for idx1 in range(len(link_names)):
         lname1 = link_names[idx1]
         for lname2 in link_names[idx1:]:
-            if lname1 == lname2 or lname1 == "world" or lname2 == "world":
+            if lname1 == lname2 or lname1 == base_link or lname2 == base_link:
                 continue
-            if lname2 in get_adjacent_links(lname1):
+            if lname2 in link_adjacency_map[lname1]:
                 dcol = root.createElement("disable_collisions")
                 dcol.setAttribute('link1', lname1)
                 dcol.setAttribute('link2', lname2 )
@@ -416,3 +424,65 @@ def write_srdf(robot_names, binder_links, link_names, joint_names, urdf_content,
     with open(save_path_file, "w") as f:
         f.write(xml_str)
     return save_path_file
+
+
+import urdf_parser_py
+
+
+def get_chain(link_name_cur, urdf_content, base_link=None):
+    chain = []
+    while link_name_cur != base_link and link_name_cur in urdf_content.parent_map:
+        parent_joint = get_parent_joint(link_name_cur, urdf_content)
+        chain = [(parent_joint, link_name_cur)] + chain
+        link_name_cur = urdf_content.joint_map[parent_joint].parent
+    return chain
+
+
+def save_converted_chain(urdf_content, urdf_path, robot_new, base_link, end_link):
+    urdf_path_new = os.path.join(os.path.dirname(urdf_path),
+                                 os.path.basename(urdf_path).split(".")[0] + "_{}.urdf".format(robot_new))
+    urdf_content_new = URDF.from_xml_string(URDF.to_xml_string(urdf_content))
+    Tinv_joint_next = np.identity(4)
+    chain_base = get_chain(base_link, urdf_content)
+
+    for linkage in reversed(chain_base):
+        jname, lname = linkage
+        joint = urdf_content_new.joint_map[jname]
+        link = urdf_content_new.link_map[lname]
+        xyz_bak, rpy_bak = joint.origin.xyz, joint.origin.rpy
+        j_xyz, j_rpy = Tinv_joint_next[:3, 3], Rot2rpy(Tinv_joint_next[:3, :3])
+        joint.parent, joint.child = joint.child, joint.parent
+        joint.origin.xyz = j_xyz.tolist()
+        joint.origin.rpy = j_rpy.tolist()
+
+        if joint.limit:
+            joint.limit.lower, joint.limit.upper = -joint.limit.upper, -joint.limit.lower
+        if joint.safety_controller:
+            joint.safety_controller.soft_lower_limit, joint.safety_controller.soft_upper_limit = \
+                joint.limit.lower, joint.limit.upper
+        for gtem in link.collisions + link.visuals:
+            if gtem.origin is None:
+                gtem.origin = urdf_parser_py.urdf.Pose([0, 0, 0], [0, 0, 0])
+            Tg_new = np.matmul(Tinv_joint_next, SE3(Rot_rpy(gtem.origin.rpy), gtem.origin.xyz))
+            gtem.origin.xyz, gtem.origin.rpy = Tg_new[:3, 3].tolist(), Rot2rpy(Tg_new[:3, :3]).tolist()
+        T_joint = SE3(Rot_rpy(rpy_bak), xyz_bak)
+        Tinv_joint_next = SE3_inv(T_joint)
+    urdf_content_new.add_link(urdf_parser_py.urdf.Link(name="stem"))
+    urdf_content_new.add_joint(urdf_parser_py.urdf.Joint(
+        name="stem_joint_base_link", joint_type="fixed", parent="stem", child=joint.child,
+        origin=urdf_parser_py.urdf.Pose(Tinv_joint_next[:3, 3].tolist(), Rot2rpy(Tinv_joint_next[:3, :3]).tolist())))
+    joint.child = "stem"
+
+    f = open(urdf_path_new, "w")
+    f.write(URDF.to_xml_string(urdf_content_new))
+    f.close()
+    urdf_content_new = URDF.from_xml_file(urdf_path_new)
+    new_chain = get_chain(end_link, urdf_content_new)
+    new_joints = [linkage[0] for linkage in new_chain if
+                  linkage[0] and urdf_content_new.joint_map[linkage[0]].type != "fixed"]
+
+    srdf_path_new = write_srdf(robot_names=[robot_new], urdf_content=urdf_content_new, urdf_path=urdf_path_new,
+                               link_names=sorted(urdf_content_new.link_map.keys()), joint_names=new_joints,
+                               chain_dict={robot_new: {'tip_link': end_link, 'joint_names': new_joints}},
+                               base_link=base_link)
+    return urdf_content_new, urdf_path_new, srdf_path_new, new_joints

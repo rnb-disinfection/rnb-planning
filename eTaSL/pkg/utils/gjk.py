@@ -6,7 +6,7 @@ OBJ_MAX = 100
 VTX_MAX = 100
 COL_MAX = 1000
 
-clib = ctypes.cdll.LoadLibrary(os.path.join(TAMP_ETASL_DIR, "openGJK/lib/libopenGJKlib.so"))
+clib = ctypes.cdll.LoadLibrary(os.path.join(TAMP_ETASL_DIR, "openGJK/lib/openGJKlib.so"))
 clib.gjk_flat_batch.restype = ctypes.c_double
 
 MAX_VTX_ARR_TYPE = c_double * (VTX_MAX * 3)
@@ -40,12 +40,12 @@ def get_distance_batch(points_arr, idx1, idx2):
 
 from scipy.spatial import ConvexHull
 from ..geometry.geometry import *
-from .joint_utils import *
+from .utils import list2dict
 
 class SweptVolumeTester:
-    def __init__(self):
+    def __init__(self, ghnd):
         self.fixed_col_list, self.fixed_col_swept_list = [], []
-        self.ghnd = GeometryHandle.instance()
+        self.ghnd = ghnd
 
     def update_colliding_list(self):
         self.fixed_col_list, self.fixed_col_swept_list = \
@@ -60,17 +60,17 @@ class SweptVolumeTester:
         vtx_swept_list = []
         radius_list = []
         # gtimer.tic("vtx")
-        Q1dict = joint_list2dict(Q1, joint_names)
+        Q1dict = list2dict(Q1, joint_names)
         T_dict1 = get_tf_full('indy0_tcp', Q1dict, urdf_content)
         T_dict1.update(get_tf_full('panda1_leftfinger', Q1dict, urdf_content))
         T_dict1.update({'panda1_rightfinger': get_tf('panda1_rightfinger', Q1dict, urdf_content),
-                        'world': np.identity(4)})
-        Q2dict = joint_list2dict(Q2, joint_names)
+                        'base_link': np.identity(4)})
+        Q2dict = list2dict(Q2, joint_names)
         T_dict2 = get_tf_full('indy0_tcp', Q2dict, urdf_content)
         T_dict2.update(get_tf_full('panda1_leftfinger', Q2dict, urdf_content))
         T_dict2.update({'panda1_rightfinger': get_tf('panda1_rightfinger', Q2dict, urdf_content),
-                        'world': np.identity(4)})
-        ghnd = GeometryHandle.instance()
+                        'base_link': np.identity(4)})
+        ghnd = self.ghnd
         for ctem in ghnd:
             vtx_ref, radi = ctem.get_vertice_radius()
             Toff = ctem.Toff

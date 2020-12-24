@@ -1,0 +1,15 @@
+# Data
+*.csv
+*.pdf
+*.npy
+
+# Pycharm
+.idea/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+cmake-build-debug/
+Release/

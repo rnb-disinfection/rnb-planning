@@ -26,6 +26,9 @@ class VacuumPoint(DirectedPoint):
 
 class Grasp2Point(DirectedPoint):
     ctype=ConstraintType.Grasp2
+
+class FixturePoint(FramedPoint):
+    ctype=ConstraintType.Fixture
     
 class ObjectAction:
     def __init__(self):
@@ -37,6 +40,8 @@ class ObjectAction:
         self.bind(bind_point, binder)
         for ap in self.action_points_dict.values():
             ap.update_handle()
+        for bp in self.binder_points_dict.values():
+            bp.update_handle()
     
     def bind(self, point, target):
         self.binding = (point, target)
@@ -46,11 +51,29 @@ class ObjectAction:
         pass
 
 ################################# USABLE CLASS #########################################
+class CustomObject(ObjectAction):
+    def __init__(self, _object, action_points_dict, binder_points_dict={}):
+        self.object = _object
+        self.action_points_dict = action_points_dict
+        self.binder_points_dict = binder_points_dict
+
+    def get_conflicting_handles(self, hname):
+        return [hname]
+
+class SingleHandleObject(ObjectAction):
+    def __init__(self, _object, action_point, binder_points_dict={}):
+        self.object = _object
+        self.action_points_dict = {action_point.name: action_point}
+        self.binder_points_dict = binder_points_dict
+
+    def get_conflicting_handles(self, hname):
+        return [hname]
 
 class BoxAction(ObjectAction):
-    def __init__(self, _object, hexahedral=True):
+    def __init__(self, _object, hexahedral=True, binder_points_dict={}):
         self.object = _object
         Xhalf, Yhalf, Zhalf = np.divide(_object.dims,2)
+        self.binder_points_dict = binder_points_dict
         self.action_points_dict = {
             "top_p": PlacePoint("top_p", _object, [0,0,Zhalf], [np.pi,0,0]),
             "bottom_p": PlacePoint("bottom_p", _object, [0,0,-Zhalf], [0,0,0]),

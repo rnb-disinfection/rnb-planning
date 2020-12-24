@@ -23,7 +23,7 @@ class GeometryTable(TableInterface):
         self.graph.highlight_geometry(self.HILIGHT_KEY, gtem.name, color=color)
 
     def add_item(self, value):
-        self.graph.add_geometry(
+        self.graph.add_marker(
             self.graph.ghnd.create_safe(name=value[IDENTIFY_COL], gtype=getattr(GEOTYPE, value['GType']),
                                   link_name=value["Link"], center=str_num_it(value["Center"]),
                                   dims=str_num_it(value["Dims"]), rpy=str_num_it(value["RPY"]),
@@ -67,9 +67,11 @@ class GeometryTable(TableInterface):
         return res, msg
 
     def button(self, button, *args, **kwargs):
+        print("button clicked")
         if button == TAB_BUTTON.CUSTOM:
             self.graph.set_rviz(self.graph.joints.position)
             if self.graph.planner:
-                self.graph.planner.update_gtems()
+                self.graph.planner.update(self.graph)
         else:
             TableInterface.button(self, button, *args, **kwargs)
+        print("button action done")

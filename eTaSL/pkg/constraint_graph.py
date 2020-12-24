@@ -17,17 +17,13 @@ PRINT_LOG = False
 
 class ConstraintGraph:
 
-    def __init__(self, urdf_path, joint_names, link_names, urdf_content=None, combined_robot=None):
+    def __init__(self, ghnd, urdf_path, joint_names, link_names, urdf_content=None, combined_robot=None):
         self.joint_num = len(joint_names)
         self.urdf_path = urdf_path
         if urdf_content is None:
             urdf_content = URDF.from_xml_file(urdf_path)
         self.urdf_content = urdf_content
-        self.ghnd = GeometryHandle.instance()
-        self.ghnd.set_urdf_content(urdf_content)
-        set_parent_joint_map(urdf_content)
-        set_link_adjacency_map(urdf_content)
-        self.min_distance_map = set_min_distance_map(link_names, urdf_content)
+        self.ghnd = ghnd
         self.joint_names = joint_names
         self.link_names = link_names
         self.binder_dict = {}
@@ -42,6 +38,7 @@ class ConstraintGraph:
         self.combined_robot = combined_robot
         self.planner = None
         self.sampler = None
+        self.highlight_dict = defaultdict(dict)
 
     def __del__(self):
         try:
@@ -63,6 +60,7 @@ class ConstraintGraph:
         self.clear_markers()
         self.marker_list = set_markers(self.ghnd, self.joints, self.joint_names)
         self.show_pose(joint_pose)
+        sleep(1)
         self.show_pose(joint_pose)
 
     def show_pose(self, pose, **kwargs):
@@ -73,40 +71,43 @@ class ConstraintGraph:
             self.set_object_state(from_state)
         show_motion(pose_list, self.marker_list, self.pub, self.joints, self.joint_names, **kwargs)
 
-    def remove_geometry(self, gtem, from_ghnd=True):
-        del_list = []
-        for marker in self.marker_list:
-            if marker.geometry == gtem:
-                del_list.append(marker)
-        for marker in del_list:
-            marker.delete()
-            self.marker_list.remove(marker)
+    def remove_geometry(self, gtem, sleep=True, vis=True):
+        self.remove_marker(gtem, sleep=sleep, vis=vis)
+        if gtem in self.ghnd:
+            self.ghnd.remove(gtem)
 
-        if from_ghnd:
-            if gtem in self.ghnd:
-                self.ghnd.remove(gtem)
+    def remove_marker(self, gtem, sleep=True, vis=True):
+        if vis:
+            del_list = []
+            for marker in self.marker_list:
+                if marker.geometry == gtem:
+                    del_list.append(marker)
+            for marker in del_list:
+                marker.delete(sleep=sleep)
+                self.marker_list.remove(marker)
 
-    def add_geometry(self, gtem):
-        self.marker_list += set_markers([gtem], self.joints, self.joint_names)
+    def add_marker(self, gtem, vis=True):
+        if vis:
+            self.marker_list += set_markers([gtem], self.joints, self.joint_names)
 
-    def clear_markers(self):
-        for mk in self.marker_list:
-            mk.delete()
-        self.marker_list = []
-        if hasattr(self, 'highlight_dict'):
-            for hkey, hset in self.highlight_dict.items():
-                for k,v in hset.items():
-                    self.remove_geometry(v)
-                    del self.highlight_dict[hkey][k]
-        else:
-            self.highlight_dict = defaultdict(dict)
+    def clear_markers(self, vis=True):
+        if vis:
+            if hasattr(self, 'highlight_dict'):
+                for hl_key in self.highlight_dict.keys():
+                    self.clear_highlight(hl_key)
+            else:
+                self.highlight_dict = defaultdict(dict)
+            for mk in self.marker_list:
+                mk.delete()
+            self.marker_list = []
 
-    def update_marker(self, gtem):
-        joint_dict = {self.joints.name[i]: self.joints.position[i] for i in range(len(self.joint_names))}
-        marks = [mk for mk in self.marker_list if mk.geometry == gtem]
-        for mk in marks:
-            mk.set_marker(joint_dict, create=False)
-        return marks
+    def update_marker(self, gtem, vis=True):
+        if vis:
+            joint_dict = {self.joints.name[i]: self.joints.position[i] for i in range(len(self.joint_names))}
+            marks = [mk for mk in self.marker_list if mk.geometry == gtem]
+            for mk in marks:
+                mk.set_marker(joint_dict, create=False)
+            return marks
     ############ Visualize - Geometry #####################
     #######################################################
 
@@ -202,7 +203,7 @@ class ConstraintGraph:
         self.object_dict[name] = _object
         if binding is not None:
             self.binder_dict[binding[1]].bind(self.object_dict[name], binding[0],
-                                              joint_list2dict([0]*len(self.joint_names), joint_names=self.joint_names))
+                                              list2dict([0]*len(self.joint_names), item_names=self.joint_names))
 
     def remove_object(self, name):
         if name in self.object_dict:
@@ -216,15 +217,15 @@ class ConstraintGraph:
         self.object_dict[name] = _type(_object, **kwargs)
         if binding is not None:
             self.binder_dict[binding[1]].bind(self.object_dict[name], binding[0],
-                                              joint_list2dict([0]*len(self.joint_names), joint_names=self.joint_names))
+                                              list2dict([0]*len(self.joint_names), item_names=self.joint_names))
 
-    def register_object_gen(self, objectPose_dict_mv, binder_dict, object_dict, ref_tuple=None, link_name="world"):
-        object_generators = {k: CallHolder(GeometryHandle.instance().create_safe,
+    def register_object_gen(self, objectPose_dict_mv, binder_dict, object_dict, ref_tuple=None, link_name="base_link"):
+        object_generators = {k: CallHolder(self.ghnd.create_safe,
                                            ["center", "rpy"], **v.get_kwargs()) for k, v in
                              self.cam.aruco_map.items() if v.ttype in [TargetType.MOVABLE, TargetType.ONLINE]}
         if ref_tuple is None:
             ref_tuple = self.cam.ref_tuple
-        xyz_rpy_mv_dict, put_point_dict, _ = calc_put_point(objectPose_dict_mv, self.cam.aruco_map, object_dict, ref_tuple)
+        xyz_rpy_mv_dict, put_point_dict, _ = calc_put_point(self.ghnd, objectPose_dict_mv, self.cam.aruco_map, object_dict, ref_tuple)
 
         for mname, mgen in object_generators.items():
             if mname in xyz_rpy_mv_dict and mname not in self.ghnd.NAME_DICT:
@@ -252,10 +253,11 @@ class ConstraintGraph:
 
     #######################################################
     ##################### Environment #####################
-    def set_cam_robot_collision(self):
-        add_geometry_items(self.urdf_content, color=(0, 1, 0, 0.3), display=True, collision=True,
+    def set_cam_robot_collision(self, _add_cam_poles = True, color=(0, 1, 0, 0.3), display=True):
+        add_geometry_items(self.urdf_content, ghnd=self.ghnd, color=color, display=display, collision=True,
                            exclude_link=["panda1_link7"])
-        add_cam_poles(self, self.cam.xyz_rpy_cams)
+        if _add_cam_poles:
+            add_cam_poles(self, self.cam.xyz_rpy_cams)
     ##################### Environment #####################
     #######################################################
 
@@ -309,7 +311,7 @@ class ConstraintGraph:
 
         success = True
         for binding in binding_list:
-            if not self.binder_dict[binding[2]].check_available(joint_list2dict(from_state.Q, self.joint_names)):
+            if not self.binder_dict[binding[2]].check_available(list2dict(from_state.Q, self.joint_names)):
                 success = False
         if success:
             Traj, LastQ, error, success = self.planner.plan_transition(from_state, to_state, binding_list, **kwargs)
@@ -331,7 +333,7 @@ class ConstraintGraph:
 
         if success:
             for bd in binding_list:
-                self.rebind(bd, joint_list2dict(LastQ, self.joint_names))
+                self.rebind(bd, list2dict(LastQ, self.joint_names))
 
         node, obj_pos_dict = self.get_object_state()
         end_state = State(node, obj_pos_dict, list(LastQ), self)
@@ -365,12 +367,12 @@ class ConstraintGraph:
 
     #######################################################
     ############ Visualize - Highlight ####################
-    def clear_highlight(self, hl_keys=[]):
+    def clear_highlight(self, hl_keys=[], sleep=True):
         for hl_key, hl_set in self.highlight_dict.items():
             if hl_key in hl_keys or not hl_keys:
                 for k,v in hl_set.items():
-                    self.remove_geometry(v)
                     del self.highlight_dict[hl_key][k]
+                    self.remove_geometry(v,sleep=sleep)
 
     def highlight_geometry(self, hl_key, gname, color=(1, 0.3, 0.3, 0.5)):
         if gname not in self.ghnd.NAME_DICT:
@@ -385,14 +387,14 @@ class ConstraintGraph:
                             collision=False)
 
         self.highlight_dict[hl_key][htem.name] = htem
-        self.add_geometry(htem)
+        self.add_marker(htem)
 
     def add_highlight_axis(self, hl_key, name, link_name, center, orientation_mat, color=None, axis="xyz", dims=(0.10, 0.01, 0.01)):
         if 'x' in axis:
             axtemx = self.ghnd.create_safe(gtype=GEOTYPE.ARROW, name="axx_" + name, link_name=link_name,
                                   center=center, dims=dims, rpy=Rot2rpy(orientation_mat), color=color or (1, 0, 0, 0.5),
                                   collision=False)
-            self.add_geometry(axtemx)
+            self.add_marker(axtemx)
             self.highlight_dict[hl_key][axtemx.name] = axtemx
 
         if 'y' in axis:
@@ -400,7 +402,7 @@ class ConstraintGraph:
                                   center=center, dims=dims,
                                   rpy=Rot2rpy(np.matmul(orientation_mat, Rot_axis(3, np.pi / 2))), color=color or (0, 1, 0, 0.5),
                                   collision=False)
-            self.add_geometry(axtemy)
+            self.add_marker(axtemy)
             self.highlight_dict[hl_key][axtemy.name] = axtemy
 
         if 'z' in axis:
@@ -409,7 +411,7 @@ class ConstraintGraph:
                                   rpy=Rot2rpy(np.matmul(orientation_mat, Rot_axis(2, -np.pi / 2))),
                                   color=color or (0, 0, 1, 0.5),
                                   collision=False)
-            self.add_geometry(axtemz)
+            self.add_marker(axtemz)
             self.highlight_dict[hl_key][axtemz.name] = axtemz
 
     def add_handle_axis(self, hl_key, handle, color=None):
@@ -423,7 +425,7 @@ class ConstraintGraph:
         oname = atem.oname
         axis_name = axis_name or oname
         if oname in self.combined_robot.get_scene_dict():
-            link_name = RobotType.get_base_link(self.combined_robot.get_scene_dict()[oname], oname)
+            link_name = RobotSpecs.get_base_link(self.combined_robot.get_scene_dict()[oname], oname)
             Toff = atem.Toff
         else:
             aobj = self.ghnd.NAME_DICT[oname]
@@ -439,12 +441,17 @@ class ConstraintGraph:
     def replay(self, schedule, N=400, dt=0.005,**kwargs):
         state_cur = self.sampler.snode_dict[schedule[0]].state
         for i_state in schedule[1:]:
-            state_new = self.sampler.snode_dict[i_state].state
+            snode = self.sampler.snode_dict[i_state]
+            state_new = snode.state
             print('')
             print('-'*20)
             print("{}-{}".format(i_state, state_new.node))
-            traj, new_state, error, succ = self.test_transition(state_cur, state_new, display=True, N=N, dt=dt,**kwargs)
-            state_cur = state_new
+            traj, new_state, error, succ = self.test_transition(state_cur, state_new, display=True,
+                                                                redundancy_dict=snode.redundancy, N=N, dt=dt,**kwargs)
+            try: self.show_pose(traj[-1])
+            except: pass
+            sleep(0.5)
+            state_cur = new_state
         return traj
 
     def execute_schedule_online(self, snode_schedule, planner, control_freq=DEFAULT_TRAJ_FREQUENCY, playback_rate=0.5,
@@ -480,7 +487,7 @@ class ConstraintGraph:
                                               T_step=T_step, **kwargs
                                               )
 
-            Q0 = np.array(joint_dict2list(pos, self.joint_names))
+            Q0 = np.array(dict2list(pos, self.joint_names))
             if not on_rviz:
                 self.combined_robot.joint_make_sure(Q0)
                 # print("wait for button input")
@@ -522,7 +529,7 @@ class ConstraintGraph:
                             planner.update_online(obsPos_dict)
                             pos, end_loop, error, success = planner.step_online_plan(i_q, pos, wp_action=idx_cur<end_traj)
                             # print("{i_s} : {idx_cur}<{end_traj}:{wp}".format(i_s=i_s, idx_cur=idx_cur, end_traj=end_traj, wp=idx_cur<end_traj))
-                            POS_CUR = np.array(joint_dict2list(pos, self.joint_names))
+                            POS_CUR = np.array(dict2list(pos, self.joint_names))
                             # VEL_CUR = VEL_CUR + e_sim.VEL[i_q, 1::2] * e_sim.DT
                             # POS_CUR = POS_CUR + VEL_CUR * e_sim.DT
                             self.gtimer.toc("update", stack=True)
@@ -533,7 +540,7 @@ class ConstraintGraph:
                             if error_count > max_err_count:
                                 print("MAX ERROR REACHED {}".format(error_count))
                                 raise (e)
-                            POS_CUR = np.array(joint_dict2list(pos, self.joint_names))
+                            POS_CUR = np.array(dict2list(pos, self.joint_names))
                             self.gtimer.toc("error", stack=True)
                         self.gtimer.tic("rviz")
                         if rviz_pub is not None:
@@ -547,7 +554,7 @@ class ConstraintGraph:
                         stop_count+=1
                         continue
             from_Q = POS_CUR.copy()
-            joint_dict = joint_list2dict(POS_CUR, self.joint_names)
+            joint_dict = list2dict(POS_CUR, self.joint_names)
             for bd in binding_list:
                 self.rebind(bd, joint_dict)
             object_pose_cur = self.get_object_state()[1]
@@ -574,7 +581,7 @@ class ConstraintGraph:
         objectPose_dict.update(objectPose_dict_ref)
         T_co = objectPose_dict[obj_name]
         T_cp = objectPose_dict[coord_name]
-        T_p0e = get_tf(obj_link_name, joint_list2dict(self.get_real_robot_pose(), self.joint_names), self.urdf_content,
+        T_p0e = get_tf(obj_link_name, list2dict(self.get_real_robot_pose(), self.joint_names), self.urdf_content,
                        from_link=coord_link_name)
         T_peo = Teo  # SE3(Rot_zyx(0,-np.pi/2,-np.pi/2), [0,0,0.091])
         T_po_cam = np.matmul(SE3_inv(T_cp), T_co)

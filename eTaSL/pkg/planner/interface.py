@@ -1,4 +1,5 @@
 from abc import *
+import numpy as np
 
 __metaclass__ = type
 
@@ -39,3 +40,7 @@ class PlannerInterface:
     @abstractmethod
     def update_target_joint(self, idx_cur, traj, joint_cur):
         pass
+
+def downample_traj(traj_full, traj_count):
+    traj_step = max(1, len(traj_full) / traj_count)
+    return np.array(list(reversed(traj_full[::-traj_step])))

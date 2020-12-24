@@ -1,3 +1,29 @@
+# Recommended Tools  
+* jupyter 
+  ```
+  sudo apt install python3-notebook python-notebook jupyter jupyter-core python-ipykernel  
+  ```
+  * do server setting  
+* nvidia-smi-gui
+  * install  
+  ```
+  sudo apt-get install python3-pyqt4
+  mkdir ~/nvidia-smi-gui && cd ~/nvidia-smi-gui
+  git clone https://github.com/imkzh/nvidia-smi-gui.git .
+  ```
+  * launch  
+  ```
+  python3 ~/nvidia-smi-gui/nvidia-smi-gui.py
+  ```
+* Teamviewer (autostart, password)  
+* GitKraken  
+* PyCharm, Clion  
+  * add "export PATH=$PATH:{}/bin" to .bashrc  
+* openssh-server  
+  ```
+  sudo apt-get install openssh-server -y && sudo service ssh start
+  ```
+
 # Panda simulator
 * Install
   ```
@@ -23,7 +49,7 @@
 # How to make xacro for multi-robot  
 * find xacro file in the description package for target robot  
 * copy the xacro file to "$TAMP_ETASL_DIR"/robots  
-* delete "world" link and joint connected to it  
+* delete "world" and "base_link" links and joints connected to it  
 * add macro:  
   ```
   \<xacro:macro name="robotname" params="robot_id:='0' description_pkg:='robot_description' connected_to:='' xyz:='0 0 0' rpy:='0 0 0'"\>  
@@ -103,3 +129,34 @@ chmod +x *
   ```
   source ~Projects/tamp_etasl/eTaSL/ws_ros/devel/setup.bash
   ``` 
+  
+## Moveit
+* Install moveit (after ros-melodic and catkin)
+```
+sudo apt install ros-melodic-moveit
+```
+
+* Tutorial
+  * make workspace and clone tutorial repository
+  ```
+  mkdir -p ~/ws_moveit/src
+  cd ~/ws_moveit/src
+  git clone https://github.com/ros-planning/moveit_tutorials.git -b melodic-devel
+  git clone https://github.com/ros-planning/panda_moveit_config.git -b melodic-devel
+  ```
+  * install packages
+  ```
+  cd ~/ws_moveit/src
+  rosdep install -y --from-paths . --ignore-src --rosdistro melodic
+  cd ~/ws_moveit
+  catkin config --extend /opt/ros/${ROS_DISTRO} --cmake-args -DCMAKE_BUILD_TYPE=Release
+  catkin build
+  ```
+  * source workspace
+  ```
+  source ~/ws_moveit/devel/setup.bash
+  ```
+  * follow tutorial process in 
+  ``` 
+  http://docs.ros.org/en/melodic/api/moveit_tutorials/html/doc/move_group_python_interface/move_group_python_interface_tutorial.html#getting-started
+  ```

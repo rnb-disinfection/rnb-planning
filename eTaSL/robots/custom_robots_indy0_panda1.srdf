@@ -1,0 +1,57 @@
+<?xml version="1.0" ?>
+<robot name="custom_robots">
+	<group name="indy0_panda1">
+		<chain base_link="indy0_tcp" tip_link="panda1_hand"/>
+	</group>
+	<group_state group="indy0_panda1" name="all-zeros">
+		<joint name="indy0_joint5" value="0"/>
+		<joint name="indy0_joint4" value="0"/>
+		<joint name="indy0_joint3" value="0"/>
+		<joint name="indy0_joint2" value="0"/>
+		<joint name="indy0_joint1" value="0"/>
+		<joint name="indy0_joint0" value="0"/>
+		<joint name="panda1_joint1" value="0"/>
+		<joint name="panda1_joint2" value="0"/>
+		<joint name="panda1_joint3" value="0"/>
+		<joint name="panda1_joint4" value="0"/>
+		<joint name="panda1_joint5" value="0"/>
+		<joint name="panda1_joint6" value="0"/>
+		<joint name="panda1_joint7" value="0"/>
+	</group_state>
+	<virtual_joint child_link="indy0_tcp" name="fixed_base" parent_frame="world" type="fixed"/>
+	<disable_collisions link1="base_link" link2="indy0_link0" reason="Adjacent"/>
+	<disable_collisions link1="base_link" link2="indy0_link1" reason="Adjacent"/>
+	<disable_collisions link1="base_link" link2="panda1_link0" reason="Adjacent"/>
+	<disable_collisions link1="base_link" link2="panda1_link1" reason="Adjacent"/>
+	<disable_collisions link1="base_link" link2="stem" reason="Adjacent"/>
+	<disable_collisions link1="indy0_link0" link2="indy0_link1" reason="Adjacent"/>
+	<disable_collisions link1="indy0_link0" link2="panda1_link0" reason="Adjacent"/>
+	<disable_collisions link1="indy0_link0" link2="panda1_link1" reason="Adjacent"/>
+	<disable_collisions link1="indy0_link0" link2="stem" reason="Adjacent"/>
+	<disable_collisions link1="indy0_link1" link2="indy0_link2" reason="Adjacent"/>
+	<disable_collisions link1="indy0_link2" link2="indy0_link3" reason="Adjacent"/>
+	<disable_collisions link1="indy0_link3" link2="indy0_link4" reason="Adjacent"/>
+	<disable_collisions link1="indy0_link4" link2="indy0_link5" reason="Adjacent"/>
+	<disable_collisions link1="indy0_link5" link2="indy0_link6" reason="Adjacent"/>
+	<disable_collisions link1="panda1_hand" link2="panda1_leftfinger" reason="Adjacent"/>
+	<disable_collisions link1="panda1_hand" link2="panda1_link6" reason="Adjacent"/>
+	<disable_collisions link1="panda1_hand" link2="panda1_link7" reason="Adjacent"/>
+	<disable_collisions link1="panda1_hand" link2="panda1_link8" reason="Adjacent"/>
+	<disable_collisions link1="panda1_hand" link2="panda1_rightfinger" reason="Adjacent"/>
+	<disable_collisions link1="panda1_leftfinger" link2="panda1_link6" reason="Adjacent"/>
+	<disable_collisions link1="panda1_leftfinger" link2="panda1_link7" reason="Adjacent"/>
+	<disable_collisions link1="panda1_leftfinger" link2="panda1_link8" reason="Adjacent"/>
+	<disable_collisions link1="panda1_leftfinger" link2="panda1_rightfinger" reason="Adjacent"/>
+	<disable_collisions link1="panda1_link0" link2="panda1_link1" reason="Adjacent"/>
+	<disable_collisions link1="panda1_link0" link2="stem" reason="Adjacent"/>
+	<disable_collisions link1="panda1_link1" link2="panda1_link2" reason="Adjacent"/>
+	<disable_collisions link1="panda1_link1" link2="stem" reason="Adjacent"/>
+	<disable_collisions link1="panda1_link2" link2="panda1_link3" reason="Adjacent"/>
+	<disable_collisions link1="panda1_link3" link2="panda1_link4" reason="Adjacent"/>
+	<disable_collisions link1="panda1_link4" link2="panda1_link5" reason="Adjacent"/>
+	<disable_collisions link1="panda1_link5" link2="panda1_link6" reason="Adjacent"/>
+	<disable_collisions link1="panda1_link6" link2="panda1_link7" reason="Adjacent"/>
+	<disable_collisions link1="panda1_link7" link2="panda1_link8" reason="Adjacent"/>
+	<disable_collisions link1="panda1_link7" link2="panda1_rightfinger" reason="Adjacent"/>
+	<disable_collisions link1="panda1_link8" link2="panda1_rightfinger" reason="Adjacent"/>
+</robot>

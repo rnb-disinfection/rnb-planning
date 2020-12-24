@@ -28,10 +28,10 @@
 #                                                                         #
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-
+cmake_minimum_required(VERSION 3.5)
 project (openGJKlib)
 
-set(CMAKE_C_STANDARD 11)
+set(CMAKE_CXX_STANDARD 11)
 
 # SELECT USER OPTIONS
 option(VERSION_ACCURATE  "Reduce speed to maximise accuracy (OFF)"   OFF )
@@ -51,8 +51,8 @@ message(STATUS "Version     (Accurate,Fast): " ${openGJK_VERSION}  )
 message(STATUS "Build type  (Debug,Release): " ${CMAKE_BUILD_TYPE} )
 
 # Select source files
-set( SOURCE_FILES src/openGJK.c )
-set( SOURCE_HEADS include/openGJK/openGJK.h)
+set( SOURCE_FILES src/openGJK.cpp src/openGJK_cpp_wrap.cpp src/boost_python_interface.cpp)
+set( SOURCE_HEADS include/openGJK/openGJK.h include/openGJK_cpp_wrap.h include/bp_container_interface.h)
 
 IF(USE_PREDICATES)
     # for adpative floating-point artim.
@@ -62,12 +62,18 @@ IF(USE_PREDICATES)
     add_definitions(-DADAPTIVEFP)
 ENDIF()
 
+find_package(PythonLibs 2.7 REQUIRED)
+find_package(Boost COMPONENTS python REQUIRED)
+
+include_directories(${PROJECT_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS} ${PYTHON_INCLUDE_DIRS})
+
+set(CMAKE_SHARED_LIBRARY_PREFIX "") # output file name should match with BOOST_PYTHON_MODULE name
+
 # Create the (dynamic) library
 add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES} ${SOURCE_HEADS})
 add_definitions(-DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=TRUE -DBUILD_SHARED_LIBS=FALSE)
 
-# Link include file
-target_include_directories( ${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(${PROJECT_NAME} ${Boost_LIBRARIES} ${PYTHON_LIBRARIES})
 
 IF(USE_PREDICATES)
     # for adpative floating-point artim.

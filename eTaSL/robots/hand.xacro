@@ -15,9 +15,21 @@
         </geometry>
       </visual>
       <collision>
-        <origin xyz="0 0 0.025" rpy="1.57079633 0 0"/>
+        <origin xyz="0 0 0.03" rpy="1.57079633 0 0"/>
         <geometry>
-          <box size="0.06 0.094 0.22"/>
+          <cylinder length="0.16" radius="0.045"/>
+        </geometry>
+      </collision>
+      <collision>
+        <origin xyz="0 0.07 -0.02" rpy="0 1.57079633 0"/>
+        <geometry>
+          <cylinder length="0.055" radius="0.02"/>
+        </geometry>
+      </collision>
+      <collision>
+        <origin xyz="0 -0.07 -0.02" rpy="1.57079633 0 0"/>
+        <geometry>
+          <cylinder length="0.05" radius="0.01"/>
         </geometry>
       </collision>
     </link>

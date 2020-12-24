@@ -32,7 +32,7 @@ def get_representation(gtem, point=None):
         return "MultiSphere({{Vector({},{},{})}},{{ {} }})".format(0, 0, 0, 0) #gtem.radius)
     elif gtem.gtype == GEOTYPE.BOX:
         return "Box({},{},{})".format(*gtem.dims)
-    elif gtem.gtype == GEOTYPE.SEGMENT:
+    elif gtem.gtype in [GEOTYPE.CAPSULE, GEOTYPE.CYLINDER]:
         return "CapsuleZ({radius},{length})".format(radius=gtem.radius,length=gtem.dims[2])
     elif gtem.gtype == GEOTYPE.MESH:
         return "Box({},{},{})".format(*gtem.dims)
@@ -274,16 +274,7 @@ def make_action_constraints(handle, effector, redundancy=None, activation=False)
             raise(NotImplementedError("non-implemented handle type"))
         const_txt = make_constraint_fun(handle, effector, handle.name_full, activation=activation)
     else:
-        point_add = [0,0,0]
-        rpy_add = [0,0,0]
-        for k, v in redundancy.items():
-            ax ="xyzuvw".index(k)
-            if ax<3:
-                point_add[ax] += redundancy[k]
-            else:
-                rpy_add[ax-3] += redundancy[k]
-        if effector.point is None: # WARNING: CURRENTLY ASSUME UPPER PLANE
-            point_add[2] += effector.object.dims[2]/2
+        point_add, rpy_add = calc_redundancy(redundancy, effector)
         const_txt = make_oriented_point_constraint(handle, effector, handle.name_full,
                                                    point_add=point_add, rpy_add=rpy_add,
                                                    activation=activation)

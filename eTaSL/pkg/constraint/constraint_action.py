@@ -64,6 +64,14 @@ class Gripper2Tool(PointerBinding):
     def check_available(self, joint_dict):
         return True
 
+class FramedTool(PointerBinding):
+    controlled = True
+    multiple = False
+    ctype = ConstraintType.Frame
+
+    def check_available(self, joint_dict):
+        return True
+
 class PlacePlane(PointerBinding):
     controlled = False
     multiple = True
@@ -82,6 +90,14 @@ class PlaceFrame(FrameBinding):
 
     def check_available(self, joint_dict):
         return self.get_tf_handle(joint_dict)[2,2]>self.VERTICAL_CUT
+
+class FixtureSlot(PointerBinding):
+    controlled = False
+    multiple = True
+    ctype = ConstraintType.Fixture
+
+    def check_available(self, joint_dict):
+        return False
 
 def ctype_to_btype(cstr):
     if cstr == ConstraintType.Grasp2.name:

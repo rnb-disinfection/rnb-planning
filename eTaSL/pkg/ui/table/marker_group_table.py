@@ -69,6 +69,7 @@ class MarkerGroupTable(TableInterface):
         return res, msg
 
     def button(self, button, *args, **kwargs):
+        print("button clicked")
         if button == TAB_BUTTON.CUSTOM:
             if args[0]:
                 graph = self.graph
@@ -78,8 +79,8 @@ class MarkerGroupTable(TableInterface):
                                (v.object.name in graph.cam.aruco_map and graph.cam.aruco_map[v.object.name].ttype == TargetType.MOVABLE)}
                 OBJECT_DICT = {k:dict(_type=v.__class__) for k,v in graph.object_dict.items()}
                 objectPose_dict_mv, corner_dict_mv, color_image, aruco_map_mv = detect_objects(graph.cam.aruco_map, graph.cam.dictionary)
-                put_point_dict = graph.register_object_gen(objectPose_dict_mv, BINDER_DICT, OBJECT_DICT, link_name="world")
-                update_geometries(objectPose_dict_mv.keys(), objectPose_dict_mv, graph.cam.ref_tuple[1])
+                put_point_dict = graph.register_object_gen(objectPose_dict_mv, BINDER_DICT, OBJECT_DICT, link_name="base_link")
+                update_geometries(graph.ghnd, objectPose_dict_mv.keys(), objectPose_dict_mv, graph.cam.ref_tuple[1])
                 graph.set_rviz(graph.joints.position)
 
                 screen_size = (1080,1920)
@@ -92,7 +93,7 @@ class MarkerGroupTable(TableInterface):
             elif args[1]:
                 graph = self.graph
                 cam = graph.cam
-                env_gen_dict, objectPose_dict, corner_dict, color_image, rs_objectPose_dict, rs_corner_dict, rs_image = cam.detect_environment()
+                env_gen_dict, objectPose_dict, corner_dict, color_image, rs_objectPose_dict, rs_corner_dict, rs_image = cam.detect_environment(graph.ghnd)
                 add_objects_gen(graph, env_gen_dict)
                 graph.set_rviz()
 
@@ -110,3 +111,4 @@ class MarkerGroupTable(TableInterface):
                 print("Unknown button")
         else:
             TableInterface.button(self, button, *args, **kwargs)
+        print("button action done")
