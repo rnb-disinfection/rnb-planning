@@ -2,6 +2,7 @@
 *.csv
 *.pdf
 *.npy
+*.out
 eTaSL/markers/
 eTaSL/data/
 eTaSL/logs/
