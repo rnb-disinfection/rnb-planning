@@ -4,8 +4,6 @@
 #include <signal.h>
 #include <logger.h>
 #include <ros_load_yaml.h>
-#include <moveit/ompl_interface/ompl_interface.h>
-//#include "ompl_planner_manager_custom.h"
 
 using namespace RNB::MoveitCompact;
 
@@ -88,17 +86,12 @@ bool Planner::init_planner(string& urdf_txt, string& srdf_txt, NameList& group_n
     }
     PRINT_FRAMED_LOG("loaded scene", true);
 
-    PRINT_FRAMED_LOG("load pipeline");
-    _planning_pipeline = std::make_shared<planning_pipeline::PlanningPipeline>(_robot_model, *_node_handle,
-                                                    "planning_plugin", "request_adapters");
-    if(_planning_pipeline==NULL){
-        PRINT_ERROR("failed to load pipeline");
-        return false;
-    }
+    PRINT_FRAMED_LOG("load planner");
+    _planner_manager = std::make_shared<ompl_interface::OMPLPlannerManagerCustom>();
 
-    _planning_pipeline->checkSolutionPaths(false);
-    _planning_pipeline->publishReceivedRequests(false);
-    _planning_pipeline->displayComputedMotionPlans(false);
+    if (!_planner_manager->initialize(_robot_model, _node_handle->getNamespace()))
+        throw std::runtime_error("Unable to initialize planning plugin");
+    ROS_INFO_STREAM("Using planning interface '" << _planner_manager->getDescription() << "'");
 
     PRINT_FRAMED_LOG("loaded pipeline", true);
     auto names = _planning_scene->getCurrentState().getVariableNames();
@@ -154,14 +147,10 @@ PlanResult& Planner::plan(string group_name, string tool_link,
 
     plan_result.trajectory.clear();
 
-    std::vector<std::size_t> dummy;
-    _planning_pipeline->generatePlan(_planning_scene, _req, _res, dummy);
+    planning_interface::PlanningContextPtr context =
+            _planner_manager->getPlanningContext(_planning_scene, _req, _res.error_code_);
 
-//    ompl_interface::OMPLPlannerManagerCustom _planner_manager;
-//    planning_interface::PlanningContextPtr context =
-//            _planner_manager.getPlanningContext(_planning_scene, _req, _res.error_code_);
-//
-//    context->solve(_res);
+    context->solve(_res);
 
     /* Check that the planning was successful */
     if (_res.error_code_.val != _res.error_code_.SUCCESS)
@@ -188,7 +177,7 @@ PlanResult& Planner::plan(string group_name, string tool_link,
     return plan_result;
 }
 
-PlanResult& Planner::plan_fixz(string group_name, string tool_link,
+PlanResult& Planner::plan_with_constraint(string group_name, string tool_link,
                          CartPose goal_pose, string goal_link,
                          JointState init_state, string planner_id, double allowed_planning_time){
     PRINT_FRAMED_LOG("set goal", true);
@@ -228,14 +217,10 @@ PlanResult& Planner::plan_fixz(string group_name, string tool_link,
 
     plan_result.trajectory.clear();
 
-    std::vector<std::size_t> dummy;
-    _planning_pipeline->generatePlan(_planning_scene, _req, _res, dummy);
+    planning_interface::PlanningContextPtr context =
+            _planner_manager->getPlanningContext(_planning_scene, _req, _res.error_code_);
 
-//    ompl_interface::OMPLPlannerManagerCustom _planner_manager;
-//    planning_interface::PlanningContextPtr context =
-//            _planner_manager.getPlanningContext(_planning_scene, _req, _res.error_code_);
-//
-//    context->solve(_res);
+    context->solve(_res);
 
     /* Check that the planning was successful */
     if (_res.error_code_.val != _res.error_code_.SUCCESS)
@@ -341,6 +326,11 @@ void Planner::clear_all_objects(){
 void Planner::set_zplane_manifold(string group_name, JointState init_state, string tool_link){
     _custom_constraint = std::make_shared<CustomConstraint>(_robot_model, group_name, init_state, tool_link, joint_num);
 }
+void Planner::terminate(){
+    if(_planner_manager){
+        _planner_manager->terminate();
+    }
+}
 
 //void terminate_ros(){
 //    PRINT_FRAMED_LOG("DELETE PLANNER", true);
@@ -396,7 +386,9 @@ int main(int argc, char** argv) {
     init_state << 0, 0, -1.57, 0, -1.57, 0, 0, -0.4, 0, -1.57, 0, 1.57, 1.57;
     CartPose goal;
     goal << -0.3,-0.2,0.4,0,0,0,1;
-    planner.plan("indy0", "indy0_tcp", goal, "base_link", init_state);
+    planner.plan_with_constraint("indy0", "indy0_tcp", goal, "base_link", init_state);
+
+    planner.terminate();
 
 //
 //    double goal_obs[7] = {-0.3,-0.2,0.0,0,0,0,1};

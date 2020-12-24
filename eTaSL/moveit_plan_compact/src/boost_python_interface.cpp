@@ -80,5 +80,6 @@ BOOST_PYTHON_MODULE(moveit_plan_compact){
             .def("add_object", &Planner::add_object)
             .def("process_object", &Planner::process_object)
             .def("clear_all_objects", &Planner::clear_all_objects)
+            .def("terminate", &Planner::terminate)
             ;
 }

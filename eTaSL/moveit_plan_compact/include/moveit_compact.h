@@ -6,6 +6,7 @@
 #include <moveit/planning_pipeline/planning_pipeline.h>
 #include <moveit/kinematic_constraints/utils.h>
 #include <ompl-1.5/ompl/base/Constraint.h>
+#include "ompl_planner_manager_custom.h"
 
 #define MAX_NAME_LEN 32
 #define MAX_NAME_NUM 32
@@ -93,14 +94,15 @@ namespace RNB {
          */
         class Planner {
         public:
+            std::shared_ptr<ompl_interface::OMPLPlannerManagerCustom> _planner_manager;
             robot_model_loader::RobotModelLoaderPtr _robot_model_loader;
             robot_model::RobotModelPtr _robot_model;
             planning_scene::PlanningScenePtr _planning_scene;
-            planning_pipeline::PlanningPipelinePtr _planning_pipeline;
+            std::shared_ptr<CustomConstraint> _custom_constraint;
+
             PlanResult plan_result;
             NameList joint_names;
             int joint_num;
-            std::shared_ptr<CustomConstraint> _custom_constraint;
 
             /**
              * @brief initialize planner from urdf and srdf files. redirects to init_planner
@@ -128,7 +130,7 @@ namespace RNB {
              * @brief initialize planner with string contents of urdf and srdf files.
              * @author Junsu Kang
              */
-            PlanResult &plan_fixz(string group_name, string tool_link,
+            PlanResult &plan_with_constraint(string group_name, string tool_link,
                              CartPose goal_pose, string goal_link,
                              JointState init_state, string planner_id="RRTConnectkConfigDefault",
                              double allowed_planning_time=0.1);
@@ -159,6 +161,8 @@ namespace RNB {
              * @author Junsu Kang
              */
             void set_zplane_manifold(string group_name, JointState init_state, string tool_link);
+
+            void terminate();
         };
 
     }

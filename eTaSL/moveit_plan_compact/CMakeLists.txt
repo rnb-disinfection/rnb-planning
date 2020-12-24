@@ -10,6 +10,7 @@ find_package(catkin REQUIRED
         moveit_visual_tools
         moveit_ros_planning
         moveit_ros_planning_interface
+        moveit_planners_ompl
         moveit_ros_perception
         pluginlib
         geometric_shapes
@@ -31,9 +32,9 @@ include_directories(${catkin_INCLUDE_DIRS})
 
 set(CMAKE_SHARED_LIBRARY_PREFIX "") # output file name should match with BOOST_PYTHON_MODULE name
 
-add_library(${PROJECT_NAME} SHARED src/moveit_compact.cpp include/moveit_compact.h
-        include/ros_load_yaml.h include/logger.h
-        src/boost_python_interface.cpp include/bp_container_interface.h)
-#add_executable(${PROJECT_NAME} src/moveit_compact.cpp include/moveit_compact.h include/ros_load_yaml.h include/logger.h include/ompl_planner_manager_custom.h)
+#add_library(${PROJECT_NAME} SHARED src/moveit_compact.cpp include/moveit_compact.h
+#        include/ros_load_yaml.h include/logger.h
+#        src/boost_python_interface.cpp include/bp_container_interface.h)
+add_executable(${PROJECT_NAME} src/moveit_compact.cpp include/moveit_compact.h include/ros_load_yaml.h include/logger.h include/ompl_planner_manager_custom.h)
 
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${OMPL_LIBRARIES} yaml-cpp)
