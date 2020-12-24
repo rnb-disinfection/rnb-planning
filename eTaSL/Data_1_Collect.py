@@ -20,6 +20,7 @@ import Data_3_Convert
 
 ROBOT_DICT = {"indy0": RobotType.indy7, "panda1": RobotType.panda}
 gtimer = GlobalTimer.instance()
+gtimer.reset()
 
 def main(root_dir=None, BASE_LINK="base_link", ROBOT_NAMES=["indy0", "panda1"], MAX_REACH_DICT = {'indy0': 1.5, 'panda1': 1.5},
          REACH_OFFSET_DICT = {'indy0': (0, 0, 0.3), 'panda1': (0, 0, 0.3)},
@@ -32,9 +33,9 @@ def main(root_dir=None, BASE_LINK="base_link", ROBOT_NAMES=["indy0", "panda1"], 
          L_CELL = 0.2, MIN_DIST_ROBOT = 1, NoMin = 30, NoMax = 60, RATIO_COVER = 2.0, RATIO_DIMS = 2.0,
          LINK_COLL_MARGIN = 0.01, N_search = 10, N_retry = 1,
          GLOBAL_FILENAME = "global.json", WORLD_FILENAME = "world.json", SCENE_FILENAME = "scene.json",
-         SAMPLE_NUM_WORLD = 1, SAMPLE_NUM_SCENE = 1, SAMPLE_NUM_ACTION = 1, S_F_RATIO = 3, TIMEOUT = 1.0
+         SAMPLE_NUM_WORLD = 1, SAMPLE_NUM_SCENE = 1, SAMPLE_NUM_ACTION = 1, S_F_RATIO = 3, TIMEOUT = 1.0,
+         Trbt_dict_fixed = None
          ):
-    gtimer.reset()
 
     Nrbt = len(ROBOT_NAMES) # 2
     crob = CombinedRobot(robots_on_scene=[(rname, ROBOT_DICT[rname]) for rname in ROBOT_NAMES], connection_list=[False]*Nrbt)
@@ -79,7 +80,10 @@ def main(root_dir=None, BASE_LINK="base_link", ROBOT_NAMES=["indy0", "panda1"], 
     ############################## Sample world ########################################
     ####################################################################################
     for _ in range(SAMPLE_NUM_WORLD):
-        SAMPLED_DATA["WORLD"]["Trbt_dict"] = Trbt_dict= sample_Trbt(Nrbt, crob.robot_names, WDH_MIN_RBT, WDH_MAX_RBT, MIN_DIST_ROBOT)
+        if Trbt_dict_fixed is None:
+            SAMPLED_DATA["WORLD"]["Trbt_dict"] = Trbt_dict= sample_Trbt(Nrbt, crob.robot_names, WDH_MIN_RBT, WDH_MAX_RBT, MIN_DIST_ROBOT)
+        else:
+            SAMPLED_DATA["WORLD"]["Trbt_dict"] = Trbt_dict= Trbt_dict_fixed
         reach_center_dict = {k: tuple(np.add(v[0], REACH_OFFSET_DICT[k])) for k, v in Trbt_dict.items()}
         WORLD_PATH = os.path.join(CURRENT_PATH, "WORLD-"+get_now())
         os.mkdir(WORLD_PATH)
@@ -245,8 +249,24 @@ def main(root_dir=None, BASE_LINK="base_link", ROBOT_NAMES=["indy0", "panda1"], 
     return DATASET
 
 if __name__ == "__main__":
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='Collect data.')
+    parser.add_argument('-n', '--sample_num', type=int, default=100,
+                        help='(Optional) the number of sample worlds')
+    parser.add_argument('-f', '--fix_robots', type=str2bool, default=False,
+                        help="fix robots on default position")
+    
+    args = parser.parse_args()
+    
+    from pkg.controller.combined_robot import XYZ_RPY_ROBOTS_DEFAULT
+    from pkg.utils.utils import str2bool
+
     gtimer.tic("Collect")
-    DATASET = main(SAMPLE_NUM_WORLD=300)
+    DATASET = main(SAMPLE_NUM_WORLD=args.sample_num,
+                   Trbt_dict_fixed=
+                   {k: (np.add(v[0], [1.5,1.5,0.75]), v[1]) for k, v in XYZ_RPY_ROBOTS_DEFAULT.items()}
+                   if args.fix_robots else None)
     collect_time = gtimer.toc("Collect")
     gtimer.tic("Check")
     Data_2_Check.main([DATASET])

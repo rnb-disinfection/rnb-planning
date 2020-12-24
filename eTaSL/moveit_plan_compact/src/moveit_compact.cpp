@@ -1,11 +1,11 @@
 #include "moveit_compact.h"
 
-#include <iostream>
-#include <fstream>
 #include <string>
 #include <signal.h>
 #include <logger.h>
 #include <ros_load_yaml.h>
+#include <moveit/ompl_interface/ompl_interface.h>
+//#include "ompl_planner_manager_custom.h"
 
 using namespace RNB::MoveitCompact;
 
@@ -95,6 +95,11 @@ bool Planner::init_planner(string& urdf_txt, string& srdf_txt, NameList& group_n
         PRINT_ERROR("failed to load pipeline");
         return false;
     }
+
+    _planning_pipeline->checkSolutionPaths(false);
+    _planning_pipeline->publishReceivedRequests(false);
+    _planning_pipeline->displayComputedMotionPlans(false);
+
     PRINT_FRAMED_LOG("loaded pipeline", true);
     auto names = _planning_scene->getCurrentState().getVariableNames();
     joint_num = 0;
@@ -106,7 +111,84 @@ bool Planner::init_planner(string& urdf_txt, string& srdf_txt, NameList& group_n
     return true;
 }
 
+typedef std::function<const ompl_interface::ModelBasedStateSpaceFactoryPtr&(const std::string&)> StateSpaceFactoryTypeSelectorMirror;
+
+
 PlanResult& Planner::plan(string group_name, string tool_link,
+                          CartPose goal_pose, string goal_link,
+                          JointState init_state, string planner_id, double allowed_planning_time){
+    PRINT_FRAMED_LOG("set goal", true);
+    geometry_msgs::PoseStamped _goal_pose;
+    _goal_pose.header.frame_id = goal_link;
+    _goal_pose.pose.position.x = goal_pose[0];
+    _goal_pose.pose.position.y = goal_pose[1];
+    _goal_pose.pose.position.z = goal_pose[2];
+    _goal_pose.pose.orientation.x = goal_pose[3];
+    _goal_pose.pose.orientation.y = goal_pose[4];
+    _goal_pose.pose.orientation.z = goal_pose[5];
+    _goal_pose.pose.orientation.w = goal_pose[6];
+
+    // A tolerance of 0.01 m is specified in position
+    // and 0.01 radians in orientation
+    std::vector<double> tolerance_pose(3, 0.001);
+    std::vector<double> tolerance_angle(3, 0.001);
+
+//    PRINT_FRAMED_LOG("constructGoalConstraints", true);
+    // Pose Goal
+    // ^^^^^^^^^
+    // We will now create a motion plan request for the right arm of the Panda
+    // specifying the desired pose of the end-effector as input.
+    // We will create the request as a constraint using a helper function available
+    moveit_msgs::Constraints _constrinat_pose_goal;
+    planning_interface::MotionPlanRequest _req;
+    planning_interface::MotionPlanResponse _res;
+    _req.group_name = group_name; //"indy0"; // "indy0_tcp"
+    _req.planner_id = planner_id;
+    _req.allowed_planning_time = allowed_planning_time;
+    _constrinat_pose_goal = kinematic_constraints::constructGoalConstraints(tool_link, _goal_pose, tolerance_pose, tolerance_angle);
+    _req.goal_constraints.push_back(_constrinat_pose_goal);
+
+    auto state_cur = _planning_scene->getCurrentState();
+    state_cur.setVariablePositions(init_state.data());
+    _planning_scene->setCurrentState(state_cur);
+
+    plan_result.trajectory.clear();
+
+    std::vector<std::size_t> dummy;
+    _planning_pipeline->generatePlan(_planning_scene, _req, _res, dummy);
+
+//    ompl_interface::OMPLPlannerManagerCustom _planner_manager;
+//    planning_interface::PlanningContextPtr context =
+//            _planner_manager.getPlanningContext(_planning_scene, _req, _res.error_code_);
+//
+//    context->solve(_res);
+
+    /* Check that the planning was successful */
+    if (_res.error_code_.val != _res.error_code_.SUCCESS)
+    {
+        plan_result.success = false;
+        PRINT_ERROR(("failed to generatePlan ("+std::to_string(_res.error_code_.val)+")").c_str());
+        return plan_result;
+    }
+    int traj_len = _res.trajectory_->getWayPointCount();
+    for( int i=0; i<traj_len; i++){
+        const double* wp_buff = _res.trajectory_->getWayPoint(i).getVariablePositions();
+        JointState wp(joint_num);
+        memcpy(wp.data(), wp_buff, sizeof(double)*joint_num);
+        plan_result.trajectory.push_back(wp);
+    }
+
+    PRINT_FRAMED_LOG((std::string("got trajectory - ")+std::to_string(plan_result.trajectory.size())).c_str(), true);
+
+//    printf(LOG_FRAME_LINE);
+//    PRINT_FRAMED_LOG("last pose below");
+//    cout << *(plan_result.trajectory.end()-1) << endl;
+//    printf(LOG_FRAME_LINE "\n");
+    plan_result.success = true;
+    return plan_result;
+}
+
+PlanResult& Planner::plan_fixz(string group_name, string tool_link,
                          CartPose goal_pose, string goal_link,
                          JointState init_state, string planner_id, double allowed_planning_time){
     PRINT_FRAMED_LOG("set goal", true);
@@ -145,9 +227,16 @@ PlanResult& Planner::plan(string group_name, string tool_link,
     _planning_scene->setCurrentState(state_cur);
 
     plan_result.trajectory.clear();
-//    PRINT_FRAMED_LOG("generatePlan", true);
-    // Now, call the pipeline and check whether planning was successful.
-    _planning_pipeline->generatePlan(_planning_scene, _req, _res);
+
+    std::vector<std::size_t> dummy;
+    _planning_pipeline->generatePlan(_planning_scene, _req, _res, dummy);
+
+//    ompl_interface::OMPLPlannerManagerCustom _planner_manager;
+//    planning_interface::PlanningContextPtr context =
+//            _planner_manager.getPlanningContext(_planning_scene, _req, _res.error_code_);
+//
+//    context->solve(_res);
+
     /* Check that the planning was successful */
     if (_res.error_code_.val != _res.error_code_.SUCCESS)
     {
@@ -249,6 +338,10 @@ void Planner::clear_all_objects(){
     _planning_scene->removeAllCollisionObjects();
 }
 
+void Planner::set_zplane_manifold(string group_name, JointState init_state, string tool_link){
+    _custom_constraint = std::make_shared<CustomConstraint>(_robot_model, group_name, init_state, tool_link, joint_num);
+}
+
 //void terminate_ros(){
 //    PRINT_FRAMED_LOG("DELETE PLANNER", true);
 //    delete planner_compact;
@@ -299,9 +392,12 @@ int main(int argc, char** argv) {
     Planner planner;
     planner.init_planner_from_file("../test_assets/custom_robots.urdf", "../test_assets/custom_robots.srdf",
                                    group_names, "../test_assets/");
-//    double init_state[13] = {0, 0, -1.57, 0, -1.57, 0, 0, -0.4, 0, -1.57, 0, 1.57, 1.57};
-//    double goal[7] = {-0.3,-0.2,0.4,0,0,0,1};
-//    planner_compact->plan_compact("indy0", "indy0_tcp", goal, "base_link", init_state, 0.1);
+    JointState init_state(13);
+    init_state << 0, 0, -1.57, 0, -1.57, 0, 0, -0.4, 0, -1.57, 0, 1.57, 1.57;
+    CartPose goal;
+    goal << -0.3,-0.2,0.4,0,0,0,1;
+    planner.plan("indy0", "indy0_tcp", goal, "base_link", init_state);
+
 //
 //    double goal_obs[7] = {-0.3,-0.2,0.0,0,0,0,1};
 //    double dims[3] = {0.1,0.1,0.1};

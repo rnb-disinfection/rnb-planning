@@ -225,6 +225,26 @@ class SingleValue:
         self.type = _type
         self.value = _value
 
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise (RuntimeError('Boolean value expected.'))
+
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise(RuntimeError('Boolean value expected.'))
+        
 def round_it_str(iterable, dec=3):
     dec_str="%.{}f".format(dec)
     return ",".join(map(lambda x:dec_str%x, iterable))

@@ -21,6 +21,8 @@ find_package(catkin REQUIRED
         tf2_geometry_msgs
         )
 
+find_package(ompl REQUIRED)
+
 find_package(Eigen3 REQUIRED)
 find_package(Boost REQUIRED system filesystem date_time thread python)
 
@@ -32,6 +34,6 @@ set(CMAKE_SHARED_LIBRARY_PREFIX "") # output file name should match with BOOST_P
 add_library(${PROJECT_NAME} SHARED src/moveit_compact.cpp include/moveit_compact.h
         include/ros_load_yaml.h include/logger.h
         src/boost_python_interface.cpp include/bp_container_interface.h)
-#add_executable(${PROJECT_NAME} src/moveit_compact.cpp include/moveit_compact.h include/ros_load_yaml.h include/logger.h)
+#add_executable(${PROJECT_NAME} src/moveit_compact.cpp include/moveit_compact.h include/ros_load_yaml.h include/logger.h include/ompl_planner_manager_custom.h)
 
-target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${Boost_LIBRARIES} yaml-cpp)
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${OMPL_LIBRARIES} yaml-cpp)

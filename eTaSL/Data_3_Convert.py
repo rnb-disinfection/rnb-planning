@@ -208,7 +208,6 @@ def main(dataset_list=None):
 
                 N_cell_label = N_label_box+N_label_cyl+N_label_init+N_label_goal + N_joint_label
 
-                gtimer.reset()
                 gtimer.tic("test_links")
                 Tlink_dict = {}
                 chain_dict = {}
@@ -324,6 +323,7 @@ def main(dataset_list=None):
                     else:
                         print("[END] {} - {} - {} - {} ===============".format(DATASET, WORLD, SCENE, ACTION))
                         print("No Item")
+                        continue
 
 
                     if rname and tar:  # handover case
@@ -475,5 +475,5 @@ def main(dataset_list=None):
     xcustom.clear()
     rospy.signal_shutdown("ALL FINISHED")
 
-if __name__=="__main__":
-    main()
+if __name__ == "__main__":
+    main(['20201218-024611'])

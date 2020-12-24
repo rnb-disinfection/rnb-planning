@@ -73,6 +73,13 @@ class GlobalTimer:
         return strout
 
 
+import json
+    
+def load_json(filename):
+    with open(filename, "r") as st_json:
+        st_python = json.load(st_json)
+    return st_python
+
 def load_pickle(filename):
     with open(filename, 'rb') as f:
         data = pickle.load(f, encoding='bytes')

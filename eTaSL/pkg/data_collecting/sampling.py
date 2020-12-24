@@ -731,7 +731,7 @@ class DataCollector:
             proc.start()
 
         for proc in self.proc_list:
-            proc.join(timeout=300)
+            proc.join(timeout=60)
         print("================== FINISHED ( {} / {} ) =======================".format(self.snode_counter.value,
                                                                                        N_agents * N_search))
         print(self.snode_counter.value)
@@ -750,7 +750,7 @@ class DataCollector:
             proc.start()
 
         for proc in self.proc_list:
-            proc.join(timeout=300)
+            proc.join(timeout=120)
         print("================== FINISHED =======================")
 
     def play_all(self, graph, GRIPPER_REFS, key, test_fun, Q_s, period=0.05, remove_map=[[1], [0]]):

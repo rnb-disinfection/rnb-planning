@@ -6,7 +6,7 @@
 <xacro:include filename="$(env TAMP_ETASL_DIR)/robots/indy7.xacro"/>
 <link name="base_link"/>
 <!-- BODY BEGIN -->
-<xacro:indy7 robot_id="0" xyz="-0.444375276566 0.24876666069 0.0120660662651" rpy="-0.00347209485447 0.0010262729627 -1.58766529131" connected_to="base_link"/>
-<xacro:panda robot_id="1" xyz="0.512558698654 0.165808618069 0.0120181441307" rpy="-0.0016779836511 0.000554054982627 -1.60498128646" connected_to="base_link"/>
+<xacro:indy7 robot_id="0" xyz="1.27387225503 2.19506259557 0.964992293848" rpy="0 0 4.02263637312" connected_to="base_link"/>
+<xacro:panda robot_id="1" xyz="1.98939921102 1.46129907119 0.525262459101" rpy="0 0 1.71500830377" connected_to="base_link"/>
 <!-- BODY END -->
 </robot>
