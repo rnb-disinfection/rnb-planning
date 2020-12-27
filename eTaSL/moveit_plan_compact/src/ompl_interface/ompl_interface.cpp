@@ -100,8 +100,8 @@ ompl_interface::ModelBasedPlanningContextPtr
 ompl_interface::OMPLInterface::getPlanningContext(const planning_scene::PlanningSceneConstPtr& planning_scene,
                                                   const planning_interface::MotionPlanRequest& req) const
 {
-  moveit_msgs::MoveItErrorCodes dummy;
-  return getPlanningContext(planning_scene, req, dummy);
+    moveit_msgs::MoveItErrorCodes dummy;
+    return getPlanningContext(planning_scene, req, dummy);
 }
 
 ompl_interface::ModelBasedPlanningContextPtr
@@ -109,11 +109,34 @@ ompl_interface::OMPLInterface::getPlanningContext(const planning_scene::Planning
                                                   const planning_interface::MotionPlanRequest& req,
                                                   moveit_msgs::MoveItErrorCodes& error_code) const
 {
-  ModelBasedPlanningContextPtr ctx =
-      context_manager_.getPlanningContext(planning_scene, req, error_code, nh_, use_constraints_approximations_);
-  if (ctx)
-    configureContext(ctx);
-  return ctx;
+    ModelBasedPlanningContextPtr ctx =
+            context_manager_.getPlanningContext(planning_scene, req, error_code, nh_, use_constraints_approximations_);
+    if (ctx)
+        configureContext(ctx);
+    return ctx;
+}
+
+ompl_interface::ModelBasedPlanningContextPtr
+ompl_interface::OMPLInterface::getPlanningContextConstrained(const planning_scene::PlanningSceneConstPtr& planning_scene,
+                                                  const planning_interface::MotionPlanRequest& req,
+                                                  RNB::MoveitCompact::CustomConstraintPtr & custom_constraint) const
+{
+    moveit_msgs::MoveItErrorCodes dummy;
+    return getPlanningContextConstrained(planning_scene, req, dummy, custom_constraint);
+}
+
+ompl_interface::ModelBasedPlanningContextPtr
+ompl_interface::OMPLInterface::getPlanningContextConstrained(const planning_scene::PlanningSceneConstPtr& planning_scene,
+                                                  const planning_interface::MotionPlanRequest& req,
+                                                  moveit_msgs::MoveItErrorCodes& error_code,
+                                                  RNB::MoveitCompact::CustomConstraintPtr & custom_constraint) const
+{
+    ModelBasedPlanningContextPtr ctx =
+            context_manager_.getPlanningContextConstrained(planning_scene, req, error_code, nh_,
+                                                           use_constraints_approximations_, custom_constraint);
+    if (ctx)
+        configureContext(ctx);
+    return ctx;
 }
 
 void ompl_interface::OMPLInterface::configureContext(const ModelBasedPlanningContextPtr& context) const

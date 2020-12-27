@@ -58,6 +58,8 @@ namespace RNB {
                 out << jacobian.block(2,0, 1, dims);
             }
         };
+
+        typedef std::shared_ptr<CustomConstraint> CustomConstraintPtr;
     }
 }
 

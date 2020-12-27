@@ -46,227 +46,240 @@
 #include <string>
 #include <map>
 
+#include "ompl_interface/ompl_custom_constraint.h"
+
 namespace ompl_interface
 {
-class MultiQueryPlannerAllocator
-{
-public:
-  MultiQueryPlannerAllocator() = default;
-  ~MultiQueryPlannerAllocator();
+    class MultiQueryPlannerAllocator
+    {
+    public:
+        MultiQueryPlannerAllocator() = default;
+        ~MultiQueryPlannerAllocator();
 
-  template <typename T>
-  ob::PlannerPtr allocatePlanner(const ob::SpaceInformationPtr& si, const std::string& new_name,
-                                 const ModelBasedPlanningContextSpecification& spec);
+        template <typename T>
+        ob::PlannerPtr allocatePlanner(const ob::SpaceInformationPtr& si, const std::string& new_name,
+                                       const ModelBasedPlanningContextSpecification& spec);
 
-private:
-  template <typename T>
-  ob::PlannerPtr allocatePlannerImpl(const ob::SpaceInformationPtr& si, const std::string& new_name,
-                                     const ModelBasedPlanningContextSpecification& spec, bool load_planner_data = false,
-                                     bool store_planner_data = false, const std::string& file_path = "");
+    private:
+        template <typename T>
+        ob::PlannerPtr allocatePlannerImpl(const ob::SpaceInformationPtr& si, const std::string& new_name,
+                                           const ModelBasedPlanningContextSpecification& spec, bool load_planner_data = false,
+                                           bool store_planner_data = false, const std::string& file_path = "");
 
-  template <typename T>
-  inline ob::Planner* allocatePersistentPlanner(const ob::PlannerData& data);
+        template <typename T>
+        inline ob::Planner* allocatePersistentPlanner(const ob::PlannerData& data);
 
-  // Storing multi-query planners
-  std::map<std::string, ob::PlannerPtr> planners_;
+        // Storing multi-query planners
+        std::map<std::string, ob::PlannerPtr> planners_;
 
-  std::map<std::string, std::string> planner_data_storage_paths_;
+        std::map<std::string, std::string> planner_data_storage_paths_;
 
-  // Store and load planner data
-  ob::PlannerDataStorage storage_;
-};
+        // Store and load planner data
+        ob::PlannerDataStorage storage_;
+    };
 
-class PlanningContextManager
-{
-public:
-  PlanningContextManager(moveit::core::RobotModelConstPtr robot_model,
-                         constraint_samplers::ConstraintSamplerManagerPtr csm);
-  ~PlanningContextManager();
+    class PlanningContextManager
+    {
+    public:
+        PlanningContextManager(moveit::core::RobotModelConstPtr robot_model,
+                               constraint_samplers::ConstraintSamplerManagerPtr csm);
+        ~PlanningContextManager();
 
-  /** @brief Specify configurations for the planners.
-      @param pconfig Configurations for the different planners */
-  void setPlannerConfigurations(const planning_interface::PlannerConfigurationMap& pconfig);
+        /** @brief Specify configurations for the planners.
+            @param pconfig Configurations for the different planners */
+        void setPlannerConfigurations(const planning_interface::PlannerConfigurationMap& pconfig);
 
-  /** @brief Return the previously set planner configurations */
-  const planning_interface::PlannerConfigurationMap& getPlannerConfigurations() const
-  {
-    return planner_configs_;
-  }
+        /** @brief Return the previously set planner configurations */
+        const planning_interface::PlannerConfigurationMap& getPlannerConfigurations() const
+        {
+            return planner_configs_;
+        }
 
-  /* \brief Get the maximum number of sampling attempts allowed when sampling states is needed */
-  unsigned int getMaximumStateSamplingAttempts() const
-  {
-    return max_state_sampling_attempts_;
-  }
+        /* \brief Get the maximum number of sampling attempts allowed when sampling states is needed */
+        unsigned int getMaximumStateSamplingAttempts() const
+        {
+            return max_state_sampling_attempts_;
+        }
 
-  /* \brief Set the maximum number of sampling attempts allowed when sampling states is needed */
-  void setMaximumStateSamplingAttempts(unsigned int max_state_sampling_attempts)
-  {
-    max_state_sampling_attempts_ = max_state_sampling_attempts;
-  }
+        /* \brief Set the maximum number of sampling attempts allowed when sampling states is needed */
+        void setMaximumStateSamplingAttempts(unsigned int max_state_sampling_attempts)
+        {
+            max_state_sampling_attempts_ = max_state_sampling_attempts;
+        }
 
-  /* \brief Get the maximum number of sampling attempts allowed when sampling goals is needed */
-  unsigned int getMaximumGoalSamplingAttempts() const
-  {
-    return max_goal_sampling_attempts_;
-  }
+        /* \brief Get the maximum number of sampling attempts allowed when sampling goals is needed */
+        unsigned int getMaximumGoalSamplingAttempts() const
+        {
+            return max_goal_sampling_attempts_;
+        }
 
-  /* \brief Set the maximum number of sampling attempts allowed when sampling goals is needed */
-  void setMaximumGoalSamplingAttempts(unsigned int max_goal_sampling_attempts)
-  {
-    max_goal_sampling_attempts_ = max_goal_sampling_attempts;
-  }
+        /* \brief Set the maximum number of sampling attempts allowed when sampling goals is needed */
+        void setMaximumGoalSamplingAttempts(unsigned int max_goal_sampling_attempts)
+        {
+            max_goal_sampling_attempts_ = max_goal_sampling_attempts;
+        }
 
-  /* \brief Get the maximum number of goal samples */
-  unsigned int getMaximumGoalSamples() const
-  {
-    return max_goal_samples_;
-  }
+        /* \brief Get the maximum number of goal samples */
+        unsigned int getMaximumGoalSamples() const
+        {
+            return max_goal_samples_;
+        }
 
-  /* \brief Set the maximum number of goal samples */
-  void setMaximumGoalSamples(unsigned int max_goal_samples)
-  {
-    max_goal_samples_ = max_goal_samples;
-  }
+        /* \brief Set the maximum number of goal samples */
+        void setMaximumGoalSamples(unsigned int max_goal_samples)
+        {
+            max_goal_samples_ = max_goal_samples;
+        }
 
-  /* \brief Get the maximum number of planning threads allowed */
-  unsigned int getMaximumPlanningThreads() const
-  {
-    return max_planning_threads_;
-  }
+        /* \brief Get the maximum number of planning threads allowed */
+        unsigned int getMaximumPlanningThreads() const
+        {
+            return max_planning_threads_;
+        }
 
-  /* \brief Set the maximum number of planning threads */
-  void setMaximumPlanningThreads(unsigned int max_planning_threads)
-  {
-    max_planning_threads_ = max_planning_threads;
-  }
+        /* \brief Set the maximum number of planning threads */
+        void setMaximumPlanningThreads(unsigned int max_planning_threads)
+        {
+            max_planning_threads_ = max_planning_threads;
+        }
 
-  /* \brief Get the maximum solution segment length */
-  double getMaximumSolutionSegmentLength() const
-  {
-    return max_solution_segment_length_;
-  }
+        /* \brief Get the maximum solution segment length */
+        double getMaximumSolutionSegmentLength() const
+        {
+            return max_solution_segment_length_;
+        }
 
-  /* \brief Set the maximum solution segment length */
-  void setMaximumSolutionSegmentLength(double mssl)
-  {
-    max_solution_segment_length_ = mssl;
-  }
+        /* \brief Set the maximum solution segment length */
+        void setMaximumSolutionSegmentLength(double mssl)
+        {
+            max_solution_segment_length_ = mssl;
+        }
 
-  unsigned int getMinimumWaypointCount() const
-  {
-    return minimum_waypoint_count_;
-  }
+        unsigned int getMinimumWaypointCount() const
+        {
+            return minimum_waypoint_count_;
+        }
 
-  /** \brief Get the minimum number of waypoints along the solution path */
-  void setMinimumWaypointCount(unsigned int mwc)
-  {
-    minimum_waypoint_count_ = mwc;
-  }
+        /** \brief Get the minimum number of waypoints along the solution path */
+        void setMinimumWaypointCount(unsigned int mwc)
+        {
+            minimum_waypoint_count_ = mwc;
+        }
 
-  const moveit::core::RobotModelConstPtr& getRobotModel() const
-  {
-    return robot_model_;
-  }
+        const moveit::core::RobotModelConstPtr& getRobotModel() const
+        {
+            return robot_model_;
+        }
 
-  /** \brief Returns a planning context to OMPLInterface, which in turn passes it to OMPLPlannerManagerCustom.
-   *
-   * This function checks the input and reads planner specific configurations.
-   * Then it creates the planning context with PlanningContextManager::createPlanningContext.
-   * Finally, it puts the context into a state appropriate for planning.
-   * This last step involves setting the start, goal, and state validity checker using the method
-   * ModelBasedPlanningContext::configure.
-   *
-   * */
-  ModelBasedPlanningContextPtr getPlanningContext(const planning_scene::PlanningSceneConstPtr& planning_scene,
-                                                  const planning_interface::MotionPlanRequest& req,
-                                                  moveit_msgs::MoveItErrorCodes& error_code, const ros::NodeHandle& nh,
-                                                  bool use_constraints_approximations) const;
+        /** \brief Returns a planning context to OMPLInterface, which in turn passes it to OMPLPlannerManagerCustom.
+         *
+         * This function checks the input and reads planner specific configurations.
+         * Then it creates the planning context with PlanningContextManager::createPlanningContext.
+         * Finally, it puts the context into a state appropriate for planning.
+         * This last step involves setting the start, goal, and state validity checker using the method
+         * ModelBasedPlanningContext::configure.
+         *
+         * */
+        ModelBasedPlanningContextPtr getPlanningContext(const planning_scene::PlanningSceneConstPtr& planning_scene,
+                                                        const planning_interface::MotionPlanRequest& req,
+                                                        moveit_msgs::MoveItErrorCodes& error_code, const ros::NodeHandle& nh,
+                                                        bool use_constraints_approximations) const;
 
-  void registerPlannerAllocator(const std::string& planner_id, const ConfiguredPlannerAllocator& pa)
-  {
-    known_planners_[planner_id] = pa;
-  }
+        ModelBasedPlanningContextPtr getPlanningContextConstrained(const planning_scene::PlanningSceneConstPtr& planning_scene,
+                                                                   const planning_interface::MotionPlanRequest& req,
+                                                                   moveit_msgs::MoveItErrorCodes& error_code, const ros::NodeHandle& nh,
+                                                                   bool use_constraints_approximations,
+                                                                   RNB::MoveitCompact::CustomConstraintPtr& custom_constraint) const;
 
-  void registerStateSpaceFactory(const ModelBasedStateSpaceFactoryPtr& factory)
-  {
-    state_space_factories_[factory->getType()] = factory;
-  }
+        void registerPlannerAllocator(const std::string& planner_id, const ConfiguredPlannerAllocator& pa)
+        {
+            known_planners_[planner_id] = pa;
+        }
 
-  const std::map<std::string, ConfiguredPlannerAllocator>& getRegisteredPlannerAllocators() const
-  {
-    return known_planners_;
-  }
+        void registerStateSpaceFactory(const ModelBasedStateSpaceFactoryPtr& factory)
+        {
+            state_space_factories_[factory->getType()] = factory;
+        }
 
-  const std::map<std::string, ModelBasedStateSpaceFactoryPtr>& getRegisteredStateSpaceFactories() const
-  {
-    return state_space_factories_;
-  }
+        const std::map<std::string, ConfiguredPlannerAllocator>& getRegisteredPlannerAllocators() const
+        {
+            return known_planners_;
+        }
 
-  ConfiguredPlannerSelector getPlannerSelector() const;
+        const std::map<std::string, ModelBasedStateSpaceFactoryPtr>& getRegisteredStateSpaceFactories() const
+        {
+            return state_space_factories_;
+        }
 
-protected:
-  typedef std::function<const ModelBasedStateSpaceFactoryPtr&(const std::string&)> StateSpaceFactoryTypeSelector;
+        ConfiguredPlannerSelector getPlannerSelector() const;
 
-  ConfiguredPlannerAllocator plannerSelector(const std::string& planner) const;
+    protected:
+        typedef std::function<const ModelBasedStateSpaceFactoryPtr&(const std::string&)> StateSpaceFactoryTypeSelector;
 
-  void registerDefaultPlanners();
-  void registerDefaultStateSpaces();
+        ConfiguredPlannerAllocator plannerSelector(const std::string& planner) const;
 
-  template <typename T>
-  void registerPlannerAllocatorHelper(const std::string& planner_id);
+        void registerDefaultPlanners();
+        void registerDefaultStateSpaces();
 
-  /** \brief This is the function that constructs new planning contexts if no previous ones exist that are suitable */
-  ModelBasedPlanningContextPtr getPlanningContext(const planning_interface::PlannerConfigurationSettings& config,
-                                                  const StateSpaceFactoryTypeSelector& factory_selector,
-                                                  const moveit_msgs::MotionPlanRequest& req) const;
+        template <typename T>
+        void registerPlannerAllocatorHelper(const std::string& planner_id);
 
-  const ModelBasedStateSpaceFactoryPtr& getStateSpaceFactory1(const std::string& group_name,
-                                                              const std::string& factory_type) const;
-  const ModelBasedStateSpaceFactoryPtr& getStateSpaceFactory2(const std::string& group_name,
-                                                              const moveit_msgs::MotionPlanRequest& req) const;
+        /** \brief This is the function that constructs new planning contexts if no previous ones exist that are suitable */
+        ModelBasedPlanningContextPtr getPlanningContext(const planning_interface::PlannerConfigurationSettings& config,
+                                                        const StateSpaceFactoryTypeSelector& factory_selector,
+                                                        const moveit_msgs::MotionPlanRequest& req) const;
 
-  /** \brief The kinematic model for which motion plans are computed */
-  moveit::core::RobotModelConstPtr robot_model_;
+        ModelBasedPlanningContextPtr getPlanningContextConstrained(const planning_interface::PlannerConfigurationSettings& config,
+                                                        const StateSpaceFactoryTypeSelector& factory_selector,
+                                                        const moveit_msgs::MotionPlanRequest& req,
+                                                        RNB::MoveitCompact::CustomConstraintPtr& custom_constraint) const;
 
-  constraint_samplers::ConstraintSamplerManagerPtr constraint_sampler_manager_;
+        const ModelBasedStateSpaceFactoryPtr& getStateSpaceFactory1(const std::string& group_name,
+                                                                    const std::string& factory_type) const;
+        const ModelBasedStateSpaceFactoryPtr& getStateSpaceFactory2(const std::string& group_name,
+                                                                    const moveit_msgs::MotionPlanRequest& req) const;
 
-  std::map<std::string, ConfiguredPlannerAllocator> known_planners_;
-  std::map<std::string, ModelBasedStateSpaceFactoryPtr> state_space_factories_;
+        /** \brief The kinematic model for which motion plans are computed */
+        moveit::core::RobotModelConstPtr robot_model_;
 
-  /** \brief All the existing planning configurations. The name
-      of the configuration is the key of the map. This name can
-      be of the form "group_name[config_name]" if there are
-      particular configurations specified for a group, or of the
-      form "group_name" if default settings are to be used. */
-  planning_interface::PlannerConfigurationMap planner_configs_;
+        constraint_samplers::ConstraintSamplerManagerPtr constraint_sampler_manager_;
 
-  /// maximum number of states to sample in the goal region for any planning request (when such sampling is possible)
-  unsigned int max_goal_samples_;
+        std::map<std::string, ConfiguredPlannerAllocator> known_planners_;
+        std::map<std::string, ModelBasedStateSpaceFactoryPtr> state_space_factories_;
 
-  /// maximum number of attempts to be made at sampling a state when attempting to find valid states that satisfy some
-  /// set of constraints
-  unsigned int max_state_sampling_attempts_;
+        /** \brief All the existing planning configurations. The name
+            of the configuration is the key of the map. This name can
+            be of the form "group_name[config_name]" if there are
+            particular configurations specified for a group, or of the
+            form "group_name" if default settings are to be used. */
+        planning_interface::PlannerConfigurationMap planner_configs_;
 
-  /// maximum number of attempts to be made at sampling goals
-  unsigned int max_goal_sampling_attempts_;
+        /// maximum number of states to sample in the goal region for any planning request (when such sampling is possible)
+        unsigned int max_goal_samples_;
 
-  /// when planning in parallel, this is the maximum number of threads to use at one time
-  unsigned int max_planning_threads_;
+        /// maximum number of attempts to be made at sampling a state when attempting to find valid states that satisfy some
+        /// set of constraints
+        unsigned int max_state_sampling_attempts_;
 
-  /// the maximum length that is allowed for segments that make up the motion plan; by default this is 1% from the
-  /// extent of the space
-  double max_solution_segment_length_;
+        /// maximum number of attempts to be made at sampling goals
+        unsigned int max_goal_sampling_attempts_;
 
-  /// the minimum number of points to include on the solution path (interpolation is used to reach this number, if
-  /// needed)
-  unsigned int minimum_waypoint_count_;
+        /// when planning in parallel, this is the maximum number of threads to use at one time
+        unsigned int max_planning_threads_;
 
-  /// Multi-query planner allocator
-  MultiQueryPlannerAllocator planner_allocator_;
+        /// the maximum length that is allowed for segments that make up the motion plan; by default this is 1% from the
+        /// extent of the space
+        double max_solution_segment_length_;
 
-private:
-  MOVEIT_STRUCT_FORWARD(CachedContexts);
-  CachedContextsPtr cached_contexts_;
-};
+        /// the minimum number of points to include on the solution path (interpolation is used to reach this number, if
+        /// needed)
+        unsigned int minimum_waypoint_count_;
+
+        /// Multi-query planner allocator
+        MultiQueryPlannerAllocator planner_allocator_;
+
+    private:
+        MOVEIT_STRUCT_FORWARD(CachedContexts);
+        CachedContextsPtr cached_contexts_;
+    };
 }  // namespace ompl_interface

@@ -46,6 +46,8 @@
 #include <map>
 #include <ros/ros.h>
 
+#include "ompl_interface/ompl_custom_constraint.h"
+
 /** \brief The MoveIt interface to OMPL */
 namespace ompl_interface
 {
@@ -79,11 +81,24 @@ public:
     return context_manager_.getPlannerConfigurations();
   }
 
-  ModelBasedPlanningContextPtr getPlanningContext(const planning_scene::PlanningSceneConstPtr& planning_scene,
-                                                  const planning_interface::MotionPlanRequest& req) const;
-  ModelBasedPlanningContextPtr getPlanningContext(const planning_scene::PlanningSceneConstPtr& planning_scene,
-                                                  const planning_interface::MotionPlanRequest& req,
-                                                  moveit_msgs::MoveItErrorCodes& error_code) const;
+    ModelBasedPlanningContextPtr getPlanningContext(const planning_scene::PlanningSceneConstPtr& planning_scene,
+                                                    const planning_interface::MotionPlanRequest& req) const;
+
+    ModelBasedPlanningContextPtr getPlanningContext(const planning_scene::PlanningSceneConstPtr& planning_scene,
+                                                    const planning_interface::MotionPlanRequest& req,
+                                                    moveit_msgs::MoveItErrorCodes& error_code) const;
+
+    ModelBasedPlanningContextPtr getPlanningContextConstrained(
+            const planning_scene::PlanningSceneConstPtr& planning_scene,
+            const planning_interface::MotionPlanRequest& req,
+
+                                                    RNB::MoveitCompact::CustomConstraintPtr & custom_constraint) const;
+
+    ModelBasedPlanningContextPtr getPlanningContextConstrained(
+            const planning_scene::PlanningSceneConstPtr& planning_scene,
+            const planning_interface::MotionPlanRequest& req,
+            moveit_msgs::MoveItErrorCodes& error_code,
+            RNB::MoveitCompact::CustomConstraintPtr & custom_constraint) const;
 
   const PlanningContextManager& getPlanningContextManager() const
   {

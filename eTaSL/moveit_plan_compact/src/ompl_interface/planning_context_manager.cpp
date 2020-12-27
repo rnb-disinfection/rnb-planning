@@ -367,19 +367,79 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
   return context;
 }
 
+ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextManager::getPlanningContextConstrained(
+        const planning_interface::PlannerConfigurationSettings& config,
+        const StateSpaceFactoryTypeSelector& factory_selector,
+        const moveit_msgs::MotionPlanRequest& req,
+        RNB::MoveitCompact::CustomConstraintPtr& custom_constraint) const
+{
+    const ompl_interface::ModelBasedStateSpaceFactoryPtr& factory = factory_selector(config.group);
+
+    // Check for a cached planning context
+    ModelBasedPlanningContextPtr context;
+
+    {
+        std::unique_lock<std::mutex> slock(cached_contexts_->lock_);
+        auto cached_contexts = cached_contexts_->contexts_.find(std::make_pair(config.name, factory->getType()));
+        if (cached_contexts != cached_contexts_->contexts_.end())
+        {
+            for (const ModelBasedPlanningContextPtr& cached_context : cached_contexts->second)
+                if (cached_context.unique())
+                {
+                    ROS_DEBUG_NAMED(LOGNAME, "Reusing cached planning context");
+                    context = cached_context;
+                    break;
+                }
+        }
+    }
+
+    // Create a new planning context
+    if (!context)
+    {
+        ModelBasedStateSpaceSpecification space_spec(robot_model_, config.group);
+        ModelBasedPlanningContextSpecification context_spec;
+        context_spec.config_ = config.config;
+        context_spec.planner_selector_ = getPlannerSelector();
+        context_spec.constraint_sampler_manager_ = constraint_sampler_manager_;
+        context_spec.state_space_ = factory->getNewStateSpace(space_spec);
+
+        // Choose the correct simple setup type to load
+        context_spec.ompl_simple_setup_.reset(new ompl::geometric::SimpleSetup(context_spec.state_space_));
+
+        ROS_DEBUG_NAMED(LOGNAME, "Creating new planning context");
+        context.reset(new ModelBasedPlanningContext(config.name, context_spec));
+        {
+            std::unique_lock<std::mutex> slock(cached_contexts_->lock_);
+            cached_contexts_->contexts_[std::make_pair(config.name, factory->getType())].push_back(context);
+        }
+    }
+
+    context->setMaximumPlanningThreads(max_planning_threads_);
+    context->setMaximumGoalSamples(max_goal_samples_);
+    context->setMaximumStateSamplingAttempts(max_state_sampling_attempts_);
+    context->setMaximumGoalSamplingAttempts(max_goal_sampling_attempts_);
+    if (max_solution_segment_length_ > std::numeric_limits<double>::epsilon())
+        context->setMaximumSolutionSegmentLength(max_solution_segment_length_);
+    context->setMinimumWaypointCount(minimum_waypoint_count_);
+
+    context->setSpecificationConfig(config.config);
+
+    return context;
+}
+
 const ompl_interface::ModelBasedStateSpaceFactoryPtr&
 ompl_interface::PlanningContextManager::getStateSpaceFactory1(const std::string& /* dummy */,
                                                               const std::string& factory_type) const
 {
-  auto f = factory_type.empty() ? state_space_factories_.begin() : state_space_factories_.find(factory_type);
-  if (f != state_space_factories_.end())
-    return f->second;
-  else
-  {
-    ROS_ERROR_NAMED(LOGNAME, "Factory of type '%s' was not found", factory_type.c_str());
-    static const ModelBasedStateSpaceFactoryPtr EMPTY;
-    return EMPTY;
-  }
+    auto f = factory_type.empty() ? state_space_factories_.begin() : state_space_factories_.find(factory_type);
+    if (f != state_space_factories_.end())
+        return f->second;
+    else
+    {
+        ROS_ERROR_NAMED(LOGNAME, "Factory of type '%s' was not found", factory_type.c_str());
+        static const ModelBasedStateSpaceFactoryPtr EMPTY;
+        return EMPTY;
+    }
 }
 
 const ompl_interface::ModelBasedStateSpaceFactoryPtr&
@@ -414,95 +474,191 @@ ompl_interface::PlanningContextManager::getStateSpaceFactory2(const std::string&
 }
 
 ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextManager::getPlanningContext(
-    const planning_scene::PlanningSceneConstPtr& planning_scene, const moveit_msgs::MotionPlanRequest& req,
-    moveit_msgs::MoveItErrorCodes& error_code, const ros::NodeHandle& nh, bool use_constraints_approximation) const
+        const planning_scene::PlanningSceneConstPtr& planning_scene, const moveit_msgs::MotionPlanRequest& req,
+        moveit_msgs::MoveItErrorCodes& error_code, const ros::NodeHandle& nh, bool use_constraints_approximation) const
 {
-  if (req.group_name.empty())
-  {
-    ROS_ERROR_NAMED(LOGNAME, "No group specified to plan for");
-    error_code.val = moveit_msgs::MoveItErrorCodes::INVALID_GROUP_NAME;
-    return ModelBasedPlanningContextPtr();
-  }
+    if (req.group_name.empty())
+    {
+        ROS_ERROR_NAMED(LOGNAME, "No group specified to plan for");
+        error_code.val = moveit_msgs::MoveItErrorCodes::INVALID_GROUP_NAME;
+        return ModelBasedPlanningContextPtr();
+    }
 
-  error_code.val = moveit_msgs::MoveItErrorCodes::FAILURE;
+    error_code.val = moveit_msgs::MoveItErrorCodes::FAILURE;
 
-  if (!planning_scene)
-  {
-    ROS_ERROR_NAMED(LOGNAME, "No planning scene supplied as input");
-    return ModelBasedPlanningContextPtr();
-  }
+    if (!planning_scene)
+    {
+        ROS_ERROR_NAMED(LOGNAME, "No planning scene supplied as input");
+        return ModelBasedPlanningContextPtr();
+    }
 
-  // identify the correct planning configuration
-  auto pc = planner_configs_.end();
-  if (!req.planner_id.empty())
-  {
-    pc = planner_configs_.find(req.planner_id.find(req.group_name) == std::string::npos ?
+    // identify the correct planning configuration
+    auto pc = planner_configs_.end();
+    if (!req.planner_id.empty())
+    {
+        pc = planner_configs_.find(req.planner_id.find(req.group_name) == std::string::npos ?
                                    req.group_name + "[" + req.planner_id + "]" :
                                    req.planner_id);
-    if (pc == planner_configs_.end())
-      ROS_WARN_NAMED(LOGNAME,
-                     "Cannot find planning configuration for group '%s' using planner '%s'. Will use defaults instead.",
-                     req.group_name.c_str(), req.planner_id.c_str());
-  }
+        if (pc == planner_configs_.end())
+            ROS_WARN_NAMED(LOGNAME,
+                           "Cannot find planning configuration for group '%s' using planner '%s'. Will use defaults instead.",
+                           req.group_name.c_str(), req.planner_id.c_str());
+    }
 
-  if (pc == planner_configs_.end())
-  {
-    pc = planner_configs_.find(req.group_name);
     if (pc == planner_configs_.end())
     {
-      ROS_ERROR_NAMED(LOGNAME, "Cannot find planning configuration for group '%s'", req.group_name.c_str());
-      return ModelBasedPlanningContextPtr();
+        pc = planner_configs_.find(req.group_name);
+        if (pc == planner_configs_.end())
+        {
+            ROS_ERROR_NAMED(LOGNAME, "Cannot find planning configuration for group '%s'", req.group_name.c_str());
+            return ModelBasedPlanningContextPtr();
+        }
     }
-  }
 
-  // Check if sampling in JointModelStateSpace is enforced for this group by user.
-  // This is done by setting 'enforce_joint_model_state_space' to 'true' for the desired group in ompl_planning.yaml.
-  //
-  // Some planning problems like orientation path constraints are represented in PoseModelStateSpace and sampled via IK.
-  // However consecutive IK solutions are not checked for proximity at the moment and sometimes happen to be flipped,
-  // leading to invalid trajectories. This workaround lets the user prevent this problem by forcing rejection sampling
-  // in JointModelStateSpace.
-  StateSpaceFactoryTypeSelector factory_selector;
-  auto it = pc->second.config.find("enforce_joint_model_state_space");
+    // Check if sampling in JointModelStateSpace is enforced for this group by user.
+    // This is done by setting 'enforce_joint_model_state_space' to 'true' for the desired group in ompl_planning.yaml.
+    //
+    // Some planning problems like orientation path constraints are represented in PoseModelStateSpace and sampled via IK.
+    // However consecutive IK solutions are not checked for proximity at the moment and sometimes happen to be flipped,
+    // leading to invalid trajectories. This workaround lets the user prevent this problem by forcing rejection sampling
+    // in JointModelStateSpace.
+    StateSpaceFactoryTypeSelector factory_selector;
+    auto it = pc->second.config.find("enforce_joint_model_state_space");
 
-  if (it != pc->second.config.end() && boost::lexical_cast<bool>(it->second))
-    factory_selector = std::bind(&PlanningContextManager::getStateSpaceFactory1, this, std::placeholders::_1,
-                                 JointModelStateSpace::PARAMETERIZATION_TYPE);
-  else
-    factory_selector = std::bind(&PlanningContextManager::getStateSpaceFactory2, this, std::placeholders::_1, req);
+    if (it != pc->second.config.end() && boost::lexical_cast<bool>(it->second))
+        factory_selector = std::bind(&PlanningContextManager::getStateSpaceFactory1, this, std::placeholders::_1,
+                                     JointModelStateSpace::PARAMETERIZATION_TYPE);
+    else
+        factory_selector = std::bind(&PlanningContextManager::getStateSpaceFactory2, this, std::placeholders::_1, req);
 
-  ModelBasedPlanningContextPtr context = getPlanningContext(pc->second, factory_selector, req);
+    ModelBasedPlanningContextPtr context = getPlanningContext(pc->second, factory_selector, req);
 
-  if (context)
-  {
-    context->clear();
-
-    moveit::core::RobotStatePtr start_state = planning_scene->getCurrentStateUpdated(req.start_state);
-
-    // Setup the context
-    context->setPlanningScene(planning_scene);
-    context->setMotionPlanRequest(req);
-    context->setCompleteInitialState(*start_state);
-
-    context->setPlanningVolume(req.workspace_parameters);
-    if (!context->setPathConstraints(req.path_constraints, &error_code))
-      return ModelBasedPlanningContextPtr();
-
-    if (!context->setGoalConstraints(req.goal_constraints, req.path_constraints, &error_code))
-      return ModelBasedPlanningContextPtr();
-
-    try
+    if (context)
     {
-      context->configure(nh, use_constraints_approximation);
-      ROS_DEBUG_NAMED(LOGNAME, "%s: New planning context is set.", context->getName().c_str());
-      error_code.val = moveit_msgs::MoveItErrorCodes::SUCCESS;
-    }
-    catch (ompl::Exception& ex)
-    {
-      ROS_ERROR_NAMED(LOGNAME, "OMPL encountered an error: %s", ex.what());
-      context.reset();
-    }
-  }
+        context->clear();
 
-  return context;
+        moveit::core::RobotStatePtr start_state = planning_scene->getCurrentStateUpdated(req.start_state);
+
+        // Setup the context
+        context->setPlanningScene(planning_scene);
+        context->setMotionPlanRequest(req);
+        context->setCompleteInitialState(*start_state);
+
+        context->setPlanningVolume(req.workspace_parameters);
+        if (!context->setPathConstraints(req.path_constraints, &error_code))
+            return ModelBasedPlanningContextPtr();
+
+        if (!context->setGoalConstraints(req.goal_constraints, req.path_constraints, &error_code))
+            return ModelBasedPlanningContextPtr();
+
+        try
+        {
+            context->configure(nh, use_constraints_approximation);
+            ROS_DEBUG_NAMED(LOGNAME, "%s: New planning context is set.", context->getName().c_str());
+            error_code.val = moveit_msgs::MoveItErrorCodes::SUCCESS;
+        }
+        catch (ompl::Exception& ex)
+        {
+            ROS_ERROR_NAMED(LOGNAME, "OMPL encountered an error: %s", ex.what());
+            context.reset();
+        }
+    }
+
+    return context;
+}
+
+ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextManager::getPlanningContextConstrained(
+        const planning_scene::PlanningSceneConstPtr& planning_scene, const moveit_msgs::MotionPlanRequest& req,
+        moveit_msgs::MoveItErrorCodes& error_code, const ros::NodeHandle& nh, bool use_constraints_approximation,
+        RNB::MoveitCompact::CustomConstraintPtr& custom_constraint) const
+{
+    if (req.group_name.empty())
+    {
+        ROS_ERROR_NAMED(LOGNAME, "No group specified to plan for");
+        error_code.val = moveit_msgs::MoveItErrorCodes::INVALID_GROUP_NAME;
+        return ModelBasedPlanningContextPtr();
+    }
+
+    error_code.val = moveit_msgs::MoveItErrorCodes::FAILURE;
+
+    if (!planning_scene)
+    {
+        ROS_ERROR_NAMED(LOGNAME, "No planning scene supplied as input");
+        return ModelBasedPlanningContextPtr();
+    }
+
+    // identify the correct planning configuration
+    auto pc = planner_configs_.end();
+    if (!req.planner_id.empty())
+    {
+        pc = planner_configs_.find(req.planner_id.find(req.group_name) == std::string::npos ?
+                                   req.group_name + "[" + req.planner_id + "]" :
+                                   req.planner_id);
+        if (pc == planner_configs_.end())
+            ROS_WARN_NAMED(LOGNAME,
+                           "Cannot find planning configuration for group '%s' using planner '%s'. Will use defaults instead.",
+                           req.group_name.c_str(), req.planner_id.c_str());
+    }
+
+    if (pc == planner_configs_.end())
+    {
+        pc = planner_configs_.find(req.group_name);
+        if (pc == planner_configs_.end())
+        {
+            ROS_ERROR_NAMED(LOGNAME, "Cannot find planning configuration for group '%s'", req.group_name.c_str());
+            return ModelBasedPlanningContextPtr();
+        }
+    }
+
+    // Check if sampling in JointModelStateSpace is enforced for this group by user.
+    // This is done by setting 'enforce_joint_model_state_space' to 'true' for the desired group in ompl_planning.yaml.
+    //
+    // Some planning problems like orientation path constraints are represented in PoseModelStateSpace and sampled via IK.
+    // However consecutive IK solutions are not checked for proximity at the moment and sometimes happen to be flipped,
+    // leading to invalid trajectories. This workaround lets the user prevent this problem by forcing rejection sampling
+    // in JointModelStateSpace.
+    StateSpaceFactoryTypeSelector factory_selector;
+    auto it = pc->second.config.find("enforce_joint_model_state_space");
+
+    if (it != pc->second.config.end() && boost::lexical_cast<bool>(it->second))
+        factory_selector = std::bind(&PlanningContextManager::getStateSpaceFactory1, this, std::placeholders::_1,
+                                     JointModelStateSpace::PARAMETERIZATION_TYPE);
+    else
+        factory_selector = std::bind(&PlanningContextManager::getStateSpaceFactory2, this, std::placeholders::_1, req);
+
+    ModelBasedPlanningContextPtr context = getPlanningContextConstrained(pc->second, factory_selector, req,
+                                                                         custom_constraint);
+
+    if (context)
+    {
+        context->clear();
+
+        moveit::core::RobotStatePtr start_state = planning_scene->getCurrentStateUpdated(req.start_state);
+
+        // Setup the context
+        context->setPlanningScene(planning_scene);
+        context->setMotionPlanRequest(req);
+        context->setCompleteInitialState(*start_state);
+
+        context->setPlanningVolume(req.workspace_parameters);
+        if (!context->setPathConstraints(req.path_constraints, &error_code))
+            return ModelBasedPlanningContextPtr();
+
+        if (!context->setGoalConstraints(req.goal_constraints, req.path_constraints, &error_code))
+            return ModelBasedPlanningContextPtr();
+
+        try
+        {
+            context->configure(nh, use_constraints_approximation);
+            ROS_DEBUG_NAMED(LOGNAME, "%s: New planning context is set.", context->getName().c_str());
+            error_code.val = moveit_msgs::MoveItErrorCodes::SUCCESS;
+        }
+        catch (ompl::Exception& ex)
+        {
+            ROS_ERROR_NAMED(LOGNAME, "OMPL encountered an error: %s", ex.what());
+            context.reset();
+        }
+    }
+
+    return context;
 }

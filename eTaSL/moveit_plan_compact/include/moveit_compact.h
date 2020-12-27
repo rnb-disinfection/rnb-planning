@@ -5,7 +5,6 @@
 #include <moveit/robot_model_loader/robot_model_loader.h>
 #include <moveit/planning_pipeline/planning_pipeline.h>
 #include <moveit/kinematic_constraints/utils.h>
-#include "ompl_custom_constraint.h"
 #include "ompl_interface/ompl_interface.h"
 #include "ompl_interface/ompl_planner_manager_custom.h"
 
@@ -37,11 +36,11 @@ namespace RNB {
         public:
             std::unique_ptr<pluginlib::ClassLoader<planning_interface::PlannerManager> > planner_plugin_loader_;
             std::string planner_plugin_name_;
-            planning_interface::PlannerManagerPtr planner_instance_;
+            ompl_interface::OMPLPlannerManagerCustomPtr planner_instance_;
             robot_model_loader::RobotModelLoaderPtr robot_model_loader_;
             robot_model::RobotModelPtr robot_model_;
             planning_scene::PlanningScenePtr planning_scene_;
-            std::shared_ptr<CustomConstraint> custom_constraint_;
+            CustomConstraintPtr custom_constraint_;
 
             PlanResult plan_result;
             NameList joint_names;

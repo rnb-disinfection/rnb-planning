@@ -150,19 +150,20 @@ void Planner::configure()
     }
     else
     {
-        try
-        {
-            planner_instance_ = planner_plugin_loader_->createUniqueInstance(planner_plugin_name_);
-            if (!planner_instance_->initialize(robot_model_, __node_handle->getNamespace()))
-                throw std::runtime_error("Unable to initialize planning plugin");
-            ROS_INFO_STREAM("Using planning interface '" << planner_instance_->getDescription() << "'");
-        }
-        catch (pluginlib::PluginlibException& ex)
-        {
-            ROS_ERROR_STREAM("Exception while loading planner '"
-                                     << planner_plugin_name_ << "': " << ex.what() << std::endl
-                                     << "Available plugins: " << boost::algorithm::join(classes, ", "));
-        }
+        ROS_ERROR_STREAM("Exception while loading planner: Only ompl_interface/OMPLPlannerCustom is available now");
+//        try
+//        {
+//            planner_instance_ = planner_plugin_loader_->createUniqueInstance(planner_plugin_name_);
+//            if (!planner_instance_->initialize(robot_model_, __node_handle->getNamespace()))
+//                throw std::runtime_error("Unable to initialize planning plugin");
+//            ROS_INFO_STREAM("Using planning interface '" << planner_instance_->getDescription() << "'");
+//        }
+//        catch (pluginlib::PluginlibException& ex)
+//        {
+//            ROS_ERROR_STREAM("Exception while loading planner '"
+//                                     << planner_plugin_name_ << "': " << ex.what() << std::endl
+//                                     << "Available plugins: " << boost::algorithm::join(classes, ", "));
+//        }
     }
 
 
@@ -278,8 +279,10 @@ PlanResult& Planner::plan_with_constraint(string group_name, string tool_link,
 
     plan_result.trajectory.clear();
 
+    custom_constraint_ = std::make_shared<CustomConstraint>(robot_model_, group_name, init_state, tool_link, joint_num);
+
     planning_interface::PlanningContextPtr context =
-            planner_instance_->getPlanningContext(planning_scene_, _req, _res.error_code_);
+            planner_instance_->getPlanningContextConstrained(planning_scene_, _req, _res.error_code_, custom_constraint_);
 
     context->solve(_res);
 
