@@ -398,7 +398,7 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
     // Create a new planning context
     if (!context)
     {
-        ModelBasedStateSpaceSpecification space_spec(robot_model_, config.group);
+        ModelBasedStateSpaceSpecification space_spec(robot_model_, config.group, true);
         ModelBasedPlanningContextSpecification context_spec;
         context_spec.config_ = config.config;
         context_spec.planner_selector_ = getPlannerSelector();

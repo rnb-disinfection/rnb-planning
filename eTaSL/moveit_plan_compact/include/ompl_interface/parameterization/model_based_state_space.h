@@ -41,6 +41,7 @@
 #include <moveit/robot_state/robot_state.h>
 #include <moveit/kinematic_constraints/kinematic_constraint.h>
 #include <moveit/constraint_samplers/constraint_sampler.h>
+#include <ompl/base/spaces/constraint/ConstrainedStateSpace.h>
 
 namespace ompl_interface
 {
@@ -52,18 +53,20 @@ typedef std::function<double(const ompl::base::State* state1, const ompl::base::
 struct ModelBasedStateSpaceSpecification
 {
   ModelBasedStateSpaceSpecification(const moveit::core::RobotModelConstPtr& robot_model,
-                                    const moveit::core::JointModelGroup* jmg)
-    : robot_model_(robot_model), joint_model_group_(jmg)
+                                    const moveit::core::JointModelGroup* jmg, bool constrained = false)
+    : robot_model_(robot_model), joint_model_group_(jmg), constrained_(constrained)
   {
   }
 
-  ModelBasedStateSpaceSpecification(const moveit::core::RobotModelConstPtr& robot_model, const std::string& group_name)
-    : robot_model_(robot_model), joint_model_group_(robot_model_->getJointModelGroup(group_name))
+  ModelBasedStateSpaceSpecification(const moveit::core::RobotModelConstPtr& robot_model, const std::string& group_name,
+                                    bool constrained = false)
+    : robot_model_(robot_model), joint_model_group_(robot_model_->getJointModelGroup(group_name)), constrained_(constrained)
   {
     if (!joint_model_group_)
       throw std::runtime_error("Group '" + group_name + "'  was not found");
   }
 
+  bool constrained_;
   moveit::core::RobotModelConstPtr robot_model_;
   const moveit::core::JointModelGroup* joint_model_group_;
   moveit::core::JointBoundsVector joint_bounds_;
@@ -240,6 +243,7 @@ public:
   /// Copy the data from a set of joint states to an OMPL state.
   //  The joint states \b must be specified in the same order as the joint models in the constructor
   virtual void copyToOMPLState(ompl::base::State* state, const moveit::core::RobotState& rstate) const;
+  virtual void copyToOMPLStateConstrained(ompl::base::State* state, const moveit::core::RobotState& rstate) const;
 
   /**
    * \brief Copy a single joint's values (which might have multiple variables) from a MoveIt robot_state to an OMPL

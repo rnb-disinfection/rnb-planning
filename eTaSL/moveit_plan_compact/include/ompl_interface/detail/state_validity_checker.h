@@ -39,6 +39,8 @@
 #include "ompl_interface/detail/threadsafe_state_storage.h"
 #include <moveit/collision_detection/collision_common.h>
 #include <ompl/base/StateValidityChecker.h>
+#include <ompl/base/spaces/constraint/ConstrainedStateSpace.h>
+#include <ompl_interface/parameterization/model_based_state_space.h>
 
 namespace ompl_interface
 {

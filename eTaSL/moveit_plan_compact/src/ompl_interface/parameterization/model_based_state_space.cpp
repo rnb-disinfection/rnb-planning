@@ -192,8 +192,8 @@ void ompl_interface::ModelBasedStateSpace::enforceBounds(ompl::base::State* stat
 
 bool ompl_interface::ModelBasedStateSpace::satisfiesBounds(const ompl::base::State* state) const
 {
-  return spec_.joint_model_group_->satisfiesPositionBounds(state->as<StateType>()->values, spec_.joint_bounds_,
-                                                           std::numeric_limits<double>::epsilon());
+    return spec_.joint_model_group_->satisfiesPositionBounds(state->as<StateType>()->values, spec_.joint_bounds_,
+                                                             std::numeric_limits<double>::epsilon());
 }
 
 void ompl_interface::ModelBasedStateSpace::interpolate(const ompl::base::State* from, const ompl::base::State* to,
@@ -328,9 +328,19 @@ void ompl_interface::ModelBasedStateSpace::copyToRobotState(moveit::core::RobotS
 void ompl_interface::ModelBasedStateSpace::copyToOMPLState(ompl::base::State* state,
                                                            const moveit::core::RobotState& rstate) const
 {
-  rstate.copyJointGroupPositions(spec_.joint_model_group_, state->as<StateType>()->values);
-  // clear any cached info (such as validity known or not)
-  state->as<StateType>()->clearKnownInformation();
+    rstate.copyJointGroupPositions(spec_.joint_model_group_, state->as<StateType>()->values);
+    // clear any cached info (such as validity known or not)
+    state->as<StateType>()->clearKnownInformation();
+}
+
+void ompl_interface::ModelBasedStateSpace::copyToOMPLStateConstrained(ompl::base::State* state,
+                                                           const moveit::core::RobotState& rstate) const
+{
+    Eigen::VectorXd sv(getDimension());
+    rstate.copyJointGroupPositions(spec_.joint_model_group_,
+                                   sv);
+    state->as<ompl::base::ConstrainedStateSpace::StateType>()->copy(sv);
+    state->as<ompl::base::ConstrainedStateSpace::StateType>()->getState()->as<StateType>()->clearKnownInformation();
 }
 
 void ompl_interface::ModelBasedStateSpace::copyJointToOMPLState(ompl::base::State* state,
