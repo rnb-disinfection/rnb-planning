@@ -153,6 +153,13 @@
   ```
   pip install rospkg  
   ```
+
+# OMPL  
+```
+cd ~/Projects/tamp_etasl/ompl
+chmod +x *
+./install-ompl-ubuntu.sh --python
+```
   
 # eTaSL  
 * Follow install process in the link - https://etasl.pages.gitlab.kuleuven.be/install-new.html  
