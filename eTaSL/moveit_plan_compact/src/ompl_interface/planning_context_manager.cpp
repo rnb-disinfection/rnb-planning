@@ -405,18 +405,20 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
         context_spec.constraint_sampler_manager_ = constraint_sampler_manager_;
         context_spec.state_space_ = factory->getNewStateSpace(space_spec);
 
-        // Choose the correct simple setup type to load
-        context_spec.ompl_simple_setup_.reset(new ompl::geometric::SimpleSetup(context_spec.state_space_));
-
-//        // Combine the ambient space and the constraint into a constrained state space.
-//        auto constrained_state_space_ = std::make_shared<ob::ProjectedStateSpace>(context_spec.state_space_,
-//                                                                                  custom_constraint);
-//
-//        // Define the constrained space information for this constrained state space.
-//        auto csi = std::make_shared<ob::ConstrainedSpaceInformation>(constrained_state_space_);
-//
 //        // Choose the correct simple setup type to load
-//        context_spec.ompl_simple_setup_.reset(new ompl::geometric::SimpleSetup(csi));
+//        context_spec.ompl_simple_setup_.reset(new ompl::geometric::SimpleSetup(context_spec.state_space_));
+
+        context_spec.constrained = true;
+
+        // Combine the ambient space and the constraint into a constrained state space.
+        context_spec.constrained_state_space_ = std::make_shared<ob::ProjectedStateSpace>(context_spec.state_space_,
+                                                                                  custom_constraint);
+
+        // Define the constrained space information for this constrained state space.
+        context_spec.csi_ = std::make_shared<ob::ConstrainedSpaceInformation>(context_spec.constrained_state_space_);
+
+        // Choose the correct simple setup type to load
+        context_spec.ompl_simple_setup_.reset(new ompl::geometric::SimpleSetup(context_spec.csi_));
 
         ROS_DEBUG_NAMED(LOGNAME, "Creating new planning context");
         context.reset(new ModelBasedPlanningContext(config.name, context_spec));

@@ -26,9 +26,10 @@ namespace RNB {
             std::string tool_link;
 
             CustomConstraint(robot_model::RobotModelPtr robot_model_, std::string group_name, JointState init_state,
-                             std::string tool_link, int dims) : ob::Constraint(dims, 1)
+                             std::string tool_link) :
+                             ob::Constraint(robot_model_->getJointModelGroup(group_name)->getVariableCount(), 1)
             {
-                this->dims = dims;
+                this->dims = getAmbientDimension();
                 kinematic_state = std::make_shared<robot_state::RobotState>(robot_model_);
                 joint_model_group = robot_model_->getJointModelGroup(group_name);
                 this->tool_link = tool_link;

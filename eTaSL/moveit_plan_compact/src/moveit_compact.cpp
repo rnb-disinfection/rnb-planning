@@ -279,7 +279,7 @@ PlanResult& Planner::plan_with_constraint(string group_name, string tool_link,
 
     plan_result.trajectory.clear();
 
-    custom_constraint_ = std::make_shared<CustomConstraint>(robot_model_, group_name, init_state, tool_link, joint_num);
+    custom_constraint_ = std::make_shared<CustomConstraint>(robot_model_, group_name, init_state, tool_link);
 
     planning_interface::PlanningContextPtr context =
             planner_instance_->getPlanningContextConstrained(planning_scene_, _req, _res.error_code_, custom_constraint_);
@@ -388,7 +388,7 @@ void Planner::clear_all_objects(){
 }
 
 void Planner::set_zplane_manifold(string group_name, JointState init_state, string tool_link){
-    custom_constraint_ = std::make_shared<CustomConstraint>(robot_model_, group_name, init_state, tool_link, joint_num);
+    custom_constraint_ = std::make_shared<CustomConstraint>(robot_model_, group_name, init_state, tool_link);
 }
 
 void Planner::terminate(){

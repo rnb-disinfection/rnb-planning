@@ -117,10 +117,22 @@ void ompl_interface::ModelBasedPlanningContext::configure(const ros::NodeHandle&
       std::bind(&ModelBasedPlanningContext::allocPathConstrainedSampler, this, std::placeholders::_1));
 
   // convert the input state to the corresponding OMPL state
-  ompl::base::ScopedState<> ompl_start_state(spec_.state_space_);
-  spec_.state_space_->copyToOMPLState(ompl_start_state.get(), getCompleteInitialRobotState());
-  ompl_simple_setup_->setStartState(ompl_start_state);
-  ompl_simple_setup_->setStateValidityChecker(ob::StateValidityCheckerPtr(new StateValidityChecker(this)));
+  if (spec_.constrained)
+  {
+      Eigen::VectorXd sv(spec_.state_space_->getDimension());
+      ompl::base::ScopedState<> ompl_start_state(spec_.constrained_state_space_);
+      getCompleteInitialRobotState().copyJointGroupPositions(spec_.state_space_->getSpecification().joint_model_group_,
+                                                             sv);
+      ompl_start_state->as<ob::ConstrainedStateSpace::StateType>()->copy(sv);
+      ompl_simple_setup_->setStateValidityChecker(ob::StateValidityCheckerPtr(new StateValidityChecker(this)));
+  }
+  else
+  {
+      ompl::base::ScopedState<> ompl_start_state(spec_.state_space_);
+      spec_.state_space_->copyToOMPLState(ompl_start_state.get(), getCompleteInitialRobotState());
+      ompl_simple_setup_->setStartState(ompl_start_state);
+      ompl_simple_setup_->setStateValidityChecker(ob::StateValidityCheckerPtr(new StateValidityChecker(this)));
+  }
 
   if (path_constraints_ && constraints_library_)
   {
