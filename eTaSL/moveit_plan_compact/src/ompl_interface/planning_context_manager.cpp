@@ -66,6 +66,8 @@
 #include <ompl/geometric/planners/prm/LazyPRMstar.h>
 #include <ompl/geometric/planners/prm/SPARS.h>
 #include <ompl/geometric/planners/prm/SPARStwo.h>
+#include <ompl/base/spaces/constraint/ProjectedStateSpace.h>
+#include <ompl/base/ConstrainedSpaceInformation.h>
 
 #include "ompl_interface/parameterization/joint_space/joint_model_state_space_factory.h"
 #include "ompl_interface/parameterization/joint_space/joint_model_state_space.h"
@@ -405,6 +407,16 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
 
         // Choose the correct simple setup type to load
         context_spec.ompl_simple_setup_.reset(new ompl::geometric::SimpleSetup(context_spec.state_space_));
+
+//        // Combine the ambient space and the constraint into a constrained state space.
+//        auto constrained_state_space_ = std::make_shared<ob::ProjectedStateSpace>(context_spec.state_space_,
+//                                                                                  custom_constraint);
+//
+//        // Define the constrained space information for this constrained state space.
+//        auto csi = std::make_shared<ob::ConstrainedSpaceInformation>(constrained_state_space_);
+//
+//        // Choose the correct simple setup type to load
+//        context_spec.ompl_simple_setup_.reset(new ompl::geometric::SimpleSetup(csi));
 
         ROS_DEBUG_NAMED(LOGNAME, "Creating new planning context");
         context.reset(new ModelBasedPlanningContext(config.name, context_spec));

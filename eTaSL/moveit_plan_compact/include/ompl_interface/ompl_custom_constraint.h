@@ -6,7 +6,7 @@
 #define MOVEIT_PLAN_COMPACT_OMPL_CUSTOM_CONSTRAINT_H
 
 #include "typedef.h"
-#include <ompl-1.5/ompl/base/Constraint.h>
+#include <ompl/base/Constraint.h>
 
 
 namespace RNB {

@@ -402,14 +402,35 @@ int main(int argc, char** argv) {
     group_names.push_back("indy0");
     group_names.push_back("panda1");
 
+    string group_name_now("indy0");
+    string tool_link = "indy0_tcp";
+
     Planner planner;
     planner.init_planner_from_file("../test_assets/custom_robots.urdf", "../test_assets/custom_robots.srdf",
                                    group_names, "../test_assets/");
     JointState init_state(13);
     init_state << 0, 0, -1.57, 0, -1.57, 0, 0, -0.4, 0, -1.57, 0, 1.57, 1.57;
+
+
+    robot_state::RobotStatePtr kinematic_state = std::make_shared<robot_state::RobotState>(planner.robot_model_);
+    robot_state::JointModelGroup* joint_model_group = planner.robot_model_->getJointModelGroup(group_name_now);
+    kinematic_state->setToDefaultValues();
+    kinematic_state->setJointGroupPositions(joint_model_group, init_state.data());
+    const Eigen::Affine3d &end_effector_tf = kinematic_state->getGlobalLinkTransform(tool_link);
+
+    Eigen::Vector3d _vec(end_effector_tf.translation());
+    Eigen::Quaterniond _rot(end_effector_tf.rotation());
+
     CartPose goal;
-    goal << -0.3,-0.2,0.4,0,0,0,1;
-    planner.plan_with_constraint("indy0", "indy0_tcp", goal, "base_link", init_state);
+//    goal << -0.3,-0.2,0.4,0,0,0,1;
+    goal << _vec.x(), _vec.y(), _vec.z(),
+            _rot.x(), _rot.y(), _rot.z(), _rot.w();
+
+    std::cout<<"========== goal ========="<<std::endl;
+    std::cout<<goal<<std::endl;
+    std::cout<<"========== goal ========="<<std::endl;
+
+    planner.plan_with_constraint(group_name_now, tool_link, goal, "base_link", init_state);
 
     planner.terminate();
 

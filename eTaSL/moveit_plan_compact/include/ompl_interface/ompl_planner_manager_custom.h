@@ -43,7 +43,7 @@
 #include <pluginlib/class_list_macros.h>
 
 #include <dynamic_reconfigure/server.h>
-#include "moveit_planners_ompl/OMPLDynamicReconfigureConfig.h"
+#include "ompl_interface/OMPLDynamicReconfigureConfig.h"
 
 #include <moveit_msgs/DisplayRobotState.h>
 #include <moveit_msgs/DisplayTrajectory.h>
