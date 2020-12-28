@@ -5,7 +5,6 @@
 #include <moveit/robot_model_loader/robot_model_loader.h>
 #include <moveit/planning_pipeline/planning_pipeline.h>
 #include <moveit/kinematic_constraints/utils.h>
-#include "ompl_interface/ompl_interface.h"
 #include "ompl_interface/ompl_planner_manager_custom.h"
 
 #define MAX_NAME_LEN 32

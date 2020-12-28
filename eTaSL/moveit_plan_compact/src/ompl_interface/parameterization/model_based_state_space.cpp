@@ -337,8 +337,7 @@ void ompl_interface::ModelBasedStateSpace::copyToOMPLStateConstrained(ompl::base
                                                            const moveit::core::RobotState& rstate) const
 {
     Eigen::VectorXd sv(getDimension());
-    rstate.copyJointGroupPositions(spec_.joint_model_group_,
-                                   sv);
+    rstate.copyJointGroupPositions(spec_.joint_model_group_, sv);
     state->as<ompl::base::ConstrainedStateSpace::StateType>()->copy(sv);
     state->as<ompl::base::ConstrainedStateSpace::StateType>()->getState()->as<StateType>()->clearKnownInformation();
 }

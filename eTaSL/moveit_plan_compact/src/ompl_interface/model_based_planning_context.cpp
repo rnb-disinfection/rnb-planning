@@ -119,12 +119,10 @@ void ompl_interface::ModelBasedPlanningContext::configure(const ros::NodeHandle&
   // convert the input state to the corresponding OMPL state
   if (spec_.constrained)
   {
-      Eigen::VectorXd sv(spec_.state_space_->getDimension());
       ompl::base::ScopedState<> ompl_start_state(spec_.constrained_state_space_);
-      getCompleteInitialRobotState().copyJointGroupPositions(spec_.state_space_->getSpecification().joint_model_group_,
-                                                             sv);
-      ompl_start_state->as<ob::ConstrainedStateSpace::StateType>()->copy(sv);
-      ompl_simple_setup_->setStateValidityChecker(ob::StateValidityCheckerPtr(new StateValidityChecker(this)));
+      spec_.state_space_->copyToOMPLStateConstrained(ompl_start_state.get(), getCompleteInitialRobotState());
+      ompl_simple_setup_->setStartState(ompl_start_state);
+      ompl_simple_setup_->setStateValidityChecker(ob::StateValidityCheckerPtr(new ConstrainedStateValidityChecker(this)));
   }
   else
   {

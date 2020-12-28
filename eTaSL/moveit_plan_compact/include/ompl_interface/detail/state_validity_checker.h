@@ -44,43 +44,88 @@
 
 namespace ompl_interface
 {
-class ModelBasedPlanningContext;
+    class ModelBasedPlanningContext;
 
 /** @class StateValidityChecker
     @brief An interface for a OMPL state validity checker*/
-class StateValidityChecker : public ompl::base::StateValidityChecker
-{
-public:
-  StateValidityChecker(const ModelBasedPlanningContext* planning_context);
+    class StateValidityChecker : public ompl::base::StateValidityChecker
+    {
+    public:
+        StateValidityChecker(const ModelBasedPlanningContext* planning_context);
 
-  bool isValid(const ompl::base::State* state) const override
-  {
-    return isValid(state, verbose_);
-  }
+        bool isValid(const ompl::base::State* state) const override
+        {
+            return isValid(state, verbose_);
+        }
 
-  bool isValid(const ompl::base::State* state, double& dist) const override
-  {
-    return isValid(state, dist, verbose_);
-  }
+        bool isValid(const ompl::base::State* state, double& dist) const override
+        {
+            return isValid(state, dist, verbose_);
+        }
 
-  bool isValid(const ompl::base::State* state, bool verbose) const;
-  bool isValid(const ompl::base::State* state, double& dist, bool verbose) const;
+        bool isValid(const ompl::base::State* state, bool verbose) const
+        {
+            return isValid_(state, verbose_, false);
+        }
 
-  virtual double cost(const ompl::base::State* state) const;
-  double clearance(const ompl::base::State* state) const override;
+        bool isValid(const ompl::base::State* state, double& dist, bool verbose) const
+        {
+            return isValid_(state, dist, verbose_, false);
+        }
 
-  void setVerbose(bool flag);
+        virtual double cost(const ompl::base::State* state) const;
+        double clearance(const ompl::base::State* state) const override;
 
-protected:
-  const ModelBasedPlanningContext* planning_context_;
-  std::string group_name_;
-  TSStateStorage tss_;
-  collision_detection::CollisionRequest collision_request_simple_;
-  collision_detection::CollisionRequest collision_request_with_distance_;
-  collision_detection::CollisionRequest collision_request_simple_verbose_;
-  collision_detection::CollisionRequest collision_request_with_distance_verbose_;
+        void setVerbose(bool flag);
 
-  collision_detection::CollisionRequest collision_request_with_cost_;
-  bool verbose_;
-};
+    protected:
+        bool isValid_(const ompl::base::State* state, bool verbose, bool constrained) const;
+        bool isValid_(const ompl::base::State* state, double& dist, bool verbose, bool constrained) const;
+
+    protected:
+        const ModelBasedPlanningContext* planning_context_;
+        std::string group_name_;
+        TSStateStorage tss_;
+        collision_detection::CollisionRequest collision_request_simple_;
+        collision_detection::CollisionRequest collision_request_with_distance_;
+        collision_detection::CollisionRequest collision_request_simple_verbose_;
+        collision_detection::CollisionRequest collision_request_with_distance_verbose_;
+
+        collision_detection::CollisionRequest collision_request_with_cost_;
+        bool verbose_;
+    };
+
+
+/** @class StateValidityChecker
+    @brief An interface for a OMPL state validity checker*/
+    class ConstrainedStateValidityChecker : public StateValidityChecker
+    {
+    public:
+        ConstrainedStateValidityChecker(const ModelBasedPlanningContext* planning_context):
+                StateValidityChecker(planning_context){}
+
+        bool isValid(const ompl::base::State* state) const
+        {
+            return isValid(state, verbose_);
+        }
+
+        bool isValid(const ompl::base::State* state, double& dist) const
+        {
+            return isValid(state, dist, verbose_);
+        }
+
+        bool isValid(const ompl::base::State* state, bool verbose) const {
+            return StateValidityChecker::isValid_(state, verbose, true);
+        }
+        bool isValid(const ompl::base::State* state, double& dist, bool verbose) const {
+            return StateValidityChecker::isValid_(state, dist, verbose, true);
+        }
+
+        double cost(const ompl::base::State* state) const {
+            return StateValidityChecker::cost(state->as<ompl::base::ConstrainedStateSpace::StateType>()->getState());
+        }
+        double clearance(const ompl::base::State* state) const{
+            return StateValidityChecker::clearance(state->as<ompl::base::ConstrainedStateSpace::StateType>()->getState());
+        }
+    };
 }  // namespace ompl_interface

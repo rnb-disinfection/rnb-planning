@@ -71,8 +71,14 @@ bool ompl_interface::ConstrainedGoalSampler::checkStateValidity(ob::State* new_g
                                                                 const moveit::core::RobotState& state,
                                                                 bool verbose) const
 {
-  planning_context_->getOMPLStateSpace()->copyToOMPLState(new_goal, state);
-  return static_cast<const StateValidityChecker*>(si_->getStateValidityChecker().get())->isValid(new_goal, verbose);
+    if (planning_context_->getSpecification().constrained){
+        planning_context_->getOMPLStateSpace()->copyToOMPLStateConstrained(new_goal, state);
+        return static_cast<const ConstrainedStateValidityChecker*>(si_->getStateValidityChecker().get())->isValid(new_goal, verbose);
+    }
+    else{
+        planning_context_->getOMPLStateSpace()->copyToOMPLState(new_goal, state);
+        return static_cast<const StateValidityChecker*>(si_->getStateValidityChecker().get())->isValid(new_goal, verbose);
+    }
 }
 
 bool ompl_interface::ConstrainedGoalSampler::stateValidityCallback(ob::State* new_goal,

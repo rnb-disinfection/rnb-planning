@@ -430,7 +430,7 @@ int main(int argc, char** argv) {
     std::cout<<goal<<std::endl;
     std::cout<<"========== goal ========="<<std::endl;
 
-    planner.plan(group_name_now, tool_link, goal, "base_link", init_state);
+    planner.plan_with_constraint(group_name_now, tool_link, goal, "base_link", init_state, "RRTConnectkConfigDefault", 10.0);
 
     planner.terminate();
 

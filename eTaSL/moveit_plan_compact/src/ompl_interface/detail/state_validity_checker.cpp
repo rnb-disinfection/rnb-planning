@@ -73,13 +73,22 @@ void ompl_interface::StateValidityChecker::setVerbose(bool flag)
   verbose_ = flag;
 }
 
-bool ompl_interface::StateValidityChecker::isValid(const ompl::base::State* state, bool verbose) const
+bool ompl_interface::StateValidityChecker::isValid_(const ompl::base::State* state_, bool verbose, bool constrained) const
 {
+    ompl::base::State* state;
+    if (constrained)
+    {
+        state = const_cast<ob::State*>(state_->as<ob::ConstrainedStateSpace::StateType>()->getState());
+    }
+    else
+    {
+        state = const_cast<ob::State*>(state_);
+    }
   // Use cached validity if it is available
   if (state->as<ModelBasedStateSpace::StateType>()->isValidityKnown())
     return state->as<ModelBasedStateSpace::StateType>()->isMarkedValid();
 
-  if (!si_->satisfiesBounds(state))
+  if (!si_->satisfiesBounds(state_))
   {
     if (verbose)
       ROS_INFO_NAMED(LOGNAME, "State outside bounds");
@@ -120,8 +129,18 @@ bool ompl_interface::StateValidityChecker::isValid(const ompl::base::State* stat
   return !res.collision;
 }
 
-bool ompl_interface::StateValidityChecker::isValid(const ompl::base::State* state, double& dist, bool verbose) const
+bool ompl_interface::StateValidityChecker::isValid_(const ompl::base::State* state_,
+                                                    double& dist, bool verbose, bool constrained) const
 {
+    ompl::base::State* state;
+    if (constrained)
+    {
+        state = const_cast<ob::State*>(state_->as<ob::ConstrainedStateSpace::StateType>()->getState());
+    }
+    else
+    {
+        state = const_cast<ob::State*>(state_);
+    }
   // Use cached validity and distance if they are available
   if (state->as<ModelBasedStateSpace::StateType>()->isValidityKnown() &&
       state->as<ModelBasedStateSpace::StateType>()->isGoalDistanceKnown())
@@ -130,7 +149,7 @@ bool ompl_interface::StateValidityChecker::isValid(const ompl::base::State* stat
     return state->as<ModelBasedStateSpace::StateType>()->isMarkedValid();
   }
 
-  if (!si_->satisfiesBounds(state))
+  if (!si_->satisfiesBounds(state_))
   {
     if (verbose)
       ROS_INFO_NAMED(LOGNAME, "State outside bounds");
