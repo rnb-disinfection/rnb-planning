@@ -61,6 +61,6 @@ add_executable(${PROJECT_NAME}
         src/ompl_interface/detail/constraints_library.cpp
         src/ompl_interface/detail/constrained_sampler.cpp
         src/ompl_interface/detail/constrained_valid_state_sampler.cpp
-        src/ompl_interface/detail/constrained_goal_sampler.cpp)
+        src/ompl_interface/detail/constrained_goal_sampler.cpp src/logger.cpp)
 
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${OMPL_LIBRARIES} yaml-cpp)

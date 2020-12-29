@@ -39,7 +39,6 @@ namespace RNB {
             robot_model_loader::RobotModelLoaderPtr robot_model_loader_;
             robot_model::RobotModelPtr robot_model_;
             planning_scene::PlanningScenePtr planning_scene_;
-            CustomConstraintPtr custom_constraint_;
 
             PlanResult plan_result;
             NameList joint_names;
@@ -78,9 +77,10 @@ namespace RNB {
              * @author Junsu Kang
              */
             PlanResult &plan_with_constraint(string group_name, string tool_link,
-                             CartPose goal_pose, string goal_link,
-                             JointState init_state, string planner_id="RRTConnectkConfigDefault",
-                             double allowed_planning_time=0.1, bool allow_approximation=false);
+                                             CartPose goal_pose, string goal_link,
+                                             JointState init_state, RNB::MoveitCompact::UnionManifoldPtr& custom_constraint,
+                                             string planner_id="RRTConnectkConfigDefault",
+                                             double allowed_planning_time=0.1, bool allow_approximation=false);
 
             /**
              * @brief generate and process ros object message
@@ -102,12 +102,6 @@ namespace RNB {
              * @author Junsu Kang
              */
             void clear_all_objects();
-
-            /**
-             * @brief set z-plane manifold for constrained planning
-             * @author Junsu Kang
-             */
-            void set_zplane_manifold(string group_name, JointState init_state, string tool_link);
 
             void terminate();
         };

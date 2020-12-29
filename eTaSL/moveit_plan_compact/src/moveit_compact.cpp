@@ -241,7 +241,8 @@ PlanResult& Planner::plan(string group_name, string tool_link,
 
 PlanResult& Planner::plan_with_constraint(string group_name, string tool_link,
                          CartPose goal_pose, string goal_link,
-                         JointState init_state, string planner_id, double allowed_planning_time, bool allow_approximation){
+                         JointState init_state, RNB::MoveitCompact::UnionManifoldPtr& custom_constraint,
+                         string planner_id, double allowed_planning_time, bool allow_approximation){
     PRINT_FRAMED_LOG("set goal", true);
     geometry_msgs::PoseStamped _goal_pose;
     _goal_pose.header.frame_id = goal_link;
@@ -279,11 +280,9 @@ PlanResult& Planner::plan_with_constraint(string group_name, string tool_link,
 
     plan_result.trajectory.clear();
 
-    custom_constraint_ = std::make_shared<CustomConstraint>(robot_model_, group_name, init_state, tool_link);
-
     planning_interface::PlanningContextPtr context =
             planner_instance_->getPlanningContextConstrained(planning_scene_, _req, _res.error_code_,
-                                                             custom_constraint_, allow_approximation);
+                                                             custom_constraint, allow_approximation);
 
     context->solve(_res);
 
@@ -333,19 +332,19 @@ bool Planner::process_object(string name, const int type, CartPose pose, Vec3 di
     /* Define a box to be attached */
     primitive.type = type;
     switch(type){
-        case primitive.BOX:
+        case Shape::BOX:
             primitive.dimensions.resize(3);
             primitive.dimensions[0] = dims[0];
             primitive.dimensions[1] = dims[1];
             primitive.dimensions[2] = dims[2];
             printf("BOX: %f, %f, %f \n", dims[0], dims[1], dims[2]);
             break;
-        case primitive.SPHERE:
+        case Shape::SPHERE:
             primitive.dimensions.resize(1);
             primitive.dimensions[0] = dims[0];
             printf("SPHERE: %f \n", dims[0]);
             break;
-        case primitive.CYLINDER:
+        case Shape::CYLINDER:
             primitive.dimensions.resize(2);
             primitive.dimensions[0] = dims[0];
             primitive.dimensions[1] = dims[1];
@@ -388,10 +387,6 @@ void Planner::clear_all_objects(){
     planning_scene_->removeAllCollisionObjects();
 }
 
-void Planner::set_zplane_manifold(string group_name, JointState init_state, string tool_link){
-    custom_constraint_ = std::make_shared<CustomConstraint>(robot_model_, group_name, init_state, tool_link);
-}
-
 void Planner::terminate(){
     if(planner_instance_){
         planner_instance_->terminate();
@@ -403,7 +398,7 @@ int main(int argc, char** argv) {
     group_names.push_back("indy0");
     group_names.push_back("panda1");
 
-    string group_name_now("indy0");
+    string group_name("indy0");
     string tool_link("indy0_tcp");
 
     Planner planner;
@@ -412,9 +407,8 @@ int main(int argc, char** argv) {
     JointState init_state(13);
     init_state << 0, 0, -1.57, 0, -1.57, 0, 0, -0.4, 0, -1.57, 0, 1.57, 1.57;
 
-
     robot_state::RobotStatePtr kinematic_state = std::make_shared<robot_state::RobotState>(planner.robot_model_);
-    robot_state::JointModelGroup* joint_model_group = planner.robot_model_->getJointModelGroup(group_name_now);
+    robot_state::JointModelGroup* joint_model_group = planner.robot_model_->getJointModelGroup(group_name);
     kinematic_state->setToDefaultValues();
     kinematic_state->setJointGroupPositions(joint_model_group, init_state.data());
     const Eigen::Affine3d &end_effector_tf = kinematic_state->getGlobalLinkTransform(tool_link);
@@ -426,16 +420,25 @@ int main(int argc, char** argv) {
     CartPose goal_pose;
 //    goal << -0.3,-0.2,0.4,0,0,0,1;
     inital_pose << _vec.x(), _vec.y(), _vec.z(), _rot.x(), _rot.y(), _rot.z(), _rot.w();
-    goal_pose << _vec.x(), _vec.y(), _vec.z(), _rot.x(), _rot.y(), _rot.z(), _rot.w();
+    goal_pose << _vec.x()+0.1, _vec.y()-0.1, _vec.z()-0.1, _rot.x(), _rot.y(), _rot.z(), _rot.w();
 
     std::cout<<"========== goal ========="<<std::endl;
     std::cout<<goal_pose<<std::endl;
     std::cout<<"========== goal ========="<<std::endl;
+    GeometryList geometry_list;
+    CartPose plane_pose;
+//    plane_pose << _vec.x(),_vec.y(),_vec.z(),0,0,0,1;
+//    plane_pose << _vec.x(),_vec.y(),_vec.z(),0.70710678,0,0,0.70710678;
+    plane_pose << _vec.x(),_vec.y(),_vec.z(),0.38268343, 0.0, 0.0, 0.92387953;
+    geometry_list.push_back(Geometry(Shape::PLANE, plane_pose, Vec3(0,0,0)));
+    UnionManifoldPtr manifold = std::make_shared<UnionManifold>(planner.robot_model_, group_name, 
+                                                                tool_link, Vec3(0,0,0),geometry_list,
+                                                                1e-3);
 
-    PlanResult res = planner.plan_with_constraint(group_name_now, tool_link,
-                                                  goal_pose, "base_link",
-                                                  init_state, "RRTConnectkConfigDefault",
-                                                  10, true);
+    PlanResult res = planner.plan_with_constraint(group_name, tool_link,
+                                                  goal_pose, "base_link", init_state, manifold,
+                                                  "RRTConnectkConfigDefault",
+                                                  5, true);
 
     int len = res.trajectory.size();
     std::cout<<std::endl;

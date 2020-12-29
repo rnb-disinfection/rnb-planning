@@ -20,6 +20,47 @@ BOOST_PYTHON_MODULE(moveit_plan_compact){
     using namespace boost::python;
     def("greet", greet);
 
+    enum_<Shape>("Shape")
+            .value("BOX", Shape::BOX)
+            .value("SPHERE", Shape::SPHERE)
+            .value("CYLINDER", Shape::CYLINDER)
+            .value("PLANE", Shape::PLANE)
+            .export_values()
+            ;
+
+    class_<Geometry>("Geometry", init<Shape, CartPose, Vec3>())
+            .def_readonly("type", &Geometry::type)
+            .def_readonly("pose", &Geometry::pose)
+            .def_readonly("dims", &Geometry::dims)
+            ;
+
+    class_<GeometryList>("GeometryList", init<>())
+            .def("__len__", &GeometryList::size)
+            .def("clear", &GeometryList::clear)
+            .def("append", &std_item<GeometryList>::add,
+                 with_custodian_and_ward<1,2>()) // to let container keep value
+            .def("__getitem__", &std_item<GeometryList>::get,
+                 return_value_policy<copy_non_const_reference>())
+            .def("__setitem__", &std_item<GeometryList>::set,
+                 with_custodian_and_ward<1,2>()) // to let container keep value
+            .def("__delitem__", &std_item<GeometryList>::del)
+            ;
+
+    class_<Geometry>("UnionManifold")
+            ;
+
+    class_<UnionManifoldList>("UnionManifoldList", init<>())
+            .def("__len__", &UnionManifoldList::size)
+            .def("clear", &UnionManifoldList::clear)
+            .def("append", &std_item<UnionManifoldList>::add,
+                 with_custodian_and_ward<1,2>()) // to let container keep value
+            .def("__getitem__", &std_item<UnionManifoldList>::get,
+                 return_value_policy<copy_non_const_reference>())
+            .def("__setitem__", &std_item<UnionManifoldList>::set,
+                 with_custodian_and_ward<1,2>()) // to let container keep value
+            .def("__delitem__", &std_item<UnionManifoldList>::del)
+            ;
+
     class_<NameList>("NameList", init<>())
             .def("__len__", &NameList::size)
             .def("clear", &NameList::clear)

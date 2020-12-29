@@ -91,14 +91,14 @@ public:
     ModelBasedPlanningContextPtr getPlanningContextConstrained(
             const planning_scene::PlanningSceneConstPtr& planning_scene,
             const planning_interface::MotionPlanRequest& req,
-            RNB::MoveitCompact::CustomConstraintPtr & custom_constraint,
+            RNB::MoveitCompact::UnionManifoldPtr & custom_constraint,
             bool allow_approximation) const;
 
     ModelBasedPlanningContextPtr getPlanningContextConstrained(
             const planning_scene::PlanningSceneConstPtr& planning_scene,
             const planning_interface::MotionPlanRequest& req,
             moveit_msgs::MoveItErrorCodes& error_code,
-            RNB::MoveitCompact::CustomConstraintPtr & custom_constraint,
+            RNB::MoveitCompact::UnionManifoldPtr & custom_constraint,
             bool allow_approximation) const;
 
   const PlanningContextManager& getPlanningContextManager() const

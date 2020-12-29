@@ -160,7 +160,7 @@ namespace ompl_interface
         planning_interface::PlanningContextPtr getPlanningContextConstrained(const planning_scene::PlanningSceneConstPtr& planning_scene,
                                                                   const planning_interface::MotionPlanRequest& req,
                                                                   moveit_msgs::MoveItErrorCodes& error_code,
-                                                                  RNB::MoveitCompact::CustomConstraintPtr& custom_constraint,
+                                                                  RNB::MoveitCompact::UnionManifoldPtr& custom_constraint,
                                                                   bool allow_approximation)
         {
             return ompl_interface_->getPlanningContextConstrained(planning_scene, req, error_code,

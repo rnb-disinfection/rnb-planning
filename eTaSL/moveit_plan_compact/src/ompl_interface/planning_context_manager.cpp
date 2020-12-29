@@ -373,7 +373,7 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
         const planning_interface::PlannerConfigurationSettings& config,
         const StateSpaceFactoryTypeSelector& factory_selector,
         const moveit_msgs::MotionPlanRequest& req,
-        RNB::MoveitCompact::CustomConstraintPtr& custom_constraint,
+        RNB::MoveitCompact::UnionManifoldPtr& custom_constraint,
         bool allow_approximation) const
 {
     const ompl_interface::ModelBasedStateSpaceFactoryPtr& factory = factory_selector(config.group);
@@ -586,7 +586,7 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
 ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextManager::getPlanningContextConstrained(
         const planning_scene::PlanningSceneConstPtr& planning_scene, const moveit_msgs::MotionPlanRequest& req,
         moveit_msgs::MoveItErrorCodes& error_code, const ros::NodeHandle& nh, bool use_constraints_approximation,
-        RNB::MoveitCompact::CustomConstraintPtr& custom_constraint, bool allow_approximation) const
+        RNB::MoveitCompact::UnionManifoldPtr& custom_constraint, bool allow_approximation) const
 {
     if (req.group_name.empty())
     {

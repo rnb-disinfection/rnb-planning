@@ -29,6 +29,29 @@ namespace RNB {
             Trajectory trajectory;
             bool success;
         };
+
+        enum Shape{
+            BOX=shape_msgs::SolidPrimitive::BOX,
+            SPHERE=shape_msgs::SolidPrimitive::SPHERE,
+            CYLINDER=shape_msgs::SolidPrimitive::CYLINDER,
+            PLANE=104u
+        };
+
+        struct Geometry{
+            Shape type;
+            CartPose pose;
+            Eigen::Affine3d tf;
+            Vec3 dims;
+            Geometry(Shape type, CartPose pose, Vec3 dims){
+                this->type = type;
+                this->pose = pose;
+                this->dims = dims;
+                Eigen::Quaterniond q(pose[6], pose[3],pose[4],pose[5]);
+                this->tf = Eigen::Translation3d(pose.block(0,0,3,1))*q;
+            }
+        };
+
+        typedef std::vector<Geometry> GeometryList;
     }
 }
 #endif //MOVEIT_PLAN_COMPACT_TYPEDEF_H
