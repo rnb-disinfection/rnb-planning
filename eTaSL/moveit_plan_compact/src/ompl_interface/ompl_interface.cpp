@@ -119,21 +119,24 @@ ompl_interface::OMPLInterface::getPlanningContext(const planning_scene::Planning
 ompl_interface::ModelBasedPlanningContextPtr
 ompl_interface::OMPLInterface::getPlanningContextConstrained(const planning_scene::PlanningSceneConstPtr& planning_scene,
                                                   const planning_interface::MotionPlanRequest& req,
-                                                  RNB::MoveitCompact::CustomConstraintPtr & custom_constraint) const
+                                                  RNB::MoveitCompact::CustomConstraintPtr & custom_constraint,
+                                                  bool allow_approximation) const
 {
     moveit_msgs::MoveItErrorCodes dummy;
-    return getPlanningContextConstrained(planning_scene, req, dummy, custom_constraint);
+    return getPlanningContextConstrained(planning_scene, req, dummy, custom_constraint, allow_approximation);
 }
 
 ompl_interface::ModelBasedPlanningContextPtr
 ompl_interface::OMPLInterface::getPlanningContextConstrained(const planning_scene::PlanningSceneConstPtr& planning_scene,
                                                   const planning_interface::MotionPlanRequest& req,
                                                   moveit_msgs::MoveItErrorCodes& error_code,
-                                                  RNB::MoveitCompact::CustomConstraintPtr & custom_constraint) const
+                                                  RNB::MoveitCompact::CustomConstraintPtr & custom_constraint,
+                                                  bool allow_approximation) const
 {
     ModelBasedPlanningContextPtr ctx =
             context_manager_.getPlanningContextConstrained(planning_scene, req, error_code, nh_,
-                                                           use_constraints_approximations_, custom_constraint);
+                                                           use_constraints_approximations_,
+                                                           custom_constraint, allow_approximation);
     if (ctx)
         configureContext(ctx);
     return ctx;

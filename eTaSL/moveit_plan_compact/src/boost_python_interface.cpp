@@ -77,6 +77,8 @@ BOOST_PYTHON_MODULE(moveit_plan_compact){
             .def("init_planner_from_file", &Planner::init_planner_from_file)
             .def("plan", &Planner::plan,
                  return_value_policy<copy_non_const_reference>())
+            .def("plan_with_constraint", &Planner::plan_with_constraint,
+                 return_value_policy<copy_non_const_reference>())
             .def("add_object", &Planner::add_object)
             .def("process_object", &Planner::process_object)
             .def("clear_all_objects", &Planner::clear_all_objects)

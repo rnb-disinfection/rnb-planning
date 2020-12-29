@@ -241,7 +241,7 @@ PlanResult& Planner::plan(string group_name, string tool_link,
 
 PlanResult& Planner::plan_with_constraint(string group_name, string tool_link,
                          CartPose goal_pose, string goal_link,
-                         JointState init_state, string planner_id, double allowed_planning_time){
+                         JointState init_state, string planner_id, double allowed_planning_time, bool allow_approximation){
     PRINT_FRAMED_LOG("set goal", true);
     geometry_msgs::PoseStamped _goal_pose;
     _goal_pose.header.frame_id = goal_link;
@@ -282,7 +282,8 @@ PlanResult& Planner::plan_with_constraint(string group_name, string tool_link,
     custom_constraint_ = std::make_shared<CustomConstraint>(robot_model_, group_name, init_state, tool_link);
 
     planning_interface::PlanningContextPtr context =
-            planner_instance_->getPlanningContextConstrained(planning_scene_, _req, _res.error_code_, custom_constraint_);
+            planner_instance_->getPlanningContextConstrained(planning_scene_, _req, _res.error_code_,
+                                                             custom_constraint_, allow_approximation);
 
     context->solve(_res);
 
@@ -403,7 +404,7 @@ int main(int argc, char** argv) {
     group_names.push_back("panda1");
 
     string group_name_now("indy0");
-    string tool_link = "indy0_tcp";
+    string tool_link("indy0_tcp");
 
     Planner planner;
     planner.init_planner_from_file("../test_assets/custom_robots.urdf", "../test_assets/custom_robots.srdf",
@@ -421,16 +422,44 @@ int main(int argc, char** argv) {
     Eigen::Vector3d _vec(end_effector_tf.translation());
     Eigen::Quaterniond _rot(end_effector_tf.rotation());
 
-    CartPose goal;
+    CartPose inital_pose;
+    CartPose goal_pose;
 //    goal << -0.3,-0.2,0.4,0,0,0,1;
-    goal << _vec.x(), _vec.y(), _vec.z(),
-            _rot.x(), _rot.y(), _rot.z(), _rot.w();
+    inital_pose << _vec.x(), _vec.y(), _vec.z(), _rot.x(), _rot.y(), _rot.z(), _rot.w();
+    goal_pose << _vec.x(), _vec.y(), _vec.z(), _rot.x(), _rot.y(), _rot.z(), _rot.w();
 
     std::cout<<"========== goal ========="<<std::endl;
-    std::cout<<goal<<std::endl;
+    std::cout<<goal_pose<<std::endl;
     std::cout<<"========== goal ========="<<std::endl;
 
-    planner.plan_with_constraint(group_name_now, tool_link, goal, "base_link", init_state, "RRTConnectkConfigDefault", 10.0);
+    PlanResult res = planner.plan_with_constraint(group_name_now, tool_link,
+                                                  goal_pose, "base_link",
+                                                  init_state, "RRTConnectkConfigDefault",
+                                                  10, true);
+
+    int len = res.trajectory.size();
+    std::cout<<std::endl;
+    std::cout<<"============== Initial state =============="<<std::endl;
+    std::cout<<init_state.transpose()<<std::endl;
+    std::cout<<"==========================================="<<std::endl<<std::endl;
+
+    std::cout<<"=============== Trajectory ================"<<std::endl;
+    for (auto it=res.trajectory.begin(); it!=res.trajectory.end(); it++){
+        std::cout<<(*it).transpose()<<std::endl;
+    }
+    std::cout<<"==========================================="<<std::endl<<std::endl;
+
+    std::cout<<"============= Initial / Goal =============="<<std::endl;
+    std::cout<<inital_pose.transpose()<<std::endl;
+    std::cout<<goal_pose.transpose()<<std::endl;
+    std::cout<<"==========================================="<<std::endl<<std::endl;
+
+    std::cout<<"============== End Effector ==============="<<std::endl;
+    for (auto it=res.trajectory.begin(); it!=res.trajectory.end(); it++){
+        kinematic_state->setJointGroupPositions(joint_model_group, it->data());
+        std::cout<<kinematic_state->getGlobalLinkTransform(tool_link).translation().transpose()<<std::endl;
+    }
+    std::cout<<"==========================================="<<std::endl<<std::endl;
 
     planner.terminate();
 

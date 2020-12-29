@@ -22,7 +22,6 @@
   getPlanningContext(planning_scene_, _req, _res.error_code, custom_constraint)
   ```
   
-  
 #### ConstrainedStateSpace::StateType
   * WrapperStateSpace::StateType, VectorXd 상속
   * 생성자에서 getValueAddressAtIndex으로 VectorXd 데이터 internal state와 data array 동기화

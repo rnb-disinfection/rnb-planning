@@ -373,7 +373,8 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
         const planning_interface::PlannerConfigurationSettings& config,
         const StateSpaceFactoryTypeSelector& factory_selector,
         const moveit_msgs::MotionPlanRequest& req,
-        RNB::MoveitCompact::CustomConstraintPtr& custom_constraint) const
+        RNB::MoveitCompact::CustomConstraintPtr& custom_constraint,
+        bool allow_approximation) const
 {
     const ompl_interface::ModelBasedStateSpaceFactoryPtr& factory = factory_selector(config.group);
 
@@ -409,6 +410,7 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
 //        context_spec.ompl_simple_setup_.reset(new ompl::geometric::SimpleSetup(context_spec.state_space_));
 
         context_spec.constrained = true;
+        context_spec.allow_approximate = allow_approximation;
 
         // Combine the ambient space and the constraint into a constrained state space.
         context_spec.constrained_state_space_ = std::make_shared<ob::ProjectedStateSpace>(context_spec.state_space_,
@@ -584,7 +586,7 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
 ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextManager::getPlanningContextConstrained(
         const planning_scene::PlanningSceneConstPtr& planning_scene, const moveit_msgs::MotionPlanRequest& req,
         moveit_msgs::MoveItErrorCodes& error_code, const ros::NodeHandle& nh, bool use_constraints_approximation,
-        RNB::MoveitCompact::CustomConstraintPtr& custom_constraint) const
+        RNB::MoveitCompact::CustomConstraintPtr& custom_constraint, bool allow_approximation) const
 {
     if (req.group_name.empty())
     {
@@ -641,7 +643,7 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
         factory_selector = std::bind(&PlanningContextManager::getStateSpaceFactory2, this, std::placeholders::_1, req);
 
     ModelBasedPlanningContextPtr context = getPlanningContextConstrained(pc->second, factory_selector, req,
-                                                                         custom_constraint);
+                                                                         custom_constraint, allow_approximation);
 
     if (context)
     {

@@ -80,7 +80,7 @@ namespace RNB {
             PlanResult &plan_with_constraint(string group_name, string tool_link,
                              CartPose goal_pose, string goal_link,
                              JointState init_state, string planner_id="RRTConnectkConfigDefault",
-                             double allowed_planning_time=0.1);
+                             double allowed_planning_time=0.1, bool allow_approximation=false);
 
             /**
              * @brief generate and process ros object message

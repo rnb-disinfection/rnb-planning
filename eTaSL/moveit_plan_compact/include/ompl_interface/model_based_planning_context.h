@@ -75,6 +75,7 @@ namespace ompl_interface
         std::shared_ptr<ob::ProjectedStateSpace> constrained_state_space_;
         std::shared_ptr<ob::ConstrainedSpaceInformation> csi_;
         bool constrained=false;
+        bool allow_approximate=false;
     };
 
     class ModelBasedPlanningContext : public planning_interface::PlanningContext

@@ -325,6 +325,14 @@ void ompl_interface::ModelBasedStateSpace::copyToRobotState(moveit::core::RobotS
   rstate.update();
 }
 
+void ompl_interface::ModelBasedStateSpace::copyToRobotStateConstrained(moveit::core::RobotState& rstate,
+                                                                       const ompl::base::State* state) const
+{
+    rstate.setJointGroupPositions(spec_.joint_model_group_,
+                                  state->as<ompl::base::ConstrainedStateSpace::StateType>()->getState()->as<StateType>()->values);
+    rstate.update();
+}
+
 void ompl_interface::ModelBasedStateSpace::copyToOMPLState(ompl::base::State* state,
                                                            const moveit::core::RobotState& rstate) const
 {

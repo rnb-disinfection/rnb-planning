@@ -39,6 +39,7 @@ namespace RNB {
                 Eigen::VectorXd height_vec(1);
                 function(init_state, height_vec);
                 plane_height = height_vec[0];
+//                std::cout << "plane_height: " << plane_height << std::endl;
             }
 
             void function(const Eigen::Ref<const Eigen::VectorXd> &x, Eigen::Ref<Eigen::VectorXd> out) const override
@@ -46,6 +47,8 @@ namespace RNB {
                 kinematic_state->setJointGroupPositions(joint_model_group, x.data());
                 const Eigen::Affine3d &end_effector_tf = kinematic_state->getGlobalLinkTransform(tool_link);
                 out[0] = end_effector_tf.translation().z() - plane_height;
+//                std::cout << "checking state ("<< out[0] <<"): " << x.transpose() << std::endl;
+//                std::cout << "plane_height/ref: " << end_effector_tf.translation().z() << " / " << plane_height << std::endl;
             }
 
             void jacobian(const Eigen::Ref<const Eigen::VectorXd> &x, Eigen::Ref<Eigen::MatrixXd> out) const override
