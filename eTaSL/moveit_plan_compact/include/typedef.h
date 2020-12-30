@@ -51,6 +51,8 @@ namespace RNB {
             }
         };
 
+        /** \class GeometryList
+         */
         typedef std::vector<Geometry> GeometryList;
     }
 }

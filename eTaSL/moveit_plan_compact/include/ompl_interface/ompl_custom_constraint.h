@@ -14,29 +14,43 @@
 
 namespace RNB {
     namespace MoveitCompact {
+        const double DEFAULT_RADIUS = 1e-3;
 
         OMPL_CLASS_FORWARD(UnionManifold);
 
-        /**
-         * @brief manifold constraint, as a union of geometries
+        /** \class UnionManifold
+         * @brief Manifold constraint, as a union of geometries. The manifold should be differentiable.
+         *        Union manifold is approximated as \f$ f_{union} = \prod^N{f_i}-r^N \f$
+         *        and \f$ \nabla f_{union} = \sum^N ((\nabla f_j/f_j)  \prod^N{f_i}) \f$,
+         *        where \f$ f_i = 0 \f$ defines the surface of \a i th geometry.
          * @author Junsu Kang
          */
         class UnionManifold : public ompl::base::Constraint {
         public:
-            int dims;
-            int num_const;
+            int dims; /*!< State dimension (copy of  Constraint::getAmbientDimension) */
+            int num_const; /*!< Constraint dimension (copy of  Constraint::getCoDimension) */
+            double radius; /*!< Surface interpolation radius */
             robot_state::RobotStatePtr kinematic_state;
             robot_state::JointModelGroup *joint_model_group;
             std::string tool_link;
-            GeometryList geometry_list;
             Vec3 offset;
+            GeometryList geometry_list; /*!< Manifold geometry list*/
 
+            /**
+             * @brief Generate UnionManifold from GeometryList.
+             * @author Junsu Kang
+             * @param radius interpolation radius.
+             * @param tol tolerance.
+             */
             UnionManifold(robot_model::RobotModelPtr robot_model_,
                           std::string group_name, std::string tool_link, Vec3 offset,
-                          GeometryList &geometry_list, double tol = ompl::magic::CONSTRAINT_PROJECTION_TOLERANCE):
-                    ompl::base::Constraint(robot_model_->getJointModelGroup(group_name)->getVariableCount(), 1,tol) {
+                          GeometryList &geometry_list, double radius = DEFAULT_RADIUS,
+                          double tol = ompl::magic::CONSTRAINT_PROJECTION_TOLERANCE):
+                    ompl::base::Constraint(robot_model_->getJointModelGroup(group_name)->getVariableCount(), 1,tol)
+            {
                 this->num_const = getCoDimension();
                 this->dims = getAmbientDimension();
+                this->radius = radius;
                 kinematic_state = std::make_shared<robot_state::RobotState>(robot_model_);
                 kinematic_state->setToDefaultValues();
 
@@ -48,17 +62,23 @@ namespace RNB {
                 this->geometry_list.assign(geometry_list.begin(), geometry_list.end());
             }
 
+            /**
+             * @brief Calculate surface value \f$ f(X) \f$ for a geometry.
+             * @author Junsu Kang
+             * @param geo geometry.
+             * @param geo_tool_tf tool pose from geometry coordinate.
+             */
             double calc_surface_val(const Geometry& geo, Eigen::Affine3d& geo_tool_tf) const {
                 double val;
                 switch(geo.type){
                     case Shape::SPHERE:
-                        val = abs(geo_tool_tf.translation().norm() - geo.dims[0]);
+                        val = geo_tool_tf.translation().norm() - geo.dims[0];
                         break;
                     case Shape::CYLINDER:
-                        val = abs(geo_tool_tf.translation().block(0, 0, 2, 1).norm() - geo.dims[0]);
+                        val = geo_tool_tf.translation().block(0, 0, 2, 1).norm() - geo.dims[0];
                         break;
                     case Shape::PLANE:
-                        val = abs(geo_tool_tf.translation().z());
+                        val = geo_tool_tf.translation().z();
                         break;
                     case Shape::BOX:
                         std::cout << "ERROR: BOX is not supported" << std::endl;
@@ -73,7 +93,14 @@ namespace RNB {
                 return val;
             }
 
-            Eigen::VectorXd calc_surface_jac(const Geometry& geo, Eigen::Affine3d& geo_tool_tf, const Eigen::MatrixXd& jac_robot) const {
+            /**
+             * @brief Calculate surface jacobian \f$ \nabla f(X) \f$ for a geometry.
+             * @author Junsu Kang
+             * @param geo geometry.
+             * @param geo_tool_tf tool pose from geometry coordinate.
+             * @param jac_robot jacobian for robot endlink position, using quaternion angles.
+             */
+            Eigen::Vector3d calc_surface_normal(const Geometry& geo, Eigen::Affine3d& geo_tool_tf, const Eigen::MatrixXd& jac_robot) const {
                 Eigen::Vector3d vec;
                 switch(geo.type){
                     case Shape::SPHERE:
@@ -85,11 +112,8 @@ namespace RNB {
                         vec.normalize();
                         break;
                     case Shape::PLANE:
-                        vec = geo.tf.rotation().matrix().transpose()*Eigen::Vector3d(0,0,1);
-#ifdef PRINT_CONSTRAINT_VALUES
-                        std::cout << "surface jac: " << std::endl << vec.transpose() << std::endl;
-#endif
-                        vec.normalize();
+                        vec = Eigen::Vector3d(0,0,1);
+//                        vec.normalize();
                         break;
                     case Shape::BOX:
                         std::cout << "ERROR: BOX is not supported" << std::endl;
@@ -98,15 +122,23 @@ namespace RNB {
                         std::cout << "ERROR: UNDEFINED SHAPE" << std::endl;
                         throw;
                 }
+                vec = geo.tf.rotation().matrix()*vec;
 #ifdef PRINT_CONSTRAINT_VALUES
-                std::cout<<"vec"<<std::endl;
+                std::cout<<"surface_vec"<<std::endl;
                 std::cout<<vec.transpose()<<std::endl;
-                std::cout<<"jac_robot"<<std::endl;
-                std::cout<<jac_robot.block(0,0,3,dims)<<std::endl;
 #endif
-                return vec.transpose()*jac_robot.block(0,0,3,dims);
+                return vec;
             }
 
+            /**
+             * @brief Calculate union value and jacobian by \f$ f_{union} = \prod^N{f_i}-r^N \f$
+             *        and \f$ \nabla f_{union} = \sum^N ((\nabla f_j/f_j)  \prod^N{f_i}) \f$,
+             * @author Junsu Kang
+             * @param x joint state.
+             * @param out value output.
+             * @param jac jacobian output.
+             * @param calc_jac flag for calculating jacobian.
+             */
             void value_(const Eigen::Ref<const Eigen::VectorXd> &x,
                         Eigen::VectorXd &out, Eigen::MatrixXd &jac, bool calc_jac) const{
                 kinematic_state->setJointGroupPositions(joint_model_group, x.data());
@@ -116,27 +148,31 @@ namespace RNB {
                 {
                     kinematic_state->getJacobian(joint_model_group, kinematic_state->getLinkModel(tool_link),
                                                  offset, jac_robot,true);
+#ifdef PRINT_CONSTRAINT_VALUES
+                    std::cout<<"jac_robot"<<std::endl;
+                    std::cout<<jac_robot.block(0,0,3,dims)<<std::endl;
+#endif
                 }
 
                 Eigen::Translation3d end_off(offset);
 
                 const Eigen::Affine3d tool_tf = end_effector_tf*end_off;
-                double val_tmp;
-                double surf_val = 1e5;
+                double surf_val = 1;
+                double surf_val_prod = 1;
+                Eigen::Vector3d surf_normed;
                 Eigen::VectorXd surf_jac(dims);
                 for(int idx=0;idx<geometry_list.size();idx++){
                     Geometry geo = geometry_list[idx];
                     Eigen::Affine3d geo_tool_tf = geo.tf.inverse() * tool_tf;
-                    val_tmp = calc_surface_val(geo, geo_tool_tf);
-                    if (val_tmp<surf_val){
-                        surf_val = val_tmp;
-                        if(calc_jac){
-                            surf_jac = calc_surface_jac(geo, geo_tool_tf, jac_robot);
-                        }
-//                        std::cout<<TEXT_RED("WARN: Selection rule not implemented")<<std::endl;
+                    surf_val = calc_surface_val(geo, geo_tool_tf);
+                    surf_val_prod *= abs(surf_val);
+                    if(calc_jac){
+                        surf_normed += calc_surface_normal(geo, geo_tool_tf, jac_robot)/surf_val;
                     }
                 }
                 if(calc_jac){
+                    surf_normed *= surf_val_prod;
+                    surf_jac = surf_normed.transpose()*jac_robot.block(0,0,3,dims);
                     jac.block(0,0,1, dims) << surf_jac.transpose();
 #ifdef PRINT_CONSTRAINT_VALUES
                     std::cout<<"surf_jac"<<std::endl;

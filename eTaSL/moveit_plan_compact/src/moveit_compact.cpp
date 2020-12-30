@@ -420,7 +420,9 @@ int main(int argc, char** argv) {
     CartPose goal_pose;
 //    goal << -0.3,-0.2,0.4,0,0,0,1;
     inital_pose << _vec.x(), _vec.y(), _vec.z(), _rot.x(), _rot.y(), _rot.z(), _rot.w();
+//    goal_pose << _vec.x(), _vec.y(), _vec.z(), _rot.x(), _rot.y(), _rot.z(), _rot.w();
     goal_pose << _vec.x()+0.1, _vec.y()-0.1, _vec.z()-0.1, _rot.x(), _rot.y(), _rot.z(), _rot.w();
+//    goal_pose << _vec.x()+0.1, _vec.y()-0.1, _vec.z()-0.1, _rot.x(), _rot.y(), _rot.z(), _rot.w();
 
     std::cout<<"========== goal ========="<<std::endl;
     std::cout<<goal_pose<<std::endl;
@@ -431,26 +433,26 @@ int main(int argc, char** argv) {
 //    plane_pose << _vec.x(),_vec.y(),_vec.z(),0.70710678,0,0,0.70710678;
     plane_pose << _vec.x(),_vec.y(),_vec.z(),0.38268343, 0.0, 0.0, 0.92387953;
     geometry_list.push_back(Geometry(Shape::PLANE, plane_pose, Vec3(0,0,0)));
-    UnionManifoldPtr manifold = std::make_shared<UnionManifold>(planner.robot_model_, group_name, 
+    UnionManifoldPtr manifold = std::make_shared<UnionManifold>(planner.robot_model_, group_name,
                                                                 tool_link, Vec3(0,0,0),geometry_list,
-                                                                1e-3);
+                                                                1e-4, 1e-3);
 
     PlanResult res = planner.plan_with_constraint(group_name, tool_link,
                                                   goal_pose, "base_link", init_state, manifold,
                                                   "RRTConnectkConfigDefault",
                                                   5, true);
 
-    int len = res.trajectory.size();
     std::cout<<std::endl;
-    std::cout<<"============== Initial state =============="<<std::endl;
-    std::cout<<init_state.transpose()<<std::endl;
-    std::cout<<"==========================================="<<std::endl<<std::endl;
 
-    std::cout<<"=============== Trajectory ================"<<std::endl;
-    for (auto it=res.trajectory.begin(); it!=res.trajectory.end(); it++){
-        std::cout<<(*it).transpose()<<std::endl;
-    }
-    std::cout<<"==========================================="<<std::endl<<std::endl;
+//    std::cout<<"============== Initial state =============="<<std::endl;
+//    std::cout<<init_state.transpose()<<std::endl;
+//    std::cout<<"==========================================="<<std::endl<<std::endl;
+//
+//    std::cout<<"=============== Trajectory ================"<<std::endl;
+//    for (auto it=res.trajectory.begin(); it!=res.trajectory.end(); it++){
+//        std::cout<<(*it).transpose()<<std::endl;
+//    }
+//    std::cout<<"==========================================="<<std::endl<<std::endl;
 
     std::cout<<"============= Initial / Goal =============="<<std::endl;
     std::cout<<inital_pose.transpose()<<std::endl;
@@ -458,10 +460,20 @@ int main(int argc, char** argv) {
     std::cout<<"==========================================="<<std::endl<<std::endl;
 
     std::cout<<"============== End Effector ==============="<<std::endl;
-    for (auto it=res.trajectory.begin(); it!=res.trajectory.end(); it++){
+    if (res.trajectory.size()>0){
+        auto it=res.trajectory.begin();
         kinematic_state->setJointGroupPositions(joint_model_group, it->data());
         std::cout<<kinematic_state->getGlobalLinkTransform(tool_link).translation().transpose()<<std::endl;
     }
+    if (res.trajectory.size()>1) {
+        auto it = res.trajectory.end() - 1;
+        kinematic_state->setJointGroupPositions(joint_model_group, it->data());
+        std::cout << kinematic_state->getGlobalLinkTransform(tool_link).translation().transpose() << std::endl;
+    }
+//    for (auto it=res.trajectory.begin(); it!=res.trajectory.end(); it++){
+//        kinematic_state->setJointGroupPositions(joint_model_group, it->data());
+//        std::cout<<kinematic_state->getGlobalLinkTransform(tool_link).translation().transpose()<<std::endl;
+//    }
     std::cout<<"==========================================="<<std::endl<<std::endl;
 
     planner.terminate();

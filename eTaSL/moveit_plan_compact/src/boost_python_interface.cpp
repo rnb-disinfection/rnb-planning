@@ -46,7 +46,7 @@ BOOST_PYTHON_MODULE(moveit_plan_compact){
             .def("__delitem__", &std_item<GeometryList>::del)
             ;
 
-    class_<Geometry>("UnionManifold")
+    class_<UnionManifold>("UnionManifold")
             ;
 
     class_<UnionManifoldList>("UnionManifoldList", init<>())

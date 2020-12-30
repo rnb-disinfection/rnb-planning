@@ -27,7 +27,7 @@
 # Doxygen
 * Install
 ```
-sudo apt-get install doxygen doxygen-gui
+sudo apt-get install -y doxygen doxygen-gui texlive-latex-base texlive-latex-recommended ko.tex texlive-fonts-extra
 ```
 
 * Run
