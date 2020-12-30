@@ -6,8 +6,10 @@
 #define MOVEIT_PLAN_COMPACT_TYPEDEF_H
 
 #include <ros/ros.h>
+#include <geometric_shapes/shape_messages.h>
 #include <vector>
 #include <Eigen/Core>
+#include <Eigen/Geometry>
 
 //ADD = 0,
 //REMOVE = 1,
@@ -16,10 +18,29 @@
 namespace RNB {
     namespace MoveitCompact {
         typedef std::vector<std::string> NameList;
-        typedef Eigen::Matrix<double, 7, 1> CartPose;
+
         typedef Eigen::Vector3d Vec3;
         typedef Eigen::VectorXd JointState;
         typedef std::vector<JointState> Trajectory;
+
+        /** \class CartPose
+         */
+        typedef Eigen::Matrix<double, 7, 1> CartPose;
+
+        /**
+         * @brief Extract quaternion from CartPose
+         * @author Junsu Kang
+         */
+        Eigen::Quaterniond getQuaternion(CartPose pose);
+
+        /**
+         * @brief Get Eigen::Affine3d from CartPose
+         * @author Junsu Kang
+         */
+        Eigen::Affine3d getAffine3d(CartPose pose);
+
+        Eigen::MatrixXd getQmat(Eigen::Quaterniond a);
+        Eigen::MatrixXd getQhat(Eigen::Quaterniond a);
 
         /**
          * @brief Planning result holder
@@ -42,13 +63,7 @@ namespace RNB {
             CartPose pose;
             Eigen::Affine3d tf;
             Vec3 dims;
-            Geometry(Shape type, CartPose pose, Vec3 dims){
-                this->type = type;
-                this->pose = pose;
-                this->dims = dims;
-                Eigen::Quaterniond q(pose[6], pose[3],pose[4],pose[5]);
-                this->tf = Eigen::Translation3d(pose.block(0,0,3,1))*q;
-            }
+            Geometry(Shape type, CartPose pose, Vec3 dims);
         };
 
         /** \class GeometryList

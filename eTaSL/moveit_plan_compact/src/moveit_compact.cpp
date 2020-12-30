@@ -428,13 +428,16 @@ int main(int argc, char** argv) {
     std::cout<<goal_pose<<std::endl;
     std::cout<<"========== goal ========="<<std::endl;
     GeometryList geometry_list;
+    CartPose tool_offset;
+    tool_offset<<0,0,0,0,0,0,0;
     CartPose plane_pose;
-//    plane_pose << _vec.x(),_vec.y(),_vec.z(),0,0,0,1;
+//    plane_pose << _vec.x(),_vec.y(),_vec.z(), _rot.x(), _rot.y(), _rot.z(), _rot.w();
 //    plane_pose << _vec.x(),_vec.y(),_vec.z(),0.70710678,0,0,0.70710678;
     plane_pose << _vec.x(),_vec.y(),_vec.z(),0.38268343, 0.0, 0.0, 0.92387953;
     geometry_list.push_back(Geometry(Shape::PLANE, plane_pose, Vec3(0,0,0)));
     UnionManifoldPtr manifold = std::make_shared<UnionManifold>(planner.robot_model_, group_name,
-                                                                tool_link, Vec3(0,0,0),geometry_list,
+                                                                tool_link, tool_offset, geometry_list,
+                                                                true, false,
                                                                 1e-4, 1e-3);
 
     PlanResult res = planner.plan_with_constraint(group_name, tool_link,
