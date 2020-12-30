@@ -10,7 +10,7 @@
 #include <fcl/distance.h>
 #include "logger.h"
 
-#define PRINT_CONSTRAINT_VALUES
+//#define PRINT_CONSTRAINT_VALUES
 #define USE_ANALYTIC_JACOBIAN
 
 namespace RNB {
@@ -149,7 +149,7 @@ namespace RNB {
              * @brief Calculate normal value \f$ f(R) = V_n \cdot V(R) \f$ for a geometry surface.
              * @author Junsu Kang
              * @param vec normal vector V_n in base coordinate.
-             * @param tool_tf tool vector V_e in base coordinate.
+             * @param tool_vec tool vector V_e in base coordinate.
              * @return angular deviation between normal and tool vector.
              */
             double calc_normal_value(Eigen::Vector3d vec, Eigen::Vector3d tool_vec) const
@@ -166,8 +166,8 @@ namespace RNB {
             /**
              * @brief Calculate normal value gradient \f$ \nabla_X f(R) = V_n \cdot V'(R) \cdot J \f$ for a geometry surface.
              * @author Junsu Kang
-             * @param geo geometry.
-             * @param geo_tool_tf tool pose from geometry coordinate.
+             * @param vec normal vector V_n in base coordinate.
+             * @param end_effector_tf transformation of end effector.
              */
             Eigen::Vector4d calc_normal_gradient(Eigen::Vector3d vec, Eigen::Affine3d end_effector_tf) const
             {
@@ -262,7 +262,12 @@ namespace RNB {
 #endif
                 }
                 else{
-                    out[0] = surf_val;
+                    if(fix_surface){
+                        out[0] = surf_val;
+                    }
+                    if(fix_normal) {
+                        out[fix_surface?1:0] = normal_val;
+                    }
                 }
             }
 

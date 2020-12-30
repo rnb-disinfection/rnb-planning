@@ -457,27 +457,34 @@ int main(int argc, char** argv) {
 //    }
 //    std::cout<<"==========================================="<<std::endl<<std::endl;
 
+    std::cout<<"============== End Effector ==============="<<std::endl;
+//    if (res.trajectory.size()>0){
+//        auto it=res.trajectory.begin();
+//        kinematic_state->setJointGroupPositions(joint_model_group, it->data());
+//        Eigen::Quaterniond quat(kinematic_state->getGlobalLinkTransform(tool_link).rotation());
+//        std::cout<<kinematic_state->getGlobalLinkTransform(tool_link).translation().transpose()
+//                << " " << quat.x() << " "  << quat.y() << " "  << quat.z() << " "  << quat.w() <<std::endl;
+//    }
+//    if (res.trajectory.size()>1) {
+//        auto it = res.trajectory.end() - 1;
+//        kinematic_state->setJointGroupPositions(joint_model_group, it->data());
+//        Eigen::Quaterniond quat(kinematic_state->getGlobalLinkTransform(tool_link).rotation());
+//        std::cout << kinematic_state->getGlobalLinkTransform(tool_link).translation().transpose()
+//                  << " " << quat.x() << " "  << quat.y() << " "  << quat.z() << " "  << quat.w() <<std::endl;
+//    }
+    for (auto it=res.trajectory.begin(); it!=res.trajectory.end(); it++){
+        kinematic_state->setJointGroupPositions(joint_model_group, it->data());
+        Eigen::Quaterniond quat(kinematic_state->getGlobalLinkTransform(tool_link).rotation());
+        std::cout<<kinematic_state->getGlobalLinkTransform(tool_link).translation().transpose()
+                << " " << quat.x() << " "  << quat.y() << " "  << quat.z() << " "  << quat.w() <<std::endl;
+    }
+    std::cout<<"==========================================="<<std::endl<<std::endl;
+
     std::cout<<"============= Initial / Goal =============="<<std::endl;
     std::cout<<inital_pose.transpose()<<std::endl;
     std::cout<<goal_pose.transpose()<<std::endl;
     std::cout<<"==========================================="<<std::endl<<std::endl;
 
-    std::cout<<"============== End Effector ==============="<<std::endl;
-    if (res.trajectory.size()>0){
-        auto it=res.trajectory.begin();
-        kinematic_state->setJointGroupPositions(joint_model_group, it->data());
-        std::cout<<kinematic_state->getGlobalLinkTransform(tool_link).translation().transpose()<<std::endl;
-    }
-    if (res.trajectory.size()>1) {
-        auto it = res.trajectory.end() - 1;
-        kinematic_state->setJointGroupPositions(joint_model_group, it->data());
-        std::cout << kinematic_state->getGlobalLinkTransform(tool_link).translation().transpose() << std::endl;
-    }
-//    for (auto it=res.trajectory.begin(); it!=res.trajectory.end(); it++){
-//        kinematic_state->setJointGroupPositions(joint_model_group, it->data());
-//        std::cout<<kinematic_state->getGlobalLinkTransform(tool_link).translation().transpose()<<std::endl;
-//    }
-    std::cout<<"==========================================="<<std::endl<<std::endl;
 
     planner.terminate();
 
