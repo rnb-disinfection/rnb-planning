@@ -33,12 +33,13 @@ namespace RNB {
          */
         class Planner {
         public:
-            std::unique_ptr<pluginlib::ClassLoader<planning_interface::PlannerManager> > planner_plugin_loader_;
+            std::shared_ptr<pluginlib::ClassLoader<planning_interface::PlannerManager> > planner_plugin_loader_;
             std::string planner_plugin_name_;
             ompl_interface::OMPLPlannerManagerCustomPtr planner_instance_;
             robot_model_loader::RobotModelLoaderPtr robot_model_loader_;
             robot_model::RobotModelPtr robot_model_;
             planning_scene::PlanningScenePtr planning_scene_;
+            std::vector<UnionManifoldPtr> manifolds;
 
             PlanResult plan_result;
             NameList joint_names;
@@ -52,7 +53,7 @@ namespace RNB {
 
             /**
              * @brief initialize planner with string contents of urdf and srdf files.
-             * @param string config_path directory path where kinematics.yaml, ompl_plugin.yaml, planning_plugin.yaml is stored
+             * @param config_path directory path where kinematics.yaml, ompl_plugin.yaml, planning_plugin.yaml is stored
              * @author Junsu Kang
              */
             bool init_planner(string &urdf_txt, string &srdf_txt, NameList &group_names, string config_path);
@@ -62,6 +63,27 @@ namespace RNB {
              * @author Junsu Kang
              */
             void configure();
+
+            /**
+             * @brief clear_context_cache - needed to call to reset planning context
+             * @author Junsu Kang
+             */
+            void clear_context_cache();
+
+            /**
+             * @brief create union manifold
+             * @author Junsu Kang
+             */
+            bool add_union_manifold(string group_name, string tool_link, CartPose tool_offset,
+                                    GeometryList geometry_list, bool fix_surface, bool fix_normal,
+                                    double radius=UnionManifold::DEFAULT_RADIUS,
+                                    double tol=UnionManifold::DEFAULT_TOLERANCE);
+
+            /**
+             * @brief clear all manifolds
+             * @author Junsu Kang
+             */
+            bool clear_manifolds();
 
             /**
              * @brief initialize planner with string contents of urdf and srdf files.
@@ -76,9 +98,9 @@ namespace RNB {
              * @brief initialize planner with string contents of urdf and srdf files.
              * @author Junsu Kang
              */
-            PlanResult &plan_with_constraint(string group_name, string tool_link,
+            PlanResult &plan_with_constraints(string group_name, string tool_link,
                                              CartPose goal_pose, string goal_link,
-                                             JointState init_state, RNB::MoveitCompact::UnionManifoldPtr& custom_constraint,
+                                             JointState init_state,
                                              string planner_id="RRTConnectkConfigDefault",
                                              double allowed_planning_time=0.1, bool allow_approximation=false);
 

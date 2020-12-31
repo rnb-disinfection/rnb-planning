@@ -160,6 +160,9 @@ def T2xyzrpy(T):
 def T2xyzrvec(T):
     return T[:3,3].tolist(), Rotation.from_dcm(T[:3,:3]).as_rotvec().tolist()
 
+def T2xyzquat(T):
+    return T[:3,3].tolist(), Rotation.from_dcm(T[:3,:3]).as_quat().tolist()
+
 def matmul_series(*Tlist):
     T = Tlist[0]
     for T_i in Tlist[1:]:

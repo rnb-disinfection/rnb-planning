@@ -150,6 +150,11 @@ namespace ompl_interface
             PlannerManager::setPlannerConfigurations(ompl_interface_->getPlannerConfigurations());
         }
 
+        void resetContextCache()
+        {
+            ompl_interface_->getPlanningContextManager().resetContextCache();
+        }
+
         planning_interface::PlanningContextPtr getPlanningContext(const planning_scene::PlanningSceneConstPtr& planning_scene,
                                                                   const planning_interface::MotionPlanRequest& req,
                                                                   moveit_msgs::MoveItErrorCodes& error_code) const override

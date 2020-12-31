@@ -238,11 +238,13 @@ PlanResult& Planner::plan(string group_name, string tool_link,
     plan_result.success = true;
     return plan_result;
 }
+void Planner::clear_context_cache(){
+    planner_instance_->resetContextCache();
+}
 
-PlanResult& Planner::plan_with_constraint(string group_name, string tool_link,
+PlanResult& Planner::plan_with_constraints(string group_name, string tool_link,
                          CartPose goal_pose, string goal_link,
-                         JointState init_state, RNB::MoveitCompact::UnionManifoldPtr& custom_constraint,
-                         string planner_id, double allowed_planning_time, bool allow_approximation){
+                         JointState init_state, string planner_id, double allowed_planning_time, bool allow_approximation){
     PRINT_FRAMED_LOG("set goal", true);
     geometry_msgs::PoseStamped _goal_pose;
     _goal_pose.header.frame_id = goal_link;
@@ -280,6 +282,8 @@ PlanResult& Planner::plan_with_constraint(string group_name, string tool_link,
 
     plan_result.trajectory.clear();
 
+    auto custom_constraint = manifolds[0];
+
     planning_interface::PlanningContextPtr context =
             planner_instance_->getPlanningContextConstrained(planning_scene_, _req, _res.error_code_,
                                                              custom_constraint, allow_approximation);
@@ -303,10 +307,10 @@ PlanResult& Planner::plan_with_constraint(string group_name, string tool_link,
 
     PRINT_FRAMED_LOG((std::string("got trajectory - ")+std::to_string(plan_result.trajectory.size())).c_str(), true);
 
-//    printf(LOG_FRAME_LINE);
-//    PRINT_FRAMED_LOG("last pose below");
-//    cout << *(plan_result.trajectory.end()-1) << endl;
-//    printf(LOG_FRAME_LINE "\n");
+    printf(LOG_FRAME_LINE);
+    PRINT_FRAMED_LOG("last pose below");
+    cout << *(plan_result.trajectory.end()-1) << endl;
+    printf(LOG_FRAME_LINE "\n");
     plan_result.success = true;
     return plan_result;
 }
@@ -393,6 +397,21 @@ void Planner::terminate(){
     }
 }
 
+bool Planner::add_union_manifold(string group_name, string tool_link, CartPose tool_offset,
+                                                GeometryList geometry_list, bool fix_surface, bool fix_normal,
+                                                double radius, double tol){
+    manifolds.push_back(std::make_shared<UnionManifold>(robot_model_, group_name,
+                                                        tool_link, tool_offset, geometry_list,
+                                                        fix_surface, fix_normal,
+                                                        radius, tol));
+    return true;
+}
+
+bool Planner::clear_manifolds(){
+    manifolds.clear();
+    return true;
+}
+
 int main(int argc, char** argv) {
     NameList group_names;
     group_names.push_back("indy0");
@@ -435,13 +454,11 @@ int main(int argc, char** argv) {
 //    plane_pose << _vec.x(),_vec.y(),_vec.z(),0.70710678,0,0,0.70710678;
     plane_pose << _vec.x(),_vec.y(),_vec.z(),0.38268343, 0.0, 0.0, 0.92387953;
     geometry_list.push_back(Geometry(Shape::PLANE, plane_pose, Vec3(0,0,0)));
-    UnionManifoldPtr manifold = std::make_shared<UnionManifold>(planner.robot_model_, group_name,
-                                                                tool_link, tool_offset, geometry_list,
-                                                                true, false,
-                                                                1e-4, 1e-3);
+    planner.add_union_manifold(group_name, tool_link, tool_offset, geometry_list,
+                                                              true, false, 1e-3, 1e-3);
 
-    PlanResult res = planner.plan_with_constraint(group_name, tool_link,
-                                                  goal_pose, "base_link", init_state, manifold,
+    PlanResult res = planner.plan_with_constraints(group_name, tool_link,
+                                                  goal_pose, "base_link", init_state,
                                                   "RRTConnectkConfigDefault",
                                                   5, true);
 

@@ -46,20 +46,20 @@ BOOST_PYTHON_MODULE(moveit_plan_compact){
             .def("__delitem__", &std_item<GeometryList>::del)
             ;
 
-    class_<UnionManifold>("UnionManifold")
-            ;
-
-    class_<UnionManifoldList>("UnionManifoldList", init<>())
-            .def("__len__", &UnionManifoldList::size)
-            .def("clear", &UnionManifoldList::clear)
-            .def("append", &std_item<UnionManifoldList>::add,
-                 with_custodian_and_ward<1,2>()) // to let container keep value
-            .def("__getitem__", &std_item<UnionManifoldList>::get,
-                 return_value_policy<copy_non_const_reference>())
-            .def("__setitem__", &std_item<UnionManifoldList>::set,
-                 with_custodian_and_ward<1,2>()) // to let container keep value
-            .def("__delitem__", &std_item<UnionManifoldList>::del)
-            ;
+//    class_<UnionManifoldPtr>("UnionManifoldPtr")
+//            ;
+//      ! List of Ptr class is not available in boost-python?
+//    class_<UnionManifoldList>("UnionManifoldList", init<>())
+//            .def("__len__", &UnionManifoldList::size)
+//            .def("clear", &UnionManifoldList::clear)
+//            .def("append", &std_item<UnionManifoldList>::add,
+//                 with_custodian_and_ward<1,2>()) // to let container keep value
+//            .def("__getitem__", &std_item<UnionManifoldList>::get,
+//                 return_value_policy<copy_non_const_reference>())
+//            .def("__setitem__", &std_item<UnionManifoldList>::set,
+//                 with_custodian_and_ward<1,2>()) // to let container keep value
+//            .def("__delitem__", &std_item<UnionManifoldList>::del)
+//            ;
 
     class_<NameList>("NameList", init<>())
             .def("__len__", &NameList::size)
@@ -118,8 +118,11 @@ BOOST_PYTHON_MODULE(moveit_plan_compact){
             .def("init_planner_from_file", &Planner::init_planner_from_file)
             .def("plan", &Planner::plan,
                  return_value_policy<copy_non_const_reference>())
-            .def("plan_with_constraint", &Planner::plan_with_constraint,
+            .def("plan_with_constraints", &Planner::plan_with_constraints,
                  return_value_policy<copy_non_const_reference>())
+            .def("clear_context_cache", &Planner::clear_context_cache)
+            .def("add_union_manifold", &Planner::add_union_manifold)
+            .def("clear_manifolds", &Planner::clear_manifolds)
             .def("add_object", &Planner::add_object)
             .def("process_object", &Planner::process_object)
             .def("clear_all_objects", &Planner::clear_all_objects)

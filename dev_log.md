@@ -11,7 +11,7 @@
   - OMPL-Moveit 인터페이스
 
 ### PlanningContextManager:
-  - getPlanningContext / getPlannerConfigureations / setPlannerConfigureations 셔틀
+  - getPlanningContext / getPlannerConfigureations / setPlannerConfigurations 셔틀
   - scene에서 PlannerContext 생성하는 역할, OMPLInterface에서만 사용
 
 ### class OMPLPlannerManagerCustom : public planning_interface::PlannerManager

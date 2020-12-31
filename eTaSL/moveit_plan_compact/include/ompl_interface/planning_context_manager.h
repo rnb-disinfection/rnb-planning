@@ -185,6 +185,8 @@ namespace ompl_interface
                                                         moveit_msgs::MoveItErrorCodes& error_code, const ros::NodeHandle& nh,
                                                         bool use_constraints_approximations) const;
 
+        void resetContextCache();
+
         ModelBasedPlanningContextPtr getPlanningContextConstrained(const planning_scene::PlanningSceneConstPtr& planning_scene,
                                                                    const planning_interface::MotionPlanRequest& req,
                                                                    moveit_msgs::MoveItErrorCodes& error_code, const ros::NodeHandle& nh,

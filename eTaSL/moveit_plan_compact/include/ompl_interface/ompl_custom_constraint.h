@@ -15,8 +15,6 @@
 
 namespace RNB {
     namespace MoveitCompact {
-        const double DEFAULT_RADIUS = 1e-3;
-
         OMPL_CLASS_FORWARD(UnionManifold);
 
         /** \class UnionManifold
@@ -28,6 +26,9 @@ namespace RNB {
          */
         class UnionManifold : public ompl::base::Constraint {
         public:
+            constexpr static const double DEFAULT_RADIUS = 1e-3;
+            constexpr static const double DEFAULT_TOLERANCE = 1e-3;
+
             int dims; /*!< State dimension (copy of  Constraint::getAmbientDimension) */
             int num_const; /*!< Constraint dimension (copy of  Constraint::getCoDimension) */
             double radius; /*!< Surface interpolation radius */
@@ -51,7 +52,7 @@ namespace RNB {
             UnionManifold(robot_model::RobotModelPtr robot_model_,
                           std::string group_name, std::string tool_link, CartPose offset,
                           GeometryList &geometry_list, bool fix_surface, bool fix_normal, double radius = DEFAULT_RADIUS,
-                          double tol = ompl::magic::CONSTRAINT_PROJECTION_TOLERANCE):
+                          double tol = DEFAULT_TOLERANCE):
                     ompl::base::Constraint(robot_model_->getJointModelGroup(group_name)->getVariableCount(),
                                            fix_surface? (fix_normal? 2: 1) : (fix_normal? 1: 0), tol)
             {

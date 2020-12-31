@@ -16,7 +16,7 @@ class ObjectOperation(Enum):
     ADD = 0
     REMOVE = 1
 
-def make_assign_arr(type, vals, cast):
+def make_assign_arr(type, vals, cast=lambda x:x):
     arr = type()
     for v in vals:
         arr.append(cast(v))
