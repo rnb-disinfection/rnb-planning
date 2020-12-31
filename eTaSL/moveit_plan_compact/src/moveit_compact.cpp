@@ -324,7 +324,7 @@ PlanResult& Planner::plan_with_constraints(string group_name, string tool_link,
     plan_result.success = true;
     return plan_result;
 }
-bool Planner::process_object(string name, const int type, CartPose pose, Vec3 dims,
+bool Planner::process_object(string name, const ObjectType type, CartPose pose, Vec3 dims,
                     string link_name, NameList touch_links, bool attach, const int action){
     bool res = false;
 
@@ -346,19 +346,19 @@ bool Planner::process_object(string name, const int type, CartPose pose, Vec3 di
     /* Define a box to be attached */
     primitive.type = type;
     switch(type){
-        case Shape::BOX:
+        case ObjectType::BOX:
             primitive.dimensions.resize(3);
             primitive.dimensions[0] = dims[0];
             primitive.dimensions[1] = dims[1];
             primitive.dimensions[2] = dims[2];
             printf("BOX: %f, %f, %f \n", dims[0], dims[1], dims[2]);
             break;
-        case Shape::SPHERE:
+        case ObjectType::SPHERE:
             primitive.dimensions.resize(1);
             primitive.dimensions[0] = dims[0];
             printf("SPHERE: %f \n", dims[0]);
             break;
-        case Shape::CYLINDER:
+        case ObjectType::CYLINDER:
             primitive.dimensions.resize(2);
             primitive.dimensions[0] = dims[0];
             primitive.dimensions[1] = dims[1];
@@ -391,7 +391,7 @@ bool Planner::process_object(string name, const int type, CartPose pose, Vec3 di
     return res;
 }
 
-bool Planner::add_object(string name, const int type,
+bool Planner::add_object(string name, const ObjectType type,
                              CartPose pose, Vec3 dims,
                              string link_name, NameList touch_links, bool attach){
     return process_object(name, type, pose, dims, link_name, touch_links, attach, moveit_msgs::CollisionObject::ADD);
@@ -468,7 +468,7 @@ int main(int argc, char** argv) {
     plane_pose << _vec.x(),_vec.y(),_vec.z(), _rot.x(), _rot.y(), _rot.z(), _rot.w();
 //    plane_pose << _vec.x(),_vec.y(),_vec.z(),0.70710678,0,0,0.70710678;
 //    plane_pose << _vec.x(),_vec.y(),_vec.z(),0.38268343, 0.0, 0.0, 0.92387953;
-    geometry_list.push_back(Geometry(Shape::PLANE, plane_pose, Vec3(0,0,0)));
+    geometry_list.push_back(Geometry(ObjectType::PLANE, plane_pose, Vec3(0,0,0)));
     planner.clear_manifolds();
     planner.add_union_manifold(group_name, tool_link, tool_offset, geometry_list,
                                true, true, 1e-5, 1-3);

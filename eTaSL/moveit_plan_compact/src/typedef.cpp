@@ -18,7 +18,7 @@ Eigen::Affine3d RNB::MoveitCompact::getAffine3d(RNB::MoveitCompact::CartPose pos
     return Eigen::Translation3d(pose.block(0,0,3,1))*quat;
 }
 
-RNB::MoveitCompact::Geometry::Geometry(Shape type, CartPose pose, Vec3 dims){
+RNB::MoveitCompact::Geometry::Geometry(ObjectType type, CartPose pose, Vec3 dims){
     this->type = type;
     this->pose = pose;
     this->dims = dims;

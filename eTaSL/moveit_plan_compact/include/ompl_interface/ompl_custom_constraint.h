@@ -88,16 +88,16 @@ namespace RNB {
             {
                 double val;
                 switch(geo.type){
-                    case Shape::SPHERE:
+                    case ObjectType::SPHERE:
                         val = geo_tool_tf.translation().norm() - geo.dims[0];
                         break;
-                    case Shape::CYLINDER:
+                    case ObjectType::CYLINDER:
                         val = geo_tool_tf.translation().block(0, 0, 2, 1).norm() - geo.dims[0];
                         break;
-                    case Shape::PLANE:
+                    case ObjectType::PLANE:
                         val = geo_tool_tf.translation().z();
                         break;
-                    case Shape::BOX:
+                    case ObjectType::BOX:
                         std::cout << "ERROR: BOX is not supported" << std::endl;
                         throw;
                     default:
@@ -120,19 +120,19 @@ namespace RNB {
             {
                 Eigen::Vector3d vec;
                 switch(geo.type){
-                    case Shape::SPHERE:
+                    case ObjectType::SPHERE:
                         vec = geo_tool_tf.translation().matrix();
                         vec.normalize();
                         break;
-                    case Shape::CYLINDER:
+                    case ObjectType::CYLINDER:
                         vec = Eigen::Vector3d(geo_tool_tf.translation().x(), geo_tool_tf.translation().y(), 0);
                         vec.normalize();
                         break;
-                    case Shape::PLANE:
+                    case ObjectType::PLANE:
                         vec = zvec;
 //                        vec.normalize();
                         break;
-                    case Shape::BOX:
+                    case ObjectType::BOX:
                         std::cout << "ERROR: BOX is not supported" << std::endl;
                         throw;
                     default:

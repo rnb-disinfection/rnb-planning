@@ -1,4 +1,4 @@
-from moveit_py import MoveitCompactPlanner_BP, ObjectType, ObjectMPC
+from moveit_py import MoveitCompactPlanner_BP, ObjectType, ObjectMPC, Geometry, GeometryList, CartPose, Vec3, make_assign_arr
 from ..interface import PlannerInterface
 from ...utils.utils import list2dict
 from ...utils.rotation_utils import SE3, SE3_inv, Rot_rpy
@@ -12,10 +12,20 @@ import os
 def gtype_to_otype(gtype):
     if gtype==GEOTYPE.BOX:
         return ObjectType.BOX
-    elif gtype==GEOTYPE.SPHERE:
+    if gtype==GEOTYPE.SPHERE:
         return ObjectType.SPHERE
-    elif gtype in [GEOTYPE.CAPSULE, GEOTYPE.CYLINDER]:
+    if gtype in [GEOTYPE.CAPSULE, GEOTYPE.CYLINDER]:
         return ObjectType.CYLINDER
+    raise(NotImplementedError("Not implemented constraint shape - {}".format(gtype.name)))
+
+def gtype_to_ctype(gtype):
+    if gtype==GEOTYPE.BOX:
+        return ObjectType.PLANE
+    if gtype==GEOTYPE.SPHERE:
+        return ObjectType.SPHERE
+    if gtype in [GEOTYPE.CAPSULE, GEOTYPE.CYLINDER]:
+        return ObjectType.CYLINDER
+    raise(NotImplementedError("Not implemented constraint shape - {}".format(gtype.name)))
 
 def get_mpc_dims(gtem):
     if gtem.gtype==GEOTYPE.BOX:
@@ -29,6 +39,13 @@ def get_binder_links_in_order(links, robot_names):
     # links on robots should include robot names
     return [[lname for lname in links if rname in lname][0] for rname in robot_names]
 
+def make_constraint_item(gtem):
+    cartpose = tuple(gtem.center) + tuple(Rotation.from_dcm(gtem.orientation_mat).as_quat())
+    return Geometry(gtype_to_ctype(gtem.gtype),  CartPose(*cartpose), Vec3(*gtem.dims))
+
+def make_constraint_list(gtem_list):
+    return make_assign_arr(GeometryList, [make_constraint_item(gtem) for gtem in gtem_list])
+
 class MoveitPlanner(PlannerInterface):
     NAME = "MoveIt"
 
@@ -36,6 +53,7 @@ class MoveitPlanner(PlannerInterface):
         self.ghnd = ghnd
         self.joint_names, self.link_names, self.urdf_path, self.urdf_content, self.robot_names\
             = joint_names, link_names, urdf_path, urdf_content, robot_names
+        self.joint_num = len(joint_names)
         self.manipulator_names =  manipulator_names or robot_names
         if binder_links:
             self.binder_links = get_binder_links_in_order(binder_links, self.robot_names)

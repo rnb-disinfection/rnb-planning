@@ -53,7 +53,7 @@ namespace RNB {
             bool success;
         };
 
-        enum Shape{
+        enum ObjectType{
             BOX=shape_msgs::SolidPrimitive::BOX,
             SPHERE=shape_msgs::SolidPrimitive::SPHERE,
             CYLINDER=shape_msgs::SolidPrimitive::CYLINDER,
@@ -61,11 +61,11 @@ namespace RNB {
         };
 
         struct Geometry{
-            Shape type;
+            ObjectType type;
             CartPose pose;
             Eigen::Affine3d tf;
             Vec3 dims;
-            Geometry(Shape type, CartPose pose, Vec3 dims);
+            Geometry(ObjectType type, CartPose pose, Vec3 dims);
         };
 
         /** \class GeometryList

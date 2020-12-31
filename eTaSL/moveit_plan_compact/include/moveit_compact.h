@@ -108,14 +108,14 @@ namespace RNB {
              * @brief generate and process ros object message
              * @author Junsu Kang
              */
-            bool process_object(string name, const int type, CartPose pose, Vec3 dims,
+            bool process_object(string name, const ObjectType type, CartPose pose, Vec3 dims,
                                 string link_name, NameList touch_links, bool attach, const int action);
 
             /**
              * @brief simply add object
              * @author Junsu Kang
              */
-            bool add_object(string name, const int type,
+            bool add_object(string name, const ObjectType type,
                             CartPose pose, Vec3 dims,
                             string link_name, NameList touch_links, bool attach);
 

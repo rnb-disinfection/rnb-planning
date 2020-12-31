@@ -1,3 +1,8 @@
+## @package moveit_py
+# Python client of moveit-boost-python interface
+#
+# None
+
 import os
 import sys
 
@@ -6,11 +11,9 @@ import moveit_plan_compact as mpc
 import numpy as np
 from enum import Enum
 
-
-class ObjectType(Enum):
-    BOX = 1
-    SPHERE = 2
-    CYLINDER = 3
+Geometry = mpc.Geometry
+GeometryList = mpc.GeometryList
+ObjectType = mpc.ObjectType
 
 class ObjectOperation(Enum):
     ADD = 0
@@ -49,13 +52,13 @@ def NameList(*vals):
 def spread(bp_arr, size):
     return [bp_arr[i] for i in range(size)]
 
-
 class ObjectMPC:
     def __init__(self, name, type, link_name, pose=[0]*7, dims=[0]*3, touch_links=[], attach=True):
         self.name, self.type, self.pose, self.dims, self.link_name, self.touch_links, self.attach = \
             name, type, pose, dims, link_name, touch_links, attach
 
-
+## @class MoveitCompactPlanner_BP
+# Python client of moveit-boost-python interface
 class MoveitCompactPlanner_BP(mpc.Planner):
     def __init__(self, urdf_path, srdf_path, group_names, config_path):
         mpc.Planner.__init__(self)
@@ -91,13 +94,34 @@ class MoveitCompactPlanner_BP(mpc.Planner):
             self.remove_object(obj)
         self.__clear_all_objects()
 
+    ## @brief add union manifold.
+    #  @param tool_offset xyzquat(xyzw) style pose of tool offset in tool link.
+    def add_union_manifold_py(self, group_name, tool_link, tool_offset, geometry_list, fix_surface, fix_normal, radius, tol):
+        self.add_union_manifold(group_name, tool_link, CartPose(*tool_offset),
+                                geometry_list, fix_surface, fix_normal, radius, tol)
+
+
+    ## @brief search for plan that bring tool_link to goal_pose in coordinate of goal_link.
+    #  @param goal_pose xyzquat(xyzw) style pose of goal transformation in goal_link.
     def plan_py(self, robot_name, tool_link, goal_pose, goal_link, Q_init, plannerconfig="RRTConnectkConfigDefault", timeout=0.1):
+        self.clear_context_cache()
         plan = self.plan(robot_name, str(tool_link), CartPose(*goal_pose), str(goal_link),
                          JointState(self.joint_num, *Q_init), plannerconfig, timeout)
         return np.array(
             [spread(Q, self.joint_num) for Q in spread(plan.trajectory, len(plan.trajectory))]), plan.success
 
+    ## @brief search for plan that bring tool_link to goal_pose in coordinate of goal_link, with constraints
+    #  @param goal_pose xyzquat(xyzw) style pose of goal transformation in goal_link.
+    def plan_constrained_py(self, robot_name, tool_link, goal_pose, goal_link, Q_init, plannerconfig="RRTConnectkConfigDefault", timeout=0.1, allow_approximate=False):
+        assert goal_link=="base_link", "Constrained planning is only available in base_link currently!"
+        self.clear_context_cache()
+        plan = self.plan_with_constraints(robot_name, tool_link,
+                                          CartPose(*goal_pose), goal_link, JointState(self.joint_num, *Q_init),
+                                          plannerconfig, timeout, allow_approximate)
+        return np.array(
+            [spread(Q, self.joint_num) for Q in spread(plan.trajectory, len(plan.trajectory))]), plan.success
+
     def process_object_py(self, obj, action):
         return self.process_object(
-            str(obj.name), obj.type.value, CartPose(*obj.pose), Vec3(*obj.dims), str(obj.link_name),
+            str(obj.name), obj.type, CartPose(*obj.pose), Vec3(*obj.dims), str(obj.link_name),
             NameList(*obj.touch_links), obj.attach, action)

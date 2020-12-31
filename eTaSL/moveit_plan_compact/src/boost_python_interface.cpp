@@ -20,15 +20,15 @@ BOOST_PYTHON_MODULE(moveit_plan_compact){
     using namespace boost::python;
     def("greet", greet);
 
-    enum_<Shape>("Shape")
-            .value("BOX", Shape::BOX)
-            .value("SPHERE", Shape::SPHERE)
-            .value("CYLINDER", Shape::CYLINDER)
-            .value("PLANE", Shape::PLANE)
+    enum_<ObjectType>("ObjectType")
+            .value("BOX", ObjectType::BOX)
+            .value("SPHERE", ObjectType::SPHERE)
+            .value("CYLINDER", ObjectType::CYLINDER)
+            .value("PLANE", ObjectType::PLANE)
             .export_values()
             ;
 
-    class_<Geometry>("Geometry", init<Shape, CartPose, Vec3>())
+    class_<Geometry>("Geometry", init<ObjectType, CartPose, Vec3>())
             .def_readonly("type", &Geometry::type)
             .def_readonly("pose", &Geometry::pose)
             .def_readonly("dims", &Geometry::dims)
