@@ -40,30 +40,11 @@ include_directories(${catkin_INCLUDE_DIRS})
 
 set(CMAKE_SHARED_LIBRARY_PREFIX "") # output file name should match with BOOST_PYTHON_MODULE name
 
-#add_library(${PROJECT_NAME} SHARED
-#        src/moveit_compact.cpp
-#        src/boost_python_interface.cpp
-#        src/ompl_interface/ompl_interface.cpp
-#        src/ompl_interface/planning_context_manager.cpp
-#        src/ompl_interface/model_based_planning_context.cpp
-#        src/ompl_interface/parameterization/model_based_state_space.cpp
-#        src/ompl_interface/parameterization/model_based_state_space_factory.cpp
-#        src/ompl_interface/parameterization/joint_space/joint_model_state_space.cpp
-#        src/ompl_interface/parameterization/joint_space/joint_model_state_space_factory.cpp
-#        src/ompl_interface/parameterization/work_space/pose_model_state_space.cpp
-#        src/ompl_interface/parameterization/work_space/pose_model_state_space_factory.cpp
-#        src/ompl_interface/detail/threadsafe_state_storage.cpp
-#        src/ompl_interface/detail/state_validity_checker.cpp
-#        src/ompl_interface/detail/projection_evaluators.cpp
-#        src/ompl_interface/detail/goal_union.cpp
-#        src/ompl_interface/detail/constraints_library.cpp
-#        src/ompl_interface/detail/constrained_sampler.cpp
-#        src/ompl_interface/detail/constrained_valid_state_sampler.cpp
-#        src/ompl_interface/detail/constrained_goal_sampler.cpp src/logger.cpp src/typedef.cpp)
-#target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${OMPL_LIBRARIES} yaml-cpp)
-
-add_executable(${PROJECT_NAME}-test
+############################################################################
+##############################  BUILD LIBRARY ##############################
+add_library(${PROJECT_NAME} SHARED
         src/moveit_compact.cpp
+        src/boost_python_interface.cpp
         src/ompl_interface/ompl_interface.cpp
         src/ompl_interface/planning_context_manager.cpp
         src/ompl_interface/model_based_planning_context.cpp
@@ -81,4 +62,31 @@ add_executable(${PROJECT_NAME}-test
         src/ompl_interface/detail/constrained_sampler.cpp
         src/ompl_interface/detail/constrained_valid_state_sampler.cpp
         src/ompl_interface/detail/constrained_goal_sampler.cpp src/logger.cpp src/typedef.cpp)
-target_link_libraries(${PROJECT_NAME}-test ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${OMPL_LIBRARIES} yaml-cpp)
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${OMPL_LIBRARIES} yaml-cpp)
+##############################  BUILD LIBRARY ##############################
+############################################################################
+
+############################################################################
+#############################  TEST EXECUTION ##############################
+#add_executable(${PROJECT_NAME}-test
+#        src/moveit_compact.cpp
+#        src/ompl_interface/ompl_interface.cpp
+#        src/ompl_interface/planning_context_manager.cpp
+#        src/ompl_interface/model_based_planning_context.cpp
+#        src/ompl_interface/parameterization/model_based_state_space.cpp
+#        src/ompl_interface/parameterization/model_based_state_space_factory.cpp
+#        src/ompl_interface/parameterization/joint_space/joint_model_state_space.cpp
+#        src/ompl_interface/parameterization/joint_space/joint_model_state_space_factory.cpp
+#        src/ompl_interface/parameterization/work_space/pose_model_state_space.cpp
+#        src/ompl_interface/parameterization/work_space/pose_model_state_space_factory.cpp
+#        src/ompl_interface/detail/threadsafe_state_storage.cpp
+#        src/ompl_interface/detail/state_validity_checker.cpp
+#        src/ompl_interface/detail/projection_evaluators.cpp
+#        src/ompl_interface/detail/goal_union.cpp
+#        src/ompl_interface/detail/constraints_library.cpp
+#        src/ompl_interface/detail/constrained_sampler.cpp
+#        src/ompl_interface/detail/constrained_valid_state_sampler.cpp
+#        src/ompl_interface/detail/constrained_goal_sampler.cpp src/logger.cpp src/typedef.cpp)
+#target_link_libraries(${PROJECT_NAME}-test ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${OMPL_LIBRARIES} yaml-cpp)
+#############################  TEST EXECUTION ##############################
+############################################################################

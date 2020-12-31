@@ -319,7 +319,7 @@ PlanResult& Planner::plan_with_constraints(string group_name, string tool_link,
 
     printf(LOG_FRAME_LINE);
     PRINT_FRAMED_LOG("last pose below");
-    cout << *(plan_result.trajectory.end()-1) << endl;
+    cout << (plan_result.trajectory.end()-1)->transpose() << endl;
     printf(LOG_FRAME_LINE "\n");
     plan_result.success = true;
     return plan_result;
@@ -470,10 +470,8 @@ int main(int argc, char** argv) {
 //    plane_pose << _vec.x(),_vec.y(),_vec.z(),0.38268343, 0.0, 0.0, 0.92387953;
     geometry_list.push_back(Geometry(Shape::PLANE, plane_pose, Vec3(0,0,0)));
     planner.clear_manifolds();
-//    planner.add_union_manifold(group_name, tool_link, tool_offset, geometry_list,
-//                               true, false, 1e-5, 2e-3);
     planner.add_union_manifold(group_name, tool_link, tool_offset, geometry_list,
-                               false, true, 1e-5, 500e-3);
+                               true, true, 1e-5, 1-3);
 
     PlanResult res = planner.plan_with_constraints(group_name, tool_link,
                                                   goal_pose, "base_link", init_state,

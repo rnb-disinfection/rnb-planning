@@ -10,7 +10,7 @@
 #include <fcl/distance.h>
 #include "logger.h"
 
-#define PRINT_CONSTRAINT_VALUES
+//#define DEBUG_CONSTRAINT_VALUES
 #define USE_ANALYTIC_JACOBIAN
 
 namespace RNB {
@@ -61,10 +61,6 @@ namespace RNB {
                 this->radius = radius;
                 this->fix_normal = fix_normal;
                 this->fix_surface = fix_surface;
-                if (num_const>1)
-                {
-                    throw TEXT_RED("Both surface and normal in one unionmanifold is not functional yet!\n");
-                }
                 kinematic_state = std::make_shared<robot_state::RobotState>(robot_model_);
                 kinematic_state->setToDefaultValues();
 
@@ -108,7 +104,7 @@ namespace RNB {
                         std::cout << "ERROR: UNDEFINED SHAPE" << std::endl;
                         throw;
                 }
-#ifdef PRINT_CONSTRAINT_VALUES
+#ifdef DEBUG_CONSTRAINT_VALUES
                 std::cout << "surface value: " << val << std::endl;
 #endif
                 return val;
@@ -144,7 +140,7 @@ namespace RNB {
                         throw;
                 }
                 vec = geo.tf.linear()*vec;
-#ifdef PRINT_CONSTRAINT_VALUES
+#ifdef DEBUG_CONSTRAINT_VALUES
                 std::cout<<"surface_normal: " << vec.transpose()<<std::endl;
 #endif
                 return vec;
@@ -160,7 +156,7 @@ namespace RNB {
             double calc_normal_value(Eigen::Vector3d vec, Eigen::Vector3d tool_vec) const
             {
                 double val = 1 - vec.dot(tool_vec);
-#ifdef PRINT_CONSTRAINT_VALUES
+#ifdef DEBUG_CONSTRAINT_VALUES
                 std::cout<<"normal_vec: " << vec.transpose() <<std::endl;
                 std::cout<<"tool_vec: " << tool_vec.transpose() <<std::endl;
                 std::cout<<"normal value: " << val <<std::endl;
@@ -169,51 +165,28 @@ namespace RNB {
             }
 
             /**
-             * @brief Calculate normal value gradient \f$ \nabla_X f(R) = V_n \cdot V'(R) \cdot J \f$ for a geometry surface.
+             * @brief Calculate normal value gradient by
+             *          \f$ \frac{d(v_1 R v_2)}{dq_i}
+             *          = v_1 \cdot (w_i \times v_2)
+             *          = w_i \cdot (v_2 \times v_1) \f$ for a geometry surface.
              * @author Junsu Kang
              * @param vec normal vector V_n in base coordinate.
-             * @param end_effector_tf transformation of end effector.
+             * @param tool_tf tool transformation in base coordinate.
+             * @param jac_robot jacobian vector for the robot, containts \f$ w_j \f$
              */
-            Eigen::Vector4d calc_normal_gradient(Eigen::Vector3d vec, Eigen::Affine3d end_effector_tf) const
+            Eigen::VectorXd calc_normal_gradient(Eigen::Vector3d vec, Eigen::Affine3d tool_tf, Eigen::MatrixXd& jac_robot) const
             {
-                Eigen::Vector3d vec_tool = end_affine.linear()*zvec;
-                Eigen::Quaterniond quat_vec_tool(0, vec_tool.x(), vec_tool.y(), vec_tool.z());
-                Eigen::Vector4d quat_vec_norm(0, vec.x(), vec.y(), vec.z());
+                Eigen::Vector3d vec_tool = tool_tf.linear()*zvec;
+                Eigen::MatrixXd w_j(jac_robot.block(3,0,3,dims));
+                Eigen::VectorXd normal_gradient;
+                normal_gradient = - w_j.transpose()*(vec_tool.cross(vec));
 
-                Eigen::Quaterniond quat(end_effector_tf.linear());
-                Eigen::Quaterniond quat_inv = quat.conjugate();
-
-                Eigen::Vector4d normal_grad = - quat_vec_norm.transpose()*(getQmat(quat*quat_vec_tool)*I_star+getQhat(quat_vec_tool*quat_inv));
-//                Eigen::Vector4d normal_grad_tmp(normal_grad);
-//                normal_grad << normal_grad_tmp[1], normal_grad_tmp[2], normal_grad_tmp[3], normal_grad_tmp[0];
-
-
-#ifdef PRINT_CONSTRAINT_VALUES
-                std::cout<<"quat: "<< quat.x() <<" "<< quat.y() <<" "<< quat.z() <<" "<< quat.w() <<" " <<std::endl;
-
-                Eigen::Quaterniond quat_vec_tool_rot = quat*quat_vec_tool*quat_inv;
-                double val = 1 - vec.dot(Eigen::Vector3d(quat_vec_tool_rot.x(), quat_vec_tool_rot.y(), quat_vec_tool_rot.z()));
-                std::cout << "recalculated val: " << val << std::endl;
-
-                std::cout << "test grad val:";
-                for(int i_q=0;i_q<4;i_q++){
-                    Eigen::Quaterniond quat_p(quat);
-                    double EPSILON_ = 1e-8;
-                    switch (i_q){
-                        case 0: quat_p.w() = quat.w() + EPSILON_; break;
-                        case 1: quat_p.x() = quat.x() + EPSILON_; break;
-                        case 2: quat_p.y() = quat.y() + EPSILON_; break;
-                        case 3: quat_p.z() = quat.z() + EPSILON_; break;
-                    }
-                    Eigen::Quaterniond quat_inv_p = quat_p.conjugate();
-                    Eigen::Quaterniond quat_vec_tool_rot_p = quat_p*quat_vec_tool*quat_inv_p;
-                    double val_p = 1 - vec.dot(Eigen::Vector3d(quat_vec_tool_rot_p.x(), quat_vec_tool_rot_p.y(), quat_vec_tool_rot_p.z()));
-                    std::cout << " " << (val_p-val)/EPSILON_;
-                }
-                std::cout << std::endl;
-                std::cout << "normal gradient: " << normal_grad.transpose() << std::endl;
+#ifdef DEBUG_CONSTRAINT_VALUES
+                std::cout << "vec_normal: " << vec.transpose() << std::endl;
+                std::cout << "vec_tool: " << vec_tool.transpose() << std::endl;
+                std::cout << "normal_gradient: " << normal_gradient.transpose() << std::endl;
 #endif
-                return normal_grad;
+                return normal_gradient;
             }
 
             /**
@@ -230,36 +203,21 @@ namespace RNB {
             {
                 kinematic_state->setJointGroupPositions(joint_model_group, x.data());
                 const Eigen::Affine3d &end_effector_tf = kinematic_state->getGlobalLinkTransform(tool_link);
+                const Eigen::Affine3d &base_tf = kinematic_state->getGlobalLinkTransform(joint_model_group->getJointModels()[0]->getParentLinkModel());
                 const Eigen::Affine3d tool_tf = end_effector_tf*end_affine;
 
-                Eigen::MatrixXd jac_robot(7,dims);
+                Eigen::MatrixXd jac_robot;
                 if(calc_jac)
                 {
-                    Eigen::MatrixXd jac_robot_av;
                     kinematic_state->getJacobian(joint_model_group, kinematic_state->getLinkModel(tool_link),
-                                                 end_affine.translation(), jac_robot_av,false);
-                    // !! *** original ros implementation of use_quaternion_representation is wrong *** !!
-                    // d/dt ( [w] ) = 1/2 * [ -x -y -z ]  * [ omega_1 ]
-                    //        [x]           [  w  z -y ]    [ omega_2 ]
-                    //        [y]           [ -z  w  x ]    [ omega_3 ]
-                    //        [z]           [  y -x  w ]
-                    Eigen::Quaterniond q(end_effector_tf.linear());
-                    double w = q.w(), x = q.x(), y = q.y(), z = q.z();
-                    Eigen::MatrixXd quaternion_update_matrix(4, 3);
-                    quaternion_update_matrix << -x, -y, -z,     w, z, -y,   -z, w, x,     y, -x, w;
-                    jac_robot.block(0,0,3,dims) << jac_robot_av.block(0,0,3,dims);
-                    jac_robot.block(3,0,4,dims) << 0.5 * quaternion_update_matrix * jac_robot_av.block(3,0,3,dims);
-#ifdef PRINT_CONSTRAINT_VALUES
-                    std::cout<<"jac_robot"<<std::endl;
-                    std::cout<<jac_robot<<std::endl;
-                    quaternion_update_matrix = getQmat(q);
-                    jac_robot.block(0,0,3,dims) << jac_robot_av.block(0,0,3,dims);
-                    jac_robot.block(3,0,4,dims) << 0.5 * quaternion_update_matrix.block(0,1,4,3) * jac_robot_av.block(3,0,3,dims);
-                    std::cout<<"jac_robot"<<std::endl;
-                    std::cout<<jac_robot<<std::endl;
-                    quaternion_update_matrix = getQhat(q);
-                    jac_robot.block(0,0,3,dims) << jac_robot_av.block(0,0,3,dims);
-                    jac_robot.block(3,0,4,dims) << 0.5 * quaternion_update_matrix.block(0,1,4,3) * jac_robot_av.block(3,0,3,dims);
+                                                 end_affine.translation(), jac_robot,false);
+                    /* [WARNING] getJacobian returns jacobian in the coordinate of joint group's root link.
+                     * below is multipling root transformation to it! */
+                    jac_robot.block(0,0,3,dims) << base_tf.linear()*jac_robot.block(0,0,3,dims);
+                    jac_robot.block(3,0,3,dims) << base_tf.linear()*jac_robot.block(3,0,3,dims);
+#ifdef DEBUG_CONSTRAINT_VALUES
+                    std::cout<<"root_joint: " <<joint_model_group->getJointModels()[0]->getName() << std::endl;
+                    std::cout<<"root_link: " <<joint_model_group->getJointModels()[0]->getParentLinkModel()->getName() << std::endl;
                     std::cout<<"jac_robot"<<std::endl;
                     std::cout<<jac_robot<<std::endl;
 #endif
@@ -273,8 +231,8 @@ namespace RNB {
                 Eigen::VectorXd surf_jac(dims);
                 double normal_val = 1;
                 double normal_val_prod = 1;
-                Eigen::Vector4d normal_grad;
-                Eigen::Vector4d normal_grad_accum(0,0,0, 0);
+                Eigen::VectorXd normal_grad;
+                Eigen::VectorXd normal_grad_accum=Eigen::VectorXd::Zero(dims);
                 Eigen::VectorXd normal_jac(dims);
                 for(int idx=0;idx<geometry_list.size();idx++)
                 {
@@ -292,8 +250,8 @@ namespace RNB {
                         normal_val = calc_normal_value(surf_normed, tool_vec);
                         normal_val_prod *= normal_val;
                         if(calc_jac){
-                            normal_grad = calc_normal_gradient(surf_normed, end_effector_tf);
-                            normal_grad_accum += normal_grad/normal_val;
+                            normal_grad = calc_normal_gradient(surf_normed, tool_tf, jac_robot);
+                            normal_grad_accum += normal_grad;
                         }
                     }
                 }
@@ -305,21 +263,20 @@ namespace RNB {
                         jac.block(0,0,1, dims) << surf_jac.transpose();
                     }
                     if(fix_normal) {
-                        normal_grad_accum *= normal_val_prod;
-                        normal_jac = normal_grad_accum.transpose()*jac_robot.block(3,0,4,dims);
+                        normal_jac = normal_grad_accum;
                         jac.block(fix_surface?1:0,0,1, dims) << normal_jac.transpose();
                     }
-#ifdef PRINT_CONSTRAINT_VALUES
+#ifdef DEBUG_CONSTRAINT_VALUES
                     std::cout<<"jac"<<std::endl;
                     std::cout<<jac<<std::endl;
 #endif
                 }
                 else{
                     if(fix_surface){
-                        out[0] = surf_val;
+                        out[0] = surf_val_prod;
                     }
                     if(fix_normal) {
-                        out[fix_surface?1:0] = normal_val;
+                        out[fix_surface?1:0] = normal_val_prod;
                     }
                 }
             }
@@ -339,7 +296,7 @@ namespace RNB {
                 Eigen::MatrixXd jac(num_const, dims);
                 value_(x, val, jac, true);
                 out << jac;
-#ifdef PRINT_CONSTRAINT_VALUES
+#ifdef DEBUG_CONSTRAINT_VALUES
                 std::cout<<"x"<<std::endl;
                 std::cout<<x.transpose()<<std::endl;
                 Eigen::MatrixXd out_save(out);

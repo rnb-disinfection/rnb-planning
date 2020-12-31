@@ -42,6 +42,8 @@ namespace RNB {
         Eigen::MatrixXd getQmat(Eigen::Quaterniond a);
         Eigen::MatrixXd getQhat(Eigen::Quaterniond a);
 
+        Eigen::Matrix3d getHat(Eigen::Vector3d vec);
+
         /**
          * @brief Planning result holder
          * @author Junsu Kang

@@ -44,3 +44,11 @@ Eigen::MatrixXd RNB::MoveitCompact::getQhat(Eigen::Quaterniond a){
             z,  y, -x,  w;
     return Q;
 }
+
+Eigen::Matrix3d RNB::MoveitCompact::getHat(Eigen::Vector3d vec){
+    Eigen::Matrix3d vec_hat;
+    vec_hat <<  0, -vec(2), vec(1),
+                vec(2), 0, -vec(0),
+                -vec(1), vec(0), 0;
+    return vec_hat;
+}
