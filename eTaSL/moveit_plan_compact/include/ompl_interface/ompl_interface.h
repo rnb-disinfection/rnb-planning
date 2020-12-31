@@ -91,14 +91,14 @@ namespace ompl_interface
         ModelBasedPlanningContextPtr getPlanningContextConstrained(
                 const planning_scene::PlanningSceneConstPtr& planning_scene,
                 const planning_interface::MotionPlanRequest& req,
-                RNB::MoveitCompact::UnionManifoldPtr & custom_constraint,
+                ompl::base::ConstraintIntersectionPtr& manifold_intersection,
                 bool allow_approximation) const;
 
         ModelBasedPlanningContextPtr getPlanningContextConstrained(
                 const planning_scene::PlanningSceneConstPtr& planning_scene,
                 const planning_interface::MotionPlanRequest& req,
                 moveit_msgs::MoveItErrorCodes& error_code,
-                RNB::MoveitCompact::UnionManifoldPtr & custom_constraint,
+                ompl::base::ConstraintIntersectionPtr& manifold_intersection,
                 bool allow_approximation) const;
 
         const PlanningContextManager& getPlanningContextManager() const

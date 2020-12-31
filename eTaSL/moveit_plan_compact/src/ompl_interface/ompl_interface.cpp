@@ -119,24 +119,24 @@ ompl_interface::OMPLInterface::getPlanningContext(const planning_scene::Planning
 ompl_interface::ModelBasedPlanningContextPtr
 ompl_interface::OMPLInterface::getPlanningContextConstrained(const planning_scene::PlanningSceneConstPtr& planning_scene,
                                                   const planning_interface::MotionPlanRequest& req,
-                                                  RNB::MoveitCompact::UnionManifoldPtr & custom_constraint,
+                                                  ompl::base::ConstraintIntersectionPtr& manifold_intersection,
                                                   bool allow_approximation) const
 {
     moveit_msgs::MoveItErrorCodes dummy;
-    return getPlanningContextConstrained(planning_scene, req, dummy, custom_constraint, allow_approximation);
+    return getPlanningContextConstrained(planning_scene, req, dummy, manifold_intersection, allow_approximation);
 }
 
 ompl_interface::ModelBasedPlanningContextPtr
 ompl_interface::OMPLInterface::getPlanningContextConstrained(const planning_scene::PlanningSceneConstPtr& planning_scene,
                                                   const planning_interface::MotionPlanRequest& req,
                                                   moveit_msgs::MoveItErrorCodes& error_code,
-                                                  RNB::MoveitCompact::UnionManifoldPtr & custom_constraint,
+                                                  ompl::base::ConstraintIntersectionPtr& manifold_intersection,
                                                   bool allow_approximation) const
 {
     ModelBasedPlanningContextPtr ctx =
             context_manager_.getPlanningContextConstrained(planning_scene, req, error_code, nh_,
                                                            use_constraints_approximations_,
-                                                           custom_constraint, allow_approximation);
+                                                           manifold_intersection, allow_approximation);
     if (ctx)
         configureContext(ctx);
     return ctx;

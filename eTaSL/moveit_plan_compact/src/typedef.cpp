@@ -27,18 +27,20 @@ RNB::MoveitCompact::Geometry::Geometry(Shape type, CartPose pose, Vec3 dims){
 
 Eigen::MatrixXd RNB::MoveitCompact::getQmat(Eigen::Quaterniond a){
     Eigen::MatrixXd Q(4,4);
-    Q <<    a.w(), -a.x(), -a.y(), -a.z(),
-            a.x(),  a.w(), -a.z(),  a.y(),
-            a.y(),  a.z(),  a.w(), -a.x(),
-            a.z(), -a.y(),  a.x(),  a.w();
+    double w = a.w(), x = a.x(), y = a.y(), z = a.z();
+    Q <<    w, -x, -y, -z,
+            x,  w, -z,  y,
+            y,  z,  w, -x,
+            z, -y,  x,  w;
     return Q;
 }
 
 Eigen::MatrixXd RNB::MoveitCompact::getQhat(Eigen::Quaterniond a){
     Eigen::MatrixXd Q(4,4);
-    Q <<    a.w(), -a.x(), -a.y(), -a.z(),
-            a.x(),  a.w(),  a.z(), -a.y(),
-            a.y(), -a.z(),  a.w(),  a.x(),
-            a.z(),  a.y(), -a.x(),  a.w();
+    double w = a.w(), x = a.x(), y = a.y(), z = a.z();
+    Q <<    w, -x, -y, -z,
+            x,  w,  z, -y,
+            y, -z,  w,  x,
+            z,  y, -x,  w;
     return Q;
 }

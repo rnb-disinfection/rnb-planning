@@ -377,7 +377,7 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
         const planning_interface::PlannerConfigurationSettings& config,
         const StateSpaceFactoryTypeSelector& factory_selector,
         const moveit_msgs::MotionPlanRequest& req,
-        RNB::MoveitCompact::UnionManifoldPtr& custom_constraint,
+        ompl::base::ConstraintIntersectionPtr& manifold_intersection,
         bool allow_approximation) const
 {
     const ompl_interface::ModelBasedStateSpaceFactoryPtr& factory = factory_selector(config.group);
@@ -418,7 +418,7 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
 
         // Combine the ambient space and the constraint into a constrained state space.
         context_spec.constrained_state_space_ = std::make_shared<ob::ProjectedStateSpace>(context_spec.state_space_,
-                                                                                          custom_constraint);
+                                                                                          manifold_intersection);
 
         // Define the constrained space information for this constrained state space.
         context_spec.csi_ = std::make_shared<ob::ConstrainedSpaceInformation>(context_spec.constrained_state_space_);
@@ -590,7 +590,7 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
 ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextManager::getPlanningContextConstrained(
         const planning_scene::PlanningSceneConstPtr& planning_scene, const moveit_msgs::MotionPlanRequest& req,
         moveit_msgs::MoveItErrorCodes& error_code, const ros::NodeHandle& nh, bool use_constraints_approximation,
-        RNB::MoveitCompact::UnionManifoldPtr& custom_constraint, bool allow_approximation) const
+        ompl::base::ConstraintIntersectionPtr& manifold_intersection, bool allow_approximation) const
 {
     if (req.group_name.empty())
     {
@@ -647,7 +647,7 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
         factory_selector = std::bind(&PlanningContextManager::getStateSpaceFactory2, this, std::placeholders::_1, req);
 
     ModelBasedPlanningContextPtr context = getPlanningContextConstrained(pc->second, factory_selector, req,
-                                                                         custom_constraint, allow_approximation);
+                                                                         manifold_intersection, allow_approximation);
 
     if (context)
     {

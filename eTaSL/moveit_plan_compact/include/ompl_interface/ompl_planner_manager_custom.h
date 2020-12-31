@@ -165,11 +165,11 @@ namespace ompl_interface
         planning_interface::PlanningContextPtr getPlanningContextConstrained(const planning_scene::PlanningSceneConstPtr& planning_scene,
                                                                   const planning_interface::MotionPlanRequest& req,
                                                                   moveit_msgs::MoveItErrorCodes& error_code,
-                                                                  RNB::MoveitCompact::UnionManifoldPtr& custom_constraint,
+                                                                  ompl::base::ConstraintIntersectionPtr& manifold_intersection,
                                                                   bool allow_approximation)
         {
             return ompl_interface_->getPlanningContextConstrained(planning_scene, req, error_code,
-                                                                  custom_constraint, allow_approximation);
+                                                                  manifold_intersection, allow_approximation);
         }
 
     private:

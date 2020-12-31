@@ -165,8 +165,6 @@ void Planner::configure()
 //                                     << "Available plugins: " << boost::algorithm::join(classes, ", "));
 //        }
     }
-
-
 }
 
 PlanResult& Planner::plan(string group_name, string tool_link,
@@ -282,11 +280,23 @@ PlanResult& Planner::plan_with_constraints(string group_name, string tool_link,
 
     plan_result.trajectory.clear();
 
-    auto custom_constraint = manifolds[0];
+    if (manifolds.size()==0){
+        plan_result.success = false;
+        return plan_result;
+    }
+    auto manifold_ref = manifolds[0];
+    ompl::base::ConstraintIntersectionPtr manifold_intersection = std::make_shared<ompl::base::ConstraintIntersection>(
+            manifold_ref->getAmbientDimension(), manifolds);
+    double tol = 0;
+    for(auto _man = manifolds.begin(); _man!=manifolds.end(); _man++){
+        tol += pow((*_man)->getTolerance(),2);
+    }
+    tol = sqrt(tol);
+    manifold_intersection->setTolerance(tol);
 
     planning_interface::PlanningContextPtr context =
             planner_instance_->getPlanningContextConstrained(planning_scene_, _req, _res.error_code_,
-                                                             custom_constraint, allow_approximation);
+                                                             manifold_intersection, allow_approximation);
 
     context->solve(_res);
 
@@ -433,14 +443,19 @@ int main(int argc, char** argv) {
     const Eigen::Affine3d &end_effector_tf = kinematic_state->getGlobalLinkTransform(tool_link);
 
     Eigen::Vector3d _vec(end_effector_tf.translation());
-    Eigen::Quaterniond _rot(end_effector_tf.rotation());
+    Eigen::Quaterniond _rot(end_effector_tf.linear());
+
+    auto goal_tf = end_effector_tf*Eigen::Translation3d(0.1,-0.1,0);
+
+    Eigen::Vector3d _vec_g(goal_tf.translation());
+    Eigen::Quaterniond _rot_g(goal_tf.linear());
 
     CartPose inital_pose;
     CartPose goal_pose;
 //    goal << -0.3,-0.2,0.4,0,0,0,1;
     inital_pose << _vec.x(), _vec.y(), _vec.z(), _rot.x(), _rot.y(), _rot.z(), _rot.w();
 //    goal_pose << _vec.x(), _vec.y(), _vec.z(), _rot.x(), _rot.y(), _rot.z(), _rot.w();
-    goal_pose << _vec.x()+0.1, _vec.y()-0.1, _vec.z()-0.1, _rot.x(), _rot.y(), _rot.z(), _rot.w();
+    goal_pose << _vec_g.x(), _vec_g.y(), _vec_g.z(), _rot_g.x(), _rot_g.y(), _rot_g.z(), _rot_g.w();
 //    goal_pose << _vec.x()+0.1, _vec.y()-0.1, _vec.z()-0.1, _rot.x(), _rot.y(), _rot.z(), _rot.w();
 
     std::cout<<"========== goal ========="<<std::endl;
@@ -450,17 +465,20 @@ int main(int argc, char** argv) {
     CartPose tool_offset;
     tool_offset<<0,0,0,0,0,0,0;
     CartPose plane_pose;
-//    plane_pose << _vec.x(),_vec.y(),_vec.z(), _rot.x(), _rot.y(), _rot.z(), _rot.w();
+    plane_pose << _vec.x(),_vec.y(),_vec.z(), _rot.x(), _rot.y(), _rot.z(), _rot.w();
 //    plane_pose << _vec.x(),_vec.y(),_vec.z(),0.70710678,0,0,0.70710678;
-    plane_pose << _vec.x(),_vec.y(),_vec.z(),0.38268343, 0.0, 0.0, 0.92387953;
+//    plane_pose << _vec.x(),_vec.y(),_vec.z(),0.38268343, 0.0, 0.0, 0.92387953;
     geometry_list.push_back(Geometry(Shape::PLANE, plane_pose, Vec3(0,0,0)));
+    planner.clear_manifolds();
+//    planner.add_union_manifold(group_name, tool_link, tool_offset, geometry_list,
+//                               true, false, 1e-5, 2e-3);
     planner.add_union_manifold(group_name, tool_link, tool_offset, geometry_list,
-                                                              true, false, 1e-3, 1e-3);
+                               false, true, 1e-5, 500e-3);
 
     PlanResult res = planner.plan_with_constraints(group_name, tool_link,
                                                   goal_pose, "base_link", init_state,
                                                   "RRTConnectkConfigDefault",
-                                                  5, true);
+                                                  3, false);
 
     std::cout<<std::endl;
 
@@ -478,20 +496,20 @@ int main(int argc, char** argv) {
 //    if (res.trajectory.size()>0){
 //        auto it=res.trajectory.begin();
 //        kinematic_state->setJointGroupPositions(joint_model_group, it->data());
-//        Eigen::Quaterniond quat(kinematic_state->getGlobalLinkTransform(tool_link).rotation());
+//        Eigen::Quaterniond quat(kinematic_state->getGlobalLinkTransform(tool_link).linear());
 //        std::cout<<kinematic_state->getGlobalLinkTransform(tool_link).translation().transpose()
 //                << " " << quat.x() << " "  << quat.y() << " "  << quat.z() << " "  << quat.w() <<std::endl;
 //    }
 //    if (res.trajectory.size()>1) {
 //        auto it = res.trajectory.end() - 1;
 //        kinematic_state->setJointGroupPositions(joint_model_group, it->data());
-//        Eigen::Quaterniond quat(kinematic_state->getGlobalLinkTransform(tool_link).rotation());
+//        Eigen::Quaterniond quat(kinematic_state->getGlobalLinkTransform(tool_link).linear());
 //        std::cout << kinematic_state->getGlobalLinkTransform(tool_link).translation().transpose()
 //                  << " " << quat.x() << " "  << quat.y() << " "  << quat.z() << " "  << quat.w() <<std::endl;
 //    }
     for (auto it=res.trajectory.begin(); it!=res.trajectory.end(); it++){
         kinematic_state->setJointGroupPositions(joint_model_group, it->data());
-        Eigen::Quaterniond quat(kinematic_state->getGlobalLinkTransform(tool_link).rotation());
+        Eigen::Quaterniond quat(kinematic_state->getGlobalLinkTransform(tool_link).linear());
         std::cout<<kinematic_state->getGlobalLinkTransform(tool_link).translation().transpose()
                 << " " << quat.x() << " "  << quat.y() << " "  << quat.z() << " "  << quat.w() <<std::endl;
     }

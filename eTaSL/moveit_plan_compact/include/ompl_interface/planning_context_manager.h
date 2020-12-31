@@ -191,7 +191,7 @@ namespace ompl_interface
                                                                    const planning_interface::MotionPlanRequest& req,
                                                                    moveit_msgs::MoveItErrorCodes& error_code, const ros::NodeHandle& nh,
                                                                    bool use_constraints_approximations,
-                                                                   RNB::MoveitCompact::UnionManifoldPtr& custom_constraint,
+                                                                   ompl::base::ConstraintIntersectionPtr& manifold_intersection,
                                                                    bool allow_approximation) const;
 
         void registerPlannerAllocator(const std::string& planner_id, const ConfiguredPlannerAllocator& pa)
@@ -235,7 +235,7 @@ namespace ompl_interface
         ModelBasedPlanningContextPtr getPlanningContextConstrained(const planning_interface::PlannerConfigurationSettings& config,
                                                         const StateSpaceFactoryTypeSelector& factory_selector,
                                                         const moveit_msgs::MotionPlanRequest& req,
-                                                        RNB::MoveitCompact::UnionManifoldPtr& custom_constraint,
+                                                        ompl::base::ConstraintIntersectionPtr& manifold_intersection,
                                                         bool allow_approximation) const;
 
         const ModelBasedStateSpaceFactoryPtr& getStateSpaceFactory1(const std::string& group_name,
