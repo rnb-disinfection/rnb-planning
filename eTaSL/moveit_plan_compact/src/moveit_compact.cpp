@@ -479,10 +479,10 @@ int main(int argc, char** argv) {
     plane_pose << _vec.x()+0.05,_vec.y(),_vec.z(), _rot.x(), _rot.y(), _rot.z(), _rot.w();
 //    plane_pose << _vec.x(),_vec.y(),_vec.z(),0.70710678,0,0,0.70710678;
 //    plane_pose << _vec.x(),_vec.y(),_vec.z(),0.38268343, 0.0, 0.0, 0.92387953;
-    geometry_list.push_back(Geometry(ObjectType::SPHERE, plane_pose, Vec3(0.1,0.1,0.1)));
+    geometry_list.push_back(Geometry(ObjectType::CYLINDER, plane_pose, Vec3(0.1,0.1,0.1)));
     planner.clear_manifolds();
     planner.add_union_manifold(group_name, tool_link, tool_offset, geometry_list,
-                               true, false, 1e-5, 2e-3);
+                               false, true, 1e-5, 2e-3);
 
     PlanResult res = planner.plan_with_constraints(group_name, tool_link,
                                                   goal_pose, "base_link", init_state,

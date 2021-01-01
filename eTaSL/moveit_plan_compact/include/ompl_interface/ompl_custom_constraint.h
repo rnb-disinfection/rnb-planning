@@ -10,7 +10,7 @@
 #include <fcl/distance.h>
 #include "logger.h"
 
-#define DEBUG_CONSTRAINT_VALUES
+//#define DEBUG_CONSTRAINT_VALUES
 #define USE_ANALYTIC_JACOBIAN
 
 namespace RNB {
@@ -116,26 +116,59 @@ namespace RNB {
             }
 
             /**
+             * @brief Calculate derivative of normal vector by
+             *          \f$ \frac{d \overline{P} }{dP}
+             *          = d (\frac{P}{|P|}) / dP
+             *          = \frac{I}{|P|} - \frac{P}{|P|^2}\frac{d|P|}{P}
+             *          = \frac{I}{|P|} - \frac{P\overline{P}^T}{|P|^2}
+             *          = \frac{I - \overline{P}\overline{P}^T}{|P|} \f$ for a geometry surface.
+             * @param vec normalized vector of P
+             * @param vec_norm norm of P
+             * @author Junsu Kang
+             */
+            Eigen::MatrixXd calc_normal_der(Eigen::VectorXd vec, double vec_norm) const {
+                Eigen::MatrixXd I(vec.size(), vec.size());
+                I.setIdentity();
+                return (I-vec*vec.transpose())/vec_norm;
+            }
+
+            /**
              * @brief Calculate surface jacobian \f$ V_n = \nabla f(X) \f$ for a geometry.
              * @author Junsu Kang
              * @param geo geometry.
              * @param geo_tool_tf tool pose from geometry coordinate.
+             * @param vec return normal vector
+             * @param vec_der return space derivative of normal vector
+             * @param flag for calculating jacobian
              */
-            Eigen::Vector3d calc_surface_normal(const Geometry& geo, Eigen::Affine3d& geo_tool_tf) const
+            void calc_surface_normal(const Geometry& geo, Eigen::Affine3d& geo_tool_tf,
+                                                Eigen::Vector3d& vec, Eigen::Matrix3d& vec_der, bool calc_jac=false) const
             {
-                Eigen::Vector3d vec;
+                double norm;
+                vec_der <<  0,0,0,
+                            0,0,0,
+                            0,0,0;
                 switch(geo.type){
                     case ObjectType::SPHERE:
                         vec = geo_tool_tf.translation().matrix();
-                        vec.normalize();
+                        norm = vec.norm();
+                        vec /= norm;
+                        if (calc_jac){
+                            vec_der << calc_normal_der(vec, norm);
+                        }
                         break;
                     case ObjectType::CYLINDER:
                         vec = Eigen::Vector3d(geo_tool_tf.translation().x(), geo_tool_tf.translation().y(), 0);
-                        vec.normalize();
+                        norm = vec.norm();
+                        vec /= norm;
+                        if (calc_jac){
+                            vec_der.block(0,0,2,2) << calc_normal_der(vec.block(0,0,2,1), norm);
+                        }
                         break;
                     case ObjectType::PLANE:
                         vec = zvec;
-//                        vec.normalize();
+                        norm = vec.norm();
+                        vec /= norm;
                         break;
                     case ObjectType::BOX:
                         std::cout << "ERROR: BOX is not supported" << std::endl;
@@ -145,10 +178,12 @@ namespace RNB {
                         throw;
                 }
                 vec = geo.tf.linear()*vec;
+                if (calc_jac){
+                    vec_der = geo.tf.linear()*vec_der*geo.tf.linear().transpose();
+                }
 #ifdef DEBUG_CONSTRAINT_VALUES
                 std::cout<<"surface_normal: " << vec.transpose()<<std::endl;
 #endif
-                return vec;
             }
 
             /**
@@ -171,22 +206,27 @@ namespace RNB {
 
             /**
              * @brief Calculate normal value gradient by
-             *          \f$ \frac{d(v_1 R v_2)}{dq_i}
-             *          = v_1 \cdot (w_i \times v_2)
-             *          = w_i \cdot (v_2 \times v_1) \f$ for a geometry surface.
+             *          \f$ \frac{d(v_1^T R v_2)}{dq_i}
+             *          = \frac{d(v_1^T)}{dq_i} R v_2 + v_1 \frac{d(R v_2)}{dq_i}
+             *          = (\frac{d(v_1)}{dP}\frac{dP}{dq_i})^T R v_2 + v_1 \cdot (w_i \times R v_2) \f$
+             *          \f$ = (\frac{d(v_1)}{dP}\frac{dP}{dq_i})^T R v_2 + w_i \cdot (R v_2 \times v_1) \f$ for a geometry surface.
              * @author Junsu Kang
              * @param vec normal vector V_n in base coordinate.
+             * @param vec_der derivative of normal vector V_n in base coordinate.
              * @param tool_tf tool transformation in base coordinate.
              * @param jac_robot jacobian vector for the robot, containts \f$ w_j \f$
              */
-            Eigen::VectorXd calc_normal_gradient(Eigen::Vector3d vec, Eigen::Affine3d tool_tf, Eigen::MatrixXd& jac_robot) const
+            Eigen::VectorXd calc_normal_gradient(Eigen::Vector3d vec, Eigen::Matrix3d vec_der,
+                                                 Eigen::Affine3d tool_tf, Eigen::MatrixXd& jac_robot) const
             {
                 Eigen::Vector3d vec_tool = tool_tf.linear()*zvec;
+                Eigen::MatrixXd v_j(jac_robot.block(0,0,3,dims));
                 Eigen::MatrixXd w_j(jac_robot.block(3,0,3,dims));
                 Eigen::VectorXd normal_gradient;
-                normal_gradient = - w_j.transpose()*(vec_tool.cross(vec));
+                normal_gradient = -((vec_der*v_j).transpose()*vec_tool + w_j.transpose()*(vec_tool.cross(vec)));
 
 #ifdef DEBUG_CONSTRAINT_VALUES
+                std::cout << "vec_der: \n" << vec_der << std::endl;
                 std::cout << "vec_normal: " << vec.transpose() << std::endl;
                 std::cout << "vec_tool: " << vec_tool.transpose() << std::endl;
                 std::cout << "normal_gradient: " << normal_gradient.transpose() << std::endl;
@@ -239,6 +279,7 @@ namespace RNB {
                 Eigen::Vector3d surf_normed;
                 Eigen::Vector3d surf_normed_accum(0,0,0);
                 Eigen::VectorXd surf_jac(dims);
+                Eigen::Matrix3d surf_normed_derivative;
                 double normal_val = 1;
                 double normal_val_prod = 1;
                 Eigen::VectorXd normal_grad;
@@ -248,19 +289,19 @@ namespace RNB {
                 {
                     Geometry geo = geometry_list[idx];
                     Eigen::Affine3d geo_tool_tf = geo.tf.inverse() * tool_tf;
-                    if(fix_surface or calc_jac or fix_normal){
+                    if(fix_surface || calc_jac || fix_normal){
                         surf_val = calc_surface_val(geo, geo_tool_tf);
                         surf_val_prod *= surf_val;
                     }
-                    if(calc_jac or fix_normal){
-                        surf_normed = calc_surface_normal(geo, geo_tool_tf);
+                    if(calc_jac || fix_normal){
+                        calc_surface_normal(geo, geo_tool_tf, surf_normed, surf_normed_derivative, calc_jac && fix_normal);
                         surf_normed_accum += surf_normed/surf_val;
                     }
                     if(fix_normal) {
                         normal_val = calc_normal_value(surf_normed, tool_vec);
                         normal_val_prod *= normal_val;
                         if(calc_jac){
-                            normal_grad = calc_normal_gradient(surf_normed, tool_tf, jac_robot);
+                            normal_grad = calc_normal_gradient(surf_normed, surf_normed_derivative, tool_tf, jac_robot);
                             normal_grad_accum += normal_grad;
                         }
                     }
