@@ -4,6 +4,7 @@
 #include <signal.h>
 #include <logger.h>
 #include <ros_load_yaml.h>
+#include "constants.h"
 
 using namespace RNB::MoveitCompact;
 
@@ -212,6 +213,11 @@ PlanResult& Planner::plan(string group_name, string tool_link,
 
     context->solve(_res);
 
+#ifdef DEBUG_MPC
+    std::cout <<"init_state: "<<init_state.transpose()<<std::endl;
+    std::cout <<"goal_pose: "<<goal_pose.transpose()<<std::endl;
+#endif
+
     /* Check that the planning was successful */
     if (_res.error_code_.val != _res.error_code_.SUCCESS)
     {
@@ -299,6 +305,11 @@ PlanResult& Planner::plan_with_constraints(string group_name, string tool_link,
                                                              manifold_intersection, allow_approximation);
 
     context->solve(_res);
+
+#ifdef DEBUG_MPC
+    std::cout <<"init_state: "<<init_state.transpose()<<std::endl;
+    std::cout <<"goal_pose: "<<goal_pose.transpose()<<std::endl;
+#endif
 
     /* Check that the planning was successful */
     if (_res.error_code_.val != _res.error_code_.SUCCESS)
@@ -445,7 +456,7 @@ int main(int argc, char** argv) {
     Eigen::Vector3d _vec(end_effector_tf.translation());
     Eigen::Quaterniond _rot(end_effector_tf.linear());
 
-    auto goal_tf = end_effector_tf*Eigen::Translation3d(0.1,-0.1,0);
+    auto goal_tf = end_effector_tf*Eigen::Translation3d(0,0.1,0);
 
     Eigen::Vector3d _vec_g(goal_tf.translation());
     Eigen::Quaterniond _rot_g(goal_tf.linear());
@@ -463,20 +474,20 @@ int main(int argc, char** argv) {
     std::cout<<"========== goal ========="<<std::endl;
     GeometryList geometry_list;
     CartPose tool_offset;
-    tool_offset<<0,0,0,0,0,0,0;
+    tool_offset<<0,0,0,0,0,0,1;
     CartPose plane_pose;
-    plane_pose << _vec.x(),_vec.y(),_vec.z(), _rot.x(), _rot.y(), _rot.z(), _rot.w();
+    plane_pose << _vec.x()+0.05,_vec.y(),_vec.z(), _rot.x(), _rot.y(), _rot.z(), _rot.w();
 //    plane_pose << _vec.x(),_vec.y(),_vec.z(),0.70710678,0,0,0.70710678;
 //    plane_pose << _vec.x(),_vec.y(),_vec.z(),0.38268343, 0.0, 0.0, 0.92387953;
-    geometry_list.push_back(Geometry(ObjectType::PLANE, plane_pose, Vec3(0,0,0)));
+    geometry_list.push_back(Geometry(ObjectType::SPHERE, plane_pose, Vec3(0.1,0.1,0.1)));
     planner.clear_manifolds();
     planner.add_union_manifold(group_name, tool_link, tool_offset, geometry_list,
-                               true, true, 1e-5, 1-3);
+                               true, false, 1e-5, 2e-3);
 
     PlanResult res = planner.plan_with_constraints(group_name, tool_link,
                                                   goal_pose, "base_link", init_state,
                                                   "RRTConnectkConfigDefault",
-                                                  3, false);
+                                                  60, false);
 
     std::cout<<std::endl;
 
@@ -517,6 +528,9 @@ int main(int argc, char** argv) {
     std::cout<<inital_pose.transpose()<<std::endl;
     std::cout<<goal_pose.transpose()<<std::endl;
     std::cout<<"==========================================="<<std::endl<<std::endl;
+    std::cout<<"========== object_pose ========="<<std::endl;
+    std::cout<<plane_pose.transpose()<<std::endl;
+    std::cout<<"========== object_pose ========="<<std::endl;
 
 
     planner.terminate();

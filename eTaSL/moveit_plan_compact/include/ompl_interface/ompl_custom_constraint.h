@@ -10,7 +10,7 @@
 #include <fcl/distance.h>
 #include "logger.h"
 
-//#define DEBUG_CONSTRAINT_VALUES
+#define DEBUG_CONSTRAINT_VALUES
 #define USE_ANALYTIC_JACOBIAN
 
 namespace RNB {
@@ -71,6 +71,11 @@ namespace RNB {
 
                 this->geometry_list.clear();
                 this->geometry_list.assign(geometry_list.begin(), geometry_list.end());
+#ifdef DEBUG_CONSTRAINT_VALUES
+                for (auto gtem = this->geometry_list.begin(); gtem!=this->geometry_list.end(); gtem++ ){
+                    std::cout << "geometry(" << gtem->type << "): " << gtem->pose.transpose() << std::endl;
+                }
+#endif
 
                 I_star <<   1,0,0,0,
                         0,-1,0,0,
@@ -89,10 +94,10 @@ namespace RNB {
                 double val;
                 switch(geo.type){
                     case ObjectType::SPHERE:
-                        val = geo_tool_tf.translation().norm() - geo.dims[0];
+                        val = geo_tool_tf.translation().norm() - geo.dims[0]/2;
                         break;
                     case ObjectType::CYLINDER:
-                        val = geo_tool_tf.translation().block(0, 0, 2, 1).norm() - geo.dims[0];
+                        val = geo_tool_tf.translation().block(0, 0, 2, 1).norm() - geo.dims[0]/2;
                         break;
                     case ObjectType::PLANE:
                         val = geo_tool_tf.translation().z();
@@ -206,6 +211,11 @@ namespace RNB {
                 const Eigen::Affine3d &base_tf = kinematic_state->getGlobalLinkTransform(joint_model_group->getJointModels()[0]->getParentLinkModel());
                 const Eigen::Affine3d tool_tf = end_effector_tf*end_affine;
 
+#ifdef DEBUG_CONSTRAINT_VALUES
+                std::cout<<"x: " << x.transpose() << std::endl;
+                std::cout<<"end_effector_tf: \n" << end_effector_tf.matrix() << std::endl;
+#endif
+
                 Eigen::MatrixXd jac_robot;
                 if(calc_jac)
                 {
@@ -305,6 +315,11 @@ namespace RNB {
                 std::cout<<out_save<<std::endl;
                 std::cout<<"jac_ref"<<std::endl;
                 std::cout<<out<<std::endl;
+                Eigen::VectorXd jac_diff = (out - out_save).rowwise().norm();
+                std::cout<<"jac_diff: " << jac_diff <<std::endl;
+                if (jac_diff.maxCoeff()>1e-5){
+                    throw std::runtime_error("wrong jacobian calculation ");
+                }
 #endif
             }
 #endif
