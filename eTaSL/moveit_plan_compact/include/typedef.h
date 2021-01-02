@@ -8,6 +8,7 @@
 #include <ros/ros.h>
 #include <geometric_shapes/shape_messages.h>
 #include <vector>
+#include <Eigen/Eigen>
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
@@ -22,6 +23,9 @@ namespace RNB {
         typedef Eigen::Vector3d Vec3;
         typedef Eigen::VectorXd JointState;
         typedef std::vector<JointState> Trajectory;
+
+        typedef Eigen::Matrix<long double,-1, 1> VectorXld;
+        typedef Eigen::Matrix<long double,-1, -1> MatrixXld;
 
         /** \class CartPose
          */
