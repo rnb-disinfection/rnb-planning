@@ -120,6 +120,7 @@ BOOST_PYTHON_MODULE(moveit_plan_compact){
                  return_value_policy<copy_non_const_reference>())
             .def("plan_with_constraints", &Planner::plan_with_constraints,
                  return_value_policy<copy_non_const_reference>())
+            .def("test_jacobian", &Planner::test_jacobian)
             .def("clear_context_cache", &Planner::clear_context_cache)
             .def("add_union_manifold", &Planner::add_union_manifold)
             .def("clear_manifolds", &Planner::clear_manifolds)

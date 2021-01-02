@@ -335,6 +335,37 @@ PlanResult& Planner::plan_with_constraints(string group_name, string tool_link,
     plan_result.success = true;
     return plan_result;
 }
+
+void Planner::test_jacobian(JointState init_state){
+    if (manifolds.size()==0){
+        std::cout<<"manifold list is empty"<<std::endl;
+        return;
+    }
+    auto manifold_ref = manifolds[0];
+    ompl::base::ConstraintIntersectionPtr manifold_intersection = std::make_shared<ompl::base::ConstraintIntersection>(
+            manifold_ref->getAmbientDimension(), manifolds);
+    double tol = 0;
+    for(auto _man = manifolds.begin(); _man!=manifolds.end(); _man++){
+        tol += pow((*_man)->getTolerance(),2);
+        std::cout<<"tolerance part: "<<(*_man)->getTolerance()<<std::endl;
+    }
+    tol = sqrt(tol);
+    std::cout<<"tolerance original: "<<manifold_intersection->getTolerance()<<std::endl;
+    manifold_intersection->setTolerance(tol);
+    std::cout<<"tolerance changed: "<<manifold_intersection->getTolerance()<<std::endl;
+
+    Eigen::MatrixXd jac(manifold_intersection->getCoDimension(), manifold_intersection->getAmbientDimension());
+    manifold_intersection->jacobian(init_state, jac);
+
+    Eigen::VectorXd f(manifold_intersection->getCoDimension());
+    manifold_intersection->function(init_state, f);
+    double tolerance_ = manifold_intersection->getTolerance();
+    std::cout<<"f: "<< f.transpose() <<std::endl;
+    std::cout<<"squaredNorm/squaredTol: "<<f.squaredNorm() << " / " << tolerance_*tolerance_ <<std::endl;
+
+    std::cout<<"satisfied: "<<manifold_intersection->isSatisfied(init_state)<<std::endl<<std::endl;
+}
+
 bool Planner::process_object(string name, const ObjectType type, CartPose pose, Vec3 dims,
                     string link_name, NameList touch_links, bool attach, const int action){
     bool res = false;

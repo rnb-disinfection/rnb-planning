@@ -10,7 +10,7 @@
 #include <fcl/distance.h>
 #include "logger.h"
 
-//#define DEBUG_CONSTRAINT_VALUES
+#define DEBUG_CONSTRAINT_VALUES
 #define USE_ANALYTIC_JACOBIAN
 
 namespace RNB {
@@ -54,7 +54,7 @@ namespace RNB {
                           GeometryList &geometry_list, bool fix_surface, bool fix_normal, double radius = DEFAULT_RADIUS,
                           double tolerance = DEFAULT_TOLERANCE):
                     ompl::base::Constraint(robot_model_->getJointModelGroup(group_name)->getVariableCount(),
-                                           fix_surface? (fix_normal? 2: 1) : (fix_normal? 1: 0), tolerance)
+                                           fix_surface? (fix_normal? 2: 1) : (fix_normal? 1: 0), pow(tolerance,geometry_list.size()))
             {
                 this->num_const = getCoDimension();
                 this->dims = getAmbientDimension();
@@ -81,6 +81,14 @@ namespace RNB {
                         0,-1,0,0,
                         0,0,-1,0,
                         0,0,0,-1;
+            }
+
+            void setTolerance(const double tolerance) {
+                ompl::base::Constraint::setTolerance(pow(tolerance,geometry_list.size()));
+            }
+
+            double getTolerance() const {
+                return pow(ompl::base::Constraint::getTolerance(),1.0/geometry_list.size());
             }
 
             /**
@@ -235,8 +243,12 @@ namespace RNB {
             }
 
             /**
-             * @brief Calculate union value and jacobian by \f$ f_{union} = \prod^N{f_i}-r^N \f$
-             *        and \f$ \nabla f_{union} = \sum^N ((\nabla f_j/f_j)  \prod^N{f_i}) \f$,
+             * @brief Calculate union value by soft-min style interplation (inverse-square-weighted-mean),
+             *          \f$ f_{union} = \sum_j \left(\frac{f_j^{-2}}{\sum_i(f_i^{-2})}\right)f_j
+             *          = \sum_i f_i^{-1}/\sum_i f_i^{-2}\f$ = F/G,
+             *          where \f$ F=\sum_i f_i^{-1} \f$ and \f$ G=\sum_i f_i^{-2} \f$.
+             *          The jacobian is \f$ \nabla f_{union} = (\nabla F G - F \nabla G)/G^2 \f$, where
+             *          \f$ \nabla F = - \sum{f_i^{-2}\nabla f_i} \f$ and \f$ \nabla_{f_i} G = - \sum{ 2 f_i^{-3} \nabla f_i} \f$
              * @author Junsu Kang
              * @param x joint state.
              * @param out value output.
@@ -357,7 +369,7 @@ namespace RNB {
                 std::cout<<"jac_ref"<<std::endl;
                 std::cout<<out<<std::endl;
                 Eigen::VectorXd jac_diff = (out - out_save).rowwise().norm();
-                std::cout<<"jac_diff: " << jac_diff <<std::endl;
+                std::cout<<"jac_diff: " << jac_diff.transpose() <<std::endl;
                 if (jac_diff.maxCoeff()>1e-5){
                     throw std::runtime_error("wrong jacobian calculation ");
                 }

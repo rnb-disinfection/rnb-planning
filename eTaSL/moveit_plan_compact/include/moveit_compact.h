@@ -86,7 +86,7 @@ namespace RNB {
             bool clear_manifolds();
 
             /**
-             * @brief initialize planner with string contents of urdf and srdf files.
+             * @brief search for plan.
              * @author Junsu Kang
              */
             PlanResult &plan(string group_name, string tool_link,
@@ -95,7 +95,7 @@ namespace RNB {
                              double allowed_planning_time=0.1);
 
             /**
-             * @brief initialize planner with string contents of urdf and srdf files.
+             * @brief search for plan with constraints.
              * @author Junsu Kang
              */
             PlanResult &plan_with_constraints(string group_name, string tool_link,
@@ -103,6 +103,12 @@ namespace RNB {
                                              JointState init_state,
                                              string planner_id="RRTConnectkConfigDefault",
                                              double allowed_planning_time=0.1, bool allow_approximation=false);
+
+            /**
+             * @brief test jacobian
+             * @author Junsu Kang
+             */
+            void test_jacobian(JointState init_state);
 
             /**
              * @brief generate and process ros object message
