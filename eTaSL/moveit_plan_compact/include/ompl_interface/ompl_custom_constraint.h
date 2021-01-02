@@ -10,14 +10,14 @@
 #include <fcl/distance.h>
 #include "logger.h"
 
-#define DEBUG_CONSTRAINT_VALUES
+//#define DEBUG_CONSTRAINT_VALUES
 #define USE_ANALYTIC_JACOBIAN
 
 namespace RNB {
     namespace MoveitCompact {
         OMPL_CLASS_FORWARD(UnionManifold);
 
-        /** \class UnionManifold
+        /*! \class UnionManifold
          * @brief Manifold constraint, as a union of geometries. The manifold should be differentiable.
          *        Union manifold is approximated as \f$ f_{union} = \prod^N{f_i}-r^N \f$
          *        and \f$ \nabla f_{union} = \sum^N ((\nabla f_j/f_j)  \prod^N{f_i}) \f$,
@@ -26,12 +26,10 @@ namespace RNB {
          */
         class UnionManifold : public ompl::base::Constraint {
         public:
-            constexpr static const double DEFAULT_RADIUS = 1e-4;
             constexpr static const double DEFAULT_TOLERANCE = 1e-3;
 
             int dims; /*!< State dimension (copy of  Constraint::getAmbientDimension) */
             int num_const; /*!< Constraint dimension (copy of  Constraint::getCoDimension) */
-            double radius; /*!< Surface interpolation radius */
             bool fix_surface; /*!< Indicates if surface contact is fixed or not */
             bool fix_normal; /*!< Indicates if normal direction is fixed or not */
             robot_state::RobotStatePtr kinematic_state;
@@ -46,19 +44,17 @@ namespace RNB {
             /**
              * @brief Generate UnionManifold from GeometryList.
              * @author Junsu Kang
-             * @param radius interpolation radius.
              * @param tol tolerance.
              */
             UnionManifold(robot_model::RobotModelPtr robot_model_,
                           std::string group_name, std::string tool_link, CartPose offset,
-                          GeometryList &geometry_list, bool fix_surface, bool fix_normal, double radius = DEFAULT_RADIUS,
+                          GeometryList &geometry_list, bool fix_surface, bool fix_normal,
                           double tolerance = DEFAULT_TOLERANCE):
                     ompl::base::Constraint(robot_model_->getJointModelGroup(group_name)->getVariableCount(),
-                                           fix_surface? (fix_normal? 2: 1) : (fix_normal? 1: 0), pow(tolerance,geometry_list.size()))
+                                           fix_surface? (fix_normal? 2: 1) : (fix_normal? 1: 0), tolerance)
             {
                 this->num_const = getCoDimension();
                 this->dims = getAmbientDimension();
-                this->radius = radius;
                 this->fix_normal = fix_normal;
                 this->fix_surface = fix_surface;
                 kinematic_state = std::make_shared<robot_state::RobotState>(robot_model_);
@@ -81,14 +77,6 @@ namespace RNB {
                         0,-1,0,0,
                         0,0,-1,0,
                         0,0,0,-1;
-            }
-
-            void setTolerance(const double tolerance) {
-                ompl::base::Constraint::setTolerance(pow(tolerance,geometry_list.size()));
-            }
-
-            double getTolerance() const {
-                return pow(ompl::base::Constraint::getTolerance(),1.0/geometry_list.size());
             }
 
             /**
@@ -242,13 +230,70 @@ namespace RNB {
                 return normal_gradient;
             }
 
-            /**
-             * @brief Calculate union value by soft-min style interplation (inverse-square-weighted-mean),
+            /*! \fn void UnionManifold::soft_min_gradient_
+             * @brief soft-min style interplation (inverse-square-weighted-mean),
              *          \f$ f_{union} = \sum_j \left(\frac{f_j^{-2}}{\sum_i(f_i^{-2})}\right)f_j
              *          = \sum_i f_i^{-1}/\sum_i f_i^{-2}\f$ = F/G,
              *          where \f$ F=\sum_i f_i^{-1} \f$ and \f$ G=\sum_i f_i^{-2} \f$.
              *          The jacobian is \f$ \nabla f_{union} = (\nabla F G - F \nabla G)/G^2 \f$, where
-             *          \f$ \nabla F = - \sum{f_i^{-2}\nabla f_i} \f$ and \f$ \nabla_{f_i} G = - \sum{ 2 f_i^{-3} \nabla f_i} \f$
+             *          \f$ \nabla F = - \sum{f_i^{-2}\nabla f_i} \f$ and \f$ \nabla G = - \sum{ 2 f_i^{-3} \nabla f_i} \f$
+             * @author Junsu Kang
+             * @param f value vector (\f$ N_g \times 1 \f$).
+             * @param df value gradients (\f$ N_g \times D \f$).
+             * @param f_union returns f value for union geometry.
+             * @param df_union returns f gradient for union geometry.
+             * @param calc_jac flag for calculating jacobian.
+             */
+            void soft_min_gradient_(Eigen::VectorXd &f, Eigen::MatrixXd &df,
+                                    double& f_union, Eigen::VectorXd& df_union, bool calc_jac=false) const
+            {
+                Eigen::VectorXd F = f.cwiseInverse();
+                Eigen::VectorXd G = F.cwiseProduct(F);
+                double sumF = F.sum();
+                double sumG = G.sum();
+                f_union = sumF/sumG;
+                if(calc_jac){
+                    Eigen::VectorXd H = G.cwiseProduct(F);
+                    Eigen::VectorXd dF = (- G.transpose()*df).transpose();
+                    Eigen::VectorXd dG = (- 2 * H.transpose()*df).transpose();
+                    df_union = (dF*sumG - sumF*dG)/pow(sumG,2);
+                }
+            }
+
+            /*! \fn void UnionManifold::soft_min_weight_gradient_
+             * @brief soft-min style interplation (inverse-square-weighted-mean),
+             *          \f$ f_{union} =  \frac{\sum_i f_i^{-2}p_i}{\sum_i f_i^{-2}} = P/G \f$,
+             *          where \f$ P=\sum_i f_i^{-2}p_i \f$ and \f$ G=\sum_i f_i^{-2} \f$.
+             *          The jacobian is \f$ \nabla f_{union} = (\nabla P G - P \nabla G)/G^2 \f$, where
+             *          \f$ \nabla P = \sum{ \left( - 2 f_i^{-3}\nabla f_i p_i + f_i^{-2} \nabla p_i \right)} \f$ and \f$ \nabla G = - \sum{ 2 f_i^{-3} \nabla f_i} \f$
+             * @author Junsu Kang
+             * @param f weight value vector (\f$ N_g \times 1 \f$).
+             * @param df weight value gradients (\f$ N_g \times D \f$).
+             * @param p value vector (\f$ N_g \times 1 \f$).
+             * @param dp value gradients (\f$ N_g \times D \f$).
+             * @param f_union returns f value for union geometry.
+             * @param df_union returns f gradient for union geometry.
+             * @param calc_jac flag for calculating jacobian.
+             */
+            void soft_min_weight_gradient_(Eigen::VectorXd &f, Eigen::MatrixXd &df, Eigen::VectorXd &p, Eigen::MatrixXd &dp,
+                                    double& p_union, Eigen::VectorXd& dp_union, bool calc_jac=false) const
+            {
+                Eigen::VectorXd F = f.cwiseInverse(); // f^-1
+                Eigen::VectorXd G = F.cwiseProduct(F); // f^-2
+                Eigen::VectorXd P = G.cwiseProduct(p); // f^-2*p
+                double sumP = P.sum();
+                double sumG = G.sum();
+                p_union = sumP/sumG;
+                if(calc_jac){
+                    Eigen::VectorXd H = G.cwiseProduct(F); // f^-3
+                    Eigen::VectorXd dP = (- 2 * H.cwiseProduct(p).transpose()*df + G.transpose()*dp).transpose();
+                    Eigen::VectorXd dG = (- 2 * H.transpose()*df).transpose();
+                    dp_union = (dP*sumG - sumP*dG)/pow(sumG,2);
+                }
+            }
+
+            /**
+             * @brief Calculate union surface and normal values by UnionManifold::soft_min_gradient_.
              * @author Junsu Kang
              * @param x joint state.
              * @param out value output.
@@ -268,7 +313,7 @@ namespace RNB {
                 std::cout<<"end_effector_tf: \n" << end_effector_tf.matrix() << std::endl;
 #endif
 
-                Eigen::MatrixXd jac_robot;
+                Eigen::MatrixXd jac_robot(6, dims);
                 if(calc_jac)
                 {
                     kinematic_state->getJacobian(joint_model_group, kinematic_state->getLinkModel(tool_link),
@@ -285,48 +330,87 @@ namespace RNB {
 #endif
                 }
 
+                // tool-related
                 Eigen::Vector3d tool_vec = (tool_tf.linear()*zvec);
+
+                // surface-related
+                Eigen:: VectorXd surf_f(geometry_list.size());
+                Eigen:: MatrixXd surf_df(geometry_list.size(), 3);
                 double surf_val = 1;
-                double surf_val_prod = 1;
-                Eigen::Vector3d surf_normed;
-                Eigen::Vector3d surf_normed_accum(0,0,0);
-                Eigen::VectorXd surf_jac(dims);
-                Eigen::Matrix3d surf_normed_derivative;
+                Eigen::Vector3d surf_normal; /* = surface gradient */
+                Eigen::Matrix3d surf_normal_derivative;
+
+                // normal-related
                 double normal_val = 1;
-                double normal_val_prod = 1;
-                Eigen::VectorXd normal_grad;
-                Eigen::VectorXd normal_grad_accum=Eigen::VectorXd::Zero(dims);
-                Eigen::VectorXd normal_jac(dims);
+                Eigen::VectorXd normal_f(geometry_list.size());
+                Eigen::VectorXd normal_gradient(dims);
+                Eigen::MatrixXd normal_df(geometry_list.size(), dims);
+
+//                double surf_val_prod = 1;
+//                Eigen::Vector3d surf_normed_accum(0,0,0);
+//                Eigen::VectorXd surf_jac(dims);
+//                double normal_val_prod = 1;
+//                Eigen::VectorXd normal_grad;
+//                Eigen::VectorXd normal_grad_accum=Eigen::VectorXd::Zero(dims);
+//                Eigen::VectorXd normal_jac(dims);
                 for(int idx=0;idx<geometry_list.size();idx++)
                 {
                     Geometry geo = geometry_list[idx];
                     Eigen::Affine3d geo_tool_tf = geo.tf.inverse() * tool_tf;
                     if(fix_surface || calc_jac || fix_normal){
                         surf_val = calc_surface_val(geo, geo_tool_tf);
-                        surf_val_prod *= surf_val;
+                        surf_f[idx] = surf_val;
                     }
                     if(calc_jac || fix_normal){
-                        calc_surface_normal(geo, geo_tool_tf, surf_normed, surf_normed_derivative, calc_jac && fix_normal);
-                        surf_normed_accum += surf_normed/surf_val;
+                        calc_surface_normal(geo, geo_tool_tf, surf_normal, surf_normal_derivative, calc_jac && fix_normal);
+                        surf_df.block(idx,0,1,3) << surf_normal.transpose();
                     }
                     if(fix_normal) {
-                        normal_val = calc_normal_value(surf_normed, tool_vec);
-                        normal_val_prod *= normal_val;
+                        normal_val = calc_normal_value(surf_normal, tool_vec);
+                        normal_f[idx] = normal_val;
                         if(calc_jac){
-                            normal_grad = calc_normal_gradient(surf_normed, surf_normed_derivative, tool_tf, jac_robot);
-                            normal_grad_accum += normal_grad;
+                            normal_gradient << calc_normal_gradient(surf_normal, surf_normal_derivative, tool_tf, jac_robot);
+                            normal_df.block(idx,0,1,dims) << normal_gradient.transpose();
                         }
                     }
+                }
+                double surf_f_union;
+                Eigen::VectorXd surf_df_union;
+                Eigen::VectorXd surf_jac;
+
+                double normal_f_union;
+                Eigen::VectorXd normal_jac;
+
+                if(fix_surface){
+                    soft_min_gradient_(surf_f, surf_df,
+                                       surf_f_union, surf_df_union, calc_jac);
+#ifdef DEBUG_CONSTRAINT_VALUES
+                    double surf_f_union_test;
+                    Eigen::VectorXd surf_df_union_test;
+                    soft_min_weight_gradient_(surf_f, surf_df, surf_f, surf_df,
+                                              surf_f_union_test, surf_df_union_test, calc_jac);
+                    if (abs(surf_f_union-surf_f_union_test)>1e-5){
+                        std::cout<< "surf_f_diff: " << abs(surf_f_union-surf_f_union_test) << std::endl;
+                        throw std::runtime_error("soft_min_weight_gradient_ implementation failure");
+                    }
+                    if (calc_jac and (surf_df_union-surf_df_union_test).norm()>1e-5){
+                        std::cout<< "surf_f_diff: " << (surf_df_union-surf_df_union_test).norm() << std::endl;
+                        throw std::runtime_error("soft_min_weight_gradient_ gradient implementation failure");
+                    }
+#endif
+                }
+                if(fix_normal) {
+                    Eigen::MatrixXd surf_df_jac = surf_df*jac_robot.block(0,0,3,dims);
+                    soft_min_weight_gradient_(surf_f, surf_df_jac, normal_f, normal_df,
+                                              normal_f_union, normal_jac, calc_jac);
                 }
                 if(calc_jac)
                 {
                     if(fix_surface){
-                        surf_normed_accum *= surf_val_prod;
-                        surf_jac = surf_normed_accum.transpose()*jac_robot.block(0,0,3,dims);
+                        surf_jac = surf_df_union.transpose()*jac_robot.block(0,0,3,dims);
                         jac.block(0,0,1, dims) << surf_jac.transpose();
                     }
                     if(fix_normal) {
-                        normal_jac = normal_grad_accum;
                         jac.block(fix_surface?1:0,0,1, dims) << normal_jac.transpose();
                     }
 #ifdef DEBUG_CONSTRAINT_VALUES
@@ -336,10 +420,10 @@ namespace RNB {
                 }
                 else{
                     if(fix_surface){
-                        out[0] = surf_val_prod;
+                        out[0] = surf_f_union;
                     }
                     if(fix_normal) {
-                        out[fix_surface?1:0] = normal_val_prod;
+                        out[fix_surface?1:0] = normal_f_union;
                     }
                 }
             }
@@ -370,7 +454,7 @@ namespace RNB {
                 std::cout<<out<<std::endl;
                 Eigen::VectorXd jac_diff = (out - out_save).rowwise().norm();
                 std::cout<<"jac_diff: " << jac_diff.transpose() <<std::endl;
-                if (jac_diff.maxCoeff()>1e-5){
+                if (jac_diff.maxCoeff()>1e-4){
                     throw std::runtime_error("wrong jacobian calculation ");
                 }
 #endif

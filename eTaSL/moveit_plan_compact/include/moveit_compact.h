@@ -76,7 +76,6 @@ namespace RNB {
              */
             bool add_union_manifold(string group_name, string tool_link, CartPose tool_offset,
                                     GeometryList geometry_list, bool fix_surface, bool fix_normal,
-                                    double radius=UnionManifold::DEFAULT_RADIUS,
                                     double tol=UnionManifold::DEFAULT_TOLERANCE);
 
             /**

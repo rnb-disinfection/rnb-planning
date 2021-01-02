@@ -96,9 +96,9 @@ class MoveitCompactPlanner_BP(mpc.Planner):
 
     ## @brief add union manifold.
     #  @param tool_offset xyzquat(xyzw) style pose of tool offset in tool link.
-    def add_union_manifold_py(self, group_name, tool_link, tool_offset, geometry_list, fix_surface, fix_normal, radius, tol):
+    def add_union_manifold_py(self, group_name, tool_link, tool_offset, geometry_list, fix_surface, fix_normal, tol):
         self.add_union_manifold(group_name, tool_link, CartPose(*tool_offset),
-                                geometry_list, fix_surface, fix_normal, radius, tol)
+                                geometry_list, fix_surface, fix_normal, tol)
 
 
     ## @brief search for plan that bring tool_link to goal_pose in coordinate of goal_link.

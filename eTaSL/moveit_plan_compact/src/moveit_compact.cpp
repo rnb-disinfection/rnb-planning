@@ -360,10 +360,10 @@ void Planner::test_jacobian(JointState init_state){
     Eigen::VectorXd f(manifold_intersection->getCoDimension());
     manifold_intersection->function(init_state, f);
     double tolerance_ = manifold_intersection->getTolerance();
+    bool satisfied = manifold_intersection->isSatisfied(init_state);
     std::cout<<"f: "<< f.transpose() <<std::endl;
     std::cout<<"squaredNorm/squaredTol: "<<f.squaredNorm() << " / " << tolerance_*tolerance_ <<std::endl;
-
-    std::cout<<"satisfied: "<<manifold_intersection->isSatisfied(init_state)<<std::endl<<std::endl;
+    std::cout<<"satisfied: "<< satisfied <<std::endl<<std::endl;
 }
 
 bool Planner::process_object(string name, const ObjectType type, CartPose pose, Vec3 dims,
@@ -451,11 +451,10 @@ void Planner::terminate(){
 
 bool Planner::add_union_manifold(string group_name, string tool_link, CartPose tool_offset,
                                                 GeometryList geometry_list, bool fix_surface, bool fix_normal,
-                                                double radius, double tol){
+                                                double tol){
     manifolds.push_back(std::make_shared<UnionManifold>(robot_model_, group_name,
                                                         tool_link, tool_offset, geometry_list,
-                                                        fix_surface, fix_normal,
-                                                        radius, tol));
+                                                        fix_surface, fix_normal, tol));
     return true;
 }
 
@@ -513,7 +512,7 @@ int main(int argc, char** argv) {
     geometry_list.push_back(Geometry(ObjectType::CYLINDER, plane_pose, Vec3(0.1,0.1,0.1)));
     planner.clear_manifolds();
     planner.add_union_manifold(group_name, tool_link, tool_offset, geometry_list,
-                               false, true, 1e-5, 2e-3);
+                               true, true, 2e-3);
 
     PlanResult res = planner.plan_with_constraints(group_name, tool_link,
                                                   goal_pose, "base_link", init_state,
