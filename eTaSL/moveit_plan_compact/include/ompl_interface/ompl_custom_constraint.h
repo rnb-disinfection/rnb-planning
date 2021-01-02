@@ -41,6 +41,8 @@ namespace RNB {
             CartPose offset;
             Eigen::Affine3d end_affine;
             GeometryList geometry_list; /*!< Manifold geometry list*/
+            Eigen::Vector3d xvec = Eigen::Vector3d(1,0,0);
+            Eigen::Vector3d yvec = Eigen::Vector3d(0,1,0);
             Eigen::Vector3d zvec = Eigen::Vector3d(0,0,1);
             Eigen::Matrix4d I_star;
 
@@ -100,8 +102,10 @@ namespace RNB {
                         val = geo_tool_tf.translation().z();
                         break;
                     case ObjectType::BOX:
-                        std::cout << "ERROR: BOX is not supported" << std::endl;
-                        throw;
+                        std::cout << TEXT_RED("ERROR: BOX it not tested") << std::endl;
+                        throw std::runtime_error("ERROR: BOX it not tested");
+                        val = (geo_tool_tf.translation().cwiseAbs()-geo.dims).minCoeff();
+                        break;
                     default:
                         std::cout << "ERROR: UNDEFINED SHAPE" << std::endl;
                         throw;
@@ -127,6 +131,17 @@ namespace RNB {
                 Eigen::MatrixXd I(vec.size(), vec.size());
                 I.setIdentity();
                 return (I-vec*vec.transpose())/vec_norm;
+            }
+
+            Eigen::VectorXd min_dir_(Eigen::VectorXd vec) const {
+                if(vec[0]<vec[1]){ // not 1
+                    if(vec[0]<vec[2]) return xvec;  // not 2
+                    else return zvec;  // not 0
+                }
+                else{ // not 0
+                    if(vec[1]<vec[2]) return yvec; // not 2
+                    else return zvec; // not 1
+                }
             }
 
             /**
@@ -168,8 +183,13 @@ namespace RNB {
                         vec /= norm;
                         break;
                     case ObjectType::BOX:
-                        std::cout << "ERROR: BOX is not supported" << std::endl;
-                        throw;
+                        std::cout << TEXT_RED("ERROR: BOX it not tested") << std::endl;
+                        throw std::runtime_error("ERROR: BOX it not tested");
+                        vec = min_dir_(geo_tool_tf.translation().cwiseAbs()-geo.dims);
+                        vec = geo_tool_tf.translation().cwiseProduct(vec);
+                        norm = vec.norm();
+                        vec /= norm;
+                        break;
                     default:
                         std::cout << "ERROR: UNDEFINED SHAPE" << std::endl;
                         throw;
@@ -273,7 +293,7 @@ namespace RNB {
             }
 
             /**
-             * @brief Calculate union surface and normal values by UnionManifold::soft_min_gradient_.
+             * @brief Calculate union surface and normal values by UnionManifold::soft_min_weight_gradient_.
              * @author Junsu Kang
              * @param x joint state.
              * @param out value output.

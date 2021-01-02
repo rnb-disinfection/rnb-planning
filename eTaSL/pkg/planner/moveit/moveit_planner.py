@@ -39,12 +39,13 @@ def get_binder_links_in_order(links, robot_names):
     # links on robots should include robot names
     return [[lname for lname in links if rname in lname][0] for rname in robot_names]
 
-def make_constraint_item(gtem):
+def make_constraint_item(gtem, use_box=False):
     cartpose = tuple(gtem.center) + tuple(Rotation.from_dcm(gtem.orientation_mat).as_quat())
-    return Geometry(gtype_to_ctype(gtem.gtype),  CartPose(*cartpose), Vec3(*gtem.dims))
+    return Geometry(gtype_to_otype(gtem.gtype) if use_box else gtype_to_ctype(gtem.gtype),
+                    CartPose(*cartpose), Vec3(*gtem.dims))
 
-def make_constraint_list(gtem_list):
-    return make_assign_arr(GeometryList, [make_constraint_item(gtem) for gtem in gtem_list])
+def make_constraint_list(gtem_list, use_box=False):
+    return make_assign_arr(GeometryList, [make_constraint_item(gtem, use_box) for gtem in gtem_list])
 
 class MoveitPlanner(PlannerInterface):
     NAME = "MoveIt"
