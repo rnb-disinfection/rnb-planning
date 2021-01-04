@@ -204,9 +204,13 @@ def main(dataset_list=None):
                 N_joint_goal = joint_num
                 N_label_goal = N_vtx_goal+N_mask_goal+N_joint_goal
 
+                N_joint_label_begin = N_label_box+N_label_cyl+N_label_init+N_label_goal
+
                 N_joint_label = 6*joint_num
 
-                N_cell_label = N_label_box+N_label_cyl+N_label_init+N_label_goal + N_joint_label
+                N_joint_limits = 3*joint_num
+
+                N_cell_label = N_joint_label_begin + N_joint_label + N_joint_limits
 
                 gtimer.tic("test_links")
                 Tlink_dict = {}
@@ -292,7 +296,11 @@ def main(dataset_list=None):
                 ### initialize data volume
                 scene_data = np.zeros(Nwdh+(N_cell_label,))
                 ### put cell joint data
-                scene_data[:,:,:,-N_joint_label:] = xi.reshape(Nwdh+(N_joint_label,))
+                scene_data[:,:,:,N_joint_label_begin:N_joint_label_begin+N_joint_label] = xi.reshape(Nwdh+(N_joint_label,))
+
+                jtem_list = [graph.urdf_content.joint_map[jname] for jname in graph.joint_names]
+                joint_limits = [jtem.limit.lower for jtem in jtem_list] + [jtem.limit.upper for jtem in jtem_list]
+                scene_data[:,:,:,-N_joint_limits:] = Q_s.tolist() + joint_limits
                 ### put cell item data
                 for verts, cell, chain in zip(verts_dict["BOX"], ctem_cells["BOX"], ctem_joints["BOX"]):
                     scene_data[cell[0],cell[1],cell[2],:N_vtx_box] = verts
@@ -476,4 +484,7 @@ def main(dataset_list=None):
     rospy.signal_shutdown("ALL FINISHED")
 
 if __name__ == "__main__":
-    main(['20201218-024611'])
+
+    main(['20201214-165211', '20201216-021416', '20201218-024611',
+          '20201208-121454', '20201212-232318', '20201213-061207'])
+    # main(['20201218-024611'])
