@@ -8,7 +8,8 @@ SCENE_FILENAME_DEFAULT = "scene.pkl"
     
     
 class DataLoader:
-    def __init__(self, JOINT_NUM, CONVERTED_PATH=CONVERTED_PATH_DEFAULT, SCENE_FILENAME=SCENE_FILENAME_DEFAULT):
+    def __init__(self, JOINT_NUM, CONVERTED_PATH=CONVERTED_PATH_DEFAULT, SCENE_FILENAME=SCENE_FILENAME_DEFAULT,
+                 load_limits=True):
         self.JOINT_NUM, self.CONVERTED_PATH, self.SCENE_FILENAME = JOINT_NUM, CONVERTED_PATH, SCENE_FILENAME
         self.N_vtx_box = 3*8
         self.N_mask_box = 1
@@ -27,7 +28,9 @@ class DataLoader:
         self.N_joint_goal = self.JOINT_NUM
         self.N_label_goal = self.N_vtx_goal+self.N_mask_goal+self.N_joint_goal
         self.N_joint_label = 6*self.JOINT_NUM
-        self.N_cell_label = self.N_label_box+self.N_label_cyl+self.N_label_init+self.N_label_goal + self.N_joint_label
+        self.N_joint_limits = 3*self.JOINT_NUM if load_limits else 0
+        self.N_cell_label = self.N_label_box+self.N_label_cyl+self.N_label_init+self.N_label_goal \
+                            + self.N_joint_label + self.N_joint_limits
         self.N_BEGIN_CYL = self.N_vtx_box+self.N_mask_box+self.N_joint_box
         self.N_BEGIN_INIT = self.N_BEGIN_CYL+self.N_vtx_cyl+self.N_mask_cyl+self.N_joint_cyl
         self.N_BEGIN_GOAL = self.N_BEGIN_INIT+self.N_vtx_init+self.N_mask_init+self.N_joint_init
@@ -65,7 +68,7 @@ class DataLoader:
         gbox = scene_data[:,:,:,:, self.N_BEGIN_GOAL:self.N_BEGIN_GOAL+self.N_vtx_box]
         gbox_m = scene_data[:,:,:,:, self.N_BEGIN_GOAL+self.N_vtx_box]
         gbox_j = scene_data[:,:,:,:, self.N_BEGIN_GOAL+self.N_vtx_box+1:self.N_BEGIN_GOAL+self.N_vtx_box+1+self.N_joint_goal]
-        joints = scene_data[:,:,:,:,-self.N_joint_label:]
+        joints = scene_data[:,:,:,:,-(self.N_joint_label+self.N_joint_limits):]
         joints = np.reshape(joints, scene_data.shape[:4]+(-1,6))
         cbox = np.concatenate([cbox, 
                                (joints*np.expand_dims(cbox_j, axis=-1)).reshape(scene_data.shape[:4]+(-1,))], 

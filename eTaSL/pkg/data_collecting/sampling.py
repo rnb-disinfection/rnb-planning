@@ -881,7 +881,7 @@ def get_action_count(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION):
     action_data_list = load_pickle(os.path.join(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION.replace("json", "pkl")))
     return len(action_data_list)
 
-def load_scene_data(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION, idx_act, joint_num):
+def load_scene_data(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION, idx_act, joint_num, get_deviation=False):
 
     N_vtx_box = 3*8
     N_mask_box = 1
@@ -922,11 +922,13 @@ def load_scene_data(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION, idx_act, join
     scene_data[cell[0],cell[1],cell[2],N_BEGIN_INIT:N_BEGIN_INIT+N_vtx_init] = verts
     scene_data[cell[0],cell[1],cell[2],N_BEGIN_INIT+N_vtx_init:N_BEGIN_INIT+N_vtx_init+N_mask_init] = 1
     scene_data[cell[0],cell[1],cell[2],N_BEGIN_INIT+N_vtx_init+N_mask_init:N_BEGIN_INIT+N_vtx_init+N_mask_init+N_joint_init] = chain
+    cell_init = cell
 
     cell, verts, chain = goal_box_dat
     scene_data[cell[0],cell[1],cell[2],N_BEGIN_GOAL:N_BEGIN_GOAL+N_vtx_goal] = verts
     scene_data[cell[0],cell[1],cell[2],N_BEGIN_GOAL+N_vtx_goal:N_BEGIN_GOAL+N_vtx_goal+N_mask_goal] = 1
     scene_data[cell[0],cell[1],cell[2],N_BEGIN_GOAL+N_vtx_goal+N_mask_goal:N_BEGIN_GOAL+N_vtx_goal+N_mask_goal+N_joint_goal] = chain
+    cell_goal = cell
 
     ### add/replace collilsion object
     for cname, ctype, cell, verts, chain in ctem_dat_list:
@@ -939,7 +941,10 @@ def load_scene_data(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION, idx_act, join
         scene_data[cell[0],cell[1],cell[2],N_BEGIN_REP:N_BEGIN_REP+N_vtx] = verts
         scene_data[cell[0],cell[1],cell[2],N_BEGIN_REP+N_vtx:N_BEGIN_REP+N_vtx+N_mask] = 1
         scene_data[cell[0],cell[1],cell[2],N_BEGIN_REP+N_vtx+N_mask:N_BEGIN_REP+N_vtx+N_mask+N_joint] = chain
-    return scene_data, success, skey
+    if get_deviation:
+        return scene_data, success, skey, cell_init, cell_goal
+    else:
+        return scene_data, success, skey
 
 def get_box_diplay(ghnd, name, cell_dat, N_BEGIN, joint_num, center, color=(0.8,0.0,0.0,0.5), dim_offset=(0,0,0)):
     N_vtx_box = 3*8
@@ -989,11 +994,18 @@ def get_cyl_diplay(ghnd, name, cell_dat, N_BEGIN, joint_num, center, color=(0.8,
         cyl = None
     return cyl, mask, chain
 
-def get_twist_tems(ghnd, cell_dat, center, chain, idx_chain, joint_num, L_CELL):
-    N_joint_label = 6 * joint_num
+def get_twist_tems(ghnd, cell_dat, center, chain, idx_chain, joint_num, L_CELL, load_limits=True):
     i_j = np.where(chain)[0][idx_chain]
-    xi = cell_dat[-N_joint_label:].reshape((-1,6))
+    if load_limits:
+        N_joint_limits = 3 * joint_num
+        N_joint_label = 6 * joint_num + N_joint_limits
+        xi = cell_dat[-N_joint_label:-N_joint_limits].reshape((-1,6))
+    else:
+        N_joint_label = 6 * joint_num
+        xi = cell_dat[-N_joint_label:].reshape((-1,6))
+    print("xi: {}".format(xi.shape))
     wv = xi[i_j]
+    print("wv: {}".format(wv))
     __w = wv[:3]
     __v = wv[3:]
     w_abs = np.linalg.norm(__w)

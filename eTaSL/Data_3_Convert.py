@@ -27,6 +27,9 @@ graph = None
 SAMPLED_DATA = defaultdict(dict)
 UPDATE_DAT = True
 
+# custom_xacro = '{}robots/dataset_2012/custom_robots.urdf.xacro'.format(TAMP_ETASL_DIR)
+custom_xacro = None
+
 GLOBAL_FILENAME = "global.json"
 WORLD_FILENAME = "world.json"
 SCENE_FILENAME = "scene.json"
@@ -42,7 +45,7 @@ def main(dataset_list=None):
     CHECK_DICT = {}
     # ## Load Global params
     if dataset_list is None:
-        DATASET_LIST = sorted(filter(lambda x: x not in ["backup", "converted"], os.listdir(DATA_PATH)))
+        DATASET_LIST = sorted(filter(lambda x: x not in ["backup", "converted", "converted_bak"], os.listdir(DATA_PATH)))
     else:
         DATASET_LIST = dataset_list
 
@@ -93,7 +96,8 @@ def main(dataset_list=None):
             cam = None
             # set urdf
             xcustom, JOINT_NAMES, LINK_NAMES, urdf_content = set_custom_robots(crob.robots_on_scene, Trbt_dict,
-                                                                               crob.custom_limits, start_rviz=VISUALIZE)
+                                                                               crob.custom_limits, start_rviz=VISUALIZE,
+                                                                               custom_xacro=custom_xacro)
             ghnd = GeometryHandle(urdf_content)
             time.sleep(2)
 
@@ -161,15 +165,6 @@ def main(dataset_list=None):
                 if VISUALIZE: graph.set_rviz()
                 dcol = DataCollector(graph, GRIPPER_REFS, S_F_RATIO=S_F_RATIO)
                 if VISUALIZE: graph.set_rviz()
-
-                # planners
-                mplan = MoveitPlanner(joint_names=graph.joint_names, link_names=graph.link_names, urdf_path=graph.urdf_path,
-                                      urdf_content=graph.urdf_content,
-                                      robot_names=graph.combined_robot.robot_names,
-                                      binder_links=[v.object.link_name for v in graph.binder_dict.values()],
-                                      ghnd=graph.ghnd)
-                dual_mplan_dict = get_dual_planner_dict(GRIPPER_REFS, graph.ghnd, graph.urdf_content, graph.urdf_path,
-                                                        graph.link_names, graph.combined_robot.robot_names)
 
                 # ## initialize scene params
                 link_names = graph.link_names
@@ -484,7 +479,8 @@ def main(dataset_list=None):
     rospy.signal_shutdown("ALL FINISHED")
 
 if __name__ == "__main__":
-
-    main(['20201214-165211', '20201216-021416', '20201218-024611',
-          '20201208-121454', '20201212-232318', '20201213-061207'])
+    #
+    # main(['20201214-165211', '20201216-021416', '20201218-024611',
+    #       '20201208-121454', '20201212-232318', '20201213-061207'])
+    main(['20201208-121454'])
     # main(['20201218-024611'])
