@@ -40,7 +40,11 @@ class TargetType(Enum):
 
 
 class MarkerSet(list):
-    def __init__(self, name, ttype, gtype=None, dims=None, color=(0.6,0.6,0.6,1), soft=False, K_col=None, _list=[]):
+    def __init__(self, name, ttype, gtype=None, dims=None, color=None, soft=False, K_col=None, _list=None):
+        if color is None:
+            color = (0.6,0.6,0.6,1)
+        if _list is None:
+            _list = []
         self.name, self.ttype, self.gtype = name, ttype, gtype
         self.dims, self.color = dims, color
         self.soft, self.K_col = soft, K_col

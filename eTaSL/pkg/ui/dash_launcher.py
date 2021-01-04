@@ -34,7 +34,11 @@ class TabInfo:
 class TableInfo:
     def __init__(self, table_name, table_height, table_loader=lambda:([IDENTIFY_COL],[]),
                  table_selector=table_updater_default, table_updater=table_updater_default,
-                 table_button = table_updater_default, custom_buttons=[], row_selectable='multi', selected_rows=[], interface=None):
+                 table_button = table_updater_default, custom_buttons=None, row_selectable='multi', selected_rows=None, interface=None):
+        if custom_buttons is None:
+            custom_buttons = []
+        if selected_rows is None:
+            selected_rows = []
         self.table_name, self.table_height, \
         self.table_loader, self.table_selector, self.table_updater, self.table_button = \
             table_name, table_height, table_loader, table_selector,table_updater, table_button

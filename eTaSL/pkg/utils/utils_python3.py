@@ -124,13 +124,13 @@ def load_scene_data(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION, idx_act, join
     N_BEGIN_INIT = N_BEGIN_CYL + N_vtx_cyl + N_mask_cyl + N_joint_cyl
     N_BEGIN_GOAL = N_BEGIN_INIT + N_vtx_init + N_mask_init + N_joint_init
 
+    print("load: {}".format((CONVERTED_PATH, DATASET, WORLD, SCENE)))
     scene_pickle = load_pickle(os.path.join(CONVERTED_PATH, DATASET, WORLD, SCENE, "scene.pkl"))
     scene_data = scene_pickle[b'scene_data']
     ctem_names = scene_pickle[b'ctem_names']
     ctem_cells = scene_pickle[b'ctem_cells']
 
-    action_data_list = load_pickle(os.path.join(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION.replace("json", "pkl")))
-    act_dat = action_data_list[idx_act]
+    act_dat = load_pickle(os.path.join(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION.replace(".json", "-%03d.pkl"%(idx_act))))
     init_box_dat = act_dat[b'init_box_dat']
     goal_box_dat = act_dat[b'goal_box_dat']
     ctem_dat_list = act_dat[b'ctem_dat_list']

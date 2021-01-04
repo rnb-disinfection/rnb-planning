@@ -35,7 +35,7 @@
   </material>
   <link name="base_link"/>
   <joint name="indy0_joint_base_link" type="fixed">
-    <origin rpy="0.0 0.0 5.28894471658" xyz="1.82072648936 1.51551848904 0.873609761456"/>
+    <origin rpy="0.0 0.0 2.24402606555" xyz="2.24761724206 2.0649086405 0.665983084466"/>
     <parent link="base_link"/>
     <child link="indy0_link0"/>
   </joint>
@@ -194,27 +194,27 @@
       <material name="metal_grey"/>
     </visual>
     <collision>
-      <origin rpy="0.0 0.0 0.0" xyz="0.005 0.044 0.1"/>
+      <origin rpy="0.0 0.0 0.0" xyz="0.006 0.045 0.1"/>
       <geometry>
-        <cylinder length="0.08" radius="0.016"/>
+        <cylinder length="0.083" radius="0.015"/>
       </geometry>
     </collision>
     <collision>
-      <origin rpy="0.0 0.0 0.0" xyz="-0.005 0.044 0.1"/>
+      <origin rpy="0.0 0.0 0.0" xyz="-0.006 0.045 0.1"/>
       <geometry>
-        <cylinder length="0.08" radius="0.016"/>
+        <cylinder length="0.083" radius="0.015"/>
       </geometry>
     </collision>
     <collision>
-      <origin rpy="0.0 0.0 0.0" xyz="0.005 -0.044 0.1"/>
+      <origin rpy="0.0 0.0 0.0" xyz="0.006 -0.045 0.1"/>
       <geometry>
-        <cylinder length="0.08" radius="0.016"/>
+        <cylinder length="0.083" radius="0.015"/>
       </geometry>
     </collision>
     <collision>
-      <origin rpy="0.0 0.0 0.0" xyz="-0.005 -0.044 0.1"/>
+      <origin rpy="0.0 0.0 0.0" xyz="-0.006 -0.045 0.1"/>
       <geometry>
-        <cylinder length="0.08" radius="0.016"/>
+        <cylinder length="0.083" radius="0.015"/>
       </geometry>
     </collision>
   </link>
@@ -320,7 +320,7 @@
     </actuator>
   </transmission>
   <joint name="panda1_joint_base_link" type="fixed">
-    <origin rpy="0.0 0.0 4.99165830934" xyz="1.00627999764 2.09123877292 0.560297783674"/>
+    <origin rpy="0.0 0.0 4.61960153851" xyz="1.13709471236 0.915261168584 0.553192716943"/>
     <parent link="base_link"/>
     <child link="panda1_link0"/>
   </joint>
@@ -436,7 +436,13 @@
     <collision>
       <origin rpy="2.87423726 -0.0 0.0" xyz="0.0 0.0315 -0.115"/>
       <geometry>
-        <cylinder length="0.238" radius="0.08"/>
+        <cylinder length="0.2" radius="0.08"/>
+      </geometry>
+    </collision>
+    <collision>
+      <origin rpy="0.0 1.57079633 1.57079633" xyz="0.0 0.0315 0.0"/>
+      <geometry>
+        <cylinder length="0.12" radius="0.06"/>
       </geometry>
     </collision>
   </link>
