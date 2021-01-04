@@ -34,15 +34,16 @@
 
 /* Author: Ioan Sucan, Dave Coleman */
 
-#include <moveit/ompl_interface/ompl_interface.h>
+#include "ompl_interface/ompl_interface.h"
 #include <moveit/planning_interface/planning_interface.h>
 #include <moveit/planning_scene/planning_scene.h>
 #include <moveit/robot_state/conversions.h>
 #include <moveit/profiler/profiler.h>
 #include <class_loader/class_loader.hpp>
+#include <pluginlib/class_list_macros.h>
 
 #include <dynamic_reconfigure/server.h>
-#include "moveit_planners_ompl/OMPLDynamicReconfigureConfig.h"
+#include "ompl_interface/OMPLDynamicReconfigureConfig.h"
 
 #include <moveit_msgs/DisplayRobotState.h>
 #include <moveit_msgs/DisplayTrajectory.h>
@@ -51,6 +52,8 @@
 
 #include <thread>
 #include <memory>
+
+#include "ompl_custom_constraint.h"
 
 namespace ompl_interface
 {
@@ -65,6 +68,8 @@ namespace ompl_interface
       ::ros::console::print(0, __rosconsole_define_location__loc.logger_, __rosconsole_define_location__loc.level_,    \
                             filename, line, __ROSCONSOLE_FUNCTION__, "%s", text.c_str());                              \
   }
+
+    MOVEIT_CLASS_FORWARD(OMPLPlannerManagerCustom)
 
     class OMPLPlannerManagerCustom : public planning_interface::PlannerManager
     {
@@ -125,7 +130,7 @@ namespace ompl_interface
 
         std::string getDescription() const override
         {
-            return "OMPL";
+            return "OMPLPlannerCustom";
         }
 
         void getPlanningAlgorithms(std::vector<std::string>& algs) const override
@@ -145,11 +150,26 @@ namespace ompl_interface
             PlannerManager::setPlannerConfigurations(ompl_interface_->getPlannerConfigurations());
         }
 
+        void resetContextCache()
+        {
+            ompl_interface_->getPlanningContextManager().resetContextCache();
+        }
+
         planning_interface::PlanningContextPtr getPlanningContext(const planning_scene::PlanningSceneConstPtr& planning_scene,
                                                                   const planning_interface::MotionPlanRequest& req,
                                                                   moveit_msgs::MoveItErrorCodes& error_code) const override
         {
             return ompl_interface_->getPlanningContext(planning_scene, req, error_code);
+        }
+
+        planning_interface::PlanningContextPtr getPlanningContextConstrained(const planning_scene::PlanningSceneConstPtr& planning_scene,
+                                                                  const planning_interface::MotionPlanRequest& req,
+                                                                  moveit_msgs::MoveItErrorCodes& error_code,
+                                                                  ompl::base::ConstraintIntersectionPtr& manifold_intersection,
+                                                                  bool allow_approximation)
+        {
+            return ompl_interface_->getPlanningContextConstrained(planning_scene, req, error_code,
+                                                                  manifold_intersection, allow_approximation);
         }
 
     private:
@@ -187,7 +207,7 @@ namespace ompl_interface
                 pub_valid_states_ = nh_.advertise<moveit_msgs::DisplayRobotState>("ompl_planner_valid_states", 5);
                 pub_valid_traj_ = nh_.advertise<moveit_msgs::DisplayTrajectory>("ompl_planner_valid_trajectories", 5);
                 display_random_valid_states_ = true;
-                //    pub_valid_states_thread_.reset(new boost::thread(boost::bind(&OMPLPlannerManager::displayRandomValidStates,
+                //    pub_valid_states_thread_.reset(new boost::thread(boost::bind(&OMPLPlannerManagerCustom::displayRandomValidStates,
                 //    this)));
             }
         }
@@ -205,5 +225,3 @@ namespace ompl_interface
     };
 
 }  // namespace ompl_interface
-
-CLASS_LOADER_REGISTER_CLASS(ompl_interface::OMPLPlannerManagerCustom, planning_interface::PlannerManager);

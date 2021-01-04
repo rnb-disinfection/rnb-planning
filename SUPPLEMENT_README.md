@@ -24,6 +24,18 @@
   sudo apt-get install openssh-server -y && sudo service ssh start
   ```
 
+# Doxygen
+* Install
+```
+sudo apt-get install -y doxygen doxygen-gui texlive-latex-base texlive-latex-recommended ko.tex texlive-fonts-extra
+```
+
+* Run
+```
+doxywizard
+```
+
+
 # Panda simulator
 * Install
   ```
@@ -83,13 +95,6 @@
 ## python packages  
 ```
 pip install klampt
-```
-
-## OMPL  
-```
-cd ~/Projects/tamp_etasl/ompl
-chmod +x *
-./install-ompl-ubuntu.sh --python
 ```
 
 ## Tesseract  

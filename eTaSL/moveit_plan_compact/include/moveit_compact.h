@@ -5,7 +5,7 @@
 #include <moveit/robot_model_loader/robot_model_loader.h>
 #include <moveit/planning_pipeline/planning_pipeline.h>
 #include <moveit/kinematic_constraints/utils.h>
-#include <ompl-1.5/ompl/base/Constraint.h>
+#include "ompl_interface/ompl_planner_manager_custom.h"
 
 #define MAX_NAME_LEN 32
 #define MAX_NAME_NUM 32
@@ -27,80 +27,23 @@ namespace RNB {
         //Planner* planner_compact=NULL;
         ros::NodeHandlePtr init_ros(string name="moveit_plan_compact");
 
-        typedef vector<string> NameList;
-        typedef Eigen::Matrix<double, 7, 1> CartPose;
-        typedef Eigen::Vector3d Vec3;
-        typedef Eigen::VectorXd JointState;
-        typedef vector<JointState> Trajectory;
-
-        struct PlanResult {
-            Trajectory trajectory;
-            bool success;
-        };
-
-        namespace ob = ompl::base;
-
-        /**
-         * @brief custom ompl planning constraint, currently simple z-plane constraint is implemented
-         * @author Junsu Kang
-         */
-        class CustomConstraint : public ob::Constraint
-        {
-        public:
-            int dims;
-            robot_state::RobotStatePtr kinematic_state;
-            robot_state::JointModelGroup* joint_model_group;
-            double plane_height;
-            string tool_link;
-
-            CustomConstraint(robot_model::RobotModelPtr _robot_model, string group_name, JointState init_state,
-                             string tool_link, int dims) : ob::Constraint(dims, 1)
-            {
-                this->dims = dims;
-                kinematic_state = std::make_shared<robot_state::RobotState>(_robot_model);
-                joint_model_group = _robot_model->getJointModelGroup(group_name);
-                this->tool_link = tool_link;
-                kinematic_state->setToDefaultValues();
-
-                this->plane_height = 0;
-                Eigen::VectorXd height_vec(1);
-                function(init_state, height_vec);
-                plane_height = height_vec[0];
-            }
-
-            void function(const Eigen::Ref<const Eigen::VectorXd> &x, Eigen::Ref<Eigen::VectorXd> out) const override
-            {
-                kinematic_state->setJointGroupPositions(joint_model_group, x.data());
-                const Eigen::Affine3d &end_effector_tf = kinematic_state->getGlobalLinkTransform(tool_link);
-                out[0] = end_effector_tf.translation().z() - plane_height;
-            }
-
-            void jacobian(const Eigen::Ref<const Eigen::VectorXd> &x, Eigen::Ref<Eigen::MatrixXd> out) const override
-            {
-                Eigen::Vector3d reference_point_position(0.0,0.0,0.0);
-                Eigen::MatrixXd jacobian;
-                kinematic_state->setJointGroupPositions(joint_model_group, x.data());
-                kinematic_state->getJacobian(joint_model_group, kinematic_state->getLinkModel(tool_link),
-                                             reference_point_position,
-                                             jacobian);
-                out << jacobian.block(2,0, 1, dims);
-            }
-        };
-
         /**
          * @brief A imlplementation of ompl planner using moveit! interface
          * @author Junsu Kang
          */
         class Planner {
         public:
-            robot_model_loader::RobotModelLoaderPtr _robot_model_loader;
-            robot_model::RobotModelPtr _robot_model;
-            planning_scene::PlanningScenePtr _planning_scene;
-            planning_pipeline::PlanningPipelinePtr _planning_pipeline;
+            std::shared_ptr<pluginlib::ClassLoader<planning_interface::PlannerManager> > planner_plugin_loader_;
+            std::string planner_plugin_name_;
+            ompl_interface::OMPLPlannerManagerCustomPtr planner_instance_;
+            robot_model_loader::RobotModelLoaderPtr robot_model_loader_;
+            robot_model::RobotModelPtr robot_model_;
+            planning_scene::PlanningScenePtr planning_scene_;
+            std::vector<ompl::base::ConstraintPtr> manifolds;
+
             PlanResult plan_result;
             NameList joint_names;
             int joint_num;
-            std::shared_ptr<CustomConstraint> _custom_constraint;
 
             /**
              * @brief initialize planner from urdf and srdf files. redirects to init_planner
@@ -110,13 +53,39 @@ namespace RNB {
 
             /**
              * @brief initialize planner with string contents of urdf and srdf files.
-             * @param string config_path directory path where kinematics.yaml, ompl_plugin.yaml, planning_plugin.yaml is stored
+             * @param config_path directory path where kinematics.yaml, ompl_plugin.yaml, planning_plugin.yaml is stored
              * @author Junsu Kang
              */
             bool init_planner(string &urdf_txt, string &srdf_txt, NameList &group_names, string config_path);
 
             /**
-             * @brief initialize planner with string contents of urdf and srdf files.
+             * @brief load planner plugin
+             * @author Junsu Kang
+             */
+            void configure();
+
+            /**
+             * @brief clear_context_cache - needed to call to reset planning context
+             * @author Junsu Kang
+             */
+            void clear_context_cache();
+
+            /**
+             * @brief create union manifold
+             * @author Junsu Kang
+             */
+            bool add_union_manifold(string group_name, string tool_link, CartPose tool_offset,
+                                    GeometryList geometry_list, bool fix_surface, bool fix_normal,
+                                    double tol=UnionManifold::DEFAULT_TOLERANCE);
+
+            /**
+             * @brief clear all manifolds
+             * @author Junsu Kang
+             */
+            bool clear_manifolds();
+
+            /**
+             * @brief search for plan.
              * @author Junsu Kang
              */
             PlanResult &plan(string group_name, string tool_link,
@@ -125,26 +94,33 @@ namespace RNB {
                              double allowed_planning_time=0.1);
 
             /**
-             * @brief initialize planner with string contents of urdf and srdf files.
+             * @brief search for plan with constraints.
              * @author Junsu Kang
              */
-            PlanResult &plan_fixz(string group_name, string tool_link,
-                             CartPose goal_pose, string goal_link,
-                             JointState init_state, string planner_id="RRTConnectkConfigDefault",
-                             double allowed_planning_time=0.1);
+            PlanResult &plan_with_constraints(string group_name, string tool_link,
+                                             CartPose goal_pose, string goal_link,
+                                             JointState init_state,
+                                             string planner_id="RRTConnectkConfigDefault",
+                                             double allowed_planning_time=0.1, bool allow_approximation=false);
+
+            /**
+             * @brief test jacobian
+             * @author Junsu Kang
+             */
+            void test_jacobian(JointState init_state);
 
             /**
              * @brief generate and process ros object message
              * @author Junsu Kang
              */
-            bool process_object(string name, const int type, CartPose pose, Vec3 dims,
+            bool process_object(string name, const ObjectType type, CartPose pose, Vec3 dims,
                                 string link_name, NameList touch_links, bool attach, const int action);
 
             /**
              * @brief simply add object
              * @author Junsu Kang
              */
-            bool add_object(string name, const int type,
+            bool add_object(string name, const ObjectType type,
                             CartPose pose, Vec3 dims,
                             string link_name, NameList touch_links, bool attach);
 
@@ -154,11 +130,7 @@ namespace RNB {
              */
             void clear_all_objects();
 
-            /**
-             * @brief set z-plane manifold for constrained planning
-             * @author Junsu Kang
-             */
-            void set_zplane_manifold(string group_name, JointState init_state, string tool_link);
+            void terminate();
         };
 
     }

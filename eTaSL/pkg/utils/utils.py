@@ -255,6 +255,9 @@ def str_num_it(strnum, deliminater=","):
     else:
         return None
 
+def str2num_split_blank(string, dtype=float):
+    return map(dtype, " ".join(string.split()).split(" "))
+
 import pickle
 def save_pickle(filename, data):
     with open(filename, 'wb') as f:

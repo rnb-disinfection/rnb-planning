@@ -153,6 +153,13 @@
   ```
   pip install rospkg  
   ```
+
+# OMPL  
+```
+cd ~/Projects/tamp_etasl/ompl
+chmod +x *
+./install-ompl-ubuntu.sh --python
+```
   
 # eTaSL  
 * Follow install process in the link - https://etasl.pages.gitlab.kuleuven.be/install-new.html  
@@ -277,9 +284,12 @@
   
 * Build moveit-python interpreter, copy it and clean Release folder  
 ```
-cd "$TAMP_ETASL_DIR"moveit_plan_compact
-chmod +x ./build.sh
-./build.sh
+sudo apt-get remove ros-melodic-ompl \
+&& cd "$TAMP_ETASL_DIR"moveit_plan_compact \
+&& chmod +x ./build.sh \
+&& ./build.sh \
+&& export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib \
+&& echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib' >> ~/.bashrc
 ```
 * build openGJK
 ```
@@ -380,6 +390,9 @@ source $HOME/etasl/ws/etasl-py/devel/setup.bash
 export TAMP_ETASL_DIR=$HOME/Projects/tamp_etasl/eTaSL/
 source "$TAMP_ETASL_DIR"ws_ros/devel/setup.bash
   
+\# Custom ompl 
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
+
 \# JetBrains  
 export PATH=$PATH:$HOME/pycharm-2020.2/bin  
 export PATH=$PATH:$HOME/clion-2020.2/bin  

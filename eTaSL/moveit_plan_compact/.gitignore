@@ -3,6 +3,10 @@
 *.pdf
 *.npy
 
+# Doxygen
+html/
+latex/
+
 # Pycharm
 .idea/
 

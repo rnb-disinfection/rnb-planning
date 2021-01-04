@@ -4,8 +4,7 @@
 #include <signal.h>
 #include <logger.h>
 #include <ros_load_yaml.h>
-#include <moveit/ompl_interface/ompl_interface.h>
-//#include "ompl_planner_manager_custom.h"
+#include "constants.h"
 
 using namespace RNB::MoveitCompact;
 
@@ -15,22 +14,22 @@ void SigintHandlerJ(int sig)
 }
 
 
-bool _ros_initialized = false;
-ros::NodeHandlePtr _node_handle;
-string _node_name;
+bool __ros_initialized = false;
+ros::NodeHandlePtr __node_handle;
+string __node_name;
 
 ros::NodeHandlePtr RNB::MoveitCompact::init_ros(string name) {
-    _ros_initialized = true;
+    __ros_initialized = true;
     char **argv;
     int argc=0;
     ros::init(argc, argv, name);
-    _node_name = name;
-    ros::NodeHandlePtr _node_handle = boost::make_shared<ros::NodeHandle>("~");
+    __node_name = name;
+    ros::NodeHandlePtr __node_handle = boost::make_shared<ros::NodeHandle>("~");
     signal(SIGINT, SigintHandlerJ);
     PRINT_FRAMED_LOG(LOG_FRAME_LINE);
     PRINT_FRAMED_LOG("rosnode moveit_plan_compact initialized");
     PRINT_FRAMED_LOG(LOG_FRAME_LINE, true);
-    return _node_handle;
+    return __node_handle;
 }
 
 bool Planner::init_planner_from_file(string urdf_filepath, string srdf_filepath, NameList& group_names, string config_path){
@@ -61,47 +60,38 @@ bool Planner::init_planner_from_file(string urdf_filepath, string srdf_filepath,
 
 
 bool Planner::init_planner(string& urdf_txt, string& srdf_txt, NameList& group_names, string config_path){
-    if(!_ros_initialized){
-        _node_handle = init_ros();
+    if(!__ros_initialized){
+        __node_handle = init_ros();
     }
 
     //------------------------parsing with Iterator
-    rosparam_load_yaml(_node_handle, "", config_path+"kinematics.yaml");
-    rosparam_load_yaml(_node_handle, "", config_path+"ompl_planning.yaml");
-    rosparam_load_yaml(_node_handle, "", config_path+"planning_plugin.yaml");
+    rosparam_load_yaml(__node_handle, "", config_path+"kinematics.yaml");
+    rosparam_load_yaml(__node_handle, "", config_path+"ompl_planning.yaml");
+    rosparam_load_yaml(__node_handle, "", config_path+"planning_plugin.yaml");
 
     PRINT_FRAMED_LOG("load robot model");
-    _robot_model_loader = std::make_shared<robot_model_loader::RobotModelLoader>(
+    robot_model_loader_ = std::make_shared<robot_model_loader::RobotModelLoader>(
             robot_model_loader::RobotModelLoader::Options(urdf_txt, srdf_txt));
-    _robot_model = _robot_model_loader->getModel();
-    if(_robot_model.get() == NULL) {
+    robot_model_ = robot_model_loader_->getModel();
+    if(robot_model_.get() == NULL) {
         PRINT_ERROR("failed to load robot model");
         return false;
     }
     PRINT_FRAMED_LOG("loaded robot model", true);
 
     PRINT_FRAMED_LOG("load scene");
-    _planning_scene = std::make_shared<planning_scene::PlanningScene>(_robot_model);
-    if(_planning_scene==NULL){
+    planning_scene_ = std::make_shared<planning_scene::PlanningScene>(robot_model_);
+    if(planning_scene_==NULL){
         PRINT_ERROR("failed to load scene");
         return false;
     }
     PRINT_FRAMED_LOG("loaded scene", true);
 
-    PRINT_FRAMED_LOG("load pipeline");
-    _planning_pipeline = std::make_shared<planning_pipeline::PlanningPipeline>(_robot_model, *_node_handle,
-                                                    "planning_plugin", "request_adapters");
-    if(_planning_pipeline==NULL){
-        PRINT_ERROR("failed to load pipeline");
-        return false;
-    }
+    PRINT_FRAMED_LOG("load planner");
+    configure();
+    PRINT_FRAMED_LOG("loaded planner", true);
 
-    _planning_pipeline->checkSolutionPaths(false);
-    _planning_pipeline->publishReceivedRequests(false);
-    _planning_pipeline->displayComputedMotionPlans(false);
-
-    PRINT_FRAMED_LOG("loaded pipeline", true);
-    auto names = _planning_scene->getCurrentState().getVariableNames();
+    auto names = planning_scene_->getCurrentState().getVariableNames();
     joint_num = 0;
     joint_names.clear();
     for(auto name_p=names.begin(); name_p!=names.end(); name_p++){
@@ -111,8 +101,72 @@ bool Planner::init_planner(string& urdf_txt, string& srdf_txt, NameList& group_n
     return true;
 }
 
-typedef std::function<const ompl_interface::ModelBasedStateSpaceFactoryPtr&(const std::string&)> StateSpaceFactoryTypeSelectorMirror;
+void Planner::configure()
+{
+    std::string planner;
+    if (__node_handle->getParam("planning_plugin", planner))
+        planner_plugin_name_ = planner;
 
+    // load the planning plugin
+    try
+    {
+        planner_plugin_loader_.reset(new pluginlib::ClassLoader<planning_interface::PlannerManager>(
+                "moveit_core", "planning_interface::PlannerManager"));
+    }
+    catch (pluginlib::PluginlibException& ex)
+    {
+        ROS_FATAL_STREAM("Exception while creating planning plugin loader " << ex.what());
+    }
+
+    std::vector<std::string> classes;
+    if (planner_plugin_loader_)
+        classes = planner_plugin_loader_->getDeclaredClasses();
+    if (planner_plugin_name_.empty() && classes.size() == 1)
+    {
+        planner_plugin_name_ = classes[0];
+        ROS_INFO("No '~planning_plugin' parameter specified, but only '%s' planning plugin is available. Using that one.",
+                 planner_plugin_name_.c_str());
+    }
+    if (planner_plugin_name_.empty() && classes.size() > 1)
+    {
+        planner_plugin_name_ = classes[0];
+        ROS_INFO("Multiple planning plugins available. You should specify the '~planning_plugin' parameter. Using '%s' for "
+                 "now.",
+                 planner_plugin_name_.c_str());
+    }
+
+    if (planner_plugin_name_ == "ompl_interface/OMPLPlannerCustom")
+    {
+        try {
+            planner_instance_ = std::make_shared<ompl_interface::OMPLPlannerManagerCustom>();
+            if (!planner_instance_->initialize(robot_model_, __node_handle->getNamespace()))
+                throw std::runtime_error("Unable to initialize planning plugin");
+            ROS_INFO_STREAM("Using planning interface '" << planner_instance_->getDescription() << "'");
+        }
+        catch (pluginlib::PluginlibException& ex) {
+            ROS_ERROR_STREAM("Exception while loading planner '"
+                                     << planner_plugin_name_ << "': " << ex.what() << std::endl
+                                     << "Available plugins: " << boost::algorithm::join(classes, ", "));
+        }
+    }
+    else
+    {
+        ROS_ERROR_STREAM("Exception while loading planner: Only ompl_interface/OMPLPlannerCustom is available now");
+//        try
+//        {
+//            planner_instance_ = planner_plugin_loader_->createUniqueInstance(planner_plugin_name_);
+//            if (!planner_instance_->initialize(robot_model_, __node_handle->getNamespace()))
+//                throw std::runtime_error("Unable to initialize planning plugin");
+//            ROS_INFO_STREAM("Using planning interface '" << planner_instance_->getDescription() << "'");
+//        }
+//        catch (pluginlib::PluginlibException& ex)
+//        {
+//            ROS_ERROR_STREAM("Exception while loading planner '"
+//                                     << planner_plugin_name_ << "': " << ex.what() << std::endl
+//                                     << "Available plugins: " << boost::algorithm::join(classes, ", "));
+//        }
+    }
+}
 
 PlanResult& Planner::plan(string group_name, string tool_link,
                           CartPose goal_pose, string goal_link,
@@ -148,20 +202,21 @@ PlanResult& Planner::plan(string group_name, string tool_link,
     _constrinat_pose_goal = kinematic_constraints::constructGoalConstraints(tool_link, _goal_pose, tolerance_pose, tolerance_angle);
     _req.goal_constraints.push_back(_constrinat_pose_goal);
 
-    auto state_cur = _planning_scene->getCurrentState();
+    auto state_cur = planning_scene_->getCurrentState();
     state_cur.setVariablePositions(init_state.data());
-    _planning_scene->setCurrentState(state_cur);
+    planning_scene_->setCurrentState(state_cur);
 
     plan_result.trajectory.clear();
 
-    std::vector<std::size_t> dummy;
-    _planning_pipeline->generatePlan(_planning_scene, _req, _res, dummy);
+    planning_interface::PlanningContextPtr context =
+            planner_instance_->getPlanningContext(planning_scene_, _req, _res.error_code_);
 
-//    ompl_interface::OMPLPlannerManagerCustom _planner_manager;
-//    planning_interface::PlanningContextPtr context =
-//            _planner_manager.getPlanningContext(_planning_scene, _req, _res.error_code_);
-//
-//    context->solve(_res);
+    context->solve(_res);
+
+#ifdef PRINT_DEBUG
+    std::cout <<"init_state: "<<init_state.transpose()<<std::endl;
+    std::cout <<"goal_pose: "<<goal_pose.transpose()<<std::endl;
+#endif
 
     /* Check that the planning was successful */
     if (_res.error_code_.val != _res.error_code_.SUCCESS)
@@ -187,10 +242,13 @@ PlanResult& Planner::plan(string group_name, string tool_link,
     plan_result.success = true;
     return plan_result;
 }
+void Planner::clear_context_cache(){
+    planner_instance_->resetContextCache();
+}
 
-PlanResult& Planner::plan_fixz(string group_name, string tool_link,
+PlanResult& Planner::plan_with_constraints(string group_name, string tool_link,
                          CartPose goal_pose, string goal_link,
-                         JointState init_state, string planner_id, double allowed_planning_time){
+                         JointState init_state, string planner_id, double allowed_planning_time, bool allow_approximation){
     PRINT_FRAMED_LOG("set goal", true);
     geometry_msgs::PoseStamped _goal_pose;
     _goal_pose.header.frame_id = goal_link;
@@ -222,20 +280,36 @@ PlanResult& Planner::plan_fixz(string group_name, string tool_link,
     _constrinat_pose_goal = kinematic_constraints::constructGoalConstraints(tool_link, _goal_pose, tolerance_pose, tolerance_angle);
     _req.goal_constraints.push_back(_constrinat_pose_goal);
 
-    auto state_cur = _planning_scene->getCurrentState();
+    auto state_cur = planning_scene_->getCurrentState();
     state_cur.setVariablePositions(init_state.data());
-    _planning_scene->setCurrentState(state_cur);
+    planning_scene_->setCurrentState(state_cur);
 
     plan_result.trajectory.clear();
 
-    std::vector<std::size_t> dummy;
-    _planning_pipeline->generatePlan(_planning_scene, _req, _res, dummy);
+    if (manifolds.size()==0){
+        plan_result.success = false;
+        return plan_result;
+    }
+    auto manifold_ref = manifolds[0];
+    ompl::base::ConstraintIntersectionPtr manifold_intersection = std::make_shared<ompl::base::ConstraintIntersection>(
+            manifold_ref->getAmbientDimension(), manifolds);
+    double tol = 0;
+    for(auto _man = manifolds.begin(); _man!=manifolds.end(); _man++){
+        tol += pow((*_man)->getTolerance(),2);
+    }
+    tol = sqrt(tol);
+    manifold_intersection->setTolerance(tol);
 
-//    ompl_interface::OMPLPlannerManagerCustom _planner_manager;
-//    planning_interface::PlanningContextPtr context =
-//            _planner_manager.getPlanningContext(_planning_scene, _req, _res.error_code_);
-//
-//    context->solve(_res);
+    planning_interface::PlanningContextPtr context =
+            planner_instance_->getPlanningContextConstrained(planning_scene_, _req, _res.error_code_,
+                                                             manifold_intersection, allow_approximation);
+
+    context->solve(_res);
+
+#ifdef PRINT_DEBUG
+    std::cout <<"init_state: "<<init_state.transpose()<<std::endl;
+    std::cout <<"goal_pose: "<<goal_pose.transpose()<<std::endl;
+#endif
 
     /* Check that the planning was successful */
     if (_res.error_code_.val != _res.error_code_.SUCCESS)
@@ -254,14 +328,45 @@ PlanResult& Planner::plan_fixz(string group_name, string tool_link,
 
     PRINT_FRAMED_LOG((std::string("got trajectory - ")+std::to_string(plan_result.trajectory.size())).c_str(), true);
 
-//    printf(LOG_FRAME_LINE);
-//    PRINT_FRAMED_LOG("last pose below");
-//    cout << *(plan_result.trajectory.end()-1) << endl;
-//    printf(LOG_FRAME_LINE "\n");
+    printf(LOG_FRAME_LINE);
+    PRINT_FRAMED_LOG("last pose below");
+    cout << (plan_result.trajectory.end()-1)->transpose() << endl;
+    printf(LOG_FRAME_LINE "\n");
     plan_result.success = true;
     return plan_result;
 }
-bool Planner::process_object(string name, const int type, CartPose pose, Vec3 dims,
+
+void Planner::test_jacobian(JointState init_state){
+    if (manifolds.size()==0){
+        std::cout<<"manifold list is empty"<<std::endl;
+        return;
+    }
+    auto manifold_ref = manifolds[0];
+    ompl::base::ConstraintIntersectionPtr manifold_intersection = std::make_shared<ompl::base::ConstraintIntersection>(
+            manifold_ref->getAmbientDimension(), manifolds);
+    double tol = 0;
+    for(auto _man = manifolds.begin(); _man!=manifolds.end(); _man++){
+        tol += pow((*_man)->getTolerance(),2);
+        std::cout<<"tolerance part: "<<(*_man)->getTolerance()<<std::endl;
+    }
+    tol = sqrt(tol);
+    std::cout<<"tolerance original: "<<manifold_intersection->getTolerance()<<std::endl;
+    manifold_intersection->setTolerance(tol);
+    std::cout<<"tolerance changed: "<<manifold_intersection->getTolerance()<<std::endl;
+
+    Eigen::MatrixXd jac(manifold_intersection->getCoDimension(), manifold_intersection->getAmbientDimension());
+    manifold_intersection->jacobian(init_state, jac);
+
+    Eigen::VectorXd f(manifold_intersection->getCoDimension());
+    manifold_intersection->function(init_state, f);
+    double tolerance_ = manifold_intersection->getTolerance();
+    bool satisfied = manifold_intersection->isSatisfied(init_state);
+    std::cout<<"f: "<< f.transpose() <<std::endl;
+    std::cout<<"squaredNorm/squaredTol: "<<f.squaredNorm() << " / " << tolerance_*tolerance_ <<std::endl;
+    std::cout<<"satisfied: "<< satisfied <<std::endl<<std::endl;
+}
+
+bool Planner::process_object(string name, const ObjectType type, CartPose pose, Vec3 dims,
                     string link_name, NameList touch_links, bool attach, const int action){
     bool res = false;
 
@@ -283,19 +388,19 @@ bool Planner::process_object(string name, const int type, CartPose pose, Vec3 di
     /* Define a box to be attached */
     primitive.type = type;
     switch(type){
-        case primitive.BOX:
+        case ObjectType::BOX:
             primitive.dimensions.resize(3);
             primitive.dimensions[0] = dims[0];
             primitive.dimensions[1] = dims[1];
             primitive.dimensions[2] = dims[2];
             printf("BOX: %f, %f, %f \n", dims[0], dims[1], dims[2]);
             break;
-        case primitive.SPHERE:
+        case ObjectType::SPHERE:
             primitive.dimensions.resize(1);
             primitive.dimensions[0] = dims[0];
             printf("SPHERE: %f \n", dims[0]);
             break;
-        case primitive.CYLINDER:
+        case ObjectType::CYLINDER:
             primitive.dimensions.resize(2);
             primitive.dimensions[0] = dims[0];
             primitive.dimensions[1] = dims[1];
@@ -313,7 +418,7 @@ bool Planner::process_object(string name, const int type, CartPose pose, Vec3 di
         att_object.object.primitive_poses.push_back(_pose);
         att_object.object.operation = action;
         att_object.touch_links = touch_links;
-        res = _planning_scene->processAttachedCollisionObjectMsg(att_object);
+        res = planning_scene_->processAttachedCollisionObjectMsg(att_object);
     }
     else {
         object.header.frame_id = link_name;
@@ -322,98 +427,38 @@ bool Planner::process_object(string name, const int type, CartPose pose, Vec3 di
         object.primitives.push_back(primitive);
         object.primitive_poses.push_back(_pose);
         object.operation = action;
-        res = _planning_scene->processCollisionObjectMsg(object);
+        res = planning_scene_->processCollisionObjectMsg(object);
     }
 
     return res;
 }
 
-bool Planner::add_object(string name, const int type,
+bool Planner::add_object(string name, const ObjectType type,
                              CartPose pose, Vec3 dims,
                              string link_name, NameList touch_links, bool attach){
     return process_object(name, type, pose, dims, link_name, touch_links, attach, moveit_msgs::CollisionObject::ADD);
 }
 
 void Planner::clear_all_objects(){
-    _planning_scene->removeAllCollisionObjects();
+    planning_scene_->removeAllCollisionObjects();
 }
 
-void Planner::set_zplane_manifold(string group_name, JointState init_state, string tool_link){
-    _custom_constraint = std::make_shared<CustomConstraint>(_robot_model, group_name, init_state, tool_link, joint_num);
+void Planner::terminate(){
+    if(planner_instance_){
+        planner_instance_->terminate();
+    }
 }
 
-//void terminate_ros(){
-//    PRINT_FRAMED_LOG("DELETE PLANNER", true);
-//    delete planner_compact;
-//    PRINT_FRAMED_LOG("SHUTDOWN PLANNER", true);
-//    ros::shutdown();
-//    while (ros::ok())
-//    {
-//        sleep(1);
-//        PRINT_FRAMED_LOG("SHUTTING DOWN PLANNER");
-//    }
-//    PRINT_FRAMED_LOG("FINISHED", true);
-//}
-//
-//c_name_arr init_planner(c_string urdf, c_string srdf, c_name_arr group_names_cstr){
-//    if(planner_compact==NULL) {
-//        planner_compact = new Planner();
-//    }
-//
-//
-//    auto group_names = get_c_name_arr(group_names_cstr);
-//    bool res = planner_compact->init_planner(urdf.buffer, srdf.buffer, group_names);
-//
-//    c_name_arr joint_names_cna;
-//    set_c_name_arr(joint_names_cna, planner_compact->joint_names);
-//    return joint_names_cna;
-//}
-//
-//void process_object(c_object_msg omsg){
-//    planner_compact->process_object(
-//            omsg.name, omsg.type, omsg.pose, omsg.dims, omsg.link_name, omsg.action);
-//}
-//
-//void clear_all_objects(){
-//    planner_compact->clear_all_objects();
-//}
-//
-//c_trajectory plan_compact(c_plan_request goal){
-//    return planner_compact->plan_compact(
-//            goal.group_name, goal.tool_link, goal.goal_pose, goal.goal_link,
-//            goal.init_state, goal.timeout);
-//}
+bool Planner::add_union_manifold(string group_name, string tool_link, CartPose tool_offset,
+                                                GeometryList geometry_list, bool fix_surface, bool fix_normal,
+                                                double tol){
+    manifolds.push_back(std::make_shared<UnionManifold>(robot_model_, group_name,
+                                                        tool_link, tool_offset, geometry_list,
+                                                        fix_surface, fix_normal, tol));
+    return true;
+}
 
-int main(int argc, char** argv) {
-    NameList group_names;
-    group_names.push_back("indy0");
-    group_names.push_back("panda1");
-
-    Planner planner;
-    planner.init_planner_from_file("../test_assets/custom_robots.urdf", "../test_assets/custom_robots.srdf",
-                                   group_names, "../test_assets/");
-    JointState init_state(13);
-    init_state << 0, 0, -1.57, 0, -1.57, 0, 0, -0.4, 0, -1.57, 0, 1.57, 1.57;
-    CartPose goal;
-    goal << -0.3,-0.2,0.4,0,0,0,1;
-    planner.plan("indy0", "indy0_tcp", goal, "base_link", init_state);
-
-//
-//    double goal_obs[7] = {-0.3,-0.2,0.0,0,0,0,1};
-//    double dims[3] = {0.1,0.1,0.1};
-//    planner_compact->process_object(
-//            "box", shape_msgs::SolidPrimitive::BOX,
-//            goal_obs, dims,"base_link", moveit_msgs::CollisionObject::ADD);
-//
-//    clear_all_objects();
-//    planner_compact->plan_compact("indy0", "indy0_tcp", goal, "base_link", init_state, 0.1);
-//
-//    double goal_obs2[7] = {-0.3,-0.2,0.4,0,0,0,1};
-//    planner_compact->process_object(
-//            "box", shape_msgs::SolidPrimitive::BOX,
-//            goal_obs2, dims,"base_link", moveit_msgs::CollisionObject::ADD);
-//    planner_compact->plan_compact("indy0", "indy0_tcp", goal, "base_link", init_state, 0.1);
-//
-//    terminate_ros();
-    return 0;
+bool Planner::clear_manifolds(){
+    manifolds.clear();
+    return true;
 }
