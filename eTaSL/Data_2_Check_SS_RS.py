@@ -41,10 +41,12 @@ SCENE_FILENAME = "scene.json"
 DATA_PATH = "./data"
 
 
-DATASET_LIST = ['20201214-165211', '20201216-021416', '20201218-024611',
-                '20201208-121454', '20201212-232318', '20201213-061207']
+# DATASET_LIST = ['20201214-165211', '20201216-021416', '20201218-024611',
+#                 '20201208-121454', '20201212-232318', '20201213-061207']
+DATASET_LIST = ['20201208-121454']
 N_retry_succ = 20
 N_retry_fail = 3
+MaxCountTest = 100
 
 
 # In[ ]:
@@ -57,7 +59,8 @@ crob = CombinedRobot(connection_list=(False, False))
 # In[ ]:
 
 
-
+dual_mplan_dict = None
+mplan = None
 
 
 # ## Full test
@@ -66,6 +69,8 @@ crob = CombinedRobot(connection_list=(False, False))
 
 
 def FULL_TEST_SCENE(DATASET, WORLD, SCENE, ACTION):
+    dual_mplan_dict = None
+    mplan = None
     data_list = []
     N_data = 0
     # ## Load Global params
@@ -220,9 +225,16 @@ def FULL_TEST_SCENE(DATASET, WORLD, SCENE, ACTION):
 
             # planners
             if action_type == "HANDOVER":
+                if dual_mplan_dict is not None:
+                    for dplan in dual_mplan_dict.values():
+                        dplan.planner.clear_scene()
+                        dplan.planner.terminate()
                 dual_mplan_dict = get_dual_planner_dict(GRIPPER_REFS, graph.ghnd, graph.urdf_content, graph.urdf_path,
                                                         graph.link_names, graph.combined_robot.robot_names)
             else:
+                if mplan is not None:
+                    mplan.planner.clear_scene()
+                    mplan.planner.terminate()
                 mplan = MoveitPlanner(joint_names=graph.joint_names, link_names=graph.link_names, urdf_path=graph.urdf_path,
                                       urdf_content=graph.urdf_content,
                                       robot_names=graph.combined_robot.robot_names,
@@ -316,7 +328,6 @@ def FULL_TEST_SCENE(DATASET, WORLD, SCENE, ACTION):
 # In[ ]:
 
 
-MaxCountTest = 3000
 MaxCountReached = 0
 
 RESTART = True
@@ -477,9 +488,16 @@ while RESTART:
 
             # planners
             if action_type == "HANDOVER":
+                if dual_mplan_dict is not None:
+                    for dplan in dual_mplan_dict.values():
+                        dplan.planner.clear_scene()
+                        dplan.planner.terminate()
                 dual_mplan_dict = get_dual_planner_dict(GRIPPER_REFS, graph.ghnd, graph.urdf_content, graph.urdf_path,
                                                         graph.link_names, graph.combined_robot.robot_names)
             else:
+                if mplan is not None:
+                    mplan.planner.clear_scene()
+                    mplan.planner.terminate()
                 mplan = MoveitPlanner(joint_names=graph.joint_names, link_names=graph.link_names, urdf_path=graph.urdf_path,
                                       urdf_content=graph.urdf_content,
                                       robot_names=graph.combined_robot.robot_names,
@@ -532,8 +550,8 @@ while RESTART:
         CHECK_RES["check_ratio"] = check_ratio
         print("")
         print("========================================================")
-        print("[END] {} - {} - {} - {} - {}  = {}/{} ({}/{})".format(DATASET, WORLD, SCENE, ACTION, i_act, check_ratio, succ, len(CHECK_LIST), MaxCountTest), end='\r')
-        CHECK_LIST. append((DATASET,WORLD, SCENE, ACTION, i_act, CHECK_RES))
+        print("[END] {} - {} - {} - {} - {}  = {}/{} ({}/{}/{})".format(DATASET, WORLD, SCENE, ACTION, i_act, check_ratio, succ, i_dat, MaxCountReached, MaxCountTest), end='\r')
+#         CHECK_LIST. append((DATASET,WORLD, SCENE, ACTION, i_act, CHECK_RES))
         if succ:
             if check_ratio==0:
 #                 raise(RuntimeError("Success failure"))
@@ -612,8 +630,8 @@ crob = CombinedRobot(connection_list=(False, False))
 CHECK_DICT = {}
 # ## Load Global params
 # DATASET_LIST = sorted(filter(lambda x: x not in ["backup", "converted", "converted_bak"], os.listdir(DATA_PATH)))
-DATASET_LIST = ['20201214-165211', '20201216-021416', '20201218-024611',
-                '20201208-121454', '20201212-232318', '20201213-061207']
+# DATASET_LIST = ['20201214-165211', '20201216-021416', '20201218-024611',
+#                 '20201208-121454', '20201212-232318', '20201213-061207']
 # DATASET_LIST = [ '20201212-232318']
 
 

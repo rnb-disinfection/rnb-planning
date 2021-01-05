@@ -9,6 +9,7 @@
 #include <ros/ros.h>
 #include <yaml-cpp/yaml.h>
 #include <fstream>
+#include "constants.h"
 
 namespace RNB{
     using namespace std;
@@ -21,18 +22,22 @@ namespace RNB{
             seq.push_back(node_T);
         }
         _node_handle->setParam(key, seq);
+#ifdef PRINT_DEBUG
         cout<<"rosparam set: "<< key << ": " << endl;
         for(auto it=seq.begin(); it!=seq.end(); it++){
             cout<< *it << ", ";
         }
         cout<< endl;
+#endif
     }
 
     template<typename T>
     void set_rosparam_as(ros::NodeHandlePtr _node_handle, string key, YAML::Node node){
         auto node_T = node.as<T>();
         _node_handle->setParam(key, node_T);
+#ifdef PRINT_DEBUG
         cout<<"rosparam set: "<< key << ": " << node_T << endl;
+#endif
     }
 
     void set_rosparam_from_yaml_node(ros::NodeHandlePtr _node_handle, string key, YAML::Node node){
