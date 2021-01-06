@@ -152,16 +152,16 @@ class ResNet(KL.Layer):
         self.batch_size = batch_size
         if self.stage0:
             self.pre_boxa = ConvBlock(1, stage0, stage=0, block='ba', strides=1, use_bias=True, use_bn=False)
-            self.pre_boxb = IdentityBlock(1, stage0, stage=0, block='bb', use_bias=True, use_bn=False)
+            self.pre_boxb = IdentityBlock(1, stage0, stage=0, block='bb')
             self.pre_boxc = IdentityBlock(1, stage0, stage=0, block='bc')
             self.pre_cyla = ConvBlock(1, stage0, stage=0, block='ca', strides=1, use_bias=True, use_bn=False)
-            self.pre_cylb = IdentityBlock(1, stage0, stage=0, block='cb', use_bias=True, use_bn=False)
+            self.pre_cylb = IdentityBlock(1, stage0, stage=0, block='cb')
             self.pre_cylc = IdentityBlock(1, stage0, stage=0, block='cc')
             self.pre_inia = ConvBlock(1, stage0, stage=0, block='ia', strides=1, use_bias=True, use_bn=False)
-            self.pre_inib = IdentityBlock(1, stage0, stage=0, block='ib', use_bias=True, use_bn=False)
+            self.pre_inib = IdentityBlock(1, stage0, stage=0, block='ib')
             self.pre_inic = IdentityBlock(1, stage0, stage=0, block='ic')
             self.pre_gola = ConvBlock(1, stage0, stage=0, block='ga', strides=1, use_bias=True, use_bn=False)
-            self.pre_golb = IdentityBlock(1, stage0, stage=0, block='gb', use_bias=True, use_bn=False)
+            self.pre_golb = IdentityBlock(1, stage0, stage=0, block='gb')
             self.pre_golc = IdentityBlock(1, stage0, stage=0, block='gc')
             self.concat = KL.Concatenate()
         

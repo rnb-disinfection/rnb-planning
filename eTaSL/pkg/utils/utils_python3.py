@@ -124,7 +124,7 @@ def load_scene_data(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION, idx_act, join
     N_BEGIN_INIT = N_BEGIN_CYL + N_vtx_cyl + N_mask_cyl + N_joint_cyl
     N_BEGIN_GOAL = N_BEGIN_INIT + N_vtx_init + N_mask_init + N_joint_init
 
-    print("load: {}".format((CONVERTED_PATH, DATASET, WORLD, SCENE)))
+    # print("load: {}".format((CONVERTED_PATH, DATASET, WORLD, SCENE)))
     scene_pickle = load_pickle(os.path.join(CONVERTED_PATH, DATASET, WORLD, SCENE, "scene.pkl"))
     scene_data = scene_pickle[b'scene_data']
     ctem_names = scene_pickle[b'ctem_names']

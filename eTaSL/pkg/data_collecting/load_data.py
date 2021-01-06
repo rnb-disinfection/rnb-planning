@@ -69,7 +69,7 @@ class DataLoader:
         gbox_m = scene_data[:,:,:,:, self.N_BEGIN_GOAL+self.N_vtx_box]
         gbox_j = scene_data[:,:,:,:, self.N_BEGIN_GOAL+self.N_vtx_box+1:self.N_BEGIN_GOAL+self.N_vtx_box+1+self.N_joint_goal]
         joints = scene_data[:,:,:,:,-(self.N_joint_label+self.N_joint_limits):]
-        joints = np.reshape(joints, scene_data.shape[:4]+(-1,6))
+        joints = np.reshape(joints, scene_data.shape[:4]+(-1,int((self.N_joint_label+self.N_joint_limits)/self.JOINT_NUM)))
         cbox = np.concatenate([cbox, 
                                (joints*np.expand_dims(cbox_j, axis=-1)).reshape(scene_data.shape[:4]+(-1,))], 
                               axis=-1)
