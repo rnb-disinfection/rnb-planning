@@ -180,7 +180,7 @@ for i_dat, data_tuple in enumerate(data_list):
     joint_index_dict.update({jname:idx for idx, jname in zip(range(joint_num), joint_names)})
     centers = get_centers(Nwdh, L_CELL)
     merge_pairs = get_merge_pairs(ghnd, BASE_LINK)
-    merge_paired_ctems(graph=graph, merge_pairs=merge_pairs, VISUALIZE=VISUALIZE)
+    merge_paired_ctems(ghnd=graph.ghnd, merge_pairs=merge_pairs, VISUALIZE=VISUALIZE, graph=graph)
     for cname in IGNORE_CTEMS:
         graph.remove_geometry(graph.ghnd.NAME_DICT[cname])
 

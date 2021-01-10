@@ -782,8 +782,7 @@ def get_merge_pairs(ghnd, BASE_LINK):
                     merge_pairs.append((ctem1.name, ctem2.name))
     return merge_pairs
 
-def merge_paired_ctems(graph, merge_pairs, VISUALIZE):
-    ghnd = graph.ghnd
+def merge_paired_ctems(ghnd, merge_pairs, VISUALIZE=False, graph=None):
     for mpair in merge_pairs:
         ctem1, ctem2 = ghnd.NAME_DICT[mpair[0]], ghnd.NAME_DICT[mpair[1]]
         offs = np.subtract(ctem2.center, ctem1.center)    
@@ -795,9 +794,10 @@ def merge_paired_ctems(graph, merge_pairs, VISUALIZE):
                                     color=ctem1.color, display=ctem1.display,
                                     collision=ctem1.collision, fixed=ctem1.fixed, soft=ctem1.soft, 
                                     online=ctem1.online, K_col=ctem1.K_col)
-        graph.remove_geometry(ctem1)
-        graph.remove_geometry(ctem2)
-        graph.add_marker(ctem_new, vis=VISUALIZE)
+        if graph is not None:
+            graph.remove_geometry(ctem1)
+            graph.remove_geometry(ctem2)
+            graph.add_marker(ctem_new, vis=VISUALIZE)
         
         
 import cvxpy
@@ -819,6 +819,7 @@ def select_minial_combination(diff_mat):
         return np.round(selection.value).astype(np.bool)
     else:
         raise (RuntimeError("Non-optimal"))
+
 
 
 
@@ -864,24 +865,23 @@ def rearrange_cell_array_bak(cell_array, idxset, L_CELL, ctem_TFs_cur, centers):
 
 def get_cell_data(obj, L_CELL, Nwdh, Tlink_dict, chain_dict, gtype=None, cell=None):
     Tobj = np.matmul(Tlink_dict[obj.link_name], obj.Toff)
+    cell, verts_loc = get_cell_verts(gtype or obj.gtype, Tobj, obj.dims, L_CELL, Nwdh, cell=cell)
+    return cell, verts_loc, chain_dict[obj.link_name]
+
+def get_cell_verts(gtype, Tobj, dims, L_CELL, Nwdh, cell=None):
     center = Tobj[:3,3]
     cell = np.array(get_cell(center, L_CELL, Nwdh)) if cell is None else cell
-    gtype = gtype or obj.gtype
-    verts_dim = np.multiply(DEFAULT_VERT_DICT[gtype], obj.dims)
+    verts_dim = np.multiply(DEFAULT_VERT_DICT[gtype], dims)
     verts = (np.matmul(Tobj[:3,:3], verts_dim.transpose())+Tobj[:3,3:4]).transpose()
     verts_loc = (verts - (cell*L_CELL+L_CELL/2))
     verts_loc = verts_loc.flatten()
     if gtype in [GEOTYPE.CAPSULE, GEOTYPE.CYLINDER]:
-        verts_loc = np.concatenate([verts_loc, obj.dims[0:1]], axis=-1)
-    return cell, verts_loc, chain_dict[obj.link_name]
+        verts_loc = np.concatenate([verts_loc, dims[0:1]], axis=-1)
+    return cell, verts_loc
 
 from ..utils.utils import load_pickle
 
-def get_action_count(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION):
-    action_data_list = load_pickle(os.path.join(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION.replace("json", "pkl")))
-    return len(action_data_list)
-
-def load_scene_data(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION, idx_act, joint_num, get_deviation=False):
+def load_scene_data(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION, joint_num, get_deviation=False):
     N_vtx_box = 3 * 8
     N_mask_box = 1
     N_joint_box = joint_num
@@ -910,7 +910,7 @@ def load_scene_data(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION, idx_act, join
     ctem_names = scene_pickle[b'ctem_names']
     ctem_cells = scene_pickle[b'ctem_cells']
 
-    act_dat = load_pickle(os.path.join(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION.replace(".json", "-%03d.pkl"%(idx_act))))
+    act_dat = load_pickle(os.path.join(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION))
     init_box_dat = act_dat[b'init_box_dat']
     goal_box_dat = act_dat[b'goal_box_dat']
     ctem_dat_list = act_dat[b'ctem_dat_list']
@@ -1032,3 +1032,36 @@ def get_twist_tems(ghnd, cell_dat, center, chain, idx_chain, joint_num, L_CELL, 
                             center = center, rpy=(0,0,0), dims=(L_CELL,L_CELL,L_CELL,),
                             collision=False, display=True, color=(0.7,0.7,0.6,0.2))
     return ptem, vtem, atem, btem
+
+
+def select_minial_combination_fast(diff_mat):
+    diff_shape = diff_mat.shape
+    if diff_shape[0] > diff_shape[1]:
+        raise("Items more than cells")
+    selection = np.zeros((diff_shape[0],), dtype=np.int)
+    for _ in range(len(selection)):
+        min_loc = np.unravel_index(np.argmin(diff_mat), diff_shape)
+        selection[min_loc[0]] = min_loc[1]
+        diff_mat[min_loc[0],:] = 1e5
+        diff_mat[:,min_loc[1]] = 1e5
+    return selection
+
+def rearrange_cell_array_fast(cell_array, idxset, L_CELL, Nwdh, ctem_TFs_cur, centers):
+    cell_center = cell_array[idxset[0]]
+    near_range = np.clip(
+        ((cell_center[0]-1,cell_center[0]+1),(cell_center[1]-1,cell_center[1]+1),(cell_center[2]-1,cell_center[2]+1)),
+        [[0,0]]*3, np.transpose([Nwdh]*2)-1)
+    cells_near = get_centers(tuple(near_range[:,1]-near_range[:,0]+1), 1) - 0.5 + near_range[:, 0]
+    center_coord = centers[cell_center[0]][cell_center[1]][cell_center[2]]
+    centers_local = (cells_near-cell_center) * L_CELL
+    centers_global = centers_local + center_coord
+    idx_near = []
+    for cell in cells_near.reshape((-1, 3)):
+        idx_near += np.where(np.all(cell_array == cell, axis=-1))[0].tolist()
+    idx_near = sorted(idx_near)
+    diff_mat = np.linalg.norm(ctem_TFs_cur[idx_near][:, :3, 3].reshape((-1, 1, 3)) - centers_global.reshape((1, -1, 3)),
+                              axis=-1)
+    cell_idxes = select_minial_combination_fast(diff_mat)
+    cells_new = cells_near.reshape((-1, 3))[cell_idxes].astype(np.int)
+    cell_array[idx_near] = cells_new
+    return cell_array

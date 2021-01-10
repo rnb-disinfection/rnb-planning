@@ -71,6 +71,11 @@ class GeometryHandle(list):
             gtem = GeometryItem(self, gtype, name, *args, **kwargs)
         return gtem
 
+    def copy_from(self, gtem):
+        return self.create_safe(name=gtem.name, link_name=gtem.link_name, gtype=gtem.gtype,
+                                center=gtem.center, rpy=gtem.rpy, dims=gtem.dims,
+                                color=(1,0,0,0.5), display=True, collision=True, fixed=gtem.fixed)
+
 
 class GeometryItem(object):
     def __init__(self, ghnd, gtype, name, link_name, dims, center, rpy=(0,0,0), color=(0,1,0,1), display=True,

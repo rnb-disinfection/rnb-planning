@@ -1,0 +1,46 @@
+[
+  {
+    "Control": "False", 
+    "Multi": "True", 
+    "Name": "floor", 
+    "Point": "n", 
+    "Geometry": "floor", 
+    "CType": "Place", 
+    "RPY": "0.000,0.000,0.000", 
+    "Link": "base_link", 
+    "id": "330834053545309259013245110604326022793"
+  }, 
+  {
+    "Control": "False", 
+    "Multi": "True", 
+    "Name": "goal_bd", 
+    "Point": "0.000,0.000,0.020", 
+    "Geometry": "goal", 
+    "CType": "Place", 
+    "RPY": "0.000,0.000,0.000", 
+    "Link": "base_link", 
+    "id": "330835803299278386541140864022469193353"
+  }, 
+  {
+    "Control": "True", 
+    "Multi": "False", 
+    "Name": "grip0", 
+    "Point": "n", 
+    "Geometry": "grip0", 
+    "CType": "Grasp2", 
+    "RPY": "0.000,0.000,0.000", 
+    "Link": "indy0_tcp", 
+    "id": "330834053703765584041773785791413923465"
+  }, 
+  {
+    "Control": "True", 
+    "Multi": "False", 
+    "Name": "grip1", 
+    "Point": "n", 
+    "Geometry": "grip1", 
+    "CType": "Grasp2", 
+    "RPY": "0.000,0.000,0.000", 
+    "Link": "panda1_hand", 
+    "id": "330834053624537421527509448197869973129"
+  }
+]

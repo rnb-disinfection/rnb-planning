@@ -9,8 +9,10 @@ SCENE_FILENAME_DEFAULT = "scene.pkl"
     
 class DataLoader:
     def __init__(self, JOINT_NUM, CONVERTED_PATH=CONVERTED_PATH_DEFAULT, SCENE_FILENAME=SCENE_FILENAME_DEFAULT,
-                 load_limits=True):
+                 load_limits=True, get_difference=True):
         self.JOINT_NUM, self.CONVERTED_PATH, self.SCENE_FILENAME = JOINT_NUM, CONVERTED_PATH, SCENE_FILENAME
+        self.get_difference = get_difference
+        self.load_limits = load_limits
         self.N_vtx_box = 3*8
         self.N_mask_box = 1
         self.N_joint_box = self.JOINT_NUM
@@ -28,15 +30,22 @@ class DataLoader:
         self.N_joint_goal = self.JOINT_NUM
         self.N_label_goal = self.N_vtx_goal+self.N_mask_goal+self.N_joint_goal
         self.N_joint_label = 6*self.JOINT_NUM
-        self.N_joint_limits = 3*self.JOINT_NUM if load_limits else 0
+        if load_limits:
+            if self.get_difference:
+                self.N_joint_limits = 2*self.JOINT_NUM
+            else:
+                self.N_joint_limits = 3*self.JOINT_NUM
+        else:
+            self.N_joint_limits = 0
+        self.N_BEGIN_CYL = self.N_label_box
+        self.N_BEGIN_INIT = self.N_BEGIN_CYL+self.N_label_cyl
+        self.N_BEGIN_GOAL = self.N_BEGIN_INIT+self.N_label_init
+        self.N_BEGIN_JOINT = self.N_BEGIN_GOAL+self.N_label_goal
         self.N_cell_label = self.N_label_box+self.N_label_cyl+self.N_label_init+self.N_label_goal \
                             + self.N_joint_label + self.N_joint_limits
-        self.N_BEGIN_CYL = self.N_vtx_box+self.N_mask_box+self.N_joint_box
-        self.N_BEGIN_INIT = self.N_BEGIN_CYL+self.N_vtx_cyl+self.N_mask_cyl+self.N_joint_cyl
-        self.N_BEGIN_GOAL = self.N_BEGIN_INIT+self.N_vtx_init+self.N_mask_init+self.N_joint_init
     
     # trainset
-    def get_dataset_args(self, TRAINSET_LIST, JOINT_NUM, ):
+    def get_dataset_args(self, TRAINSET_LIST, JOINT_NUM):
         SCENE_TUPLE_LIST = []
         for DATASET in TRAINSET_LIST:
             CURRENT_PATH = os.path.join(self.CONVERTED_PATH, DATASET)
@@ -50,9 +59,7 @@ class DataLoader:
                     SCENE_PATH = os.path.join(WORLD_PATH, SCENE)
                     ACTION_LIST = sorted(filter(lambda x: x != self.SCENE_FILENAME, os.listdir(SCENE_PATH)))
                     for ACTION in ACTION_LIST:
-                        N_action = get_action_count(self.CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION)
-                        for i_act in range(N_action):
-                            SCENE_TUPLE_LIST.append((self.CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION, i_act, self.JOINT_NUM))
+                        SCENE_TUPLE_LIST.append((self.CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION, self.JOINT_NUM))
         return SCENE_TUPLE_LIST
     
     def separate_dat(self, scene_data):
@@ -68,8 +75,17 @@ class DataLoader:
         gbox = scene_data[:,:,:,:, self.N_BEGIN_GOAL:self.N_BEGIN_GOAL+self.N_vtx_box]
         gbox_m = scene_data[:,:,:,:, self.N_BEGIN_GOAL+self.N_vtx_box]
         gbox_j = scene_data[:,:,:,:, self.N_BEGIN_GOAL+self.N_vtx_box+1:self.N_BEGIN_GOAL+self.N_vtx_box+1+self.N_joint_goal]
-        joints = scene_data[:,:,:,:,-(self.N_joint_label+self.N_joint_limits):]
-        joints = np.reshape(joints, scene_data.shape[:4]+(-1,int((self.N_joint_label+self.N_joint_limits)/self.JOINT_NUM)))
+        if self.load_limits and self.get_difference:
+            jvals = scene_data[:,:,:,:,self.N_BEGIN_JOINT+self.N_joint_label: self.N_BEGIN_JOINT+self.N_joint_label+self.JOINT_NUM]
+            joints = np.reshape(scene_data[:,:,:,:,self.N_BEGIN_JOINT: self.N_BEGIN_JOINT+self.N_joint_label], scene_data.shape[:4]+(-1,int(self.N_joint_label/self.JOINT_NUM)))
+            joints = np.concatenate([joints,
+                                     np.stack(
+                                         [jvals - scene_data[:,:,:,:,-self.N_joint_limits:-self.N_joint_limits+self.JOINT_NUM],
+                                                     scene_data[:,:,:,:,-self.N_joint_limits+self.JOINT_NUM:] - jvals], axis=-1)
+                                    ], axis=-1)
+        else:
+            joints = scene_data[:,:,:,:,self.N_BEGIN_JOINT:]
+            joints = np.reshape(joints, scene_data.shape[:4]+(-1,int((self.N_joint_label+self.N_joint_limits)/self.JOINT_NUM)))
         cbox = np.concatenate([cbox, 
                                (joints*np.expand_dims(cbox_j, axis=-1)).reshape(scene_data.shape[:4]+(-1,))], 
                               axis=-1)

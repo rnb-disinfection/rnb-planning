@@ -96,12 +96,7 @@ def load_pickle(filename):
         return data
 
 
-def get_action_count(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION):
-    action_data_list = load_pickle(os.path.join(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION.replace("json", "pkl")))
-    return len(action_data_list)
-
-
-def load_scene_data(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION, idx_act, joint_num, get_deviation=False):
+def load_scene_data(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION, joint_num, get_deviation=False):
     N_vtx_box = 3 * 8
     N_mask_box = 1
     N_joint_box = joint_num
@@ -130,7 +125,7 @@ def load_scene_data(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION, idx_act, join
     ctem_names = scene_pickle[b'ctem_names']
     ctem_cells = scene_pickle[b'ctem_cells']
 
-    act_dat = load_pickle(os.path.join(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION.replace(".json", "-%03d.pkl"%(idx_act))))
+    act_dat = load_pickle(os.path.join(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION))
     init_box_dat = act_dat[b'init_box_dat']
     goal_box_dat = act_dat[b'goal_box_dat']
     ctem_dat_list = act_dat[b'ctem_dat_list']
