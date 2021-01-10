@@ -89,6 +89,13 @@ doxywizard
   ```
   * for "not unique" error, remove it from individual xacro files and include the item on the top of "custom_robots.urdf.xacro"  
 
+# Removing cuda  
+  ```
+  sudo apt remove -y 'cuda*'
+  sudo apt remove -y 'libcuda*'
+  sudo apt remove -y 'cudnn*'
+  sudo apt remove -y 'libcudnn*'
+  ```
 
 # Deprecated dependencies  
 
