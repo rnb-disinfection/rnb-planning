@@ -91,8 +91,8 @@
   ```
 * misc.  
   ```
-  pip install matplotlib trimesh pathlib protobuf grpcio numpy-stl sklearn filterpy paramiko cvxpy
-  pip3 install dill matplotlib sklearn opencv-python  
+  pip install matplotlib trimesh pathlib protobuf grpcio numpy-stl sklearn filterpy paramiko cvxpy SharedArray  
+  pip3 install dill matplotlib sklearn opencv-python SharedArray  
   ```
 
 # ROS Setup

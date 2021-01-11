@@ -606,8 +606,12 @@ class ConstraintGraph:
         for gtem in ghnd_new:
             self.add_marker(self.ghnd.copy_from(gtem))
 
-    def convert_workspace(self, ghnd, L_CELL=0.2, WS_DIMS=(3, 3, 3)):
+    def convert_workspace(self, ghnd, L_CELL=0.2, WS_DIMS=(3, 3, 3), center_height=0.75):
         WS_RANGE = np.divide(np.array(WS_DIMS, dtype=np.float), 2)
+        WS_RANGE_MIN = -np.copy(WS_RANGE)
+        WS_RANGE_MIN[2] = -center_height
+        WS_RANGE_MAX = np.copy(WS_RANGE)
+        WS_RANGE_MAX[2] = WS_RANGE_MAX[2]*2-center_height
         L_TEM_MAX = L_CELL * 2
         L_REF = ((L_TEM_MAX + L_CELL) / 2)
         ghnd_new = GeometryHandle(ghnd.urdf_content)
@@ -631,7 +635,7 @@ class ConstraintGraph:
                         for gidx, P_i in enumerate(P_list):
                             gname_new = gtem.name + "_%03d" % gidx
                             center_new = tuple(np.add(gtem.center, P_i))
-                            if np.any(np.greater_equal(np.abs(center_new), WS_RANGE)):
+                            if np.any([center_new<WS_RANGE_MIN, WS_RANGE_MAX<center_new]):
                                 print("ignore {} out of workspace".format(gname_new))
                                 continue
                             ghnd_new.create_safe(name=gname_new, link_name=gtem.link_name, gtype=gtem.gtype,
@@ -650,7 +654,7 @@ class ConstraintGraph:
                     for gidx, P_i in enumerate(P_list):
                         gname_new = gtem.name + "_%03d" % gidx
                         center_new = tuple(np.add(gtem.center, P_i))
-                        if np.any(np.greater_equal(np.abs(center_new), WS_RANGE)):
+                        if np.any([center_new<WS_RANGE_MIN, WS_RANGE_MAX<center_new]):
                             print("ignore {} out of workspace".format(gname_new))
                             print(center_new)
                             continue
@@ -658,7 +662,7 @@ class ConstraintGraph:
                                              center=center_new, rpy=gtem.rpy, dims=tuple(dims_div), color=gtem.color,
                                              display=True, collision=True, fixed=gtem.fixed)
             else:
-                if np.any(np.greater_equal(np.abs(gtem.center), WS_RANGE)):
+                if np.any([gtem.center<WS_RANGE_MIN, WS_RANGE_MAX<gtem.center]):
                     print("ignore {} out of workspace".format(gtem.name))
                     continue
                 ghnd_new.create_safe(name=gtem.name, link_name=gtem.link_name, gtype=gtem.gtype,
@@ -667,7 +671,7 @@ class ConstraintGraph:
         return ghnd_new
 
     def convert_scene(self, ghnd_cvt, state, L_CELL=0.2, Nwdh=(15, 15, 15), BASE_LINK="base_link", offset_center=True,
-                      only_base=True):
+                      only_base=True, center_height=0.75):
         crob = self.combined_robot
         gtimer = self.gtimer
         Q_s = state.Q
@@ -725,7 +729,7 @@ class ConstraintGraph:
         gtimer.tic("T_chain")
         Tlink_dict = build_T_chain(link_names, Q_s_dict, ghnd_cvt.urdf_content)
         if offset_center:
-            Toffcenter = SE3(np.identity(3), np.multiply(Nwdh, L_CELL) / 2)
+            Toffcenter = SE3(np.identity(3), tuple(np.multiply(Nwdh[:2], L_CELL) / 2)+(center_height,))
             for key in Tlink_dict.keys():
                 Tlink_dict[key] = np.matmul(Toffcenter, Tlink_dict[key])
         gtimer.toc("T_chain")
