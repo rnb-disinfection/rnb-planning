@@ -433,8 +433,8 @@ def reset_rendering(graph, key, obj_keep_list, obj_virtual_list, dims_bak=None, 
 
 ########################### place sampling functions @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 from ..constraint_graph import State
-def test_pick(graph, GRIPPER_REFS, rname, inhand, obj, tar, Q_s, mplan, **kwargs):
-    mplan.update(graph)
+
+def get_pick_states(graph, GRIPPER_REFS, rname, inhand, obj, tar, Q_s):
     T_lgo, T_bo = inhand.Toff, obj.Toff
     bname = GRIPPER_REFS[rname]["bname"]
     T_lg = graph.binder_dict[bname].Toff_lh
@@ -444,11 +444,15 @@ def test_pick(graph, GRIPPER_REFS, rname, inhand, obj, tar, Q_s, mplan, **kwargs
     graph.set_object_state(state_s)
     state_g = state_s.copy(graph)
     state_g.node = (("virtual", "point", bname),)
+    return state_s, state_g
+
+def test_pick(graph, GRIPPER_REFS, rname, inhand, obj, tar, Q_s, mplan, **kwargs):
+    mplan.update(graph)
+    state_s, state_g = get_pick_states(graph, GRIPPER_REFS, rname, inhand, obj, tar, Q_s)
     mplan.update(graph)
     return mplan.plan_transition(state_s, state_g, state_g.node, **kwargs)
 
-def test_place(graph, GRIPPER_REFS, rname, inhand, ontarget, tar, Q_s, mplan, **kwargs):
-    mplan.update(graph)
+def get_place_states(graph, GRIPPER_REFS, rname, inhand, ontarget, tar, Q_s):
     T_lgo, T_bo = inhand.Toff, ontarget.Toff
     bname = GRIPPER_REFS[rname]["bname"]
     T_lg = graph.binder_dict[bname].Toff_lh
@@ -458,16 +462,19 @@ def test_place(graph, GRIPPER_REFS, rname, inhand, ontarget, tar, Q_s, mplan, **
     graph.set_object_state(state_s)
     state_g = state_s.copy(graph)
     state_g.node = (("virtual", "point", bname),)
+    return state_s, state_g
+
+def test_place(graph, GRIPPER_REFS, rname, inhand, ontarget, tar, Q_s, mplan, **kwargs):
+    mplan.update(graph)
+    state_s, state_g = get_place_states(graph, GRIPPER_REFS, rname, inhand, ontarget, tar, Q_s)
     mplan.update(graph)
     return mplan.plan_transition(state_s, state_g, state_g.node, **kwargs)
 
 from ..planner.moveit.moveit_planner import transfer_ctem
 from ..utils.utils import list2dict, dict2list
 
-def test_handover(graph, GRIPPER_REFS, src, handed, intar, tar, Q_s, mplan,
-                  N=250, dt=0.04, vel_conv=0.5e-2, err_conv=1e-3, **kwargs):
+def get_handover_states(graph, GRIPPER_REFS, src, handed, intar, tar, Q_s):
     Q_s_new = np.array(list(reversed(-Q_s[graph.combined_robot.idx_dict[src]])) + list(Q_s[graph.combined_robot.idx_dict[tar]]))
-    graph.ghnd.update()
     T_lso, T_lto = handed.Toff, intar.Toff
     sbname = GRIPPER_REFS[src]["bname"]
     tbname = GRIPPER_REFS[tar]["bname"]
@@ -478,6 +485,12 @@ def test_handover(graph, GRIPPER_REFS, src, handed, intar, tar, Q_s, mplan,
     graph.set_object_state(state_s)
     state_g = state_s.copy(graph)
     state_g.node = (("virtual", "point", tbname),)
+    return state_s, state_g
+
+def test_handover(graph, GRIPPER_REFS, src, handed, intar, tar, Q_s, mplan,
+                  N=250, dt=0.04, vel_conv=0.5e-2, err_conv=1e-3, **kwargs):
+    graph.ghnd.update()
+    state_s, state_g = get_handover_states(graph, GRIPPER_REFS, src, handed, intar, tar, Q_s)
     graph.ghnd.update()
     transfer_ctem(graph.ghnd, mplan.ghnd)
     mplan.update(graph)
@@ -798,6 +811,9 @@ def merge_paired_ctems(ghnd, merge_pairs, VISUALIZE=False, graph=None):
             graph.remove_geometry(ctem1)
             graph.remove_geometry(ctem2)
             graph.add_marker(ctem_new, vis=VISUALIZE)
+        else:
+            ghnd.remove(ctem1)
+            ghnd.remove(ctem2)
         
         
 import cvxpy
