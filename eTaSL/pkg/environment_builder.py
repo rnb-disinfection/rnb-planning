@@ -10,7 +10,7 @@ from .marker_config import *
 __rospy_initialized = False
 __roscore = None
 
-def set_custom_robots(ROBOTS_ON_SCENE, xyz_rpy_robots, custom_limits, node_name='task_planner', start_rviz=True):
+def set_custom_robots(ROBOTS_ON_SCENE, xyz_rpy_robots, custom_limits, node_name='task_planner', start_rviz=True, custom_xacro=None):
     global __rospy_initialized, __roscore
     if not __rospy_initialized:
         __roscore = subprocess.Popen(['roscore'])
@@ -19,7 +19,10 @@ def set_custom_robots(ROBOTS_ON_SCENE, xyz_rpy_robots, custom_limits, node_name=
 
     urdf_content = None
     xcustom = XacroCustomizer.instance()
-    xcustom.initialize(ROBOTS_ON_SCENE, xyz_rpy_robots)
+    if custom_xacro is not None:
+        xcustom.initialize(ROBOTS_ON_SCENE, xyz_rpy_robots, xacro_path=custom_xacro)
+    else:
+        xcustom.initialize(ROBOTS_ON_SCENE, xyz_rpy_robots)
 
     JOINT_NAMES, LINK_NAMES, urdf_content = \
         xcustom.convert_xacro_to_urdf(

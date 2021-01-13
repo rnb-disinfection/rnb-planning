@@ -393,18 +393,24 @@ bool Planner::process_object(string name, const ObjectType type, CartPose pose, 
             primitive.dimensions[0] = dims[0];
             primitive.dimensions[1] = dims[1];
             primitive.dimensions[2] = dims[2];
+#ifdef PRINT_DEBUG
             printf("BOX: %f, %f, %f \n", dims[0], dims[1], dims[2]);
+#endif
             break;
         case ObjectType::SPHERE:
             primitive.dimensions.resize(1);
             primitive.dimensions[0] = dims[0];
+#ifdef PRINT_DEBUG
             printf("SPHERE: %f \n", dims[0]);
+#endif
             break;
         case ObjectType::CYLINDER:
             primitive.dimensions.resize(2);
             primitive.dimensions[0] = dims[0];
             primitive.dimensions[1] = dims[1];
+#ifdef PRINT_DEBUG
             printf("CYLINDER: %f, %f \n", dims[0], dims[1]);
+#endif
             break;
     }
 

@@ -53,7 +53,13 @@ def spread(bp_arr, size):
     return [bp_arr[i] for i in range(size)]
 
 class ObjectMPC:
-    def __init__(self, name, type, link_name, pose=[0]*7, dims=[0]*3, touch_links=[], attach=True):
+    def __init__(self, name, type, link_name, pose=None, dims=None, touch_links=None, attach=True):
+        if pose is None:
+            pose = [0]*7
+        if dims is None:
+            dims = [0]*3
+        if touch_links is None:
+            touch_links = []
         self.name, self.type, self.pose, self.dims, self.link_name, self.touch_links, self.attach = \
             name, type, pose, dims, link_name, touch_links, attach
 

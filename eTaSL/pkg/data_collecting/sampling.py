@@ -433,8 +433,8 @@ def reset_rendering(graph, key, obj_keep_list, obj_virtual_list, dims_bak=None, 
 
 ########################### place sampling functions @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 from ..constraint_graph import State
-def test_pick(graph, GRIPPER_REFS, rname, inhand, obj, tar, Q_s, mplan, **kwargs):
-    mplan.update(graph)
+
+def get_pick_states(graph, GRIPPER_REFS, rname, inhand, obj, tar, Q_s):
     T_lgo, T_bo = inhand.Toff, obj.Toff
     bname = GRIPPER_REFS[rname]["bname"]
     T_lg = graph.binder_dict[bname].Toff_lh
@@ -444,11 +444,15 @@ def test_pick(graph, GRIPPER_REFS, rname, inhand, obj, tar, Q_s, mplan, **kwargs
     graph.set_object_state(state_s)
     state_g = state_s.copy(graph)
     state_g.node = (("virtual", "point", bname),)
+    return state_s, state_g
+
+def test_pick(graph, GRIPPER_REFS, rname, inhand, obj, tar, Q_s, mplan, **kwargs):
+    mplan.update(graph)
+    state_s, state_g = get_pick_states(graph, GRIPPER_REFS, rname, inhand, obj, tar, Q_s)
     mplan.update(graph)
     return mplan.plan_transition(state_s, state_g, state_g.node, **kwargs)
 
-def test_place(graph, GRIPPER_REFS, rname, inhand, ontarget, tar, Q_s, mplan, **kwargs):
-    mplan.update(graph)
+def get_place_states(graph, GRIPPER_REFS, rname, inhand, ontarget, tar, Q_s):
     T_lgo, T_bo = inhand.Toff, ontarget.Toff
     bname = GRIPPER_REFS[rname]["bname"]
     T_lg = graph.binder_dict[bname].Toff_lh
@@ -458,16 +462,19 @@ def test_place(graph, GRIPPER_REFS, rname, inhand, ontarget, tar, Q_s, mplan, **
     graph.set_object_state(state_s)
     state_g = state_s.copy(graph)
     state_g.node = (("virtual", "point", bname),)
+    return state_s, state_g
+
+def test_place(graph, GRIPPER_REFS, rname, inhand, ontarget, tar, Q_s, mplan, **kwargs):
+    mplan.update(graph)
+    state_s, state_g = get_place_states(graph, GRIPPER_REFS, rname, inhand, ontarget, tar, Q_s)
     mplan.update(graph)
     return mplan.plan_transition(state_s, state_g, state_g.node, **kwargs)
 
 from ..planner.moveit.moveit_planner import transfer_ctem
 from ..utils.utils import list2dict, dict2list
 
-def test_handover(graph, GRIPPER_REFS, src, handed, intar, tar, Q_s, mplan,
-                  N=250, dt=0.04, vel_conv=0.5e-2, err_conv=1e-3, **kwargs):
+def get_handover_states(graph, GRIPPER_REFS, src, handed, intar, tar, Q_s):
     Q_s_new = np.array(list(reversed(-Q_s[graph.combined_robot.idx_dict[src]])) + list(Q_s[graph.combined_robot.idx_dict[tar]]))
-    graph.ghnd.update()
     T_lso, T_lto = handed.Toff, intar.Toff
     sbname = GRIPPER_REFS[src]["bname"]
     tbname = GRIPPER_REFS[tar]["bname"]
@@ -478,6 +485,12 @@ def test_handover(graph, GRIPPER_REFS, src, handed, intar, tar, Q_s, mplan,
     graph.set_object_state(state_s)
     state_g = state_s.copy(graph)
     state_g.node = (("virtual", "point", tbname),)
+    return state_s, state_g
+
+def test_handover(graph, GRIPPER_REFS, src, handed, intar, tar, Q_s, mplan,
+                  N=250, dt=0.04, vel_conv=0.5e-2, err_conv=1e-3, **kwargs):
+    graph.ghnd.update()
+    state_s, state_g = get_handover_states(graph, GRIPPER_REFS, src, handed, intar, tar, Q_s)
     graph.ghnd.update()
     transfer_ctem(graph.ghnd, mplan.ghnd)
     mplan.update(graph)
@@ -782,8 +795,7 @@ def get_merge_pairs(ghnd, BASE_LINK):
                     merge_pairs.append((ctem1.name, ctem2.name))
     return merge_pairs
 
-def merge_paired_ctems(graph, merge_pairs, VISUALIZE):
-    ghnd = graph.ghnd
+def merge_paired_ctems(ghnd, merge_pairs, VISUALIZE=False, graph=None):
     for mpair in merge_pairs:
         ctem1, ctem2 = ghnd.NAME_DICT[mpair[0]], ghnd.NAME_DICT[mpair[1]]
         offs = np.subtract(ctem2.center, ctem1.center)    
@@ -795,9 +807,13 @@ def merge_paired_ctems(graph, merge_pairs, VISUALIZE):
                                     color=ctem1.color, display=ctem1.display,
                                     collision=ctem1.collision, fixed=ctem1.fixed, soft=ctem1.soft, 
                                     online=ctem1.online, K_col=ctem1.K_col)
-        graph.remove_geometry(ctem1)
-        graph.remove_geometry(ctem2)
-        graph.add_marker(ctem_new, vis=VISUALIZE)
+        if graph is not None:
+            graph.remove_geometry(ctem1)
+            graph.remove_geometry(ctem2)
+            graph.add_marker(ctem_new, vis=VISUALIZE)
+        else:
+            ghnd.remove(ctem1)
+            ghnd.remove(ctem2)
         
         
 import cvxpy
@@ -819,6 +835,7 @@ def select_minial_combination(diff_mat):
         return np.round(selection.value).astype(np.bool)
     else:
         raise (RuntimeError("Non-optimal"))
+
 
 
 
@@ -864,82 +881,88 @@ def rearrange_cell_array_bak(cell_array, idxset, L_CELL, ctem_TFs_cur, centers):
 
 def get_cell_data(obj, L_CELL, Nwdh, Tlink_dict, chain_dict, gtype=None, cell=None):
     Tobj = np.matmul(Tlink_dict[obj.link_name], obj.Toff)
+    cell, verts_loc = get_cell_verts(gtype or obj.gtype, Tobj, obj.dims, L_CELL, Nwdh, cell=cell)
+    return cell, verts_loc, chain_dict[obj.link_name]
+
+def get_cell_verts(gtype, Tobj, dims, L_CELL, Nwdh, cell=None):
     center = Tobj[:3,3]
     cell = np.array(get_cell(center, L_CELL, Nwdh)) if cell is None else cell
-    gtype = gtype or obj.gtype
-    verts_dim = np.multiply(DEFAULT_VERT_DICT[gtype], obj.dims)
+    verts_dim = np.multiply(DEFAULT_VERT_DICT[gtype], dims)
     verts = (np.matmul(Tobj[:3,:3], verts_dim.transpose())+Tobj[:3,3:4]).transpose()
     verts_loc = (verts - (cell*L_CELL+L_CELL/2))
     verts_loc = verts_loc.flatten()
     if gtype in [GEOTYPE.CAPSULE, GEOTYPE.CYLINDER]:
-        verts_loc = np.concatenate([verts_loc, obj.dims[0:1]], axis=-1)
-    return cell, verts_loc, chain_dict[obj.link_name]
+        verts_loc = np.concatenate([verts_loc, dims[0:1]], axis=-1)
+    return cell, verts_loc
 
 from ..utils.utils import load_pickle
 
-def get_action_count(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION):
-    action_data_list = load_pickle(os.path.join(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION.replace("json", "pkl")))
-    return len(action_data_list)
-
-def load_scene_data(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION, idx_act, joint_num):
-
-    N_vtx_box = 3*8
+def load_scene_data(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION, joint_num, get_deviation=False):
+    N_vtx_box = 3 * 8
     N_mask_box = 1
     N_joint_box = joint_num
-    N_label_box = N_vtx_box+N_mask_box+N_joint_box
-    N_vtx_cyl = 3*2+1
+    N_label_box = N_vtx_box + N_mask_box + N_joint_box
+    N_vtx_cyl = 3 * 2 + 1
     N_mask_cyl = 1
     N_joint_cyl = joint_num
-    N_label_cyl = N_vtx_cyl+N_mask_cyl+N_joint_cyl
-    N_vtx_init = 3*8
+    N_label_cyl = N_vtx_cyl + N_mask_cyl + N_joint_cyl
+    N_vtx_init = 3 * 8
     N_mask_init = 1
     N_joint_init = joint_num
-    N_label_init = N_vtx_init+N_mask_init+N_joint_init
-    N_vtx_goal = 3*8
+    N_label_init = N_vtx_init + N_mask_init + N_joint_init
+    N_vtx_goal = 3 * 8
     N_mask_goal = 1
     N_joint_goal = joint_num
-    N_label_goal = N_vtx_goal+N_mask_goal+N_joint_goal
-    N_joint_label = 6*joint_num
-    N_cell_label = N_label_box+N_label_cyl+N_label_init+N_label_goal + N_joint_label
-    N_BEGIN_CYL = N_vtx_box+N_mask_box+N_joint_box
-    N_BEGIN_INIT = N_BEGIN_CYL+N_vtx_cyl+N_mask_cyl+N_joint_cyl
-    N_BEGIN_GOAL = N_BEGIN_INIT+N_vtx_init+N_mask_init+N_joint_init
+    N_label_goal = N_vtx_goal + N_mask_goal + N_joint_goal
+    N_joint_label = 6 * joint_num
+    N_cell_label = N_label_box + N_label_cyl + N_label_init + N_label_goal + N_joint_label
+    N_BEGIN_CYL = N_vtx_box + N_mask_box + N_joint_box
+    N_BEGIN_INIT = N_BEGIN_CYL + N_vtx_cyl + N_mask_cyl + N_joint_cyl
+    N_BEGIN_GOAL = N_BEGIN_INIT + N_vtx_init + N_mask_init + N_joint_init
 
+    print("load: {}".format((CONVERTED_PATH, DATASET, WORLD, SCENE)))
     scene_pickle = load_pickle(os.path.join(CONVERTED_PATH, DATASET, WORLD, SCENE, "scene.pkl"))
-    scene_data = scene_pickle["scene_data"]
-    ctem_names = scene_pickle["ctem_names"]
-    ctem_cells = scene_pickle["ctem_cells"]
+    scene_data = scene_pickle[b'scene_data']
+    ctem_names = scene_pickle[b'ctem_names']
+    ctem_cells = scene_pickle[b'ctem_cells']
 
-    action_data_list = load_pickle(os.path.join(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION.replace("json", "pkl")))
-    act_dat = action_data_list[idx_act]
-    init_box_dat = act_dat["init_box_dat"]
-    goal_box_dat = act_dat["goal_box_dat"]
-    ctem_dat_list = act_dat["ctem_dat_list"]
-    skey = int(act_dat["skey"])
-    success = act_dat["success"]
+    act_dat = load_pickle(os.path.join(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION))
+    init_box_dat = act_dat[b'init_box_dat']
+    goal_box_dat = act_dat[b'goal_box_dat']
+    ctem_dat_list = act_dat[b'ctem_dat_list']
+    skey = int(act_dat[b'skey'])
+    success = act_dat[b'success']
     ### put init, goal item data
     cell, verts, chain = init_box_dat
-    scene_data[cell[0],cell[1],cell[2],N_BEGIN_INIT:N_BEGIN_INIT+N_vtx_init] = verts
-    scene_data[cell[0],cell[1],cell[2],N_BEGIN_INIT+N_vtx_init:N_BEGIN_INIT+N_vtx_init+N_mask_init] = 1
-    scene_data[cell[0],cell[1],cell[2],N_BEGIN_INIT+N_vtx_init+N_mask_init:N_BEGIN_INIT+N_vtx_init+N_mask_init+N_joint_init] = chain
+    scene_data[cell[0], cell[1], cell[2], N_BEGIN_INIT:N_BEGIN_INIT + N_vtx_init] = verts
+    scene_data[cell[0], cell[1], cell[2], N_BEGIN_INIT + N_vtx_init:N_BEGIN_INIT + N_vtx_init + N_mask_init] = 1
+    scene_data[cell[0], cell[1], cell[2],
+    N_BEGIN_INIT + N_vtx_init + N_mask_init:N_BEGIN_INIT + N_vtx_init + N_mask_init + N_joint_init] = chain
+    cell_init = cell
 
     cell, verts, chain = goal_box_dat
-    scene_data[cell[0],cell[1],cell[2],N_BEGIN_GOAL:N_BEGIN_GOAL+N_vtx_goal] = verts
-    scene_data[cell[0],cell[1],cell[2],N_BEGIN_GOAL+N_vtx_goal:N_BEGIN_GOAL+N_vtx_goal+N_mask_goal] = 1
-    scene_data[cell[0],cell[1],cell[2],N_BEGIN_GOAL+N_vtx_goal+N_mask_goal:N_BEGIN_GOAL+N_vtx_goal+N_mask_goal+N_joint_goal] = chain
+    scene_data[cell[0], cell[1], cell[2], N_BEGIN_GOAL:N_BEGIN_GOAL + N_vtx_goal] = verts
+    scene_data[cell[0], cell[1], cell[2], N_BEGIN_GOAL + N_vtx_goal:N_BEGIN_GOAL + N_vtx_goal + N_mask_goal] = 1
+    scene_data[cell[0], cell[1], cell[2],
+    N_BEGIN_GOAL + N_vtx_goal + N_mask_goal:N_BEGIN_GOAL + N_vtx_goal + N_mask_goal + N_joint_goal] = chain
+    cell_goal = cell
 
     ### add/replace collilsion object
     for cname, ctype, cell, verts, chain in ctem_dat_list:
-        if ctype == "BOX":
+        if ctype == b'BOX':
             N_BEGIN_REP, N_vtx, N_mask, N_joint = 0, N_vtx_box, N_mask_box, N_joint_box
-        elif ctype == "CYLINDER":
+        elif ctype == b'CYLINDER':
             N_BEGIN_REP, N_vtx, N_mask, N_joint = N_BEGIN_CYL, N_vtx_cyl, N_mask_cyl, N_joint_cyl
         else:
-            raise(RuntimeError("Non considered shape key"))
-        scene_data[cell[0],cell[1],cell[2],N_BEGIN_REP:N_BEGIN_REP+N_vtx] = verts
-        scene_data[cell[0],cell[1],cell[2],N_BEGIN_REP+N_vtx:N_BEGIN_REP+N_vtx+N_mask] = 1
-        scene_data[cell[0],cell[1],cell[2],N_BEGIN_REP+N_vtx+N_mask:N_BEGIN_REP+N_vtx+N_mask+N_joint] = chain
-    return scene_data, success, skey
+            raise (RuntimeError("Non considered shape key"))
+        scene_data[cell[0], cell[1], cell[2], N_BEGIN_REP:N_BEGIN_REP + N_vtx] = verts
+        scene_data[cell[0], cell[1], cell[2], N_BEGIN_REP + N_vtx:N_BEGIN_REP + N_vtx + N_mask] = 1
+        scene_data[cell[0], cell[1], cell[2],
+        N_BEGIN_REP + N_vtx + N_mask:N_BEGIN_REP + N_vtx + N_mask + N_joint] = chain
+    if get_deviation:
+        return scene_data, success, skey, cell_init, cell_goal
+    else:
+        return scene_data, success, skey
 
 def get_box_diplay(ghnd, name, cell_dat, N_BEGIN, joint_num, center, color=(0.8,0.0,0.0,0.5), dim_offset=(0,0,0)):
     N_vtx_box = 3*8
@@ -989,11 +1012,18 @@ def get_cyl_diplay(ghnd, name, cell_dat, N_BEGIN, joint_num, center, color=(0.8,
         cyl = None
     return cyl, mask, chain
 
-def get_twist_tems(ghnd, cell_dat, center, chain, idx_chain, joint_num, L_CELL):
-    N_joint_label = 6 * joint_num
+def get_twist_tems(ghnd, cell_dat, center, chain, idx_chain, joint_num, L_CELL, load_limits=True):
     i_j = np.where(chain)[0][idx_chain]
-    xi = cell_dat[-N_joint_label:].reshape((-1,6))
+    if load_limits:
+        N_joint_limits = 3 * joint_num
+        N_joint_label = 6 * joint_num + N_joint_limits
+        xi = cell_dat[-N_joint_label:-N_joint_limits].reshape((-1,6))
+    else:
+        N_joint_label = 6 * joint_num
+        xi = cell_dat[-N_joint_label:].reshape((-1,6))
+    print("xi: {}".format(xi.shape))
     wv = xi[i_j]
+    print("wv: {}".format(wv))
     __w = wv[:3]
     __v = wv[3:]
     w_abs = np.linalg.norm(__w)
@@ -1018,3 +1048,36 @@ def get_twist_tems(ghnd, cell_dat, center, chain, idx_chain, joint_num, L_CELL):
                             center = center, rpy=(0,0,0), dims=(L_CELL,L_CELL,L_CELL,),
                             collision=False, display=True, color=(0.7,0.7,0.6,0.2))
     return ptem, vtem, atem, btem
+
+
+def select_minial_combination_fast(diff_mat):
+    diff_shape = diff_mat.shape
+    if diff_shape[0] > diff_shape[1]:
+        raise("Items more than cells")
+    selection = np.zeros((diff_shape[0],), dtype=np.int)
+    for _ in range(len(selection)):
+        min_loc = np.unravel_index(np.argmin(diff_mat), diff_shape)
+        selection[min_loc[0]] = min_loc[1]
+        diff_mat[min_loc[0],:] = 1e5
+        diff_mat[:,min_loc[1]] = 1e5
+    return selection
+
+def rearrange_cell_array_fast(cell_array, idxset, L_CELL, Nwdh, ctem_TFs_cur, centers):
+    cell_center = cell_array[idxset[0]]
+    near_range = np.clip(
+        ((cell_center[0]-1,cell_center[0]+1),(cell_center[1]-1,cell_center[1]+1),(cell_center[2]-1,cell_center[2]+1)),
+        [[0,0]]*3, np.transpose([Nwdh]*2)-1)
+    cells_near = get_centers(tuple(near_range[:,1]-near_range[:,0]+1), 1) - 0.5 + near_range[:, 0]
+    center_coord = centers[cell_center[0]][cell_center[1]][cell_center[2]]
+    centers_local = (cells_near-cell_center) * L_CELL
+    centers_global = centers_local + center_coord
+    idx_near = []
+    for cell in cells_near.reshape((-1, 3)):
+        idx_near += np.where(np.all(cell_array == cell, axis=-1))[0].tolist()
+    idx_near = sorted(idx_near)
+    diff_mat = np.linalg.norm(ctem_TFs_cur[idx_near][:, :3, 3].reshape((-1, 1, 3)) - centers_global.reshape((1, -1, 3)),
+                              axis=-1)
+    cell_idxes = select_minial_combination_fast(diff_mat)
+    cells_new = cells_near.reshape((-1, 3))[cell_idxes].astype(np.int)
+    cell_array[idx_near] = cells_new
+    return cell_array

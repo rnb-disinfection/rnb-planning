@@ -20,7 +20,7 @@ class DenseBN(KL.Layer):
 
 class IdentityBlock(KL.Layer):
     def __init__(self, kernel_size, filters, stage, block,
-                 use_bias=False, use_bn=True, ConvLayer=KL.Conv2D):
+                 use_bias=False, use_bn=True, ConvLayer=KL.Conv2D, activation="relu"):
         super(IdentityBlock, self).__init__()
         self.use_bn = use_bn
         nb_filter1, nb_filter2, nb_filter3 = filters
@@ -31,20 +31,20 @@ class IdentityBlock(KL.Layer):
                                use_bias=use_bias)
         if self.use_bn:
             self.bn1 = KL.BatchNormalization(name=bn_name_base + '2a')
-        self.ac1 = KL.Activation('relu')
+        self.ac1 = KL.Activation(activation)
         
         self.conv2 = ConvLayer(nb_filter2, kernel_size, padding="same",
                                name=conv_name_base + '2b', use_bias=use_bias)
         if self.use_bn:
             self.bn2 = KL.BatchNormalization(name=bn_name_base + '2b')
-        self.ac2 = KL.Activation('relu')
+        self.ac2 = KL.Activation(activation)
         
         self.conv3 = ConvLayer(nb_filter3, 1, name=conv_name_base + '2c',
                                use_bias=use_bias)
         if self.use_bn:
             self.bn3 = KL.BatchNormalization(name=bn_name_base + '2c')
         self.add = KL.Add()
-        self.ac3 = KL.Activation('relu', name='res' + str(stage) + block + '_out')
+        self.ac3 = KL.Activation(activation, name='res' + str(stage) + block + '_out')
         
     def call(self, input_tensor, training=False):
         x = self.conv1(input_tensor)
@@ -73,7 +73,7 @@ class IdentityBlock3D(IdentityBlock):
 
 class ConvBlock(KL.Layer):
     def __init__(self, kernel_size, filters, stage, block, strides=2,
-                 use_bias=False, use_bn=True, ConvLayer=KL.Conv2D):
+                 use_bias=False, use_bn=True, ConvLayer=KL.Conv2D, activation='relu'):
         super(ConvBlock, self).__init__()
         self.use_bn = use_bn
         nb_filter1, nb_filter2, nb_filter3 = filters
@@ -84,13 +84,13 @@ class ConvBlock(KL.Layer):
                                name=conv_name_base + '2a', use_bias=use_bias)
         if self.use_bn:
             self.bn1 = KL.BatchNormalization(name=bn_name_base + '2a')
-        self.ac1 = KL.Activation('relu')
+        self.ac1 = KL.Activation(activation)
         
         self.conv2 = ConvLayer(nb_filter2, kernel_size, padding="same",
                                name=conv_name_base + '2b', use_bias=use_bias)
         if self.use_bn:
             self.bn2 = KL.BatchNormalization(name=bn_name_base + '2b')
-        self.ac2 = KL.Activation('relu')
+        self.ac2 = KL.Activation(activation)
         
         self.conv3 = ConvLayer(nb_filter3, 1, name=conv_name_base + '2c',
                                use_bias=use_bias)
@@ -103,7 +103,7 @@ class ConvBlock(KL.Layer):
             self.bns = KL.BatchNormalization(name=bn_name_base + '1')
     
         self.add = KL.Add()
-        self.ac3 = KL.Activation('relu', name='res' + str(stage) + block + '_out')
+        self.ac3 = KL.Activation(activation, name='res' + str(stage) + block + '_out')
         
     def call(self, input_tensor, training=False):
         x = self.conv1(input_tensor)
@@ -137,7 +137,7 @@ class ResNet(KL.Layer):
     def __init__(self, architecture="resnet50", stage0=None, stage1=None, stage2=[64, 64, 256], stage3=[128, 128, 512], 
                  stage4=[256, 256, 1024], stage5=None, 
                  ConvLayer=KL.Conv2D, ZeroPadding=KL.ZeroPadding2D, MaxPool=KL.MaxPooling2D, 
-                 ConvBlock=ConvBlock, IdentityBlock=IdentityBlock, input_size=(15,15,15), joint_num=13, batch_size=16):
+                 ConvBlock=ConvBlock, IdentityBlock=IdentityBlock, activation='relu', input_size=(15,15,15), joint_num=13, batch_size=16):
         super(ResNet, self).__init__()
         """Build a ResNet graph.
             architecture: Can be resnet50 or resnet101
@@ -151,60 +151,60 @@ class ResNet(KL.Layer):
         self.joint_num = joint_num
         self.batch_size = batch_size
         if self.stage0:
-            self.pre_boxa = ConvBlock(1, stage0, stage=0, block='ba', strides=1, use_bias=True, use_bn=False)
-            self.pre_boxb = IdentityBlock(1, stage0, stage=0, block='bb', use_bias=True, use_bn=False)
-            self.pre_boxc = IdentityBlock(1, stage0, stage=0, block='bc')
-            self.pre_cyla = ConvBlock(1, stage0, stage=0, block='ca', strides=1, use_bias=True, use_bn=False)
-            self.pre_cylb = IdentityBlock(1, stage0, stage=0, block='cb', use_bias=True, use_bn=False)
-            self.pre_cylc = IdentityBlock(1, stage0, stage=0, block='cc')
-            self.pre_inia = ConvBlock(1, stage0, stage=0, block='ia', strides=1, use_bias=True, use_bn=False)
-            self.pre_inib = IdentityBlock(1, stage0, stage=0, block='ib', use_bias=True, use_bn=False)
-            self.pre_inic = IdentityBlock(1, stage0, stage=0, block='ic')
-            self.pre_gola = ConvBlock(1, stage0, stage=0, block='ga', strides=1, use_bias=True, use_bn=False)
-            self.pre_golb = IdentityBlock(1, stage0, stage=0, block='gb', use_bias=True, use_bn=False)
-            self.pre_golc = IdentityBlock(1, stage0, stage=0, block='gc')
+            self.pre_boxa = ConvBlock(1, stage0, stage=0, block='ba', strides=1, use_bias=True, use_bn=False, activation=activation)
+            self.pre_boxb = IdentityBlock(1, stage0, stage=0, block='bb', activation=activation)
+            self.pre_boxc = IdentityBlock(1, stage0, stage=0, block='bc', activation=activation)
+            self.pre_cyla = ConvBlock(1, stage0, stage=0, block='ca', strides=1, use_bias=True, use_bn=False, activation=activation)
+            self.pre_cylb = IdentityBlock(1, stage0, stage=0, block='cb', activation=activation)
+            self.pre_cylc = IdentityBlock(1, stage0, stage=0, block='cc', activation=activation)
+            self.pre_inia = ConvBlock(1, stage0, stage=0, block='ia', strides=1, use_bias=True, use_bn=False, activation=activation)
+            self.pre_inib = IdentityBlock(1, stage0, stage=0, block='ib', activation=activation)
+            self.pre_inic = IdentityBlock(1, stage0, stage=0, block='ic', activation=activation)
+            self.pre_gola = ConvBlock(1, stage0, stage=0, block='ga', strides=1, use_bias=True, use_bn=False, activation=activation)
+            self.pre_golb = IdentityBlock(1, stage0, stage=0, block='gb', activation=activation)
+            self.pre_golc = IdentityBlock(1, stage0, stage=0, block='gc', activation=activation)
             self.concat = KL.Concatenate()
         
         if self.stage1:
             # Stage 1  output size = 1/1
-            self.cb1a = ConvBlock(3, stage1, stage=1, block='a', strides=1)
-            self.ib1b = IdentityBlock(3, stage1, stage=1, block='b')
-            self.ib1c = IdentityBlock(3, stage1, stage=1, block='c')
+            self.cb1a = ConvBlock(3, stage1, stage=1, block='a', strides=1, activation=activation)
+            self.ib1b = IdentityBlock(3, stage1, stage=1, block='b', activation=activation)
+            self.ib1c = IdentityBlock(3, stage1, stage=1, block='c', activation=activation)
             stride_2 = 2
         else:
             # Stage 1 original output size = 1/4
             self.cv1 = ConvLayer(64, 7, strides=2, 
                                  name='conv1', padding="same", use_bias=False)
             self.bn1 = KL.BatchNormalization(name='bn_conv1')
-            self.ac1 = KL.Activation('relu')
+            self.ac1 = KL.Activation(activation)
             self.mp1 = MaxPool(3, strides=2, padding="same")
             stride_2 = 1
         
         # Stage 2  output size = 1/stride_2
-        self.cb2a = ConvBlock(3, stage2, stage=2, block='a', strides=stride_2)
-        self.ib2b = IdentityBlock(3, stage2, stage=2, block='b')
-        self.ib2c = IdentityBlock(3, stage2, stage=2, block='c')
+        self.cb2a = ConvBlock(3, stage2, stage=2, block='a', strides=stride_2, activation=activation)
+        self.ib2b = IdentityBlock(3, stage2, stage=2, block='b', activation=activation)
+        self.ib2c = IdentityBlock(3, stage2, stage=2, block='c', activation=activation)
         
         # Stage 3  output size = 1/2
-        self.cb3a = ConvBlock(3, stage3, stage=3, block='a')
-        self.ib3b = IdentityBlock(3, stage3, stage=3, block='b')
-        self.ib3c = IdentityBlock(3, stage3, stage=3, block='c')
-        self.ib3d = IdentityBlock(3, stage3, stage=3, block='d')
+        self.cb3a = ConvBlock(3, stage3, stage=3, block='a', activation=activation)
+        self.ib3b = IdentityBlock(3, stage3, stage=3, block='b', activation=activation)
+        self.ib3c = IdentityBlock(3, stage3, stage=3, block='c', activation=activation)
+        self.ib3d = IdentityBlock(3, stage3, stage=3, block='d', activation=activation)
         
         # Stage 4  output size = 1/2
-        self.cb4a = ConvBlock(3, stage4, stage=4, block='a')
+        self.cb4a = ConvBlock(3, stage4, stage=4, block='a', activation=activation)
         block_count = {"resnet50": 5, "resnet101": 22}[architecture]
         self.ib4_list = []
         for i in range(block_count):
             self.ib4_list.append(
-                IdentityBlock(3, stage4, stage=4, block=chr(98 + i))
+                IdentityBlock(3, stage4, stage=4, block=chr(98 + i), activation=activation)
             )
             
         # Stage 5  output size = 1/2
         if self.stage5:
-            self.cb5a = ConvBlock(3, stage5, stage=5, block='a')
-            self.ib5b = IdentityBlock(3, stage5, stage=5, block='b')
-            self.ib5c = IdentityBlock(3, stage5, stage=5, block='c')
+            self.cb5a = ConvBlock(3, stage5, stage=5, block='a', activation=activation)
+            self.ib5b = IdentityBlock(3, stage5, stage=5, block='b', activation=activation)
+            self.ib5c = IdentityBlock(3, stage5, stage=5, block='c', activation=activation)
 
     def call(self, input_image, training=False):
         if self.stage0:
@@ -264,46 +264,46 @@ class ResNet(KL.Layer):
 class ResNetModelTP(Model):
     def __init__(self, 
                  ConvLayer=KL.Conv3D, ZeroPadding=KL.ZeroPadding3D, MaxPool=KL.GlobalMaxPool3D, 
-                 ConvBlock=ConvBlock3D, IdentityBlock=IdentityBlock3D):
+                 ConvBlock=ConvBlock3D, IdentityBlock=IdentityBlock3D, activation=tf.keras.activations.swish):
         super(ResNetModelTP, self).__init__()
         self.resnet = ResNet(architecture="resnet50", 
-                             stage0 = [64,64,32], stage1=[64, 64, 64], 
-                             stage2=[64, 64, 64], stage3=[64, 64, 64], 
-                             stage4=[64, 64, 64], stage5=[64, 64, 64], 
+                             stage0 = [128,128,64], stage1=[64, 64, 64], 
+                             stage2=[64, 64, 64], stage3=[128, 128, 64], 
+                             stage4=[128, 128, 64], stage5=[128, 128, 64], 
                              ConvLayer=ConvLayer, ZeroPadding=ZeroPadding, MaxPool=MaxPool, 
-                             ConvBlock=ConvBlock, IdentityBlock=IdentityBlock)
+                             ConvBlock=ConvBlock, IdentityBlock=IdentityBlock, activation=activation)
         dense_depth1, dense_depth2= 128, 64
         self.gp1 = MaxPool()
         self.gp2 = MaxPool()
         self.gp3 = MaxPool()
         self.gp4 = MaxPool()
         self.gp5 = MaxPool()
-        self.dens11 = DenseBN(dense_depth1, "dens11")
-        self.dens21 = DenseBN(dense_depth1, "dens21")
-        self.dens31 = DenseBN(dense_depth1, "dens31")
-        self.dens41 = DenseBN(dense_depth1, "dens41")
-        self.dens51 = DenseBN(dense_depth1, "dens51")
+        self.dens11 = DenseBN(dense_depth1, "dens11", activation=activation)
+        self.dens21 = DenseBN(dense_depth1, "dens21", activation=activation)
+        self.dens31 = DenseBN(dense_depth1, "dens31", activation=activation)
+        self.dens41 = DenseBN(dense_depth1, "dens41", activation=activation)
+        self.dens51 = DenseBN(dense_depth1, "dens51", activation=activation)
         self.dropout11 = KL.Dropout(0.1)
         self.dropout21 = KL.Dropout(0.1)
         self.dropout31 = KL.Dropout(0.1)
         self.dropout41 = KL.Dropout(0.1)
         self.dropout51 = KL.Dropout(0.1)
-        self.dens12 = KL.Dense(dense_depth2) # DenseBN(512, "dens1")
-        self.dens22 = KL.Dense(dense_depth2) # DenseBN(512, "dens2")
-        self.dens32 = KL.Dense(dense_depth2) # DenseBN(512, "dens3")
-        self.dens42 = KL.Dense(dense_depth2) # DenseBN(512, "dens4")
-        self.dens52 = KL.Dense(dense_depth2) # DenseBN(512, "dens5")
+        self.dens12 = KL.Dense(dense_depth2, name="dens12", activation=activation) # DenseBN(512, "dens1")
+        self.dens22 = KL.Dense(dense_depth2, name="dens22", activation=activation) # DenseBN(512, "dens2")
+        self.dens32 = KL.Dense(dense_depth2, name="dens32", activation=activation) # DenseBN(512, "dens3")
+        self.dens42 = KL.Dense(dense_depth2, name="dens42", activation=activation) # DenseBN(512, "dens4")
+        self.dens52 = KL.Dense(dense_depth2, name="dens52", activation=activation) # DenseBN(512, "dens5")
         self.dropout12 = KL.Dropout(0.1)
         self.dropout22 = KL.Dropout(0.1)
         self.dropout32 = KL.Dropout(0.1)
         self.dropout42 = KL.Dropout(0.1)
         self.dropout52 = KL.Dropout(0.1)
         self.concat = KL.Concatenate()
-        self.dens_int1 = DenseBN(dense_depth1, "dens_int1")
+        self.dens_int1 = DenseBN(dense_depth1, "dens_int1", activation=activation)
         self.dropout1 = KL.Dropout(0.1)
-        self.dens_int2 = DenseBN(dense_depth2, "dens_int2")
+        self.dens_int2 = DenseBN(dense_depth2, "dens_int2", activation=activation)
         self.dropout2 = KL.Dropout(0.1)
-        self.dens_out = KL.Dense(2)
+        self.dens_out = KL.Dense(2, activation=tf.keras.activations.sigmoid)
 
     def call(self, x, training=False):
         C1, C2, C3, C4, C5 = self.resnet(x, training=training)

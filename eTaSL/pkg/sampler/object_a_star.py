@@ -162,35 +162,48 @@ class ObjectAstarSampler(SamplerInterface):
             expected_depth = depth + self.goal_cost_dict[leaf]
             if expected_depth > self.max_depth:
                 continue
-            available_binding_dict = {oname:
-                                          get_available_bindings(graph, oname, boname, sbinding[1], sbinding[2],
-                                                                 Q_dict=Q_dict)\
-                                              if sboname!=boname else [sbinding[1:]]
-                                      for oname, boname, sboname, sbinding
-                                      in zip(graph.object_list, leaf, state.onode, state.node)}
+            available_binding_dict = self.get_available_binding_dict(state, leaf, Q_dict)
             if not all([len(abds)>0 for abds in available_binding_dict.values()]):
                 print("============== Non-available transition: Break =====================")
                 break
             for _ in range(self.sample_num):
-                to_state = state.copy(graph)
-                to_node = tuple([(((oname,)+\
-                                   random.choice(available_binding_dict[oname]))
-                                  if sboname!=boname else sbinding)
-                                 for oname, boname, sboname, sbinding
-                                 in zip(graph.object_list, leaf, state.onode, state.node)])
-                to_state.set_node(to_node, graph)
-                redundancy_dict = {}
-                for from_binding, to_binding in zip(state.node, to_node):
-                    obj = graph.object_dict[from_binding[0]]
-                    to_ap = obj.action_points_dict[to_binding[1]]
-                    to_binder = graph.binder_dict[to_binding[2]]
-                    redundancy_tot = combine_redundancy(to_ap, to_binder)
-                    redundancy = sample_redundancy(redundancy_tot)
-                    redundancy_dict[from_binding[0]] = redundancy
+                to_state, redundancy_dict = self.sample_leaf_state(state, available_binding_dict, leaf)
 
                 # self.snode_queue.put((snode, state, to_state), expected_depth * self.DSCALE - depth) ## breadth-first
                 self.snode_queue.put(((expected_depth - depth) * self.DSCALE + depth, (snode, state, to_state, redundancy_dict))) ## greedy
         return snode
+
+    def get_available_binding_dict(self, state, to_onode, Q_dict=None, graph=None):
+        if graph is None:
+            graph = self.graph
+        if Q_dict is None:
+            Q_dict = list2dict(state.Q, graph.joint_names)
+        return {oname:get_available_bindings(graph, oname, boname, sbinding[1], sbinding[2],
+                                                                 Q_dict=Q_dict)\
+                                              if sboname!=boname else [sbinding[1:]]
+                                      for oname, boname, sboname, sbinding
+                                      in zip(graph.object_list, to_onode, state.onode, state.node)}
+
+    def sample_leaf_state(self, state, available_binding_dict, to_onode, graph=None):
+        if graph is None:
+            graph = self.graph
+        to_state = state.copy(graph)
+        to_node = tuple([(((oname,)+\
+                           random.choice(available_binding_dict[oname]))
+                          if sboname!=boname else sbinding)
+                         for oname, boname, sboname, sbinding
+                         in zip(graph.object_list, to_onode, state.onode, state.node)])
+        to_state.set_node(to_node, graph)
+        redundancy_dict = {}
+        for from_binding, to_binding in zip(state.node, to_node):
+            obj = graph.object_dict[from_binding[0]]
+            to_ap = obj.action_points_dict[to_binding[1]]
+            to_binder = graph.binder_dict[to_binding[2]]
+            redundancy_tot = combine_redundancy(to_ap, to_binder)
+            redundancy = sample_redundancy(redundancy_tot)
+            redundancy_dict[from_binding[0]] = redundancy
+        return to_state, redundancy_dict
+
 
     @record_time
     def search_graph(self, initial_state, goal_nodes,

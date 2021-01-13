@@ -44,28 +44,29 @@
 * reboot and continue with cuda & cudnnn  
   ```
   # Install development and runtime libraries (~4GB)
-  sudo apt-get install --no-install-recommends \
+  sudo apt-get install -y --no-install-recommends \
       cuda-10-1 \
       libcudnn7=7.6.5.32-1+cuda10.1 \
       libcudnn7-dev=7.6.5.32-1+cuda10.1
 
   # Add PATH variables to environment
-  echo 'export PATH=$PATH:/usr/local/cuda-10.2/bin' >> ~/.bashrc \
-  && echo 'export CUDADIR=/usr/local/cuda-10.2' >> ~/.bashrc \
+  echo 'export PATH=$PATH:/usr/local/cuda-10.1/bin' >> ~/.bashrc \
+  && echo 'export CUDADIR=/usr/local/cuda-10.1' >> ~/.bashrc \
   && echo 'if [ -z $LD_LIBRARY_PATH ]; then' >> ~/.bashrc \
-  && echo '  export LD_LIBRARY_PATH=/usr/local/cuda-10.2/lib64' >> ~/.bashrc \
+  && echo '  export LD_LIBRARY_PATH=/usr/local/cuda-10.1/lib64' >> ~/.bashrc \
   && echo 'else' >> ~/.bashrc \
-  && echo '  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-10.2/lib64' >> ~/.bashrc \
+  && echo '  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-10.1/lib64' >> ~/.bashrc \
   && echo 'fi' >> ~/.bashrc  
+  && echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-10.2/lib64' >> ~/.bashrc \
 
   # Install TensorRT. Requires that libcudnn7 is installed above.
   sudo apt-get install -y --no-install-recommends libnvinfer6=6.0.1-1+cuda10.1 \
-      libnvinfer-dev=6.0.1-1+cuda10.1 \
-      libnvinfer-plugin6=6.0.1-1+cuda10.1
+    libnvinfer-dev=6.0.1-1+cuda10.1 \
+    libnvinfer-plugin6=6.0.1-1+cuda10.1
   ```
   * Install tensorflow
   ```
-  pip3 install tensorflow
+  pip3 install tensorflow-gpu==2.3.1
   ```
   * test GPU usage in python3
   ```
@@ -90,8 +91,8 @@
   ```
 * misc.  
   ```
-  pip install matplotlib trimesh pathlib protobuf grpcio numpy-stl sklearn filterpy paramiko cvxpy
-  pip3 install dill matplotlib sklearn  
+  pip install matplotlib trimesh pathlib protobuf grpcio numpy-stl sklearn filterpy paramiko cvxpy SharedArray  
+  pip3 install dill matplotlib sklearn opencv-python SharedArray  
   ```
 
 # ROS Setup
@@ -359,12 +360,14 @@ sudo killall -9 roscore && nohup roscore &
 export PATH=$PATH:~/.local/bin  
   
 \# cuda  
-export PATH=$PATH:/usr/local/cuda-10.2/bin
-export CUDADIR=/usr/local/cuda-10.2
+export PATH=$PATH:/usr/local/cuda-10.1/bin
+export CUDADIR=/usr/local/cuda-10.1
 if [ -z $LD_LIBRARY_PATH ]; then
-  export LD_LIBRARY_PATH=/usr/local/cuda-10.2/lib64
+  export LD_LIBRARY_PATH=/usr/local/cuda-10.1/lib64
 else
-  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-10.2/lib64
+  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-10.1/lib64
+fi
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-10.2/lib64
   
 \# OROCOS  
 source $HOME/orocos-install/orocos-2.9_ws/install_isolated/setup.bash  
@@ -396,4 +399,4 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
 \# JetBrains  
 export PATH=$PATH:$HOME/pycharm-2020.2/bin  
 export PATH=$PATH:$HOME/clion-2020.2/bin  
-```
+

@@ -25,7 +25,7 @@ class BinderTable(TableInterface):
         try:
             self.graph.register_binder(name=value[IDENTIFY_COL], object_name=value["Geometry"],
                                        _type=ctype_to_btype(value['CType']), link_name=value['Link'],
-                                       point=str_num_it(value['Point']), direction=str_num_it(value['RPY']))
+                                       point=str_num_it(value['Point']), rpy=str_num_it(value['RPY']))
         except Exception as e:
             print(e)
 

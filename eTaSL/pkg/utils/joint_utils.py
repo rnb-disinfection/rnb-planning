@@ -148,7 +148,9 @@ def get_tf_full(link_end, joint_dict, urdf_content, from_link='base_link'):
         link_cur = parent_joint.parent
     return T_dict
 
-def build_T_chain(link_names, joint_dict, urdf_content, Tlink_dict={}):
+def build_T_chain(link_names, joint_dict, urdf_content, Tlink_dict=None):
+    if Tlink_dict is None:
+        Tlink_dict = {}
     for lname in link_names:
         if lname not in Tlink_dict:
             if lname not in urdf_content.parent_map:

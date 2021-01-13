@@ -52,7 +52,9 @@ class ObjectAction:
 
 ################################# USABLE CLASS #########################################
 class CustomObject(ObjectAction):
-    def __init__(self, _object, action_points_dict, binder_points_dict={}):
+    def __init__(self, _object, action_points_dict, binder_points_dict=None):
+        if binder_points_dict is None:
+            binder_points_dict = {}
         self.object = _object
         self.action_points_dict = action_points_dict
         self.binder_points_dict = binder_points_dict
@@ -61,7 +63,9 @@ class CustomObject(ObjectAction):
         return [hname]
 
 class SingleHandleObject(ObjectAction):
-    def __init__(self, _object, action_point, binder_points_dict={}):
+    def __init__(self, _object, action_point, binder_points_dict=None):
+        if binder_points_dict is None:
+            binder_points_dict = {}
         self.object = _object
         self.action_points_dict = {action_point.name: action_point}
         self.binder_points_dict = binder_points_dict
@@ -70,7 +74,9 @@ class SingleHandleObject(ObjectAction):
         return [hname]
 
 class BoxAction(ObjectAction):
-    def __init__(self, _object, hexahedral=True, binder_points_dict={}):
+    def __init__(self, _object, hexahedral=True, binder_points_dict=None):
+        if binder_points_dict is None:
+            binder_points_dict = {}
         self.object = _object
         Xhalf, Yhalf, Zhalf = np.divide(_object.dims,2)
         self.binder_points_dict = binder_points_dict

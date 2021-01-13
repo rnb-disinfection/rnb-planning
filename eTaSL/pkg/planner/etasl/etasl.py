@@ -300,7 +300,7 @@ class etasl_planner(PlannerInterface):
             self.etasl.error = None
         return self.etasl
 
-    def set_simulate(self, full_context, initial_jpos=[], **kwargs):
+    def set_simulate(self, full_context, initial_jpos, **kwargs):
         self.etasl = self.get_simulation(full_context)
         return self.do_simulate(initial_jpos=initial_jpos, **kwargs)
 

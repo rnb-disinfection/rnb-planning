@@ -99,6 +99,9 @@ class MoveitPlanner(PlannerInterface):
         binder = self.binder_dict[binder_name]
         obj = self.object_dict[obj_name]
         handle = obj.action_points_dict[ap_name]
+        point_add, rpy_add = calc_redundancy(redundancy, binder)
+        T_handle = handle.Toff_lh
+        T_binder = np.matmul(binder.Toff_lh, SE3(Rot_rpy(rpy_add), point_add))
 
         if len(self.planner.group_names)==1:
             group_name_handle = self.planner.group_names if handle.object.link_name in self.urdf_content.parent_map else []
@@ -107,10 +110,6 @@ class MoveitPlanner(PlannerInterface):
             group_name_handle = group_name_handle or [gname for gname in self.planner.group_names if gname in handle.object.link_name]
             group_name_binder = group_name_binder or [gname for gname in self.planner.group_names if gname in binder.object.link_name]
 
-        point_add, rpy_add = calc_redundancy(redundancy, binder)
-
-        T_handle = handle.Toff_lh
-        T_binder = np.matmul(binder.Toff_lh, SE3(Rot_rpy(rpy_add), point_add))
         if group_name_binder and not group_name_handle:
             group_name = group_name_binder[0]
             tool, T_tool = binder, T_binder

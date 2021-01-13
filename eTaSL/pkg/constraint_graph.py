@@ -7,6 +7,9 @@ from .controller.repeater import *
 from .environment_builder import *
 from .sampler.interface import *
 
+from pkg.data_collecting.sampling import *
+from pkg.planner.moveit.moveit_planner import gtype_to_otype
+
 PANDA_ROS = False
 PORT_REPEATER = 1189
 CONTROL_FREQ = 100
@@ -591,3 +594,244 @@ class ConstraintGraph:
         return xyz_cam, rvec_cam, xyz_cal, rvec_cal, color_image, objectPose_dict, corner_dict, err_dict
     ############ Calibration - deprecated #################
     #######################################################
+
+    def clear_ws(self):
+        ghnd = self.ghnd
+        gnames = ghnd.NAME_DICT.keys()
+        for gname in gnames:
+            self.remove_geometry(ghnd.NAME_DICT[gname])
+
+    def replace_ghnd(self, ghnd_new):
+        self.clear_ws()
+        for gtem in ghnd_new:
+            self.add_marker(self.ghnd.copy_from(gtem))
+
+    def convert_workspace(self, ghnd, L_CELL=0.2, WS_DIMS=(3, 3, 3), center_height=0.75):
+        WS_RANGE = np.divide(np.array(WS_DIMS, dtype=np.float), 2)
+        WS_RANGE_MIN = -np.copy(WS_RANGE)
+        WS_RANGE_MIN[2] = -center_height
+        WS_RANGE_MAX = np.copy(WS_RANGE)
+        WS_RANGE_MAX[2] = WS_RANGE_MAX[2]*2-center_height
+        L_TEM_MAX = L_CELL * 2
+        L_REF = ((L_TEM_MAX + L_CELL) / 2)
+        ghnd_new = GeometryHandle(ghnd.urdf_content)
+        for gtem in ghnd:
+            if not gtem.collision:
+                continue
+            if np.any(np.array(gtem.dims) > L_TEM_MAX):
+                if gtem.gtype in [GEOTYPE.CYLINDER, GEOTYPE.CAPSULE]:
+                    if gtem.dims[0] > L_TEM_MAX:
+                        raise (RuntimeError(
+                            "conversion of cylinder diameter larger than max cell size ({}) is not supported yet"))
+                    else:  # gtem.dims[2]>L_TEM_MAX:
+                        zlen = gtem.dims[2]
+                        N_div = int(ceil(zlen / L_REF))
+                        zlen_div = zlen / N_div
+                        zmin_c, zmax = -zlen / 2 + zlen_div / 2, zlen / 2
+                        zval_list = np.arange(zmin_c, zmax, zlen_div)
+                        zval = zval_list[0]
+                        P_list = [tuple(np.matmul(gtem.orientation_mat, [0, 0, zval])) for zval in zval_list]
+                        dims_div = tuple(gtem.dims[:2]) + (zlen_div,)
+                        for gidx, P_i in enumerate(P_list):
+                            gname_new = gtem.name + "_%03d" % gidx
+                            center_new = tuple(np.add(gtem.center, P_i))
+                            if np.any([center_new<WS_RANGE_MIN, WS_RANGE_MAX<center_new]):
+                                print("ignore {} out of workspace".format(gname_new))
+                                continue
+                            ghnd_new.create_safe(name=gname_new, link_name=gtem.link_name, gtype=gtem.gtype,
+                                                 center=center_new, rpy=gtem.rpy, dims=dims_div, color=gtem.color,
+                                                 display=True, collision=True, fixed=gtem.fixed)
+                elif gtem.gtype == GEOTYPE.SPHERE:
+                    if gtem.dims[0] > L_TEM_MAX:
+                        raise (RuntimeError(
+                            "conversion of sphere diameter larger than max cell size ({}) is not supported yet"))
+                elif gtem.gtype == GEOTYPE.BOX:
+                    Ndims = np.ceil(np.divide(gtem.dims, L_REF)).astype(np.int)
+                    dims_div = np.divide(gtem.dims, Ndims)
+                    P_min = -np.divide(gtem.dims, 2) + dims_div / 2
+                    P_list = [tuple(np.matmul(gtem.orientation_mat, P_min + np.multiply(dims_div, (ix, iy, iz)))) for ix
+                              in range(Ndims[0]) for iy in range(Ndims[1]) for iz in range(Ndims[2])]
+                    for gidx, P_i in enumerate(P_list):
+                        gname_new = gtem.name + "_%03d" % gidx
+                        center_new = tuple(np.add(gtem.center, P_i))
+                        if np.any([center_new<WS_RANGE_MIN, WS_RANGE_MAX<center_new]):
+                            print("ignore {} out of workspace".format(gname_new))
+                            print(center_new)
+                            continue
+                        ghnd_new.create_safe(name=gname_new, link_name=gtem.link_name, gtype=gtem.gtype,
+                                             center=center_new, rpy=gtem.rpy, dims=tuple(dims_div), color=gtem.color,
+                                             display=True, collision=True, fixed=gtem.fixed)
+            else:
+                if np.any([gtem.center<WS_RANGE_MIN, WS_RANGE_MAX<gtem.center]):
+                    print("ignore {} out of workspace".format(gtem.name))
+                    continue
+                ghnd_new.create_safe(name=gtem.name, link_name=gtem.link_name, gtype=gtem.gtype,
+                                     center=gtem.center, rpy=gtem.rpy, dims=gtem.dims,
+                                     color=gtem.color, display=True, collision=True, fixed=gtem.fixed)
+        return ghnd_new
+
+    def convert_scene(self, ghnd_cvt, state, L_CELL=0.2, Nwdh=(15, 15, 15), BASE_LINK="base_link", offset_center=True,
+                      only_base=True, center_height=0.75):
+        crob = self.combined_robot
+        gtimer = self.gtimer
+        Q_s = state.Q
+        Q_s_dict = list2dict(Q_s, self.joint_names)
+        self.set_object_state(state)
+
+        link_names = self.link_names
+        joint_names = crob.joint_names
+        joint_num = crob.joint_num
+        IGNORE_CTEMS = ["panda1_hand_Cylinder_1", 'panda1_hand_Cylinder_2']
+        joint_index_dict = {joint.name: None for joint in ghnd_cvt.urdf_content.joints}
+        joint_index_dict.update({jname: idx for idx, jname in zip(range(joint_num), joint_names)})
+        centers = get_centers(Nwdh, L_CELL)
+        merge_pairs = get_merge_pairs(ghnd_cvt, BASE_LINK)
+        merge_paired_ctems(ghnd=ghnd_cvt, merge_pairs=merge_pairs, VISUALIZE=False)
+        for cname in IGNORE_CTEMS:
+            if cname in ghnd_cvt.NAME_DICT:
+                ghnd_cvt.remove(ghnd_cvt.NAME_DICT[cname])
+
+        N_vtx_box = 3 * 8
+        N_mask_box = 1
+        N_joint_box = joint_num
+        N_label_box = N_vtx_box + N_mask_box + N_joint_box
+
+        N_vtx_cyl = 3 * 2 + 1
+        N_mask_cyl = 1
+        N_joint_cyl = joint_num
+        N_label_cyl = N_vtx_cyl + N_mask_cyl + N_joint_cyl
+
+        N_vtx_init = 3 * 8
+        N_mask_init = 1
+        N_joint_init = joint_num
+        N_label_init = N_vtx_init + N_mask_init + N_joint_init
+
+        N_vtx_goal = 3 * 8
+        N_mask_goal = 1
+        N_joint_goal = joint_num
+        N_label_goal = N_vtx_goal + N_mask_goal + N_joint_goal
+
+        N_joint_label_begin = N_label_box + N_label_cyl + N_label_init + N_label_goal
+
+        N_joint_label = 6 * joint_num
+
+        N_joint_limits = 3 * joint_num
+
+        N_cell_label = N_joint_label_begin + N_joint_label + N_joint_limits
+
+        gtimer.tic("test_links")
+        Tlink_dict = {}
+        chain_dict = {}
+        Tj_arr = np.zeros((joint_num, 4, 4))
+        Tj_inv_arr = np.zeros((joint_num, 4, 4))
+        joint_axis_arr = np.zeros((joint_num, 3))
+
+        gtimer.tic("T_chain")
+        Tlink_dict = build_T_chain(link_names, Q_s_dict, ghnd_cvt.urdf_content)
+        if offset_center:
+            Toffcenter = SE3(np.identity(3), tuple(np.multiply(Nwdh[:2], L_CELL) / 2)+(center_height,))
+            for key in Tlink_dict.keys():
+                Tlink_dict[key] = np.matmul(Toffcenter, Tlink_dict[key])
+        gtimer.toc("T_chain")
+
+        for lname in link_names:
+            gtimer.tic("get_chain")
+            jnames = filter(lambda x: x in joint_names,
+                            ghnd_cvt.urdf_content.get_chain(root=BASE_LINK, tip=lname, joints=True, links=False))
+            gtimer.toc("get_chain")
+            chain_dict[lname] = [1 if pj in jnames else 0 for pj in joint_names]
+        gtimer.toc("test_links")
+
+        gtimer.tic("test_joints")
+        for i_j, jname in zip(range(joint_num), joint_names):
+            joint = ghnd_cvt.urdf_content.joint_map[jname]
+            lname = joint.child
+            Tj_arr[i_j, :, :] = Tlink_dict[lname]
+            Tj_inv_arr[i_j, :, :] = SE3_inv(Tlink_dict[lname])
+            joint_axis_arr[i_j] = joint.axis
+        gtimer.toc("test_joints")
+        gtimer.tic("calc_cell")
+        __p = centers.reshape(Nwdh + (1, 3)) - Tj_arr[:, :3, 3].reshape((1, 1, 1, joint_num, 3))
+        __w = np.sum(Tj_arr[:, :3, :3] * joint_axis_arr.reshape(joint_num, 1, 3), axis=-1).reshape(
+            (1, 1, 1, joint_num, 3))
+        __w = np.tile(__w, Nwdh + (1, 1))
+        __v = np.cross(__w, __p)
+        xi = np.concatenate([__w, __v], axis=-1)
+        gtimer.toc("calc_cell")
+        gtimer.tic("list_ctems")
+        ctem_names, ctem_TFs, ctem_dims, ctem_cells, ctem_links, ctem_joints, ctem_types = \
+            defaultdict(list), defaultdict(list), defaultdict(list), defaultdict(list), defaultdict(list), defaultdict(
+                list), dict()
+        for ctem in ghnd_cvt:
+            if not ctem.collision:
+                continue
+            key = gtype_to_otype(ctem.gtype).name
+            ctem_names[key].append(ctem.name)
+            Ttem = np.matmul(Tlink_dict[ctem.link_name], ctem.Toff)
+            ctem_TFs[key].append(Ttem)
+            ctem_dims[key].append(ctem.dims)
+            ctem_cells[key].append(get_cell(Ttem[:3, 3], L_CELL, Nwdh))
+            ctem_links[key].append(ctem.link_name)
+            ctem_joints[key].append(chain_dict[ctem.link_name])
+            ctem_types[key] = ctem.gtype
+        gtimer.toc("list_ctems")
+
+        gtimer.tic("calc_ctems")
+
+        verts_dict = {}
+        for key_cur in ctem_cells:
+            ctem_TFs[key_cur] = np.array(ctem_TFs[key_cur])
+            cell_array = np.array(ctem_cells[key_cur])
+            all_rearranged = False
+            while not all_rearranged:
+                all_rearranged = True
+                for cell in cell_array:
+                    idxset = np.where(np.all(cell_array == cell, axis=-1))[0]
+                    if len(idxset) > 1:
+                        all_rearranged = False
+                        cell_array_bak = cell_array.copy()
+                        gtimer.tic("rearrange_cell_array")
+                        cell_array = rearrange_cell_array_fast(cell_array, idxset, L_CELL, Nwdh, ctem_TFs[key_cur],
+                                                               centers)
+                        gtimer.toc("rearrange_cell_array")
+                        break
+            ctem_cells[key_cur] = cell_array
+            gtype = ctem_types[key_cur]
+            TFs = ctem_TFs[key_cur]
+            dims = np.array(ctem_dims[key_cur])
+            default_vert = DEFAULT_VERT_DICT[gtype]
+            verts_dim = default_vert.reshape((1, -1, 3)) * dims.reshape((-1, 1, 3))
+            cell_array = ctem_cells[key_cur]
+            verts = np.zeros_like(verts_dim)
+            for iv in range(verts.shape[1]):
+                verts[:, iv, :] = matmul_md(TFs[:, :3, :3], verts_dim[:, iv, :, np.newaxis])[:, :, 0] + TFs[:, :3, 3]
+            verts_loc = (verts - (cell_array[:, np.newaxis, :] * L_CELL + L_CELL / 2))
+            verts_loc = verts_loc.reshape((verts_loc.shape[0], -1))
+            if gtype in [GEOTYPE.CAPSULE, GEOTYPE.CYLINDER]:
+                verts_loc = np.concatenate([verts_loc, dims[:, 0:1]], axis=-1)
+            verts_dict[key_cur] = verts_loc
+        gtimer.toc("calc_ctems")
+
+        ### initialize data volume
+        scene_data = np.zeros(Nwdh + (N_cell_label,))
+        ### put cell joint data
+        scene_data[:, :, :, N_joint_label_begin:N_joint_label_begin + N_joint_label] = xi.reshape(
+            Nwdh + (N_joint_label,))
+
+        jtem_list = [ghnd_cvt.urdf_content.joint_map[jname] for jname in self.joint_names]
+        joint_limits = [jtem.limit.lower for jtem in jtem_list] + [jtem.limit.upper for jtem in jtem_list]
+        scene_data[:, :, :, -N_joint_limits:] = Q_s.tolist() + joint_limits
+        ### put cell item data
+        for verts, cell, chain in zip(verts_dict["BOX"], ctem_cells["BOX"], ctem_joints["BOX"]):
+            scene_data[cell[0], cell[1], cell[2], :N_vtx_box] = verts
+            scene_data[cell[0], cell[1], cell[2], N_vtx_box:N_vtx_box + N_mask_box] = 1
+            scene_data[cell[0], cell[1], cell[2], N_vtx_box + N_mask_box:N_vtx_box + N_mask_box + N_joint_box] = chain
+
+        N_BEGIN_CYL = N_vtx_box + N_mask_box + N_joint_box
+        for verts, cell, chain in zip(verts_dict["CYLINDER"], ctem_cells["CYLINDER"], ctem_joints["CYLINDER"]):
+            scene_data[cell[0], cell[1], cell[2], N_BEGIN_CYL:N_BEGIN_CYL + N_vtx_cyl] = verts
+            scene_data[cell[0], cell[1], cell[2], N_BEGIN_CYL + N_vtx_cyl:N_BEGIN_CYL + N_vtx_cyl + N_mask_cyl] = 1
+            scene_data[cell[0], cell[1], cell[2],
+            N_BEGIN_CYL + N_vtx_cyl + N_mask_cyl:N_BEGIN_CYL + N_vtx_cyl + N_mask_cyl + N_joint_cyl] = chain
+        return scene_data, ctem_names, ctem_cells, chain_dict
+        # save_pickle(os.path.join(CONVERTED_PATH, DATASET, WORLD, SCENE, "scene.pkl"), {"scene_data": scene_data, "ctem_names": ctem_names, "ctem_cells":ctem_cells})

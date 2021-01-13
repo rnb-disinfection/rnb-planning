@@ -62,8 +62,14 @@ class XacroCustomizer(Singleton):
         xacro_file.write(new_xacro_content)
         xacro_file.close()
 
-    def convert_xacro_to_urdf(self, urdf_path=URDF_PATH_DEFAULT, joint_offset_dict={}, joint_limit_dict={},
-                              joint_fix_dict={}):
+    def convert_xacro_to_urdf(self, urdf_path=URDF_PATH_DEFAULT, joint_offset_dict=None, joint_limit_dict=None,
+                              joint_fix_dict=None):
+        if joint_offset_dict is None:
+            joint_offset_dict={}
+        if joint_limit_dict is None:
+            joint_limit_dict={}
+        if joint_fix_dict is None:
+            joint_fix_dict={}
         urdf_content = subprocess.check_output(['xacro', self.xacro_path])
         self.urdf_content = URDF.from_xml_string(urdf_content)
         for joint in self.urdf_content.joints:
@@ -154,7 +160,11 @@ def get_min_seg_radii(vertice):
     radii = dist_vertice_seg(vertice, seg)
     return seg, radii
 
-def add_geometry_items(urdf_content, ghnd, color=(0,1,0,0.5), display=True, collision=True, exclude_link=[]):
+def add_geometry_items(urdf_content, ghnd, color=None, display=True, collision=True, exclude_link=None):
+    if color is None:
+        color = (0, 1, 0, 0.5)
+    if exclude_link is None:
+        exclude_link = []
     geometry_items = []
     id_dict = defaultdict(lambda: -1)
     geometry_dir = "./geometry_tmp"

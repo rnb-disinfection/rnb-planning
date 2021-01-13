@@ -74,6 +74,16 @@ class GlobalTimer:
 
 
 import json
+
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
+
+def save_json(filename, data):
+    with open(filename, "w") as json_file:
+        json.dump(data, json_file, cls=NumpyEncoder,indent=2)
     
 def load_json(filename):
     with open(filename, "r") as st_json:
@@ -86,12 +96,7 @@ def load_pickle(filename):
         return data
 
 
-def get_action_count(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION):
-    action_data_list = load_pickle(os.path.join(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION.replace("json", "pkl")))
-    return len(action_data_list)
-
-
-def load_scene_data(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION, idx_act, joint_num):
+def load_scene_data(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION, joint_num, get_deviation=False):
     N_vtx_box = 3 * 8
     N_mask_box = 1
     N_joint_box = joint_num
@@ -114,13 +119,13 @@ def load_scene_data(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION, idx_act, join
     N_BEGIN_INIT = N_BEGIN_CYL + N_vtx_cyl + N_mask_cyl + N_joint_cyl
     N_BEGIN_GOAL = N_BEGIN_INIT + N_vtx_init + N_mask_init + N_joint_init
 
+    # print("load: {}".format((CONVERTED_PATH, DATASET, WORLD, SCENE)))
     scene_pickle = load_pickle(os.path.join(CONVERTED_PATH, DATASET, WORLD, SCENE, "scene.pkl"))
     scene_data = scene_pickle[b'scene_data']
     ctem_names = scene_pickle[b'ctem_names']
     ctem_cells = scene_pickle[b'ctem_cells']
 
-    action_data_list = load_pickle(os.path.join(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION.replace("json", "pkl")))
-    act_dat = action_data_list[idx_act]
+    act_dat = load_pickle(os.path.join(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION))
     init_box_dat = act_dat[b'init_box_dat']
     goal_box_dat = act_dat[b'goal_box_dat']
     ctem_dat_list = act_dat[b'ctem_dat_list']
@@ -132,12 +137,14 @@ def load_scene_data(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION, idx_act, join
     scene_data[cell[0], cell[1], cell[2], N_BEGIN_INIT + N_vtx_init:N_BEGIN_INIT + N_vtx_init + N_mask_init] = 1
     scene_data[cell[0], cell[1], cell[2],
     N_BEGIN_INIT + N_vtx_init + N_mask_init:N_BEGIN_INIT + N_vtx_init + N_mask_init + N_joint_init] = chain
+    cell_init = cell
 
     cell, verts, chain = goal_box_dat
     scene_data[cell[0], cell[1], cell[2], N_BEGIN_GOAL:N_BEGIN_GOAL + N_vtx_goal] = verts
     scene_data[cell[0], cell[1], cell[2], N_BEGIN_GOAL + N_vtx_goal:N_BEGIN_GOAL + N_vtx_goal + N_mask_goal] = 1
     scene_data[cell[0], cell[1], cell[2],
     N_BEGIN_GOAL + N_vtx_goal + N_mask_goal:N_BEGIN_GOAL + N_vtx_goal + N_mask_goal + N_joint_goal] = chain
+    cell_goal = cell
 
     ### add/replace collilsion object
     for cname, ctype, cell, verts, chain in ctem_dat_list:
@@ -151,4 +158,7 @@ def load_scene_data(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION, idx_act, join
         scene_data[cell[0], cell[1], cell[2], N_BEGIN_REP + N_vtx:N_BEGIN_REP + N_vtx + N_mask] = 1
         scene_data[cell[0], cell[1], cell[2],
         N_BEGIN_REP + N_vtx + N_mask:N_BEGIN_REP + N_vtx + N_mask + N_joint] = chain
-    return scene_data, success, skey
+    if get_deviation:
+        return scene_data, success, skey, cell_init, cell_goal
+    else:
+        return scene_data, success, skey
