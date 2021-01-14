@@ -136,7 +136,7 @@
   cd ~/catkin_ws/src && git clone -b  release-2.3 https://github.com/neuromeka-robotics/indy-ros \
   && cd ~/catkin_ws && catkin_make -DCMAKE_BUILD_TYPE=Release
   ```
-  * (not used now) To update Indy to 3.0, Follow instruction on IndyFramework3.0/ReadMe.md
+  * (not used now) To update Indy to 3.0, Follow instruction on external/IndyFramework3.0/ReadMe.md
 * Franka package  
   ```
   sudo apt install ros-melodic-libfranka ros-melodic-franka-ros \
@@ -154,13 +154,6 @@
   ```
   pip install rospkg  
   ```
-
-# OMPL  
-```
-cd ~/Projects/tamp_etasl/ompl
-chmod +x *
-./install-ompl-ubuntu.sh --python
-```
   
 # eTaSL  
 * Follow install process in the link - https://etasl.pages.gitlab.kuleuven.be/install-new.html  
@@ -212,7 +205,7 @@ chmod +x *
   && sudo apt install k4a-tools  
   ```
   * allow non-root usage  
-    * Download 'azure/99-k4a.rules' in this project. From the downloaded directory,
+    * Download 'third-party/azure/99-k4a.rules' in this project. From the downloaded directory,
   ```
   sudo cp ./99-k4a.rules /etc/udev/rules.d/  
   ```
@@ -241,10 +234,17 @@ chmod +x *
 * Get project and add path to ~/.bahsrc
   ```
   mkdir ~/Projects && cd ~/Projects \
-  && git clone https://github.com/Cucumberkjs/tamp_etasl.git \
-  && export TAMP_ETASL_DIR=$HOME/Projects/tamp_etasl/eTaSL/ \
-  && echo 'export TAMP_ETASL_DIR=$HOME/Projects/tamp_etasl/eTaSL/' >> ~/.bashrc
+  && git clone https://github.com/Cucumberkjs/rnb-planning.git \
+  && export RNB_PLANNING_DIR=$HOME/Projects/rnb-planning/ \
+  && echo 'export RNB_PLANNING_DIR=$HOME/Projects/rnb-planning/' >> ~/.bashrc
   ```
+
+* install OMPL  
+    ```
+    cd ~/Projects/rnb-planning/third-party/ompl
+    chmod +x *
+    ./install-ompl-ubuntu.sh --python
+    ```
   
 * Build custom etasl
   * get custom etasl project from github and recompile etasl
@@ -286,7 +286,7 @@ chmod +x *
 * Build moveit-python interpreter, copy it and clean Release folder  
 ```
 sudo apt-get remove ros-melodic-ompl \
-&& cd "$TAMP_ETASL_DIR"moveit_plan_compact \
+&& cd "$RNB_PLANNING_DIR"lib/moveit_py_interface \
 && chmod +x ./build.sh \
 && ./build.sh \
 && export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib \
@@ -294,15 +294,15 @@ sudo apt-get remove ros-melodic-ompl \
 ```
 * build openGJK
 ```
-cd "$TAMP_ETASL_DIR"openGJK/lib \
+cd "$RNB_PLANNING_DIR"lib/openGJK/lib \
 && cmake -DCMAKE_BUILD_TYPE=Release \
 && make
 ```
 * build custom workspace  
 ```
-cd "$TAMP_ETASL_DIR"ws_ros && rm -rf build devel && catkin_make -DCMAKE_BUILD_TYPE=Release  
-source "$TAMP_ETASL_DIR"ws_ros/devel/setup.bash
-echo 'source "$TAMP_ETASL_DIR"ws_ros/devel/setup.bash' >> ~/.bashrc
+cd "$RNB_PLANNING_DIR"ws_ros && rm -rf build devel && catkin_make -DCMAKE_BUILD_TYPE=Release  
+source "$RNB_PLANNING_DIR"ws_ros/devel/setup.bash
+echo 'source "$RNB_PLANNING_DIR"ws_ros/devel/setup.bash' >> ~/.bashrc
 ```
 * **start roscore if it's not active**  
 ```
@@ -322,7 +322,7 @@ sudo killall -9 roscore && nohup roscore &
 
 # Setup and launch indy online tracker
 * Download and install NRMK IndyFramework and PlatformSDK (framework 2.3.1 -> Platform 3.0.5)  
-* Clone IndyFramework2.0 project and copy "IndyFramework2.0/IndyController/*" and "IndyFramework2.0/IndyHRI/*" frp, this project to corresponding folders in framework source.  
+* Clone IndyFramework2.0 project and copy "external/IndyFramework2.0/IndyController/*" and "external/IndyFramework2.0/IndyHRI/*" from this project to corresponding folders in framework source.  
 * build project  
   ```
   source /opt/neuromeka/NRMKFoundation/script/nrmk_env.sh  
@@ -331,7 +331,7 @@ sudo killall -9 roscore && nohup roscore &
   ```
 * send the file to CB  
   ```
-  scp $HOME/Projects/indyframework2.0/deployment/* root@192.168.0.63:/home/user/release/TasksDeployment  
+  scp $HOME/Projects/external/IndyFramework2.0/deployment/* root@192.168.0.63:/home/user/release/TasksDeployment  
   ```
 * Run TaskMan on CB, through ssh
   ```
@@ -342,7 +342,7 @@ sudo killall -9 roscore && nohup roscore &
 # TIPS 
 * Launching RVIZ
   ```
-  roslaunch "$TAMP_ETASL_DIR"launch/gui_custom_robots_joint_panel.launch 
+  roslaunch "$RNB_PLANNING_DIR"src/launch/gui_custom_robots_joint_panel.launch 
   ``` 
 
 * Launch franka ros interface  
@@ -387,11 +387,11 @@ export ROS_HOSTNAME=localhost
   
 \# etasl  
 source $HOME/etasl/ws/etasl-py/devel/setup.bash
-# export TESSERACT_SUPPORT_DIR='$HOME/Projects/tamp_etasl/eTaSL/ws_ros/devel/share/tesseract_support'  
+# export TESSERACT_SUPPORT_DIR='$HOME/Projects/rnb-planning/ws_ros/devel/share/tesseract_support'  
 
-\# tamp_etasl  
-export TAMP_ETASL_DIR=$HOME/Projects/tamp_etasl/eTaSL/
-source "$TAMP_ETASL_DIR"ws_ros/devel/setup.bash
+\# rnb-planning  
+export RNB_PLANNING_DIR=$HOME/Projects/rnb-planning/
+source "$RNB_PLANNING_DIR"ws_ros/devel/setup.bash
   
 \# Custom ompl 
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib

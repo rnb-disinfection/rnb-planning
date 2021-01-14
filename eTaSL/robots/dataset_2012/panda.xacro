@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="panda">
-  <xacro:macro name="panda" params="robot_id:='0' xyz:='0 0 0' rpy:='0 0 0'  connected_to:=''">
-    <xacro:include filename="$(env TAMP_ETASL_DIR)/robots/dataset_2012/panda_arm.xacro"/>
-    <xacro:include filename="$(env TAMP_ETASL_DIR)/robots/dataset_2012/hand.xacro"/>
-    <xacro:panda_arm arm_id="panda${robot_id}" rpy="${rpy}" xyz="${xyz}" connected_to="${connected_to}"/>
-    <xacro:hand ns="panda${robot_id}" rpy="0 0 ${-pi/4}" connected_to="panda${robot_id}_link8"/>
-  </xacro:macro>
-</robot>

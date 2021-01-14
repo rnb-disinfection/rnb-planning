@@ -3,9 +3,9 @@
 *.pdf
 *.npy
 *.out
-eTaSL/markers/
-eTaSL/data/
-eTaSL/logs/
+src/markers/
+src/data/
+src/logs/
 */doxygen/
 
 # Pycharm
