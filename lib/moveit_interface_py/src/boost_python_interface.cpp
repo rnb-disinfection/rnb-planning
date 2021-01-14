@@ -16,7 +16,7 @@ char const* greet()
 using namespace RNB::MoveitCompact;
 Planner planner;
 
-BOOST_PYTHON_MODULE(moveit_plan_compact){
+BOOST_PYTHON_MODULE(moveit_interface_py){
     using namespace boost::python;
     def("greet", greet);
 

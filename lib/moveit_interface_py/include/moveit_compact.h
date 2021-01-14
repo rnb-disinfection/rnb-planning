@@ -25,7 +25,7 @@ namespace RNB {
         using namespace std;
 
         //Planner* planner_compact=NULL;
-        ros::NodeHandlePtr init_ros(string name="moveit_plan_compact");
+        ros::NodeHandlePtr init_ros(string name="moveit_interface_py");
 
         /**
          * @brief A imlplementation of ompl planner using moveit! interface

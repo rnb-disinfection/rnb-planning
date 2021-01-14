@@ -4,7 +4,7 @@ from gtimer import GlobalTimer
 from numpy.ctypeslib import ndpointer
 import numpy as np
 
-PLAN_LIB_PATH = "../cmake-build-debug/moveit_plan_compact.so"
+PLAN_LIB_PATH = "../cmake-build-debug/moveit_interface_py.so"
 
 clib = ctypes.cdll.LoadLibrary(PLAN_LIB_PATH)
 MAX_STR_LEN = clib.get_max_str_len()

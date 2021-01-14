@@ -27,7 +27,7 @@ ros::NodeHandlePtr RNB::MoveitCompact::init_ros(string name) {
     ros::NodeHandlePtr __node_handle = boost::make_shared<ros::NodeHandle>("~");
     signal(SIGINT, SigintHandlerJ);
     PRINT_FRAMED_LOG(LOG_FRAME_LINE);
-    PRINT_FRAMED_LOG("rosnode moveit_plan_compact initialized");
+    PRINT_FRAMED_LOG("rosnode moveit_interface_py initialized");
     PRINT_FRAMED_LOG(LOG_FRAME_LINE, true);
     return __node_handle;
 }

@@ -6,8 +6,8 @@
 import os
 import sys
 
-sys.path.append(os.path.join(os.environ["RNB_PLANNING_DIR"], "lib/moveit_py_interface"))
-import moveit_py_interface as mpc
+sys.path.append(os.path.join(os.environ["RNB_PLANNING_DIR"], "lib/moveit_interface_py"))
+import moveit_interface_py as mpc
 import numpy as np
 from enum import Enum
 

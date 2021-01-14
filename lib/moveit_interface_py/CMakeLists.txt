@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(moveit_plan_compact)
+project(moveit_interface_py)
 
 set(CMAKE_CXX_STANDARD 14)
 

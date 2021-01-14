@@ -51,7 +51,7 @@ message(STATUS "Version     (Accurate,Fast): " ${openGJK_VERSION}  )
 message(STATUS "Build type  (Debug,Release): " ${CMAKE_BUILD_TYPE} )
 
 # Select source files
-set( SOURCE_FILES lib/openGJK.cpp src/openGJK_cpp_wrap.cpp src/boost_python_interface.cpp)
+set( SOURCE_FILES src/openGJK.cpp src/openGJK_cpp_wrap.cpp src/boost_python_interface.cpp)
 set( SOURCE_HEADS include/openGJK/openGJK.h include/openGJK_cpp_wrap.h include/bp_container_interface.h)
 
 IF(USE_PREDICATES)

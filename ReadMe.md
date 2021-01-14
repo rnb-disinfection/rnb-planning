@@ -156,7 +156,7 @@
   ```
   
 # eTaSL  
-* Follow install process in the link - https://etasl.pages.gitlab.kuleuven.be/install-new.html  
+* Follow install process below (reference: https://etasl.pages.gitlab.kuleuven.be/install-new.html)  
   ```
   cd ~ \
   && git clone --recursive https://gitlab.kuleuven.be/rob-expressiongraphs/docker/etasl-install.git etasl \
@@ -286,7 +286,7 @@
 * Build moveit-python interpreter, copy it and clean Release folder  
 ```
 sudo apt-get remove ros-melodic-ompl \
-&& cd "$RNB_PLANNING_DIR"lib/moveit_py_interface \
+&& cd "$RNB_PLANNING_DIR"lib/moveit_interface_py \
 && chmod +x ./build.sh \
 && ./build.sh \
 && export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib \
