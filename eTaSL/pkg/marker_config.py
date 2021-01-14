@@ -32,6 +32,20 @@ def get_aruco_config():
                              ObjectMarker('wall', 93, 0.05, [0.1,-0.075,0], (np.pi,0,0)),
                              ObjectMarker('wall', 94, 0.05, [-0.1,-0.075,0], (np.pi,0,0))
                          ]),
+        'track':MarkerSet('track', ttype=TargetType.ENVIRONMENT, gtype=GEOTYPE.BOX, dims=(0.9,0.15,0.01), color=(0.9,0.9,0.9,1),
+                         _list=[
+                             ObjectMarker('track', 71, 0.05, [-0.45-0.0,0.045,0.005], (np.pi,0,0)),
+                             ObjectMarker('track', 72, 0.05, [-0.45+0.2,0.045,0.005], (np.pi,0,0)),
+                             ObjectMarker('track', 73, 0.05, [-0.45+0.2,-0.045,0.005], (np.pi,0,0)),
+                             ObjectMarker('track', 74, 0.05, [-0.45-0.0,-0.045,0.005], (np.pi,0,0))
+                         ]),
+        'door':MarkerSet('door', ttype=TargetType.MOVABLE, gtype=GEOTYPE.BOX, dims=(0.36,0.3,0.01), color=(1,1,1,1),
+                         _list=[
+                             ObjectMarker('door', 81, 0.05, [-0.02-0.1,0.07,0], (np.pi,0,0)),
+                             ObjectMarker('door', 82, 0.05, [-0.02+0.1,0.07,0], (np.pi,0,0)),
+                             ObjectMarker('door', 83, 0.05, [-0.02+0.1,-0.07,0], (np.pi,0,0)),
+                             ObjectMarker('door', 84, 0.05, [-0.02-0.1,-0.07,0], (np.pi,0,0))
+                         ]),
         'box1':MarkerSet('box1',
             ttype=TargetType.MOVABLE, gtype=GEOTYPE.BOX, dims=(0.05, 0.05,0.05), color=(0.8,0.3,0.3,1),
             _list=[
