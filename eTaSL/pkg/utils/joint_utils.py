@@ -197,3 +197,37 @@ def make_colliding_list(geometry_items1, geometry_items2=None, min_distance_map=
     if link_adjacency_map_ext is not None:
         return collision_list, collision_ext_list
     return collision_list
+
+def apply_vel_acc_lims(trajectory, DT=1/4e3, urdf_content=None, joint_names=None, vel_scale=1, acc_scale=1, vel_lims=None, acc_lims=None, EPS=1e-8):
+    if vel_lims is None:
+        assert urdf_content is not None and joint_names is not None, "provide vel_lims or urdf_content and joint_names"
+        vel_lims = np.multiply([urdf_content.joint_map[jname].limit.velocity for jname in joint_names], vel_scale)
+    if acc_lims is None:
+        assert urdf_content is not None and joint_names is not None, "provide acc_lims or urdf_content and joint_names"
+        acc_lims = np.multiply([urdf_content.joint_map[jname].limit.effort for jname in joint_names], acc_scale)
+    DQ_MAX = np.multiply(vel_lims, DT)
+    DV_MAX = np.multiply(acc_lims, DT)
+    i_q = 1
+    N_traj = len(trajectory)
+    Qcur = np.array(trajectory[0])
+    Vcur = np.zeros(len(joint_names))
+    trajectory_new = [Qcur]
+    trajectory_vel = [Vcur]
+    while i_q<N_traj:
+        Qnext = trajectory[i_q]
+        dQ = Qnext-Qcur
+        dQ_ratio = DQ_MAX/(np.abs(dQ)+EPS)
+        rate_cur = np.min(dQ_ratio[np.where(dQ_ratio>EPS)])
+        dq = rate_cur*dQ
+        vel_new = dq/DT
+        dV = vel_new-Vcur
+        dV_ratio = DV_MAX/(np.abs(dV)+EPS)
+        drate_cur = np.min(dV_ratio[np.where(dV_ratio>EPS)])
+        dv = drate_cur*dV
+        Vcur = Vcur + dv
+        trajectory_vel.append(Vcur)
+        Qcur = Qcur+vel_new*DT
+        trajectory_new.append(Qcur)
+        if rate_cur>1:
+            i_q += 1
+    return np.array(trajectory_new), np.array(trajectory_vel)
