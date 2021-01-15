@@ -1,5 +1,5 @@
 # Basic Environment Setup (Tensorflow base)
-* [a relative link] (docs/ENVIRONMENT.md)
+* follow instruction in [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md)
     
 # Python Package Dependencies
 * numba  
