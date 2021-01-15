@@ -78,71 +78,72 @@
   sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
   ```
   
-## 2.3 Build moveit-python interpreter, copy it and clean Release folder  
-```
-sudo apt-get remove ros-melodic-ompl \
-&& cd "$RNB_PLANNING_DIR"lib/moveit_interface_py \
-&& chmod +x ./build.sh \
-&& ./build.sh \
-&& export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib \
-&& echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib' >> ~/.bashrc
-```
+## 2.3 build subprojects
+  * Build moveit-python interpreter, copy it and clean Release folder  
+  ```
+  sudo apt-get remove ros-melodic-ompl \
+  && cd "$RNB_PLANNING_DIR"lib/moveit_interface_py \
+  && chmod +x ./build.sh \
+  && ./build.sh \
+  && export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib \
+  && echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib' >> ~/.bashrc
+  ```
 
-## 2.4 build openGJK
-```
-cd "$RNB_PLANNING_DIR"lib/openGJK/lib \
-&& cmake -DCMAKE_BUILD_TYPE=Release \
-&& make
-```
-## 2.5 build custom workspace  
-```
-cd "$RNB_PLANNING_DIR"ws_ros && rm -rf build devel && catkin_make -DCMAKE_BUILD_TYPE=Release  
-source "$RNB_PLANNING_DIR"ws_ros/devel/setup.bash
-echo 'source "$RNB_PLANNING_DIR"ws_ros/devel/setup.bash' >> ~/.bashrc
-```
+  * build openGJK
+  ```
+  cd "$RNB_PLANNING_DIR"lib/openGJK/lib \
+  && cmake -DCMAKE_BUILD_TYPE=Release \
+  && make
+  ```
+  * build custom workspace  
+  ```
+  cd "$RNB_PLANNING_DIR"ws_ros && rm -rf build devel && catkin_make -DCMAKE_BUILD_TYPE=Release  
+  source "$RNB_PLANNING_DIR"ws_ros/devel/setup.bash
+  echo 'source "$RNB_PLANNING_DIR"ws_ros/devel/setup.bash' >> ~/.bashrc
+  ```
 
-## 2.6 Check final ~/.bashrc file. It should contain following lines.  
-```
-export PATH=$PATH:~/.local/bin  
-  
-\# cuda  
-export PATH=$PATH:/usr/local/cuda-10.1/bin
-export CUDADIR=/usr/local/cuda-10.1
-if [ -z $LD_LIBRARY_PATH ]; then
-  export LD_LIBRARY_PATH=/usr/local/cuda-10.1/lib64
-else
-  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-10.1/lib64
-fi
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-10.2/lib64
-  
-\# OROCOS  
-source $HOME/orocos-install/orocos-2.9_ws/install_isolated/setup.bash  
-  
-\# ros  
-alias eb='nano ~/.bashrc'  
-alias sb='source ~/.bashrc'  
-alias gs='git status'  
-alias gp='git pull'  
-alias cw='cd ~/catkin_ws'  
-alias cs='cd ~/catkin_ws/src'  
-alias cm='cd ~/catkin_ws && catkin_make'  
-source /opt/ros/melodic/setup.bash  
-source $HOME/catkin_ws/devel/setup.bash  
-export ROS_MASTER_URI=http://localhost:11311  
-export ROS_HOSTNAME=localhost  
-  
-\# etasl  
-source $HOME/etasl/ws/etasl-py/devel/setup.bash
-# export TESSERACT_SUPPORT_DIR='$HOME/Projects/rnb-planning/ws_ros/devel/share/tesseract_support'  
-
-\# rnb-planning  
-export RNB_PLANNING_DIR=$HOME/Projects/rnb-planning/
-source "$RNB_PLANNING_DIR"ws_ros/devel/setup.bash
-  
-\# Custom ompl 
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
-
-\# JetBrains  
-export PATH=$PATH:$HOME/pycharm-2020.2/bin  
-export PATH=$PATH:$HOME/clion-2020.2/bin  
-```
+## 2.4 Check final ~/.bashrc file. It should contain following lines.  
+    ```
+    export PATH=$PATH:~/.local/bin  
+      
+    \# cuda  
+    export PATH=$PATH:/usr/local/cuda-10.1/bin
+    export CUDADIR=/usr/local/cuda-10.1
+    if [ -z $LD_LIBRARY_PATH ]; then
+      export LD_LIBRARY_PATH=/usr/local/cuda-10.1/lib64
+    else
+      export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-10.1/lib64
+    fi
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-10.2/lib64
+      
+    \# OROCOS  
+    source $HOME/orocos-install/orocos-2.9_ws/install_isolated/setup.bash  
+      
+    \# ros  
+    alias eb='nano ~/.bashrc'  
+    alias sb='source ~/.bashrc'  
+    alias gs='git status'  
+    alias gp='git pull'  
+    alias cw='cd ~/catkin_ws'  
+    alias cs='cd ~/catkin_ws/src'  
+    alias cm='cd ~/catkin_ws && catkin_make'  
+    source /opt/ros/melodic/setup.bash  
+    source $HOME/catkin_ws/devel/setup.bash  
+    export ROS_MASTER_URI=http://localhost:11311  
+    export ROS_HOSTNAME=localhost  
+      
+    \# etasl  
+    source $HOME/etasl/ws/etasl-py/devel/setup.bash
+    # export TESSERACT_SUPPORT_DIR='$HOME/Projects/rnb-planning/ws_ros/devel/share/tesseract_support'  
+    
+    \# rnb-planning  
+    export RNB_PLANNING_DIR=$HOME/Projects/rnb-planning/
+    source "$RNB_PLANNING_DIR"ws_ros/devel/setup.bash
+      
+    \# Custom ompl 
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
+    
+    \# JetBrains  
+    export PATH=$PATH:$HOME/pycharm-2020.2/bin  
+    export PATH=$PATH:$HOME/clion-2020.2/bin  
+    ```
