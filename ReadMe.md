@@ -20,11 +20,11 @@
   pip3 install dill matplotlib sklearn opencv-python SharedArray  
   ```
   
-* install OMPL
-    * download ompl install bash file [here](third-party/ompl/install-ompl-ubuntu.sh --python)
-    * in the downloaded directory, 
+* Install OMPL
+    * Download ompl install bash file [here](third-party/ompl/install-ompl-ubuntu.sh)
+    * From the downloaded directory, 
         ```
-        chmod +x *
+        chmod +x ./install-ompl-ubuntu.sh
         ./install-ompl-ubuntu.sh --python
         ```
   
