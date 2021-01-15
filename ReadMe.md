@@ -108,7 +108,7 @@
     ```
     export PATH=$PATH:~/.local/bin  
       
-    \# cuda  
+    # cuda  
     export PATH=$PATH:/usr/local/cuda-10.1/bin
     export CUDADIR=/usr/local/cuda-10.1
     if [ -z $LD_LIBRARY_PATH ]; then
@@ -118,10 +118,10 @@
     fi
     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-10.2/lib64
       
-    \# OROCOS  
+    # OROCOS  
     source $HOME/orocos-install/orocos-2.9_ws/install_isolated/setup.bash  
       
-    \# ros  
+    # ros  
     alias eb='nano ~/.bashrc'  
     alias sb='source ~/.bashrc'  
     alias gs='git status'  
@@ -134,18 +134,18 @@
     export ROS_MASTER_URI=http://localhost:11311  
     export ROS_HOSTNAME=localhost  
       
-    \# etasl  
+    # etasl  
     source $HOME/etasl/ws/etasl-py/devel/setup.bash
     # export TESSERACT_SUPPORT_DIR='$HOME/Projects/rnb-planning/ws_ros/devel/share/tesseract_support'  
     
-    \# rnb-planning  
+    # rnb-planning  
     export RNB_PLANNING_DIR=$HOME/Projects/rnb-planning/
     source "$RNB_PLANNING_DIR"ws_ros/devel/setup.bash
       
-    \# Custom ompl 
+    # Custom ompl 
     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
     
-    \# JetBrains  
+    # JetBrains  
     export PATH=$PATH:$HOME/pycharm-2020.2/bin  
     export PATH=$PATH:$HOME/clion-2020.2/bin  
     ```
