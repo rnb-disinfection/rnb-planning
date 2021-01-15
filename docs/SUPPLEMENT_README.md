@@ -1,3 +1,19 @@
+# TIPS 
+* Launching RVIZ
+  ```
+  roslaunch "$RNB_PLANNING_DIR"src/launch/gui_custom_robots_joint_panel.launch 
+  ``` 
+
+* Launch franka ros interface  
+  * visualization:
+  ```
+  roslaunch franka_visualization franka_visualization.launch robot_ip:=192.168.0.13 load_gripper:=true  
+  ```
+  * launch interface: 
+  ```
+  roslaunch franka_interface interface.launch
+  ```
+
 # Recommended Tools  
 * jupyter 
   ```

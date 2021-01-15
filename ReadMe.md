@@ -1,159 +1,28 @@
-# Basic Environment Setup (Tensorflow base)
-* follow instruction in [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md)
-    
-# Python Package Dependencies
-* numba  
+# 1. Environment Setup  
+
+## 1.1 Tensorflow base environment  
+* Follow instruction in [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md)    
+   
+## 1.2 ROS Setup  
+* The planning framework is based on ROS  
+* Follow instruction in [docs/ROS_SETUP.md](docs/ROS_SETUP.md)  
+
+## 1.3 eTaSL  
+* To use eTaSL planner and online planning, install eTaSL as shown [docs/ETASL_SETUP.md](docs/ETASL_SETUP.md)  
+ 
+## 1.4 other dependencies    
+* Python Package Dependencies  
   ```
-  pip install colorama==0.3.9 llvmlite==0.31.0 numba==0.47.0  
-  ```
-* pymanopt
-  ```
-  pip install autograd && pip install --user pymanopt==0.2.4 
-  ```
-* Dash
-  ```
+  pip install colorama==0.3.9 llvmlite==0.31.0 numba==0.47.0
+  pip install autograd && pip install --user pymanopt==0.2.4
   pip install dash==1.17.0 visdcc dash_split_pane
-  ```
-* misc.  
-  ```
   pip install matplotlib trimesh pathlib protobuf grpcio numpy-stl sklearn filterpy paramiko cvxpy SharedArray  
   pip3 install dill matplotlib sklearn opencv-python SharedArray  
   ```
+  
+## 1.5 hardware setup
+* Setup camera and robot driver/sdk following instructions in [docs/HARDWARE_SETUP.md](docs/HARDWARE_SETUP.md) 
 
-# ROS Setup
-* ROS Melodic  
-  ```
-  mkdir ~/ROS_TMP && cd ~/ROS_TMP \
-  && wget https://raw.githubusercontent.com/orocapangyo/meetup/master/190830/install_ros_melodic.sh && chmod 755 ./install_ros_melodic.sh && bash ./install_ros_melodic.sh \
-  && sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list' \
-  && sudo apt-key adv --keyserver hkp://ha.pool.sks-keyservers.net:80 --recv-key 421C365BD9FF1F717815A3895523BAEEB01FA116 \
-  && sudo apt-get update && sudo apt-get upgrade -y \
-  && sudo apt-get install ros-melodic-desktop-full -y \
-  && sudo apt-get install ros-melodic-rqt* -y \
-  && sudo apt-get install python-rosdep -y \
-  && sudo rosdep init \
-  && rosdep update \
-  && sudo apt-get install python-rosinstall -y \
-  && sudo apt-get install ros-melodic-catkin python-catkin-tools -y
-  ```
-  * **RESTART TERMINAL!**  
-  
-* Moveit  
-  ```
-  sudo apt-get install -y ros-melodic-moveit ros-melodic-industrial-core ros-melodic-moveit-visual-tools ros-melodic-joint-state-publisher-gui  
-  ```  
-* Gazebo  
-  ```
-  sudo apt-get install -y ros-melodic-gazebo-ros-pkgs ros-melodic-gazebo-ros-control ros-melodic-joint-state-controller ros-melodic-effort-controllers ros-melodic-position-controllers ros-melodic-joint-trajectory-controller  
-  ```
-* UR package  
-  * link: https://github.com/ros-industrial/universal_robot  
-  ```
-  cd $HOME/catkin_ws/src \
-  && git clone -b $ROS_DISTRO-devel https://github.com/ros-industrial/universal_robot.git \
-  && cd $HOME/catkin_ws \
-  && rosdep update \
-  && rosdep install --rosdistro $ROS_DISTRO --ignore-src --from-paths src \
-  && catkin_make -DCMAKE_BUILD_TYPE=Release  
-  ```
-* Indy package
-  ```
-  cd ~/catkin_ws/src && git clone -b  release-2.3 https://github.com/neuromeka-robotics/indy-ros \
-  && cd ~/catkin_ws && catkin_make -DCMAKE_BUILD_TYPE=Release
-  ```
-  * (not used now) To update Indy to 3.0, Follow instruction on external/IndyFramework3.0/ReadMe.md
-* Franka package  
-  ```
-  sudo apt install ros-melodic-libfranka ros-melodic-franka-ros \
-  && cd ~/catkin_ws \
-  && git clone https://github.com/justagist/franka_ros_interface src/franka_ros_interface \
-  && catkin_make -DCMAKE_BUILD_TYPE=Release \
-  && source devel/setup.bash
-  ```
-  * Copy/move the franka.sh file to the root of the catkin_ws
-  ```
-  cp ~/catkin_ws/src/franka_ros_interface/franka.sh ~/catkin_ws/
-  ```
-  * Change the values in the copied file (described in the file).
-* python compatibility  
-  ```
-  pip install rospkg  
-  ```
-  
-# eTaSL  
-* Follow install process below (reference: https://etasl.pages.gitlab.kuleuven.be/install-new.html)  
-  ```
-  cd ~ \
-  && git clone --recursive https://gitlab.kuleuven.be/rob-expressiongraphs/docker/etasl-install.git etasl \
-  && cd etasl \
-  && source install-dependencies.sh
-  ```
-* **ADD** "source $HOME/orocos-install/orocos-2.9_ws/install_isolated/setup.bash" on top of ~/.bashrc  
-* switch gcc and g++ version to 7 before installing etasl
-  ```
-  sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
-  ```
-* install etasl base
-  ```
-  source $HOME/etasl/etasl-install.sh
-  ```
-* switch gcc and g++ version to 5 before installing etasl-py
-  ```
-  sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
-  ```
-* install etasl-py base
-  ```
-  source $HOME/etasl/ws/etasl/devel/setup.sh \
-  && source python-etasl-install.sh \
-  && source $HOME/etasl/ws/etasl-py/devel/setup.bash \
-  && echo 'source $HOME/etasl/ws/etasl-py/devel/setup.bash' >> ~/.bashrc \
-  ```
-* switch gcc and g++ version back to 7 before installing etasl-py
-  ```
-  sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
-  ```
-* ***If eTaSL is slow***, re-compile packages in release mode (has to be under 300ms with 200 constraints 500 step)  
-
-    
-# Camera Setup
-* Azure Kinect  
-  * setup microsoft repository  
-  ```
-  curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add - \
-  && sudo apt-add-repository https://packages.microsoft.com/ubuntu/18.04/prod \
-  && sudo apt-get update  
-  ```
-  * install sdk  
-  ```
-  sudo apt install libk4a1.4 \
-  && sudo apt install libk4a1.4-dev \
-  && sudo apt install k4a-tools  
-  ```
-  * allow non-root usage  
-    * Download 'third-party/azure/99-k4a.rules' in this project. From the downloaded directory,
-  ```
-  sudo cp ./99-k4a.rules /etc/udev/rules.d/  
-  ```
-    * Detach and reattach Azure Kinect devices if attached during this process.  
-  * install open3d  
-  ```
-  pip install open3d  
-  ```
-  * test kinect by executing "k4aviewer" on terminal  
-  
-* Realsense
-  * Follow instruction in https://github.com/IntelRealSense/librealsense/blob/master/doc/distribution_linux.md  
-    * BELOW if for UBUNTU 18.04
-  ```
-  sudo apt-key adv --keyserver keys.gnupg.net --recv-key F6E65AC044F831AC80A06380C8B3A55A6F3EFCDE || sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-key F6E65AC044F831AC80A06380C8B3A55A6F3EFCDE \
-  && sudo add-apt-repository "deb http://realsense-hw-public.s3.amazonaws.com/Debian/apt-repo bionic main" -u \
-  && sudo apt-get install librealsense2-dkms \
-  && sudo apt-get install librealsense2-utils
-  ```
-  * install pyrealsense2  
-  ```
-  pip install pyrealsense2  
-  ```
   
 # Setup project  
 * Get project and add path to ~/.bahsrc
@@ -237,48 +106,6 @@ nohup roscore &
 ```
 sudo killall -9 roscore && nohup roscore &  
 ```
-
-# Setup and launch panda repeater
-* setup panda_ros_repeater on panda master pc (https://github.com/Cucumberkjs/panda_ros_repeater.git)  
-* launch panda command repeater on matser  
-  ```
-  roslaunch panda_ros_repeater joint_velocity_repeater.launch robot_ip:=192.168.0.13 load_gripper:=false
-  ```
-
-# Setup and launch indy online tracker
-* Download and install NRMK IndyFramework and PlatformSDK (framework 2.3.1 -> Platform 3.0.5)  
-* Clone IndyFramework2.0 project and copy "external/IndyFramework2.0/IndyController/*" and "external/IndyFramework2.0/IndyHRI/*" from this project to corresponding folders in framework source.  
-* build project  
-  ```
-  source /opt/neuromeka/NRMKFoundation/script/nrmk_env.sh  
-  cmake -DROBOT_NAME=Indy7 -DSIMULATION=OFF  
-  make install  
-  ```
-* send the file to CB  
-  ```
-  scp $HOME/Projects/external/IndyFramework2.0/deployment/* root@192.168.0.63:/home/user/release/TasksDeployment  
-  ```
-* Run TaskMan on CB, through ssh
-  ```
-  cd /home/user/release/TasksDeployment  
-  ./TaskManager -j indyDeploy.json  
-  ```
-
-# TIPS 
-* Launching RVIZ
-  ```
-  roslaunch "$RNB_PLANNING_DIR"src/launch/gui_custom_robots_joint_panel.launch 
-  ``` 
-
-* Launch franka ros interface  
-  * visualization:
-  ```
-  roslaunch franka_visualization franka_visualization.launch robot_ip:=192.168.0.13 load_gripper:=true  
-  ```
-  * launch interface: 
-  ```
-  roslaunch franka_interface interface.launch
-  ```
 
 # Check final .bashrc  
 ```
