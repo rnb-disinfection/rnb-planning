@@ -30,10 +30,10 @@
   
 ## 1.5 hardware setup
 * Setup camera and robot driver/sdk following instructions in [docs/HARDWARE_SETUP.md](docs/HARDWARE_SETUP.md) 
-
   
 # 2 Setup project  
-## 2.1 Get project and add path to ~/.bahsrc
+## 2.1 Get project setup path  
+* Download and add path to ~/.bashrc    
   ```
   mkdir ~/Projects && cd ~/Projects \
   && git clone https://github.com/Cucumberkjs/rnb-planning.git \
@@ -42,67 +42,69 @@
   ```
   
 ## 2.2 Build custom etasl
-  * get custom etasl project from github and recompile etasl
-  ```
-  cd ~/etasl/ws \
-  && mv ./etasl ./etasl_bak && mv ./etasl-py ./etasl-py_bak \
-  && git clone https://github.com/Cucumberkjs/etasl.git \
-  && git clone https://github.com/Cucumberkjs/etasl-py.git
-  ```
-  * **[IMPORTANT]** comment out "source $HOME/etasl/ws/etasl-py/devel/setup.bash" in ~/.bashrc
-  * restart terminal  
-  * switch gcc and g++ version to 7 before installing etasl
-  ```
-  sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
-  ```
-  * rebuild etasl 
-  ```
-  cd ~/etasl/ws/etasl \
-  && sudo rm -rf devel && sudo rm -rf build && catkin_make -DCMAKE_BUILD_TYPE=Release \
-  && source $HOME/etasl/ws/etasl/devel/setup.bash   
-  ```
-  * switch gcc and g++ version to 5 before installing etasl-py
-  ```
-  sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
-  ```
-  * rebuild etasl-py 
-  ```
-  cd ~/etasl/ws/etasl-py \
-  && sudo rm -rf devel && sudo rm -rf build && catkin_make -DCMAKE_BUILD_TYPE=Release \
-  && source $HOME/etasl/ws/etasl-py/devel/setup.bash   
-  ```
-  * **[IMPORTANT]** uncomment "source $HOME/etasl/ws/etasl-py/devel/setup.bash" in ~/.bashrc
-  * restart terminal  
-  * switch gcc and g++ version back to 7
-  ```
-  sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
-  ```
+* get custom etasl project from github and recompile etasl  
+    ```
+    cd ~/etasl/ws \
+    && mv ./etasl ./etasl_bak && mv ./etasl-py ./etasl-py_bak \
+    && git clone https://github.com/Cucumberkjs/etasl.git \
+    && git clone https://github.com/Cucumberkjs/etasl-py.git
+    ```
+* **[IMPORTANT]** comment out "source $HOME/etasl/ws/etasl-py/devel/setup.bash" in ~/.bashrc
+* restart terminal  
+* switch gcc and g++ version to 7 before installing etasl
+    ```
+    sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
+    ```
+* rebuild etasl 
+    ```
+    cd ~/etasl/ws/etasl \
+    && sudo rm -rf devel && sudo rm -rf build && catkin_make -DCMAKE_BUILD_TYPE=Release \
+    && source $HOME/etasl/ws/etasl/devel/setup.bash   
+    ```
+* switch gcc and g++ version to 5 before installing etasl-py
+    ```
+    sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
+    ```
+* rebuild etasl-py 
+    ```
+    cd ~/etasl/ws/etasl-py \
+    && sudo rm -rf devel && sudo rm -rf build && catkin_make -DCMAKE_BUILD_TYPE=Release \
+    && source $HOME/etasl/ws/etasl-py/devel/setup.bash   
+    ```
+* **[IMPORTANT]** uncomment "source $HOME/etasl/ws/etasl-py/devel/setup.bash" in ~/.bashrc
+* restart terminal  
+* switch gcc and g++ version back to 7
+    ```
+    sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
+    ```
   
 ## 2.3 build subprojects
-  * Build moveit-python interpreter, copy it and clean Release folder  
-  ```
-  sudo apt-get remove ros-melodic-ompl \
-  && cd "$RNB_PLANNING_DIR"lib/moveit_interface_py \
-  && chmod +x ./build.sh \
-  && ./build.sh \
-  && export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib \
-  && echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib' >> ~/.bashrc
-  ```
+* Build moveit-python interpreter, copy it and clean Release folder  
+    ```
+    sudo apt-get remove ros-melodic-ompl \
+    && cd "$RNB_PLANNING_DIR"lib/moveit_interface_py \
+    && chmod +x ./build.sh \
+    && ./build.sh \
+    && export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib \
+    && echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib' >> ~/.bashrc
+    ```
 
-  * build openGJK
-  ```
-  cd "$RNB_PLANNING_DIR"lib/openGJK/lib \
-  && cmake -DCMAKE_BUILD_TYPE=Release \
-  && make
-  ```
-  * build custom workspace  
-  ```
-  cd "$RNB_PLANNING_DIR"ws_ros && rm -rf build devel && catkin_make -DCMAKE_BUILD_TYPE=Release  
-  source "$RNB_PLANNING_DIR"ws_ros/devel/setup.bash
-  echo 'source "$RNB_PLANNING_DIR"ws_ros/devel/setup.bash' >> ~/.bashrc
-  ```
+* build openGJK
+    ```
+    cd "$RNB_PLANNING_DIR"lib/openGJK/lib \
+    && cmake -DCMAKE_BUILD_TYPE=Release \
+    && make
+    ```
+  
+* build custom workspace  
+    ```
+    cd "$RNB_PLANNING_DIR"ws_ros && rm -rf build devel && catkin_make -DCMAKE_BUILD_TYPE=Release  
+    source "$RNB_PLANNING_DIR"ws_ros/devel/setup.bash
+    echo 'source "$RNB_PLANNING_DIR"ws_ros/devel/setup.bash' >> ~/.bashrc
+    ```
 
-## 2.4 Check final ~/.bashrc file. It should contain following lines.  
+## 2.4 Check shell environemnt settings
+* ~/.bashrc should contain following lines.  
     ```
     export PATH=$PATH:~/.local/bin  
       
