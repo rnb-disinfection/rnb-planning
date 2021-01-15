@@ -24,7 +24,7 @@
 * Setup camera and robot driver/sdk following instructions in [docs/HARDWARE_SETUP.md](docs/HARDWARE_SETUP.md) 
 
   
-# Setup project  
+## 1.6 Setup project  
 * Get project and add path to ~/.bahsrc
   ```
   mkdir ~/Projects && cd ~/Projects \
@@ -107,7 +107,7 @@ nohup roscore &
 sudo killall -9 roscore && nohup roscore &  
 ```
 
-# Check final .bashrc  
+* Check final ~/.bashrc file. It should contain following lines.  
 ```
 export PATH=$PATH:~/.local/bin  
   
