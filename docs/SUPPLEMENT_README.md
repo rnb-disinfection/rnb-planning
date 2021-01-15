@@ -13,6 +13,14 @@
   ```
   roslaunch franka_interface interface.launch
   ```
+* starting roscore if it's not active  
+```
+nohup roscore &  
+```
+* to reset node/topic/params, kill and restart roscore  
+```
+sudo killall -9 roscore && nohup roscore &  
+```
 
 # Recommended Tools  
 * jupyter 

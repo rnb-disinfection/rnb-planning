@@ -20,27 +20,28 @@
   pip3 install dill matplotlib sklearn opencv-python SharedArray  
   ```
   
+* install OMPL
+    * download ompl install bash file [here](third-party/ompl/install-ompl-ubuntu.sh --python)
+    * in the downloaded directory, 
+        ```
+        chmod +x *
+        ./install-ompl-ubuntu.sh --python
+        ```
+  
 ## 1.5 hardware setup
 * Setup camera and robot driver/sdk following instructions in [docs/HARDWARE_SETUP.md](docs/HARDWARE_SETUP.md) 
 
   
-## 1.6 Setup project  
-* Get project and add path to ~/.bahsrc
+# 2 Setup project  
+## 2.1 Get project and add path to ~/.bahsrc
   ```
   mkdir ~/Projects && cd ~/Projects \
   && git clone https://github.com/Cucumberkjs/rnb-planning.git \
   && export RNB_PLANNING_DIR=$HOME/Projects/rnb-planning/ \
   && echo 'export RNB_PLANNING_DIR=$HOME/Projects/rnb-planning/' >> ~/.bashrc
   ```
-
-* install OMPL  
-    ```
-    cd ~/Projects/rnb-planning/third-party/ompl
-    chmod +x *
-    ./install-ompl-ubuntu.sh --python
-    ```
   
-* Build custom etasl
+## 2.2 Build custom etasl
   * get custom etasl project from github and recompile etasl
   ```
   cd ~/etasl/ws \
@@ -77,7 +78,7 @@
   sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
   ```
   
-* Build moveit-python interpreter, copy it and clean Release folder  
+## 2.3 Build moveit-python interpreter, copy it and clean Release folder  
 ```
 sudo apt-get remove ros-melodic-ompl \
 && cd "$RNB_PLANNING_DIR"lib/moveit_interface_py \
@@ -86,28 +87,21 @@ sudo apt-get remove ros-melodic-ompl \
 && export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib \
 && echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib' >> ~/.bashrc
 ```
-* build openGJK
+
+## 2.4 build openGJK
 ```
 cd "$RNB_PLANNING_DIR"lib/openGJK/lib \
 && cmake -DCMAKE_BUILD_TYPE=Release \
 && make
 ```
-* build custom workspace  
+## 2.5 build custom workspace  
 ```
 cd "$RNB_PLANNING_DIR"ws_ros && rm -rf build devel && catkin_make -DCMAKE_BUILD_TYPE=Release  
 source "$RNB_PLANNING_DIR"ws_ros/devel/setup.bash
 echo 'source "$RNB_PLANNING_DIR"ws_ros/devel/setup.bash' >> ~/.bashrc
 ```
-* **start roscore if it's not active**  
-```
-nohup roscore &  
-```
-* **to reset node/topic/params, kill and restart roscore**  
-```
-sudo killall -9 roscore && nohup roscore &  
-```
 
-* Check final ~/.bashrc file. It should contain following lines.  
+## 2.6 Check final ~/.bashrc file. It should contain following lines.  
 ```
 export PATH=$PATH:~/.local/bin  
   
@@ -151,4 +145,4 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
 \# JetBrains  
 export PATH=$PATH:$HOME/pycharm-2020.2/bin  
 export PATH=$PATH:$HOME/clion-2020.2/bin  
-
+```
