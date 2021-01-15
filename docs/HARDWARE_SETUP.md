@@ -13,7 +13,7 @@
         && sudo apt install k4a-tools  
         ```
     * allow non-root usage  
-        * Download [99-k4a.rules]('../third-party/azure/99-k4a.rules') in this project.  
+        * Download [99-k4a.rules](../third-party/azure/99-k4a.rules) in this project.  
         * From the downloaded directory,  
             ```
             sudo cp ./99-k4a.rules /etc/udev/rules.d/  
