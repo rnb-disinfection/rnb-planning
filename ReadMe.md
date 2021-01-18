@@ -20,7 +20,7 @@
   pip3 install dill matplotlib sklearn opencv-python SharedArray  
   ```
   
-* Install OMPL
+* Install OMPL (takes >30min)
     * Download ompl install bash file [here](third-party/ompl/install-ompl-ubuntu.sh)
     * From the downloaded directory, 
         ```
