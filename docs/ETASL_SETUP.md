@@ -6,7 +6,7 @@
     && cd etasl \
     && source install-dependencies.sh
     ```
-* **ADD** "source $HOME/orocos-install/orocos-2.9_ws/install_isolated/setup.bash" on top of ~/.bashrc  
+* **ADD** "source $HOME/orocos-install/orocos-2.9_ws/install_isolated/setup.bash" on top of customized section of ~/.bashrc  
 * switch gcc and g++ version to 7 before installing etasl
     ```
     sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
