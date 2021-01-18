@@ -27,7 +27,7 @@
     && source $HOME/etasl/ws/etasl-py/devel/setup.bash \
     && echo 'source $HOME/etasl/ws/etasl-py/devel/setup.bash' >> ~/.bashrc \
     ```
-* switch gcc and g++ version back to 7 before installing etasl-py
+* switch gcc and g++ version back to 7 after installing etasl-py
     ```
     sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
     ```
