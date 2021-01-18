@@ -52,7 +52,7 @@
     ```
     cp ~/catkin_ws/src/franka_ros_interface/franka.sh ~/catkin_ws/
     ```
-    * Change the values in the copied file (described in the file).
+    * ~~Change the values in the copied file (described in the file).~~
 * python compatibility  
     ```
     pip install rospkg  

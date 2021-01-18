@@ -16,7 +16,7 @@
   pip install colorama==0.3.9 llvmlite==0.31.0 numba==0.47.0
   pip install autograd && pip install --user pymanopt==0.2.4
   pip install dash==1.17.0 visdcc dash_split_pane
-  pip install matplotlib trimesh pathlib protobuf grpcio numpy-stl sklearn filterpy paramiko cvxpy SharedArray  
+  pip install matplotlib trimesh pathlib protobuf grpcio numpy-stl sklearn filterpy paramiko SharedArray  
   pip3 install dill matplotlib sklearn opencv-python SharedArray  
   ```
   

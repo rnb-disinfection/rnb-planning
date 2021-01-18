@@ -174,24 +174,24 @@ def send_recv(sdict, host, port):
         client_socket.close()
     return rdict
 
-from filterpy.kalman import KalmanFilter
-from filterpy.common import Q_discrete_white_noise
-
-def createKF(dim_z, dt, P, R, Q, X0=None):
-    dim_x = dim_z*2
-    f = KalmanFilter (dim_x=dim_x, dim_z=dim_z)
-    f.x = np.array([0., 0.]*dim_z) if X0 is None else X0
-    f.F = np.identity(dim_x)  # state transition matrix
-    for i_F in range(dim_z):
-        f.F[i_F*2, i_F*2+1] = 1
-    f.H = np.identity(dim_x)[::2,:] # measurement function
-
-    f.P *= P #covariance matrix
-    f.R *= R # measurement noise
-    f.Q = np.identity(dim_x)
-    for i_Q in range(dim_z):
-        f.Q[i_Q*2:i_Q*2+2,i_Q*2:i_Q*2+2] = Q_discrete_white_noise(dim=2, dt=dt, var=Q)
-    return f
+# from filterpy.kalman import KalmanFilter
+# from filterpy.common import Q_discrete_white_noise
+#
+# def createKF(dim_z, dt, P, R, Q, X0=None):
+#     dim_x = dim_z*2
+#     f = KalmanFilter (dim_x=dim_x, dim_z=dim_z)
+#     f.x = np.array([0., 0.]*dim_z) if X0 is None else X0
+#     f.F = np.identity(dim_x)  # state transition matrix
+#     for i_F in range(dim_z):
+#         f.F[i_F*2, i_F*2+1] = 1
+#     f.H = np.identity(dim_x)[::2,:] # measurement function
+#
+#     f.P *= P #covariance matrix
+#     f.R *= R # measurement noise
+#     f.Q = np.identity(dim_x)
+#     for i_Q in range(dim_z):
+#         f.Q[i_Q*2:i_Q*2+2,i_Q*2:i_Q*2+2] = Q_discrete_white_noise(dim=2, dt=dt, var=Q)
+#     return f
 
 import inspect
 

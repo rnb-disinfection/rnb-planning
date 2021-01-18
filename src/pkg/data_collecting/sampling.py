@@ -815,11 +815,9 @@ def merge_paired_ctems(ghnd, merge_pairs, VISUALIZE=False, graph=None):
             ghnd.remove(ctem1)
             ghnd.remove(ctem2)
         
-        
-import cvxpy
-
 
 def select_minial_combination(diff_mat):
+    import cvxpy
     selection = cvxpy.Variable(shape=diff_mat.shape, boolean=True)
     line_constraints = [
         cvxpy.sum(sel_line) == 1 for sel_line in selection
@@ -854,7 +852,7 @@ def rearrange_cell_array(cell_array, idxset, L_CELL, Nwdh, ctem_TFs_cur, centers
     idx_near = sorted(idx_near)
     diff_mat = np.linalg.norm(ctem_TFs_cur[idx_near][:, :3, 3].reshape((-1, 1, 3)) - centers_global.reshape((1, -1, 3)),
                               axis=-1)
-    minimal_combs = select_minial_combination(diff_mat)
+    minimal_combs = select_minial_combination_fast(diff_mat)
     cell_idxes = np.where(minimal_combs)[1]
     cells_new = cells_near.reshape((-1, 3))[cell_idxes].astype(np.int)
     cell_array[idx_near] = cells_new
@@ -873,7 +871,7 @@ def rearrange_cell_array_bak(cell_array, idxset, L_CELL, ctem_TFs_cur, centers):
     idx_near = sorted(idx_near)
     diff_mat = np.linalg.norm(ctem_TFs_cur[idx_near][:, :3, 3].reshape((-1, 1, 3)) - centers_global.reshape((1, -1, 3)),
                               axis=-1)
-    minimal_combs = select_minial_combination(diff_mat)
+    minimal_combs = select_minial_combination_fast(diff_mat)
     cell_idxes = np.where(minimal_combs)[1]
     cells_new = cells_near.reshape((-1, 3))[cell_idxes].astype(np.int)
     cell_array[idx_near] = cells_new
