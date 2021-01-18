@@ -46,8 +46,8 @@
     ```
     cd ~/etasl/ws \
     && mv ./etasl ./etasl_bak && mv ./etasl-py ./etasl-py_bak \
-    && git clone https://github.com/Cucumberkjs/etasl.git \
-    && git clone https://github.com/Cucumberkjs/etasl-py.git
+    && cp -r $RNB_PLANNING_DIR/third-party/etasl/etasl ./ \
+    && cp -r $RNB_PLANNING_DIR/third-party/etasl/etasl-py ./
     ```
 * **[IMPORTANT]** comment out "source $HOME/etasl/ws/etasl-py/devel/setup.bash" in ~/.bashrc
 * restart terminal  
@@ -105,47 +105,47 @@
 
 ## 2.4 Check shell environemnt settings
 * ~/.bashrc should contain following lines.  
-    ```
-    export PATH=$PATH:~/.local/bin  
-      
-    # cuda  
-    export PATH=$PATH:/usr/local/cuda-10.1/bin
-    export CUDADIR=/usr/local/cuda-10.1
-    if [ -z $LD_LIBRARY_PATH ]; then
-      export LD_LIBRARY_PATH=/usr/local/cuda-10.1/lib64
-    else
-      export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-10.1/lib64
-    fi
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-10.2/lib64
-      
-    # OROCOS  
-    source $HOME/orocos-install/orocos-2.9_ws/install_isolated/setup.bash  
-      
-    # ros  
-    alias eb='nano ~/.bashrc'  
-    alias sb='source ~/.bashrc'  
-    alias gs='git status'  
-    alias gp='git pull'  
-    alias cw='cd ~/catkin_ws'  
-    alias cs='cd ~/catkin_ws/src'  
-    alias cm='cd ~/catkin_ws && catkin_make'  
-    source /opt/ros/melodic/setup.bash  
-    source $HOME/catkin_ws/devel/setup.bash  
-    export ROS_MASTER_URI=http://localhost:11311  
-    export ROS_HOSTNAME=localhost  
-      
-    # etasl  
-    source $HOME/etasl/ws/etasl-py/devel/setup.bash
-    # export TESSERACT_SUPPORT_DIR='$HOME/Projects/rnb-planning/ws_ros/devel/share/tesseract_support'  
-    
-    # rnb-planning  
-    export RNB_PLANNING_DIR=$HOME/Projects/rnb-planning/
-    source "$RNB_PLANNING_DIR"ws_ros/devel/setup.bash
-      
-    # Custom ompl 
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
-    
-    # JetBrains  
-    export PATH=$PATH:$HOME/pycharm-2020.2/bin  
-    export PATH=$PATH:$HOME/clion-2020.2/bin  
-    ```
+   ```
+   export PATH=$PATH:~/.local/bin  
+
+   # ORCOS
+   source $HOME/orocos-install/orocos-2.9_ws/install_isolated/setup.bash
+
+   # CUDA
+   export PATH=$PATH:/usr/local/cuda-11.0/bin
+   export CUDADIR=/usr/local/cuda-11.0
+   if [ -z $LD_LIBRARY_PATH ]; then
+     export LD_LIBRARY_PATH=/usr/local/cuda-11.0/lib64
+   else
+     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-11.0/lib64
+   fi
+
+   # ROS
+   alias eb='nano ~/.bashrc'
+   alias sb='source ~/.bashrc'
+   alias gs='git status'
+   alias gp='git pull'
+   alias cw='cd ~/catkin_ws'
+   alias cs='cd ~/catkin_ws/src'
+   alias cm='cd ~/catkin_ws && catkin_make'
+   source /opt/ros/melodic/setup.bash
+   source ~/catkin_ws/devel/setup.bash
+   export ROS_MASTER_URI=http://localhost:11311
+   export ROS_HOSTNAME=localhost
+
+   # eTaSL
+   source $HOME/etasl/ws/etasl-py/devel/setup.bash
+
+   # RNB-PLANNING
+   export RNB_PLANNING_DIR=$HOME/Projects/rnb-planning/
+
+   # custom-ompl
+   export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
+
+   # custom-workspace
+   source "$RNB_PLANNING_DIR"ws_ros/devel/setup.bash
+
+   # JetBrains  
+   export PATH=$PATH:$HOME/pycharm-2020.2/bin  
+   export PATH=$PATH:$HOME/clion-2020.2/bin  
+   ```
