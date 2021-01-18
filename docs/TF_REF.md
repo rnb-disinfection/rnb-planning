@@ -42,6 +42,7 @@ echo 'export PATH=$PATH:/usr/local/cuda-11.0/bin' >> ~/.bashrc \
 && echo '  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-11.0/lib64' >> ~/.bashrc \
 && echo 'fi' >> ~/.bashrc  
 ```
+### ***[IMPORTANT] Restart terminal!!!***  
 
 ### Install TensorRT. Requires that libcudnn8 is installed above.
 ```
