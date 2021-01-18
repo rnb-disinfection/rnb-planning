@@ -18,7 +18,7 @@
     ```
     sudo apt-get install --no-install-recommends nvidia-driver-450
     ```
-* ***[IMPORTANT] Reboot!!!***  
+* ***[IMPORTANT]*** Reboot!!!  
     Check that GPUs are visible using the command: nvidia-smi
 
 
@@ -45,7 +45,7 @@
     && echo 'fi' >> ~/.bashrc  
     ```
 
-* ***[IMPORTANT] Restart terminal!!!***  
+* ***[IMPORTANT]*** Restart terminal!!!
 
 * Install TensorRT. Requires that libcudnn8 is installed above.
     ```
@@ -58,4 +58,14 @@
 * Install tensorflow
     ```
     pip3 install tensorflow-gpu==2.4.0
+    ```
+
+* ***[IMPORTANT]*** add below to python script before using tensorflow or you get "no algorithm worked" error!
+    ```
+    from tensorflow.compat.v1 import ConfigProto
+    from tensorflow.compat.v1 import InteractiveSession
+
+    config = ConfigProto()
+    config.gpu_options.allow_growth = True
+    session = InteractiveSession(config=config)
     ```
