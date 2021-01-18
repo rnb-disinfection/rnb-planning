@@ -106,7 +106,7 @@
 ## 2.4 Check shell environemnt settings
 * ~/.bashrc should contain following lines.  
    ```
-   export PATH=$PATH:~/.local/bin  
+   # export PATH=$PATH:~/.local/bin  
 
    # ORCOS
    source $HOME/orocos-install/orocos-2.9_ws/install_isolated/setup.bash
