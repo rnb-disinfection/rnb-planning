@@ -60,7 +60,7 @@
     pip3 install tensorflow-gpu==2.4.0
     ```
 
-* ***[IMPORTANT]*** add below to python script before using tensorflow or you get "no algorithm worked" error! (no need to explicitly use session)
+* ***[IMPORTANT]*** in TF 2.4.0, add below to python script before using tensorflow or you get "no algorithm worked" error! (no need to explicitly use session)
     ```
     from tensorflow.compat.v1 import ConfigProto
     from tensorflow.compat.v1 import InteractiveSession
