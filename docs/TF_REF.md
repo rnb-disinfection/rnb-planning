@@ -16,7 +16,8 @@ mkdir ~/NVIDIA_TMP && cd ~/NVIDIA_TMP \
 ```
 sudo apt-get install --no-install-recommends nvidia-driver-450
 ```
-### ***[IMPORTANT] Reboot!!!*** Check that GPUs are visible using the command: nvidia-smi
+### ***[IMPORTANT] Reboot!!!***  
+Check that GPUs are visible using the command: nvidia-smi
 
 
 ## Install development and runtime libraries (~4GB)
