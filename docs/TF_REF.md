@@ -1,4 +1,4 @@
-## Install tf 2.4.0 (below is official guide from homepage)
+## Setup NVIDIA cuda 11.0 and cudnn 8.0 for tf 2.4.0 (below is official guide from homepage)
 ```
 # Add NVIDIA package repositories
 mkdir ~/NVIDIA_TMP && cd ~/NVIDIA_TMP \
@@ -12,15 +12,15 @@ mkdir ~/NVIDIA_TMP && cd ~/NVIDIA_TMP \
 && sudo apt-get update
 ```
 
-## Install NVIDIA driver
+* Install NVIDIA driver
 ```
 sudo apt-get install --no-install-recommends nvidia-driver-450
 ```
-### ***[IMPORTANT] Reboot!!!***  
+* ***[IMPORTANT] Reboot!!!***  
 Check that GPUs are visible using the command: nvidia-smi
 
 
-## Install development and runtime libraries (~4GB)
+* Install development and runtime libraries (~4GB)
 ```
 cd ~/NVIDIA_TMP \
 && wget https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64/libnvinfer7_7.1.3-1+cuda11.0_amd64.deb \
@@ -32,7 +32,7 @@ cd ~/NVIDIA_TMP \
     libcudnn8-dev=8.0.4.30-1+cuda11.0
 ```
 
-### Add PATH variables to environment
+* Add PATH variables to environment
 ```
 echo 'export PATH=$PATH:/usr/local/cuda-11.0/bin' >> ~/.bashrc \
 && echo 'export CUDADIR=/usr/local/cuda-11.0' >> ~/.bashrc \
@@ -42,9 +42,10 @@ echo 'export PATH=$PATH:/usr/local/cuda-11.0/bin' >> ~/.bashrc \
 && echo '  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-11.0/lib64' >> ~/.bashrc \
 && echo 'fi' >> ~/.bashrc  
 ```
-### ***[IMPORTANT] Restart terminal!!!***  
 
-### Install TensorRT. Requires that libcudnn8 is installed above.
+* ***[IMPORTANT] Restart terminal!!!***  
+
+* Install TensorRT. Requires that libcudnn8 is installed above.
 ```
 sudo apt-get install -y --no-install-recommends libnvinfer7=7.1.3-1+cuda11.0 \
     libnvinfer-dev=7.1.3-1+cuda11.0 \
@@ -52,7 +53,7 @@ sudo apt-get install -y --no-install-recommends libnvinfer7=7.1.3-1+cuda11.0 \
 ```
 
   
-### Install tensorflow
+* Install tensorflow
 ```
 pip3 install tensorflow-gpu==2.4.0
 ```
