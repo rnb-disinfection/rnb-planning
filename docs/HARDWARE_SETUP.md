@@ -26,18 +26,23 @@
     * test kinect by executing "k4aviewer" on terminal  
   
 * Realsense
-    * Follow instruction in https://github.com/IntelRealSense/librealsense/blob/master/doc/distribution_linux.md  
-    * Do below if using UBUNTU 18.04
-        ```
-        sudo apt-key adv --keyserver keys.gnupg.net --recv-key F6E65AC044F831AC80A06380C8B3A55A6F3EFCDE || sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-key F6E65AC044F831AC80A06380C8B3A55A6F3EFCDE \
-        && sudo add-apt-repository "deb http://realsense-hw-public.s3.amazonaws.com/Debian/apt-repo bionic main" -u \
-        && sudo apt-get install librealsense2-dkms \
-        && sudo apt-get install librealsense2-utils
-        ```
+    * Follow below process (UBUNTU 18.04 case, ref: https://github.com/IntelRealSense/librealsense/blob/master/doc/distribution_linux.md)
+      ```
+      sudo apt-key adv --keyserver keys.gnupg.net --recv-key F6E65AC044F831AC80A06380C8B3A55A6F3EFCDE || sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-key F6E65AC044F831AC80A06380C8B3A55A6F3EFCDE \
+      && sudo add-apt-repository "deb http://realsense-hw-public.s3.amazonaws.com/Debian/apt-repo bionic main" -u \
+      && sudo apt-get install librealsense2-dkms \
+      && sudo apt-get install librealsense2-utils \
+      && sudo apt-get install librealsense2-dev \
+      && sudo apt-get install librealsense2-dbg
+      ```
+    * Reconnect the Intel RealSense depth camera and verify the installation.
+      ```
+      realsense-viewer
+      ```
     * install pyrealsense2  
-        ```
-        pip install pyrealsense2  
-        ```
+      ```
+      pip install pyrealsense2  
+      ```
   
 # Setup and launch panda repeater
 * setup panda_ros_repeater on panda master pc (https://github.com/Cucumberkjs/panda_ros_repeater.git)  
