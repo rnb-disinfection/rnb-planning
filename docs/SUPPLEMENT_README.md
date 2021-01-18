@@ -34,9 +34,9 @@
 * nvidia-smi-gui
     * install  
         ```
-        sudo apt-get install python3-pyqt4
-        mkdir ~/nvidia-smi-gui && cd ~/nvidia-smi-gui
-        git clone https://github.com/imkzh/nvidia-smi-gui.git .
+        sudo apt-get install python3-pyqt4 \
+        && mkdir ~/nvidia-smi-gui && cd ~/nvidia-smi-gui \
+        && git clone https://github.com/imkzh/nvidia-smi-gui.git .
         ```
     * launch  
         ```
