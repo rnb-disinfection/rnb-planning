@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<package>
+  <name>expressiongraph_lua</name>
+  <description>
+     expressiongraph_lua is a library for binding expressiongraph and KDL entities in LUA. 
+  </description>
+  <version>0.1.0</version>
+  <license>GNU LGPL v3</license>
+  <maintainer email="erwin.aertbelien@kuleuven.be">Erwin Aertbelien</maintainer>
+  <author email="erwin.aertbelien@kuleuven.be">Erwin Aertbelien</author>
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>expressiongraph</build_depend>
+  <build_depend>luabind</build_depend>
+  <build_depend>lua-dev</build_depend>
+  <run_depend>expressiongraph</run_depend>
+  <run_depend>luabind</run_depend>
+  <test_depend>gtest</test_depend>
+</package>
+

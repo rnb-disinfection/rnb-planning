@@ -1,0 +1,6 @@
+<launch>
+    <param name="robot_description" textfile="$(find etasl_py_examples)/robots/ur10_robot.urdf" />
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher" />
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find etasl_py_examples)/launch/ur10.rviz" />
+</launch>
+

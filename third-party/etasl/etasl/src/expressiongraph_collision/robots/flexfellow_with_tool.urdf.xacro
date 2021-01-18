@@ -1,0 +1,105 @@
+<?xml version="1.0"?>
+
+<robot name="flexfellow" xmlns:xacro="http://www.ros.org/wiki/xacro">
+        <xacro:property name="width"  value=".64" />
+        <xacro:property name="length" value=".9" />
+        <xacro:property name="height" value=".9" />
+        <xacro:property name="loc_x"  value="0.26" />
+        <xacro:property name="loc_y"   value="0" />
+        <xacro:property name="pole_loc_x" value="-0.35" />
+        <xacro:property name="pole_loc_y" value="0.24" />
+        <xacro:property name="pole_diam" value="0.03" />
+        <xacro:property name="pole_length" value="0.96" />
+ 
+    <xacro:macro name="flexbase">
+       <link name="base_link">
+            <visual>
+                <origin xyz="0 0 ${height/2}" rpy="0 0 0" />
+                <geometry>
+                    <box size="${length} ${width} ${height}"/>
+                </geometry>
+                <material name="blue">
+                    <color rgba="0.4 0.4 .4 1"/>
+                </material>
+            </visual>
+            <collision>
+                <origin xyz="0 0 ${height/2}" rpy="0 0 0" />
+                <geometry>
+                    <box size="${length} ${width} ${height}"/>
+                </geometry>
+            </collision>
+        </link>
+        <link name="robot_base_link"/>
+        <link name="pole">
+            <visual>
+                <origin xyz="0 0 ${pole_length/2}" rpy="0 0 0" />
+                <geometry>
+                    <cylinder radius="${pole_diam/2}" length="${pole_length}"/>
+                </geometry>
+                <material name="gray">
+                    <color rgba="0.4 0.4 .4 1"/>
+                </material>
+            </visual>
+            <collision>
+                <origin xyz="0 0 ${height/2}" rpy="0 0 0" />
+                <geometry>
+                    <cylinder radius="${pole_diam/2}" length="${pole_length}"/>
+                </geometry>
+            </collision>
+        </link>
+        <joint name="base_loc" type="fixed">
+                <origin xyz="${loc_x} ${loc_y} ${height}" rpy="0 0 0" />
+                <parent link="base_link"/>    
+                <child link="robot_base_link"/>    
+        </joint>
+        <joint name="pole_loc" type="fixed">
+                <origin xyz="${pole_loc_x} ${pole_loc_y} ${height}" rpy="0 0 0" />
+                <parent link="base_link"/>    
+                <child link="pole"/>    
+        </joint>
+    </xacro:macro>
+
+
+    <!-- Import Rviz colors -->
+    <xacro:include filename="$(find lbr_iiwa_description)/urdf/materials.xacro" />
+    <!--Import the lbr iiwa macro -->
+    <xacro:include filename="$(find expressiongraph_collision)/robots/lbr_iiwa.xacro"/>
+
+    <!-- Import Gazebo plugins 
+        <xacro:include filename="$(find lbr_iiwa_description)/gazebo/gazebo.urdf.xacro"/>
+    -->
+
+    <!-- Fix to world just for testing -->
+    <xacro:flexbase/>
+
+    <!--lbr-->
+    <xacro:lbr_iiwa name="lbr_iiwa" hardware_interface="EffortJointInterface" parent="robot_base_link">
+        <origin xyz="0 0 0.0" rpy="0 0 0" />
+    </xacro:lbr_iiwa>
+
+    <link name="tool">
+        <visual>
+             <origin xyz="0 0 0.08" rpy="0 0 0" />
+              <geometry>
+                  <!--<mesh filename="package://expressiongraph_collision/meshes/tetraheder.obj"/>  -->
+                    <box size="0.16 0.16 0.16"/>
+                </geometry>
+                <material name="Orange"/>
+        </visual>
+        <collision>
+                <origin xyz="0 0 0.08" rpy="0 0 0" />
+                <geometry>
+                    <!--<mesh filename="package://expressiongraph_collision/meshes/tetraheder.obj"/>  -->
+                    <box size="0.16 0.16 0.16"/>
+                </geometry>
+        </collision>
+    </link>
+    <joint name="tool_loc" type="fixed">
+            <origin xyz="0 0 0.045" rpy="0 0 0" />
+            <parent link="lbr_iiwa_link_7"/>    
+            <child link="tool"/>    
+    </joint>
+
+</robot>
+
+

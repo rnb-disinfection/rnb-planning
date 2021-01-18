@@ -1,0 +1,3 @@
+- builder: doxygen
+  excludes: external
+  homepage: http://people.mech.kuleuven.be/~eaertbel/expressiontrees

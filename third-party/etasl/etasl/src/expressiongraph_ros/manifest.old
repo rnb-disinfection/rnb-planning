@@ -1,0 +1,27 @@
+<package>
+  <description brief="expressiongraph_ros">
+
+     expressiongraph_ros:
+        contains the aspects of expressiongraph_context that are dependent
+        on ros-code, such as reading urdf-files, and handlers to vizualize
+        aspects in RVIZ, etc...
+
+  </description>
+  <author>Erwin Aertbelien</author>
+  <license>to be determined</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/expressiongraph_tf</url>
+  <depend package="rosconsole"/>
+  <depend package="expressiongraph_context"/>
+  <depend package="roscpp"/>
+  <depend package="sensor_msgs"/>
+  <depend package="visualization_msgs"/>
+  <depend package="urdf"/>
+  <export>
+        <cpp cflags="-I${prefix}/include" 
+             lflags="-Wl,-rpath,${prefix}/lib -L${prefix}/lib -lexpressiongraph_ros"/>
+        <rosdoc config="rosdoc.yaml" />
+    </export>
+</package>
+
+

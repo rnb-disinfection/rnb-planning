@@ -1,0 +1,11 @@
+<launch>
+    <param name="robot_description" textfile="$(find expressiongraph_collision)/robots/flexfellow_with_tool.urdf" />
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher" />
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find expressiongraph_collision)/vcg/flexfellow.rviz" />
+    <include file="$(find etasl_rtt)/launch/rttlua.launch">
+        <arg name="RTTLUA_ARGS" value="$(find expressiongraph_collision)/scripts/deploy/deploy_cube_on_plane.lua"/>
+        <arg name="INTERACTIVE" value="true"/>
+        <arg name="DEBUG" value="false"/>
+    </include>
+</launch>
+

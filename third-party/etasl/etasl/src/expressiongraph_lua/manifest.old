@@ -1,0 +1,20 @@
+<package>
+  <description brief="expressiongraph_lua">
+
+     expressiongraph_lua is a library for binding expressiongraph and KDL entities in LUA. 
+
+  </description>
+  <author>Erwin Aertbelien</author>
+  <license>proprietary</license>
+  <review status="unreviewed" notes=""/>
+  <url></url>
+  <depend package="expressiongraph"/>
+
+  <export>
+    <cpp cflags="-I${prefix}/include -I/usr/include/lua5.2" 
+        lflags="-Wl,-rpath,${prefix}/lib -L${prefix}/lib -llua5.2 -ldl -lexpressiongraph_lua"/>
+    <rosdoc config="rosdoc.yaml" />
+   </export>
+</package>
+
+

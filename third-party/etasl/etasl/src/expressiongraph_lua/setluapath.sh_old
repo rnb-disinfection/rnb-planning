@@ -1,0 +1,41 @@
+echo "Adding paths to PATH, LUA_PATH, LUA_CPATH and URDF_PATH according to dependencies"
+LUA=`rospack find expressiongraph_lua`
+CTXLUA=`rospack find expressiongraph_context_lua`
+
+
+# default lua paths and lua cpaths:
+export LUA_PATH="./?.lua;"
+export LUA_CPATH="./?.so;$CTXLUA/lib/?.so;$CTXLUA/lib/?.so"
+
+export PATH="`rospack find expressiongraph_lua`/scripts:${PATH}"
+export PATH="`rospack find expressiongraph_context_lua`/bin:${PATH}"
+export LUA_PATH="`rospack find expressiongraph_lua`/scripts/?.lua;${LUA_PATH}"
+export URDF_PATH=`rospack find expressiongraph_examples_lua`"/robots"
+
+# adding dependencies:
+for pkg in `rospack depends`; do
+    echo "adding $pkg"
+    fullpkg=`rospack find $pkg`
+    if [ -e "${fullpkg}/scripts/lib" ] 
+    then
+        echo "added ${fullpkg}/scripts/lib" 
+        export LUA_PATH="${fullpkg}/scripts/lib/?.lua;${LUA_PATH}"
+    fi
+    if [ -e "${fullpkg}/lib" ] 
+    then
+        echo "added ${fullpkg}/lib" 
+        export LUA_CPATH="${fullpkg}/lib/?.so;${LUA_CPATH}"
+    fi
+    if [ -e "${fullpkg}/robots" ] 
+    then
+        echo "added ${fullpkg}/robots" 
+        export URDF_PATH="${fullpkg}/robots:${URDF_PATH}"
+    fi
+    if [ -e "${fullpkg}/urdf" ] 
+    then
+        echo "added ${fullpkg}/urdf" 
+        export URDF_PATH="${fullpkg}/urdf:${URDF_PATH}"
+    fi
+
+done
+

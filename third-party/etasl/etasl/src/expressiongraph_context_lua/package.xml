@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<package>
+  <name>expressiongraph_context_lua</name>
+  <description>
+        a scriptable interface to expressiongraph_context using Lua, together with
+        some additional script library.  Together this constitutes the eTaSL
+        implementation.
+  </description>
+  <version>0.1.0</version>
+  <maintainer email="erwin.aertbelien@kuleuven.be">Erwin Aertbelien</maintainer>
+  <author email="erwin.aertbelien@kuleuven.be">Erwin Aertbelien</author>
+  <license>GNU LGPL v3</license>
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>expressiongraph_lua</build_depend>
+  <build_depend>expressiongraph_ros</build_depend>
+  <build_depend>expressiongraph_context</build_depend>
+  <build_depend>roslib</build_depend>
+
+  <run_depend>expressiongraph_lua</run_depend>
+  <run_depend>expressiongraph_ros</run_depend>
+  <run_depend>expressiongraph_context</run_depend>
+  <run_depend>roslib</run_depend>
+  <test_depend>gtest</test_depend>
+</package>
+
+

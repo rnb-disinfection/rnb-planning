@@ -1,0 +1,297 @@
+/**
+\mainpage
+\htmlinclude manifest.html
+
+
+<!-- 
+Provide an overview of your package.
+-->
+
+\section Introduction
+
+Expressiongraph_lua is a library that contains a binding between KDL expression graphs and the <a href="http://www.lua.org/">lua</a> scripting language.
+The binding is realized using the <a href="http://www.rasterbar.com/products/luabind.html">luabind</a> library.
+
+The library also contains some useful additions to the lua interactive prompt.
+
+These bindings are separate from other components of the Orocos library and are self contained.
+
+\section bindings Bindings for Basic KDL Types
+
+When using the bindings, you should include the lua file _expressiongraph_ as follows:
+\code
+    require("expressiongraph")
+\endcode
+
+This requires that this lua script is in the LUA_PATH (./scripts directory). The shared library libexpressiongraph_vkc.so should be in the LUA_CPATH (./lib directory). 
+The following shell script gives an example on how to configure the LUA path and cpath:
+\code
+VKC="/home/eaertbel/ros-ea/expressiongraph_lua"
+export LUA_CPATH="./?.so;/usr/local/lib/lua/5.1/?.so;/usr/lib/x86_64-linux-gnu/lua/5.1/?.so;/usr/lib/lua/5.1/?.so;/usr/local/lib/lua/5.1/loadall.so;$VKC/lib/?.so"
+export LUA_PATH="./?.lua;/usr/local/share/lua/5.1/?.lua;/usr/local/share/lua/5.1/?/init.lua;/usr/local/lib/lua/5.1/?.lua;/usr/local/lib/lua/5.1/?/init.lua;/usr/share/lua/5.1/?.lua;/usr/share/lua/5.1/?/init.lua;$VKC/scripts/?.lua"
+\endcode
+Some more information on LUA_PATH is found in the <a href="http://www.lua.org/pil/8.1.html">lua documentation for require</a>.  LUA_CPATH is used by require to
+lookup shared libraries and follows the same rules as LUA_PATH.
+
+\subsection ilua ilua.lua
+This package also includes a slightly adapted version of <b>ilua.lua</b> which as a lua
+interpreter with a lot of interactive features. You start it by running ./ilua.lua, optionally
+with some arguments.  The default version of lua will be used to start this lua script implementing
+a more interactive console with command-line completion and better output to the prompt. Be sure that
+the lua paths are set to the ./script and ./lib directories.
+
+\subsection types
+The following basic types in KDL are currently supported in the bindings:
+
+\code
+C++ Type name   |   LUA Type name   |     Description
+------------------------------------------------------
+KDL::Vector     |   Vector          |     A 3-element vector representing position/rel. pos./velocity/acceleration/...
+KDL::Rotation   |   Rotation        |     A rotation matrix 
+KDL::Frame      |   Frame           |     A transformation frame 
+\endcode
+
+\subsection Vector
+The possible methods and use of these basic types are illustrated in the following LUA code fragments.
+The first code fragment demonstrates the use of a Vector (./scripts/binding_ex1.lua):
+\code
+    
+    require("expressiongraph")
+
+    -- static methods are accessed using "."
+    -- normal methods are accessed using ":"
+    
+    -- kdl vector an its operations :
+    v=Vector(0.1, 0.5, 0.5)
+    print(v)       -- print a vector
+    print( v:x() )   -- print out the x-component of a vector
+    print( v:y() )
+    print( v:z() )
+    v2 = Vector.Zero()  -- returns a zero vector
+    print( v2 )
+\endcode
+
+Normal methods are called using ":", for static methods, the type name is a scope, the are called using ".".
+You can run the above script during configuration of the VKC components. For testing purposes  you can also run these script from any
+lua interpreter by setting the LUA paths and using:
+\code
+    require("libexpressiongraph_vkc")
+    dofile("binding_ex1.lua")
+\endcode
+The first line links with the shared library that defines the LUA bindings.
+
+\subsection Rotation 
+Operations on Rotation matrices are illustrated by (./scripts/binding_ex2.lua):
+\code
+    require("expressiongraph")
+
+
+    -- kdl rotation and its operations :
+
+    --   ways of creating a Rotation:
+
+    R=Rotation(Vector(1,0,0),Vector(0,0,-1),Vector(0,1,0))
+    print("Rotation(...) : ")
+    print(R)
+    -- first around Z, then around the new Y, then around the new X :
+    R=Rotation.EulerZYX(0,20.0/180.0*pi,0)
+    print("Rotation.EulerZYX(...) : ")
+    print(R)
+    
+    -- roll pitch yaw angles:
+    R=Rotation.RPY(0,20.0/180.0*pi,0)
+    print("Rotation.RPY(...) : ")
+    print(R)
+    
+    -- first around Z, then around the new Y, then around the new Z :
+    R=Rotation.EulerZYZ(0,20.0/180.0*pi,0)
+    print("Rotation.EulerZYZ(...) : ")
+    print(R)
+    
+    -- Quaternions:
+    R=Rotation.Quaternion(0.5,0.5,0.5,0.5)
+    print("Rotation.Quaternion : ")
+    print(R)
+
+    -- Identity :
+    R=Rotation.Identity()
+    print("Rotation.Identity : ")
+    print(R)
+
+    -- Rotation around X
+    R=Rotation.RotX(30/180.0*pi)
+    print("Rotation.RotX : ")
+    print(R)
+    
+    -- Rotation around Y
+    R=Rotation.RotY(30/180.0*pi)
+    print("Rotation.RotY : ")
+    print(R)
+    
+    -- Rotation around Z
+    R=Rotation.RotZ(30/180.0*pi)
+    print("Rotation.RotZ : ")
+    print(R)
+
+    -- Axis/angle rotation:
+    -- It is not necessary to normalize the rotation axis :
+    print("Rotation.Rot : ")
+    R=Rotation.Rot(Vector(1,1,1),20.0/180.0*pi)
+    print(R)
+    
+
+
+    R=Rotation.EulerZYX(10.0/180.0*pi, 20.0/180.0*pi, 40.0/180.0*pi) 
+    print("Rotation matrix for EulerZYX(10,20,40): ")
+    print(R)
+    
+    -- getting EulerZYX representation
+    alpha,beta,gamma = R:getEulerZYX()
+    print("EulerZYX : alpha ",alpha/pi*180.0,"     beta ",beta/pi*180.0,"     gamma ",gamma/pi*180.0)
+    
+    -- getting EulerZYX representation
+    alpha,beta,gamma = R:getEulerZYZ()
+    print("EulerZYZ : alpha ",alpha/pi*180.0,"     beta ",beta/pi*180.0,"     gamma ",gamma/pi*180.0)
+    
+    -- getting RPY representation
+    r,p,y = R:getRPY() 
+    print("RPY : r ",r/pi*180.0, "   p ",p/pi*180.0,"   y ",y/pi*180.0)
+    
+    -- getting Quaternion representation
+    q1,q2,q3,q4 = R:getQuaternion()
+    print("Quaternion ",q1, q2, q3, q4)
+
+    print("X-axis, Y-axis and Z-axis of a rotation matrix ")
+    print(R:UnitX())
+    print(R:UnitY())
+    print(R:UnitZ())
+
+
+    R1=Rotation.RotZ( 45.0/180.0*pi)
+    R2=Rotation.RotZ(-15.0/180.0*pi)
+    print("R1")
+    print(R1)
+    print("R2")
+    print(R2)
+    print("inverse of a rotation matrix ")
+    print(R1:Inverse())
+
+    v=Vector(0,0.4,1)
+    print("(pure rotational) transformation of a vector using a rotation matrix : ")
+    v_transformed = R1*v
+    print(v_transformed) 
+
+    print("composition of two rotation matrices : ")
+    R = R1*R2
+
+    print(R)
+\endcode
+
+\subsection Frame 
+Operations on Frame matrices are illustrated by (./scripts/binding_ex3.lua):
+\code
+    require("expressiongraph")
+
+    -- static methods are accessed using "."
+    -- normal methods are accessed using ":"
+
+    -- kdl frame and its operations :
+
+    F = Frame(Rotation.RotX(30.0/180.0*pi),Vector(1,2,3))
+    print("construction of a frame : ")
+    print(F)
+    print("construction of a identity frame : ")
+    print(Frame.Identity())
+
+    print("inverse of a frame transformation ")
+    print( F:Inverse() )
+
+    print(" composition of frame transformation ")
+    F2 = Frame(Rotation.RotX(30.0/180.0*pi),Vector(0,0,1))
+    F3 = F * F2
+    print( F3)
+
+    v = Vector(3,4,5);
+    print( " transformation of a vector (rotational+translational) ")
+    print(F*v)
+\endcode 
+
+\section eg Expression graphs
+The following sections explain expression graphs in general.  Its usage for VKC's is explained later.
+
+Basic expression graph operations, including expression graphs on doubles
+are explained in the following example (./scripts/binding_ex4.lua):
+\code
+
+    require("expressiongraph")
+
+    -- demonstration of expression graphs - basic functionality:
+
+
+    -- you use constant if you want to translate a constant value to a expression graph
+    -- This can be doubles but also other KDL types such as Vector, Frame, Rotation.
+    print("an expression graph for a constant double value : ")
+    a = constant(1.0)
+    print(a)
+
+    -- This is _not_ useful for configuration of VKC's: 
+    print("its value : ")
+    print(a:value())
+    print("its derivative towards variable 1 : ")
+    print(a:derivative(1))
+
+    -- you can write it to a .dot file:
+    a:write_dotfile("t.dot")
+
+    -- input(i) defines variable i, the derivative of input(i) towards i is 1.0.
+    -- you typically do NOT use input(i) in the configuration of VKC's.
+
+    -- define b in function of variable 1, using the input(...) function
+    b = constant(2.0) * input(1) + constant(3.0)
+    -- you should always call setInputValue, value and derivative in this fixed order !
+    -- setInputValue sets the value for variable 1 to the value 3.0
+    b:setInputValue(1,3)
+    print("value : ")
+    print(b:value())
+    print("derivative towards 1 : ")
+    print(b:derivative(1))
+
+
+    -- efficiency can be improved by using cached for common subexpressions
+    -- you typically assign the result of cached to a variable that you reuse
+    -- multiple times later on.
+    --
+    -- note also that all common operations and functions on doubles are supported.
+    -- e.g.: +, -, *, /, sin, cos, tan, asin, acos, atan2, log, exp, sqrt, abs
+    --
+    b = cached( constant(3.0)*input(1) + constant(1.0) )
+    a1 = sin(b)
+    print(a1)
+    a2 = cos(b)
+    print(a2)
+
+
+    -- a few special purpose functions:
+
+    -- if the first argument >= 0, then it returns the 2nd argument, otherwise it returns the 3th argument :
+    c = conditional( input(1)-constant(1.0), constant(2)*input(1), constant(3)*input(1)-constant(1.0) )
+    print("conditional : ")
+    print(c)
+
+    -- near_zero:
+    -- if abs(first argument) < 2nd value, return 3th argument otherwise return 4th argument
+    -- 1st,3th and 4th argument are expression graphs
+    -- 2nd argument is a value
+    a = input(1)*input(1)
+    e = near_zero( a, 1E-10, constant(0.0), a/abs(a) )
+    print(e)
+\endcode
+\section FAQ
+
+- error message: 
+    \code
+    No matching overload found, candidates:
+    Frame Inverse(Frame const&)"
+    \endcode
+    and variants is typically caused by mixing up "." and ":" while calling the method.
+*/

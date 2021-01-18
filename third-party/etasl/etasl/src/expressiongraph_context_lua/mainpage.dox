@@ -1,0 +1,37 @@
+/**
+\mainpage
+\htmlinclude manifest.html
+
+\b expressiongraph_context_lua
+
+<!-- 
+Provide an overview of your package.
+-->
+
+Expressiongraph_context_lua contains the lua binding to the context
+data-structure, together with some higher-level lua libraries.
+
+Together this constitutes the eTaSL language for task specification based
+on expressiongraphs.
+
+See also the <b>expressiongraph_iros_2014</b> example and his documentation.
+
+\b Installation
+
+- checkout the <a href="http://people.mech.kuleuven.be/~eaertbel/expressiontrees/api_full">API documentation </a>
+- checkout the <a href="http://people.mech.kuleuven.be/~eaertbel/expressiontrees"> documentation </a>
+- checkout the <a href="http://people.mech.kuleuven.be/~eaertbel/expressiongraphs"> documentation on expression graphs.</a>
+- It is also required to install lua5.1 and the luabind library
+- I do not have a lot of experience installing this on different computers, so any comments regarding installation
+  are welcome.
+- setluapath.sh script has to be adapted with your specific paths for LUA and urdf files.  
+- Be sure to run this script before running the examples using "source setluapath.sh" such that 
+  the environment variables indicating the search paths for lua scripts and urdf files are defined
+  in the current shell.
+
+
+
+\b basic syntax of eTaSL
+
+
+*/

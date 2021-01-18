@@ -1,0 +1,34 @@
+/**
+\mainpage
+\htmlinclude manifest.html
+
+\b expressiontree 
+
+<!-- 
+The expression tree package defines expression trees on the following entities: double,
+KDL::Vector, KDL::Rotation, KDL::Frame, KDL::Twist and KDL::Wrench.
+On one hand, these expression trees can be used to remember and manipulate KDL expressions,
+on the other hand, these expression trees have automatic differentiation capabilities.
+
+By applying expression trees not only on double and matrix types, but also on geometric entities,
+problems can be avoided with the algorithmic singularities inherent to minimal representations of
+orientations (such as e.g. Euler ZYX)
+
+### EUPL License ###
+
+Copyright 2014 Erwin Aertbelien - KU Leuven - Dep. of Mechanical Engineering
+
+Licensed under the EUPL, Version 1.1 only (the "Licence"); You may not use this work except in compliance with the Licence. You may obtain a copy of the Licence at:
+
+[EUPL license](http://ec.europa.eu/idabc/eupl)
+
+Unless required by applicable law or agreed to in writing, software distributed under the Licence is distributed on an "AS IS" basis, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or im plied.
+ See the Licence for the specific language governing permissions and limitations under the Licence.
+
+
+-->
+
+-->
+
+
+*/

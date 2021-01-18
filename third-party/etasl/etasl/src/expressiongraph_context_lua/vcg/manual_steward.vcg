@@ -1,0 +1,65 @@
+Background\ ColorB=0
+Background\ ColorG=0
+Background\ ColorR=0
+Camera\ Config=0.307791 0.290798 2.27332 0.1865 -0.0341704 0.430292
+Camera\ Type=rviz::OrbitViewController
+Fixed\ Frame=/base_link
+Grid.Alpha=0.5
+Grid.Cell\ Size=1
+Grid.ColorB=0.5
+Grid.ColorG=0.5
+Grid.ColorR=0.5
+Grid.Enabled=1
+Grid.Line\ Style=0
+Grid.Line\ Width=0.03
+Grid.Normal\ Cell\ Count=0
+Grid.OffsetX=0
+Grid.OffsetY=0
+Grid.OffsetZ=0
+Grid.Plane=0
+Grid.Plane\ Cell\ Count=10
+Grid.Reference\ Frame=<Fixed Frame>
+Marker.Enabled=1
+Marker.Marker\ Topic=/visualization_lines
+Marker.Queue\ Size=100
+Marker.sp_1=1
+Marker.sp_2=1
+Marker.sp_3=1
+Marker.sp_4=1
+Marker.sp_5=1
+Marker.sp_6=1
+Marker.sp_base_X=1
+Marker.sp_base_Y=1
+Marker.sp_base_Z=1
+Marker.sp_bottom_1=1
+Marker.sp_ee_X=1
+Marker.sp_ee_Y=1
+Marker.sp_ee_Z=1
+Marker.sp_top_1=1
+Property\ Grid\ Splitter=685,78
+Property\ Grid\ State=expanded=.Global Options,Grid.Enabled,Marker.Enabled,Marker.Namespaces;splitterratio=0.5
+QMainWindow=000000ff00000000fd0000000300000000000001bb0000034dfc0200000001fb000000100044006900730070006c006100790073010000001d0000034d000000ee00ffffff0000000100000131000003e4fc0200000003fb0000001e0054006f006f006c002000500072006f0070006500720074006900650073000000001d000003e40000006700fffffffb0000000a00560069006500770073000000017d00000284000000bb00fffffffb0000001200530065006c0065006300740069006f006e0000000302000000ff0000006700ffffff00000003000005c90000003efc0100000001fb0000000800540069006d00650000000000000005c90000023800ffffff000004800000034d00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+RobotModel.Alpha=1
+RobotModel.Collision\ Enabled=0
+RobotModel.Enabled=0
+RobotModel.Robot\ Description=robot_description
+RobotModel.TF\ Prefix=
+RobotModel.Update\ Interval=0
+RobotModel.Visual\ Enabled=1
+Target\ Frame=<Fixed Frame>
+Tool\ 2D\ Nav\ GoalTopic=/move_base_simple/goal
+Tool\ 2D\ Pose\ EstimateTopic=initialpose
+[Display0]
+ClassName=rviz::RobotModelDisplay
+Name=RobotModel
+[Display1]
+ClassName=rviz::GridDisplay
+Name=Grid
+[Display2]
+ClassName=rviz::MarkerDisplay
+Name=Marker
+[Window]
+Height=909
+Width=1617
+X=188
+Y=38

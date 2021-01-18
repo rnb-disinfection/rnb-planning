@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<package>
+  <name>expressiongraph_context</name>
+  <description>
+
+     expressiongraph_context:
+        Defines the context: the core data structure for task definitions (eTaSL).
+        Defines a basic velocity resolved task controller (eTC). This repository
+        does not contain any ROS dependencies, except for the build system.  It also
+        does not contain any dependencies on the scripting language.
+        This repository contains a version of qpOASES.  This repository also contains
+        an iTaSC adaptor.
+  </description>
+  <version>0.1.0</version>
+  <author>Erwin Aertbelien</author>
+  <license>GNU LGPL v3</license>
+  <maintainer email="erwin.aertbelien@kuleuven.be">Erwin Aertbelien</maintainer>
+  <author email="erwin.aertbelien@kuleuven.be">Erwin Aertbelien</author>
+  
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>expressiongraph</build_depend>
+  <run_depend>expressiongraph</run_depend>
+  <test_depend>gtest</test_depend>
+  <build_depend>cmake_modules</build_depend>
+   <run_depend>cmake_modules</run_depend>
+</package>
+
+

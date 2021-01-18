@@ -1,0 +1,15 @@
+/**
+\mainpage
+\htmlinclude manifest.html
+
+\b expressiongraph_tf 
+
+<!-- 
+Provide an overview of your package.
+-->
+     expressiongraph_ros contains the aspects of expressiongraph_context that are dependent
+     on ros-code, such as reading urdf-files, and handlers to vizualize
+     aspects in RVIZ, etc...
+
+
+*/
