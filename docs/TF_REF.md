@@ -31,14 +31,6 @@ cd ~/NVIDIA_TMP \
     libcudnn8-dev=8.0.4.30-1+cuda11.0
 ```
 
-
-### Install TensorRT. Requires that libcudnn8 is installed above.
-```
-sudo apt-get install -y --no-install-recommends libnvinfer7=7.1.3-1+cuda11.0 \
-    libnvinfer-dev=7.1.3-1+cuda11.0 \
-    libnvinfer-plugin7=7.1.3-1+cuda11.0
-```
-
 ### Add PATH variables to environment
 ```
 echo 'export PATH=$PATH:/usr/local/cuda-11.0/bin' >> ~/.bashrc \
@@ -49,6 +41,14 @@ echo 'export PATH=$PATH:/usr/local/cuda-11.0/bin' >> ~/.bashrc \
 && echo '  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-11.0/lib64' >> ~/.bashrc \
 && echo 'fi' >> ~/.bashrc  
 ```
+
+### Install TensorRT. Requires that libcudnn8 is installed above.
+```
+sudo apt-get install -y --no-install-recommends libnvinfer7=7.1.3-1+cuda11.0 \
+    libnvinfer-dev=7.1.3-1+cuda11.0 \
+    libnvinfer-plugin7=7.1.3-1+cuda11.0
+```
+
   
 ### Install tensorflow
 ```
