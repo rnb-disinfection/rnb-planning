@@ -36,7 +36,7 @@
 * Download and add path to ~/.bashrc    
   ```
   mkdir ~/Projects && cd ~/Projects \
-  && git clone https://github.com/Cucumberkjs/rnb-planning.git \
+  && git clone https://github.com/rnb-disinfection/rnb-planning.git \
   && export RNB_PLANNING_DIR=$HOME/Projects/rnb-planning/ \
   && echo 'export RNB_PLANNING_DIR=$HOME/Projects/rnb-planning/' >> ~/.bashrc
   ```
