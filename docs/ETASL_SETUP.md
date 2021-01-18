@@ -25,7 +25,7 @@
     source $HOME/etasl/ws/etasl/devel/setup.sh \
     && source python-etasl-install.sh \
     && source $HOME/etasl/ws/etasl-py/devel/setup.bash \
-    && echo 'source $HOME/etasl/ws/etasl-py/devel/setup.bash' >> ~/.bashrc \
+    && echo 'source $HOME/etasl/ws/etasl-py/devel/setup.bash' >> ~/.bashrc
     ```
 * switch gcc and g++ version back to 7 after installing etasl-py
     ```
