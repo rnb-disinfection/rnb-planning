@@ -6,6 +6,7 @@
 #include <moveit/planning_pipeline/planning_pipeline.h>
 #include <moveit/kinematic_constraints/utils.h>
 #include "ompl_interface/ompl_planner_manager_custom.h"
+#include "typedef.h"
 
 #define MAX_NAME_LEN 32
 #define MAX_NAME_NUM 32
@@ -20,6 +21,7 @@
 //REMOVE = 1,
 //APPEND = 2,
 //MOVE = 3,
+
 namespace RNB {
     namespace MoveitCompact {
         using namespace std;

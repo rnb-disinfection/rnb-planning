@@ -47,7 +47,7 @@ namespace RNB {
             Eigen::Matrix4d I_star;
 
             /**
-             * @brief Generate UnionManifold from GeometryList.
+             * @brief Generate UnionManifold from RNB::MoveitCompact::GeometryList.
              * @author Junsu Kang
              * @param tol tolerance.
              */

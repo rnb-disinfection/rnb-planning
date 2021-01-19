@@ -5,7 +5,7 @@
 #include "typedef.h"
 
 /**
- * @brief Extract quaternion from CartPose
+ * @brief Extract quaternion from RNB::MoveitCompact::CartPose
  * @author Junsu Kang
  */
 Eigen::Quaterniond RNB::MoveitCompact::getQuaternion(CartPose pose){

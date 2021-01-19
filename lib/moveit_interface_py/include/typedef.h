@@ -16,7 +16,18 @@
 //REMOVE = 1,
 //APPEND = 2,
 //MOVE = 3,
+
+/**
+ * @namespace RNB
+ * @brief classes and functions developed by RNB
+ * @author Junsu Kang
+ */
 namespace RNB {
+    /**
+     * @namespace RNB::MoveitCompact
+     * @brief classes and functions designed for easy use of Moveit
+     * @author Junsu Kang
+     */
     namespace MoveitCompact {
         typedef std::vector<std::string> NameList;
 
@@ -27,18 +38,18 @@ namespace RNB {
         typedef Eigen::Matrix<long double,-1, 1> VectorXld;
         typedef Eigen::Matrix<long double,-1, -1> MatrixXld;
 
-        /** \class CartPose
+        /** \class RNB::MoveitCompact::CartPose
          */
         typedef Eigen::Matrix<double, 7, 1> CartPose;
 
         /**
-         * @brief Extract quaternion from CartPose
+         * @brief Extract quaternion from RNB::MoveitCompact::CartPose
          * @author Junsu Kang
          */
         Eigen::Quaterniond getQuaternion(CartPose pose);
 
         /**
-         * @brief Get Eigen::Affine3d from CartPose
+         * @brief Get Eigen::Affine3d from RNB::MoveitCompact::CartPose
          * @author Junsu Kang
          */
         Eigen::Affine3d getAffine3d(CartPose pose);
@@ -72,7 +83,7 @@ namespace RNB {
             Geometry(ObjectType type, CartPose pose, Vec3 dims);
         };
 
-        /** \class GeometryList
+        /** \class RNB::MoveitCompact::GeometryList
          */
         typedef std::vector<Geometry> GeometryList;
     }
