@@ -13,6 +13,7 @@
       * enter password twice
       * find #c.NotebookApp.ip = 'localhost'
       * remove '#' and replace 'localhost' with 'your_ip'
+      * find and set c.NotebookApp.open_browser = False if you don't want to open browser when starting jupyter
     
     
 * nvidia-smi-gui
