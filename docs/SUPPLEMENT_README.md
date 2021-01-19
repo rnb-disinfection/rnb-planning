@@ -51,16 +51,16 @@
     sudo apt-get install openssh-server -y && sudo service ssh start
     ```
 
-# Doxygen
-* Install
-    ```
-    sudo apt-get install -y doxygen doxygen-gui texlive-latex-base texlive-latex-recommended ko.tex texlive-fonts-extra
-    ```
+* Doxygen
+    * Install
+        ```
+        sudo apt-get install -y doxygen doxygen-gui texlive-latex-base texlive-latex-recommended ko.tex texlive-fonts-extra
+        ```
 
-* Run
-    ```
-    doxywizard
-    ```
+    * Run
+        ```
+        doxywizard
+        ```
 
 
 # Panda simulator
