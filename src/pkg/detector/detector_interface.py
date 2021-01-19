@@ -51,8 +51,9 @@ class DetectorInterface:
         pass
 
     ##
-    # @brief function prototype for detection
-    # @return object_pose_dict dictionary for object transformations
+    # @brief    function prototype for detection
+    # @param    name_mask object names to detect
+    # @return   object_pose_dict dictionary for object transformations
     @abstractmethod
-    def detect(self):
+    def detect(self, name_mask=None):
         pass

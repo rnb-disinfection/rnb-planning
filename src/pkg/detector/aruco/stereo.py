@@ -55,7 +55,7 @@ class ArucoStereo(DetectorInterface):
             self.config_list.append(cam.get_config())
 
         ref_config = self.config_list[0]
-        sub_config = self.config_list[0]
+        sub_config = self.config_list[1]
 
         for _ in range(N_trial):
             images = []
@@ -73,10 +73,10 @@ class ArucoStereo(DetectorInterface):
 
             # resize
             imageSize = (ref_shape[1], ref_shape[0])
-            sub_camK = sub_config[0] * (ref_shape[0] / ref_shape[0])
+            sub_camK = sub_config[0] * (ref_shape[0] / sub_shape[0])
             sub_camK[2, 2] = 1
             sub_config_res = (sub_camK, np.zeros_like(ref_config[1]))
-            sub_img_res = cv2.resize(ref_image, imageSize)
+            sub_img_res = cv2.resize(sub_image, imageSize)
 
             ref_corners, ref_ids, ref_rejectedImgPoints = aruco.detectMarkers(ref_image, self.aruco_map.dictionary, parameters=aruco_param)
             sub_corners, sub_ids, sub_rejectedImgPoints = aruco.detectMarkers(sub_img_res, self.aruco_map.dictionary, parameters=aruco_param)
@@ -124,8 +124,8 @@ class ArucoStereo(DetectorInterface):
     ##
     # @brief detect objects
     # @return object_pose_dict dictionary for object transformations
-    def detect(self):
-        return self.get_object_pose_dict()[0]
+    def detect(self, name_mask=None):
+        return self.get_object_pose_dict(name_mask=name_mask)[0]
     ##
     # @brief get object_pose_dict from stereo camera
     # @return object_pose_dict object pose (4x4) dictionary from reference camera
@@ -134,7 +134,7 @@ class ArucoStereo(DetectorInterface):
     # @return sub_img sub-camera image
     # @return sub_objectPose_dict object pose (4x4) dictionary from sub-camera
     # @return sub_corner_dict corner dictionary from sub-camera
-    def get_object_pose_dict(self, ref_config=None, sub_config=None, T_c12=None):
+    def get_object_pose_dict(self, ref_config=None, sub_config=None, T_c12=None, name_mask=None):
         if T_c12 is None:
             T_c12 = self.T_c12
         T_c21 = SE3_inv(T_c12)
@@ -146,8 +146,8 @@ class ArucoStereo(DetectorInterface):
         ref_img = self.camera_list[0].get_image()
         sub_img = self.camera_list[1].get_image()
 
-        ref_objectPose_dict, ref_corner_dict = self.aruco_map.get_object_pose_dict(ref_img, *ref_config)
-        sub_objectPose_dict, sub_corner_dict = self.aruco_map.get_object_pose_dict(sub_img, *sub_config)
+        ref_objectPose_dict, ref_corner_dict = self.aruco_map.get_object_pose_dict(ref_img, *ref_config, name_mask=name_mask)
+        sub_objectPose_dict, sub_corner_dict = self.aruco_map.get_object_pose_dict(sub_img, *sub_config, name_mask=name_mask)
 
         projMatr1 = np.matmul(ref_config[0], np.identity(4)[:3])
         projMatr2 = np.matmul(sub_config[0], T_c21[:3])

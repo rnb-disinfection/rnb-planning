@@ -1,21 +1,10 @@
 from __future__ import print_function
 
 from .ros_rviz import show_motion, get_markers, get_publisher
+from .geotype import GEOTYPE
 from ..utils.rotation_utils import *
 from ..utils.joint_utils import get_tf, get_link_adjacency_map, get_min_distance_map
-from enum import Enum
 from collections import defaultdict
-
-##
-# @class GEOTYPE
-# @brief Geometry type enumeration
-class GEOTYPE(Enum):
-    SPHERE = 0
-    CAPSULE = 1
-    BOX = 2
-    MESH = 3
-    ARROW = 4
-    CYLINDER = 5
 
 POINT_DEFAULT = np.array([[0,0,0]])
 SEG_DEFAULT = np.array([[0,0,1.0],[0,0,-1.0]])/2
@@ -39,6 +28,7 @@ class GeometryHandle(list):
         self.__set_urdf_content(urdf_content)
         self.rviz = rviz
         if self.rviz:
+            self.marker_list = []
             self.highlight_dict = defaultdict(dict)
             self.set_rviz()
 
@@ -272,8 +262,9 @@ class GeometryItem(object):
         self.set_name(name)
         if create:
             self.ghnd = ghnd
-            self.ghnd.append(self)
         self.set_link(link_name)
+        if create:
+            self.ghnd.append(self)
 
     def set_dims(self, dims):
         self.dims = dims

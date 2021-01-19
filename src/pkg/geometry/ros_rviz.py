@@ -6,7 +6,9 @@ import rospy
 from sensor_msgs.msg import JointState
 from visualization_msgs.msg import Marker
 
-from .geometry import *
+from .geotype import GEOTYPE
+from ..utils.rotation_utils import SE3
+from scipy.spatial.transform import Rotation
 
 
 ##

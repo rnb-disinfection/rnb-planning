@@ -3,6 +3,7 @@ from urdf_parser_py.urdf import URDF
 
 from .global_config import *
 from .geometry.geometry import *
+from .utils.singleton import Singleton
 from time import sleep
 
 XACRO_PATH_DEFAULT = '{}src/robots/custom_robots.urdf.xacro'.format(RNB_PLANNING_DIR)
@@ -16,12 +17,12 @@ class XacroCustomizer(Singleton):
     def __init__(self):
         pass
 
-    def initialize(self, rtuples, xyz_rpy_dict, xacro_path = XACRO_PATH_DEFAULT):
+    def initialize(self, robots, xyz_rpy_dict, xacro_path = XACRO_PATH_DEFAULT):
         self.xacro_path = xacro_path
         if not hasattr(self, 'subp'): self.subp = None
         self.clear()
-        for rtuple in rtuples:
-            self.add_robot(rtuple[1], *xyz_rpy_dict[rtuple[0]])
+        for rbt in robots:
+            self.add_robot(rbt.type, *xyz_rpy_dict[rbt.get_indexed_name()])
         self.write_xacro()
 
     @classmethod
