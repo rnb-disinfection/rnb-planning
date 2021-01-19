@@ -1,7 +1,6 @@
 from .repeater.indy_repeater import *
 from .repeater.panda_repeater import *
 from .robot_config import *
-from ..environment_builder import *
 
 
 JOINT_LIM_DICT = []

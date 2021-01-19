@@ -1,9 +1,8 @@
 import sys
 sys.setrecursionlimit(1000000)
 
-from .geometry.ros_rviz import *
 from .controller.repeater.repeater import *
-from .environment_builder import *
+from .geometry.builder.scene_builder import *
 from .sampler.interface import *
 
 from .data_collecting.sampling import *

@@ -16,7 +16,7 @@ from pkg.constraint.constraint_object import *
 from pkg.constants import *
 from pkg.utils.plot_utils import *
 from pkg.utils.utils import *
-from pkg.environment_builder import *
+from pkg.scene_builder import *
 from pkg.ui.ui_broker import *
 from pkg.controller.combined_robot import *
 from pkg.controller.combined_robot import CombinedRobot, XYZ_RPY_ROBOTS_DEFAULT

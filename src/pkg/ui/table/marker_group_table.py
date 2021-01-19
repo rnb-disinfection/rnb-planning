@@ -1,5 +1,5 @@
 from .table_interface import *
-from ...environment_builder import *
+from ...geometry.builder.scene_builder import *
 
 class MarkerGroupTable(TableInterface):
     HEADS = [IDENTIFY_COL, 'DLevel', 'GType', 'Dims', 'Color', 'Soft', 'K_col']

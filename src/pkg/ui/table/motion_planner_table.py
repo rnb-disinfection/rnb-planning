@@ -1,7 +1,4 @@
 from .table_interface import *
-from ...environment_builder import *
-from ...planner.etasl.etasl import *
-from ...planner.moveit.moveit_planner import *
 from ...planner.hybrid.hybrid_planner import *
 
 class MotionPlanTable(TableInterface):

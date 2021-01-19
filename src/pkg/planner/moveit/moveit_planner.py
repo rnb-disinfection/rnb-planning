@@ -4,7 +4,7 @@ from ...utils.utils import list2dict
 from ...utils.rotation_utils import SE3, SE3_inv, Rot_rpy
 from ...geometry.geometry import GEOTYPE, GeometryHandle
 from ...constraint.constraint_common import calc_redundancy
-from ...robots_custom import write_srdf
+from ...geometry.builder.xacro_customizer import write_srdf
 from scipy.spatial.transform import Rotation
 import numpy as np
 import os
@@ -164,7 +164,7 @@ class MoveitPlanner(PlannerInterface):
 
 
 from itertools import permutations
-from ...robots_custom import save_converted_chain
+from ...geometry.builder.xacro_customizer import save_converted_chain
 
 def transfer_ctem(ghnd, ghnd_new):
     link_chain = ghnd_new.urdf_content.get_chain(ghnd_new.urdf_content.get_root(), "stem", joints=False, links=True)

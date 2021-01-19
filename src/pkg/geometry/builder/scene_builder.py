@@ -1,10 +1,10 @@
-from .detector.aruco.stereo import *
-from . constants import *
+from ...detector.aruco.stereo import *
+from ...constants import *
 from threading import Thread
-from .robots_custom import *
+from .xacro_customizer import *
 import rospy
-from .utils.utils import *
-from .marker_config import *
+from ...utils.utils import *
+from ...marker_config import *
 
 __rospy_initialized = False
 __roscore = None
@@ -292,7 +292,7 @@ def update_geometries(ghnd, onames, objectPose_dict_mv, refFrame):
             Tg = np.matmul(refFrameinv, objectPose_dict_mv[gname])
             gtem.set_offset_tf(Tg[:3,3], Tg[:3,:3])
 
-from .utils.utils import list2dict
+from ...utils.utils import list2dict
 
 def match_point_binder(graph, initial_state, objectPose_dict_mv):
     graph.set_object_state(initial_state)

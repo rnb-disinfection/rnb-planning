@@ -1,5 +1,5 @@
 from .table_interface import *
-from ...environment_builder import *
+from ...geometry.builder.scene_builder import *
 
 class CameraTable(TableInterface):
     HEADS = [IDENTIFY_COL, 'SType', 'Position', 'Direction', 'CameraMatrix', 'Distortion']

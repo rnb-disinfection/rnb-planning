@@ -1,9 +1,9 @@
 import subprocess
 from urdf_parser_py.urdf import URDF
 
-from .global_config import *
-from .geometry.geometry import *
-from .utils.singleton import Singleton
+from ...global_config import *
+from ..geometry import *
+from ...utils.singleton import Singleton
 from time import sleep
 
 XACRO_PATH_DEFAULT = '{}src/robots/custom_robots.urdf.xacro'.format(RNB_PLANNING_DIR)
@@ -361,7 +361,7 @@ def add_geometry_items(urdf_content, ghnd, color=None, display=True, collision=T
 
 
 from xml.dom import minidom
-from .utils.joint_utils import *
+from ...utils.joint_utils import *
 import os
 
 def write_srdf(robot_names, urdf_content, urdf_path, link_names, joint_names,
