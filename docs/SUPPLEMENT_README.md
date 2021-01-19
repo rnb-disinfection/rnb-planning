@@ -5,6 +5,9 @@
         sudo apt install python3-notebook python-notebook jupyter jupyter-core python-ipykernel  
         ```
     * do server setting  
+      ```console
+      user@computer:~$ jupyter notebook --generate-config
+      ```
     
     
 * nvidia-smi-gui
