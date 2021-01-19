@@ -78,7 +78,7 @@
     sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
     ```
   
-## 2.3 build subprojects
+## 2.3 Build subprojects
 * Build moveit-python interpreter, copy it and clean Release folder  
     ```
     sudo apt-get remove ros-melodic-ompl \
@@ -103,7 +103,11 @@
     echo 'source "$RNB_PLANNING_DIR"ws_ros/devel/setup.bash' >> ~/.bashrc
     ```
 
-## 2.4 Check shell environemnt settings
+## 2.4 Install recommended tools
+* Follow instruction in [SUPPLEMENT_README.md](docs/SUPPLEMENT_README.md)
+
+
+# 3 Check shell environemnt settings
 * ~/.bashrc should contain following lines.  
    ```
    # export PATH=$PATH:~/.local/bin  
