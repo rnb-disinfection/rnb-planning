@@ -44,7 +44,6 @@ class TMPFramework:
         self.combined_robot = combined_robot
         self.planner = None
         self.sampler = None
-        self.highlight_dict = defaultdict(dict)
 
     def __del__(self):
         try:
@@ -53,69 +52,6 @@ class TMPFramework:
 
     def set_camera(self, cam):
         self.cam = cam
-
-    #######################################################
-    ############ Visualize - Geometry #####################
-    def set_rviz(self, joint_pose=None):
-        # prepare ros
-        if not (hasattr(self, 'pub') and hasattr(self, 'joints') and hasattr(self, 'rate')):
-            self.pub, self.joints, self.rate = get_publisher(self.joint_names, control_freq=CONTROL_FREQ)
-        if joint_pose is None:
-            joint_pose = self.joints.position
-        # prepare visualization markers
-        self.clear_markers()
-        self.marker_list = set_markers(self.ghnd, self.joints, self.joint_names)
-        self.show_pose(joint_pose)
-        sleep(1)
-        self.show_pose(joint_pose)
-
-    def show_pose(self, pose, **kwargs):
-        show_motion([pose], self.marker_list, self.pub, self.joints, self.joint_names, **kwargs)
-
-    def show_motion(self, pose_list, from_state=None, **kwargs):
-        if from_state is not None:
-            self.set_object_state(from_state)
-        show_motion(pose_list, self.marker_list, self.pub, self.joints, self.joint_names, **kwargs)
-
-    def remove_geometry(self, gtem, sleep=True, vis=True):
-        self.remove_marker(gtem, sleep=sleep, vis=vis)
-        if gtem in self.ghnd:
-            self.ghnd.remove(gtem)
-
-    def remove_marker(self, gtem, sleep=True, vis=True):
-        if vis:
-            del_list = []
-            for marker in self.marker_list:
-                if marker.geometry == gtem:
-                    del_list.append(marker)
-            for marker in del_list:
-                marker.delete(sleep=sleep)
-                self.marker_list.remove(marker)
-
-    def add_marker(self, gtem, vis=True):
-        if vis:
-            self.marker_list += set_markers([gtem], self.joints, self.joint_names)
-
-    def clear_markers(self, vis=True):
-        if vis:
-            if hasattr(self, 'highlight_dict'):
-                for hl_key in self.highlight_dict.keys():
-                    self.clear_highlight(hl_key)
-            else:
-                self.highlight_dict = defaultdict(dict)
-            for mk in self.marker_list:
-                mk.delete()
-            self.marker_list = []
-
-    def update_marker(self, gtem, vis=True):
-        if vis:
-            joint_dict = {self.joints.name[i]: self.joints.position[i] for i in range(len(self.joint_names))}
-            marks = [mk for mk in self.marker_list if mk.geometry == gtem]
-            for mk in marks:
-                mk.set_marker(joint_dict, create=False)
-            return marks
-    ############ Visualize - Geometry #####################
-    #######################################################
 
     #######################################################
     ############## Planner/Sampler ########################
@@ -131,6 +67,14 @@ class TMPFramework:
 
     #######################################################
     ##################### Bindings ########################
+
+    ##
+    # @brief show motion list(Q in array)
+    def show_motion(self, pose_list, from_state=None, **kwargs):
+        if from_state is not None:
+            self.set_object_state(from_state)
+        show_motion(pose_list, self.marker_list, self.pub, self.joints, self.joint_names, **kwargs)
+
     def add_binder(self, binder):
         self.binder_dict[binder.name] = binder
         self.object_binder_dict[binder.object.name].append(binder.name)
@@ -373,52 +317,6 @@ class TMPFramework:
 
     #######################################################
     ############ Visualize - Highlight ####################
-    def clear_highlight(self, hl_keys=[], sleep=True):
-        for hl_key, hl_set in self.highlight_dict.items():
-            if hl_key in hl_keys or not hl_keys:
-                for k,v in hl_set.items():
-                    del self.highlight_dict[hl_key][k]
-                    self.remove_geometry(v,sleep=sleep)
-
-    def highlight_geometry(self, hl_key, gname, color=(1, 0.3, 0.3, 0.5)):
-        if gname not in self.ghnd.NAME_DICT:
-            return
-        gtem = self.ghnd.NAME_DICT[gname]
-        dims = gtem.dims if np.sum(gtem.dims) > 0.001 else (0.03, 0.03, 0.03)
-        hname = "hl_" + gtem.name
-        if hname in self.ghnd.NAME_DICT:
-            return
-        htem = self.ghnd.create_safe(gtype=gtem.gtype, name=hname, link_name=gtem.link_name,
-                            center=gtem.center, dims=dims, rpy=Rot2rpy(gtem.orientation_mat), color=color,
-                            collision=False)
-
-        self.highlight_dict[hl_key][htem.name] = htem
-        self.add_marker(htem)
-
-    def add_highlight_axis(self, hl_key, name, link_name, center, orientation_mat, color=None, axis="xyz", dims=(0.10, 0.01, 0.01)):
-        if 'x' in axis:
-            axtemx = self.ghnd.create_safe(gtype=GEOTYPE.ARROW, name="axx_" + name, link_name=link_name,
-                                  center=center, dims=dims, rpy=Rot2rpy(orientation_mat), color=color or (1, 0, 0, 0.5),
-                                  collision=False)
-            self.add_marker(axtemx)
-            self.highlight_dict[hl_key][axtemx.name] = axtemx
-
-        if 'y' in axis:
-            axtemy = self.ghnd.create_safe(gtype=GEOTYPE.ARROW, name="axy_" + name, link_name=link_name,
-                                  center=center, dims=dims,
-                                  rpy=Rot2rpy(np.matmul(orientation_mat, Rot_axis(3, np.pi / 2))), color=color or (0, 1, 0, 0.5),
-                                  collision=False)
-            self.add_marker(axtemy)
-            self.highlight_dict[hl_key][axtemy.name] = axtemy
-
-        if 'z' in axis:
-            axtemz = self.ghnd.create_safe(gtype=GEOTYPE.ARROW, name="axz_" + name, link_name=link_name,
-                                  center=center, dims=dims,
-                                  rpy=Rot2rpy(np.matmul(orientation_mat, Rot_axis(2, -np.pi / 2))),
-                                  color=color or (0, 0, 1, 0.5),
-                                  collision=False)
-            self.add_marker(axtemz)
-            self.highlight_dict[hl_key][axtemz.name] = axtemz
 
     def add_handle_axis(self, hl_key, handle, color=None):
         hobj = handle.object

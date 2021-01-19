@@ -51,7 +51,7 @@ class CameraTable(TableInterface):
                 cam.T_c12 = np.matmul(T_10, T_02)
             cam.update_cam_coords()
             self.graph.set_cam_robot_collision()
-            self.graph.set_rviz()
+            self.graph.ghnd.set_rviz()
         elif active_col == 'Direction':
             if atem[0] == cam.CAM0_NAME:
                 T_01 = SE3_inv(cam.ref_tuple[1])
@@ -68,7 +68,7 @@ class CameraTable(TableInterface):
                 cam.T_c12 = np.matmul(T_10, T_02)
             cam.update_cam_coords()
             self.graph.set_cam_robot_collision()
-            self.graph.set_rviz()
+            self.graph.ghnd.set_rviz()
         elif active_col == 'CameraMatrix':
             if atem[0] == cam.CAM0_NAME:
                 cam.kn_config = (np.array(str_num_it(value)).reshape(3,3), cam.kn_config[1])
@@ -88,7 +88,7 @@ class CameraTable(TableInterface):
                 print("============== start calibration =================")
                 self.graph.cam.calibrate(self.graph.ghnd)
                 self.graph.set_cam_robot_collision()
-                self.graph.set_rviz()
+                self.graph.ghnd.set_rviz()
                 print("============== finish calibration =================")
             else:
                 print("Unknown button")

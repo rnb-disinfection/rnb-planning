@@ -141,7 +141,7 @@ def FULL_TEST_SCENE(DATASET, WORLD, SCENE, ACTION):
                                     urdf_content=urdf_content, combined_robot=crob)
             graph.set_camera(cam)
             graph.set_cam_robot_collision(_add_cam_poles=False, color=(1, 1, 0, 0.3))
-            if VISUALIZE: graph.set_rviz()
+            if VISUALIZE: graphghnd.set_rviz()
 
             # start UI
             ui_broker = UIBroker.instance()
@@ -149,7 +149,7 @@ def FULL_TEST_SCENE(DATASET, WORLD, SCENE, ACTION):
             ui_broker.start_server()
 
             # set rviz
-            if VISUALIZE: graph.set_rviz(crob.home_pose)
+            if VISUALIZE: graphghnd.set_rviz(crob.home_pose)
             ui_broker.set_tables()
 
             for gripper in GRIPPER_REFS.values():
@@ -193,9 +193,9 @@ def FULL_TEST_SCENE(DATASET, WORLD, SCENE, ACTION):
 
             for obj in col_obj_list: graph.remove_geometry(obj)
 
-            if VISUALIZE: graph.set_rviz()
+            if VISUALIZE: graphghnd.set_rviz()
             dcol = DataCollector(graph, GRIPPER_REFS, S_F_RATIO=S_F_RATIO)
-            if VISUALIZE: graph.set_rviz()
+            if VISUALIZE: graphghnd.set_rviz()
 
             # ACTION
             print("[BEGIN] {} - {} - {} - {} ===============".format(DATASET, WORLD, SCENE, ACTION))
@@ -404,7 +404,7 @@ while RESTART:
                                     urdf_content=urdf_content, combined_robot=crob)
             graph.set_camera(cam)
             graph.set_cam_robot_collision(_add_cam_poles=False, color=(1, 1, 0, 0.3))
-            if VISUALIZE: graph.set_rviz()
+            if VISUALIZE: graphghnd.set_rviz()
 
             # start UI
             ui_broker = UIBroker.instance()
@@ -412,7 +412,7 @@ while RESTART:
             ui_broker.start_server()
 
             # set rviz
-            if VISUALIZE: graph.set_rviz(crob.home_pose)
+            if VISUALIZE: graphghnd.set_rviz(crob.home_pose)
             ui_broker.set_tables()
 
             for gripper in GRIPPER_REFS.values():
@@ -456,9 +456,9 @@ while RESTART:
 
             for obj in col_obj_list: graph.remove_geometry(obj)
 
-            if VISUALIZE: graph.set_rviz()
+            if VISUALIZE: graphghnd.set_rviz()
             dcol = DataCollector(graph, GRIPPER_REFS, S_F_RATIO=S_F_RATIO)
-            if VISUALIZE: graph.set_rviz()
+            if VISUALIZE: graphghnd.set_rviz()
 
             # ACTION
             print("[BEGIN] {} - {} - {} - {} ===============".format(DATASET, WORLD, SCENE, ACTION))
@@ -709,7 +709,7 @@ for i_dat, data_tuple in enumerate(data_list):
                             urdf_content=urdf_content, combined_robot=crob)
     graph.set_camera(cam)
     graph.set_cam_robot_collision(_add_cam_poles=False, color=(1, 1, 0, 0.3))
-    if VISUALIZE: graph.set_rviz()
+    if VISUALIZE: graphghnd.set_rviz()
 
     # start UI
     ui_broker = UIBroker.instance()
@@ -717,7 +717,7 @@ for i_dat, data_tuple in enumerate(data_list):
     ui_broker.start_server()
 
     # set rviz
-    if VISUALIZE: graph.set_rviz(crob.home_pose)
+    if VISUALIZE: graphghnd.set_rviz(crob.home_pose)
     ui_broker.set_tables()
 
     for gripper in GRIPPER_REFS.values():
@@ -761,9 +761,9 @@ for i_dat, data_tuple in enumerate(data_list):
 
     for obj in col_obj_list: graph.remove_geometry(obj)
 
-    if VISUALIZE: graph.set_rviz()
+    if VISUALIZE: graphghnd.set_rviz()
     dcol = DataCollector(graph, GRIPPER_REFS, S_F_RATIO=S_F_RATIO)
-    if VISUALIZE: graph.set_rviz()
+    if VISUALIZE: graphghnd.set_rviz()
 
 #########################################################################
     # ## initialize scene params

@@ -79,7 +79,7 @@ class MarkerGroupTable(TableInterface):
                 objectPose_dict_mv, corner_dict_mv, color_image, aruco_map_mv = detect_objects(graph.cam.aruco_map, graph.cam.dictionary)
                 put_point_dict = graph.register_object_gen(objectPose_dict_mv, BINDER_DICT, OBJECT_DICT, link_name="base_link")
                 update_geometries(graph.ghnd, objectPose_dict_mv.keys(), objectPose_dict_mv, graph.cam.ref_tuple[1])
-                graph.set_rviz(graph.joints.position)
+                graph.ghnd.set_rviz(graph.joints.position)
 
                 screen_size = (1080,1920)
                 kn_image_out = graph.cam.aruco_map.draw_objects(color_image, objectPose_dict_mv, corner_dict_mv, *graph.cam.kn_config, axis_len=0.1)
@@ -93,7 +93,7 @@ class MarkerGroupTable(TableInterface):
                 cam = graph.cam
                 env_gen_dict, objectPose_dict, corner_dict, color_image, rs_objectPose_dict, rs_corner_dict, rs_image = cam.detect_environment(graph.ghnd)
                 add_objects_gen(graph, env_gen_dict)
-                graph.set_rviz()
+                graph.ghnd.set_rviz()
 
                 screen_size = (1080,1920)
                 kn_image_out = graph.cam.aruco_map.draw_objects(color_image, objectPose_dict, corner_dict, *cam.kn_config, axis_len=0.1)

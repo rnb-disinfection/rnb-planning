@@ -64,7 +64,7 @@ class RobotTable(TableInterface):
                 add_geometry_items(graph.urdf_content, ghnd=graph.ghnd, color=(0, 1, 0, 0.3), display=True, collision=True,
                                    exclude_link=["panda1_link7"])
                 graph.set_cam_robot_collision()
-                graph.set_rviz()
+                graph.ghnd.set_rviz()
             elif args[1]:
                 self.graph.combined_robot.detect_robots(self.graph.cam)
             else:

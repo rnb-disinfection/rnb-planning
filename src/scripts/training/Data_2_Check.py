@@ -90,7 +90,7 @@ def main(dataset_list=None, N_retry_test = None):
                                     urdf_content=urdf_content, combined_robot=crob)
             graph.set_camera(cam)
             graph.set_cam_robot_collision(_add_cam_poles=False, color=(1, 1, 0, 0.3))
-            if VISUALIZE: graph.set_rviz()
+            if VISUALIZE: graphghnd.set_rviz()
 
             # start UI
             ui_broker = UIBroker.instance()
@@ -98,7 +98,7 @@ def main(dataset_list=None, N_retry_test = None):
             ui_broker.start_server()
 
             # set rviz
-            if VISUALIZE: graph.set_rviz(crob.home_pose)
+            if VISUALIZE: graphghnd.set_rviz(crob.home_pose)
             ui_broker.set_tables()
 
             for gripper in GRIPPER_REFS.values():
@@ -146,9 +146,9 @@ def main(dataset_list=None, N_retry_test = None):
 
                 for obj in col_obj_list: graph.remove_geometry(obj)
 
-                if VISUALIZE: graph.set_rviz()
+                if VISUALIZE: graphghnd.set_rviz()
                 dcol = DataCollector(graph, GRIPPER_REFS, S_F_RATIO=S_F_RATIO)
-                if VISUALIZE: graph.set_rviz()
+                if VISUALIZE: graphghnd.set_rviz()
 
                 # planners
                 mplan = MoveitPlanner(joint_names=graph.joint_names, link_names=graph.link_names, urdf_path=graph.urdf_path,
@@ -219,7 +219,7 @@ def main(dataset_list=None, N_retry_test = None):
                                 snode_dict_bak[skey]["success"] = bool(succ_now_list[isk])
                         save_json(os.path.join(SCENE_PATH, ACTION), snode_dict_bak)
 
-                    if VISUALIZE: graph.set_rviz()
+                    if VISUALIZE: graphghnd.set_rviz()
 
                     print("[END] {} - {} - {} - {} ===============".format(DATASET, WORLD, SCENE, ACTION))
                     elog.log(CHECK_DICT[DATASET][WORLD][SCENE][ACTION], "{}-{}".format(SCENE, ACTION), print_now=False)

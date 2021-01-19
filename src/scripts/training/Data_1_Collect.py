@@ -101,7 +101,7 @@ def main(root_dir=None, BASE_LINK="base_link", ROBOT_NAMES=["indy0", "panda1"], 
                                 urdf_content=urdf_content, combined_robot=crob)
         graph.set_camera(cam)
         graph.set_cam_robot_collision(_add_cam_poles=False, color=(1,1,0,0.3))
-        if VISUALIZE: graph.set_rviz()
+        if VISUALIZE: graphghnd.set_rviz()
 
         # start UI
         ui_broker = UIBroker.instance()
@@ -109,7 +109,7 @@ def main(root_dir=None, BASE_LINK="base_link", ROBOT_NAMES=["indy0", "panda1"], 
         ui_broker.start_server()
 
         # set rviz
-        if VISUALIZE: graph.set_rviz(crob.home_pose)
+        if VISUALIZE: graphghnd.set_rviz(crob.home_pose)
         ui_broker.set_tables()
 
         for gripper in GRIPPER_REFS.values():
@@ -209,14 +209,14 @@ def main(root_dir=None, BASE_LINK="base_link", ROBOT_NAMES=["indy0", "panda1"], 
 
             for obj in col_obj_list: graph.remove_geometry(obj)
 
-            if VISUALIZE: graph.set_rviz()
+            if VISUALIZE: graphghnd.set_rviz()
 
             ####################################################################################
             ############################## Sample action #######################################
             ####################################################################################
             for _ in range(SAMPLE_NUM_ACTION):
                 dcol = DataCollector(graph, GRIPPER_REFS, S_F_RATIO=S_F_RATIO)
-                if VISUALIZE: graph.set_rviz()
+                if VISUALIZE: graphghnd.set_rviz()
 
                 # planners
                 mplan = MoveitPlanner(joint_names=graph.joint_names, link_names=graph.link_names, urdf_path=graph.urdf_path, urdf_content=graph.urdf_content,
