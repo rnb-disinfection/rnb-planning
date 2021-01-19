@@ -15,5 +15,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# c build
 cmake-build-debug/
 Release/
+*.so
