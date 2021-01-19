@@ -1,27 +1,3 @@
-# TIPS 
-* Launching RVIZ
-    ```
-    roslaunch "$RNB_PLANNING_DIR"src/launch/gui_custom_robots_joint_panel.launch 
-    ``` 
-
-* Launch franka ros interface  
-    * visualization:
-        ```
-        roslaunch franka_visualization franka_visualization.launch robot_ip:=192.168.0.13 load_gripper:=true  
-        ```
-    * launch interface: 
-        ```
-        roslaunch franka_interface interface.launch
-        ```
-* starting roscore if it's not active  
-    ```
-    nohup roscore &  
-    ```
-* to reset node/topic/params, kill and restart roscore  
-    ```
-    sudo killall -9 roscore && nohup roscore &  
-    ```
-
 # Recommended Tools  
 * jupyter 
     * install jupyter  
@@ -63,6 +39,31 @@
         ```
 
 
+# TIPS 
+* Launching RVIZ
+    ```
+    roslaunch "$RNB_PLANNING_DIR"src/launch/gui_custom_robots_joint_panel.launch 
+    ``` 
+
+* Launch franka ros interface  
+    * visualization:
+        ```
+        roslaunch franka_visualization franka_visualization.launch robot_ip:=192.168.0.13 load_gripper:=true  
+        ```
+    * launch interface: 
+        ```
+        roslaunch franka_interface interface.launch
+        ```
+* starting roscore if it's not active  
+    ```
+    nohup roscore &  
+    ```
+* to reset node/topic/params, kill and restart roscore  
+    ```
+    sudo killall -9 roscore && nohup roscore &  
+    ```
+
+
 # Panda simulator
 * Install
     ```
@@ -74,6 +75,7 @@
     ```
     roslaunch panda_gazebo panda_world.launch start_moveit:=false   
     ```
+
 
 # Launch Indy simulator (CadKit)
 * run TaskManager (simulator mode)  on STEP
