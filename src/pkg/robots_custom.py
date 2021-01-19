@@ -8,7 +8,7 @@ from time import sleep
 XACRO_PATH_DEFAULT = '{}src/robots/custom_robots.urdf.xacro'.format(RNB_PLANNING_DIR)
 URDF_PATH_DEFAULT = '{}src/robots/custom_robots.urdf'.format(RNB_PLANNING_DIR)
 
-URDF_PATH = os.path.join(PROJ_DIR, "robots", "custom_robots.urdf")
+URDF_PATH = os.path.join(WORKING_DIR, "robots", "custom_robots.urdf")
 # JOINT_NAMES = ["shoulder_pan_joint","shoulder_lift_joint","elbow_joint","wrist_1_joint","wrist_2_joint","wrist_3_joint"]
 # LINK_NAMES = ['base_link', 'base_link', 'shoulder_link', 'upper_arm_link', 'forearm_link', 'wrist_1_link', 'wrist_2_link', 'wrist_3_link', 'tool0']
 

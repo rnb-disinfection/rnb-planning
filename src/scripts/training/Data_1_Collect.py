@@ -3,7 +3,7 @@ from IPython.core.display import display, HTML
 display(HTML("<style>.container { width:90% !important; } </style>"))
 import matplotlib.pyplot as plt
 from pkg.marker_config import *
-from pkg.constraint_graph import *
+from pkg.tmp_framework import *
 from pkg.constraint.constraint_action import *
 from pkg.constraint.constraint_object import *
 from pkg.constants import *
@@ -97,7 +97,7 @@ def main(root_dir=None, BASE_LINK="base_link", ROBOT_NAMES=["indy0", "panda1"], 
 
 
         # set graph
-        graph = ConstraintGraph(ghnd=ghnd, urdf_path=URDF_PATH, joint_names=JOINT_NAMES, link_names=LINK_NAMES,
+        graph = TMPFramework(ghnd=ghnd, urdf_path=URDF_PATH, joint_names=JOINT_NAMES, link_names=LINK_NAMES,
                                 urdf_content=urdf_content, combined_robot=crob)
         graph.set_camera(cam)
         graph.set_cam_robot_collision(_add_cam_poles=False, color=(1,1,0,0.3))

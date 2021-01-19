@@ -11,6 +11,10 @@ from pymanopt.manifolds import Product
 from pymanopt import Problem
 from pymanopt.solvers import TrustRegions
 
+OFFSET_DIR = "./offset/"
+try: os.mkdir(OFFSET_DIR)
+except: pass
+
 CALIB_TIMEOUT = 5
 
 def set_RP_calib(sample_list):

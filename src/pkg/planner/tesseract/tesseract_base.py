@@ -37,10 +37,10 @@ class RosResourceLocator(tesseract.ResourceLocator):
 
 # base_names=['indy0_link0', 'panda1_link0'], link_names=['indy0_tcp', 'panda1_hand']
 def load_custom_robot():
-    with open(os.path.join(PROJ_DIR, "robots", "custom_robots.urdf"), 'r') as f:
+    with open(os.path.join(WORKING_DIR, "robots", "custom_robots.urdf"), 'r') as f:
         robot_urdf = f.read()
 
-    with open(os.path.join(PROJ_DIR, "robots", "custom_robots.srdf"), 'r') as f:
+    with open(os.path.join(WORKING_DIR, "robots", "custom_robots.srdf"), 'r') as f:
         robot_srdf = f.read()
 
     tes = tesseract.Tesseract()

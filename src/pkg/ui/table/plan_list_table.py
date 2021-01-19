@@ -1,5 +1,5 @@
 from .table_interface import *
-from ...constraint_graph import *
+from ...tmp_framework import *
 from ...sampler.handle_a_star import *
 
 class PlanListTable(TableInterface):
