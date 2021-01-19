@@ -4,10 +4,15 @@
         ```
         sudo apt install python3-notebook python-notebook jupyter jupyter-core python-ipykernel  
         ```
-    * do server setting  
+    * do server setting as follows
       ```console
-      user@computer:~$ jupyter notebook --generate-config
+      jupyter notebook --generate-config \
+      && jupyter notebook password \
+      && vi ~/.jupyter/jupyter_notebook_config.py
       ```
+      * enter password twice
+      * find #c.NotebookApp.ip = 'localhost'
+      * remove '#' and replace 'localhost' with 'your_ip'
     
     
 * nvidia-smi-gui
