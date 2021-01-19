@@ -1,23 +1,26 @@
 import numpy as np
 from enum import Enum
 
-## @class RobotType
-#  @brief Robot type declaration
+##
+# @class RobotType
+# @brief Robot type declaration
 class RobotType(Enum):
     indy7=0
     panda=1
 
 
-## @class RobotTemplate
-#  @brief Robot spec template
+##
+# @class RobotTemplate
+# @brief Robot spec template
 class RobotTemplate:
     def __init__(self, robot_name, base_name, joint_names, home_pose, joint_limits, vel_limits, acc_limits):
         self.robot_name, self.base_name, self.joint_names, self.home_pose, self.joint_limits, self.vel_limits, self.acc_limits = \
             robot_name, base_name, joint_names, home_pose, joint_limits, vel_limits, acc_limits
 
 
-## @class RobotSpecs
-#  @brief Global robot spec definition
+##
+# @class RobotSpecs
+# @brief Global robot spec definition
 class RobotSpecs:
     SPEC_DICT = {
         RobotType.indy7: RobotTemplate(robot_name='indy', base_name="link0",
@@ -63,16 +66,19 @@ class RobotSpecs:
         return cls.SPEC_DICT[_type].acc_limits
 
 
-## @class RobotConfig
-#  @brief Robot configuration containing index, type, location and address
+##
+# @class RobotConfig
+# @brief Robot configuration containing index, type, location and address
 class RobotConfig:
-    ## @param idx index of robot
-    #  @param type type of robot, declared in robot_config.py
-    #  @param xyzrpy location of robot in tuple (xyz(m), rpy(rad))
-    #  @param address ip address of robot string
+    ##
+    # @param idx index of robot
+    # @param type type of robot, declared in robot_config.py
+    # @param xyzrpy location of robot in tuple (xyz(m), rpy(rad))
+    # @param address ip address of robot string
     def __init__(self, idx, type, xyzrpy, address):
         self.idx, self.type, self.xyzrpy, self.address = idx, type, xyzrpy, address
 
-    ## @brief get robot name + index (id for urdf)
+    ##
+    # @brief get robot name + index (id for urdf)
     def get_indexed_name(self):
         return "{}{}".format(RobotSpecs.get_robot_name(self.type), self.idx)

@@ -1,5 +1,3 @@
-## @package combined_robot
-
 from .repeater.indy_repeater import *
 from .repeater.panda_repeater import *
 from .robot_config import *
@@ -8,8 +6,9 @@ from ..environment_builder import *
 
 JOINT_LIM_DICT = []
 
-## @class CombinedRobot
-#  @brief control interface for combined robot
+##
+# @class CombinedRobot
+# @brief control interface for combined robot
 class CombinedRobot:
     def __init__(self, robots_on_scene, connection_list, vel_scale=0.5, acc_scale=0.5):
         ## @brief velocity limit scale
@@ -51,9 +50,10 @@ class CombinedRobot:
         self.home_pose = np.array(self.home_pose)
         self.home_dict = list2dict(self.home_pose, self.joint_names)
 
-    ## @brief reset connection
-    ## @param connection_list boolean list
-    ## @param address_list address list, None for default to use stored address
+    ##
+    # @brief reset connection
+    # @param connection_list boolean list
+    # @param address_list address list, None for default to use stored address
     def reset_connection(self, connection_list, address_list=None):
         self.connection_list = connection_list
         self.address_list = address_list or self.address_list
@@ -87,20 +87,24 @@ class CombinedRobot:
                     self.robot_dict[name].disconnect()
                     self.robot_dict[name] = None
 
-    ## @brief get robot_on_scene in dictionalry format
+    ##
+    # @brief get robot_on_scene in dictionalry format
     def get_scene_dict(self):
         return {rp.get_indexed_name(): rp for rp in self.robots_on_scene}
 
-    ## @brief get list of robot controller interface
+    ##
+    # @brief get list of robot controller interface
     def get_robot_list(self):
         return [self.robot_dict[name] for name in self.robot_names]
 
-    ## @brief get list of each robot's joint indexes
+    ##
+    # @brief get list of each robot's joint indexes
     def get_indexing_list(self):
         return [self.idx_dict[name] for name in self.robot_names]
 
-    ## @brief move to joint pose target
-    #  @param Q motion target(rad)
+    ##
+    # @brief move to joint pose target
+    # @param Q motion target(rad)
     def joint_make_sure(self, Q):
         for name, rconfig in zip(self.robot_names, self.robots_on_scene):
             _type = rconfig.type
@@ -109,8 +113,9 @@ class CombinedRobot:
             elif _type == RobotType.panda:
                 self.robot_dict[name].move_joint_interpolated(Q[self.idx_dict[name]], N_div=200)
 
-    ## @brief execute grasping action
-    #  @param grasp_dict boolean grasp commands in dictionary form {robot_name: grasp_bool}
+    ##
+    # @brief execute grasping action
+    # @param grasp_dict boolean grasp commands in dictionary form {robot_name: grasp_bool}
     def grasp_by_dict(self, grasp_dict):
         grasp_seq = [(k, v) for k, v in grasp_dict.items()]
         grasp_seq = list(sorted(grasp_seq, key=lambda x: not x[1]))
@@ -124,7 +129,8 @@ class CombinedRobot:
         elif scence_dict[name] == RobotType.panda and self.robot_dict[name] is not None:
             self.robot_dict[name].move_finger(grasp)
 
-    ## @brief get current robot's pose or home pose if not connected (radian)
+    ##
+    # @brief get current robot's pose or home pose if not connected (radian)
     def get_real_robot_pose(self):
         Q = []
         for name in self.robot_names:
@@ -134,7 +140,8 @@ class CombinedRobot:
                 Q += list(self.home_pose[self.idx_dict[name]])
         return np.array(Q)
 
-    ## @brief wait for the first robot's ROS control duration
+    ##
+    # @brief wait for the first robot's ROS control duration
     def wait_step(self, rate_off):
         if all(self.connection_list):
             self.robot_dict[self.robot_names[0]].rate_x1.sleep()

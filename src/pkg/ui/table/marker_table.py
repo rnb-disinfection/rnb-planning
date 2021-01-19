@@ -1,5 +1,5 @@
 from .table_interface import *
-from ...sensor.marker import ObjectMarker
+from ...detector.aruco.detector import ObjectMarker
 
 class MarkerTable(TableInterface):
     HEADS = ['Object', IDENTIFY_COL, 'Size', 'Point', 'Direction']

@@ -16,8 +16,9 @@ CONTROL_FREQ = 100
 PROC_MODE = True
 PRINT_LOG = False
 
-## @class TMPFramework
-#  @brief framework for task and motion planning
+##
+# @class TMPFramework
+# @brief framework for task and motion planning
 #
 class TMPFramework:
 
@@ -226,8 +227,8 @@ class TMPFramework:
 
     def register_object_gen(self, objectPose_dict_mv, binder_dict, object_dict, ref_tuple=None, link_name="base_link"):
         object_generators = {k: CallHolder(self.ghnd.create_safe,
-                                           ["center", "rpy"], **v.get_kwargs()) for k, v in
-                             self.cam.aruco_map.items() if v.ttype in [TargetType.MOVABLE, TargetType.ONLINE]}
+                                           ["center", "rpy"], **v.get_geometry_kwargs()) for k, v in
+                             self.cam.aruco_map.items() if v.dlevel in [DetectionLevel.MOVABLE, DetectionLevel.ONLINE]}
         if ref_tuple is None:
             ref_tuple = self.cam.ref_tuple
         xyz_rpy_mv_dict, put_point_dict, _ = calc_put_point(self.ghnd, objectPose_dict_mv, self.cam.aruco_map, object_dict, ref_tuple)
@@ -575,7 +576,7 @@ class TMPFramework:
     #######################################################
     ############ Calibration - deprecated #################
     def draw_objects_graph(self, color_image, objectPose_dict, corner_dict, axis_len=0.1):
-        return draw_objects(color_image, self.cam.aruco_map, objectPose_dict, corner_dict, self.cam.rs_config[0],
+        return self.cam.aruco_map.draw_objects(color_image, objectPose_dict, corner_dict, self.cam.rs_config[0],
                             self.cam.rs_config[1], axis_len=axis_len)
 
     def sample_Trel(self, obj_name, obj_link_name, coord_link_name, coord_name, Teo, objectPose_dict_ref):

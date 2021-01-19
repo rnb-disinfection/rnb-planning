@@ -1,5 +1,4 @@
-from .sensor.stereo import *
-from .geometry.geometry import *
+from .detector.aruco.stereo import *
 from . constants import *
 from threading import Thread
 from .robots_custom import *
@@ -9,6 +8,18 @@ from .marker_config import *
 
 __rospy_initialized = False
 __roscore = None
+
+
+def get_T_rel(coord_from, coord_to, objectPose_dict):
+    return np.matmul(SE3_inv(objectPose_dict[coord_from]), objectPose_dict[coord_to])
+
+
+def get_put_dir(Robj, dir_vec_dict, ref_vec=[[0], [0], [-1]]):
+    downvec = np.matmul(np.transpose(Robj), ref_vec)
+    dir_match_dict = {k: np.dot(v, downvec) for k, v in dir_vec_dict.items()}
+    key_match = sorted(dir_match_dict.keys(), key=lambda k: dir_match_dict[k])[-1]
+    return key_match
+
 
 def set_custom_robots(ROBOTS_ON_SCENE, xyz_rpy_robots, custom_limits, node_name='task_planner', start_rviz=True, custom_xacro=None):
     global __rospy_initialized, __roscore
@@ -61,8 +72,8 @@ def detect_robots(aruco_map, dictionary, robot_tuples, kn_config, rs_config, T_c
 
 def detect_environment(ghnd, aruco_map, dictionary, kn_config, rs_config, T_c12, ref_name='floor'):
     env_dict = {k: CallHolder(ghnd.create_safe,
-                              ["center", "rpy"], **v.get_kwargs()) for k, v in aruco_map.items() if
-                v.ttype == TargetType.ENVIRONMENT}
+                              ["center", "rpy"], **v.get_geometry_kwargs()) for k, v in aruco_map.items() if
+                v.dlevel == DetectionLevel.ENVIRONMENT}
     env_gen_dict = {}
     while True:
         try:
@@ -101,19 +112,19 @@ def add_cam_poles(graph, xyz_rpy_cams, color=(0.6,0.6,0.6,0.3), link_name="base_
     return gtems
 
 def detect_objects(aruco_map, dictionary, stereo=True, kn_config=None):
-    aruco_map_mv = {k: v for k, v in aruco_map.items() if v.ttype in [TargetType.MOVABLE, TargetType.ONLINE]}
+    aruco_map_mv = {k: v for k, v in aruco_map.items() if v.dlevel in [DetectionLevel.MOVABLE, DetectionLevel.ONLINE]}
     if stereo:
         objectPose_dict_mv, corner_dict_mv, color_image, rs_image, rs_objectPose_dict, rs_corner_dict = \
             get_object_pose_dict_stereo(aruco_map_mv, dictionary)
     else:
         color_image = get_kn_image()
-        objectPose_dict_mv, corner_dict_mv = get_object_pose_dict(color_image, aruco_map, dictionary, *kn_config)
+        objectPose_dict_mv, corner_dict_mv = aruco_map.get_object_pose_dict(color_image, *kn_config)
     return objectPose_dict_mv, corner_dict_mv, color_image, aruco_map_mv
 
 def calc_put_point(ghnd, objectPose_dict_mv, aruco_map, object_dict, ref_tuple):
     object_generators = {k: CallHolder(ghnd.create_safe,
-                                       ["center", "rpy"], **v.get_kwargs()) for k, v in
-                         aruco_map.items() if v.ttype in [TargetType.MOVABLE, TargetType.ONLINE] and k in objectPose_dict_mv}
+                                       ["center", "rpy"], **v.get_geometry_kwargs()) for k, v in
+                         aruco_map.items() if v.dlevel in [DetectionLevel.MOVABLE, DetectionLevel.ONLINE] and k in objectPose_dict_mv}
     T_mv_dict = {mname: np.matmul(SE3_inv(ref_tuple[1]), objectPose_dict_mv[mname]) for mname in object_generators if
                  mname in objectPose_dict_mv}
     xyz_rpy_mv_dict = {mname: T2xyzrpy(Tv) for mname, Tv in T_mv_dict.items()}
@@ -165,7 +176,7 @@ class StereoCamera(Singleton):
 
     def __init__(self):
         init_stereo()
-        self.aruco_map, self.dictionary = get_aruco_config()
+        self.aruco_map, self.dictionary = get_aruco_map()
         self.kn_config, self.rs_config, self.T_c12 = STEREO_CONFIG_DEFAULT
         self.xyz_rpy_cams = CAM_XYZ_RPY_DEFAULT
         self.ref_tuple = (self.REF_NAME, REF_POSE_DEFAULT)
@@ -216,12 +227,11 @@ class DynamicDetector:
 
     def detector_thread_fun(self):
         self.detector_stop = False
-        aruco_map_dynamic = {k: v for k, v in self.aruco_map.items() if k in self.dynamic_objects}
         self.dynPos_dict = {}
         while not self.detector_stop:
             color_image = get_rs_image()
-            objectPose_dict_mv, corner_dict_mv = get_object_pose_dict(color_image, aruco_map_dynamic, self.dictionary,
-                                                                      *self.rs_config)
+            objectPose_dict_mv, corner_dict_mv = self.aruco_map.get_object_pose_dict(color_image, *self.rs_config,
+                                                                      name_mask=self.dynamic_objects)
             for k, v in objectPose_dict_mv.items():
                 self.dynPos_dict[k] = np.matmul(SE3_inv(self.ref_T), np.matmul(self.T_c12, v))
 

@@ -1,10 +1,8 @@
 from .table_interface import *
-from ...sensor.marker import ObjectMarker, MarkerSet, TargetType
-from ...geometry.geometry import GEOTYPE
 from ...environment_builder import *
 
 class MarkerGroupTable(TableInterface):
-    HEADS = [IDENTIFY_COL, 'TType', 'GType', 'Dims', 'Color', 'Soft', 'K_col']
+    HEADS = [IDENTIFY_COL, 'DLevel', 'GType', 'Dims', 'Color', 'Soft', 'K_col']
     HILIGHT_KEY = 'marker_group'
     CUSTOM_BUTTONS = ["MarkObj", "MarkEnv"]
 
@@ -15,7 +13,7 @@ class MarkerGroupTable(TableInterface):
         return self.graph.cam.aruco_map
 
     def serialize(self, gtem):
-        return [gtem.name, gtem.ttype.name, gtem.gtype.name if gtem.gtype is not None else "None",
+        return [gtem.name, gtem.dlevel.name, gtem.gtype.name if gtem.gtype is not None else "None",
                 round_it_str(gtem.dims) if gtem.dims is not None else "None",
                 round_it_str(gtem.color), str(gtem.soft), str(gtem.K_col)]
 
@@ -27,7 +25,7 @@ class MarkerGroupTable(TableInterface):
     def add_item(self, value):
         name = value[IDENTIFY_COL]
         self.graph.cam.aruco_map[name] = MarkerSet(name,
-                                               ttype=getattr(TargetType,value["TType"]),
+                                               dlevel=getattr(DetectionLevel,value["DLevel"]),
                                                gtype=getattr(GEOTYPE, value['GType']) if value['GType'] != "None" else None,
                                                dims=str_num_it(value["Dims"]) if value["Dims"] != "None" else None,
                                                color=str_num_it(value["Color"]),
@@ -51,9 +49,9 @@ class MarkerGroupTable(TableInterface):
                 self.graph.cam.aruco_map[name_new] = gtem
                 for atem in gtem:
                     atem.oname = name_new
-        elif active_col == 'TType':
+        elif active_col == 'DLevel':
             try:
-                atem.ttype = getattr(TargetType,value["TType"])
+                atem.dlevel = getattr(DetectionLevel,value["DLevel"])
             except:
                 res,msg = False, "wrong target type"
         elif active_col == 'GType':
@@ -76,7 +74,7 @@ class MarkerGroupTable(TableInterface):
                 BINDER_DICT = {k:dict(_type=v.__class__, object_name=v.object.name, point=v.point, rpy=v.rpy_point) \
                                for k, v in graph.binder_dict.items() \
                                if (not v.controlled) and \
-                               (v.object.name in graph.cam.aruco_map and graph.cam.aruco_map[v.object.name].ttype == TargetType.MOVABLE)}
+                               (v.object.name in graph.cam.aruco_map and graph.cam.aruco_map[v.object.name].dlevel == DetectionLevel.MOVABLE)}
                 OBJECT_DICT = {k:dict(_type=v.__class__) for k,v in graph.object_dict.items()}
                 objectPose_dict_mv, corner_dict_mv, color_image, aruco_map_mv = detect_objects(graph.cam.aruco_map, graph.cam.dictionary)
                 put_point_dict = graph.register_object_gen(objectPose_dict_mv, BINDER_DICT, OBJECT_DICT, link_name="base_link")
@@ -84,7 +82,7 @@ class MarkerGroupTable(TableInterface):
                 graph.set_rviz(graph.joints.position)
 
                 screen_size = (1080,1920)
-                kn_image_out = draw_objects(color_image, graph.cam.aruco_map, objectPose_dict_mv, corner_dict_mv, *graph.cam.kn_config, axis_len=0.1)
+                kn_image_out = graph.cam.aruco_map.draw_objects(color_image, objectPose_dict_mv, corner_dict_mv, *graph.cam.kn_config, axis_len=0.1)
                 kn_image_out_res = cv2.resize(kn_image_out, (screen_size[1], screen_size[0]))
                 cv2.imshow("test", kn_image_out_res)
                 cv2.waitKey(0)
@@ -98,8 +96,8 @@ class MarkerGroupTable(TableInterface):
                 graph.set_rviz()
 
                 screen_size = (1080,1920)
-                kn_image_out = draw_objects(color_image, cam.aruco_map, objectPose_dict, corner_dict, *cam.kn_config, axis_len=0.1)
-                rs_image_out = draw_objects(rs_image, graph.cam.aruco_map, {k:v for k,v in rs_objectPose_dict.items() if k != 'wall'}, rs_corner_dict, *cam.rs_config, axis_len=0.1)
+                kn_image_out = graph.cam.aruco_map.draw_objects(color_image, objectPose_dict, corner_dict, *cam.kn_config, axis_len=0.1)
+                rs_image_out = graph.cam.aruco_map.draw_objects(rs_image, {k:v for k,v in rs_objectPose_dict.items() if k != 'wall'}, rs_corner_dict, *cam.rs_config, axis_len=0.1)
                 kn_image_out_res = cv2.resize(kn_image_out, (rs_image_out.shape[1], rs_image_out.shape[0]))
                 image_out = np.concatenate([kn_image_out_res, rs_image_out], axis=1)
                 ratio = np.min(np.array(screen_size,dtype=np.float)/np.array(image_out.shape[:2],dtype=np.float))
