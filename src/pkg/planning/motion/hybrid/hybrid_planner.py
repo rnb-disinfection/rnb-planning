@@ -33,8 +33,8 @@ class HybridPlanner(PlannerInterface):
             handle = self.object_dict[oname].action_points_dict[hname]
             binder = self.binder_dict[bname]
 
-            group_name_handle = [gname for gname in self.mplan.planner.group_names if gname in handle.object.link_name]
-            group_name_binder = [gname for gname in self.mplan.planner.group_names if gname in binder.object.link_name]
+            group_name_handle = [gname for gname in self.mplan.planner.group_names if gname in handle.geometry.link_name]
+            group_name_binder = [gname for gname in self.mplan.planner.group_names if gname in binder.geometry.link_name]
             if group_name_handle and group_name_binder:
                 print("===================== plan dual manipulation =====================")
                 return self.eplan.plan_transition(from_state, to_state, binding_list,

@@ -1,7 +1,5 @@
 from .table_interface import *
 from ...tmp_framework import *
-from ...sampler.handle_a_star import *
-from ...sampler.object_a_star import *
 
 
 class TaskPlanTable(TableInterface):
@@ -78,13 +76,13 @@ class TaskPlanTable(TableInterface):
                     objectPose_dict_mv, graph.cam.aruco_map, OBJECT_DICT, graph.cam.ref_tuple)
                 update_geometries(graph.ghnd, objectPose_dict_mv.keys(), objectPose_dict_mv, graph.cam.ref_tuple[1])
                 initial_state = State(tuple([(oname, put_point_dict[oname], 'floor') for oname in graph.object_list]),
-                                      {oname: graph.object_dict[oname].object.Toff for oname in
+                                      {oname: graph.object_dict[oname].geometry.Toff for oname in
                                        graph.object_list},
                                       graph.get_real_robot_pose(), graph)
                 binding_dict = match_point_binder(graph, initial_state, objectPose_dict_mv)
                 self.initial_state = State(
                     tuple([(oname, put_point_dict[oname], binding_dict[oname]) for oname in graph.object_list]),
-                    {oname: graph.object_dict[oname].object.Toff for oname in graph.object_list},
+                    {oname: graph.object_dict[oname].geometry.Toff for oname in graph.object_list},
                     graph.get_real_robot_pose(), graph)
                 goal_nodes_1 = get_goal_nodes(initial_state.node, "box1", "goal_bd")
                 self.goal_nodes = []

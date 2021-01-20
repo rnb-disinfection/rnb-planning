@@ -1,6 +1,6 @@
 from .table_interface import *
 from ...tmp_framework import *
-from ...sampler.handle_a_star import *
+
 
 class PlanListTable(TableInterface):
     HEADS = [IDENTIFY_COL, "Node", "Parent", "Depth", "Cost", "EDepth", "Trajectory"]

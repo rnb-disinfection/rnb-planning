@@ -238,7 +238,7 @@ def FULL_TEST_SCENE(DATASET, WORLD, SCENE, ACTION):
                 mplan = MoveitPlanner(joint_names=graph.joint_names, link_names=graph.link_names, urdf_path=graph.urdf_path,
                                       urdf_content=graph.urdf_content,
                                       robot_names=graph.combined_robot.robot_names,
-                                      binder_links=[v.object.link_name for v in graph.binder_dict.values()],
+                                      binder_links=[v.geometry.link_name for v in graph.binder_dict.values()],
                                       ghnd=graph.ghnd)
 
             # plan
@@ -501,7 +501,7 @@ while RESTART:
                 mplan = MoveitPlanner(joint_names=graph.joint_names, link_names=graph.link_names, urdf_path=graph.urdf_path,
                                       urdf_content=graph.urdf_content,
                                       robot_names=graph.combined_robot.robot_names,
-                                      binder_links=[v.object.link_name for v in graph.binder_dict.values()],
+                                      binder_links=[v.geometry.link_name for v in graph.binder_dict.values()],
                                       ghnd=graph.ghnd)
 
             # plan

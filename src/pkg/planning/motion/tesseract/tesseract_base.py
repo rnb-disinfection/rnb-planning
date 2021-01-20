@@ -3,9 +3,9 @@ import os
 import re
 import numpy as np
 import time
-from ...utils.utils import *
-from ...global_config import *
-from ...utils.rotation_utils import *
+from ....utils.utils import *
+from ....utils.rotation_utils import *
+from ....global_config import *
 
 import rospkg
 
@@ -158,4 +158,4 @@ def plan_manipulation(tes, robot_name, end_link, Tbe, base_link="base_link"):
 def plan_robot(tes, robot_name, binder, action_point, joint_dict, from_link='base_link'):
     Tap = action_point.get_tf_handle(joint_dict, from_link=from_link)
     Tbe = np.matmul(Tap, SE3_inv(binder.Toff_lh))
-    return plan_manipulation(tes, robot_name, binder.object.link_name, Tbe)
+    return plan_manipulation(tes, robot_name, binder.geometry.link_name, Tbe)

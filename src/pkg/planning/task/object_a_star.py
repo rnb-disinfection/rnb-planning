@@ -1,6 +1,6 @@
 from .interface import *
-from ..utils.utils import *
-from ..utils.joint_utils import *
+from ...utils.utils import *
+from ...utils.joint_utils import *
 from collections import defaultdict
 from copy import deepcopy
 
@@ -364,7 +364,7 @@ def get_available_binder_dict(graph, oname_list, bname_list):
                 binder = graph.binder_dict[binder_name]
                 for ap in graph.object_dict[oname].action_points_dict.values():
                     if binder.check_type(ap):
-                        available_binder_dict[oname].append(binder.object.name)
+                        available_binder_dict[oname].append(binder.geometry.name)
                         pass_now = True
                         break
                 if pass_now:

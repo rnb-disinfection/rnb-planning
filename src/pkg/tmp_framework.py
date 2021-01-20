@@ -3,10 +3,9 @@ sys.setrecursionlimit(1000000)
 
 from .controller.repeater.repeater import *
 from .geometry.builder.scene_builder import *
-from .sampler.interface import *
 
 from .data_collecting.sampling import *
-from .planner.moveit.moveit_planner import gtype_to_otype
+from .planning.motion.moveit.moveit_planner import gtype_to_otype
 
 PANDA_ROS = False
 PORT_REPEATER = 1189
@@ -76,7 +75,7 @@ class TMPFramework:
 
     def add_binder(self, binder):
         self.binder_dict[binder.name] = binder
-        self.object_binder_dict[binder.object.name].append(binder.name)
+        self.object_binder_dict[binder.geometry.name].append(binder.name)
 
     def register_binder(self, name, _type, point=None, rpy=(0,0,0), object_name=None, link_name=None):
         if name in self.binder_dict:
@@ -95,7 +94,7 @@ class TMPFramework:
         self.add_binder(_type(name, _object=_object, point=point,rpy=rpy))
 
     def remove_binder(self, bname):
-        self.object_binder_dict[self.binder_dict[bname].object.name].remove(bname)
+        self.object_binder_dict[self.binder_dict[bname].geometry.name].remove(bname)
         del self.binder_dict[bname]
 
     def get_all_handles(self):
@@ -112,10 +111,10 @@ class TMPFramework:
         return handle_dict
 
     def delete_handle(self, htem):
-        otem = self.object_dict[htem.object.name]
+        otem = self.object_dict[htem.geometry.name]
         del otem.action_points_dict[htem.name]
         if not otem.action_points_dict.keys():
-            self.remove_object(htem.object.name)
+            self.remove_object(htem.geometry.name)
 
     @record_time
     def update_handles(self):
@@ -162,8 +161,8 @@ class TMPFramework:
         if name in self.object_dict:
             self.remove_object(name)
 
-        _object = self.get_object_by_name(name)
-        self.object_dict[name] = _type(_object, **kwargs)
+        geometry = self.get_object_by_name(name)
+        self.object_dict[name] = _type(geometry, **kwargs)
         if binding is not None:
             self.binder_dict[binding[1]].bind(self.object_dict[name], binding[0],
                                               list2dict([0]*len(self.joint_names), item_names=self.joint_names))
@@ -218,12 +217,12 @@ class TMPFramework:
         while bd_list:
             bd = bd_list.pop(0)
             binder = self.binder_dict[bd[2]]
-            if binder.object in [self.object_dict[bd_tmp[0]].object for bd_tmp in bd_list]:
+            if binder.geometry in [self.object_dict[bd_tmp[0]].geometry for bd_tmp in bd_list]:
                 bd_list += [bd] # prevent using previous info ( move back to end )
             else:
                 obj = self.object_dict[bd[0]]
                 frame = state.obj_pos_dict[bd[0]]
-                binder.link_name = binder.object.link_name # sync linke name with parent
+                binder.link_name = binder.geometry.link_name # sync linke name with parent
                 obj.set_state(frame, binder.link_name, bd[1], bd[2])
                 bd_list_done += [bd]
 
@@ -233,7 +232,7 @@ class TMPFramework:
         for k in self.object_list:
             v = self.object_dict[k]
             node += ((k,) + v.binding,)
-            pose_dict[k] = v.object.Toff
+            pose_dict[k] = v.geometry.Toff
         return node, pose_dict
     ######################## State ########################
     #######################################################
@@ -296,7 +295,7 @@ class TMPFramework:
         for name, _type in self.combined_robot.robots_on_scene:
             grasp_dict[name] = False
         for bd in state.node:
-            bind_link_name = self.binder_dict[bd[2]].object.link_name
+            bind_link_name = self.binder_dict[bd[2]].geometry.link_name
             for name, _type in self.combined_robot.robots_on_scene:
                 if name in bind_link_name:
                     grasp_dict[name] = True
@@ -306,7 +305,7 @@ class TMPFramework:
         binder = self.binder_dict[binding[2]]
         object_tar = self.object_dict[binding[0]]
         binder.bind(action_obj=object_tar, bind_point=binding[1], joint_dict_last=joint_dict_last)
-        for binder_sub in [k for k,v in self.binder_dict.items() if v.object == object_tar.object]:
+        for binder_sub in [k for k,v in self.binder_dict.items() if v.geometry == object_tar.geometry]:
             for binding_sub in [(k,v.binding[0]) for k, v in self.object_dict.items()
                                 if v.binding[1] == binder_sub]:
                 binding_sub += (binder_sub,)
@@ -318,7 +317,7 @@ class TMPFramework:
     ############ Visualize - Highlight ####################
 
     def add_handle_axis(self, hl_key, handle, color=None):
-        hobj = handle.object
+        hobj = handle.geometry
         Toff_lh = handle.Toff_lh
         axis = "xyz"
         color = None

@@ -1,8 +1,8 @@
 from __future__ import print_function
 from etasl_py.etasl import etasl_simulator, EventException
 
-from ...utils.joint_utils import get_joint_names_csv
-from ...utils.utils import integrate, list2dict
+from ....utils.joint_utils import get_joint_names_csv
+from ....utils.utils import integrate, list2dict
 from .constraint_etasl import *
 from ..interface import PlannerInterface, downample_traj
 from copy import deepcopy

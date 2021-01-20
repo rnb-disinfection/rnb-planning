@@ -284,13 +284,13 @@ class GeometryItem(object):
         return T
 
     def get_xvec(self):
-        return self.object.orientation_mat[:,0]
+        return self.orientation_mat[:,0]
 
     def get_yvec(self):
-        return self.object.orientation_mat[:,1]
+        return self.orientation_mat[:,1]
 
     def get_zvec(self):
-        return self.object.orientation_mat[:,2]
+        return self.orientation_mat[:,2]
 
     def set_offset_tf(self, center=None, orientation_mat=None):
         self.center = center if center is not None else self.center

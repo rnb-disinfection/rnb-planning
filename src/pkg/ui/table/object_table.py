@@ -1,5 +1,5 @@
 from .table_interface import *
-from ...constraint.constraint_object import otype_to_class
+from ...planning.constraint.constraint_object import otype_to_class
 from ...utils.utils import list2dict
 
 class ObjectTable(TableInterface):
@@ -14,10 +14,10 @@ class ObjectTable(TableInterface):
         return self.graph.object_dict
 
     def serialize(self, otem):
-        return [otem.object.name, otem.__class__.__name__, otem.binding[0], otem.binding[1]]
+        return [otem.geometry.name, otem.__class__.__name__, otem.binding[0], otem.binding[1]]
 
     def highlight_item(self, otem, color=None):
-        self.graph.highlight_geometry(self.HILIGHT_KEY, otem.object.name, color=color)
+        self.graph.highlight_geometry(self.HILIGHT_KEY, otem.geometry.name, color=color)
 
     def add_item(self, value):
         try:
@@ -36,11 +36,11 @@ class ObjectTable(TableInterface):
         elif active_col == "OType":
             res, msg = False, "Object Type is not changeable"
         elif active_col == "Binding":
-            binding = (otem.object.name,value, otem.binding[1])
+            binding = (otem.geometry.name,value, otem.binding[1])
             joint_dict = list2dict(self.graph.joints.position, self.graph.joint_names)
             self.graph.rebind(binding, joint_dict)
         elif active_col == "Binder":
-            binding = (otem.object.name, otem.binding[0],value)
+            binding = (otem.geometry.name, otem.binding[0],value)
             joint_dict = list2dict(self.graph.joints.position, self.graph.joint_names)
             self.graph.rebind(binding, joint_dict)
         return res, msg

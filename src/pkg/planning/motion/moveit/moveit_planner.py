@@ -1,10 +1,10 @@
 from moveit_py import MoveitCompactPlanner_BP, ObjectType, ObjectMPC, Geometry, GeometryList, CartPose, Vec3, make_assign_arr
 from ..interface import PlannerInterface
-from ...utils.utils import list2dict
-from ...utils.rotation_utils import SE3, SE3_inv, Rot_rpy
-from ...geometry.geometry import GEOTYPE, GeometryHandle
+from ....utils.utils import list2dict
+from ....utils.rotation_utils import SE3, SE3_inv, Rot_rpy
+from ....geometry.geometry import GEOTYPE, GeometryHandle
+from ....geometry.builder.xacro_customizer import write_srdf
 from ...constraint.constraint_common import calc_redundancy
-from ...geometry.builder.xacro_customizer import write_srdf
 from scipy.spatial.transform import Rotation
 import numpy as np
 import os
@@ -104,11 +104,11 @@ class MoveitPlanner(PlannerInterface):
         T_binder = np.matmul(binder.Toff_lh, SE3(Rot_rpy(rpy_add), point_add))
 
         if len(self.planner.group_names)==1:
-            group_name_handle = self.planner.group_names if handle.object.link_name in self.urdf_content.parent_map else []
-            group_name_binder = self.planner.group_names if binder.object.link_name in self.urdf_content.parent_map else []
+            group_name_handle = self.planner.group_names if handle.geometry.link_name in self.urdf_content.parent_map else []
+            group_name_binder = self.planner.group_names if binder.geometry.link_name in self.urdf_content.parent_map else []
         else:
-            group_name_handle = group_name_handle or [gname for gname in self.planner.group_names if gname in handle.object.link_name]
-            group_name_binder = group_name_binder or [gname for gname in self.planner.group_names if gname in binder.object.link_name]
+            group_name_handle = group_name_handle or [gname for gname in self.planner.group_names if gname in handle.geometry.link_name]
+            group_name_binder = group_name_binder or [gname for gname in self.planner.group_names if gname in binder.geometry.link_name]
 
         if group_name_binder and not group_name_handle:
             group_name = group_name_binder[0]
@@ -119,7 +119,7 @@ class MoveitPlanner(PlannerInterface):
             tool, T_tool = handle, T_handle
             target, T_tar = binder, T_binder
         else:
-            print(binder.name, obj.object.name)
+            print(binder.name, obj.geometry.name)
             print(group_name_binder, group_name_handle)
             print("uncontrollable binding")
             # raise(RuntimeError("uncontrollable binding"))
@@ -135,7 +135,7 @@ class MoveitPlanner(PlannerInterface):
             from_Q = from_state.Q
 
         trajectory, success = self.planner.plan_py(
-            group_name, tool.object.link_name, goal_pose, target.object.link_name, tuple(from_Q), timeout=timeout)
+            group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q), timeout=timeout)
 
         if success:
             if self.need_mapping:
@@ -164,7 +164,7 @@ class MoveitPlanner(PlannerInterface):
 
 
 from itertools import permutations
-from ...geometry.builder.xacro_customizer import save_converted_chain
+from ....geometry.builder.xacro_customizer import save_converted_chain
 
 def transfer_ctem(ghnd, ghnd_new):
     link_chain = ghnd_new.urdf_content.get_chain(ghnd_new.urdf_content.get_root(), "stem", joints=False, links=True)

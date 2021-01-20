@@ -1,6 +1,4 @@
-import numpy as np
 import time
-from ..geometry.geometry import GEOTYPE
 from ..utils.utils import Logger
 OBJ_GEN_LIST = [lambda L_MAX: (GEOTYPE.BOX, tuple(np.random.random((3,))*L_MAX), (0.0, 0.0, 0.9, 0.2)),
                 lambda L_MAX: (GEOTYPE.CYLINDER, tuple((np.random.random((2,))*L_MAX)[[0,0,1]]), (0.0, 0.9, 0.0, 0.3))]
@@ -52,9 +50,8 @@ import sys
 
 sys.path.append(os.path.join(os.environ["RNB_PLANNING_DIR"], "lib/openGJK/lib"))
 import openGJKlib as oGJK
-from ..geometry.geometry import DEFAULT_VERT_DICT, GEOTYPE, GeometryHandle
+from ..geometry.geometry import DEFAULT_VERT_DICT, GEOTYPE
 from ..utils.rotation_utils import Rot_rpy
-from ..utils.utils import list2dict
 import numpy as np
 
 POINT_DEFAULT = np.array([[0,0,0]])
@@ -171,7 +168,6 @@ def get_reachable_cells(Nwdh, L_CELL, reach_center_dict, MAX_REACH_DICT, robot_n
                     free_boxes.append([iw, id, ih])
     return free_boxes
 
-import random
 
 def sample_obs_goal_boxes(free_boxes, Ns, Nt):
     obs_boxes = random.sample(free_boxes, Ns)
@@ -470,7 +466,7 @@ def test_place(graph, GRIPPER_REFS, rname, inhand, ontarget, tar, Q_s, mplan, **
     mplan.update(graph)
     return mplan.plan_transition(state_s, state_g, state_g.node, **kwargs)
 
-from ..planner.moveit.moveit_planner import transfer_ctem
+from ..planning.motion.moveit.moveit_planner import transfer_ctem
 from ..utils.utils import list2dict, dict2list
 
 def get_handover_states(graph, GRIPPER_REFS, src, handed, intar, tar, Q_s):
@@ -581,7 +577,7 @@ def load_manipulation_from_dict(dict_log, ghnd):
     return rname1, dict_to_gtem(obj1, ghnd), dict_to_gtem(obj2, ghnd), rname2, dims_bak, color_bak, success, trajectory
 
 
-from multiprocessing import Process, Lock, cpu_count
+from multiprocessing import Process, cpu_count
 from multiprocessing.managers import SyncManager
 import random
 

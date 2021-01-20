@@ -1,5 +1,5 @@
 from .table_interface import *
-from ...constraint.constraint_action import ctype_to_btype
+from ...planning.constraint.constraint_action import ctype_to_btype
 
 class BinderTable(TableInterface):
     HEADS = [IDENTIFY_COL, 'CType', 'Geometry', 'Link', 'RPY', 'Point', 'Control', 'Multi']
@@ -13,13 +13,13 @@ class BinderTable(TableInterface):
         return self.graph.binder_dict
 
     def serialize(self, binder):
-        return [binder.name, binder.ctype.name, binder.object.name, binder.object.link_name,
+        return [binder.name, binder.ctype.name, binder.geometry.name, binder.geometry.link_name,
                 round_it_str(binder.rpy_point, 3), "n" if binder.point is None else round_it_str(binder.point, 3),
                 str(binder.controlled), str(binder.multiple)]
 
     def highlight_item(self, binder, color=None):
         self.graph.add_handle_axis(self.HILIGHT_KEY, binder)
-        self.graph.highlight_geometry(self.HILIGHT_KEY, binder.object.name, color=color)
+        self.graph.highlight_geometry(self.HILIGHT_KEY, binder.geometry.name, color=color)
 
     def add_item(self, value):
         try:

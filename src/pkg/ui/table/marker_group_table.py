@@ -71,10 +71,10 @@ class MarkerGroupTable(TableInterface):
         if button == TAB_BUTTON.CUSTOM:
             if args[0]:
                 graph = self.graph
-                BINDER_DICT = {k:dict(_type=v.__class__, object_name=v.object.name, point=v.point, rpy=v.rpy_point) \
+                BINDER_DICT = {k:dict(_type=v.__class__, object_name=v.geometry.name, point=v.point, rpy=v.rpy_point) \
                                for k, v in graph.binder_dict.items() \
                                if (not v.controlled) and \
-                               (v.object.name in graph.cam.aruco_map and graph.cam.aruco_map[v.object.name].dlevel == DetectionLevel.MOVABLE)}
+                               (v.geometry.name in graph.cam.aruco_map and graph.cam.aruco_map[v.geometry.name].dlevel == DetectionLevel.MOVABLE)}
                 OBJECT_DICT = {k:dict(_type=v.__class__) for k,v in graph.object_dict.items()}
                 objectPose_dict_mv, corner_dict_mv, color_image, aruco_map_mv = detect_objects(graph.cam.aruco_map, graph.cam.dictionary)
                 put_point_dict = graph.register_object_gen(objectPose_dict_mv, BINDER_DICT, OBJECT_DICT, link_name="base_link")

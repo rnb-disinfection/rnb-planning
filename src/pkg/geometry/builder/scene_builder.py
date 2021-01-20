@@ -99,11 +99,13 @@ class SceneBuilder(Singleton):
 
     ##
     # @brief detect geometric items and register them in the geometry handle
-    # @param ghnd   geometry hand to add detected environment geometry
     # @param item_names     List of string name for items
     # @param level_mask     List of rnb-planning.src.pkg.detector.detector_interface.DetectionLevel
+    # @param ghnd   rnb-planning.src.pkg.geometry.geometry.GeometryHandle to add detected environment geometry
     # @return gtem_dict dictionary of detected geometry items
-    def detect_and_register(self, ghnd, item_names=None, level_mask=None, color=(0.6,0.6,0.6,1), collision=True):
+    def detect_and_register(self, item_names=None, level_mask=None, color=(0.6,0.6,0.6,1), collision=True, ghnd=None):
+        if ghnd is None:
+            ghnd = self.ghnd
         xyz_rpy_dict = self.detect_items(item_names=item_names, level_mask=level_mask)
         gtem_dict = {}
         for ename, xyzrpy in xyz_rpy_dict.items():
@@ -117,7 +119,10 @@ class SceneBuilder(Singleton):
     # @brief add pole geometries to the scene
     # @param xyz_pole_top_dict  dictionary of pole top locations: {name: xyz}
     # @param thickness          thickness of the poles (m)
-    def add_poles(self, ghnd, xyz_pole_top_dict, thickness=0.15, color=(0.6,0.6,0.6,0.3)):
+    # @param ghnd               rnb-planning.src.pkg.geometry.geometry.GeometryHandle to add poles
+    def add_poles(self, xyz_pole_top_dict, thickness=0.15, color=(0.6,0.6,0.6,0.3), ghnd=None):
+        if ghnd is None:
+            ghnd = self.ghnd
         gtems = []
         for cname, xyz in xyz_pole_top_dict.items():
             gtems.append(ghnd.create_safe(name="pole_{}".format(cname), link_name=self.base_link,
@@ -127,6 +132,71 @@ class SceneBuilder(Singleton):
                                           color=color, collision=True, fixed=True)
                          )
         return gtems
+
+    ##
+    # @brief add collision geometries for robot body
+    def add_robot_geometries(self, color=None, display=True, collision=True, exclude_link=None):
+        if color is None:
+            color = (0, 1, 0, 0.5)
+        if exclude_link is None:
+            exclude_link = []
+        urdf_content = self.urdf_content
+        ghnd = self.ghnd
+        geometry_items = []
+        id_dict = defaultdict(lambda: -1)
+        geometry_dir = "./geometry_tmp"
+        try:
+            os.mkdir(geometry_dir)
+        except:
+            pass
+        for link in urdf_content.links:
+            skip = False
+            for ex_link in exclude_link:
+                if ex_link in link.name:
+                    skip = True
+            if skip:
+                continue
+            for col_item in link.collisions:
+                geometry = col_item.geometry
+                geotype = geometry.__class__.__name__
+                #             print("{}-{}".format(link.name, geotype))
+                if col_item.origin is None:
+                    xyz = [0, 0, 0]
+                    rpy = [0, 0, 0]
+                else:
+                    xyz = col_item.origin.xyz
+                    rpy = col_item.origin.rpy
+
+                id_dict[link.name] += 1
+                if geotype == 'Cylinder':
+                    gname = "{}_{}_{}".format(link.name, geotype, id_dict[link.name])
+                    geometry_items.append(
+                        ghnd.create_safe(
+                            name=gname, link_name=link.name, gtype=GEOTYPE.CAPSULE,
+                            center=xyz, dims=(geometry.radius * 2, geometry.radius * 2, geometry.length), rpy=rpy,
+                            color=color, display=display, collision=collision, fixed=True)
+                    )
+                elif geotype == 'Box':
+                    gname = "{}_{}_{}".format(link.name, geotype, id_dict[link.name])
+                    geometry_items.append(
+                        ghnd.create_safe(
+                            name=gname, link_name=link.name, gtype=GEOTYPE.BOX,
+                            center=xyz, dims=geometry.size, rpy=rpy,
+                            color=color, display=display, collision=collision, fixed=True)
+                    )
+                elif geotype == 'Sphere':
+                    gname = "{}_{}_{}".format(link.name, geotype, id_dict[link.name])
+                    geometry_items.append(
+                        ghnd.create_safe(
+                            name=gname, link_name=link.name, gtype=GEOTYPE.SPHERE,
+                            center=xyz, dims=[geometry.radius * 2] * 3, rpy=rpy,
+                            color=color, display=display, collision=collision, fixed=True)
+                    )
+                elif geotype == 'Mesh':
+                    raise (NotImplementedError("Mesh collision boundary is not supported"))
+                else:
+                    raise (NotImplementedError("collision geometry {} is not implemented".format(geotype)))
+        return geometry_items
 
 ##
 # @class DynamicDetector
@@ -194,6 +264,7 @@ class RvizPublisher:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.stop_rviz()
 
+
 ##
 # @ get current put point --> move to planning scene function
 def calc_put_point(ghnd, objectPose_dict_mv, aruco_map, object_dict, ref_tuple):
@@ -235,7 +306,7 @@ def match_point_binder(graph, initial_state, objectPose_dict_mv):
     binder_scale_dict = {}
     for k,binder in graph.binder_dict.items():
         binder_T = binder.get_tf_handle(Q0dict)
-        binder_scale_dict[k] = binder.object.dims
+        binder_scale_dict[k] = binder.geometry.dims
         if binder.point is not None:
             binder_scale_dict[k] = 0
         binder_T_dict[k] = binder_T
@@ -253,7 +324,7 @@ def match_point_binder(graph, initial_state, objectPose_dict_mv):
             direction_cur = handle_T[:3,2]
 
             for kbd, Tbd in binder_T_dict.items():
-                if kobj == kbd or kobj == graph.binder_dict[kbd].object.name:
+                if kobj == kbd or kobj == graph.binder_dict[kbd].geometry.name:
                     continue
                 point_diff = Tbd[:3,3]-point_cur
                 point_diff_norm = np.linalg.norm(np.maximum(np.abs(point_diff) - binder_scale_dict[kbd],0))
@@ -274,65 +345,5 @@ def register_hexahedral_binder(graph, object_name, _type):
         graph.register_binder(name="{}_{}".format(object_name, k), object_name=object_name, _type=_type,
                               point=point, rpy=rpy)
 
-##
-# @brief add collision items for robot body. This should be moved to scene_builder
-def add_geometry_items(urdf_content, ghnd, color=None, display=True, collision=True, exclude_link=None):
-    if color is None:
-        color = (0, 1, 0, 0.5)
-    if exclude_link is None:
-        exclude_link = []
-    geometry_items = []
-    id_dict = defaultdict(lambda: -1)
-    geometry_dir = "./geometry_tmp"
-    try: os.mkdir(geometry_dir)
-    except: pass
-    for link in urdf_content.links:
-        skip = False
-        for ex_link in exclude_link:
-            if ex_link in link.name:
-                skip = True
-        if skip:
-            continue
-        for col_item in link.collisions:
-            geometry = col_item.geometry
-            geotype = geometry.__class__.__name__
-#             print("{}-{}".format(link.name, geotype))
-            if col_item.origin is None:
-                xyz = [0,0,0]
-                rpy = [0,0,0]
-            else:
-                xyz = col_item.origin.xyz
-                rpy = col_item.origin.rpy
-
-            id_dict[link.name] += 1
-            if geotype == 'Cylinder':
-                gname = "{}_{}_{}".format(link.name, geotype, id_dict[link.name])
-                geometry_items.append(
-                    ghnd.create_safe(
-                        name=gname, link_name=link.name, gtype=GEOTYPE.CAPSULE,
-                        center=xyz, dims=(geometry.radius*2,geometry.radius*2,geometry.length), rpy=rpy,
-                        color=color, display=display, collision=collision, fixed=True)
-                )
-            elif geotype == 'Box':
-                gname = "{}_{}_{}".format(link.name, geotype, id_dict[link.name])
-                geometry_items.append(
-                    ghnd.create_safe(
-                        name=gname, link_name=link.name, gtype=GEOTYPE.BOX,
-                        center=xyz, dims=geometry.size, rpy=rpy,
-                        color=color, display=display, collision=collision, fixed=True)
-                )
-            elif geotype == 'Sphere':
-                gname = "{}_{}_{}".format(link.name, geotype, id_dict[link.name])
-                geometry_items.append(
-                    ghnd.create_safe(
-                        name=gname, link_name=link.name, gtype=GEOTYPE.SPHERE,
-                        center=xyz, dims=[geometry.radius*2]*3, rpy=rpy,
-                        color=color, display=display, collision=collision, fixed=True)
-                )
-            elif geotype == 'Mesh':
-                raise(NotImplementedError("Mesh collision boundary is not supported"))
-            else:
-                raise(NotImplementedError("collision geometry {} is not implemented".format(geotype)))
-    return geometry_items
 
 

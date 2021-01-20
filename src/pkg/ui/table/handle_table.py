@@ -1,5 +1,5 @@
 from .table_interface import *
-from ...constraint.constraint_object import ctype_to_htype
+from ...planning.constraint.constraint_object import ctype_to_htype
 
 class HandleTable(TableInterface):
     HEADS = [IDENTIFY_COL, 'Object', 'Handle', 'CType', 'Point', 'RPY']
@@ -13,19 +13,19 @@ class HandleTable(TableInterface):
         return self.graph.get_all_handle_dict()
 
     def serialize(self, htem):
-        return [htem.name_full, htem.object.name,
+        return [htem.name_full, htem.geometry.name,
                 htem.name, htem.ctype.name,
                 round_it_str(htem.point), round_it_str(htem.rpy_point)]
 
     def highlight_item(self, handle, color=None):
         self.graph.add_handle_axis(self.HILIGHT_KEY, handle, color=color)
-        self.graph.highlight_geometry(self.HILIGHT_KEY, handle.object.name, color=color)
+        self.graph.highlight_geometry(self.HILIGHT_KEY, handle.geometry.name, color=color)
 
     def add_item(self, value):
         otem = self.graph.object_dict[value["Object"]]
         cname = value[IDENTIFY_COL]
         hname = value['Handle']
-        otem.action_points_dict[hname] = ctype_to_htype(value['CType'])(hname, otem.object,
+        otem.action_points_dict[hname] = ctype_to_htype(value['CType'])(hname, otem.geometry,
                                                                         (str_num_it(value["Point"]),
                                                                          str_num_it(value["RPY"])),
                                                                          name_full=cname)
@@ -33,10 +33,10 @@ class HandleTable(TableInterface):
     def delete_item(self, active_row):
         hdict = self.graph.get_all_handle_dict()
         htem = hdict[active_row]
-        otem = self.graph.object_dict[htem.object.name]
+        otem = self.graph.object_dict[htem.geometry.name]
         self.graph.delete_handle(htem)
         if not otem.action_points_dict.keys():
-            self.graph.remove_object(htem.object.name)
+            self.graph.remove_object(htem.geometry.name)
 
     def update_item(self, htem, active_col, value):
         res, msg = True, ""

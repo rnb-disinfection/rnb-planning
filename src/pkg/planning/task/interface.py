@@ -1,7 +1,7 @@
 from abc import *
 import numpy as np
-from ..utils.utils import differentiate, GlobalTimer
-from ..constants import DIR_VEC_DICT
+from ...utils.utils import differentiate, GlobalTimer
+from ...constants import DIR_VEC_DICT
 from collections import defaultdict
 
 __metaclass__ = type
@@ -51,7 +51,7 @@ class State:
                     str(np.round(self.Q, 2)) if self.Q is not None else None))
 
 def node2onode(graph, node):
-    return tuple([graph.binder_dict[binding[2]].object.name for binding in node])
+    return tuple([graph.binder_dict[binding[2]].geometry.name for binding in node])
 
 class SamplerInterface:
     NAME = None

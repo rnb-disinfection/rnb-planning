@@ -1,5 +1,10 @@
 from __future__ import print_function
-from ...constraint.constraint_object import *
+
+from ....utils.rotation_utils import *
+from ....geometry.geometry import GEOTYPE
+from ...constraint.constraint_common import calc_redundancy
+from ...constraint.constraint_object import FramedPoint, DirectedPoint
+
 
 def get_tf_name(gtem):
     return "{}_tf".format(gtem.name)
@@ -91,8 +96,8 @@ def make_dir_constraint(pointer1, pointer2, name, constraint_name, make_error=Tr
 vec1 = vector{vec1}
 vec2 = vector{vec2}
 angle_{name} = angle_between_vectors(vec1,rotation(inv({T1})*{T2})*vec2)""".format(
-    T1=get_tf_name(pointer1.object),
-    T2=get_tf_name(pointer2.object),
+    T1=get_tf_name(pointer1.geometry),
+    T2=get_tf_name(pointer2.geometry),
     vec1=tuple(pointer1.R_point[:,2]), vec2=tuple(pointer2.R_point[:,2]), name=name) + \
 """
 Constraint{{
@@ -134,8 +139,8 @@ angle1_{name} = angle_between_vectors(vec11,tf_{name}*vec21)
 angle2_{name} = angle_between_vectors(vec12,tf_{name}*vec22)
 orientation_{name} = angle1_{name} + angle2_{name}
 """.format(
-        T1=get_tf_name(framer1.object),vec11=vec11, vec12=vec12,
-        T2=get_tf_name(framer2.object),vec21=vec21, vec22=vec22,
+        T1=get_tf_name(framer1.geometry),vec11=vec11, vec12=vec12,
+        T2=get_tf_name(framer2.geometry),vec21=vec21, vec22=vec22,
         name=name) + \
     """
 Constraint{{
@@ -157,7 +162,7 @@ def make_directed_point_constraint(pointer1, pointer2, name, make_error=True, ac
         error_val = "\nerror_target = error_target + abs(dist_{constraint_name_point})+abs(angle_{constraint_name_dir})".format(
             constraint_name_point=constraint_name_point, constraint_name_dir=constraint_name_dir)
         error_statement = error_val+'\nctx:setOutputExpression("error",error_target)'
-    pair_constraint = make_point_pair_constraint(pointer1.object, pointer2.object, constraint_name_point, constraint_name_point, 
+    pair_constraint = make_point_pair_constraint(pointer1.geometry, pointer2.geometry, constraint_name_point, constraint_name_point,
                                                  make_error=False, point1=pointer1.point, point2=pointer2.point, activation=activation)
     dir_constraint = make_dir_constraint(pointer1, pointer2, name=constraint_name_dir, constraint_name=constraint_name_dir,
                                          make_error=False, activation=activation)
@@ -178,7 +183,7 @@ def make_oriented_point_constraint(framer1, framer2, name, make_error=True, acti
     # print("framer1.point: {}".format(framer1.point))
     # print("framer2.point: {}".format(framer2.point))
     # print("point_added: {}".format(point2))
-    pair_constraint = make_point_pair_constraint(framer1.object, framer2.object, constraint_name_point, constraint_name_point, make_error=False, 
+    pair_constraint = make_point_pair_constraint(framer1.geometry, framer2.geometry, constraint_name_point, constraint_name_point, make_error=False,
                                                  point1=framer1.point, point2=point2, activation=activation)
     ori_constraint = make_orientation_constraint(framer1, framer2, name=constraint_name_ori,
                                                  rpy_add=rpy_add,
