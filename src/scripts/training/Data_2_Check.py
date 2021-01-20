@@ -80,7 +80,7 @@ def main(dataset_list=None, N_retry_test = None):
 
             cam = None
             # set urdf
-            xcustom, JOINT_NAMES, LINK_NAMES, urdf_content = set_custom_robots(crob.robots_on_scene, Trbt_dict,
+            xcustom, JOINT_NAMES, LINK_NAMES, urdf_content = reset_ghnd(crob.robots_on_scene, Trbt_dict,
                                                                                crob.custom_limits, start_rviz=VISUALIZE)
             ghnd = GeometryHandle(urdf_content)
             time.sleep(2)

@@ -14,7 +14,7 @@ URDF_PATH = os.path.join(WORKING_DIR, "robots", "custom_robots.urdf")
 ##
 # @class    XacroCustomizer
 # @brief    Custom Xacro file generator
-#           This generates customized xacro file for ROS functions in
+# @remark   This generates customized xacro file for ROS functions in
 #           XACRO_PATH_DEFAULT = 'src/robots/custom_robots.urdf.xacro' and convert it to urdf.
 class XacroCustomizer(Singleton):
     def __init__(self):
@@ -22,7 +22,7 @@ class XacroCustomizer(Singleton):
 
     ##
     # @brief    create xacro file with given information
-    #           This generates customized xacro file for ROS robot modeling in
+    # @remark   This generates customized xacro file for ROS robot modeling in
     #           XACRO_PATH_DEFAULT = 'src/robots/custom_robots.urdf.xacro' and convert it to urdf.
     # @param    robots  list of rnb-planning.src.pkg.controller.robot_config.RobotConfig
     # @param    xacro_path by default XACRO_PATH_DEFAULT is used, but you can specify your own path.
@@ -68,7 +68,7 @@ class XacroCustomizer(Singleton):
 
     ##
     # @brief    convert xacro file to urdf and get urdf content
-    #           This generates urdf file for ROS robot modeling in
+    # @remark   This generates urdf file for ROS robot modeling in
     #           URDF_PATH_DEFAULT = '{}src/robots/custom_robots.urdf'.format(RNB_PLANNING_DIR)
     # @param    urdf_path URDF_PATH_DEFAULT is used by default, specifying your own value is not recommended
     # @param    joint_limit_dict    joint limit dictionary, in format of {"joint_name":{"upper": rad, "lower": rad, "velocity": rad/s, "effort": rad/s^2}}
@@ -123,253 +123,22 @@ class XacroCustomizer(Singleton):
         self.rexpression_list = []
 
 
-from stl import mesh
-from sklearn.decomposition import PCA
-from scipy import optimize
-import rospkg
-rospack = rospkg.RosPack()
-
-def dist_pt_seg(pt, seg):
-    P1 = pt
-    P21, P22 = seg
-
-    V2 = (P22-P21)
-    V2abs = np.linalg.norm(V2) # 4.5 us
-    V2nm = V2/V2abs
-    V1 = (P1-P21)
-    V1prj = np.dot(V1, V2nm) #1.8 us
-    if V1prj<0:
-        PP = P1-P21
-        return np.linalg.norm(PP) # 3.5 us
-    elif V1prj<V2abs:
-        Vcros = (V2nm[1]*V1[2]-V2nm[2]*V1[1], V2nm[2]*V1[0]-V2nm[0]*V1[2], V2nm[0]*V1[1]-V2nm[1]*V1[0]) # 60 us
-        return np.linalg.norm(Vcros) # 6 us
-    else:
-        PP = P1-P22
-        return np.linalg.norm(PP) # 3.5 us
-def dist_vertice_seg(vertice, seg):
-    return np.max([dist_pt_seg(vtx, seg) for vtx in vertice])
-def get_capsule_volume(seg, radii):
-    return (np.pi*radii**2)*(radii*4/3 + np.linalg.norm(seg[0]-seg[1]))
-
-def get_min_capsule_volume(vertice, seg):
-    radii = dist_vertice_seg(vertice, seg)
-    return get_capsule_volume(seg, radii)
-def get_min_seg_radii(vertice):
-    pca = PCA(3)
-    pca_res = pca.fit(vertice)
-    pca_dir = pca_res.components_[0]
-    vec_init = np.array([(pca_res.mean_ - pca_dir/10), (pca_res.mean_ + pca_dir/10)])
-    res = optimize.minimize(
-        fun=lambda seg_flat: get_min_capsule_volume(vertice, np.reshape(seg_flat, (2,3))), 
-        x0=np.array(vec_init).flatten(), method="Nelder-Mead", options={'disp':False})
-    seg = np.reshape(res.x, (2,3))
-    radii = dist_vertice_seg(vertice, seg)
-    return seg, radii
-
-def add_geometry_items(urdf_content, ghnd, color=None, display=True, collision=True, exclude_link=None):
-    if color is None:
-        color = (0, 1, 0, 0.5)
-    if exclude_link is None:
-        exclude_link = []
-    geometry_items = []
-    id_dict = defaultdict(lambda: -1)
-    geometry_dir = "./geometry_tmp"
-    try: os.mkdir(geometry_dir)
-    except: pass
-    for link in urdf_content.links:
-        skip = False
-        for ex_link in exclude_link:
-            if ex_link in link.name:
-                skip = True
-        if skip:
-            continue
-        for col_item in link.collisions:
-            geometry = col_item.geometry
-            geotype = geometry.__class__.__name__
-#             print("{}-{}".format(link.name, geotype))
-            if col_item.origin is None:
-                xyz = [0,0,0]
-                rpy = [0,0,0]
-            else:
-                xyz = col_item.origin.xyz
-                rpy = col_item.origin.rpy
-
-            id_dict[link.name] += 1
-            if geotype == 'Cylinder':
-                gname = "{}_{}_{}".format(link.name, geotype, id_dict[link.name])
-                geometry_items.append(
-                    ghnd.create_safe(
-                        name=gname, link_name=link.name, gtype=GEOTYPE.CAPSULE,
-                        center=xyz, dims=(geometry.radius*2,geometry.radius*2,geometry.length), rpy=rpy,
-                        color=color, display=display, collision=collision, fixed=True)
-                )
-            elif geotype == 'Box':
-                gname = "{}_{}_{}".format(link.name, geotype, id_dict[link.name])
-                geometry_items.append(
-                    ghnd.create_safe(
-                        name=gname, link_name=link.name, gtype=GEOTYPE.BOX,
-                        center=xyz, dims=geometry.size, rpy=rpy,
-                        color=color, display=display, collision=collision, fixed=True)
-                )
-            elif geotype == 'Sphere':
-                gname = "{}_{}_{}".format(link.name, geotype, id_dict[link.name])
-                geometry_items.append(
-                    ghnd.create_safe(
-                        name=gname, link_name=link.name, gtype=GEOTYPE.SPHERE,
-                        center=xyz, dims=[geometry.radius*2]*3, rpy=rpy,
-                        color=color, display=display, collision=collision, fixed=True)
-                )
-            elif geotype == 'Mesh':
-                name = "{}_{}_{}".format(link.name, geotype, id_dict[link.name])
-                geo_file_name = os.path.join(geometry_dir, name+".npy")
-                geo_file_name_bak = os.path.join(geometry_dir, name+"_bak.npy")
-                if os.path.isfile(geo_file_name):
-                    seg_radius = np.load(geo_file_name)
-                    seg, radius = np.reshape(seg_radius[:-1], (2,3)), seg_radius[-1]
-                else:
-                    filename_split = col_item.geometry.filename.split('/')
-                    package_name = filename_split[2]
-                    in_pack_path = "/".join(filename_split[3:])
-                    file_path = os.path.join(rospack.get_path(package_name), in_pack_path)
-                    col_mesh = mesh.Mesh.from_file(file_path)
-                    vertice = np.reshape(col_mesh.vectors, (-1,3))
-                    seg, radius = get_min_seg_radii(vertice)
-                    np.save(geo_file_name, np.concatenate([seg.flatten(), [radius]], axis=0))
-                    np.save(geo_file_name_bak, np.concatenate([seg.flatten(), [radius]], axis=0))
-                xyz = seg[0]
-#                 print('xyz: {}'.format(xyz))
-                seg_vec = seg[1]-seg[0]
-#                 print('seg_vec: \n{}'.format(seg_vec))
-                length = np.linalg.norm(seg_vec)
-#                 print('length: {}'.format(length))
-                seg_vec_nm = seg_vec/length
-                seg_cross = np.cross([0,0,1], seg_vec_nm)
-                seg_cross_abs = np.linalg.norm(seg_cross)
-                seg_cross_nm = seg_cross/seg_cross_abs
-                theta = np.arcsin(seg_cross_abs)
-                sign_theta = np.sign(np.dot([0,0,1], seg_vec_nm))
-                theta = (sign_theta*theta + np.pi*(1-sign_theta)/2)
-                rotvec = seg_cross_nm*theta
-#                 print('sign_theta: {}'.format(sign_theta))
-#                 print('theta: {}'.format(theta))
-#                 print('rotvec: {}'.format(rotvec))
-                rpy_mat = Rot_rpy(rpy)
-                xyz_rpy = np.matmul(rpy_mat, xyz)
-                dcm = np.matmul(rpy_mat, Rotation.from_rotvec(rotvec).as_dcm())
-                xyz_rpy = np.add(xyz_rpy, dcm[:,2]*length/2).tolist()
-
-
-                geometry_items.append(
-                    ghnd.create_safe(name=name, link_name=link.name, gtype=GEOTYPE.CAPSULE,
-                                  center=xyz_rpy, rpy=Rot2rpy(dcm), dims=(radius*2,radius*2,length),
-                                  color=color, display=display, collision=collision, fixed=True))
-            else:
-                raise(NotImplementedError("collision geometry {} is not implemented".format(geotype)))
-    return geometry_items
-
-# exclude_parents=['base_link']
-# joint_names=JOINT_NAMES
-# def transfer_fixed_links(col_items_dict, urdf_content, joint_names, exclude_parents=['base_link']):
-#     fixed = False
-#     zero_dict = list2dict([0]*len(joint_names), joint_names)
-#     for joint in urdf_content.joints:
-#         parent_name = joint.parent
-#         if joint.type == 'fixed' and joint.parent not in exclude_parents:
-#             for k,v in col_items_dict.items():
-#                 if k == joint.child:
-#                     for ctem in v:
-#                         Toff = get_tf(ctem.link_name, zero_dict, urdf_content, from_link=parent_name)
-#                         ctem.set_link(parent_name)
-#                         ctem.center = (np.matmul(Toff[:3,:3], ctem.center) + Toff[:3,3]).tolist()
-#                         ctem.orientation = Rotation.from_dcm(
-#                             np.matmul(Toff[:3,:3], Rotation.from_quat(ctem.orientation).as_dcm())).as_quat()
-#                         col_items_dict[parent_name] += [ctem]
-#                     del col_items_dict[k]
-#                     fixed = True
-#     if fixed:
-#         transfer_fixed_links(col_items_dict, urdf_content, joint_names, exclude_parents)
-# transfer_fixed_links(col_items_dict, urdf_content, joint_names=JOINT_NAMES)
-#
-# def make_mesh_backup(meshname):
-#     val = np.load('./geometry_tmp/'+meshname+'.npy')
-#     print("["+", ".join(["%.3f"%v for v in val])+"]")
-#     np.save('./geometry_tmp/'+meshname+'_bak.npy', val)
-#
-# def refine_meshes():
-#     try: os.mkdir('./geometry_tmp')
-#     except: pass
-#
-#     val = [0,  0.007, 0.050,
-#            0, 0.02, 0.02,
-#            0.018]
-#     np.save('./geometry_tmp/panda1_rightfinger_Mesh_0.npy', val)
-#
-#     val = [0,  0.007, 0.050,
-#            0, 0.02, 0.02,
-#            0.018]
-#     np.save('./geometry_tmp/panda1_leftfinger_Mesh_0.npy', val)
-#
-#     meshname = 'panda1_link0_Mesh_0'
-#     val = [0.02,  0.0,   0.04,
-#            -0.08, 0.0,  0.02,
-#            0.10]
-#     np.save('./geometry_tmp/'+meshname+'.npy', val)
-#
-#     meshname = 'panda1_link1_Mesh_0'
-#     val = [0,  -0.055,   -0.015,
-#            0, -0.000,  -0.135,
-#            0.11]
-#     np.save('./geometry_tmp/'+meshname+'.npy', val)
-#
-#     meshname = 'panda1_link2_Mesh_0'
-#
-#     val = [0,  0.0,  0.07,
-#            0, -0.16,  0.00,
-#            0.09]
-#     np.save('./geometry_tmp/'+meshname+'.npy', val)
-#
-#     meshname = 'panda1_link3_Mesh_0'
-#     val = [0.08, 0.054, 0.00,
-#            0.00, 0, -0.07,
-#            0.09]
-#     np.save('./geometry_tmp/'+meshname+'.npy', val)
-#
-#     meshname = 'panda1_link4_Mesh_0'
-#     val = [0, 0, 0.054,
-#            -0.111, 0.116, 0,
-#            0.08]
-#     np.save('./geometry_tmp/'+meshname+'.npy', val)
-#
-#
-#     meshname = 'panda1_link5_Mesh_0'
-#     val = [0.00, 0.063, -0.00,
-#            -0.00, 0.00, -0.230,
-#            0.08]
-#
-#     np.save('./geometry_tmp/'+meshname+'.npy', val)
-#
-#     meshname = 'panda1_link6_Mesh_0'
-#     val = [0.080, 0.000, 0.000,
-#            -0.010, 0.000, 0.000,
-#            0.09]
-#
-#     np.save('./geometry_tmp/'+meshname+'.npy', val)
-#
-#     meshname = 'panda1_hand_Mesh_0'
-#     val = [0.000, 0.070, 0.02,
-#            -0.000, -0.070, 0.02,
-#            0.06]
-#
-#
-#     np.save('./geometry_tmp/'+meshname+'.npy', val)
-
 
 
 from xml.dom import minidom
 from ...utils.joint_utils import *
 import os
+import urdf_parser_py
 
+def __get_chain(link_name_cur, urdf_content, base_link=None):
+    chain = []
+    while link_name_cur != base_link and link_name_cur in urdf_content.parent_map:
+        parent_joint = get_parent_joint(link_name_cur, urdf_content)
+        chain = [(parent_joint, link_name_cur)] + chain
+        link_name_cur = urdf_content.joint_map[parent_joint].parent
+    return chain
+
+## @brief write srdf for a joint group - for use in moveit motion planning
 def write_srdf(robot_names, urdf_content, urdf_path, link_names, joint_names,
                binder_links=None, chain_dict=None, base_link="base_link"):
     root = minidom.Document()
@@ -443,24 +212,13 @@ def write_srdf(robot_names, urdf_content, urdf_path, link_names, joint_names,
     return save_path_file
 
 
-import urdf_parser_py
-
-
-def get_chain(link_name_cur, urdf_content, base_link=None):
-    chain = []
-    while link_name_cur != base_link and link_name_cur in urdf_content.parent_map:
-        parent_joint = get_parent_joint(link_name_cur, urdf_content)
-        chain = [(parent_joint, link_name_cur)] + chain
-        link_name_cur = urdf_content.joint_map[parent_joint].parent
-    return chain
-
-
+## @brief save converted chain - for use in dual motion planning in moveit
 def save_converted_chain(urdf_content, urdf_path, robot_new, base_link, end_link):
     urdf_path_new = os.path.join(os.path.dirname(urdf_path),
                                  os.path.basename(urdf_path).split(".")[0] + "_{}.urdf".format(robot_new))
     urdf_content_new = URDF.from_xml_string(URDF.to_xml_string(urdf_content))
     Tinv_joint_next = np.identity(4)
-    chain_base = get_chain(base_link, urdf_content)
+    chain_base = __get_chain(base_link, urdf_content)
 
     for linkage in reversed(chain_base):
         jname, lname = linkage
@@ -494,7 +252,7 @@ def save_converted_chain(urdf_content, urdf_path, robot_new, base_link, end_link
     f.write(URDF.to_xml_string(urdf_content_new))
     f.close()
     urdf_content_new = URDF.from_xml_file(urdf_path_new)
-    new_chain = get_chain(end_link, urdf_content_new)
+    new_chain = __get_chain(end_link, urdf_content_new)
     new_joints = [linkage[0] for linkage in new_chain if
                   linkage[0] and urdf_content_new.joint_map[linkage[0]].type != "fixed"]
 

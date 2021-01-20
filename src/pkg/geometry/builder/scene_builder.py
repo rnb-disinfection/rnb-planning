@@ -6,231 +6,142 @@ import rospy
 from ...utils.utils import *
 from ...marker_config import *
 
-__rospy_initialized = False
-__roscore = None
 
-
-def get_T_rel(coord_from, coord_to, objectPose_dict):
-    return np.matmul(SE3_inv(objectPose_dict[coord_from]), objectPose_dict[coord_to])
-
-
-def get_put_dir(Robj, dir_vec_dict, ref_vec=[[0], [0], [-1]]):
+##
+# @brief    select putting direction
+# @param    Robj    object orientation
+# @param    dir_vec_dict    direction vector dictionary {name: vec}
+# @param    ref_vec     reference vector
+# @return   key_match   matching vector name
+def select_put_dir(Robj, dir_vec_dict, ref_vec=[[0], [0], [-1]]):
     downvec = np.matmul(np.transpose(Robj), ref_vec)
     dir_match_dict = {k: np.dot(v, downvec) for k, v in dir_vec_dict.items()}
     key_match = sorted(dir_match_dict.keys(), key=lambda k: dir_match_dict[k])[-1]
     return key_match
 
+##
+# @class    SceneBuilder
+# @brief    Geometric scene builder
+# @remark   Build geometric scene using a detector. All coordinates are converted relative to a reference coordinate.
+#           call reset_reference_coord -> reset_ghnd
+class SceneBuilder(Singleton):
+    __rospy_initialized = False
+    __roscore = None
 
-def set_custom_robots(ROBOTS_ON_SCENE, xyz_rpy_robots, custom_limits, node_name='task_planner', start_rviz=True, custom_xacro=None):
-    global __rospy_initialized, __roscore
-    if not __rospy_initialized:
-        __roscore = subprocess.Popen(['roscore'])
-        rospy.init_node(node_name, anonymous=True)
-        __rospy_initialized = True
+    ##
+    # @param detector    detector to use when building the scene
+    # @param base_link   name of base link in urdf content
+    def __init__(self, detector, base_link):
+        self.detector = detector
+        self.base_link = base_link
 
-    urdf_content = None
-    xcustom = XacroCustomizer.instance()
-    xcustom.initialize(ROBOTS_ON_SCENE)
+    ##
+    # @brief re-detect reference coordinate - in case the camera has moved
+    # @param ref_name   name of reference geometric item. this coordinate is synchronized with base link.
+    def reset_reference_coord(self, ref_name):
+        objectPose_dict = self.detector.detect(name_mask=[ref_name])
+        self.ref_name = ref_name
+        self.ref_coord = objectPose_dict[ref_name]
+        self.ref_coord_inv = SE3_inv(self.ref_coord)
 
-    JOINT_NAMES, LINK_NAMES, urdf_content = \
-        xcustom.convert_xacro_to_urdf(
-            joint_fix_dict={'finger': 'upper'},
-            joint_offset_dict={},
-            joint_limit_dict=custom_limits)
+    ##
+    # @brief reset geometry handle with new robot configuration
+    # @param combined_robot     rnb-planning.src.pkg.controller.combined_robot.CombinedRobot
+    # @param node_name          ros node name, by default "task_planner"
+    # @param start_rviz         whether to start rviz or not default=True
+    # @return joint_names       joint names
+    # @return link_names        link names
+    # @return urdf_content      urdf content
+    def reset_ghnd(self, combined_robot, node_name='task_planner', start_rviz=True):
+        robots_on_scene = combined_robot.robots_on_scene
+        custom_limits   = combined_robot.custom_limits
 
-    if start_rviz:
-        xcustom.start_rviz()
+        if not SceneBuilder.__rospy_initialized:
+            SceneBuilder.__roscore = subprocess.Popen(['roscore'])
+            rospy.init_node(node_name, anonymous=True)
+            SceneBuilder.__rospy_initialized = True
 
-    return xcustom, JOINT_NAMES, LINK_NAMES, urdf_content
+        xcustom = XacroCustomizer.instance()
+        xcustom.initialize(robots_on_scene)
 
-def detect_robots(aruco_map, dictionary, robot_tuples, kn_config, rs_config, T_c12, ref_name='floor'):
-    xyz_rpy_robots = {}
-    while True:
-        try:
-            objectPose_dict, corner_dict, color_image, rs_image, rs_objectPose_dict, rs_corner_dict = \
-                get_object_pose_dict_stereo(aruco_map, dictionary, kn_config=kn_config, rs_config=rs_config, T_c12=T_c12)
+        self.joint_names, self.link_names, self.urdf_content = xcustom.convert_xacro_to_urdf(
+            joint_fix_dict={'finger': 'upper'}, joint_limit_dict=custom_limits)
 
-            for rtuple in robot_tuples:
-                rname = rtuple[0]
-                Tbr = get_T_rel(ref_name, rname, objectPose_dict)
-                xyz_rpy_robots[rname] = T2xyzrpy(Tbr)
+        if start_rviz:
+            xcustom.start_rviz()
 
-            break
-        except KeyError as e:
-            print(e)
-            break
-        except Exception as e:
-            print(e)
-            pass
-    T0 = np.identity(4)
-    return xyz_rpy_robots, \
-           objectPose_dict, corner_dict, color_image, \
-           {k:v for k,v in rs_objectPose_dict.items() if np.sum(np.abs(T0-v))>1e-5}, rs_corner_dict, rs_image
+        self.ghnd = GeometryHandle(self.urdf_content, self.joint_names, self.link_names, rviz=start_rviz)
 
-def detect_environment(ghnd, aruco_map, dictionary, kn_config, rs_config, T_c12, ref_name='floor'):
-    env_dict = {k: CallHolder(ghnd.create_safe,
-                              ["center", "rpy"], **v.get_geometry_kwargs()) for k, v in aruco_map.items() if
-                v.dlevel == DetectionLevel.ENVIRONMENT}
-    env_gen_dict = {}
-    while True:
-        try:
-            objectPose_dict, corner_dict, color_image, rs_image, rs_objectPose_dict, rs_corner_dict = \
-                get_object_pose_dict_stereo(aruco_map, dictionary, kn_config=kn_config, rs_config=rs_config, T_c12=T_c12)
+        return self.ghnd, self.urdf_content, self.joint_names, self.link_names
 
-            for ename, ginfo in env_dict.items():
-                env_gen_dict[ename] = (ginfo, T2xyzrpy(get_T_rel(ref_name, ename, objectPose_dict)))
-            break
-        except KeyError as e:
-            print(e)
-            break
-        except Exception as e:
-            print(e)
-            pass
-    T0 = np.identity(4)
-    return env_gen_dict, \
-           objectPose_dict, corner_dict, color_image, \
-           {k:v for k,v in rs_objectPose_dict.items() if np.sum(np.abs(T0-v))>1e-5}, rs_corner_dict, rs_image
+    ##
+    # @brief detect robots
+    # @param item_names     List of string name for items
+    # @param level_mask     List of rnb-planning.src.pkg.detector.detector_interface.DetectionLevel
+    # @param as_matrix      flag to get transform matrix as-is
+    # @return xyz_rpy_dict  Dictionary of detected item coordinates in xyz(m), rpy(rad)
+    def detect_items(self, item_names=None, level_mask=None, as_matrix=False):
+        xyz_rpy_dict = {}
+        while True:
+            try:
+                objectPose_dict = self.detector.detect(name_mask=item_names, level_mask=level_mask)
+                for okey in objectPose_dict.keys():
+                    Tbr = np.matmul(self.ref_coord_inv, objectPose_dict[okey])
+                    xyz_rpy_dict[okey] = Tbr if as_matrix else T2xyzrpy(Tbr)
+                break
+            except KeyError as e:
+                print(e)
+                break
+            except Exception as e:
+                print(e)
+                pass
+        return xyz_rpy_dict
 
-def add_objects_gen(graph, obj_gen_dict, color=(0.6,0.6,0.6,1), collision=True, link_name="base_link"):
-    gtems = []
-    for oname, ogen in obj_gen_dict.items():
-        gtems.append(ogen[0](*ogen[1], name=oname, link_name=link_name, color=color, collision=collision, fixed=True))
-    return gtems
+    ##
+    # @brief detect geometric items and register them in the geometry handle
+    # @param ghnd   geometry hand to add detected environment geometry
+    # @param item_names     List of string name for items
+    # @param level_mask     List of rnb-planning.src.pkg.detector.detector_interface.DetectionLevel
+    # @return gtem_dict dictionary of detected geometry items
+    def detect_and_register(self, ghnd, item_names=None, level_mask=None, color=(0.6,0.6,0.6,1), collision=True):
+        xyz_rpy_dict = self.detect_items(item_names=item_names, level_mask=level_mask)
+        gtem_dict = {}
+        for ename, xyzrpy in xyz_rpy_dict.items():
+            kwargs = dict(name=ename, center=xyzrpy[0], rpy=xyzrpy[1], color=color,
+                          link_name=self.base_link, collision=collision)
+            kwargs.update(self.detector.get_geometry_kwargs(ename))
+            gtem_dict[ename] = ghnd.create_safe(**kwargs)
+        return gtem_dict
 
-def add_cam_poles(graph, xyz_rpy_cams, color=(0.6,0.6,0.6,0.3), link_name="base_link"):
-    gtems = []
-    ghnd = graph.ghnd
-    for cname, xyzrpy in xyz_rpy_cams.items():
-        gtems.append(ghnd.create_safe(name="pole_{}".format(cname), link_name=link_name, gtype=GEOTYPE.CAPSULE,
-                                  center= np.subtract(xyzrpy[0], [0,0,xyzrpy[0][2]/2-0.05]),
-                                  dims=(0.15, 0.15, xyzrpy[0][2]+0.1), rpy=(0,0,0),
-                                  color=color, collision=True, fixed=True)
-                     )
-    return gtems
-
-def detect_objects(aruco_map, dictionary, stereo=True, kn_config=None):
-    aruco_map_mv = {k: v for k, v in aruco_map.items() if v.dlevel in [DetectionLevel.MOVABLE, DetectionLevel.ONLINE]}
-    if stereo:
-        objectPose_dict_mv, corner_dict_mv, color_image, rs_image, rs_objectPose_dict, rs_corner_dict = \
-            get_object_pose_dict_stereo(aruco_map_mv, dictionary)
-    else:
-        color_image = get_kn_image()
-        objectPose_dict_mv, corner_dict_mv = aruco_map.get_object_pose_dict(color_image, *kn_config)
-    return objectPose_dict_mv, corner_dict_mv, color_image, aruco_map_mv
-
-def calc_put_point(ghnd, objectPose_dict_mv, aruco_map, object_dict, ref_tuple):
-    object_generators = {k: CallHolder(ghnd.create_safe,
-                                       ["center", "rpy"], **v.get_geometry_kwargs()) for k, v in
-                         aruco_map.items() if v.dlevel in [DetectionLevel.MOVABLE, DetectionLevel.ONLINE] and k in objectPose_dict_mv}
-    T_mv_dict = {mname: np.matmul(SE3_inv(ref_tuple[1]), objectPose_dict_mv[mname]) for mname in object_generators if
-                 mname in objectPose_dict_mv}
-    xyz_rpy_mv_dict = {mname: T2xyzrpy(Tv) for mname, Tv in T_mv_dict.items()}
-
-    put_point_dict = {}
-    up_point_dict = {}
-    Rx180 = Rot_axis(1, np.pi)
-    for mtem, xyz_rpy in xyz_rpy_mv_dict.items():
-        if mtem in object_dict:
-            Robj = Rot_rpy(xyz_rpy[1])
-            put_point_dict[mtem] = get_put_dir(Robj=Robj,
-                                               dir_vec_dict=DIR_VEC_DICT) + "_p"
-            up_point_dict[mtem] = get_put_dir(Robj=np.matmul(Rx180, Robj),
-                                               dir_vec_dict=DIR_VEC_DICT) + "_p"
-    return xyz_rpy_mv_dict, put_point_dict, up_point_dict
-
-
-STEREO_CONFIG_DEFAULT = ((np.array([[1.82983423e+03, 0.00000000e+00, 1.91572046e+03],
-                                    [0.00000000e+00, 1.82983423e+03, 1.09876086e+03],
-                                    [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]]),
-                          np.array([7.09966481e-01, -2.73409390e+00, 1.45804870e-03, -3.24774766e-04,
-                                    1.44911301e+00, 5.84310412e-01, -2.56374550e+00, 1.38472950e+00])),
-                         (np.array([[1.39560388e+03, 0.00000000e+00, 9.62751587e+02],
-                                    [0.00000000e+00, 1.39531934e+03, 5.47687012e+02],
-                                    [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]]),
-                          np.array([0., 0., 0., 0., 0.])),
-                         np.array([[0.8316497, -0.03031947, -0.55447227, 0.6465144],
-                                   [0.17082036, 0.964059, 0.20349611, -0.13999878],
-                                   [0.5283741, -0.26395264, 0.8069386, 0.06811327],
-                                   [0., 0., 0., 1.]],
-                                  dtype=np.float32)
+    ##
+    # @brief add pole geometries to the scene
+    # @param xyz_pole_top_dict  dictionary of pole top locations: {name: xyz}
+    # @param thickness          thickness of the poles (m)
+    def add_poles(self, ghnd, xyz_pole_top_dict, thickness=0.15, color=(0.6,0.6,0.6,0.3)):
+        gtems = []
+        for cname, xyz in xyz_pole_top_dict.items():
+            gtems.append(ghnd.create_safe(name="pole_{}".format(cname), link_name=self.base_link,
+                                          gtype=GEOTYPE.CAPSULE,
+                                          center= np.subtract(xyz, [0,0,xyz[2]/2-thickness/2]),
+                                          dims=(thickness, thickness, xyz[2]+thickness/2), rpy=(0,0,0),
+                                          color=color, collision=True, fixed=True)
                          )
+        return gtems
 
-CAM_XYZ_RPY_DEFAULT = {'cam0': ([0.04992591589689255, -0.5109567046165466, 0.5428988933563232],
-                                [-2.2611520414184096, 0.03879040388027996, -0.02012913871801042]),
-                       'cam1': ([0.7000014781951904, -0.39214593172073364, 0.6081380844116211],
-                                [-2.4248302293421484, -0.1538402791253786, 0.7300117151331913])}
-REF_POSE_DEFAULT = np.array([[0.9993871, -0.0349786, 0.00139052, -0.06847536],
-                             [-0.02122436, -0.6370408, -0.77053785, 0.09429896],
-                             [0.02783815, 0.77003604, -0.63739276, 0.7379357],
-                             [0., 0., 0., 1.]],
-                            dtype=np.float32)
-
-
-class StereoCamera(Singleton):
-    CAM0_NAME = "cam0"
-    CAM1_NAME = "cam1"
-    REF_NAME = 'floor'
-
-    def __init__(self):
-        init_stereo()
-        self.aruco_map, self.dictionary = get_aruco_map()
-        self.kn_config, self.rs_config, self.T_c12 = STEREO_CONFIG_DEFAULT
-        self.xyz_rpy_cams = CAM_XYZ_RPY_DEFAULT
-        self.ref_tuple = (self.REF_NAME, REF_POSE_DEFAULT)
-
-    def set_aruco_map(self, aruco_map):
-        self.aruco_map = aruco_map
-
-    def calibrate(self, ghnd):
-        self.kn_config, self.rs_config, self.T_c12 = calibrate_stereo(self.aruco_map, self.dictionary)
-        self.env_gen_dict, objectPose_dict, corner_dict, color_image, rs_objectPose_dict, rs_corner_dict, rs_image = \
-            detect_environment(ghnd, {k: v for k, v in self.aruco_map.items() if k == self.REF_NAME}, self.dictionary,
-                               kn_config=self.kn_config, rs_config=self.rs_config, T_c12=self.T_c12,
-                               ref_name=self.REF_NAME)
-        self.ref_tuple = (self.REF_NAME, objectPose_dict[self.REF_NAME])
-        self.update_cam_coords()
-
-    def update_cam_coords(self):
-        T_bc = SE3_inv(self.ref_tuple[1])
-        self.xyz_rpy_cams = {}
-        for cname, camT in self.get_camT_dict().items():
-            self.xyz_rpy_cams[cname] = T2xyzrpy(np.matmul(T_bc, camT))
-
-    def get_camT_dict(self):
-        return {self.CAM0_NAME: np.identity(4), self.CAM1_NAME: self.T_c12}
-
-    def detect_robots(self, robots_on_scene):
-        self.xyz_rpy_robots, objectPose_dict, corner_dict, color_image, rs_objectPose_dict, rs_corner_dict, rs_image = \
-            detect_robots(self.aruco_map, self.dictionary, robots_on_scene,
-                          kn_config=self.kn_config, rs_config=self.rs_config, T_c12=self.T_c12, ref_name=self.REF_NAME)
-        self.robots_on_scene = robots_on_scene
-        return self.xyz_rpy_robots
-
-    def detect_environment(self, ghnd):
-        self.env_gen_dict, objectPose_dict, corner_dict, color_image, rs_objectPose_dict, rs_corner_dict, rs_image = \
-            detect_environment(ghnd, self.aruco_map, self.dictionary,
-                               kn_config=self.kn_config, rs_config=self.rs_config, T_c12=self.T_c12,
-                               ref_name=self.REF_NAME)
-        return self.env_gen_dict, objectPose_dict, corner_dict, color_image, rs_objectPose_dict, rs_corner_dict, rs_image
-
-    def __del__(self):
-        disconnect_stereo()
-
-
+##
+# @class DynamicDetector
+# @brief Dynamic detector wrapper of SceneBuilder
 class DynamicDetector:
-    def __init__(self, dynamic_objects, aruco_map, dictionary, rs_config, T_c12, ref_T):
-        self.dynamic_objects, self.aruco_map, self.dictionary, self.rs_config, self.T_c12, self.ref_T = \
-            dynamic_objects, aruco_map, dictionary, rs_config, T_c12, ref_T
+    def __init__(self, scene_builder, object_names):
+        self.scene_builder, self.object_names = scene_builder, object_names
 
     def detector_thread_fun(self):
         self.detector_stop = False
         self.dynPos_dict = {}
         while not self.detector_stop:
-            color_image = get_rs_image()
-            objectPose_dict_mv, corner_dict_mv = self.aruco_map.get_object_pose_dict(color_image, *self.rs_config,
-                                                                      name_mask=self.dynamic_objects)
-            for k, v in objectPose_dict_mv.items():
-                self.dynPos_dict[k] = np.matmul(SE3_inv(self.ref_T), np.matmul(self.T_c12, v))
+            T_dict = self.scene_builder.detect_items(item_names=self.object_names, as_matrix=True)
+            for k, T in T_dict.items():
+                self.dynPos_dict[k] = np.matmul(SE3_inv(self.ref_T), np.matmul(self.T_c12, T))
 
     def stop_detector(self):
         self.detector_stop = True
@@ -246,6 +157,9 @@ class DynamicDetector:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.stop_detector()
 
+##
+# @class RvizPublisher
+# @brief rviz publisher for DynamicDetector
 class RvizPublisher:
     def __init__(self, graph, obs_names):
         self.graph, self.obs_names = graph, obs_names
@@ -279,6 +193,28 @@ class RvizPublisher:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.stop_rviz()
+
+##
+# @ get current put point --> move to planning scene function
+def calc_put_point(ghnd, objectPose_dict_mv, aruco_map, object_dict, ref_tuple):
+    object_generators = {k: CallHolder(ghnd.create_safe,
+                                       ["center", "rpy"], **v.get_geometry_kwargs()) for k, v in
+                         aruco_map.items() if v.dlevel in [DetectionLevel.MOVABLE, DetectionLevel.ONLINE] and k in objectPose_dict_mv}
+    T_mv_dict = {mname: np.matmul(SE3_inv(ref_tuple[1]), objectPose_dict_mv[mname]) for mname in object_generators if
+                 mname in objectPose_dict_mv}
+    xyz_rpy_mv_dict = {mname: T2xyzrpy(Tv) for mname, Tv in T_mv_dict.items()}
+
+    put_point_dict = {}
+    up_point_dict = {}
+    Rx180 = Rot_axis(1, np.pi)
+    for mtem, xyz_rpy in xyz_rpy_mv_dict.items():
+        if mtem in object_dict:
+            Robj = Rot_rpy(xyz_rpy[1])
+            put_point_dict[mtem] = select_put_dir(Robj=Robj,
+                                               dir_vec_dict=DIR_VEC_DICT) + "_p"
+            up_point_dict[mtem] = select_put_dir(Robj=np.matmul(Rx180, Robj),
+                                               dir_vec_dict=DIR_VEC_DICT) + "_p"
+    return xyz_rpy_mv_dict, put_point_dict, up_point_dict
 
 def update_geometries(ghnd, onames, objectPose_dict_mv, refFrame):
     refFrameinv = SE3_inv(refFrame)
@@ -338,5 +274,65 @@ def register_hexahedral_binder(graph, object_name, _type):
         graph.register_binder(name="{}_{}".format(object_name, k), object_name=object_name, _type=_type,
                               point=point, rpy=rpy)
 
+##
+# @brief add collision items for robot body. This should be moved to scene_builder
+def add_geometry_items(urdf_content, ghnd, color=None, display=True, collision=True, exclude_link=None):
+    if color is None:
+        color = (0, 1, 0, 0.5)
+    if exclude_link is None:
+        exclude_link = []
+    geometry_items = []
+    id_dict = defaultdict(lambda: -1)
+    geometry_dir = "./geometry_tmp"
+    try: os.mkdir(geometry_dir)
+    except: pass
+    for link in urdf_content.links:
+        skip = False
+        for ex_link in exclude_link:
+            if ex_link in link.name:
+                skip = True
+        if skip:
+            continue
+        for col_item in link.collisions:
+            geometry = col_item.geometry
+            geotype = geometry.__class__.__name__
+#             print("{}-{}".format(link.name, geotype))
+            if col_item.origin is None:
+                xyz = [0,0,0]
+                rpy = [0,0,0]
+            else:
+                xyz = col_item.origin.xyz
+                rpy = col_item.origin.rpy
+
+            id_dict[link.name] += 1
+            if geotype == 'Cylinder':
+                gname = "{}_{}_{}".format(link.name, geotype, id_dict[link.name])
+                geometry_items.append(
+                    ghnd.create_safe(
+                        name=gname, link_name=link.name, gtype=GEOTYPE.CAPSULE,
+                        center=xyz, dims=(geometry.radius*2,geometry.radius*2,geometry.length), rpy=rpy,
+                        color=color, display=display, collision=collision, fixed=True)
+                )
+            elif geotype == 'Box':
+                gname = "{}_{}_{}".format(link.name, geotype, id_dict[link.name])
+                geometry_items.append(
+                    ghnd.create_safe(
+                        name=gname, link_name=link.name, gtype=GEOTYPE.BOX,
+                        center=xyz, dims=geometry.size, rpy=rpy,
+                        color=color, display=display, collision=collision, fixed=True)
+                )
+            elif geotype == 'Sphere':
+                gname = "{}_{}_{}".format(link.name, geotype, id_dict[link.name])
+                geometry_items.append(
+                    ghnd.create_safe(
+                        name=gname, link_name=link.name, gtype=GEOTYPE.SPHERE,
+                        center=xyz, dims=[geometry.radius*2]*3, rpy=rpy,
+                        color=color, display=display, collision=collision, fixed=True)
+                )
+            elif geotype == 'Mesh':
+                raise(NotImplementedError("Mesh collision boundary is not supported"))
+            else:
+                raise(NotImplementedError("collision geometry {} is not implemented".format(geotype)))
+    return geometry_items
 
 

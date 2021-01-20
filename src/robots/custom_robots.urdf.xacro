@@ -6,7 +6,7 @@
 <xacro:include filename="$(env RNB_PLANNING_DIR)/src/robots/indy7.xacro"/>
 <link name="base_link"/>
 <!-- BODY BEGIN -->
-<xacro:indy7 robot_id="0" xyz="-0.486727714539 0.263820081949 0.0160670280457" rpy="-0.00308669584165 0.00781093992537 -1.57082280324" connected_to="base_link"/>
-<xacro:panda robot_id="1" xyz="0.473153322935 0.193206578493 0.0185115933418" rpy="8.92397463516e-05 0.00680347551784 -1.59112972609" connected_to="base_link"/>
+<xacro:indy7 robot_id="0" xyz="-0.487554013729 0.264571011066 0.0158407092094" rpy="-0.00288702970446 0.00926925062681 -1.57075154968" connected_to="base_link"/>
+<xacro:panda robot_id="1" xyz="0.473406910896 0.193002581596 0.0188117027283" rpy="6.62986996645e-05 0.00712266650345 -1.59124614593" connected_to="base_link"/>
 <!-- BODY END -->
 </robot>

@@ -122,8 +122,8 @@ class ArucoMap(dict):
         for idx, corner4 in zip(ids, corners):
             corner_dict[idx[0]] = corner4[0]
         objectPose_dict = {}
-        items = self.items() if name_mask is None else {k:self[k] for k in name_mask}
-        for obj_name, marker_list in self.items():
+        items = self.items() if name_mask is None else {k:self[k] for k in name_mask}.items()
+        for obj_name, marker_list in items:
             objectPoints = np.zeros((0, 3))
             imagePoints = np.zeros((0, 2))
             for marker in marker_list:

@@ -123,9 +123,31 @@ class ArucoStereo(DetectorInterface):
 
     ##
     # @brief detect objects
+    # @param    name_mask   object names to detect
+    # @param    level_mask  list of rnb-planning.src.pkg.detector.detector_interface.DetectionLevel
     # @return object_pose_dict dictionary for object transformations
-    def detect(self, name_mask=None):
+    def detect(self, name_mask=None, level_mask=None):
+        if level_mask is not None:
+            name_mask_level = self.get_targets_of_levels(level_mask)
+            if name_mask is not None:
+                name_mask = list(set(name_mask).intersection(set(name_mask_level)))
+            else:
+                name_mask = name_mask_level
         return self.get_object_pose_dict(name_mask=name_mask)[0]
+
+    ##
+    # @brief    list registered targets of specific detection level
+    # @param    detection_level list of target detection levels
+    # @return   names target names
+    def get_targets_of_levels(self, detection_levels=None):
+        return [atem.name for atem in self.aruco_map.values() if atem.dlevel in detection_levels]
+    ##
+    # @brief    Acquire geometry kwargs of item
+    # @param    name    item name
+    # @return   kwargs  kwargs
+    def get_geometry_kwargs(self, name):
+        return self.aruco_map[name].get_geometry_kwargs()
+
     ##
     # @brief get object_pose_dict from stereo camera
     # @return object_pose_dict object pose (4x4) dictionary from reference camera
@@ -155,6 +177,8 @@ class ArucoStereo(DetectorInterface):
         objectPose_dict = {}
 
         for oname, markers in self.aruco_map.items():
+            if name_mask is not None and oname not in name_mask:
+                continue
             ref_count = 0
             sub_count = 0
             objectPoints_dp = []

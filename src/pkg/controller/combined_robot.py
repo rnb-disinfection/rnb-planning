@@ -52,9 +52,18 @@ class CombinedRobot:
 
     ##
     # @brief update robot position
+    # @param name name of robot
+    # @param xyzrpy robot position (xyz(m), rpy(rad))
     def update_robot_pos(self, name, xyzrpy):
         self.get_scene_dict()[name].xyzrpy = xyzrpy
         self.xyz_rpy_robots[name] = xyzrpy
+
+    ##
+    # @brief update robot position by dictionary
+    # @param xyz_rpy_robots dictionary of robot positions, (xyz(m), rpy(rad))
+    def update_robot_pos_dict(self, xyz_rpy_robots):
+        for k,v in xyz_rpy_robots.items():
+            self.update_robot_pos(k, v)
 
     ##
     # @brief reset connection
@@ -158,7 +167,7 @@ class CombinedRobot:
     #     self.xyz_rpy_robots = cam.detect_robots(self.robots_on_scene)
 
     # def update_urdf(self):
-    #     xcustom, self.joint_names, self.link_names, self.urdf_content = set_custom_robots(self.robots_on_scene,
+    #     xcustom, self.joint_names, self.link_names, self.urdf_content = reset_ghnd(self.robots_on_scene,
     #                                                                                       self.xyz_rpy_robots,
     #                                                                                       self.custom_limits)
     #     return xcustom, self.joint_names, self.link_names, self.urdf_content

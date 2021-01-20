@@ -91,7 +91,7 @@ def main(root_dir=None, BASE_LINK="base_link", ROBOT_NAMES=["indy0", "panda1"], 
 
         cam = None
         # set urdf
-        xcustom, JOINT_NAMES, LINK_NAMES, urdf_content = set_custom_robots(crob.robots_on_scene, Trbt_dict, crob.custom_limits, start_rviz=VISUALIZE)
+        xcustom, JOINT_NAMES, LINK_NAMES, urdf_content = reset_ghnd(crob.robots_on_scene, Trbt_dict, crob.custom_limits, start_rviz=VISUALIZE)
         ghnd = GeometryHandle(urdf_content)
         time.sleep(2)
 

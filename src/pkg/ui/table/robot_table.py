@@ -54,7 +54,7 @@ class RobotTable(TableInterface):
             if args[0]:
                 graph = self.graph
                 cbot = self.graph.combined_robot
-                xcustom, JOINT_NAMES, LINK_NAMES, urdf_content = set_custom_robots(cbot.robots_on_scene, cbot.xyz_rpy_robots, cbot.custom_limits)
+                xcustom, JOINT_NAMES, LINK_NAMES, urdf_content = reset_ghnd(cbot.robots_on_scene, cbot.xyz_rpy_robots, cbot.custom_limits)
                 graph.clear_markers()
                 graph.clear_highlight()
                 graph.ghnd.clear()

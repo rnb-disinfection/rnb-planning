@@ -52,8 +52,25 @@ class DetectorInterface:
 
     ##
     # @brief    function prototype for detection
-    # @param    name_mask object names to detect
+    # @param    name_mask   object names to detect
+    # @param    level_mask  list of rnb-planning.src.pkg.detector.detector_interface.DetectionLevel
     # @return   object_pose_dict dictionary for object transformations
     @abstractmethod
-    def detect(self, name_mask=None):
+    def detect(self, name_mask=None, level_mask=None):
+        pass
+
+    ##
+    # @brief    function prototype for listing registered targets of specific detection level
+    # @param    detection_level list of target detection levels
+    # @return   names target names
+    @abstractmethod
+    def get_targets_of_levels(self, detection_levels=None):
+        pass
+
+    ##
+    # @brief    function prototype for acquiring geometry kwargs of last detection
+    # @param    name    item name
+    # @return   kwargs  kwargs
+    @abstractmethod
+    def get_geometry_kwargs(self, name):
         pass
