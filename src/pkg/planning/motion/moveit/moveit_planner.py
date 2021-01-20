@@ -1,5 +1,5 @@
 from moveit_py import MoveitCompactPlanner_BP, ObjectType, ObjectMPC, Geometry, GeometryList, CartPose, Vec3, make_assign_arr
-from ..interface import PlannerInterface
+from ..interface import MotionInterface
 from ....utils.utils import list2dict
 from ....utils.rotation_utils import SE3, SE3_inv, Rot_rpy
 from ....geometry.geometry import GEOTYPE, GeometryHandle
@@ -47,7 +47,7 @@ def make_constraint_item(gtem, use_box=False):
 def make_constraint_list(gtem_list, use_box=False):
     return make_assign_arr(GeometryList, [make_constraint_item(gtem, use_box) for gtem in gtem_list])
 
-class MoveitPlanner(PlannerInterface):
+class MoveitPlanner(MotionInterface):
     NAME = "MoveIt"
 
     def __init__(self, joint_names, link_names, urdf_path, urdf_content, robot_names, ghnd, manipulator_names=None, binder_links=None):

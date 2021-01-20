@@ -4,7 +4,7 @@ from etasl_py.etasl import etasl_simulator, EventException
 from ....utils.joint_utils import get_joint_names_csv
 from ....utils.utils import integrate, list2dict
 from .constraint_etasl import *
-from ..interface import PlannerInterface, downample_traj
+from ..interface import MotionInterface, downample_traj
 from copy import deepcopy
 from collections import defaultdict
 
@@ -20,7 +20,7 @@ def augment_jvals_dot(jvals, jdots=None):
         jdots = np.zeros_like(jvals)
     return np.concatenate([[jval, jdot] for jval, jdot in zip(jvals, jdots)], axis=0)
 
-class etasl_planner(PlannerInterface):
+class etasl_planner(MotionInterface):
     NAME = 'eTaSL'
 
     def __init__(self, joint_names, link_names, urdf_path, ghnd,

@@ -16,14 +16,14 @@ class PriorityQueueManager(SyncManager):
     pass
 PriorityQueueManager.register("PriorityQueue", PriorityQueue)
 
-class ObjectAstarSampler(SamplerInterface):
+class ObjectAstarSampler(TaskInterface):
     DEFAULT_TRANSIT_COST = 1.0
     DQ_MAX = np.deg2rad(45)
     WEIGHT_DEFAULT = 2.0
     DSCALE = 1e4
 
     def __init__(self, *args, **kwargs):
-        SamplerInterface.__init__(self, *args, **kwargs)
+        TaskInterface.__init__(self, *args, **kwargs)
         self.manager = PriorityQueueManager()
         self.manager.start()
         self.dict_lock = self.manager.Lock()

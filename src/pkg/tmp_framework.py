@@ -51,121 +51,9 @@ class TMPFramework:
     def set_camera(self, cam):
         self.cam = cam
 
-    #######################################################
-    ############## Planner/Sampler ########################
-    def set_planner(self, planner):
-        self.planner = planner
-        planner.update(self)
-
-    def set_sampler(self, sampler):
-        self.sampler = sampler
-    ############## Planner/Sampler ########################
-    #######################################################
-
-
-    #######################################################
-    ##################### Bindings ########################
-
-    ##
-    # @brief show motion list(Q in array)
-    def show_motion(self, pose_list, from_state=None, **kwargs):
-        if from_state is not None:
-            self.set_object_state(from_state)
-        show_motion(pose_list, self.marker_list, self.pub, self.joints, self.joint_names, **kwargs)
-
-    def add_binder(self, binder):
-        self.binder_dict[binder.name] = binder
-        self.object_binder_dict[binder.geometry.name].append(binder.name)
-
-    def register_binder(self, name, _type, point=None, rpy=(0,0,0), object_name=None, link_name=None):
-        if name in self.binder_dict:
-            self.remove_binder(name)
-        if object_name is None:
-            object_name = name
-
-        _object = self.get_object_by_name(object_name)
-
-        if not _object:
-            _object = self.ghnd.create_safe(gtype=GEOTYPE.SPHERE, name=name, link_name=link_name,
-                                  center=point, dims=(0,0,0), rpy=rpy, collision=False, display=False)
-            point=None
-            rpy=(0,0,0)
-
-        self.add_binder(_type(name, _object=_object, point=point,rpy=rpy))
-
-    def remove_binder(self, bname):
-        self.object_binder_dict[self.binder_dict[bname].geometry.name].remove(bname)
-        del self.binder_dict[bname]
-
-    def get_all_handles(self):
-        handles = []
-        for obj_hd in self.object_dict.values():
-            handles += obj_hd.action_points_dict.values()
-        return handles
-
-    def get_all_handle_dict(self):
-        handle_dict = {}
-        for obj_hd in self.object_dict.values():
-            for hd in obj_hd.action_points_dict.values():
-                handle_dict[hd.name_full] = hd
-        return handle_dict
-
-    def delete_handle(self, htem):
-        otem = self.object_dict[htem.geometry.name]
-        del otem.action_points_dict[htem.name]
-        if not otem.action_points_dict.keys():
-            self.remove_object(htem.geometry.name)
-
-    @record_time
-    def update_handles(self):
-        self.handle_dict = {}
-        self.handle_list = []
-        self.object_list = sorted(self.object_dict.keys())
-        for k in self.object_list:
-            v = self.object_dict[k]
-            ap_list = v.action_points_dict
-            self.handle_dict[k] = []
-            for ap in ap_list.keys():
-                self.handle_dict[k] += [ap]
-                self.handle_list += [(k, ap)]
-
-    def get_unique_binders(self):
-        uniq_binders = []
-        for k_b, binder in self.binder_dict.items():
-            if not binder.multiple:
-                uniq_binders += [k_b]
-        return uniq_binders
-
-    def get_controlled_binders(self):
-        controlled_binders = []
-        for k_b, binder in self.binder_dict.items():
-            if binder.controlled:
-                controlled_binders += [k_b]
-        return controlled_binders
-    #######################################################
-    ##################### Bindings ########################
 
     #######################################################
     ###################### Objects ########################
-    def add_object(self, name, _object, binding=None):
-        self.object_dict[name] = _object
-        if binding is not None:
-            self.binder_dict[binding[1]].bind(self.object_dict[name], binding[0],
-                                              list2dict([0]*len(self.joint_names), item_names=self.joint_names))
-
-    def remove_object(self, name):
-        if name in self.object_dict:
-            del self.object_dict[name]
-
-    def register_object(self, name, _type, binding=None, **kwargs):
-        if name in self.object_dict:
-            self.remove_object(name)
-
-        geometry = self.get_object_by_name(name)
-        self.object_dict[name] = _type(geometry, **kwargs)
-        if binding is not None:
-            self.binder_dict[binding[1]].bind(self.object_dict[name], binding[0],
-                                              list2dict([0]*len(self.joint_names), item_names=self.joint_names))
 
     def register_object_gen(self, objectPose_dict_mv, binder_dict, object_dict, ref_tuple=None, link_name="base_link"):
         object_generators = {k: CallHolder(self.ghnd.create_safe,
@@ -190,52 +78,6 @@ class TMPFramework:
                 self.register_object(mtem, binding=(put_point_dict[mtem], ref_tuple[0]), **object_dict[mtem])
 
         return put_point_dict
-
-    def get_object_by_name(self, name):
-        if name in self.ghnd.NAME_DICT:
-            return self.ghnd.NAME_DICT[name]
-        else:
-            return None
-    ###################### Objects ########################
-    #######################################################
-
-    #######################################################
-    ##################### Environment #####################
-    def set_cam_robot_collision(self, _add_cam_poles = True, color=(0, 1, 0, 0.3), display=True):
-        add_geometry_items(self.urdf_content, ghnd=self.ghnd, color=color, display=display, collision=True,
-                           exclude_link=["panda1_link7"])
-        if _add_cam_poles:
-            add_cam_poles(self, self.cam.xyz_rpy_cams)
-    ##################### Environment #####################
-    #######################################################
-
-    #######################################################
-    ######################## State ########################
-    def set_object_state(self, state):
-        bd_list = list(state.node)
-        bd_list_done = []
-        while bd_list:
-            bd = bd_list.pop(0)
-            binder = self.binder_dict[bd[2]]
-            if binder.geometry in [self.object_dict[bd_tmp[0]].geometry for bd_tmp in bd_list]:
-                bd_list += [bd] # prevent using previous info ( move back to end )
-            else:
-                obj = self.object_dict[bd[0]]
-                frame = state.obj_pos_dict[bd[0]]
-                binder.link_name = binder.geometry.link_name # sync linke name with parent
-                obj.set_state(frame, binder.link_name, bd[1], bd[2])
-                bd_list_done += [bd]
-
-    def get_object_state(self):
-        node = ()
-        pose_dict = {}
-        for k in self.object_list:
-            v = self.object_dict[k]
-            node += ((k,) + v.binding,)
-            pose_dict[k] = v.geometry.Toff
-        return node, pose_dict
-    ######################## State ########################
-    #######################################################
 
     #######################################################
     ##################### Transition ######################
@@ -301,15 +143,6 @@ class TMPFramework:
                     grasp_dict[name] = True
         self.combined_robot.grasp_by_dict(grasp_dict)
 
-    def rebind(self, binding, joint_dict_last):
-        binder = self.binder_dict[binding[2]]
-        object_tar = self.object_dict[binding[0]]
-        binder.bind(action_obj=object_tar, bind_point=binding[1], joint_dict_last=joint_dict_last)
-        for binder_sub in [k for k,v in self.binder_dict.items() if v.geometry == object_tar.geometry]:
-            for binding_sub in [(k,v.binding[0]) for k, v in self.object_dict.items()
-                                if v.binding[1] == binder_sub]:
-                binding_sub += (binder_sub,)
-                self.rebind(binding_sub, joint_dict_last)
     ##################### Transition ######################
     #######################################################
 

@@ -1,8 +1,8 @@
 from ..moveit.moveit_planner import MoveitPlanner
 from ..etasl.etasl import etasl_planner
-from ..interface import PlannerInterface
+from ..interface import MotionInterface
 
-class HybridPlanner(PlannerInterface):
+class HybridPlanner(MotionInterface):
     NAME = "Hybrid"
 
     def __init__(self, joint_names, link_names, urdf_path, urdf_content, robot_names, binder_links, ghnd):

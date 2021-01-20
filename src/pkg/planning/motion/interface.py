@@ -3,7 +3,7 @@ import numpy as np
 
 __metaclass__ = type
 
-class PlannerInterface:
+class MotionInterface:
     NAME = None
 
     def set_object_dict(self, object_dict):

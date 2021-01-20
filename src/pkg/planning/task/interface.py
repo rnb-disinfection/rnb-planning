@@ -2,6 +2,7 @@ from abc import *
 import numpy as np
 from ...utils.utils import differentiate, GlobalTimer
 from ...constants import DIR_VEC_DICT
+from ..scene import State
 from collections import defaultdict
 
 __metaclass__ = type
@@ -28,32 +29,7 @@ class SearchNode:
         return SearchNode(self.idx, State(self.state.node, self.state.obj_pos_dict, self.state.Q, graph),
                           self.parents, self.leafs, self.leafs_P, self.depth, self.edepth, self.redundancy)
 
-class State:
-    def __init__(self, node, obj_pos_dict, Q, graph):
-        self.obj_pos_dict = obj_pos_dict
-        self.Q = Q
-        self.set_node(node, graph)
-
-    def set_node(self, node, graph):
-        self.node = node
-        self.onode = node2onode(graph, self.node)
-
-    def get_tuple(self):
-        return (self.node, self.obj_pos_dict, self.Q)
-
-    def copy(self, graph):
-        return State(self.node, self.obj_pos_dict, self.Q, graph)
-
-    def __str__(self):
-        return str((self.node,
-                    {k: str(np.round(v, 2)) for k, v in
-                     self.obj_pos_dict.items()} if self.obj_pos_dict is not None else None,
-                    str(np.round(self.Q, 2)) if self.Q is not None else None))
-
-def node2onode(graph, node):
-    return tuple([graph.binder_dict[binding[2]].geometry.name for binding in node])
-
-class SamplerInterface:
+class TaskInterface:
     NAME = None
 
     def __init__(self, graph):

@@ -168,9 +168,16 @@ class GeometryHandle(list):
         self.marker_list = []
 
     ##
-    # @brief show pose (Q in array)
+    # @brief show pose
+    # @param pose Q in radian numpy array
     def show_pose(self, pose, **kwargs):
         show_motion([pose], self.marker_list, self.pub, self.joints, self.joint_names, **kwargs)
+
+    ##
+    # @brief show motion list
+    # @param pose_list list of Q in radian numpy array
+    def show_motion(self, pose_list, **kwargs):
+        show_motion(pose_list, self.marker_list, self.pub, self.joints, self.joint_names, **kwargs)
 
     ##
     # @brief clear all highlights
