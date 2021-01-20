@@ -1,6 +1,7 @@
 from .repeater.indy_repeater import *
 from .repeater.panda_repeater import *
 from .robot_config import *
+from collections import defaultdict
 
 
 JOINT_LIM_DICT = []
@@ -48,6 +49,12 @@ class CombinedRobot:
         self.joint_num = len(self.joint_names)
         self.home_pose = np.array(self.home_pose)
         self.home_dict = list2dict(self.home_pose, self.joint_names)
+
+    ##
+    # @brief update robot position
+    def update_robot_pos(self, name, xyzrpy):
+        self.get_scene_dict()[name].xyzrpy = xyzrpy
+        self.xyz_rpy_robots[name] = xyzrpy
 
     ##
     # @brief reset connection

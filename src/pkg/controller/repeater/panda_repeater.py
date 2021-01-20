@@ -17,17 +17,17 @@ class PandaRepeater(Repeater):
         self.close_bool = False
 
     def start_gripper_server(self):
-        self.kill_existing_subprocess()
+        self.__kill_existing_subprocess()
         self.subp = subprocess.Popen(['roslaunch', 'franka_gripper', 'franka_gripper.launch', 'robot_ip:={robot_ip}'.format(robot_ip=self.robot_ip)])
 
 
-    def kill_existing_subprocess(self):
+    def __kill_existing_subprocess(self):
         if hasattr(self, 'subp') and self.subp is not None:
             self.subp.terminate()
         self.subp = None
 
     def clear(self):
-        self.kill_existing_subprocess()
+        self.__kill_existing_subprocess()
 
     def move_finger(self, close_bool, max_width=0.039, min_width=0.025, effort=1):
         if close_bool != self.close_bool:

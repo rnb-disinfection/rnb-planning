@@ -10,37 +10,40 @@ XACRO_PATH_DEFAULT = '{}src/robots/custom_robots.urdf.xacro'.format(RNB_PLANNING
 URDF_PATH_DEFAULT = '{}src/robots/custom_robots.urdf'.format(RNB_PLANNING_DIR)
 
 URDF_PATH = os.path.join(WORKING_DIR, "robots", "custom_robots.urdf")
-# JOINT_NAMES = ["shoulder_pan_joint","shoulder_lift_joint","elbow_joint","wrist_1_joint","wrist_2_joint","wrist_3_joint"]
-# LINK_NAMES = ['base_link', 'base_link', 'shoulder_link', 'upper_arm_link', 'forearm_link', 'wrist_1_link', 'wrist_2_link', 'wrist_3_link', 'tool0']
 
+##
+# @class    XacroCustomizer
+# @brief    Custom Xacro file generator
+#           This generates customized xacro file for ROS functions in
+#           XACRO_PATH_DEFAULT = 'src/robots/custom_robots.urdf.xacro' and convert it to urdf.
 class XacroCustomizer(Singleton):
     def __init__(self):
         pass
 
-    def initialize(self, robots, xyz_rpy_dict, xacro_path = XACRO_PATH_DEFAULT):
+    ##
+    # @brief    create xacro file with given information
+    #           This generates customized xacro file for ROS robot modeling in
+    #           XACRO_PATH_DEFAULT = 'src/robots/custom_robots.urdf.xacro' and convert it to urdf.
+    # @param    robots  list of rnb-planning.src.pkg.controller.robot_config.RobotConfig
+    # @param    xacro_path by default XACRO_PATH_DEFAULT is used, but you can specify your own path.
+    def initialize(self, robots, xacro_path=None):
+        if xacro_path is None:
+            xacro_path = XACRO_PATH_DEFAULT
         self.xacro_path = xacro_path
         if not hasattr(self, 'subp'): self.subp = None
         self.clear()
         for rbt in robots:
-            self.add_robot(rbt.type, *xyz_rpy_dict[rbt.get_indexed_name()])
-        self.write_xacro()
+            self.__add_robot(rbt.idx, rbt.type, rbt.xyzrpy[0], rbt.xyzrpy[1])
+        self.__write_xacro()
 
-    @classmethod
-    def update_limit_dict(cls, limit_dict, addkey, jnames, values):
-        for jname, val in zip(jnames, values):
-            if jname not in limit_dict:
-                limit_dict[jname] = {}
-            limit_dict[jname].update({addkey:val})
-
-    def add_robot(self, rtype, xyz=[0,0,0], rpy=[0,0,0]):
+    def __add_robot(self, rid, rtype, xyz=[0,0,0], rpy=[0,0,0]):
         rexpression = \
             '<xacro:{rtype} robot_id="{rid}" xyz="{xyz}" rpy="{rpy}" connected_to="base_link"/>'.format(
-                rtype=rtype.name, rid=self.rid_count, xyz='{} {} {}'.format(*xyz), rpy='{} {} {}'.format(*rpy)
+                rtype=rtype.name, rid=rid, xyz='{} {} {}'.format(*xyz), rpy='{} {} {}'.format(*rpy)
             )
         self.rexpression_list += [rexpression]
-        self.rid_count += 1
         
-    def write_xacro(self):
+    def __write_xacro(self):
         xacro_file = open(self.xacro_path, "r")
 
         new_xacro_content = ""
@@ -63,10 +66,15 @@ class XacroCustomizer(Singleton):
         xacro_file.write(new_xacro_content)
         xacro_file.close()
 
-    def convert_xacro_to_urdf(self, urdf_path=URDF_PATH_DEFAULT, joint_offset_dict=None, joint_limit_dict=None,
-                              joint_fix_dict=None):
-        if joint_offset_dict is None:
-            joint_offset_dict={}
+    ##
+    # @brief    convert xacro file to urdf and get urdf content
+    #           This generates urdf file for ROS robot modeling in
+    #           URDF_PATH_DEFAULT = '{}src/robots/custom_robots.urdf'.format(RNB_PLANNING_DIR)
+    # @param    urdf_path URDF_PATH_DEFAULT is used by default, specifying your own value is not recommended
+    # @param    joint_limit_dict    joint limit dictionary, in format of {"joint_name":{"upper": rad, "lower": rad, "velocity": rad/s, "effort": rad/s^2}}
+    #                               we use effort as acceleration limit here.
+    # @param    joint_fix_dict joint list of name strings to fix (ex: finger joints). joints with a name that includes one of these strings will be fixed.
+    def convert_xacro_to_urdf(self, urdf_path=URDF_PATH_DEFAULT, joint_limit_dict=None, joint_fix_dict=None):
         if joint_limit_dict is None:
             joint_limit_dict={}
         if joint_fix_dict is None:
@@ -83,11 +91,6 @@ class XacroCustomizer(Singleton):
                                        )
                 joint.axis = None
                 joint.limit  = None
-            if joint.name in joint_offset_dict.keys():
-                T_reeo_load = joint_offset_dict[joint.name]
-                T_e = SE3(Rot_rpy(joint.origin.rpy), joint.origin.xyz)
-                T_e = np.matmul(T_e, T_reeo_load)
-                joint.origin.xyz, joint.origin.rpy = T2xyzrpy(T_e)
 
             if joint.name in joint_limit_dict.keys():
                 jlim = joint_limit_dict[joint.name]
@@ -101,20 +104,23 @@ class XacroCustomizer(Singleton):
         self.joint_names = [joint.name for joint in self.urdf_content.joints if joint.type != 'fixed']
         self.link_names = [link.name for link in self.urdf_content.links]
         return self.joint_names, self.link_names, self.urdf_content
-    
+
+    ##
+    # @brief    start rviz with converted urdf file in URDF_PATH_DEFAULT
     def start_rviz(self):
-        self.kill_existing_subprocess()
+        self.__kill_existing_subprocess()
         self.subp = subprocess.Popen(['roslaunch', '{}src/launch/gui_custom_robots.launch'.format(RNB_PLANNING_DIR)])
         
-    def kill_existing_subprocess(self):
+    def __kill_existing_subprocess(self):
         if self.subp is not None:
             self.subp.terminate()
         self.subp = None
 
+    ##
+    # @brief    shutdown rviz and clear added robots
     def clear(self):
-        self.kill_existing_subprocess()
+        self.__kill_existing_subprocess()
         self.rexpression_list = []
-        self.rid_count = 0
 
 
 from stl import mesh

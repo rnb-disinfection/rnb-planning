@@ -30,10 +30,7 @@ def set_custom_robots(ROBOTS_ON_SCENE, xyz_rpy_robots, custom_limits, node_name=
 
     urdf_content = None
     xcustom = XacroCustomizer.instance()
-    if custom_xacro is not None:
-        xcustom.initialize(ROBOTS_ON_SCENE, xyz_rpy_robots, xacro_path=custom_xacro)
-    else:
-        xcustom.initialize(ROBOTS_ON_SCENE, xyz_rpy_robots)
+    xcustom.initialize(ROBOTS_ON_SCENE)
 
     JOINT_NAMES, LINK_NAMES, urdf_content = \
         xcustom.convert_xacro_to_urdf(
