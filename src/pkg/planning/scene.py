@@ -37,8 +37,8 @@ class State:
 
 ##
 # @brief convert node to object node
-def node2onode(graph, node):
-    return tuple([graph.binder_dict[binding[2]].geometry.name for binding in node])
+def node2onode(pscene, node):
+    return tuple([pscene.binder_dict[binding[2]].geometry.name for binding in node])
 
 
 ##
@@ -86,6 +86,25 @@ class PlanningScene:
         binder = _type(bname, geometry=geometry, point=point, rpy=rpy)
         self.add_binder(binder)
         return binder
+
+    ##
+    # @brief get unique binders in dictionary
+    def get_unique_binders(self):
+        uniq_binders = []
+        for k_b, binder in self.binder_dict.items():
+            if not binder.multiple:
+                uniq_binders += [k_b]
+        return uniq_binders
+
+
+    ##
+    # @brief get controlled binders in dictionary
+    def get_controlled_binders(self):
+        controlled_binders = []
+        for k_b, binder in self.binder_dict.items():
+            if binder.controlled:
+                controlled_binders += [k_b]
+        return controlled_binders
 
     ##
     # @brief add a object to the scene
@@ -275,6 +294,29 @@ class PlanningScene:
 
         return State(node, obj_pos_dict, Q, self)
 
+    ##
+    # @brief get goal nodes that link object to target binder
+    # @param initial_node   initial node
+    # @param obj            object name
+    # @param binder         target binder name
+    def get_goal_nodes(self, initial_node, obj, binder):
+        _object = self.object_dict[obj]
+        _binder = self.binder_dict[binder]
+        bindings = []
+        for k, v in _object.action_points_dict.items():
+            if _binder.check_type(v):
+                bindings.append((obj, k, binder))
+
+        return tuple(tuple(binding if bd[0] == binding[0] \
+                               else bd for bd in initial_node) \
+                     for binding in bindings)
+
+    ##
+    # @brief make goal state that with specific binding target
+    # @param from_state starting state (rnb-planning.src.pkg.planning.scene.State)
+    # @param obj        object name
+    # @param handle     handle name
+    # @param binder     binder name
     def make_goal_state(self, from_state, obj, handle, binder):
         to_state = from_state.copy(self)
         to_state.node = tuple([(obj, handle, binder) if binding[0] == obj else binding for binding in to_state.node])

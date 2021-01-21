@@ -13,7 +13,7 @@ class PriorityQueueManager(SyncManager):
     pass
 PriorityQueueManager.register("PriorityQueue", PriorityQueue)
 
-class HandleAstarSampler(TaskInterface):
+class HandleAstar(TaskInterface):
     DEFAULT_TRANSIT_COST = 1.0
     DQ_MAX = np.deg2rad(45)
     WEIGHT_DEFAULT = 2.0
@@ -26,16 +26,13 @@ class HandleAstarSampler(TaskInterface):
         self.dict_lock = self.manager.Lock()
         self.que_lock = self.manager.Lock()
 
-    @record_time
-    def build_graph(self, update_handles=True):
-        if update_handles:
-            self.graph.update_handles()
+    def initialize(self):
         bindings = get_all_mapping(self.graph.handle_dict.keys(),
                                    self.graph.binder_dict.keys())  # all possible binding combinations
         handle_combinations = list(
             product(*[self.graph.handle_dict[obj] for obj in self.graph.object_list]))  # all possible handle combinations
-        uniq_binders = self.graph.get_unique_binders()  # binders cannot be shared by multiple objects
-        ctrl_binders = self.graph.get_controlled_binders()  # all controllable binders
+        uniq_binders = pscene.get_unique_binders()  # binders cannot be shared by multiple objects
+        ctrl_binders = pscene.get_controlled_binders()  # all controllable binders
         self.node_list = []
         self.node_dict = {}
         for binding in bindings:  # binding combination loop
@@ -141,7 +138,7 @@ class HandleAstarSampler(TaskInterface):
         if node == None:
             node = self.initial_state.node
             self.valid_node_dict = {goal:[] for goal in self.goal_nodes}
-        if node in self.valid_node_dict or self.check_goal_by_score(node, self.goal_cost_dict):
+        if node in self.valid_node_dict or self.check_goal_by_score(node):
             return
         neighbor = self.get_valid_neighbor(node, margin=margin)
         if node in self.valid_node_dict and self.valid_node_dict[node] == neighbor:
@@ -153,7 +150,6 @@ class HandleAstarSampler(TaskInterface):
             if leaf != node and new_margin>=0:
                 self.reset_valid_node(margin=new_margin, node=leaf)
 
-    @record_time
     def init_search(self, initial_state, goal_nodes, tree_margin, depth_margin):
         self.initial_state = initial_state
         self.goal_nodes = goal_nodes
@@ -165,7 +161,7 @@ class HandleAstarSampler(TaskInterface):
         for k in self.valid_node_dict.keys():
             self.valid_node_dict[k].reverse()
 
-    def add_node_queue_leafs(self, snode):
+    def __process_snode(self, snode):
         self.dict_lock.acquire()
         snode.idx = self.snode_counter.value
         self.snode_dict[snode.idx] = snode
@@ -193,8 +189,7 @@ class HandleAstarSampler(TaskInterface):
             self.snode_queue.put(((expected_depth - depth) * self.DSCALE + depth, (snode, state, to_state))) ## greedy
         return snode
 
-    @record_time
-    def search_graph(self, initial_state, goal_nodes,
+    def search(self, initial_state, goal_nodes,
                      tree_margin=0, depth_margin=0, joint_motion_num=10,
                      terminate_on_first=True, N_search=100, N_agents=None, multiprocess=False,
                      display=False, dt_vis=None, verbose=False, print_expression=False, **kwargs):
@@ -205,7 +200,6 @@ class HandleAstarSampler(TaskInterface):
         self.init_search(initial_state, goal_nodes, tree_margin, depth_margin)
 
         snode_root = SearchNode(idx=0, state=initial_state, parents=[], leafs=[],
-                                leafs_P=[self.WEIGHT_DEFAULT] * len(self.valid_node_dict[initial_state.node]),
                                 depth=0, edepth=self.goal_cost_dict[initial_state.node])
 
         if multiprocess:
@@ -222,7 +216,7 @@ class HandleAstarSampler(TaskInterface):
             self.snode_dict = self.manager.dict()
             self.stop_dict = self.manager.dict()
             self.snode_queue = self.manager.PriorityQueue()
-            self.add_node_queue_leafs(snode_root)
+            self.__process_snode(snode_root)
 
             self.proc_list = [Process(
                 target=self.__search_loop,
@@ -240,11 +234,10 @@ class HandleAstarSampler(TaskInterface):
             self.snode_dict = {}
             self.stop_dict = {}
             self.snode_queue = PriorityQueue()
-            self.add_node_queue_leafs(snode_root)
+            self.__process_snode(snode_root)
 
             self.__search_loop(0, terminate_on_first, N_search, display, dt_vis, verbose, print_expression, **kwargs)
 
-    @record_time
     def __search_loop(self, ID, terminate_on_first, N_search,
                       display=False, dt_vis=None, verbose=False, print_expression=False, timeout_loop=600, **kwargs):
         loop_counter = 0
@@ -275,13 +268,13 @@ class HandleAstarSampler(TaskInterface):
             ret = False
             if succ:
                 depth_new = len(snode.parents) + 1
-                snode_new = SearchNode(idx=0, state=new_state, parents=snode.parents + [snode.idx], leafs=[], leafs_P=[],
+                snode_new = SearchNode(idx=0, state=new_state, parents=snode.parents + [snode.idx], leafs=[],
                                        depth=depth_new, edepth=depth_new+self.goal_cost_dict[new_state.node])
                 snode_new.set_traj(traj)
-                snode_new = self.add_node_queue_leafs(snode_new)
+                snode_new = self.__process_snode(snode_new)
                 snode.leafs += [snode_new.idx]
                 self.snode_dict[snode.idx] = snode
-                if self.check_goal(snode_new.state.node, self.goal_nodes):
+                if snode_new.state.node in self.goal_nodes:
                     ret = True
             simtime = self.gtimer.toc("test_transition")
             if verbose:
@@ -307,7 +300,7 @@ class HandleAstarSampler(TaskInterface):
         for i in range(self.snode_counter.value):
             snode = self.snode_dict[i]
             state = snode.state
-            if self.check_goal(state.node, self.goal_nodes):
+            if self.check_goal(state.node):
                 self.idx_goal += [i]
                 schedule = snode.parents + [i]
                 schedule_dict[i] = schedule

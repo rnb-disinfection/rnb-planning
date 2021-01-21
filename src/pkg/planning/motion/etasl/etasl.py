@@ -35,7 +35,7 @@ class EtaslPlanner(MotionInterface):
 
     ##
     # @brief update changes in geometric scene and prepare collision context
-    def update_gcene(self):
+    def update_gscene(self):
         self.gscene.update()
         self.min_distance_map = self.gscene.min_distance_map
         self.item_text = get_item_text(self.gscene)
@@ -56,9 +56,9 @@ class EtaslPlanner(MotionInterface):
     # @return error     planning error
     # @return success   success/failure of planning result
     def plan_algorithm(self, from_state, to_state, binding_list, redundancy_dict=None,
-                        vel_conv=1e-2, err_conv=1e-4, collision=True, N=1000, dt=1e-2,
+                       vel_conv=1e-2, err_conv=1e-3, collision=True, N=1000, dt=1e-2,
                        print_expression=False, cut_dot=False, traj_count=DEFAULT_TRAJ_COUNT,
-                        timeout=None, **kwargs):
+                       timeout=None, **kwargs):
         if redundancy_dict is not None:
             raise(NotImplementedError("Fixed redundancy is not implemented in eTaSL"))
         if len(binding_list)>1:

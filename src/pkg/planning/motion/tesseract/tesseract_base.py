@@ -49,7 +49,6 @@ def load_custom_robot():
     return tes
 
 
-@record_time
 def plan_manipulation(tes, robot_name, end_link, Tbe, base_link="base_link"):
     pci = tesseract.ProblemConstructionInfo(tes)
 

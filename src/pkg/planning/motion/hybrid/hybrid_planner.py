@@ -10,9 +10,9 @@ class HybridPlanner(MotionInterface):
         self.mplan = MoveitPlanner(gscene=gscene, joint_names=joint_names, link_names=link_names, urdf_path=urdf_path,
                                    urdf_content=urdf_content,robot_names=robot_names,binder_links=binder_links)
 
-    def update_gcene(self):
-        self.eplan.update_gcene()
-        self.mplan.update_gcene()
+    def update_gscene(self):
+        self.eplan.update_gscene()
+        self.mplan.update_gscene()
         self.online_names = self.eplan.online_names
 
     def plan_transition(self, from_state, to_state, binding_list, redundancy_dict=None, **kwargs):

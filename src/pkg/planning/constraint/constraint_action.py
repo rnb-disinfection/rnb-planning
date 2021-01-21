@@ -162,23 +162,3 @@ def ctype_to_btype(cstr):
         return PlacePlane
     elif cstr == ConstraintType.Vacuum.name:
         return VacuumTool
-
-
-##
-# @brief get unique binders in dictionary
-def get_unique_binders(binder_dict):
-    uniq_binders = []
-    for k_b, binder in binder_dict.items():
-        if not binder.multiple:
-            uniq_binders += [k_b]
-    return uniq_binders
-
-
-##
-# @brief get controlled binders in dictionary
-def get_controlled_binders(binder_dict):
-    controlled_binders = []
-    for k_b, binder in binder_dict.items():
-        if binder.controlled:
-            controlled_binders += [k_b]
-    return controlled_binders

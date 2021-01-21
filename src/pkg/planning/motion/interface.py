@@ -10,6 +10,7 @@ __metaclass__ = type
 # @brief Motion planner class interface
 # @remark   Child classes should be implemented with update_gscene and plan_algorithm.
 #           Child classes' constructor should call MotionInterface.__init__(self, pscene).
+#           Specify NAME = "" for a child class as a class variable
 #           To use online planning, additionally implement init_online_algorithm, step_online_plan, update_online and update_target_joint.
 class MotionInterface:
     NAME = None
@@ -34,7 +35,7 @@ class MotionInterface:
     ##
     # @brief (prototype) update changes in geometric scene
     @abstractmethod
-    def update_gcene(self):
+    def update_gscene(self):
         pass
 
     ##
@@ -46,15 +47,18 @@ class MotionInterface:
     # @return LastQ     Last joint configuration as array
     # @return error     planning error
     # @return success   success/failure of planning result
+    # @return binding_list  list of binding
     def plan_transition(self, from_state, to_state, redundancy_dict=None, **kwargs):
         binding_list, success = self.pscene.get_slack_bindings(from_state, to_state)
 
         if success:
+            if from_state is not None:
+                self.pscene.set_object_state(from_state)
             Traj, LastQ, error, success = self.plan_algorithm(from_state, to_state, binding_list,
                                                               redundancy_dict=redundancy_dict, **kwargs)
         else:
             Traj, LastQ, error, success = [], [], 1e10, False
-        return Traj, LastQ, error, success
+        return Traj, LastQ, error, success, binding_list
 
     ##
     # @brief (prototype) planning algorithm implementation for each planner

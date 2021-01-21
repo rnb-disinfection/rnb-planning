@@ -1,86 +1,63 @@
 from abc import *
 import numpy as np
-from ...utils.utils import differentiate, GlobalTimer
-from ...constants import DIR_VEC_DICT
 from ..scene import State
+from ..scene import node2onode
+import time
 from collections import defaultdict
+
 
 __metaclass__ = type
 
 
-class SearchNode:
-    def __init__(self, idx, state, parents, leafs, leafs_P, depth=None, edepth=None,
-                 redundancy=None):
-        self.idx, self.state, self.parents, self.leafs, self.leafs_P, self.depth, self.edepth, self.redundancy = \
-            idx, state, parents, leafs, leafs_P, depth, edepth, redundancy
-        self.traj = None
-        self.traj_size = 0
-        self.traj_length = 0
-
-    def set_traj(self, traj_full):
-        self.traj_size = len(traj_full)
-        self.traj_length = np.sum(np.abs(differentiate(traj_full, 1)[:-1])) if self.traj_size > 1 else 0
-        self.traj = np.array(traj_full)
-
-    def get_traj(self):
-        return self.traj
-
-    def copy(self, graph):
-        return SearchNode(self.idx, State(self.state.node, self.state.obj_pos_dict, self.state.Q, graph),
-                          self.parents, self.leafs, self.leafs_P, self.depth, self.edepth, self.redundancy)
-
+##
+# @class    TaskInterface
+# @brief    class interface for task sampler
+# @remark   Child classes should be implemented with initialize and search.
+#           Child classes' constructor should call MotionInterface.__init__(self, pscene).
+#           Specify NAME = "" for a child class as a class variable
 class TaskInterface:
     NAME = None
 
-    def __init__(self, graph):
-        self.graph =graph
-        self.gtimer = GlobalTimer.instance()
+    ##
+    # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
+    def __init__(self, pscene):
+        ## @brief rnb-planning.src.pkg.planning.scene.PlanningScene
+        self.pscene = pscene
 
+    ##
+    # @brief (prototype) prepare search algorithm
     @abstractmethod
-    def build_graph(self, update_handles=True):
-        pass
+    def prepare(self):
+        raise(NotImplementedError("abstract method"))
 
+    ##
+    # @brief (prototype) initialize searching loop with given initial state and goal
+    # @param initial_state rnb-planning.src.pkg.planning.scene.State
+    # @param goal definition of goal, different depending on algorithm
     @abstractmethod
-    def search_graph(self, initial_state, goal_nodes, *args, **kwargs):
-        pass
+    def init_search(self, initial_state, goal, *args, **kwargs):
+        raise(NotImplementedError("abstract method"))
 
-    def check_goal(self, node, goals):
-        return node in goals
+    ##
+    # @brief (prototype) get sample leafs from snode
+    # @param snode A validated SearchNode of which leafs should be added to queue
+    # @param N_redundant_sample number of redundant samples
+    # @return snode_tuple_list list of tuple(priority, (snode, from_state, to_state, redundancy))
+    @abstractmethod
+    def get_leafs(self, snode, N_redundant_sample):
+        raise(NotImplementedError("abstract method"))
 
-    def check_goal_by_score(self, node, goal_cost_dict):
-        return goal_cost_dict[node] == 0
+    ##
+    # @brief (prototype) get optimal remaining steps
+    # @param state rnb-planning.src.pkg.planning.scene.State
+    @abstractmethod
+    def get_optimal_remaining_steps(self, state):
+        raise(NotImplementedError("abstract method"))
 
+    ##
+    # @brief (prototype) check if a state is in pre-defined goal nodes
+    # @param state rnb-planning.src.pkg.planning.scene.State
+    @abstractmethod
+    def check_goal(self, state):
+        raise(NotImplementedError("abstract method"))
 
-    def print_snode_list(self):
-        for i_s, snode in sorted(self.snode_dict.items(), key=lambda x: x):
-            print("{}{}<-{}{}".format(i_s, snode.state.node, snode.parents[-1] if snode.parents else "", self.snode_dict[snode.parents[-1]].state.node if snode.parents else ""))
-
-    def sort_schedule(self, schedule_dict):
-        return sorted(schedule_dict.values(), key=lambda x: len(x))
-
-    def idxSchedule2SnodeScedule(self, schedule, ZERO_JOINT_POSE):
-        snode_schedule = [self.snode_dict[i_sc] for i_sc in schedule]
-        snode_schedule.append(snode_schedule[-1].copy(self.graph))
-        snode_schedule[-1].state.Q = ZERO_JOINT_POSE
-        snode_schedule[-1].set_traj(np.array([ZERO_JOINT_POSE]))
-        return snode_schedule
-
-    def find_best_schedule(self, schedule_sorted):
-        best_snode_schedule = None
-        best_score = 1e10
-        for ss in schedule_sorted:
-            schedule = ss
-            snode_schedule_list = self.idxSchedule2SnodeScedule(schedule, self.graph.combined_robot.home_pose)
-            score = np.sum([snode.traj_length for snode in snode_schedule_list])
-            if score < best_score:
-                best_score = score
-                best_snode_schedule = snode_schedule_list
-        return best_snode_schedule
-
-def get_goal_nodes(initial_node, obj_name, target_name, postfix="_p"):
-    return [tuple([(opair[0], ppoint, target_name) \
-                   if opair[0] == obj_name \
-                   else opair \
-                   for opair in initial_node]) \
-            for ppoint in [dvkey+postfix
-                           for dvkey in DIR_VEC_DICT.keys()]]

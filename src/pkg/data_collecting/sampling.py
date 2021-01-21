@@ -443,9 +443,9 @@ def get_pick_states(graph, GRIPPER_REFS, rname, inhand, obj, tar, Q_s):
     return state_s, state_g
 
 def test_pick(graph, GRIPPER_REFS, rname, inhand, obj, tar, Q_s, mplan, **kwargs):
-    mplan.update_gcene()
+    mplan.update_gscene()
     state_s, state_g = get_pick_states(graph, GRIPPER_REFS, rname, inhand, obj, tar, Q_s)
-    mplan.update_gcene()
+    mplan.update_gscene()
     return mplan.plan_transition(state_s, state_g, state_g.node, **kwargs)
 
 def get_place_states(graph, GRIPPER_REFS, rname, inhand, ontarget, tar, Q_s):
@@ -461,9 +461,9 @@ def get_place_states(graph, GRIPPER_REFS, rname, inhand, ontarget, tar, Q_s):
     return state_s, state_g
 
 def test_place(graph, GRIPPER_REFS, rname, inhand, ontarget, tar, Q_s, mplan, **kwargs):
-    mplan.update_gcene()
+    mplan.update_gscene()
     state_s, state_g = get_place_states(graph, GRIPPER_REFS, rname, inhand, ontarget, tar, Q_s)
-    mplan.update_gcene()
+    mplan.update_gscene()
     return mplan.plan_transition(state_s, state_g, state_g.node, **kwargs)
 
 from ..planning.motion.moveit.moveit_planner import transfer_ctem
@@ -489,7 +489,7 @@ def test_handover(graph, GRIPPER_REFS, src, handed, intar, tar, Q_s, mplan,
     state_s, state_g = get_handover_states(graph, GRIPPER_REFS, src, handed, intar, tar, Q_s)
     graph.gscene.update()
     transfer_ctem(graph.gscene, mplan.gscene)
-    mplan.update_gcene()
+    mplan.update_gscene()
     transfer_ctem(graph.gscene, mplan.gscene)
     trajectory, Q_last, error, success = mplan.plan_transition(state_s, state_g, state_g.node,
                           N=N, dt=dt, vel_conv=vel_conv, err_conv=err_conv,

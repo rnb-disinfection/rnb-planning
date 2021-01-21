@@ -230,14 +230,14 @@ def main(root_dir=None, BASE_LINK="base_link", ROBOT_NAMES=["indy0", "panda1"], 
 
                 # pick
                 graph.set_planner(mplan)
-                mplan.update_gcene()
+                mplan.update_gscene()
                 dcol.search_loop_mp(Q_s, obj_list, mplan, search_fun=dcol.pick_search, L_CELL=L_CELL, N_agents=None, timeout=TIMEOUT, N_search=N_search, N_retry=N_retry)
                 save_json(os.path.join(SCENE_PATH, get_now()+".json"),  {idx: {k:v for k,v in item.items() if k !="trajectory"} for idx, item in dcol.snode_dict.items()})
                 if VISUALIZE: dcol.play_all(graph, GRIPPER_REFS, "PICK", test_pick, Q_s, remove_map=[[1],[0]])
 
                 #place
                 graph.set_planner(mplan)
-                mplan.update_gcene()
+                mplan.update_gscene()
                 dcol.search_loop_mp(Q_s, obj_list, mplan, search_fun=dcol.place_search, L_CELL=L_CELL, N_agents=None, timeout=TIMEOUT, N_search=N_search, N_retry=N_retry)
                 save_json(os.path.join(SCENE_PATH, get_now()+".json"),  {idx: {k:v for k,v in item.items() if k !="trajectory"} for idx, item in dcol.snode_dict.items()})
                 if VISUALIZE: dcol.play_all(graph, GRIPPER_REFS, "PLACE", test_place, Q_s, remove_map=[[],[0,1]])
@@ -252,7 +252,7 @@ if __name__ == "__main__":
     import argparse
     
     parser = argparse.ArgumentParser(description='Collect data.')
-    parser.add_argument('-n', '--sample_num', type=int, default=100,
+    parser.add_argument('-n', '--N_redundant_sample', type=int, default=100,
                         help='(Optional) the number of sample worlds')
     parser.add_argument('-f', '--fix_robots', type=str2bool, default=False,
                         help="fix robots on default position")
@@ -263,7 +263,7 @@ if __name__ == "__main__":
     from pkg.utils.utils import str2bool
 
     gtimer.tic("Collect")
-    DATASET = main(SAMPLE_NUM_WORLD=args.sample_num,
+    DATASET = main(SAMPLE_NUM_WORLD=args.N_redundant_sample,
                    Trbt_dict_fixed=
                    {k: (np.add(v[0], [1.5,1.5,0.75]), v[1]) for k, v in XYZ_RPY_ROBOTS_DEFAULT.items()}
                    if args.fix_robots else None)

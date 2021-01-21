@@ -220,6 +220,8 @@ def CallHolder(caller, arg_keys, *args, **kwargs):
     fun.kwargs=kwargs
     return fun
 
+##
+#@ class dummy class to imitate multiprocess.Value
 class SingleValue:
     def __init__(self, _type, _value):
         self.type = _type

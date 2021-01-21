@@ -79,7 +79,7 @@ class MoveitPlanner(MotionInterface):
 
     ##
     # @brief update changes in geometric scene and load collision boundaries to moveit planner
-    def update_gcene(self):
+    def update_gscene(self):
         self.gscene.update()
         self.obj_list = []
         for gtem in self.gscene:
@@ -107,7 +107,7 @@ class MoveitPlanner(MotionInterface):
                         group_name_handle=None, group_name_binder=None, **kwargs):
         if len(binding_list)!=1:
             raise(RuntimeError("Only single manipulator operation is implemented with moveit!"))
-        self.update_gcene()
+        self.update_gscene()
 
         obj_name, ap_name, binder_name = binding_list[0]
         redundancy = redundancy_dict[obj_name] if redundancy_dict else None

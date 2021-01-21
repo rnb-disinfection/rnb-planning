@@ -1,53 +1,49 @@
 from .interface import *
 from ...utils.utils import *
 from ...utils.joint_utils import *
+from ..constraint.constraint_common import combine_redundancy, sample_redundancy
+from ..scene import node2onode
 from collections import defaultdict
-from copy import deepcopy
+import random
 
 try:
     from queue import PriorityQueue
 except:
     from Queue import PriorityQueue
 
-from multiprocessing import Process, Lock, cpu_count
-from multiprocessing.managers import SyncManager
-import random
-class PriorityQueueManager(SyncManager):
-    pass
-PriorityQueueManager.register("PriorityQueue", PriorityQueue)
 
-class ObjectAstarSampler(TaskInterface):
+##
+# @class    ObjectAstar
+# @brief    object level A* algorithm
+class ObjectAstar(TaskInterface):
     DEFAULT_TRANSIT_COST = 1.0
     DQ_MAX = np.deg2rad(45)
     WEIGHT_DEFAULT = 2.0
     DSCALE = 1e4
 
-    def __init__(self, *args, **kwargs):
-        TaskInterface.__init__(self, *args, **kwargs)
-        self.manager = PriorityQueueManager()
-        self.manager.start()
-        self.dict_lock = self.manager.Lock()
-        self.que_lock = self.manager.Lock()
+    ##
+    # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
+    def __init__(self, pscene):
+        TaskInterface.__init__(self, pscene)
 
-    @record_time
-    def build_graph(self, update_handles=True):
-        graph = self.graph
-        if update_handles:
-            graph.update_handles()
+    ##
+    # @brief build object-level node graph
+    def prepare(self):
+        pscene = self.pscene
 
-        oname_list = graph.object_list
-        boname_list = graph.object_binder_dict.keys()
-        obj_binding_dict = get_available_binder_dict(graph, oname_list,
+        oname_list = pscene.object_list
+        boname_list = pscene.object_binder_dict.keys()
+        obj_binding_dict = get_available_binder_dict(pscene, oname_list,
                                                      boname_list)  # matching possible binder dictionary
         binder_combinations = list(
             product(*[obj_binding_dict[oname] for oname in oname_list]))  # all possible binding combination list
-        uniq_binders = graph.get_unique_binders()  # binders cannot be shared by multiple objects
+        uniq_binders = pscene.get_unique_binders()  # binders cannot be shared by multiple objects
         uniq_bo_list = [boname for boname in boname_list if
-                        (len(graph.object_binder_dict[boname]) == 1 and all(
-                            [bname in uniq_binders for bname in graph.object_binder_dict[boname]]))]
-        ctrl_binders = graph.get_controlled_binders()  # all controllable binders
+                        (len(pscene.object_binder_dict[boname]) == 1 and all(
+                            [bname in uniq_binders for bname in pscene.object_binder_dict[boname]]))]
+        ctrl_binders = pscene.get_controlled_binders()  # all controllable binders
         ctrl_bo_list = [boname for boname in boname_list if
-                        all([bname in ctrl_binders for bname in graph.object_binder_dict[boname]])]
+                        all([bname in ctrl_binders for bname in pscene.object_binder_dict[boname]])]
 
         # filter out conflicting use of uniq binding object
         usage_conflicts = []
@@ -57,7 +53,7 @@ class ObjectAstarSampler(TaskInterface):
                 if sum([ubo == bo for bo in bc]) > 1:
                     usage_conflicts.append(bc)
                     break
-            if any([oname == boname for oname, boname in zip(graph.object_list, bc)]):
+            if any([oname == boname for oname, boname in zip(pscene.object_list, bc)]):
                 self_binding.append(bc)
 
         all_conflicts = list(set(self_binding + usage_conflicts))
@@ -80,6 +76,64 @@ class ObjectAstarSampler(TaskInterface):
                     self.node_dict[leaf].append(node)
         for node in self.node_list:
             self.node_dict[node] = list(set(self.node_dict[node]))
+
+    ##
+    # @brief calculate initial/goal scores and filter valid nodes
+    def init_search(self, initial_state, goal, tree_margin=None, depth_margin=None):
+
+        goal_nodes = list(set([node2onode(self.pscene, gnode) for gnode in goal]))
+        self.initial_state = initial_state
+        self.goal_nodes = goal_nodes
+        self.init_cost_dict, self.goal_cost_dict = self.score_graph(initial_state.onode), self.score_graph(goal_nodes)
+
+        # set default margins
+        tree_margin = tree_margin or self.goal_cost_dict[initial_state.onode]
+        depth_margin = depth_margin or self.goal_cost_dict[initial_state.onode]
+
+        self.reset_valid_node(tree_margin)
+        self.depth_min = self.goal_cost_dict[initial_state.onode]
+        self.max_depth = self.depth_min+depth_margin
+
+        for k in self.valid_node_dict.keys():
+            self.valid_node_dict[k].reverse()
+
+    ##
+    # @brief get sample leafs from snode
+    # @param snode A validated SearchNode of which leafs should be added to queue
+    # @param N_redundant_sample number of redundant samples
+    # @return snode_tuple_list list of tuple(priority, (snode, from_state, to_state, redundancy))
+    @abstractmethod
+    def get_leafs(self, snode, N_redundant_sample):
+        queue = []
+        state = snode.state
+        leafs = self.valid_node_dict[state.onode]
+        Q_dict = list2dict(state.Q, self.pscene.gscene.joint_names)
+        for leaf in leafs:
+            depth = len(snode.parents) + 1
+            expected_depth = depth + self.goal_cost_dict[leaf]
+            if expected_depth > self.max_depth:
+                continue
+            available_binding_dict = self.get_available_binding_dict(state, leaf, Q_dict)
+            if not all([len(abds)>0 for abds in available_binding_dict.values()]):
+                print("============== Non-available transition: Break =====================")
+                break
+            for _ in range(N_redundant_sample):
+                to_state, redundancy_dict = self.sample_leaf_state(state, available_binding_dict, leaf)
+                priority = (expected_depth - depth) * self.DSCALE + depth ## greedy
+                queue.append((priority, (snode, state, to_state, redundancy_dict)))
+        return queue
+
+    ##
+    # @brief get optimal remaining steps
+    def get_optimal_remaining_steps(self, state):
+        return self.goal_cost_dict[state.onode]
+
+    ##
+    # @brief check if a state is in pre-defined goal nodes
+    # @param state rnb-planning.src.pkg.planning.scene.State
+    @abstractmethod
+    def check_goal(self, state):
+        return state.onode in self.goal_nodes
 
     def score_graph(self, goal_node):
         came_from = {}
@@ -117,11 +171,14 @@ class ObjectAstarSampler(TaskInterface):
                 neighbor_valid += [leaf]
         return neighbor_valid
 
+    def check_goal_by_score(self, node):
+        return self.goal_cost_dict[node] == 0
+
     def reset_valid_node(self, margin=0, node=None):
         if node == None:
             node = self.initial_state.onode
             self.valid_node_dict = {goal:[] for goal in self.goal_nodes}
-        if node in self.valid_node_dict or self.check_goal_by_score(node, self.goal_cost_dict):
+        if node in self.valid_node_dict or self.check_goal_by_score(node):
             return
         neighbor = self.get_valid_neighbor(node, margin=margin)
         if node in self.valid_node_dict and self.valid_node_dict[node] == neighbor:
@@ -133,210 +190,36 @@ class ObjectAstarSampler(TaskInterface):
             if leaf != node and new_margin>=0:
                 self.reset_valid_node(margin=new_margin, node=leaf)
 
-    @record_time
-    def init_search(self, initial_state, goal_nodes, tree_margin, depth_margin):
-        self.initial_state = initial_state
-        self.goal_nodes = goal_nodes
-        self.init_cost_dict, self.goal_cost_dict = self.score_graph(initial_state.onode), self.score_graph(goal_nodes)
-        self.reset_valid_node(tree_margin)
-        self.depth_min = self.goal_cost_dict[initial_state.onode]
-        self.max_depth = self.depth_min+depth_margin
-
-        for k in self.valid_node_dict.keys():
-            self.valid_node_dict[k].reverse()
-
-    def add_node_queue_leafs(self, snode):
-        graph = self.graph
-        self.dict_lock.acquire()
-        snode.idx = self.snode_counter.value
-        self.snode_dict[snode.idx] = snode
-        self.snode_counter.value = self.snode_counter.value+1
-        self.dict_lock.release()
-        state = snode.state
-        leafs = self.valid_node_dict[state.onode]
-        Q_dict = list2dict(state.Q, graph.joint_names)
-        if len(leafs) == 0:
-            return snode
-        for leaf in leafs:
-            depth = len(snode.parents) + 1
-            expected_depth = depth + self.goal_cost_dict[leaf]
-            if expected_depth > self.max_depth:
-                continue
-            available_binding_dict = self.get_available_binding_dict(state, leaf, Q_dict)
-            if not all([len(abds)>0 for abds in available_binding_dict.values()]):
-                print("============== Non-available transition: Break =====================")
-                break
-            for _ in range(self.sample_num):
-                to_state, redundancy_dict = self.sample_leaf_state(state, available_binding_dict, leaf)
-
-                # self.snode_queue.put((snode, state, to_state), expected_depth * self.DSCALE - depth) ## breadth-first
-                self.snode_queue.put(((expected_depth - depth) * self.DSCALE + depth, (snode, state, to_state, redundancy_dict))) ## greedy
-        return snode
-
-    def get_available_binding_dict(self, state, to_onode, Q_dict=None, graph=None):
-        if graph is None:
-            graph = self.graph
+    def get_available_binding_dict(self, state, to_onode, Q_dict=None, pscene=None):
+        if pscene is None:
+            pscene = self.pscene
         if Q_dict is None:
-            Q_dict = list2dict(state.Q, graph.joint_names)
-        return {oname:get_available_bindings(graph, oname, boname, sbinding[1], sbinding[2],
+            Q_dict = list2dict(state.Q, pscene.gscene.joint_names)
+        return {oname:get_available_bindings(pscene, oname, boname, sbinding[1], sbinding[2],
                                                                  Q_dict=Q_dict)\
                                               if sboname!=boname else [sbinding[1:]]
                                       for oname, boname, sboname, sbinding
-                                      in zip(graph.object_list, to_onode, state.onode, state.node)}
+                                      in zip(pscene.object_list, to_onode, state.onode, state.node)}
 
-    def sample_leaf_state(self, state, available_binding_dict, to_onode, graph=None):
-        if graph is None:
-            graph = self.graph
-        to_state = state.copy(graph)
+    def sample_leaf_state(self, state, available_binding_dict, to_onode, pscene=None):
+        if pscene is None:
+            pscene = self.pscene
+        to_state = state.copy(pscene)
         to_node = tuple([(((oname,)+\
                            random.choice(available_binding_dict[oname]))
                           if sboname!=boname else sbinding)
                          for oname, boname, sboname, sbinding
-                         in zip(graph.object_list, to_onode, state.onode, state.node)])
-        to_state.set_node(to_node, graph)
+                         in zip(pscene.object_list, to_onode, state.onode, state.node)])
+        to_state.set_node(to_node, pscene)
         redundancy_dict = {}
         for from_binding, to_binding in zip(state.node, to_node):
-            obj = graph.object_dict[from_binding[0]]
+            obj = pscene.object_dict[from_binding[0]]
             to_ap = obj.action_points_dict[to_binding[1]]
-            to_binder = graph.binder_dict[to_binding[2]]
+            to_binder = pscene.binder_dict[to_binding[2]]
             redundancy_tot = combine_redundancy(to_ap, to_binder)
             redundancy = sample_redundancy(redundancy_tot)
             redundancy_dict[from_binding[0]] = redundancy
         return to_state, redundancy_dict
-
-
-    @record_time
-    def search_graph(self, initial_state, goal_nodes,
-                     tree_margin=0, depth_margin=0, sample_num=30,
-                     terminate_on_first=True, N_search=100, N_agents=None, multiprocess=False,
-                     display=False, dt_vis=None, verbose=False, print_expression=False, **kwargs):
-        self.sample_num = sample_num
-        self.t0 = time.time()
-        self.DOF = len(initial_state.Q)
-        self.init_search(initial_state, list(set([node2onode(self.graph, gnode) for gnode in goal_nodes])), tree_margin, depth_margin)
-        snode_root = SearchNode(idx=0, state=initial_state, parents=[], leafs=[],
-                                leafs_P=[self.WEIGHT_DEFAULT] * len(self.valid_node_dict[initial_state.onode]),
-                                depth=0, edepth=self.goal_cost_dict[initial_state.onode])
-
-        if multiprocess:
-            if display:
-                print("Cannot display motion in multiprocess")
-                display = False
-            if N_agents is None:
-                N_agents = cpu_count()
-            self.N_agents = N_agents
-            print("Use {}/{} agents".format(N_agents, cpu_count()))
-            self.snode_counter = self.manager.Value('i', 0)
-            self.search_counter = self.manager.Value('i', 0)
-            self.stop_now = self.manager.Value('i', 0)
-            self.snode_dict = self.manager.dict()
-            self.stop_dict = self.manager.dict()
-            self.snode_queue = self.manager.PriorityQueue()
-            self.add_node_queue_leafs(snode_root)
-            self.proc_list = [Process(
-                target=self.__search_loop,
-                args=(id_agent, terminate_on_first, N_search, False, dt_vis, verbose, print_expression),
-                kwargs=kwargs) for id_agent in range(N_agents)]
-            for proc in self.proc_list:
-                proc.start()
-
-            for proc in self.proc_list:
-                proc.join()
-        else:
-            self.N_agents = 1
-            self.snode_counter = SingleValue('i', 0)
-            self.search_counter = SingleValue('i', 0)
-            self.stop_now =  SingleValue('i', 0)
-            self.snode_dict = {}
-            self.stop_dict = {}
-            self.snode_queue = PriorityQueue()
-            self.add_node_queue_leafs(snode_root)
-            self.__search_loop(0, terminate_on_first, N_search, display, dt_vis, verbose, print_expression, **kwargs)
-
-    @record_time
-    def __search_loop(self, ID, terminate_on_first, N_search,
-                      display=False, dt_vis=None, verbose=False, print_expression=False, timeout_loop=600, **kwargs):
-        loop_counter = 0
-        self.stop_dict[ID] = False
-        ret = False
-        while self.snode_counter.value < N_search and (time.time() - self.t0) < timeout_loop and not self.stop_now.value:
-            loop_counter += 1
-            self.que_lock.acquire()
-            stop = False
-            if self.snode_queue.empty():
-                stop = True
-            else:
-                try:
-                    snode, from_state, to_state, redundancy_dict = self.snode_queue.get(timeout=1)[1]
-                except:
-                    stop=True
-            self.stop_dict[ID] = stop
-            if stop:
-                self.que_lock.release()
-                if all([self.stop_dict[i_proc] for i_proc in range(self.N_agents)]):
-                    break
-                else:
-                    continue
-            self.search_counter.value = self.search_counter.value + 1
-            self.que_lock.release()
-            self.gtimer.tic("test_transition")
-            traj, new_state, error, succ = self.graph.test_transition(from_state, to_state, display=display,
-                                                                      redundancy_dict=redundancy_dict,
-                                                                      dt_vis=dt_vis,
-                                                                      print_expression=print_expression, **kwargs)
-            ret = False
-            if succ:
-                depth_new = len(snode.parents) + 1
-                snode_new = SearchNode(
-                    idx=0, state=new_state, parents=snode.parents + [snode.idx], leafs=[], leafs_P=[],
-                    depth=depth_new, edepth=depth_new+self.goal_cost_dict[new_state.onode], redundancy=redundancy_dict)
-                snode_new.set_traj(traj)
-                snode_new = self.add_node_queue_leafs(snode_new)
-                snode.leafs += [snode_new.idx]
-                self.snode_dict[snode.idx] = snode
-                if self.check_goal(snode_new.state.onode, self.goal_nodes):
-                    ret = True
-            simtime = self.gtimer.toc("test_transition")
-            if verbose:
-                print('node: {}->{} = {}'.format(from_state.onode, to_state.onode, "success" if succ else "fail"))
-                if succ:
-                    print('Goal cost:{}->{} / Init cost:{}->{} / branching: {}->{} ({}/{} s, steps/err: {}({} ms)/{})'.format(
-                        int(self.goal_cost_dict[from_state.onode]), int(self.goal_cost_dict[to_state.onode]),
-                        int(self.init_cost_dict[from_state.onode]), int(self.init_cost_dict[to_state.onode]),
-                        snode.idx, snode_new.idx if succ else "", round(time.time() - self.t0, 2), round(timeout_loop, 2),
-                        len(traj), simtime,
-                        error))
-                    print('=' * 150)
-            if terminate_on_first and ret:
-                self.stop_now.value = 1
-                break
-
-        if self.stop_dict[ID]:
-            term_reson = "node queue empty"
-        elif self.snode_counter.value >= N_search:
-            term_reson = "max search node count reached ({}/{})".format(self.snode_counter.value, N_search)
-        elif (time.time() - self.t0) >= timeout_loop:
-            term_reson = "max iteration time reached ({}/{} s)".format(int(time.time()), self.t0)
-        elif ret:
-            term_reson = "first answer acquired"
-        else:
-            term_reson = "first answer acquired from other agent"
-
-        print("=========================================================================================================")
-        print("======================= terminated {}: {} ===============================".format(ID, term_reson))
-        print("=========================================================================================================")
-
-    def find_schedules(self):
-        self.idx_goal = []
-        schedule_dict = {}
-        for i in range(self.snode_counter.value):
-            snode = self.snode_dict[i]
-            state = snode.state
-            if self.check_goal(state.onode, self.goal_nodes):
-                self.idx_goal += [i]
-                schedule = snode.parents + [i]
-                schedule_dict[i] = schedule
-        return schedule_dict
 
     def quiver_snodes(self, figsize=(10,10)):
         import matplotlib.pyplot as plt
@@ -355,14 +238,14 @@ class ObjectAstarSampler(TaskInterface):
         plt.axis([0,N_plot+1,-0.5,4.5])
 
 
-def get_available_binder_dict(graph, oname_list, bname_list):
+def get_available_binder_dict(pscene, oname_list, bname_list):
     available_binder_dict = defaultdict(list)
     for bname in bname_list:
         for oname in oname_list:
             pass_now = False
-            for binder_name in graph.object_binder_dict[bname]:
-                binder = graph.binder_dict[binder_name]
-                for ap in graph.object_dict[oname].action_points_dict.values():
+            for binder_name in pscene.object_binder_dict[bname]:
+                binder = pscene.binder_dict[binder_name]
+                for ap in pscene.object_dict[oname].action_points_dict.values():
                     if binder.check_type(ap):
                         available_binder_dict[oname].append(binder.geometry.name)
                         pass_now = True
@@ -372,18 +255,18 @@ def get_available_binder_dict(graph, oname_list, bname_list):
     return available_binder_dict
 
 
-def get_available_bindings(graph, oname, boname, ap_exclude, bd_exclude, Q_dict):
-    obj = graph.object_dict[oname]
+def get_available_bindings(pscene, oname, boname, ap_exclude, bd_exclude, Q_dict):
+    obj = pscene.object_dict[oname]
     ap_dict = obj.action_points_dict
     apk_list = ap_dict.keys()
-    bd_list = [graph.binder_dict[bname] for bname in graph.object_binder_dict[boname]
-               if graph.binder_dict[bname].check_available(Q_dict)]
+    bd_list = [pscene.binder_dict[bname] for bname in pscene.object_binder_dict[boname]
+               if pscene.binder_dict[bname].check_available(Q_dict)]
 
     apk_exclude = obj.get_conflicting_handles(ap_exclude)
     ap_list = [ap_dict[apk] for apk in apk_list if apk not in apk_exclude]
-    bd_exclude = graph.binder_dict[bd_exclude]
+    bd_exclude = pscene.binder_dict[bd_exclude]
     if bd_exclude in bd_list:
-        bd_list.remove(graph.binder_dict[bd_exclude])
+        bd_list.remove(pscene.binder_dict[bd_exclude])
 
     available_bindings = []
     for bd in bd_list:

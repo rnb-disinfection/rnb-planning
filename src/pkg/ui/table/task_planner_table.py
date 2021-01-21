@@ -6,9 +6,9 @@ class TaskPlanTable(TableInterface):
     HEADS = [IDENTIFY_COL, "MultiProcess"]
     HILIGHT_KEY = 'task'
     CUSTOM_BUTTONS = ['Plan', 'Initialize']
-    task_plan_candi = {"ObjectAstarSampler": {"MultiProcess":True},
-                       "HandleAstarSampler": {"MultiProcess":True}}
-    task_plan_names = ["ObjectAstarSampler", "HandleAstarSampler"]
+    task_plan_candi = {"ObjectAstar": {"MultiProcess":True},
+                       "HandleAstar": {"MultiProcess":True}}
+    task_plan_names = ["ObjectAstar", "HandleAstar"]
     task_plan_fun = None
 
     def get_items(self):
@@ -31,12 +31,12 @@ class TaskPlanTable(TableInterface):
                                       N_search=100000, display=True, dt_vis=dt_sim / 4,
                                       verbose=True, print_expression=False, error_skip=0,
                                       ** dict(N=N_fullstep, dt=dt_sim, vel_conv=0.5e-2, err_conv=1e-3))
-                if gtem[0] == "ObjectAstarSampler":
-                    sampler = ObjectAstarSampler(self.graph)
-                    print("Set ObjectAstarSampler")
-                elif gtem[0] == "HandleAstarSampler":
-                    sampler = HandleAstarSampler(self.graph)
-                    print("Set HandleAstarSampler")
+                if gtem[0] == "ObjectAstar":
+                    sampler = ObjectAstar(self.graph)
+                    print("Set ObjectAstar")
+                elif gtem[0] == "HandleAstar":
+                    sampler = HandleAstar(self.graph)
+                    print("Set HandleAstar")
                 else:
                     raise(RuntimeError("Undefined sampler"))
                 self.graph.set_sampler(sampler)
@@ -62,12 +62,12 @@ class TaskPlanTable(TableInterface):
                 if hasattr(self, 'initial_state') and hasattr(self, 'goal_nodes'):
                     graph = self.graph
                     self.pl_kwargs["multiprocess"] = self.task_plan_candi[graph.sampler.__class__.__name__]["MultiProcess"]
-                    graph.sampler.search_graph(self.initial_state, self.goal_nodes, **self.pl_kwargs)
+                    graph.sampler.search(self.initial_state, self.goal_nodes, **self.pl_kwargs)
                 else:
                     print("not initialized")
             elif args[1]:
                 graph = self.graph
-                graph.sampler.build_graph()
+                graph.sampler.initialize()
                 sampler = graph.sampler
                 OBJECT_DICT = {k: dict(_type=v.__class__) for k, v in graph.object_dict.items()}
                 objectPose_dict_mv, corner_dict_mv, color_image, aruco_map_mv = \
