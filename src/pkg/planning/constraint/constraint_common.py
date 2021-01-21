@@ -26,6 +26,7 @@ OPPOSITE_DICT={
 ##
 # @class    ActionPoint
 # @brief    Base class for all constraint action points
+# @remark   get_redundancy should be implemented in chlid classes.
 class ActionPoint:
     ctype=None
     ##

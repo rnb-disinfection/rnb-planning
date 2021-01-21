@@ -8,6 +8,9 @@ __metaclass__ = type
 ##
 # @class MotionInterface
 # @brief Motion planner class interface
+# @remark   Child classes should be implemented with update_gscene and plan_algorithm.
+#           Child classes' constructor should call MotionInterface.__init__(self, pscene).
+#           To use online planning, additionally implement init_online_algorithm, step_online_plan, update_online and update_target_joint.
 class MotionInterface:
     NAME = None
 
@@ -44,13 +47,8 @@ class MotionInterface:
     # @return error     planning error
     # @return success   success/failure of planning result
     def plan_transition(self, from_state, to_state, redundancy_dict=None, **kwargs):
-        binding_list = self.pscene.get_slack_bindings(from_state, to_state)
+        binding_list, success = self.pscene.get_slack_bindings(from_state, to_state)
 
-        success = True
-        for binding in binding_list:
-            if not self.pscene.binder_dict[binding[2]].check_available(
-                    list2dict(from_state.Q, self.joint_names)):
-                success = False
         if success:
             Traj, LastQ, error, success = self.plan_algorithm(from_state, to_state, binding_list,
                                                               redundancy_dict=redundancy_dict, **kwargs)
@@ -68,16 +66,27 @@ class MotionInterface:
     # @return LastQ     Last joint configuration as array
     # @return error     planning error
     # @return success   success/failure of planning result
+    @abstractmethod
     def plan_algorithm(self, from_state, to_state, binding_list, redundancy_dict=None, **kwargs):
         return [], [], 1e10, False
 
     ##
-    # @brief (prototype) initialize online planning
+    # @brief initialize online planning
     # @remark  call step_online_plan to get each step plans
     # @param from_state starting state (rnb-planning.src.pkg.planning.scene.State)
     # @param to_state   goal state (rnb-planning.src.pkg.planning.scene.State)
+    def init_online_plan(self, from_state, to_state, T_step, control_freq, playback_rate=0.5, **kwargs):
+        binding_list, success = self.pscene.get_slack_bindings(from_state, to_state)
+        return self.init_online_algorithm(from_state, to_state, binding_list=binding_list,
+                                          T_step=T_step, control_freq=control_freq, playback_rate=playback_rate, **kwargs)
+
+
+    ##
+    # @brief (prototype) initialize online planning algorithm
+    # @param from_state starting state (rnb-planning.src.pkg.planning.scene.State)
+    # @param to_state   goal state (rnb-planning.src.pkg.planning.scene.State)
     @abstractmethod
-    def init_online_plan(self, from_state, to_state, binding_list, T_step, control_freq, playback_rate=0.5, **kwargs):
+    def init_online_algorithm(self, from_state, to_state, T_step, control_freq, playback_rate=0.5, **kwargs):
         pass
 
     ##

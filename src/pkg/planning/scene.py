@@ -93,7 +93,8 @@ class PlanningScene:
         self.object_dict[name] = _object
         if binding is not None:
             self.binder_dict[binding[1]].bind(self.object_dict[name], binding[0],
-                                              list2dict([0] * len(self.joint_names), item_names=self.joint_names))
+                                              list2dict([0] * len(self.gscene.joint_names),
+                                                        item_names=self.gscene.joint_names))
         self.update_handles()
 
     ##
@@ -214,7 +215,14 @@ class PlanningScene:
                     binding_list += [bd1]
                 else:
                     assert bd0[1] == bd1[1] , "impossible transition"
-        return binding_list
+
+        success = len(binding_list)>0
+        for binding in binding_list:
+            if not self.binder_dict[binding[2]].check_available(
+                    list2dict(from_state.Q, self.gscene.joint_names)):
+                success = False
+
+        return binding_list, success
 
     ##
     # @brief get current scene state

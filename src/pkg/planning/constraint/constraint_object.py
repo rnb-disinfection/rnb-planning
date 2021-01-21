@@ -64,6 +64,7 @@ class FixturePoint(FramedPoint):
 ##
 # @class ObjectAction
 # @brief Base class for objects with defined action points (handles)
+# @remark get_conflicting_handles and register_binders should be implemented with child classes
 class ObjectAction:
     def __init__(self):
         raise NotImplementedError("ObjectAction is abstract class")

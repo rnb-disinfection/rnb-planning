@@ -50,6 +50,7 @@ def make_constraint_list(gtem_list, use_box=False):
 ##
 # @class MoveitPlanner
 # @brief Moveit motion planner
+# @remark online planning is not supported
 class MoveitPlanner(MotionInterface):
     NAME = "MoveIt"
 

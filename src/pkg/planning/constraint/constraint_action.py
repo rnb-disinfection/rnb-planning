@@ -6,6 +6,7 @@ from .constraint_common import *
 ##
 # @class Binding
 # @brief Base class for binder
+# @remark get_redundancy and check_available should be implemented with child classes
 class Binding(ActionPoint):
     controlled = None
     multiple = None
@@ -34,6 +35,7 @@ class Binding(ActionPoint):
 ##
 # @class PointerBinding
 # @brief Base class for Pointer type binder. z-direction and contact are constrained.
+# @remark not usable at this level
 class PointerBinding(Binding):
     ##
     # @brief currently support only x-y plane
@@ -50,6 +52,7 @@ class PointerBinding(Binding):
 ##
 # @class FrameBinding
 # @brief Base class for Frame type binder. Full orientation and contact are constrained.
+# @remark not usable at this level
 class FrameBinding(Binding):
     ##
     # @brief currently support only x-y plane

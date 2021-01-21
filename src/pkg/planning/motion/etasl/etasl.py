@@ -20,17 +20,21 @@ def augment_jvals_dot(jvals, jdots=None):
         jdots = np.zeros_like(jvals)
     return np.concatenate([[jval, jdot] for jval, jdot in zip(jvals, jdots)], axis=0)
 
-class etasl_planner(MotionInterface):
+##
+# @class EtaslPlanner
+# @brief eTaSL motion planner
+class EtaslPlanner(MotionInterface):
     NAME = 'eTaSL'
 
-    def __init__(self, joint_names, link_names, urdf_path, gscene,
-                          nWSR=300, cputime=200, regularization_factor= 1e-6, timescale=0.25):
-        self.joint_names, self.link_names, self.urdf_path= joint_names, link_names, urdf_path
+    ##
+    # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
+    def __init__(self, pscene, nWSR=300, cputime=200, regularization_factor= 1e-6, timescale=0.25):
+        MotionInterface.__init__(self, pscene)
         self.nWSR, self.cputime, self.regularization_factor = nWSR, cputime, regularization_factor
-        self.joint_num = len(self.joint_names)
-        self.init_text = self.get_init_text(timescale=timescale)
-        self.gscene = gscene
+        self.init_text = self.__get_init_text(timescale=timescale)
 
+    ##
+    # @brief update changes in geometric scene and prepare collision context
     def update_gcene(self):
         self.gscene.update()
         self.min_distance_map = self.gscene.min_distance_map
@@ -41,19 +45,31 @@ class etasl_planner(MotionInterface):
         self.fixed_collision_text = make_collision_constraints(self.gscene.fixed_ctems,
                                                                min_distance_map=self.min_distance_map)
 
-    def plan_transition(self, from_state, to_state, binding_list,
-                        vel_conv=1e-2, err_conv=1e-4, collision=True,
-                        N=1, dt=1e-2, print_expression=False, cut_dot=False, traj_count=DEFAULT_TRAJ_COUNT,
+    ##
+    # @brief eTaSL planning implementation
+    # @param from_state starting state (rnb-planning.src.pkg.planning.scene.State)
+    # @param to_state   goal state (rnb-planning.src.pkg.planning.scene.State)
+    # @param binding_list   list of bindings to pursue
+    # @param redundancy_dict    not supported
+    # @return Traj      Full trajectory as array of Q
+    # @return LastQ     Last joint configuration as array
+    # @return error     planning error
+    # @return success   success/failure of planning result
+    def plan_algorithm(self, from_state, to_state, binding_list, redundancy_dict=None,
+                        vel_conv=1e-2, err_conv=1e-4, collision=True, N=1000, dt=1e-2,
+                       print_expression=False, cut_dot=False, traj_count=DEFAULT_TRAJ_COUNT,
                         timeout=None, **kwargs):
+        if redundancy_dict is not None:
+            raise(NotImplementedError("Fixed redundancy is not implemented in eTaSL"))
         if len(binding_list)>1:
             print("===================== plan simultaneous manipulation =====================")
         if len(binding_list)==0:
             print("===================== plan joint manipulation =====================")
-        full_context, kwargs = self.get_transition_context(
+        full_context, kwargs = self.__get_transition_context(
             from_state, to_state, binding_list, vel_conv, err_conv, collision=collision, **kwargs)
         if print_expression:
             print(full_context)
-        e = self.set_simulate(full_context, initial_jpos=np.array(from_state.Q),
+        e = self.__set_simulate(full_context, initial_jpos=np.array(from_state.Q),
                          N=N, dt=dt, cut_dot=cut_dot, **kwargs)
         error = e.error if hasattr(e, 'error') else None
         POS = e.POS if hasattr(e, 'POS') else []
@@ -63,91 +79,11 @@ class etasl_planner(MotionInterface):
             POS = downample_traj(POS, traj_count)
         return POS, POS_last, error, success
 
-    def get_transition_context(self, from_state=None, to_state=None, binding_list=[],
-                               vel_conv=1e-2, err_conv=1e-4, collision=True,
-                               activation=False, redundancy_dict=None, **kwargs):
-        kwargs.update(deepcopy(self.kwargs_online))
-
-        tf_text = self.fixed_tf_text + self.online_input_text + get_tf_text(self.gscene.movable_gtems)
-
-        if collision:
-            col_text = self.fixed_collision_text + \
-                       make_collision_constraints(self.gscene.fixed_ctems, self.gscene.movable_ctems,
-                                                                   min_distance_map=self.min_distance_map) + \
-                       make_collision_constraints(self.gscene.movable_ctems,
-                                                                   min_distance_map=self.min_distance_map)
-        else:
-            col_text = ""
-
-        additional_constraints = '\nconstraint_activation = ctx:createInputChannelScalar("constraint_activation",0.0) \n' if activation else ""
-        for bd1 in binding_list:
-            additional_constraints += make_action_constraints(
-                self.pscene.object_dict[bd1[0]].action_points_dict[bd1[1]], self.binder_dict[bd1[2]],
-                redundancy=redundancy_dict[bd1[0]] if redundancy_dict else None, activation=activation)
-
-        if additional_constraints=="" and to_state.Q is not None:# and np.sum(np.abs(np.subtract(to_state.Q,from_state.Q)))>1e-2:
-            additional_constraints=make_joint_constraints(joint_names=self.joint_names)
-            kwargs_new = dict(inp_lbl=['target_%s'%jname for jname in self.joint_names],
-                                       inp= list(to_state.Q))
-
-            for k, v in kwargs_new.items():
-                if k in kwargs:
-                    if isinstance(v, list) and isinstance(v, list):
-                        kwargs[k] += v
-                    elif isinstance(v, dict) and isinstance(v, dict):
-                        kwargs[k].update(v)
-                    else:
-                        kwargs[k] = v
-                else:
-                    kwargs[k] = v
-        return self.get_full_context(self.init_text + self.item_text + tf_text+col_text,
-                                additional_constraints, vel_conv, err_conv), kwargs
-
-    def get_init_text(self, timescale=0.25, K_default=K_DEFAULT):
-        jnames_format = get_joint_names_csv(self.joint_names)
-        # define margin and translation
-        transform_text = """
-    margin=0.0001
-    radius=0.0
-    error_target=0
-    """
-        Texpression_text = ""
-        for lname in self.link_names:
-            transform_text += 'u:addTransform("{T_link_name}","{link_name}","base_link")\n'.format(T_link_name=get_link_transformation(lname), link_name=lname)
-            Texpression_text += '{T_link_name} = r.{T_link_name}\n'.format(T_link_name=get_link_transformation(lname))
-
-
-        definition_text = """
-    require("context")
-    require("geometric")
-    --require("libexpressiongraph_collision")
-    require("collision")
-    require("libexpressiongraph_velocities")
-    local u=UrdfExpr({timescale});
-    local fn = "{urdf_path}"
-    u:readFromFile(fn)
-    {transform_text}
-    local r = u:getExpressions(ctx)
-    {Texpression_text}
-    robot_jname={{{jnames_format}}}
-    robot_jval = {{}}
-    for i=1,#robot_jname do
-       robot_jval[i]   = ctx:getScalarExpr(robot_jname[i])
-    end
-    
-    K={K_default}
-        """.format(timescale=str(timescale) if timescale is not None else "", urdf_path=self.urdf_path,
-                   transform_text=transform_text, Texpression_text=Texpression_text, jnames_format=jnames_format,
-                   K_default=K_default)
-
-        return definition_text
-
-    def get_simulation(self, init_text):
-        self.etasl = etasl_simulator(nWSR=self.nWSR, cputime=self.cputime, regularization_factor= self.regularization_factor)
-        self.etasl.readTaskSpecificationString(init_text)
-        return self.etasl
-
-    def init_online_plan(self, from_state, to_state, binding_list, T_step, control_freq, playback_rate=0.5, **kwargs):
+    ##
+    # @brief initialize online eTaSL planning
+    # @param from_state starting state (rnb-planning.src.pkg.planning.scene.State)
+    # @param to_state   goal state (rnb-planning.src.pkg.planning.scene.State)
+    def init_online_algorithm(self, from_state, to_state, binding_list, T_step, control_freq, playback_rate=0.5, **kwargs):
         dt = 1.0 / control_freq
         dt_sim = dt * playback_rate
         N = int(float(T_step) / dt_sim)
@@ -155,7 +91,7 @@ class etasl_planner(MotionInterface):
         self.err_conv = kwargs['err_conv']
 
         full_context, kwargs = \
-            self.get_transition_context(from_state, to_state, binding_list,
+            self.__get_transition_context(from_state, to_state, binding_list,
                                         N=N, dt=dt_sim, activation=(from_state.node != to_state.node),
                                         **kwargs)
 
@@ -177,7 +113,7 @@ class etasl_planner(MotionInterface):
             joint_context = ""
 
         full_context += joint_context
-        self.e_sim = self.get_simulation(full_context)
+        self.e_sim = self.__get_simulation(full_context)
 
 
         self.inp_lbl = kwargs['inp_lbl'] if 'inp_lbl' in kwargs else []
@@ -246,7 +182,91 @@ class etasl_planner(MotionInterface):
         # self.inp[self.idx_jnt_online] = traj[-1]
         return idx_cur # len(traj)
 
-    def simulate(self, initial_jpos, joint_names = None, initial_jpos_dot=None,
+    def __get_transition_context(self, from_state=None, to_state=None, binding_list=[],
+                               vel_conv=1e-2, err_conv=1e-4, collision=True,
+                               activation=False, redundancy_dict=None, **kwargs):
+        kwargs.update(deepcopy(self.kwargs_online))
+
+        tf_text = self.fixed_tf_text + self.online_input_text + get_tf_text(self.gscene.movable_gtems)
+
+        if collision:
+            col_text = self.fixed_collision_text + \
+                       make_collision_constraints(self.gscene.fixed_ctems, self.gscene.movable_ctems,
+                                                                   min_distance_map=self.min_distance_map) + \
+                       make_collision_constraints(self.gscene.movable_ctems,
+                                                                   min_distance_map=self.min_distance_map)
+        else:
+            col_text = ""
+
+        additional_constraints = '\nconstraint_activation = ctx:createInputChannelScalar("constraint_activation",0.0) \n' if activation else ""
+        for bd1 in binding_list:
+            additional_constraints += make_action_constraints(
+                self.pscene.object_dict[bd1[0]].action_points_dict[bd1[1]], self.pscene.binder_dict[bd1[2]],
+                redundancy=redundancy_dict[bd1[0]] if redundancy_dict else None, activation=activation)
+
+        if additional_constraints=="" and to_state.Q is not None:# and np.sum(np.abs(np.subtract(to_state.Q,from_state.Q)))>1e-2:
+            additional_constraints=make_joint_constraints(joint_names=self.joint_names)
+            kwargs_new = dict(inp_lbl=['target_%s'%jname for jname in self.joint_names],
+                                       inp= list(to_state.Q))
+
+            for k, v in kwargs_new.items():
+                if k in kwargs:
+                    if isinstance(v, list) and isinstance(v, list):
+                        kwargs[k] += v
+                    elif isinstance(v, dict) and isinstance(v, dict):
+                        kwargs[k].update(v)
+                    else:
+                        kwargs[k] = v
+                else:
+                    kwargs[k] = v
+        return self.__get_full_context(self.init_text + self.item_text + tf_text+col_text,
+                                additional_constraints, vel_conv, err_conv), kwargs
+
+    def __get_init_text(self, timescale=0.25, K_default=K_DEFAULT):
+        jnames_format = get_joint_names_csv(self.joint_names)
+        # define margin and translation
+        transform_text = """
+    margin=0.0001
+    radius=0.0
+    error_target=0
+    """
+        Texpression_text = ""
+        for lname in self.link_names:
+            transform_text += 'u:addTransform("{T_link_name}","{link_name}","base_link")\n'.format(T_link_name=get_link_transformation(lname), link_name=lname)
+            Texpression_text += '{T_link_name} = r.{T_link_name}\n'.format(T_link_name=get_link_transformation(lname))
+
+
+        definition_text = """
+    require("context")
+    require("geometric")
+    --require("libexpressiongraph_collision")
+    require("collision")
+    require("libexpressiongraph_velocities")
+    local u=UrdfExpr({timescale});
+    local fn = "{urdf_path}"
+    u:readFromFile(fn)
+    {transform_text}
+    local r = u:getExpressions(ctx)
+    {Texpression_text}
+    robot_jname={{{jnames_format}}}
+    robot_jval = {{}}
+    for i=1,#robot_jname do
+       robot_jval[i]   = ctx:getScalarExpr(robot_jname[i])
+    end
+    
+    K={K_default}
+        """.format(timescale=str(timescale) if timescale is not None else "", urdf_path=self.urdf_path,
+                   transform_text=transform_text, Texpression_text=Texpression_text, jnames_format=jnames_format,
+                   K_default=K_default)
+
+        return definition_text
+
+    def __get_simulation(self, init_text):
+        self.etasl = etasl_simulator(nWSR=self.nWSR, cputime=self.cputime, regularization_factor= self.regularization_factor)
+        self.etasl.readTaskSpecificationString(init_text)
+        return self.etasl
+
+    def __simulate(self, initial_jpos, joint_names = None, initial_jpos_dot=None,
                  inp_lbl=[], inp=[], N=100, dt=0.02, cut_dot=False):
         if joint_names is None:
             joint_names = self.joint_names
@@ -288,8 +308,8 @@ class etasl_planner(MotionInterface):
             print('eTaSL exception: {}'.format(err_msg))
         return res
 
-    def do_simulate(self, **kwargs):
-        res = self.simulate(**kwargs)
+    def __do_simulate(self, **kwargs):
+        res = self.__simulate(**kwargs)
         if res:
             if hasattr(self.etasl, 'POS') and self.etasl.POS is not None and len(self.etasl.POS)>0:
                 self.etasl.joint_dict_last = list2dict(self.etasl.POS[-1], self.joint_names)
@@ -300,11 +320,11 @@ class etasl_planner(MotionInterface):
             self.etasl.error = None
         return self.etasl
 
-    def set_simulate(self, full_context, initial_jpos, **kwargs):
-        self.etasl = self.get_simulation(full_context)
-        return self.do_simulate(initial_jpos=initial_jpos, **kwargs)
+    def __set_simulate(self, full_context, initial_jpos, **kwargs):
+        self.etasl = self.__get_simulation(full_context)
+        return self.__do_simulate(initial_jpos=initial_jpos, **kwargs)
 
-    def get_full_context(self, init_text, additional_constraints="", vel_conv="1E-2", err_conv="1E-5"):
+    def __get_full_context(self, init_text, additional_constraints="", vel_conv="1E-2", err_conv="1E-5"):
 
         vel_statement=""
         for i in range(len(self.joint_names)):
