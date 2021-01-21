@@ -43,13 +43,13 @@ from ..geometry.geometry import *
 from .utils import list2dict
 
 class SweptVolumeTester:
-    def __init__(self, ghnd):
+    def __init__(self, gscene):
         self.fixed_col_list, self.fixed_col_swept_list = [], []
-        self.ghnd = ghnd
+        self.gscene = gscene
 
     def update_colliding_list(self):
         self.fixed_col_list, self.fixed_col_swept_list = \
-            make_colliding_list(self.ghnd.fixed_ctems,
+            make_colliding_list(self.gscene.fixed_ctems,
                                 min_distance_map=get_min_distance_map(),
                                 link_adjacency_map_ext=get_link_adjacency_map_ext())
 
@@ -70,8 +70,8 @@ class SweptVolumeTester:
         T_dict2.update(get_tf_full('panda1_leftfinger', Q2dict, urdf_content))
         T_dict2.update({'panda1_rightfinger': get_tf('panda1_rightfinger', Q2dict, urdf_content),
                         'base_link': np.identity(4)})
-        ghnd = self.ghnd
-        for ctem in ghnd:
+        gscene = self.gscene
+        for ctem in gscene:
             vtx_ref, radi = ctem.get_vertice_radius()
             Toff = ctem.Toff
             T_c1 = np.matmul(T_dict1[ctem.link_name], Toff)
@@ -106,15 +106,15 @@ class SweptVolumeTester:
 
         idx1_list, idx2_list, dcut_list = [], [], []
         for col in col_list:
-            idx1 = ghnd.index(col[0])
-            idx2 = ghnd.index(col[1])
+            idx1 = gscene.index(col[0])
+            idx2 = gscene.index(col[1])
             idx1_list.append(idx1)
             idx2_list.append(idx2)
             dcut_list.append(radius_list[idx1] + radius_list[idx2])
         idx1swept_list, idx2swept_list, dcutswept_list = [], [], []
         for col in col_swept_list:
-            idx1 = ghnd.index(col[0])
-            idx2 = ghnd.index(col[1])
+            idx1 = gscene.index(col[0])
+            idx2 = gscene.index(col[1])
             idx1swept_list.append(idx1)
             idx2swept_list.append(idx2)
             dcutswept_list.append(radius_list[idx1] + radius_list[idx2])

@@ -8,10 +8,10 @@ class GeometryTable(TableInterface):
     CUSTOM_BUTTONS = ["Apply"]
 
     def get_items(self):
-        return self.graph.ghnd
+        return self.graph.gscene
 
     def get_items_dict(self):
-        return self.graph.ghnd.NAME_DICT
+        return self.graph.gscene.NAME_DICT
 
     def serialize(self, gtem):
         return [gtem.name, gtem.gtype.name, gtem.link_name,
@@ -24,7 +24,7 @@ class GeometryTable(TableInterface):
 
     def add_item(self, value):
         self.graph.add_marker(
-            self.graph.ghnd.create_safe(name=value[IDENTIFY_COL], gtype=getattr(GEOTYPE, value['GType']),
+            self.graph.gscene.create_safe(name=value[IDENTIFY_COL], gtype=getattr(GEOTYPE, value['GType']),
                                   link_name=value["Link"], center=str_num_it(value["Center"]),
                                   dims=str_num_it(value["Dims"]), rpy=str_num_it(value["RPY"]),
                                   color=str_num_it(value["Color"]),
@@ -34,7 +34,7 @@ class GeometryTable(TableInterface):
                                   soft=value["Soft"].lower() in ["true", "t"]))
 
     def delete_item(self, active_row):
-        gtem = self.graph.ghnd.NAME_DICT[active_row]
+        gtem = self.graph.gscene.NAME_DICT[active_row]
         self.graph.remove_geometry(gtem)
 
     def update_item(self, gtem, active_col, value):
@@ -69,7 +69,7 @@ class GeometryTable(TableInterface):
     def button(self, button, *args, **kwargs):
         print("button clicked")
         if button == TAB_BUTTON.CUSTOM:
-            self.graph.ghnd.set_rviz(self.graph.joints.position)
+            self.graph.gscene.set_rviz(self.graph.joints.position)
             if self.graph.planner:
                 self.graph.planner.update(self.graph)
         else:

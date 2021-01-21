@@ -81,6 +81,9 @@ class ArucoStereo(DetectorInterface):
             ref_corners, ref_ids, ref_rejectedImgPoints = aruco.detectMarkers(ref_image, self.aruco_map.dictionary, parameters=aruco_param)
             sub_corners, sub_ids, sub_rejectedImgPoints = aruco.detectMarkers(sub_img_res, self.aruco_map.dictionary, parameters=aruco_param)
 
+            if len(ref_corners) <=0 or len(sub_corners) <=0:
+                raise(RuntimeError("Either one of the camera detected no marker"))
+
             ref_corner_dict = {k[0]: v[0] for k, v in zip(ref_ids, ref_corners)}
             sub_corner_dict = {k[0]: v[0] for k, v in zip(sub_ids, sub_corners)}
             keys_all = sorted(set(ref_corner_dict.keys() + sub_corner_dict.keys()))

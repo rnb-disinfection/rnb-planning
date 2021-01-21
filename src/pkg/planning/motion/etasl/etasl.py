@@ -23,22 +23,22 @@ def augment_jvals_dot(jvals, jdots=None):
 class etasl_planner(MotionInterface):
     NAME = 'eTaSL'
 
-    def __init__(self, joint_names, link_names, urdf_path, ghnd,
+    def __init__(self, joint_names, link_names, urdf_path, gscene,
                           nWSR=300, cputime=200, regularization_factor= 1e-6, timescale=0.25):
         self.joint_names, self.link_names, self.urdf_path= joint_names, link_names, urdf_path
         self.nWSR, self.cputime, self.regularization_factor = nWSR, cputime, regularization_factor
         self.joint_num = len(self.joint_names)
         self.init_text = self.get_init_text(timescale=timescale)
-        self.ghnd = ghnd
+        self.gscene = gscene
 
-    def update_gtems(self):
-        self.ghnd.update()
-        self.min_distance_map = self.ghnd.min_distance_map
-        self.item_text = get_item_text(self.ghnd)
-        self.fixed_tf_text = get_tf_text(self.ghnd.fixed_gtems)
+    def update_gcene(self):
+        self.gscene.update()
+        self.min_distance_map = self.gscene.min_distance_map
+        self.item_text = get_item_text(self.gscene)
+        self.fixed_tf_text = get_tf_text(self.gscene.fixed_gtems)
         self.online_input_text, self.kwargs_online, self.online_names = \
-            get_online_input_text(self.ghnd)
-        self.fixed_collision_text = make_collision_constraints(self.ghnd.fixed_ctems,
+            get_online_input_text(self.gscene)
+        self.fixed_collision_text = make_collision_constraints(self.gscene.fixed_ctems,
                                                                min_distance_map=self.min_distance_map)
 
     def plan_transition(self, from_state, to_state, binding_list,
@@ -68,13 +68,13 @@ class etasl_planner(MotionInterface):
                                activation=False, redundancy_dict=None, **kwargs):
         kwargs.update(deepcopy(self.kwargs_online))
 
-        tf_text = self.fixed_tf_text + self.online_input_text + get_tf_text(self.ghnd.movable_gtems)
+        tf_text = self.fixed_tf_text + self.online_input_text + get_tf_text(self.gscene.movable_gtems)
 
         if collision:
             col_text = self.fixed_collision_text + \
-                       make_collision_constraints(self.ghnd.fixed_ctems, self.ghnd.movable_ctems,
+                       make_collision_constraints(self.gscene.fixed_ctems, self.gscene.movable_ctems,
                                                                    min_distance_map=self.min_distance_map) + \
-                       make_collision_constraints(self.ghnd.movable_ctems,
+                       make_collision_constraints(self.gscene.movable_ctems,
                                                                    min_distance_map=self.min_distance_map)
         else:
             col_text = ""
@@ -82,7 +82,7 @@ class etasl_planner(MotionInterface):
         additional_constraints = '\nconstraint_activation = ctx:createInputChannelScalar("constraint_activation",0.0) \n' if activation else ""
         for bd1 in binding_list:
             additional_constraints += make_action_constraints(
-                self.object_dict[bd1[0]].action_points_dict[bd1[1]], self.binder_dict[bd1[2]],
+                self.pscene.object_dict[bd1[0]].action_points_dict[bd1[1]], self.binder_dict[bd1[2]],
                 redundancy=redundancy_dict[bd1[0]] if redundancy_dict else None, activation=activation)
 
         if additional_constraints=="" and to_state.Q is not None:# and np.sum(np.abs(np.subtract(to_state.Q,from_state.Q)))>1e-2:

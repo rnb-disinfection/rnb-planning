@@ -72,9 +72,9 @@ class TaskPlanTable(TableInterface):
                 OBJECT_DICT = {k: dict(_type=v.__class__) for k, v in graph.object_dict.items()}
                 objectPose_dict_mv, corner_dict_mv, color_image, aruco_map_mv = \
                     detect_objects(graph.cam.aruco_map, graph.cam.dictionary)
-                xyz_rvec_mv_dict, put_point_dict, up_point_dict = calc_put_point(graph.ghnd,
+                xyz_rvec_mv_dict, put_point_dict, up_point_dict = calc_put_point(graph.gscene,
                     objectPose_dict_mv, graph.cam.aruco_map, OBJECT_DICT, graph.cam.ref_tuple)
-                update_geometries(graph.ghnd, objectPose_dict_mv.keys(), objectPose_dict_mv, graph.cam.ref_tuple[1])
+                update_geometries(graph.gscene, objectPose_dict_mv.keys(), objectPose_dict_mv, graph.cam.ref_tuple[1])
                 initial_state = State(tuple([(oname, put_point_dict[oname], 'floor') for oname in graph.object_list]),
                                       {oname: graph.object_dict[oname].geometry.Toff for oname in
                                        graph.object_list},

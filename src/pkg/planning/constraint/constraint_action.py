@@ -12,7 +12,7 @@ class Binding(ActionPoint):
         
     def bind(self, action_obj, bind_point, joint_dict_last):
         Tbo = action_obj.geometry.get_tf(joint_dict_last)
-        Tbt = get_tf(self.geometry.link_name, joint_dict_last, self.ghnd.urdf_content)
+        Tbt = get_tf(self.geometry.link_name, joint_dict_last, self.gscene.urdf_content)
         Tto = np.matmul(np.linalg.inv(Tbt), Tbo)
         action_obj.set_state(Tto, self.geometry.link_name,
                              bind_point, self.name)

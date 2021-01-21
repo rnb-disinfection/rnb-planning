@@ -1,5 +1,6 @@
 from collections import defaultdict
 from ..utils.utils import list2dict
+import numpy as np
 
 
 ##
@@ -10,23 +11,23 @@ class State:
     # @param node           tuple of binding state ((object name, binding point, binder), ..)
     # @param obj_pos_dict   object pose dictionary {object name: 4x4 offset relative to attached link}
     # @param Q              robot joint configuration
-    # @param scene          PlanningScene instance
-    def __init__(self, node, obj_pos_dict, Q, scene):
+    # @param pscene         PlanningScene instance
+    def __init__(self, node, obj_pos_dict, Q, pscene):
         self.obj_pos_dict = obj_pos_dict
         self.Q = Q
-        self.set_node(node, scene)
+        self.set_node(node, pscene)
 
-    def set_node(self, node, scene):
+    def set_node(self, node, pscene):
         ## @brief tuple of binding state ((object name, binding point, binder), ..)
         self.node = node
         ## @brief tuple of simplified binding state (binder name 1, binder name 2, ..)
-        self.onode = node2onode(scene, self.node)
+        self.onode = node2onode(pscene, self.node)
 
     def get_tuple(self):
         return (self.node, self.obj_pos_dict, self.Q)
 
-    def copy(self, scene):
-        return State(self.node, self.obj_pos_dict, self.Q, scene)
+    def copy(self, pscene):
+        return State(self.node, self.obj_pos_dict, self.Q, pscene)
 
     def __str__(self):
         return str((self.node,
@@ -45,9 +46,15 @@ def node2onode(graph, node):
 # @brief    planning scene
 class PlanningScene:
     ##
-    # @param ghnd instance of rnb-planning.src.pkg.geometry.geometry.GeometryHandle
-    def __init__(self, ghnd):
-        self.ghnd = ghnd
+    # @param gscene instance of rnb-planning.src.pkg.geometry.geometry.GeometryScene
+    # @param combined_robot instance of rnb-planning.src.pkg.controller.combined_robot.CombinedRobot
+    def __init__(self, gscene, combined_robot):
+        ##
+        # @brief rnb-planning.src.pkg.geometry.geometry.GeometryScene
+        self.gscene = gscene
+        ##
+        # @brief rnb-planning.src.pkg.controller.combined_robot.CombinedRobot
+        self.combined_robot = combined_robot
         self.binder_dict = {}
         self.object_binder_dict = defaultdict(list)
         self.handle_dict = {}
@@ -75,7 +82,7 @@ class PlanningScene:
     # @param rpy   orientation of binding point (rad)
     def create_binder(self, bname, gname, _type, point=None, rpy=(0, 0, 0)):
         self.remove_binder(bname)
-        geometry = self.ghnd.NAME_DICT[gname]
+        geometry = self.gscene.NAME_DICT[gname]
         binder = _type(bname, geometry=geometry, point=point, rpy=rpy)
         self.add_binder(binder)
         return binder
@@ -87,12 +94,14 @@ class PlanningScene:
         if binding is not None:
             self.binder_dict[binding[1]].bind(self.object_dict[name], binding[0],
                                               list2dict([0] * len(self.joint_names), item_names=self.joint_names))
+        self.update_handles()
 
     ##
     # @brief remove a object from the scene
     def remove_object(self, name):
         if name in self.object_dict:
             del self.object_dict[name]
+        self.update_handles()
 
     ##
     # @param oname object name
@@ -101,7 +110,7 @@ class PlanningScene:
     # @param binding point offset from object (m)
     def create_object(self, oname, gname, _type, binding=None, **kwargs):
         self.remove_object(oname)
-        geometry = self.ghnd.NAME_DICT[gname]
+        geometry = self.gscene.NAME_DICT[gname]
         _object = _type(geometry, **kwargs)
         self.add_object(oname, _object, binding)
         return _object
@@ -165,7 +174,8 @@ class PlanningScene:
             self.remove_object(htem.geometry.name)
 
     ##
-    # @brief collect all objects' handle items and update to the scene
+    # @brief    collect all objects' handle items and update to the scene,
+    #           automatically called when object is added/removed.
     def update_handles(self):
         self.handle_dict = {}
         self.handle_list = []
@@ -191,3 +201,73 @@ class PlanningScene:
                                 if v.binding[1] == binder_sub]:
                 binding_sub += (binder_sub,)
                 self.rebind(binding_sub, joint_dict)
+
+    ##
+    # @brief get binding to transit
+    # @param from_state State
+    # @param to_state   State
+    def get_slack_bindings(self, from_state, to_state):
+        binding_list = []
+        if to_state.node is not None:
+            for bd0, bd1 in zip(from_state.node, to_state.node):
+                if bd0[2] != bd1[2]: # check if new transition (slack)
+                    binding_list += [bd1]
+                else:
+                    assert bd0[1] == bd1[1] , "impossible transition"
+        return binding_list
+
+    ##
+    # @brief get current scene state
+    def get_state(self, Q):
+        ## calculate binder transformations
+        Q_dict = list2dict(Q, self.gscene.joint_names)
+        binder_T_dict = {}
+        binder_scale_dict = {}
+        for k, binder in self.binder_dict.items():
+            binder_T = binder.get_tf_handle(Q_dict)
+            binder_scale_dict[k] = binder.geometry.dims
+            if binder.point is not None:
+                binder_scale_dict[k] = 0
+            binder_T_dict[k] = binder_T
+
+        ## get current binding node
+        node = []
+        for kobj in self.object_list:
+            obj = self.object_dict[kobj]
+            Tobj = obj.geometry.get_tf(Q_dict)
+
+            min_val = 1e10
+            min_point = ""
+            min_binder = ""
+            ## find best binding between object and binders
+            for kpt, bd in self.object_dict[kobj].action_points_dict.items():
+                handle_T = bd.get_tf_handle(Q_dict)
+                point_cur = handle_T[:3, 3]
+                direction_cur = handle_T[:3, 2]
+
+                for kbd, Tbd in binder_T_dict.items():
+                    if kobj == kbd or kobj == self.binder_dict[kbd].geometry.name \
+                            or not self.binder_dict[kbd].check_type(bd):
+                        continue
+                    point_diff = Tbd[:3, 3] - point_cur
+                    point_diff_norm = np.linalg.norm(np.maximum(np.abs(point_diff) - binder_scale_dict[kbd], 0))
+                    dif_diff_norm = np.linalg.norm(direction_cur - Tbd[:3, 2])
+                    bd_val_norm = point_diff_norm  # + dif_diff_norm
+                    if bd_val_norm < min_val:
+                        min_val = bd_val_norm
+                        min_point = bd.name
+                        min_binder = kbd
+            node.append((kobj, min_point, min_binder))
+        node = tuple(node)
+
+        # calculate object pose relative to binder link
+        obj_pos_dict = {}
+        for binding in node:
+            obj_pos_dict[binding[0]] = obj.geometry.get_tf(Q_dict, from_link=binder.geometry.link_name)
+
+        return State(node, obj_pos_dict, Q, self)
+
+    def make_goal_state(self, from_state, obj, handle, binder):
+        to_state = from_state.copy(self)
+        to_state.node = tuple([(obj, handle, binder) if binding[0] == obj else binding for binding in to_state.node])
+        return to_state

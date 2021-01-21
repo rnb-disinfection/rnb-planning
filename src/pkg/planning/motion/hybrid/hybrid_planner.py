@@ -5,24 +5,14 @@ from ..interface import MotionInterface
 class HybridPlanner(MotionInterface):
     NAME = "Hybrid"
 
-    def __init__(self, joint_names, link_names, urdf_path, urdf_content, robot_names, binder_links, ghnd):
-        self.eplan = etasl_planner(ghnd=ghnd, joint_names=joint_names, link_names=link_names, urdf_path=urdf_path)
-        self.mplan = MoveitPlanner(ghnd=ghnd, joint_names=joint_names, link_names=link_names, urdf_path=urdf_path,
+    def __init__(self, joint_names, link_names, urdf_path, urdf_content, robot_names, binder_links, gscene):
+        self.eplan = etasl_planner(gscene=gscene, joint_names=joint_names, link_names=link_names, urdf_path=urdf_path)
+        self.mplan = MoveitPlanner(gscene=gscene, joint_names=joint_names, link_names=link_names, urdf_path=urdf_path,
                                    urdf_content=urdf_content,robot_names=robot_names,binder_links=binder_links)
 
-    def set_object_dict(self, object_dict):
-        self.object_dict = object_dict
-        self.eplan.set_object_dict(object_dict)
-        self.mplan.set_object_dict(object_dict)
-
-    def set_binder_dict(self, binder_dict):
-        self.binder_dict = binder_dict
-        self.eplan.set_binder_dict(binder_dict)
-        self.mplan.set_binder_dict(binder_dict)
-
-    def update_gtems(self):
-        self.eplan.update_gtems()
-        self.mplan.update_gtems()
+    def update_gcene(self):
+        self.eplan.update_gcene()
+        self.mplan.update_gcene()
         self.online_names = self.eplan.online_names
 
     def plan_transition(self, from_state, to_state, binding_list, redundancy_dict=None, **kwargs):

@@ -81,6 +81,7 @@ class XacroCustomizer(Singleton):
             joint_fix_dict={}
         urdf_content = subprocess.check_output(['xacro', self.xacro_path])
         self.urdf_content = URDF.from_xml_string(urdf_content)
+        self.urdf_path = urdf_path
         for joint in self.urdf_content.joints:
             if any([jkey in joint.name for jkey in joint_fix_dict.keys()]):
                 lim_dir = [v for k,v in joint_fix_dict.items() if k in joint.name][0]
@@ -97,13 +98,13 @@ class XacroCustomizer(Singleton):
                 for key in jlim:
                     setattr(joint.limit, key, jlim[key])
                 
-        f = open(urdf_path, "w")
+        f = open(self.urdf_path, "w")
         f.write(URDF.to_xml_string(self.urdf_content))
         f.close()
         
         self.joint_names = [joint.name for joint in self.urdf_content.joints if joint.type != 'fixed']
         self.link_names = [link.name for link in self.urdf_content.links]
-        return self.joint_names, self.link_names, self.urdf_content
+        return self.joint_names, self.link_names, self.urdf_content, self.urdf_path
 
     ##
     # @brief    start rviz with converted urdf file in URDF_PATH_DEFAULT

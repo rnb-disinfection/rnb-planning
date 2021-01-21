@@ -2,7 +2,7 @@ from moveit_py import MoveitCompactPlanner_BP, ObjectType, ObjectMPC, Geometry, 
 from ..interface import MotionInterface
 from ....utils.utils import list2dict
 from ....utils.rotation_utils import SE3, SE3_inv, Rot_rpy
-from ....geometry.geometry import GEOTYPE, GeometryHandle
+from ....geometry.geometry import GEOTYPE, GeometryScene
 from ....geometry.builder.xacro_customizer import write_srdf
 from ...constraint.constraint_common import calc_redundancy
 from scipy.spatial.transform import Rotation
@@ -47,23 +47,26 @@ def make_constraint_item(gtem, use_box=False):
 def make_constraint_list(gtem_list, use_box=False):
     return make_assign_arr(GeometryList, [make_constraint_item(gtem, use_box) for gtem in gtem_list])
 
+##
+# @class MoveitPlanner
+# @brief Moveit motion planner
 class MoveitPlanner(MotionInterface):
     NAME = "MoveIt"
 
-    def __init__(self, joint_names, link_names, urdf_path, urdf_content, robot_names, ghnd, manipulator_names=None, binder_links=None):
-        self.ghnd = ghnd
-        self.joint_names, self.link_names, self.urdf_path, self.urdf_content, self.robot_names\
-            = joint_names, link_names, urdf_path, urdf_content, robot_names
-        self.joint_num = len(joint_names)
-        self.manipulator_names =  manipulator_names or robot_names
+    ##
+    # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
+    # @param manipulator_names moveit manipulator group names
+    def __init__(self, pscene, manipulator_names=None):
+        MotionInterface.__init__(self, pscene)
+        self.robot_names = self.combined_robot.robot_names
+        self.manipulator_names = manipulator_names or self.robot_names
+        binder_links = [v.geometry.link_name for v in pscene.binder_dict.values()]
         if binder_links:
             self.binder_links = get_binder_links_in_order(binder_links, self.robot_names)
             self.srdf_path = write_srdf(robot_names=self.robot_names, binder_links=self.binder_links,
                                         link_names=self.link_names, joint_names=self.joint_names,
                                         urdf_content=self.urdf_content, urdf_path=self.urdf_path
                                         )
-        else:
-            self.srdf_path = self.urdf_path.replace("urdf", 'srdf')
         self.config_path = os.path.dirname(self.urdf_path)+"/"
         self.planner = MoveitCompactPlanner_BP(self.urdf_path, self.srdf_path, self.robot_names, self.config_path)
         if not all([a==b for a,b in zip(self.joint_names, self.planner.joint_names_py)]):
@@ -73,10 +76,12 @@ class MoveitPlanner(MotionInterface):
         else:
             self.need_mapping = False
 
-    def update_gtems(self):
-        self.ghnd.update()
+    ##
+    # @brief update changes in geometric scene and load collision boundaries to moveit planner
+    def update_gcene(self):
+        self.gscene.update()
         self.obj_list = []
-        for gtem in self.ghnd:
+        for gtem in self.gscene:
             if gtem.collision:
                 if all([not gname in gtem.name for gname in self.manipulator_names]):
                     self.obj_list.append(ObjectMPC(
@@ -87,17 +92,27 @@ class MoveitPlanner(MotionInterface):
 
         self.planner.set_scene(self.obj_list)
 
-    def plan_transition(self, from_state, to_state, binding_list, redundancy_dict=None, timeout=0.1,
+    ##
+    # @brief moveit planning implementation
+    # @param from_state starting state (rnb-planning.src.pkg.planning.scene.State)
+    # @param to_state   goal state (rnb-planning.src.pkg.planning.scene.State)
+    # @param binding_list   list of bindings to pursue
+    # @param redundancy_dict    redundancy in dictionary format {object name: {axis: value}}
+    # @return Traj      Full trajectory as array of Q
+    # @return LastQ     Last joint configuration as array
+    # @return error     planning error
+    # @return success   success/failure of planning result
+    def plan_algorithm(self, from_state, to_state, binding_list, redundancy_dict=None, timeout=0.1,
                         group_name_handle=None, group_name_binder=None, **kwargs):
         if len(binding_list)!=1:
             raise(RuntimeError("Only single manipulator operation is implemented with moveit!"))
-        self.update_gtems()
+        self.update_gcene()
 
         obj_name, ap_name, binder_name = binding_list[0]
         redundancy = redundancy_dict[obj_name] if redundancy_dict else None
 
-        binder = self.binder_dict[binder_name]
-        obj = self.object_dict[obj_name]
+        binder = self.pscene.binder_dict[binder_name]
+        obj = self.pscene.object_dict[obj_name]
         handle = obj.action_points_dict[ap_name]
         point_add, rpy_add = calc_redundancy(redundancy, binder)
         T_handle = handle.Toff_lh
@@ -166,16 +181,16 @@ class MoveitPlanner(MotionInterface):
 from itertools import permutations
 from ....geometry.builder.xacro_customizer import save_converted_chain
 
-def transfer_ctem(ghnd, ghnd_new):
-    link_chain = ghnd_new.urdf_content.get_chain(ghnd_new.urdf_content.get_root(), "stem", joints=False, links=True)
-    for gtem in ghnd:
+def transfer_ctem(gscene, gscene_new):
+    link_chain = gscene_new.urdf_content.get_chain(gscene_new.urdf_content.get_root(), "stem", joints=False, links=True)
+    for gtem in gscene:
         if gtem.collision:
-            gtem_new = ghnd_new.create_safe(gtype=gtem.gtype, name=gtem.name, link_name=gtem.link_name,
+            gtem_new = gscene_new.create_safe(gtype=gtem.gtype, name=gtem.name, link_name=gtem.link_name,
                                  dims=gtem.dims, center=gtem.center, rpy=gtem.rpy, color=gtem.color, display=gtem.display,
                                  collision=gtem.collision, fixed=gtem.fixed, soft=gtem.soft, online=gtem.online, K_col=gtem.K_col)
             if gtem_new.link_name in link_chain:
 #                 print("transfered: {}".format(gtem_new.name))
-                joint_child = ghnd_new.urdf_content.joint_map[ghnd_new.urdf_content.child_map[gtem_new.link_name][0][0]]
+                joint_child = gscene_new.urdf_content.joint_map[gscene_new.urdf_content.child_map[gtem_new.link_name][0][0]]
                 T_jp = SE3(Rot_rpy(joint_child.origin.rpy), joint_child.origin.xyz)
                 Toff_new = np.matmul(T_jp, gtem_new.Toff)
                 gtem_new.set_offset_tf(Toff_new[:3,3], Toff_new[:3,:3])
@@ -184,7 +199,7 @@ def transfer_ctem(ghnd, ghnd_new):
 #         else:
 #             print("no-collision: {}".format(gtem.name))
 
-def get_dual_planner_dict(GRIPPER_REFS, ghnd, urdf_content, urdf_path, link_names, robot_names):
+def get_dual_planner_dict(GRIPPER_REFS, gscene, urdf_content, urdf_path, link_names, robot_names):
     glist = GRIPPER_REFS.keys()
     dual_chain_list = list(permutations(glist,2))
     dual_mplan_dict = {}
@@ -195,8 +210,8 @@ def get_dual_planner_dict(GRIPPER_REFS, ghnd, urdf_content, urdf_path, link_name
         grip_end_link = urdf_content.link_map[grip_end['link_name']]
         rname_new = "{}_{}".format(grip_root_name, grip_end_name)
         urdf_content_new, urdf_path_new, srdf_path_new, new_joints = save_converted_chain(urdf_content, urdf_path, rname_new, grip_root_link.name, grip_end_link.name)
-        ghnd_new = GeometryHandle(urdf_content_new)
-        transfer_ctem(ghnd, ghnd_new)
-        dual_mplan_dict[(grip_root_name, grip_end_name)] = MoveitPlanner(ghnd=ghnd_new, joint_names=new_joints, link_names=link_names, urdf_path=urdf_path_new, urdf_content=urdf_content_new,
+        gscene_new = GeometryScene(urdf_content_new)
+        transfer_ctem(gscene, gscene_new)
+        dual_mplan_dict[(grip_root_name, grip_end_name)] = MoveitPlanner(gscene=gscene_new, joint_names=new_joints, link_names=link_names, urdf_path=urdf_path_new, urdf_content=urdf_content_new,
                                                                          robot_names=[rname_new], manipulator_names=robot_names)
     return dual_mplan_dict

@@ -33,7 +33,7 @@ class ActionPoint:
     # @param    rpy         orientation offset respect to parent geometry
     # @param    name_full   constraint full name, mainly for eTaSL constraint definition
     def __init__(self, name, geometry, point, rpy, name_full=None):
-        self.ghnd = geometry.ghnd
+        self.gscene = geometry.gscene
         self.name = name
         self.geometry = geometry
         self.set_point_rpy(point, rpy)

@@ -19,21 +19,23 @@ DEFAULT_VERT_DICT = {
 
 
 ##
-# @class GeometryHandle
+# @class GeometryScene
 # @brief Geometric scene & visualization handle. Also a list of GeometryItem.
-class GeometryHandle(list):
-    def __init__(self, urdf_content, joint_names, link_names, rviz=True):
+class GeometryScene(list):
+    def __init__(self, urdf_content, urdf_path, joint_names, link_names, rviz=True):
         self.NAME_DICT = {}
         self.joint_names, self.link_names = joint_names, link_names
-        self.__set_urdf_content(urdf_content)
+        self.joint_num = len(self.joint_names)
+        self.__set_urdf(urdf_content, urdf_path)
         self.rviz = rviz
         if self.rviz:
             self.marker_list = []
             self.highlight_dict = defaultdict(dict)
             self.set_rviz()
 
-    def __set_urdf_content(self, urdf_content):
+    def __set_urdf(self, urdf_content, urdf_path):
         self.urdf_content = urdf_content
+        self.urdf_path = urdf_path
         self.link_adjacency_map, self.link_adjacency_map_ext = get_link_adjacency_map(urdf_content)
         self.min_distance_map = get_min_distance_map(urdf_content)
 
@@ -238,7 +240,7 @@ class GeometryHandle(list):
 # @brief Instance of geometry item
 class GeometryItem(object):
     ##
-    # @brief create geometry item. use GeometryHandle.create_safe instead.
+    # @brief create geometry item. use GeometryScene.create_safe instead.
     # @param gtype GEOTYPE
     # @param name name of geometry
     # @param link_name attached link name
@@ -250,7 +252,7 @@ class GeometryItem(object):
     # @param collision flag for collision checking
     # @param fixed flag that the object is fixed to the attached link (transferring is not considered)
     # @param online flag that the object should be detected online
-    def __init__(self, ghnd, gtype, name, link_name, dims, center, rpy=(0,0,0), color=(0,1,0,1), display=True,
+    def __init__(self, gscene, gtype, name, link_name, dims, center, rpy=(0,0,0), color=(0,1,0,1), display=True,
                  collision=True, fixed=False, soft=False, online=False, K_col=None, uri="", scale=(1,1,1), create=True,):
         self.uri, self.scale = uri, scale
         if gtype in GEOTYPE:
@@ -268,10 +270,10 @@ class GeometryItem(object):
         self.K_col = K_col
         self.set_name(name)
         if create:
-            self.ghnd = ghnd
+            self.gscene = gscene
         self.set_link(link_name)
         if create:
-            self.ghnd.append(self)
+            self.gscene.append(self)
 
     def set_dims(self, dims):
         self.dims = dims
@@ -283,10 +285,10 @@ class GeometryItem(object):
         
     def set_link(self, link_name):
         self.link_name = link_name
-        self.adjacent_links = self.ghnd.link_adjacency_map[self.link_name]
+        self.adjacent_links = self.gscene.link_adjacency_map[self.link_name]
 
     def get_tf(self, joint_dict, from_link='base_link'):
-        T = get_tf(to_link=self.link_name, joint_dict=joint_dict, urdf_content=self.ghnd.urdf_content, from_link=from_link)
+        T = get_tf(to_link=self.link_name, joint_dict=joint_dict, urdf_content=self.gscene.urdf_content, from_link=from_link)
         T = np.matmul(T, self.Toff)
         return T
 

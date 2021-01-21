@@ -19,21 +19,21 @@ class MotionPlanTable(TableInterface):
         if color == (0.3, 0.3, 1, 0.5):
             if gtem[0] == "eTaSL":
                 graph = self.graph
-                eplan = etasl_planner(joint_names = graph.joint_names, link_names = graph.link_names, urdf_path = graph.urdf_path, ghnd=graph.ghnd)
+                eplan = etasl_planner(joint_names = graph.joint_names, link_names = graph.link_names, urdf_path = graph.urdf_path, gscene=graph.gscene)
                 graph.set_planner(eplan)
             if gtem[0] == "MoveIt":
                 graph = self.graph
                 mplan = MoveitPlanner(joint_names=graph.joint_names, link_names=graph.link_names,
                                       urdf_path=graph.urdf_path, urdf_content=graph.urdf_content,
                                       robot_names=graph.combined_robot.robot_names,
-                                      binder_links=[v.geometry.link_name for v in graph.binder_dict.values()], ghnd=graph.ghnd)
+                                      binder_links=[v.geometry.link_name for v in graph.binder_dict.values()], gscene=graph.gscene)
                 graph.set_planner(mplan)
             if gtem[0] == "HybridPlanner":
                 graph = self.graph
                 hplan = HybridPlanner(joint_names=graph.joint_names, link_names=graph.link_names,
                                       urdf_path=graph.urdf_path, urdf_content=graph.urdf_content,
                                       robot_names=graph.combined_robot.robot_names,
-                                      binder_links=[v.geometry.link_name for v in graph.binder_dict.values()], ghnd=graph.ghnd)
+                                      binder_links=[v.geometry.link_name for v in graph.binder_dict.values()], gscene=graph.gscene)
                 graph.set_planner(hplan)
 
     def add_item(self, value):

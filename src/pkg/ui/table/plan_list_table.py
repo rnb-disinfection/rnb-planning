@@ -47,7 +47,7 @@ class PlanListTable(TableInterface):
                     schedule = snode_selected.parents + [snode_selected.idx]
                     planner = graph.planner
                     snode_schedule = sampler.idxSchedule2SnodeScedule(schedule, self.graph.combined_robot.home_pose)
-                    planner.update(graph)
+                    planner.update_gcene()
 
                     with DynamicDetector(planner.online_names, graph.cam.aruco_map, graph.cam.dictionary, graph.cam.rs_config,
                                          graph.cam.T_c12, graph.cam.ref_tuple[1]) as dynamic_detector, \

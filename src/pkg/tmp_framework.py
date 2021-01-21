@@ -20,7 +20,7 @@ PRINT_LOG = False
 #
 class TMPFramework:
 
-    def __init__(self, ghnd, urdf_path, joint_names, link_names, urdf_content=None, combined_robot=None):
+    def __init__(self, gscene, urdf_path, joint_names, link_names, urdf_content=None, combined_robot=None):
         ## global timer for internal time testing
         self.gtimer=GlobalTimer.instance()
 
@@ -28,7 +28,7 @@ class TMPFramework:
         if urdf_content is None:
             urdf_content = URDF.from_xml_file(urdf_path)
         self.urdf_content = urdf_content
-        self.ghnd = ghnd
+        self.gscene = gscene
         self.joint_names = joint_names
         self.link_names = link_names
         self.binder_dict = {}
@@ -56,15 +56,15 @@ class TMPFramework:
     ###################### Objects ########################
 
     def register_object_gen(self, objectPose_dict_mv, binder_dict, object_dict, ref_tuple=None, link_name="base_link"):
-        object_generators = {k: CallHolder(self.ghnd.create_safe,
+        object_generators = {k: CallHolder(self.gscene.create_safe,
                                            ["center", "rpy"], **v.get_geometry_kwargs()) for k, v in
                              self.cam.aruco_map.items() if v.dlevel in [DetectionLevel.MOVABLE, DetectionLevel.ONLINE]}
         if ref_tuple is None:
             ref_tuple = self.cam.ref_tuple
-        xyz_rpy_mv_dict, put_point_dict, _ = calc_put_point(self.ghnd, objectPose_dict_mv, self.cam.aruco_map, object_dict, ref_tuple)
+        xyz_rpy_mv_dict, put_point_dict, _ = calc_put_point(self.gscene, objectPose_dict_mv, self.cam.aruco_map, object_dict, ref_tuple)
 
         for mname, mgen in object_generators.items():
-            if mname in xyz_rpy_mv_dict and mname not in self.ghnd.NAME_DICT:
+            if mname in xyz_rpy_mv_dict and mname not in self.gscene.NAME_DICT:
                 xyz_rpy = xyz_rpy_mv_dict[mname]
                 mgen(*xyz_rpy, name=mname, link_name=link_name,
                      color=(0.3, 0.3, 0.8, 1), collision=True, fixed=False)
@@ -81,15 +81,6 @@ class TMPFramework:
 
     #######################################################
     ##################### Transition ######################
-    def get_slack_bindings(self, from_state, to_state):
-        binding_list = []
-        if to_state.node is not None:
-            for bd0, bd1 in zip(from_state.node, to_state.node):
-                if bd0[2] != bd1[2]: # check if new transition (slack)
-                    binding_list += [bd1]
-                else:
-                    assert bd0[1] == bd1[1] , "impossible transition"
-        return binding_list
 
     def test_transition(self, from_state=None, to_state=None, display=False, dt_vis=1e-2, error_skip=0, **kwargs):
         self.gtimer = GlobalTimer.instance()
@@ -163,7 +154,7 @@ class TMPFramework:
             link_name = RobotSpecs.get_base_link(self.combined_robot.get_scene_dict()[oname], oname)
             Toff = atem.Toff
         else:
-            aobj = self.ghnd.NAME_DICT[oname]
+            aobj = self.gscene.NAME_DICT[oname]
             link_name = aobj.link_name
             Toff = np.matmul(aobj.Toff, atem.Toff)
         self.add_highlight_axis(hl_key, axis_name, link_name, Toff[:3,3], Toff[:3,:3], axis="xyz")
@@ -328,17 +319,17 @@ class TMPFramework:
     #######################################################
 
     def clear_ws(self):
-        ghnd = self.ghnd
-        gnames = ghnd.NAME_DICT.keys()
+        gscene = self.gscene
+        gnames = gscene.NAME_DICT.keys()
         for gname in gnames:
-            self.remove_geometry(ghnd.NAME_DICT[gname])
+            self.remove_geometry(gscene.NAME_DICT[gname])
 
-    def replace_ghnd(self, ghnd_new):
+    def replace_gscene(self, gscene_new):
         self.clear_ws()
-        for gtem in ghnd_new:
-            self.add_marker(self.ghnd.copy_from(gtem))
+        for gtem in gscene_new:
+            self.add_marker(self.gscene.copy_from(gtem))
 
-    def convert_workspace(self, ghnd, L_CELL=0.2, WS_DIMS=(3, 3, 3), center_height=0.75):
+    def convert_workspace(self, gscene, L_CELL=0.2, WS_DIMS=(3, 3, 3), center_height=0.75):
         WS_RANGE = np.divide(np.array(WS_DIMS, dtype=np.float), 2)
         WS_RANGE_MIN = -np.copy(WS_RANGE)
         WS_RANGE_MIN[2] = -center_height
@@ -346,8 +337,8 @@ class TMPFramework:
         WS_RANGE_MAX[2] = WS_RANGE_MAX[2]*2-center_height
         L_TEM_MAX = L_CELL * 2
         L_REF = ((L_TEM_MAX + L_CELL) / 2)
-        ghnd_new = GeometryHandle(ghnd.urdf_content)
-        for gtem in ghnd:
+        gscene_new = GeometryScene(gscene.urdf_content)
+        for gtem in gscene:
             if not gtem.collision:
                 continue
             if np.any(np.array(gtem.dims) > L_TEM_MAX):
@@ -370,7 +361,7 @@ class TMPFramework:
                             if np.any([center_new<WS_RANGE_MIN, WS_RANGE_MAX<center_new]):
                                 print("ignore {} out of workspace".format(gname_new))
                                 continue
-                            ghnd_new.create_safe(name=gname_new, link_name=gtem.link_name, gtype=gtem.gtype,
+                            gscene_new.create_safe(name=gname_new, link_name=gtem.link_name, gtype=gtem.gtype,
                                                  center=center_new, rpy=gtem.rpy, dims=dims_div, color=gtem.color,
                                                  display=True, collision=True, fixed=gtem.fixed)
                 elif gtem.gtype == GEOTYPE.SPHERE:
@@ -390,19 +381,19 @@ class TMPFramework:
                             print("ignore {} out of workspace".format(gname_new))
                             print(center_new)
                             continue
-                        ghnd_new.create_safe(name=gname_new, link_name=gtem.link_name, gtype=gtem.gtype,
+                        gscene_new.create_safe(name=gname_new, link_name=gtem.link_name, gtype=gtem.gtype,
                                              center=center_new, rpy=gtem.rpy, dims=tuple(dims_div), color=gtem.color,
                                              display=True, collision=True, fixed=gtem.fixed)
             else:
                 if np.any([gtem.center<WS_RANGE_MIN, WS_RANGE_MAX<gtem.center]):
                     print("ignore {} out of workspace".format(gtem.name))
                     continue
-                ghnd_new.create_safe(name=gtem.name, link_name=gtem.link_name, gtype=gtem.gtype,
+                gscene_new.create_safe(name=gtem.name, link_name=gtem.link_name, gtype=gtem.gtype,
                                      center=gtem.center, rpy=gtem.rpy, dims=gtem.dims,
                                      color=gtem.color, display=True, collision=True, fixed=gtem.fixed)
-        return ghnd_new
+        return gscene_new
 
-    def convert_scene(self, ghnd_cvt, state, L_CELL=0.2, Nwdh=(15, 15, 15), BASE_LINK="base_link", offset_center=True,
+    def convert_scene(self, gscene_cvt, state, L_CELL=0.2, Nwdh=(15, 15, 15), BASE_LINK="base_link", offset_center=True,
                       only_base=True, center_height=0.75):
         crob = self.combined_robot
         gtimer = self.gtimer
@@ -414,14 +405,14 @@ class TMPFramework:
         joint_names = crob.joint_names
         joint_num = crob.joint_num
         IGNORE_CTEMS = ["panda1_hand_Cylinder_1", 'panda1_hand_Cylinder_2']
-        joint_index_dict = {joint.name: None for joint in ghnd_cvt.urdf_content.joints}
+        joint_index_dict = {joint.name: None for joint in gscene_cvt.urdf_content.joints}
         joint_index_dict.update({jname: idx for idx, jname in zip(range(joint_num), joint_names)})
         centers = get_centers(Nwdh, L_CELL)
-        merge_pairs = get_merge_pairs(ghnd_cvt, BASE_LINK)
-        merge_paired_ctems(ghnd=ghnd_cvt, merge_pairs=merge_pairs, VISUALIZE=False)
+        merge_pairs = get_merge_pairs(gscene_cvt, BASE_LINK)
+        merge_paired_ctems(gscene=gscene_cvt, merge_pairs=merge_pairs, VISUALIZE=False)
         for cname in IGNORE_CTEMS:
-            if cname in ghnd_cvt.NAME_DICT:
-                ghnd_cvt.remove(ghnd_cvt.NAME_DICT[cname])
+            if cname in gscene_cvt.NAME_DICT:
+                gscene_cvt.remove(gscene_cvt.NAME_DICT[cname])
 
         N_vtx_box = 3 * 8
         N_mask_box = 1
@@ -459,7 +450,7 @@ class TMPFramework:
         joint_axis_arr = np.zeros((joint_num, 3))
 
         gtimer.tic("T_chain")
-        Tlink_dict = build_T_chain(link_names, Q_s_dict, ghnd_cvt.urdf_content)
+        Tlink_dict = build_T_chain(link_names, Q_s_dict, gscene_cvt.urdf_content)
         if offset_center:
             Toffcenter = SE3(np.identity(3), tuple(np.multiply(Nwdh[:2], L_CELL) / 2)+(center_height,))
             for key in Tlink_dict.keys():
@@ -469,14 +460,14 @@ class TMPFramework:
         for lname in link_names:
             gtimer.tic("get_chain")
             jnames = filter(lambda x: x in joint_names,
-                            ghnd_cvt.urdf_content.get_chain(root=BASE_LINK, tip=lname, joints=True, links=False))
+                            gscene_cvt.urdf_content.get_chain(root=BASE_LINK, tip=lname, joints=True, links=False))
             gtimer.toc("get_chain")
             chain_dict[lname] = [1 if pj in jnames else 0 for pj in joint_names]
         gtimer.toc("test_links")
 
         gtimer.tic("test_joints")
         for i_j, jname in zip(range(joint_num), joint_names):
-            joint = ghnd_cvt.urdf_content.joint_map[jname]
+            joint = gscene_cvt.urdf_content.joint_map[jname]
             lname = joint.child
             Tj_arr[i_j, :, :] = Tlink_dict[lname]
             Tj_inv_arr[i_j, :, :] = SE3_inv(Tlink_dict[lname])
@@ -494,7 +485,7 @@ class TMPFramework:
         ctem_names, ctem_TFs, ctem_dims, ctem_cells, ctem_links, ctem_joints, ctem_types = \
             defaultdict(list), defaultdict(list), defaultdict(list), defaultdict(list), defaultdict(list), defaultdict(
                 list), dict()
-        for ctem in ghnd_cvt:
+        for ctem in gscene_cvt:
             if not ctem.collision:
                 continue
             key = gtype_to_otype(ctem.gtype).name
@@ -550,7 +541,7 @@ class TMPFramework:
         scene_data[:, :, :, N_joint_label_begin:N_joint_label_begin + N_joint_label] = xi.reshape(
             Nwdh + (N_joint_label,))
 
-        jtem_list = [ghnd_cvt.urdf_content.joint_map[jname] for jname in self.joint_names]
+        jtem_list = [gscene_cvt.urdf_content.joint_map[jname] for jname in self.joint_names]
         joint_limits = [jtem.limit.lower for jtem in jtem_list] + [jtem.limit.upper for jtem in jtem_list]
         scene_data[:, :, :, -N_joint_limits:] = Q_s.tolist() + joint_limits
         ### put cell item data

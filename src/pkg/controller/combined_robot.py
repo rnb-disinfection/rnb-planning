@@ -162,12 +162,3 @@ class CombinedRobot:
             self.robot_dict[self.robot_names[0]].rate_x1.sleep()
         else:
             rate_off.sleep()
-
-    # def detect_robots(self, cam):
-    #     self.xyz_rpy_robots = cam.detect_robots(self.robots_on_scene)
-
-    # def update_urdf(self):
-    #     xcustom, self.joint_names, self.link_names, self.urdf_content = reset_ghnd(self.robots_on_scene,
-    #                                                                                       self.xyz_rpy_robots,
-    #                                                                                       self.custom_limits)
-    #     return xcustom, self.joint_names, self.link_names, self.urdf_content
