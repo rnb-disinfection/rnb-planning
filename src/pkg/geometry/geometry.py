@@ -188,7 +188,7 @@ class GeometryScene(list):
             if hl_key in hl_keys or not hl_keys:
                 for k,v in hl_set.items():
                     del self.highlight_dict[hl_key][k]
-                    self.remove_geometry(v,sleep=sleep)
+                    self.remove(v)
 
     ##
     # @brief highlight a geometry

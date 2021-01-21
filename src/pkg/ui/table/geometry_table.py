@@ -8,10 +8,10 @@ class GeometryTable(TableInterface):
     CUSTOM_BUTTONS = ["Apply"]
 
     def get_items(self):
-        return self.graph.gscene
+        return self.planning_pipeline.pscene.gscene
 
     def get_items_dict(self):
-        return self.graph.gscene.NAME_DICT
+        return self.planning_pipeline.pscene.gscene.NAME_DICT
 
     def serialize(self, gtem):
         return [gtem.name, gtem.gtype.name, gtem.link_name,
@@ -20,22 +20,21 @@ class GeometryTable(TableInterface):
                 str(gtem.display), str(gtem.collision), str(gtem.fixed), str(gtem.soft), str(gtem.online)]
 
     def highlight_item(self, gtem, color=None):
-        self.graph.highlight_geometry(self.HILIGHT_KEY, gtem.name, color=color)
+        self.planning_pipeline.pscene.gscene.highlight_geometry(self.HILIGHT_KEY, gtem.name, color=color)
 
     def add_item(self, value):
-        self.graph.add_marker(
-            self.graph.gscene.create_safe(name=value[IDENTIFY_COL], gtype=getattr(GEOTYPE, value['GType']),
+        self.planning_pipeline.pscene.gscene.create_safe(name=value[IDENTIFY_COL], gtype=getattr(GEOTYPE, value['GType']),
                                   link_name=value["Link"], center=str_num_it(value["Center"]),
                                   dims=str_num_it(value["Dims"]), rpy=str_num_it(value["RPY"]),
                                   color=str_num_it(value["Color"]),
                                   display=value["Disp"].lower() in ["true", "t"],
                                   collision=value["Coll"].lower() in ["true", "t"],
                                   fixed=value["Fix"].lower() in ["true", "t"],
-                                  soft=value["Soft"].lower() in ["true", "t"]))
+                                  soft=value["Soft"].lower() in ["true", "t"])
 
     def delete_item(self, active_row):
-        gtem = self.graph.gscene.NAME_DICT[active_row]
-        self.graph.remove_geometry(gtem)
+        gtem = self.planning_pipeline.pscene.gscene.NAME_DICT[active_row]
+        self.planning_pipeline.pscene.gscene.remove(gtem)
 
     def update_item(self, gtem, active_col, value):
         res, msg = True, ""
@@ -63,15 +62,14 @@ class GeometryTable(TableInterface):
             gtem.soft = value.lower() in ["true", "t"]
         elif active_col == 'Online':
             gtem.online = value.lower() in ["true", "t"]
-        self.graph.update_marker(gtem)
+        self.planning_pipeline.pscene.gscene.update_marker(gtem)
         return res, msg
 
     def button(self, button, *args, **kwargs):
         print("button clicked")
         if button == TAB_BUTTON.CUSTOM:
-            self.graph.gscene.set_rviz(self.graph.joints.position)
-            if self.graph.planner:
-                self.graph.planner.update(self.graph)
+            self.planning_pipeline.pscene.gscene.gscene.set_rviz()
+            self.planning_pipeline.update()
         else:
             TableInterface.button(self, button, *args, **kwargs)
         print("button action done")

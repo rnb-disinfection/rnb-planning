@@ -7,10 +7,10 @@ class RobotTable(TableInterface):
     CUSTOM_BUTTONS = ["Apply", "Detect"]
 
     def get_items(self):
-        cbot = self.graph.combined_robot
-        return [(rbt[0], rbt[1].name,
-                 round_it_str(cbot.xyz_rpy_robots[rbt[0]][0], 4),
-                 round_it_str(cbot.xyz_rpy_robots[rbt[0]][1], 4)) for rbt in cbot.robots_on_scene]
+        cbot = self.planning_pipeline.combined_robot
+        return [(rbt_cfg.get_indexed_name(), rbt_cfg.type.name,
+                 round_it_str(rbt_cfg.xyzrpy[0], 4),
+                 round_it_str(rbt_cfg.xyzrpy[1], 4)) for rbt_cfg in cbot.robots_on_scene]
 
     def get_items_dict(self):
         return {item[0]: item for item in self.get_items()}
@@ -22,8 +22,8 @@ class RobotTable(TableInterface):
         pass
 
     def select(self, selected_row_ids, active_row, active_col):
-        connection_list = [rbt_tup[0] in selected_row_ids for rbt_tup in self.graph.combined_robot.robots_on_scene]
-        self.graph.combined_robot.reset_connection(connection_list)
+        connection_list = [rbt_cfg.get_indexed_name() in selected_row_ids for rbt_cfg in self.planning_pipeline.combined_robot.robots_on_scene]
+        self.planning_pipeline.combined_robot.reset_connection(connection_list)
 
     def add_item(self, value):
         raise(RuntimeError("Cannot add or delete robot"))
@@ -32,7 +32,7 @@ class RobotTable(TableInterface):
         raise(RuntimeError("Cannot add or delete robot"))
 
     def update_item(self, atem, active_col, value):
-        cbot = self.graph.combined_robot
+        cbot = self.planning_pipeline.combined_robot
         res, msg = True, ""
         if active_col == IDENTIFY_COL:
             res, msg = False, "cannot change robot name"
@@ -52,21 +52,11 @@ class RobotTable(TableInterface):
         print("button clicked")
         if button == TAB_BUTTON.CUSTOM:
             if args[0]:
-                graph = self.graph
-                cbot = self.graph.combined_robot
-                xcustom, JOINT_NAMES, LINK_NAMES, urdf_content = create_gscene(cbot.robots_on_scene, cbot.xyz_rpy_robots, cbot.custom_limits)
-                graph.clear_markers()
-                graph.clear_highlight()
-                graph.gscene.clear()
-                time.sleep(1)
-                graph.__init__(gscene=graph.gscene, urdf_path=URDF_PATH, joint_names=JOINT_NAMES, link_names=LINK_NAMES,
-                               urdf_content=urdf_content, combined_robot=cbot)
-                add_geometry_items(graph.urdf_content, gscene=graph.gscene, color=(0, 1, 0, 0.3), display=True, collision=True,
-                                   exclude_link=["panda1_link7"])
-                graph.set_cam_robot_collision()
-                graph.gscene.set_rviz()
+                crob = self.planning_pipeline.combined_robot
+                self.s_builder.create_gscene(crob, gscene_from=self.gscene)
             elif args[1]:
-                self.graph.combined_robot.detect_robots(self.graph.cam)
+                xyz_rpy_robots = self.s_builder.detect_items(level_mask=[DetectionLevel.ROBOT])
+                self.planning_pipeline.combined_robot.update_robot_pos_dict(xyz_rpy_robots=xyz_rpy_robots)
             else:
                 print("Unknown button")
         else:

@@ -63,6 +63,10 @@ class PlanningPipeline:
     def __init__(self, pscene):
         ## @brief rnb-planning.src.pkg.planning.scene.PlanningScene
         self.pscene = pscene
+        ## @brief rnb-planning.src.pkg.planning.motion.interface.MotionInterface
+        self.mplan = None
+        ## @brief rnb-planning.src.pkg.planning.task.interface.TaskInterface
+        self.tplan = None
         ## @brief number of multiprocess agents
         self.N_agents = None
         ## @brief number of valid generated search nodes
@@ -95,6 +99,14 @@ class PlanningPipeline:
     def set_sampler(self, tplan):
         self.tplan = tplan
         self.tplan.prepare()
+
+    ##
+    # @brief update planners
+    def update(self):
+        if self.mplan:
+            self.mplan.update_gscene()
+        if self.tplan:
+            self.tplan.prepare()
 
     ##
     # @brief run search algorithm

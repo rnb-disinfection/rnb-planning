@@ -139,25 +139,6 @@ class TMPFramework:
 
     #######################################################
     ############ Visualize - Highlight ####################
-
-    def add_handle_axis(self, hl_key, handle, color=None):
-        hobj = handle.geometry
-        Toff_lh = handle.Toff_lh
-        axis = "xyz"
-        color = None
-        self.add_highlight_axis(hl_key, hobj.name, hobj.link_name, Toff_lh[:3,3], Toff_lh[:3,:3], color=color, axis=axis)
-
-    def add_aruco_axis(self, hl_key, atem, axis_name=None):
-        oname = atem.oname
-        axis_name = axis_name or oname
-        if oname in self.combined_robot.get_scene_dict():
-            link_name = RobotSpecs.get_base_link(self.combined_robot.get_scene_dict()[oname], oname)
-            Toff = atem.Toff
-        else:
-            aobj = self.gscene.NAME_DICT[oname]
-            link_name = aobj.link_name
-            Toff = np.matmul(aobj.Toff, atem.Toff)
-        self.add_highlight_axis(hl_key, axis_name, link_name, Toff[:3,3], Toff[:3,:3], axis="xyz")
     ############ Visualize - Highlight ####################
     #######################################################
 

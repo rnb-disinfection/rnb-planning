@@ -62,7 +62,7 @@ class SceneBuilder(Singleton):
     # @return joint_names       joint names
     # @return link_names        link names
     # @return urdf_content      urdf content
-    def create_gscene(self, combined_robot, node_name='task_planner', start_rviz=True):
+    def create_gscene(self, combined_robot, node_name='task_planner', start_rviz=True, gscene_from=None):
         robots_on_scene = combined_robot.robots_on_scene
         custom_limits   = combined_robot.custom_limits
 
@@ -81,7 +81,11 @@ class SceneBuilder(Singleton):
             self.xcustom.start_rviz()
             wait_rviz_on()
 
-        self.gscene = GeometryScene(urdf_content, urdf_path, joint_names, link_names, rviz=start_rviz)
+        if gscene_from:
+            GeometryScene.__init__(gscene_from, urdf_content, urdf_path, joint_names, link_names, rviz=start_rviz)
+            self.gscene = gscene_from
+        else:
+            self.gscene = GeometryScene(urdf_content, urdf_path, joint_names, link_names, rviz=start_rviz)
 
         return self.gscene
 
@@ -241,11 +245,11 @@ class DynamicDetector:
 # @class RvizPublisher
 # @brief rviz publisher for DynamicDetector
 class RvizPublisher:
-    def __init__(self, graph, obs_names):
-        self.graph, self.obs_names = graph, obs_names
+    def __init__(self, pscene, obs_names):
+        self.pscene, self.obs_names = pscene, obs_names
         self.obsPos_dict = None
         self.POS_CUR = None
-        self.gscene = graph.gscene
+        self.gscene = pscene.gscene
 
     def rviz_thread_fun(self):
         self.rviz_stop = False
@@ -257,7 +261,7 @@ class RvizPublisher:
                 if oname in self.obsPos_dict:
                     T_bo = self.obsPos_dict[oname]
                     self.gscene.NAME_DICT[oname].set_offset_tf(T_bo[:3, 3], T_bo[:3, :3])
-            self.graph.show_pose(self.POS_CUR)
+            self.pscene.show_pose(self.POS_CUR)
 
     def stop_rviz(self):
         self.rviz_stop = True
@@ -273,65 +277,3 @@ class RvizPublisher:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.stop_rviz()
-
-
-def update_geometries(gscene, onames, objectPose_dict_mv, refFrame):
-    refFrameinv = SE3_inv(refFrame)
-    for gname in onames:
-        gtem = [gtem for gtem in gscene if gtem.name == gname]
-        if len(gtem)>0 and gname in objectPose_dict_mv:
-            gtem = gtem[0]
-            Tg = np.matmul(refFrameinv, objectPose_dict_mv[gname])
-            gtem.set_offset_tf(Tg[:3,3], Tg[:3,:3])
-
-from ...utils.utils import list2dict
-
-def match_point_binder(graph, initial_state, objectPose_dict_mv):
-    graph.set_object_state(initial_state)
-    Q0 = initial_state.Q
-    Q0dict = list2dict(Q0, graph.joint_names)
-    binder_T_dict = {}
-    binder_scale_dict = {}
-    for k,binder in graph.binder_dict.items():
-        binder_T = binder.get_tf_handle(Q0dict)
-        binder_scale_dict[k] = binder.geometry.dims
-        if binder.point is not None:
-            binder_scale_dict[k] = 0
-        binder_T_dict[k] = binder_T
-
-    kpt_pair_dict = {}
-    for kobj, Tobj in objectPose_dict_mv.items():
-
-        min_val = 1e10
-        min_point = ""
-        if kobj not in graph.object_dict:
-            continue
-        for kpt, bd in graph.object_dict[kobj].action_points_dict.items():
-            handle_T = bd.get_tf_handle(Q0dict)
-            point_cur = handle_T[:3,3]
-            direction_cur = handle_T[:3,2]
-
-            for kbd, Tbd in binder_T_dict.items():
-                if kobj == kbd or kobj == graph.binder_dict[kbd].geometry.name:
-                    continue
-                point_diff = Tbd[:3,3]-point_cur
-                point_diff_norm = np.linalg.norm(np.maximum(np.abs(point_diff) - binder_scale_dict[kbd],0))
-                dif_diff_norm = np.linalg.norm(direction_cur - Tbd[:3,2])
-                bd_val_norm = point_diff_norm# + dif_diff_norm
-                if bd_val_norm < min_val:
-                    min_val = bd_val_norm
-                    min_point = kbd
-        kpt_pair_dict[kobj] = min_point
-#         print("{} - {} ({})".format(kobj, min_point, min_val))
-    return kpt_pair_dict
-
-def register_hexahedral_binder(graph, object_name, _type):
-    dims = graph.gscene.NAME_DICT[object_name].dims
-    for k in DIR_RPY_DICT.keys():
-        rpy = DIR_RPY_DICT[k]
-        point = tuple(-np.multiply(DIR_VEC_DICT[k], dims)/2)
-        graph.register_binder(name="{}_{}".format(object_name, k), object_name=object_name, _type=_type,
-                              point=point, rpy=rpy)
-
-
-

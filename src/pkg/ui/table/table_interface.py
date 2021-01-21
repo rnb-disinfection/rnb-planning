@@ -13,8 +13,10 @@ class TableInterface:
     HILIGHT_KEY = None
     CUSTOM_BUTTONS = []
 
-    def __init__(self, graph):
-        self.graph = graph
+    def __init__(self, planning_pipeline, s_builder):
+        self.planning_pipeline = planning_pipeline
+        self.s_builder = s_builder
+        self.detector = s_builder.detector
 
     @abstractmethod
     def get_items(self):
@@ -45,7 +47,7 @@ class TableInterface:
         pass
 
     def select(self, selected_row_ids, active_row, active_col):
-        self.graph.clear_highlight([self.HILIGHT_KEY])
+        self.planning_pipeline.pscene.gscene.clear_highlight([self.HILIGHT_KEY])
         item_dict = self.get_items_dict()
         if active_row in item_dict:
             item = item_dict[active_row]
