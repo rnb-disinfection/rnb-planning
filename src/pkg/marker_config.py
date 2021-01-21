@@ -18,7 +18,7 @@ def get_aruco_map():
             ObjectMarker('panda1', 23, 0.048, [0.1132,-0.1212,0], (np.pi,0,0)),
             ObjectMarker('panda1', 24, 0.048, [-0.1292,-0.1212,0], (np.pi,0,0))
         ]),
-        'floor':MarkerSet('floor', dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX, dims=(1.52,0.72,0.016),
+        'floor':MarkerSet('floor', dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX, dims=(1.52,0.72,0.01),
                           _list=[
                               ObjectMarker('floor', 101, 0.05, [-0.1,0.07,0.005], (np.pi,0,0)),
                               ObjectMarker('floor', 102, 0.05, [0.1,0.07,0.005], (np.pi,0,0)),

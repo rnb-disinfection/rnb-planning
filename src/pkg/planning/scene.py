@@ -290,6 +290,8 @@ class PlanningScene:
         # calculate object pose relative to binder link
         obj_pos_dict = {}
         for binding in node:
+            obj = self.object_dict[binding[0]]
+            binder = self.binder_dict[binding[2]]
             obj_pos_dict[binding[0]] = obj.geometry.get_tf(Q_dict, from_link=binder.geometry.link_name)
 
         return State(node, obj_pos_dict, Q, self)

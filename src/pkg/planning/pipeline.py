@@ -111,7 +111,7 @@ class PlanningPipeline:
     # @param verbose boolean flag for printing intermediate process
     def search(self, initial_state, goal, multiprocess=False, N_redundant_sample=30,
                      terminate_on_first=True, N_search=100, N_agents=None,
-                     display=False, dt_vis=None, verbose=False, timeout_loop=600, **kwargs):
+                     display=False, dt_vis=0.01, verbose=False, timeout_loop=600, **kwargs):
         ## @brief runber of redundancy sampling
         self.N_redundant_sample = N_redundant_sample
         self.t0 = time.time()
@@ -314,10 +314,16 @@ class PlanningPipeline:
 
     ##
     # @brief get list of SearchNode from list of SearchNode index
-    def idxSchedule2SnodeScedule(self, schedule, ZERO_JOINT_POSE=None):
-        ZERO_JOINT_POSE = ZERO_JOINT_POSE or self.pscene.combined_robot.home_pose
+    def idxSchedule2SnodeScedule(self, schedule):
         snode_schedule = [self.snode_dict[i_sc] for i_sc in schedule]
-        snode_schedule.append(snode_schedule[-1].copy(self.pscene))
-        snode_schedule[-1].state.Q = ZERO_JOINT_POSE
-        snode_schedule[-1].set_traj(np.array([ZERO_JOINT_POSE]))
         return snode_schedule
+
+    ##
+    # @brief play schedule on rviz
+    # @param snode_schedule list of SearchNode
+    # @param period play period
+    def play_schedule(self, snode_schedule, period=0.01):
+        for snode in snode_schedule:
+            if snode.traj is not None:
+                self.pscene.gscene.show_motion(snode.traj, period=period)
+            self.pscene.set_object_state(snode.state)
