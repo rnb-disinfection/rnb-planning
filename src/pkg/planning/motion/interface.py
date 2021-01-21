@@ -16,13 +16,16 @@ class MotionInterface:
     # @remark   Constructors of all child class should call MotionInterface.__init__(self, pscene)
     # @param    pscene rnb-planning.src.pkg.planning.scene.PlanningScene
     def __init__(self, pscene, *args, **kwargs):
-        ##
-        # @brief pscene rnb-planning.src.pkg.planning.scene.PlanningScene
+        ## @brief an instance of planning scene (rnb-planning.src.pkg.planning.scene.PlanningScene)
         self.pscene = pscene
+        ## @brief geometry scene of the planning scene (rnb-planning.src.pkg.geometry.geometry.GeometryScene)
         self.gscene = pscene.gscene
+        ## @brief combined robot in the planning scene (rnb-planning.src.pkg.controller.combined_robot.CombinedRobot)
         self.combined_robot = pscene.combined_robot
-        self.joint_names, self.link_names, self.urdf_path, self.urdf_content\
-            = self.gscene.joint_names, self.gscene.link_names, self.gscene.urdf_path, self.gscene.urdf_content
+        self.joint_names = self.gscene.joint_names
+        self.link_names = self.gscene.link_names
+        self.urdf_path = self.gscene.urdf_path
+        self.urdf_content = self.gscene.urdf_content
         self.joint_num = self.gscene.joint_num
 
     ##
@@ -46,7 +49,7 @@ class MotionInterface:
         success = True
         for binding in binding_list:
             if not self.pscene.binder_dict[binding[2]].check_available(
-                    list2dict(from_state.Q, self.pscene.gscene.joint_names)):
+                    list2dict(from_state.Q, self.joint_names)):
                 success = False
         if success:
             Traj, LastQ, error, success = self.plan_algorithm(from_state, to_state, binding_list,

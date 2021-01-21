@@ -401,17 +401,3 @@ def get_available_bindings(graph, oname, boname, ap_exclude, bd_exclude, Q_dict)
         print("=================================")
         print("=================================")
     return available_bindings
-
-def combine_redundancy(to_ap, to_binder):
-    redundancy_bd = to_binder.get_redundancy()
-    redundancy_ap = to_ap.get_redundancy()
-    redundancy_tot = deepcopy(redundancy_bd)
-    for k in redundancy_ap.keys():
-        if k in redundancy_tot:
-            redundancy_tot[k] = tuple(np.add(redundancy_tot[k], redundancy_ap[k]))
-        else:
-            redundancy_tot[k] = redundancy_ap[k]
-    return redundancy_tot
-
-def sample_redundancy(redundancy_tot):
-    return {k: random.uniform(*red) for k, red in redundancy_tot.items()}

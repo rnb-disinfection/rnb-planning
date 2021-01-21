@@ -1,4 +1,6 @@
 from enum import Enum
+from copy import deepcopy
+import random
 from ...geometry.geometry import *
 from abc import *
 __metaclass__ = type
@@ -70,8 +72,8 @@ class ActionPoint:
 
 ##
 # @brief    calculate redundancy offset
-# @redundancy   redundancy dictionary
-# @target       target action point
+# @param redundancy   redundancy dictionary
+# @param target       target action point
 def calc_redundancy(redundancy, target):
     point_add = [0,0,0]
     rpy_add = [0,0,0]
@@ -85,3 +87,21 @@ def calc_redundancy(redundancy, target):
         if target.point is None: # WARNING: CURRENTLY ASSUME UPPER PLANE
             point_add[2] += target.geometry.dims[2]/2
     return point_add, rpy_add
+
+##
+# @brief    combine redundancy of handle and binder
+# @param to_ap      handle
+# @param to_binder  binder
+def combine_redundancy(to_ap, to_binder):
+    redundancy_bd = to_binder.get_redundancy()
+    redundancy_ap = to_ap.get_redundancy()
+    redundancy_tot = deepcopy(redundancy_bd)
+    for k in redundancy_ap.keys():
+        if k in redundancy_tot:
+            redundancy_tot[k] = tuple(np.add(redundancy_tot[k], redundancy_ap[k]))
+        else:
+            redundancy_tot[k] = redundancy_ap[k]
+    return redundancy_tot
+
+def sample_redundancy(redundancy_tot):
+    return {k: random.uniform(*red) for k, red in redundancy_tot.items()}
