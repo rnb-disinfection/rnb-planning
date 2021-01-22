@@ -1,3 +1,6 @@
+Instruction for RNB-Planning Framework {#mainpage}
+============
+
 # 1. Environment Setup  
 
 ## 1.1 Tensorflow base environment  
