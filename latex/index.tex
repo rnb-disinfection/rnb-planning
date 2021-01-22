@@ -1,0 +1,157 @@
+\section*{1 Environment Setup}
+
+\subsection*{1.\+1 Tensorflow base environment}
+
+
+\begin{DoxyItemize}
+\item Follow instruction in \hyperlink{md_docs__e_n_v_i_r_o_n_m_e_n_t}{docs/\+E\+N\+V\+I\+R\+O\+N\+M\+E\+NT.md}
+\end{DoxyItemize}
+
+\subsection*{1.\+2 R\+OS Setup}
+
+
+\begin{DoxyItemize}
+\item The planning framework is based on R\+OS
+\item Follow instruction in \hyperlink{md_docs__r_o_s__s_e_t_u_p}{docs/\+R\+O\+S\+\_\+\+S\+E\+T\+UP.md}
+\end{DoxyItemize}
+
+\subsection*{1.\+3 e\+Ta\+SL}
+
+
+\begin{DoxyItemize}
+\item To use e\+Ta\+SL planner and online planning, install e\+Ta\+SL as shown \hyperlink{md_docs__e_t_a_s_l__s_e_t_u_p}{docs/\+E\+T\+A\+S\+L\+\_\+\+S\+E\+T\+UP.md}
+\end{DoxyItemize}
+
+\subsection*{1.\+4 other dependencies}
+
+
+\begin{DoxyItemize}
+\item Python Package Dependencies 
+\begin{DoxyCode}
+pip install colorama==0.3.9 llvmlite==0.31.0 numba==0.47.0
+pip install autograd && pip install --user pymanopt==0.2.4
+pip install dash==1.17.0 visdcc dash\_split\_pane
+pip install matplotlib trimesh pathlib protobuf grpcio numpy-stl sklearn filterpy paramiko SharedArray  
+pip3 install dill matplotlib sklearn opencv-python SharedArray  
+\end{DoxyCode}
+
+\item Install O\+M\+PL (takes $>$30min)
+\begin{DoxyItemize}
+\item Download ompl install bash file \href{third-party/ompl/install-ompl-ubuntu.sh}{\tt third-\/party/ompl/install-\/ompl-\/ubuntu.\+sh}
+\item From the downloaded directory, ``` chmod +x ./install-\/ompl-\/ubuntu.sh ./install-\/ompl-\/ubuntu.sh --python ```
+\end{DoxyItemize}
+\end{DoxyItemize}
+
+\subsection*{1.\+5 hardware setup}
+
+
+\begin{DoxyItemize}
+\item Setup camera and robot driver/sdk following instructions in \hyperlink{md_docs__h_a_r_d_w_a_r_e__s_e_t_u_p}{docs/\+H\+A\+R\+D\+W\+A\+R\+E\+\_\+\+S\+E\+T\+UP.md}
+\end{DoxyItemize}
+
+\section*{2 Setup project}
+
+\subsection*{2.\+1 Get project setup path}
+
+
+\begin{DoxyItemize}
+\item Download and add path to $\sim$/.bashrc 
+\begin{DoxyCode}
+mkdir ~/Projects && cd ~/Projects \(\backslash\)
+&& git clone https://github.com/rnb-disinfection/rnb-planning.git \(\backslash\)
+&& export RNB\_PLANNING\_DIR=$HOME/Projects/rnb-planning/ \(\backslash\)
+&& echo 'export RNB\_PLANNING\_DIR=$HOME/Projects/rnb-planning/' >> ~/.bashrc
+\end{DoxyCode}
+
+\end{DoxyItemize}
+
+\subsection*{2.\+2 Build custom etasl}
+
+
+\begin{DoxyItemize}
+\item get custom etasl project from github and recompile etasl ``` cd $\sim$/etasl/ws \textbackslash{} \&\& mv ./etasl ./etasl\+\_\+bak \&\& mv ./etasl-\/py ./etasl-\/py\+\_\+bak \textbackslash{} \&\& cp -\/r \$\+R\+N\+B\+\_\+\+P\+L\+A\+N\+N\+I\+N\+G\+\_\+\+D\+IR/third-\/party/etasl/etasl ./ \textbackslash{} \&\& cp -\/r \$\+R\+N\+B\+\_\+\+P\+L\+A\+N\+N\+I\+N\+G\+\_\+\+D\+IR/third-\/party/etasl/etasl-\/py ./ ```
+\item {\bfseries \mbox{[}I\+M\+P\+O\+R\+T\+A\+NT\mbox{]}} comment out \char`\"{}source \$\+H\+O\+M\+E/etasl/ws/etasl-\/py/devel/setup.\+bash\char`\"{} in $\sim$/.bashrc
+\item restart terminal
+\item switch gcc and g++ version to 7 before installing etasl ``` sudo update-\/alternatives --config gcc \&\& sudo update-\/alternatives --config g++ ```
+\item rebuild etasl ``` cd $\sim$/etasl/ws/etasl \textbackslash{} \&\& sudo rm -\/rf devel \&\& sudo rm -\/rf build \&\& catkin\+\_\+make -\/\+D\+C\+M\+A\+K\+E\+\_\+\+B\+U\+I\+L\+D\+\_\+\+T\+Y\+PE=Release \textbackslash{} \&\& source \$\+H\+O\+ME/etasl/ws/etasl/devel/setup.bash ```
+\item switch gcc and g++ version to 5 before installing etasl-\/py ``` sudo update-\/alternatives --config gcc \&\& sudo update-\/alternatives --config g++ ```
+\item rebuild etasl-\/py ``` cd $\sim$/etasl/ws/etasl-\/py \textbackslash{} \&\& sudo rm -\/rf devel \&\& sudo rm -\/rf build \&\& catkin\+\_\+make -\/\+D\+C\+M\+A\+K\+E\+\_\+\+B\+U\+I\+L\+D\+\_\+\+T\+Y\+PE=Release \textbackslash{} \&\& source \$\+H\+O\+ME/etasl/ws/etasl-\/py/devel/setup.bash ```
+\item {\bfseries \mbox{[}I\+M\+P\+O\+R\+T\+A\+NT\mbox{]}} uncomment \char`\"{}source \$\+H\+O\+M\+E/etasl/ws/etasl-\/py/devel/setup.\+bash\char`\"{} in $\sim$/.bashrc
+\item restart terminal
+\item switch gcc and g++ version back to 7 ``` sudo update-\/alternatives --config gcc \&\& sudo update-\/alternatives --config g++ ```
+\end{DoxyItemize}
+
+\subsection*{2.\+3 Build subprojects}
+
+
+\begin{DoxyItemize}
+\item Build moveit-\/python interpreter, copy it and clean Release folder ``` sudo apt-\/get remove ros-\/melodic-\/ompl \textbackslash{} \&\& cd \char`\"{}\$\+R\+N\+B\+\_\+\+P\+L\+A\+N\+N\+I\+N\+G\+\_\+\+D\+I\+R\char`\"{}lib/moveit\+\_\+interface\+\_\+py \textbackslash{} \&\& chmod +x ./build.sh \textbackslash{} \&\& ./build.sh \textbackslash{} \&\& export L\+D\+\_\+\+L\+I\+B\+R\+A\+R\+Y\+\_\+\+P\+A\+TH=\$\+L\+D\+\_\+\+L\+I\+B\+R\+A\+R\+Y\+\_\+\+P\+A\+TH\+:/usr/local/lib \textbackslash{} \&\& echo \textquotesingle{}export L\+D\+\_\+\+L\+I\+B\+R\+A\+R\+Y\+\_\+\+P\+A\+TH=\$\+L\+D\+\_\+\+L\+I\+B\+R\+A\+R\+Y\+\_\+\+P\+A\+TH\+:/usr/local/lib\textquotesingle{} $>$$>$ $\sim$/.bashrc ```
+\item build open\+G\+JK ``` cd \char`\"{}\$\+R\+N\+B\+\_\+\+P\+L\+A\+N\+N\+I\+N\+G\+\_\+\+D\+I\+R\char`\"{}lib/open\+G\+J\+K/lib \textbackslash{} \&\& cmake -\/\+D\+C\+M\+A\+K\+E\+\_\+\+B\+U\+I\+L\+D\+\_\+\+T\+Y\+PE=Release \textbackslash{} \&\& make ```
+\item build custom workspace ``` cd \char`\"{}\$\+R\+N\+B\+\_\+\+P\+L\+A\+N\+N\+I\+N\+G\+\_\+\+D\+I\+R\char`\"{}ws\+\_\+ros \&\& rm -\/rf build devel \&\& catkin\+\_\+make -\/\+D\+C\+M\+A\+K\+E\+\_\+\+B\+U\+I\+L\+D\+\_\+\+T\+Y\+PE=Release source \char`\"{}\$\+R\+N\+B\+\_\+\+P\+L\+A\+N\+N\+I\+N\+G\+\_\+\+D\+I\+R\char`\"{}ws\+\_\+ros/devel/setup.\+bash echo \textquotesingle{}source \char`\"{}\$\+R\+N\+B\+\_\+\+P\+L\+A\+N\+N\+I\+N\+G\+\_\+\+D\+I\+R\char`\"{}ws\+\_\+ros/devel/setup.\+bash\textquotesingle{} $>$$>$ $\sim$/.bashrc ```
+\end{DoxyItemize}
+
+\subsection*{2.\+4 Install recommended tools}
+
+
+\begin{DoxyItemize}
+\item Follow instruction in \hyperlink{md_docs__s_u_p_p_l_e_m_e_n_t__r_e_a_d_m_e}{docs/\+S\+U\+P\+P\+L\+E\+M\+E\+N\+T\+\_\+\+R\+E\+A\+D\+ME.md}
+\end{DoxyItemize}
+
+\section*{3 How to}
+
+
+\begin{DoxyItemize}
+\item For further instruction on how to use \& develop, read \hyperlink{md_docs__h_o_w__t_o}{docs/\+H\+O\+W\+\_\+\+TO.md}
+\end{DoxyItemize}
+
+\section*{4 Check shell environemnt settings}
+
+
+\begin{DoxyItemize}
+\item $\sim$/.bashrc should contain following lines. 
+\begin{DoxyCode}
+# export PATH=$PATH:~/.local/bin  
+
+# ORCOS
+source $HOME/orocos-install/orocos-2.9\_ws/install\_isolated/setup.bash
+
+# CUDA
+export PATH=$PATH:/usr/local/cuda-11.0/bin
+export CUDADIR=/usr/local/cuda-11.0
+if [ -z $LD\_LIBRARY\_PATH ]; then
+  export LD\_LIBRARY\_PATH=/usr/local/cuda-11.0/lib64
+else
+  export LD\_LIBRARY\_PATH=$LD\_LIBRARY\_PATH:/usr/local/cuda-11.0/lib64
+fi
+
+# ROS
+alias eb='nano ~/.bashrc'
+alias sb='source ~/.bashrc'
+alias gs='git status'
+alias gp='git pull'
+alias cw='cd ~/catkin\_ws'
+alias cs='cd ~/catkin\_ws/src'
+alias cm='cd ~/catkin\_ws && catkin\_make'
+source /opt/ros/melodic/setup.bash
+source ~/catkin\_ws/devel/setup.bash
+export ROS\_MASTER\_URI=http://localhost:11311
+export ROS\_HOSTNAME=localhost
+
+# eTaSL
+source $HOME/etasl/ws/etasl-py/devel/setup.bash
+
+# RNB-PLANNING
+export RNB\_PLANNING\_DIR=$HOME/Projects/rnb-planning/
+
+# custom-ompl
+export LD\_LIBRARY\_PATH=$LD\_LIBRARY\_PATH:/usr/local/lib
+
+# custom-workspace
+source "$RNB\_PLANNING\_DIR"ws\_ros/devel/setup.bash
+
+# JetBrains  
+export PATH=$PATH:$HOME/pycharm-2020.2/bin  
+export PATH=$PATH:$HOME/clion-2020.2/bin  
+\end{DoxyCode}
+ 
+\end{DoxyItemize}

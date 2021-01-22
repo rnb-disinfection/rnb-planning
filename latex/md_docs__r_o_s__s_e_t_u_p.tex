@@ -1,0 +1,52 @@
+
+\begin{DoxyItemize}
+\item R\+OS Melodic 
+\begin{DoxyCode}
+mkdir ~/ROS\_TMP && cd ~/ROS\_TMP \(\backslash\)
+&& wget https://raw.githubusercontent.com/orocapangyo/meetup/master/190830/install\_ros\_melodic.sh && chmod
+       755 ./install\_ros\_melodic.sh && bash ./install\_ros\_melodic.sh \(\backslash\)
+&& sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb\_release -sc) main" >
+       /etc/apt/sources.list.d/ros-latest.list' \(\backslash\)
+&& sudo apt-key adv --keyserver hkp://ha.pool.sks-keyservers.net:80 --recv-key
+       421C365BD9FF1F717815A3895523BAEEB01FA116 \(\backslash\)
+&& sudo apt-get update && sudo apt-get upgrade -y \(\backslash\)
+&& sudo apt-get install ros-melodic-desktop-full -y \(\backslash\)
+&& sudo apt-get install ros-melodic-rqt* -y \(\backslash\)
+&& sudo apt-get install python-rosdep -y \(\backslash\)
+&& sudo rosdep init \(\backslash\)
+&& rosdep update \(\backslash\)
+&& sudo apt-get install python-rosinstall -y \(\backslash\)
+&& sudo apt-get install ros-melodic-catkin python-catkin-tools -y
+\end{DoxyCode}
+
+\begin{DoxyItemize}
+\item {\bfseries R\+E\+S\+T\+A\+RT T\+E\+R\+M\+I\+N\+A\+L!}
+\end{DoxyItemize}
+\item Moveit 
+\begin{DoxyCode}
+sudo apt-get install -y ros-melodic-moveit ros-melodic-industrial-core ros-melodic-moveit-visual-tools
+       ros-melodic-joint-state-publisher-gui  
+\end{DoxyCode}
+
+\item Gazebo 
+\begin{DoxyCode}
+sudo apt-get install -y ros-melodic-gazebo-ros-pkgs ros-melodic-gazebo-ros-control
+       ros-melodic-joint-state-controller ros-melodic-effort-controllers ros-melodic-position-controllers
+       ros-melodic-joint-trajectory-controller  
+\end{DoxyCode}
+
+\item UR package
+\begin{DoxyItemize}
+\item link\+: \href{https://github.com/ros-industrial/universal_robot}{\tt https\+://github.\+com/ros-\/industrial/universal\+\_\+robot} ``` cd \$\+H\+O\+ME/catkin\+\_\+ws/src \textbackslash{} \&\& git clone -\/b \$\+R\+O\+S\+\_\+\+D\+I\+S\+T\+RO-\/devel \href{https://github.com/ros-industrial/universal_robot.git}{\tt https\+://github.\+com/ros-\/industrial/universal\+\_\+robot.\+git} \textbackslash{} \&\& cd \$\+H\+O\+ME/catkin\+\_\+ws \textbackslash{} \&\& rosdep update \textbackslash{} \&\& rosdep install --rosdistro \$\+R\+O\+S\+\_\+\+D\+I\+S\+T\+RO --ignore-\/src --from-\/paths src \textbackslash{} \&\& catkin\+\_\+make -\/\+D\+C\+M\+A\+K\+E\+\_\+\+B\+U\+I\+L\+D\+\_\+\+T\+Y\+PE=Release ```
+\end{DoxyItemize}
+\item Indy package ``` cd $\sim$/catkin\+\_\+ws/src \&\& git clone -\/b release-\/2.\+3 \href{https://github.com/neuromeka-robotics/indy-ros}{\tt https\+://github.\+com/neuromeka-\/robotics/indy-\/ros} \textbackslash{} \&\& cd $\sim$/catkin\+\_\+ws \&\& catkin\+\_\+make -\/\+D\+C\+M\+A\+K\+E\+\_\+\+B\+U\+I\+L\+D\+\_\+\+T\+Y\+PE=Release ```
+\begin{DoxyItemize}
+\item (not used now) To update Indy to 3.\+0, Follow instruction on external/\+Indy\+Framework3.\+0/\+Read\+Me.md
+\end{DoxyItemize}
+\item Franka package ``` sudo apt install ros-\/melodic-\/libfranka ros-\/melodic-\/franka-\/ros \textbackslash{} \&\& cd $\sim$/catkin\+\_\+ws \textbackslash{} \&\& git clone \href{https://github.com/justagist/franka_ros_interface}{\tt https\+://github.\+com/justagist/franka\+\_\+ros\+\_\+interface} src/franka\+\_\+ros\+\_\+interface \textbackslash{} \&\& catkin\+\_\+make -\/\+D\+C\+M\+A\+K\+E\+\_\+\+B\+U\+I\+L\+D\+\_\+\+T\+Y\+PE=Release \textbackslash{} \&\& source devel/setup.\+bash ```
+\begin{DoxyItemize}
+\item Copy/move the franka.\+sh file to the root of the catkin\+\_\+ws ``` cp $\sim$/catkin\+\_\+ws/src/franka\+\_\+ros\+\_\+interface/franka.sh $\sim$/catkin\+\_\+ws/ ```
+\item $\sim$$\sim$\+Change the values in the copied file (described in the file).$\sim$$\sim$
+\end{DoxyItemize}
+\item python compatibility ``` pip install rospkg ``` 
+\end{DoxyItemize}

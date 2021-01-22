@@ -1,0 +1,59 @@
+
+\begin{DoxyItemize}
+\item Constraint 추가
+\item State space를 Constrained\+State\+Space로 변경
+\item Validity checker를 Constrained\+State에 맞춰 수정
+\end{DoxyItemize}
+
+\subsubsection*{class Model\+Based\+Planning\+Context \+: public planning\+\_\+interface\+::\+Planning\+Context}
+
+
+\begin{DoxyItemize}
+\item Representation of a particular planning context -- the planning scene and the request are known, solution is not yet computed.
+\item solve() 포함
+\end{DoxyItemize}
+
+\subsubsection*{O\+M\+P\+L\+Interface}
+
+
+\begin{DoxyItemize}
+\item O\+M\+P\+L-\/\+Moveit 인터페이스
+\end{DoxyItemize}
+
+\subsubsection*{Planning\+Context\+Manager\+:}
+
+
+\begin{DoxyItemize}
+\item get\+Planning\+Context / get\+Planner\+Configureations / set\+Planner\+Configurations 셔틀
+\item scene에서 Planner\+Context 생성하는 역할, O\+M\+P\+L\+Interface에서만 사용
+\end{DoxyItemize}
+
+\subsubsection*{class O\+M\+P\+L\+Planner\+Manager\+Custom \+: public planning\+\_\+interface\+::\+Planner\+Manager}
+
+
+\begin{DoxyItemize}
+\item Base class for a Move\+It planner.
+\item 실제 플래닝 외부와 연결 
+\begin{DoxyCode}
+initialize(robot\_model\_, \_\_node\_handle->getNamespace())
+getPlanningContext(planning\_scene\_, \_req, \_res.error\_code, custom\_constraint)
+\end{DoxyCode}
+
+\end{DoxyItemize}
+
+\paragraph*{Constrained\+State\+Space\+::\+State\+Type}
+
+
+\begin{DoxyItemize}
+\item Wrapper\+State\+Space\+::\+State\+Type, Vector\+Xd 상속
+\item 생성자에서 get\+Value\+Address\+At\+Index으로 Vector\+Xd 데이터 internal state와 data array 동기화
+\item copy로 다른 Vector\+Xd에서 카피 가능, internal state와는 data array만 동기화됨.
+\end{DoxyItemize}
+
+\paragraph*{Model\+Based\+State\+Space\+::\+State\+Type}
+
+
+\begin{DoxyItemize}
+\item 스테이트는 double $\ast$ values에 저장, tag, flags, distance 등 멤버 변수 추가
+\item state\+\_\+validity\+\_\+checker, constraints\+\_\+library, projection\+\_\+evaluators에서만 사용 (Model\+Based\+State\+Space\+::\+State\+Type로 검색) 
+\end{DoxyItemize}

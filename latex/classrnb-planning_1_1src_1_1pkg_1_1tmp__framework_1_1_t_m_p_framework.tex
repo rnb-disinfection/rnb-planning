@@ -1,0 +1,138 @@
+\hypertarget{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework}{}\section{rnb-\/planning.src.\+pkg.\+tmp\+\_\+framework.\+T\+M\+P\+Framework Class Reference}
+\label{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework}\index{rnb-\/planning.\+src.\+pkg.\+tmp\+\_\+framework.\+T\+M\+P\+Framework@{rnb-\/planning.\+src.\+pkg.\+tmp\+\_\+framework.\+T\+M\+P\+Framework}}
+
+
+framework for task and motion planning  
+
+
+\subsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a53d020ecaa42f57d67f69f52eb3b6b21}\label{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a53d020ecaa42f57d67f69f52eb3b6b21}} 
+def {\bfseries \+\_\+\+\_\+init\+\_\+\+\_\+} (self, gscene, urdf\+\_\+path, joint\+\_\+names, link\+\_\+names, urdf\+\_\+content=None, combined\+\_\+robot=None)
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_ab3eda4bc7dad7343aea6f52e6c846161}\label{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_ab3eda4bc7dad7343aea6f52e6c846161}} 
+def {\bfseries \+\_\+\+\_\+del\+\_\+\+\_\+} (self)
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_ad40cb406a0ebe71fb9baec8346d79e27}\label{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_ad40cb406a0ebe71fb9baec8346d79e27}} 
+def {\bfseries set\+\_\+camera} (self, cam)
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_ab2d3326b89c04823dcc420d883c9889e}\label{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_ab2d3326b89c04823dcc420d883c9889e}} 
+def \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_ab2d3326b89c04823dcc420d883c9889e}{register\+\_\+object\+\_\+gen} (self, object\+Pose\+\_\+dict\+\_\+mv, binder\+\_\+dict, object\+\_\+dict, ref\+\_\+tuple=None, link\+\_\+name=\char`\"{}base\+\_\+link\char`\"{})
+\begin{DoxyCompactList}\small\item\em Objects \#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_af19778d826984c527f6efa333dc0e4a8}\label{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_af19778d826984c527f6efa333dc0e4a8}} 
+def \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_af19778d826984c527f6efa333dc0e4a8}{test\+\_\+transition} (self, from\+\_\+state=None, to\+\_\+state=None, display=False, dt\+\_\+vis=1e-\/2, error\+\_\+skip=0, kwargs)
+\begin{DoxyCompactList}\small\item\em Transition \#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a912540d18e5d26987b9164c7c1632e2e}\label{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a912540d18e5d26987b9164c7c1632e2e}} 
+def {\bfseries get\+\_\+real\+\_\+robot\+\_\+pose} (self)
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_aa841753bcab475d68b32b39447300b50}\label{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_aa841753bcab475d68b32b39447300b50}} 
+def {\bfseries execute\+\_\+grip} (self, state)
+\item 
+def \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_afa1974ab961085334284e468ad2efe33}{replay} (self, schedule, N=400, dt=0.\+005, kwargs)
+\begin{DoxyCompactList}\small\item\em Transition \#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_adb3709d150c2629d9a23ffe582955e43}\label{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_adb3709d150c2629d9a23ffe582955e43}} 
+def {\bfseries execute\+\_\+schedule\+\_\+online} (self, snode\+\_\+schedule, planner, control\+\_\+freq=D\+E\+F\+A\+U\+L\+T\+\_\+\+T\+R\+A\+J\+\_\+\+F\+R\+E\+Q\+U\+E\+N\+CY, playback\+\_\+rate=0.\+5, on\+\_\+rviz=False, dynamic\+\_\+detector=None, rviz\+\_\+pub=None, stop\+\_\+count\+\_\+ref=25, T\+\_\+step=30, kwargs)
+\item 
+def \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a9bec34f98a11225a406abf17c0869afe}{draw\+\_\+objects\+\_\+graph} (self, color\+\_\+image, object\+Pose\+\_\+dict, corner\+\_\+dict, axis\+\_\+len=0.\+1)
+\begin{DoxyCompactList}\small\item\em Schedule \#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_ae2e3f5a4c514e9eddfb77f721584ba84}\label{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_ae2e3f5a4c514e9eddfb77f721584ba84}} 
+def {\bfseries sample\+\_\+\+Trel} (self, obj\+\_\+name, obj\+\_\+link\+\_\+name, coord\+\_\+link\+\_\+name, coord\+\_\+name, Teo, object\+Pose\+\_\+dict\+\_\+ref)
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a3ad21e5c430d545bdbe2d6f1e5c1c3d0}\label{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a3ad21e5c430d545bdbe2d6f1e5c1c3d0}} 
+def \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a3ad21e5c430d545bdbe2d6f1e5c1c3d0}{clear\+\_\+ws} (self)
+\begin{DoxyCompactList}\small\item\em Calibration -\/ deprecated \#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a6fcad729d4844f64774c873a5162a41f}\label{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a6fcad729d4844f64774c873a5162a41f}} 
+def {\bfseries replace\+\_\+gscene} (self, gscene\+\_\+new)
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a71e600c5c84dc63a7b8dd7abe5e27015}\label{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a71e600c5c84dc63a7b8dd7abe5e27015}} 
+def {\bfseries convert\+\_\+workspace} (self, gscene, L\+\_\+\+C\+E\+LL=0.\+2, W\+S\+\_\+\+D\+I\+MS=(3, 3, 3), center\+\_\+height=0.\+75)
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a936e2653e6974f823d0fc4b518254719}\label{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a936e2653e6974f823d0fc4b518254719}} 
+def {\bfseries convert\+\_\+scene} (self, gscene\+\_\+cvt, state, L\+\_\+\+C\+E\+LL=0.\+2, Nwdh=(15, 15, 15), B\+A\+S\+E\+\_\+\+L\+I\+NK=\char`\"{}base\+\_\+link\char`\"{}, offset\+\_\+center=True, only\+\_\+base=True, center\+\_\+height=0.\+75)
+\end{DoxyCompactItemize}
+\subsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_ae6315e05ca0a1345d8ed64f354af8145}\label{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_ae6315e05ca0a1345d8ed64f354af8145}} 
+\hyperlink{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_ae6315e05ca0a1345d8ed64f354af8145}{gtimer}
+\begin{DoxyCompactList}\small\item\em global timer for internal time testing \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a14c80a8d93c1934bec1e2065f42da663}\label{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a14c80a8d93c1934bec1e2065f42da663}} 
+{\bfseries urdf\+\_\+path}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a5dc778637b80784f14ec8c36f191c018}\label{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a5dc778637b80784f14ec8c36f191c018}} 
+{\bfseries urdf\+\_\+content}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a4b5b0c67387d842ef3aef14e64d1ffce}\label{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a4b5b0c67387d842ef3aef14e64d1ffce}} 
+{\bfseries gscene}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a9b0b858724eb5686406bec9f884fe3f5}\label{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a9b0b858724eb5686406bec9f884fe3f5}} 
+{\bfseries joint\+\_\+names}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a522898fc976eb08c3c6356057d67b257}\label{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a522898fc976eb08c3c6356057d67b257}} 
+{\bfseries link\+\_\+names}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_ae696b8f04bcf73e8426bc3be1d17ef1c}\label{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_ae696b8f04bcf73e8426bc3be1d17ef1c}} 
+{\bfseries binder\+\_\+dict}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_aad85a828d9dbd7312e6219cd6a555af6}\label{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_aad85a828d9dbd7312e6219cd6a555af6}} 
+{\bfseries object\+\_\+binder\+\_\+dict}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a702b13458211676a68e6a63b4dd2af0e}\label{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a702b13458211676a68e6a63b4dd2af0e}} 
+{\bfseries handle\+\_\+dict}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a29c25dbec9bb03bb086c368a7a0f4453}\label{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a29c25dbec9bb03bb086c368a7a0f4453}} 
+{\bfseries handle\+\_\+list}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a047f1bb63cad34cc92dcb77cf3b23b37}\label{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a047f1bb63cad34cc92dcb77cf3b23b37}} 
+{\bfseries object\+\_\+dict}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a0c3b95ec04826b9e7f7b807fa5750611}\label{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a0c3b95ec04826b9e7f7b807fa5750611}} 
+{\bfseries joint\+\_\+limits}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_aae30d8d11b84375ac8021d3ce10ae775}\label{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_aae30d8d11b84375ac8021d3ce10ae775}} 
+{\bfseries marker\+\_\+list}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a516e93ca5c4ffe7cf1f079048e09dcf0}\label{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a516e93ca5c4ffe7cf1f079048e09dcf0}} 
+{\bfseries combined\+\_\+robot}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_af10a93c21c23dbb604433fdac20b49d6}\label{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_af10a93c21c23dbb604433fdac20b49d6}} 
+{\bfseries planner}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_ad1328988205b37212d399943572d538d}\label{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_ad1328988205b37212d399943572d538d}} 
+{\bfseries sampler}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a6eeaa7ccf83461d8d44564bd512ccc34}\label{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a6eeaa7ccf83461d8d44564bd512ccc34}} 
+{\bfseries cam}
+\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+framework for task and motion planning 
+
+\subsection{Member Function Documentation}
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a9bec34f98a11225a406abf17c0869afe}\label{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_a9bec34f98a11225a406abf17c0869afe}} 
+\index{rnb-\/planning\+::src\+::pkg\+::tmp\+\_\+framework\+::\+T\+M\+P\+Framework@{rnb-\/planning\+::src\+::pkg\+::tmp\+\_\+framework\+::\+T\+M\+P\+Framework}!draw\+\_\+objects\+\_\+graph@{draw\+\_\+objects\+\_\+graph}}
+\index{draw\+\_\+objects\+\_\+graph@{draw\+\_\+objects\+\_\+graph}!rnb-\/planning\+::src\+::pkg\+::tmp\+\_\+framework\+::\+T\+M\+P\+Framework@{rnb-\/planning\+::src\+::pkg\+::tmp\+\_\+framework\+::\+T\+M\+P\+Framework}}
+\subsubsection{\texorpdfstring{draw\+\_\+objects\+\_\+graph()}{draw\_objects\_graph()}}
+{\footnotesize\ttfamily def rnb-\/planning.\+src.\+pkg.\+tmp\+\_\+framework.\+T\+M\+P\+Framework.\+draw\+\_\+objects\+\_\+graph (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{color\+\_\+image,  }\item[{}]{object\+Pose\+\_\+dict,  }\item[{}]{corner\+\_\+dict,  }\item[{}]{axis\+\_\+len = {\ttfamily 0.1} }\end{DoxyParamCaption})}
+
+
+
+Schedule \#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#. 
+
+Calibration -\/ deprecated \#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\# \mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_afa1974ab961085334284e468ad2efe33}\label{classrnb-planning_1_1src_1_1pkg_1_1tmp__framework_1_1_t_m_p_framework_afa1974ab961085334284e468ad2efe33}} 
+\index{rnb-\/planning\+::src\+::pkg\+::tmp\+\_\+framework\+::\+T\+M\+P\+Framework@{rnb-\/planning\+::src\+::pkg\+::tmp\+\_\+framework\+::\+T\+M\+P\+Framework}!replay@{replay}}
+\index{replay@{replay}!rnb-\/planning\+::src\+::pkg\+::tmp\+\_\+framework\+::\+T\+M\+P\+Framework@{rnb-\/planning\+::src\+::pkg\+::tmp\+\_\+framework\+::\+T\+M\+P\+Framework}}
+\subsubsection{\texorpdfstring{replay()}{replay()}}
+{\footnotesize\ttfamily def rnb-\/planning.\+src.\+pkg.\+tmp\+\_\+framework.\+T\+M\+P\+Framework.\+replay (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{schedule,  }\item[{}]{N = {\ttfamily 400},  }\item[{}]{dt = {\ttfamily 0.005},  }\item[{}]{kwargs }\end{DoxyParamCaption})}
+
+
+
+Transition \#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#. 
+
+Visualize -\/ Highlight \#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\# Visualize -\/ Highlight \#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\# Schedule \#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\#\# 
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+src/pkg/tmp\+\_\+framework.\+py\end{DoxyCompactItemize}

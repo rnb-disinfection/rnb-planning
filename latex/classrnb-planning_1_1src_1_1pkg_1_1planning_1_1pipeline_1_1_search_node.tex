@@ -1,0 +1,87 @@
+\hypertarget{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1pipeline_1_1_search_node}{}\section{rnb-\/planning.src.\+pkg.\+planning.\+pipeline.\+Search\+Node Class Reference}
+\label{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1pipeline_1_1_search_node}\index{rnb-\/planning.\+src.\+pkg.\+planning.\+pipeline.\+Search\+Node@{rnb-\/planning.\+src.\+pkg.\+planning.\+pipeline.\+Search\+Node}}
+
+
+search node  
+
+
+\subsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+def \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1pipeline_1_1_search_node_a9c7920c7e5010de26dd5c846058e3202}{\+\_\+\+\_\+init\+\_\+\+\_\+} (self, idx, state, parents, leafs, depth=None, edepth=None, redundancy=None)
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1pipeline_1_1_search_node_aa0388b7a38c100eb6387d001624f7ee4}\label{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1pipeline_1_1_search_node_aa0388b7a38c100eb6387d001624f7ee4}} 
+def \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1pipeline_1_1_search_node_aa0388b7a38c100eb6387d001624f7ee4}{set\+\_\+traj} (self, traj\+\_\+full)
+\begin{DoxyCompactList}\small\item\em set current transition\textquotesingle{}s trajectory + update trajectory length \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1pipeline_1_1_search_node_ac8664ba72f84f10fe59480f2bdf8bceb}\label{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1pipeline_1_1_search_node_ac8664ba72f84f10fe59480f2bdf8bceb}} 
+def {\bfseries get\+\_\+traj} (self)
+\item 
+def \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1pipeline_1_1_search_node_aa6fea8bed1d1b1b1a967e7d6af26727f}{copy} (self, pscene)
+\begin{DoxyCompactList}\small\item\em copy \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1pipeline_1_1_search_node}{Search\+Node} \end{DoxyCompactList}\end{DoxyCompactItemize}
+\subsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1pipeline_1_1_search_node_ab61922499722b9312e20b61b6f398611}\label{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1pipeline_1_1_search_node_ab61922499722b9312e20b61b6f398611}} 
+{\bfseries redundancy}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1pipeline_1_1_search_node_afdbcd330efe5cf10f29689e5c89ffb0d}\label{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1pipeline_1_1_search_node_afdbcd330efe5cf10f29689e5c89ffb0d}} 
+{\bfseries traj}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1pipeline_1_1_search_node_a985ecf3a07250da6f755338b76e83b28}\label{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1pipeline_1_1_search_node_a985ecf3a07250da6f755338b76e83b28}} 
+{\bfseries traj\+\_\+size}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1pipeline_1_1_search_node_afcc3d833018ee1632b62c3ce0f7e3403}\label{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1pipeline_1_1_search_node_afcc3d833018ee1632b62c3ce0f7e3403}} 
+{\bfseries traj\+\_\+length}
+\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+search node 
+
+\subsection{Constructor \& Destructor Documentation}
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1pipeline_1_1_search_node_a9c7920c7e5010de26dd5c846058e3202}\label{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1pipeline_1_1_search_node_a9c7920c7e5010de26dd5c846058e3202}} 
+\index{rnb-\/planning\+::src\+::pkg\+::planning\+::pipeline\+::\+Search\+Node@{rnb-\/planning\+::src\+::pkg\+::planning\+::pipeline\+::\+Search\+Node}!\+\_\+\+\_\+init\+\_\+\+\_\+@{\+\_\+\+\_\+init\+\_\+\+\_\+}}
+\index{\+\_\+\+\_\+init\+\_\+\+\_\+@{\+\_\+\+\_\+init\+\_\+\+\_\+}!rnb-\/planning\+::src\+::pkg\+::planning\+::pipeline\+::\+Search\+Node@{rnb-\/planning\+::src\+::pkg\+::planning\+::pipeline\+::\+Search\+Node}}
+\subsubsection{\texorpdfstring{\+\_\+\+\_\+init\+\_\+\+\_\+()}{\_\_init\_\_()}}
+{\footnotesize\ttfamily def rnb-\/planning.\+src.\+pkg.\+planning.\+pipeline.\+Search\+Node.\+\_\+\+\_\+init\+\_\+\+\_\+ (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{idx,  }\item[{}]{state,  }\item[{}]{parents,  }\item[{}]{leafs,  }\item[{}]{depth = {\ttfamily None},  }\item[{}]{edepth = {\ttfamily None},  }\item[{}]{redundancy = {\ttfamily None} }\end{DoxyParamCaption})}
+
+
+\begin{DoxyParams}{Parameters}
+{\em idx} & incremental index of search node \\
+\hline
+{\em state} & \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1scene_1_1_state}{rnb-\/planning.\+src.\+pkg.\+planning.\+scene.\+State} \\
+\hline
+{\em parents} & list of parent \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1pipeline_1_1_search_node}{Search\+Node} idx \\
+\hline
+{\em leafs} & list of available nodes \\
+\hline
+{\em depth} & depth of current node = number of parent \\
+\hline
+{\em edepth} & expected depth of current node = depth + optimal number of remaining steps \\
+\hline
+{\em redundancy} & defined redundancy of transition in dictionary form, \{object name\+: \{axis\+: value\}\} \\
+\hline
+\end{DoxyParams}
+
+
+\subsection{Member Function Documentation}
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1pipeline_1_1_search_node_aa6fea8bed1d1b1b1a967e7d6af26727f}\label{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1pipeline_1_1_search_node_aa6fea8bed1d1b1b1a967e7d6af26727f}} 
+\index{rnb-\/planning\+::src\+::pkg\+::planning\+::pipeline\+::\+Search\+Node@{rnb-\/planning\+::src\+::pkg\+::planning\+::pipeline\+::\+Search\+Node}!copy@{copy}}
+\index{copy@{copy}!rnb-\/planning\+::src\+::pkg\+::planning\+::pipeline\+::\+Search\+Node@{rnb-\/planning\+::src\+::pkg\+::planning\+::pipeline\+::\+Search\+Node}}
+\subsubsection{\texorpdfstring{copy()}{copy()}}
+{\footnotesize\ttfamily def rnb-\/planning.\+src.\+pkg.\+planning.\+pipeline.\+Search\+Node.\+copy (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{pscene }\end{DoxyParamCaption})}
+
+
+
+copy \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1pipeline_1_1_search_node}{Search\+Node} 
+
+
+\begin{DoxyParams}{Parameters}
+{\em pscene} & \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1scene_1_1_planning_scene}{rnb-\/planning.\+src.\+pkg.\+planning.\+scene.\+Planning\+Scene} \\
+\hline
+\end{DoxyParams}
+
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+src/pkg/planning/pipeline.\+py\end{DoxyCompactItemize}

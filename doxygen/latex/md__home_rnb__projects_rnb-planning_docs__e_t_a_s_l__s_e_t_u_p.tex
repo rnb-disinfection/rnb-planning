@@ -1,0 +1,12 @@
+
+\begin{DoxyItemize}
+\item Follow install process below (reference\+: \href{https://etasl.pages.gitlab.kuleuven.be/install-new.html}{\tt https\+://etasl.\+pages.\+gitlab.\+kuleuven.\+be/install-\/new.\+html}) ``` cd $\sim$ \textbackslash{} \&\& git clone --recursive \href{https://gitlab.kuleuven.be/rob-expressiongraphs/docker/etasl-install.git}{\tt https\+://gitlab.\+kuleuven.\+be/rob-\/expressiongraphs/docker/etasl-\/install.\+git} etasl \textbackslash{} \&\& cd etasl \textbackslash{} \&\& source install-\/dependencies.\+sh ```
+\item {\bfseries \mbox{[}I\+M\+P\+O\+R\+T\+A\+NT\mbox{]}} Add \char`\"{}source \$\+H\+O\+M\+E/orocos-\/install/orocos-\/2.\+9\+\_\+ws/install\+\_\+isolated/setup.\+bash\char`\"{} on top of customized section of $\sim$/.bashrc
+\item {\bfseries \mbox{[}I\+M\+P\+O\+R\+T\+A\+NT\mbox{]}} Restart terminal
+\item switch gcc and g++ version to 7 before installing etasl ``` sudo update-\/alternatives --config gcc \&\& sudo update-\/alternatives --config g++ ```
+\item install etasl base ``` source \$\+H\+O\+ME/etasl/etasl-\/install.sh ```
+\item switch gcc and g++ version to 5 before installing etasl-\/py ``` sudo update-\/alternatives --config gcc \&\& sudo update-\/alternatives --config g++ ```
+\item install etasl-\/py base ``` source \$\+H\+O\+ME/etasl/ws/etasl/devel/setup.sh \textbackslash{} \&\& source python-\/etasl-\/install.\+sh \textbackslash{} \&\& source \$\+H\+O\+ME/etasl/ws/etasl-\/py/devel/setup.bash \textbackslash{} \&\& echo \textquotesingle{}source \$\+H\+O\+ME/etasl/ws/etasl-\/py/devel/setup.bash\textquotesingle{} $>$$>$ $\sim$/.bashrc ```
+\item switch gcc and g++ version back to 7 after installing etasl-\/py ``` sudo update-\/alternatives --config gcc \&\& sudo update-\/alternatives --config g++ ```
+\item {\itshape {\bfseries If e\+Ta\+SL is slow}}, re-\/compile packages in release mode (has to be under 300ms with 200 constraints 500 step) 
+\end{DoxyItemize}

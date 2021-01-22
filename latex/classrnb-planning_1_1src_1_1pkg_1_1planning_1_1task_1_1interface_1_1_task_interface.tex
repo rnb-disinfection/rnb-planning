@@ -1,0 +1,141 @@
+\hypertarget{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1task_1_1interface_1_1_task_interface}{}\section{rnb-\/planning.src.\+pkg.\+planning.\+task.\+interface.\+Task\+Interface Class Reference}
+\label{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1task_1_1interface_1_1_task_interface}\index{rnb-\/planning.\+src.\+pkg.\+planning.\+task.\+interface.\+Task\+Interface@{rnb-\/planning.\+src.\+pkg.\+planning.\+task.\+interface.\+Task\+Interface}}
+
+
+class interface for task sampler  
+
+
+
+
+Inheritance diagram for rnb-\/planning.src.\+pkg.\+planning.\+task.\+interface.\+Task\+Interface\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1task_1_1interface_1_1_task_interface__inherit__graph}
+\end{center}
+\end{figure}
+\subsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+def \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1task_1_1interface_1_1_task_interface_ab4651b9d0aec9ffb3aa345e71a381081}{\+\_\+\+\_\+init\+\_\+\+\_\+} (self, \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1task_1_1interface_1_1_task_interface_aa7ffb430242b8cf040b951cf2828d598}{pscene})
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1task_1_1interface_1_1_task_interface_a1b07c11f533c2c452cb95733171f93c4}\label{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1task_1_1interface_1_1_task_interface_a1b07c11f533c2c452cb95733171f93c4}} 
+def \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1task_1_1interface_1_1_task_interface_a1b07c11f533c2c452cb95733171f93c4}{prepare} (self)
+\begin{DoxyCompactList}\small\item\em (prototype) prepare search algorithm \end{DoxyCompactList}\item 
+def \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1task_1_1interface_1_1_task_interface_a65de11d10bdf6bd9c56d45e4d13e54a9}{init\+\_\+search} (self, initial\+\_\+state, goal, args, kwargs)
+\begin{DoxyCompactList}\small\item\em (prototype) initialize searching loop with given initial state and goal \end{DoxyCompactList}\item 
+def \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1task_1_1interface_1_1_task_interface_a061e47756a27984939e4952a6906f6c5}{get\+\_\+leafs} (self, snode, N\+\_\+redundant\+\_\+sample)
+\begin{DoxyCompactList}\small\item\em (prototype) get sample leafs from snode \end{DoxyCompactList}\item 
+def \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1task_1_1interface_1_1_task_interface_a662506d8de32d7bd9e3402a87a927a6a}{get\+\_\+optimal\+\_\+remaining\+\_\+steps} (self, state)
+\begin{DoxyCompactList}\small\item\em (prototype) get optimal remaining steps \end{DoxyCompactList}\item 
+def \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1task_1_1interface_1_1_task_interface_aad20b6f99946961f68fd256518eb8ac9}{check\+\_\+goal} (self, state)
+\begin{DoxyCompactList}\small\item\em (prototype) check if a state is in pre-\/defined goal nodes \end{DoxyCompactList}\end{DoxyCompactItemize}
+\subsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1task_1_1interface_1_1_task_interface_aa7ffb430242b8cf040b951cf2828d598}\label{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1task_1_1interface_1_1_task_interface_aa7ffb430242b8cf040b951cf2828d598}} 
+\hyperlink{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1task_1_1interface_1_1_task_interface_aa7ffb430242b8cf040b951cf2828d598}{pscene}
+\begin{DoxyCompactList}\small\item\em \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1scene_1_1_planning_scene}{rnb-\/planning.\+src.\+pkg.\+planning.\+scene.\+Planning\+Scene} \end{DoxyCompactList}\end{DoxyCompactItemize}
+\subsection*{Static Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1task_1_1interface_1_1_task_interface_a8b9861dcf1d1b85f611429508b5810c0}\label{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1task_1_1interface_1_1_task_interface_a8b9861dcf1d1b85f611429508b5810c0}} 
+{\bfseries N\+A\+ME} = None
+\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+class interface for task sampler 
+
+\begin{DoxyRemark}{Remarks}
+Child classes should be implemented with initialize and search. Child classes\textquotesingle{} constructor should call Motion\+Interface.\+\_\+\+\_\+init\+\_\+\+\_\+(self, pscene). Specify N\+A\+ME = \char`\"{}\char`\"{} for a child class as a class variable 
+\end{DoxyRemark}
+
+
+\subsection{Constructor \& Destructor Documentation}
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1task_1_1interface_1_1_task_interface_ab4651b9d0aec9ffb3aa345e71a381081}\label{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1task_1_1interface_1_1_task_interface_ab4651b9d0aec9ffb3aa345e71a381081}} 
+\index{rnb-\/planning\+::src\+::pkg\+::planning\+::task\+::interface\+::\+Task\+Interface@{rnb-\/planning\+::src\+::pkg\+::planning\+::task\+::interface\+::\+Task\+Interface}!\+\_\+\+\_\+init\+\_\+\+\_\+@{\+\_\+\+\_\+init\+\_\+\+\_\+}}
+\index{\+\_\+\+\_\+init\+\_\+\+\_\+@{\+\_\+\+\_\+init\+\_\+\+\_\+}!rnb-\/planning\+::src\+::pkg\+::planning\+::task\+::interface\+::\+Task\+Interface@{rnb-\/planning\+::src\+::pkg\+::planning\+::task\+::interface\+::\+Task\+Interface}}
+\subsubsection{\texorpdfstring{\+\_\+\+\_\+init\+\_\+\+\_\+()}{\_\_init\_\_()}}
+{\footnotesize\ttfamily def rnb-\/planning.\+src.\+pkg.\+planning.\+task.\+interface.\+Task\+Interface.\+\_\+\+\_\+init\+\_\+\+\_\+ (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{pscene }\end{DoxyParamCaption})}
+
+
+\begin{DoxyParams}{Parameters}
+{\em pscene} & \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1scene_1_1_planning_scene}{rnb-\/planning.\+src.\+pkg.\+planning.\+scene.\+Planning\+Scene} \\
+\hline
+\end{DoxyParams}
+
+
+\subsection{Member Function Documentation}
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1task_1_1interface_1_1_task_interface_aad20b6f99946961f68fd256518eb8ac9}\label{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1task_1_1interface_1_1_task_interface_aad20b6f99946961f68fd256518eb8ac9}} 
+\index{rnb-\/planning\+::src\+::pkg\+::planning\+::task\+::interface\+::\+Task\+Interface@{rnb-\/planning\+::src\+::pkg\+::planning\+::task\+::interface\+::\+Task\+Interface}!check\+\_\+goal@{check\+\_\+goal}}
+\index{check\+\_\+goal@{check\+\_\+goal}!rnb-\/planning\+::src\+::pkg\+::planning\+::task\+::interface\+::\+Task\+Interface@{rnb-\/planning\+::src\+::pkg\+::planning\+::task\+::interface\+::\+Task\+Interface}}
+\subsubsection{\texorpdfstring{check\+\_\+goal()}{check\_goal()}}
+{\footnotesize\ttfamily def rnb-\/planning.\+src.\+pkg.\+planning.\+task.\+interface.\+Task\+Interface.\+check\+\_\+goal (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{state }\end{DoxyParamCaption})}
+
+
+
+(prototype) check if a state is in pre-\/defined goal nodes 
+
+
+\begin{DoxyParams}{Parameters}
+{\em state} & \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1scene_1_1_state}{rnb-\/planning.\+src.\+pkg.\+planning.\+scene.\+State} \\
+\hline
+\end{DoxyParams}
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1task_1_1interface_1_1_task_interface_a061e47756a27984939e4952a6906f6c5}\label{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1task_1_1interface_1_1_task_interface_a061e47756a27984939e4952a6906f6c5}} 
+\index{rnb-\/planning\+::src\+::pkg\+::planning\+::task\+::interface\+::\+Task\+Interface@{rnb-\/planning\+::src\+::pkg\+::planning\+::task\+::interface\+::\+Task\+Interface}!get\+\_\+leafs@{get\+\_\+leafs}}
+\index{get\+\_\+leafs@{get\+\_\+leafs}!rnb-\/planning\+::src\+::pkg\+::planning\+::task\+::interface\+::\+Task\+Interface@{rnb-\/planning\+::src\+::pkg\+::planning\+::task\+::interface\+::\+Task\+Interface}}
+\subsubsection{\texorpdfstring{get\+\_\+leafs()}{get\_leafs()}}
+{\footnotesize\ttfamily def rnb-\/planning.\+src.\+pkg.\+planning.\+task.\+interface.\+Task\+Interface.\+get\+\_\+leafs (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{snode,  }\item[{}]{N\+\_\+redundant\+\_\+sample }\end{DoxyParamCaption})}
+
+
+
+(prototype) get sample leafs from snode 
+
+
+\begin{DoxyParams}{Parameters}
+{\em snode} & A validated Search\+Node of which leafs should be added to queue \\
+\hline
+{\em N\+\_\+redundant\+\_\+sample} & number of redundant samples \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+snode\+\_\+tuple\+\_\+list list of tuple(priority, (snode, from\+\_\+state, to\+\_\+state, redundancy)) 
+\end{DoxyReturn}
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1task_1_1interface_1_1_task_interface_a662506d8de32d7bd9e3402a87a927a6a}\label{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1task_1_1interface_1_1_task_interface_a662506d8de32d7bd9e3402a87a927a6a}} 
+\index{rnb-\/planning\+::src\+::pkg\+::planning\+::task\+::interface\+::\+Task\+Interface@{rnb-\/planning\+::src\+::pkg\+::planning\+::task\+::interface\+::\+Task\+Interface}!get\+\_\+optimal\+\_\+remaining\+\_\+steps@{get\+\_\+optimal\+\_\+remaining\+\_\+steps}}
+\index{get\+\_\+optimal\+\_\+remaining\+\_\+steps@{get\+\_\+optimal\+\_\+remaining\+\_\+steps}!rnb-\/planning\+::src\+::pkg\+::planning\+::task\+::interface\+::\+Task\+Interface@{rnb-\/planning\+::src\+::pkg\+::planning\+::task\+::interface\+::\+Task\+Interface}}
+\subsubsection{\texorpdfstring{get\+\_\+optimal\+\_\+remaining\+\_\+steps()}{get\_optimal\_remaining\_steps()}}
+{\footnotesize\ttfamily def rnb-\/planning.\+src.\+pkg.\+planning.\+task.\+interface.\+Task\+Interface.\+get\+\_\+optimal\+\_\+remaining\+\_\+steps (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{state }\end{DoxyParamCaption})}
+
+
+
+(prototype) get optimal remaining steps 
+
+
+\begin{DoxyParams}{Parameters}
+{\em state} & \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1scene_1_1_state}{rnb-\/planning.\+src.\+pkg.\+planning.\+scene.\+State} \\
+\hline
+\end{DoxyParams}
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1task_1_1interface_1_1_task_interface_a65de11d10bdf6bd9c56d45e4d13e54a9}\label{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1task_1_1interface_1_1_task_interface_a65de11d10bdf6bd9c56d45e4d13e54a9}} 
+\index{rnb-\/planning\+::src\+::pkg\+::planning\+::task\+::interface\+::\+Task\+Interface@{rnb-\/planning\+::src\+::pkg\+::planning\+::task\+::interface\+::\+Task\+Interface}!init\+\_\+search@{init\+\_\+search}}
+\index{init\+\_\+search@{init\+\_\+search}!rnb-\/planning\+::src\+::pkg\+::planning\+::task\+::interface\+::\+Task\+Interface@{rnb-\/planning\+::src\+::pkg\+::planning\+::task\+::interface\+::\+Task\+Interface}}
+\subsubsection{\texorpdfstring{init\+\_\+search()}{init\_search()}}
+{\footnotesize\ttfamily def rnb-\/planning.\+src.\+pkg.\+planning.\+task.\+interface.\+Task\+Interface.\+init\+\_\+search (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{initial\+\_\+state,  }\item[{}]{goal,  }\item[{}]{args,  }\item[{}]{kwargs }\end{DoxyParamCaption})}
+
+
+
+(prototype) initialize searching loop with given initial state and goal 
+
+
+\begin{DoxyParams}{Parameters}
+{\em initial\+\_\+state} & \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1scene_1_1_state}{rnb-\/planning.\+src.\+pkg.\+planning.\+scene.\+State} \\
+\hline
+{\em goal} & definition of goal, different depending on algorithm \\
+\hline
+\end{DoxyParams}
+
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+src/pkg/planning/task/interface.\+py\end{DoxyCompactItemize}

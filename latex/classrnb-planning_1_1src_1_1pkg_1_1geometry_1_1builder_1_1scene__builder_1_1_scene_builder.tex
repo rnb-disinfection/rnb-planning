@@ -1,0 +1,203 @@
+\hypertarget{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder}{}\section{rnb-\/planning.src.\+pkg.\+geometry.\+builder.\+scene\+\_\+builder.\+Scene\+Builder Class Reference}
+\label{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder}\index{rnb-\/planning.\+src.\+pkg.\+geometry.\+builder.\+scene\+\_\+builder.\+Scene\+Builder@{rnb-\/planning.\+src.\+pkg.\+geometry.\+builder.\+scene\+\_\+builder.\+Scene\+Builder}}
+
+
+Geometric scene builder.  
+
+
+
+
+Inheritance diagram for rnb-\/planning.src.\+pkg.\+geometry.\+builder.\+scene\+\_\+builder.\+Scene\+Builder\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=289pt]{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder__inherit__graph}
+\end{center}
+\end{figure}
+
+
+Collaboration diagram for rnb-\/planning.src.\+pkg.\+geometry.\+builder.\+scene\+\_\+builder.\+Scene\+Builder\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=289pt]{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder__coll__graph}
+\end{center}
+\end{figure}
+\subsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+def \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_ad8161871a56a8603880ff793de656f54}{\+\_\+\+\_\+init\+\_\+\+\_\+} (self, detector, base\+\_\+link)
+\item 
+def \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_a2c34d82f4be323f96330d7b93911b4b4}{reset\+\_\+reference\+\_\+coord} (self, ref\+\_\+name)
+\begin{DoxyCompactList}\small\item\em re-\/detect reference coordinate -\/ in case the camera has moved \end{DoxyCompactList}\item 
+def \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_aea9619cd51480a5c564ab417a376a158}{create\+\_\+gscene} (self, combined\+\_\+robot, node\+\_\+name=\textquotesingle{}task\+\_\+planner\textquotesingle{}, start\+\_\+rviz=True, gscene\+\_\+from=None)
+\begin{DoxyCompactList}\small\item\em create and reset geometry handle with new robot configuration \end{DoxyCompactList}\item 
+def \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_a291c8ecf3ad8b75ca296e722f3381d98}{detect\+\_\+items} (self, item\+\_\+names=None, level\+\_\+mask=None, as\+\_\+matrix=False)
+\begin{DoxyCompactList}\small\item\em detect robots \end{DoxyCompactList}\item 
+def \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_aa3fccf12b04d62e5d64c3abffc754971}{detect\+\_\+and\+\_\+register} (self, item\+\_\+names=None, level\+\_\+mask=None, color=(0.\+6, 0.\+6, 0.\+6, 1), collision=True, gscene=None)
+\begin{DoxyCompactList}\small\item\em detect geometric items and register them in the geometry handle \end{DoxyCompactList}\item 
+def \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_a24657f84567fdda54f6091db17dd1383}{add\+\_\+poles} (self, xyz\+\_\+pole\+\_\+top\+\_\+dict, thickness=0.\+15, color=(0.\+6, 0.\+6, 0.\+6, 0.\+3), gscene=None)
+\begin{DoxyCompactList}\small\item\em add pole geometries to the scene \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_a45754d96ea8bef7a3fd738b76b1abd86}\label{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_a45754d96ea8bef7a3fd738b76b1abd86}} 
+def \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_a45754d96ea8bef7a3fd738b76b1abd86}{add\+\_\+robot\+\_\+geometries} (self, color=None, display=True, collision=True, exclude\+\_\+link=None)
+\begin{DoxyCompactList}\small\item\em add collision geometries for robot body \end{DoxyCompactList}\end{DoxyCompactItemize}
+\subsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_a2c29ca971c8b9914ca6adcac85c8b9a1}\label{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_a2c29ca971c8b9914ca6adcac85c8b9a1}} 
+{\bfseries detector}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_ad9115a3ba6ee85e7d15b37d48fd31695}\label{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_ad9115a3ba6ee85e7d15b37d48fd31695}} 
+{\bfseries base\+\_\+link}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_a3fe4e96f48bd860edb8a3333a598b403}\label{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_a3fe4e96f48bd860edb8a3333a598b403}} 
+{\bfseries ref\+\_\+name}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_a79b7a6e5e04a2c4f8c4e3f16a69c23f5}\label{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_a79b7a6e5e04a2c4f8c4e3f16a69c23f5}} 
+{\bfseries ref\+\_\+coord}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_afa96a28deffbda3208b743fd3f8a021e}\label{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_afa96a28deffbda3208b743fd3f8a021e}} 
+{\bfseries ref\+\_\+coord\+\_\+inv}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_a4974bdec3fc5e7d7aa24f27e2a16da1a}\label{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_a4974bdec3fc5e7d7aa24f27e2a16da1a}} 
+{\bfseries xcustom}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_aff714d96e77798b81db775fb771d4493}\label{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_aff714d96e77798b81db775fb771d4493}} 
+{\bfseries gscene}
+\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+Geometric scene builder. 
+
+\begin{DoxyRemark}{Remarks}
+Build geometric scene using a detector. All coordinates are converted relative to a reference coordinate. call reset\+\_\+reference\+\_\+coord -\/$>$ create\+\_\+gscene 
+\end{DoxyRemark}
+
+
+\subsection{Constructor \& Destructor Documentation}
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_ad8161871a56a8603880ff793de656f54}\label{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_ad8161871a56a8603880ff793de656f54}} 
+\index{rnb-\/planning\+::src\+::pkg\+::geometry\+::builder\+::scene\+\_\+builder\+::\+Scene\+Builder@{rnb-\/planning\+::src\+::pkg\+::geometry\+::builder\+::scene\+\_\+builder\+::\+Scene\+Builder}!\+\_\+\+\_\+init\+\_\+\+\_\+@{\+\_\+\+\_\+init\+\_\+\+\_\+}}
+\index{\+\_\+\+\_\+init\+\_\+\+\_\+@{\+\_\+\+\_\+init\+\_\+\+\_\+}!rnb-\/planning\+::src\+::pkg\+::geometry\+::builder\+::scene\+\_\+builder\+::\+Scene\+Builder@{rnb-\/planning\+::src\+::pkg\+::geometry\+::builder\+::scene\+\_\+builder\+::\+Scene\+Builder}}
+\subsubsection{\texorpdfstring{\+\_\+\+\_\+init\+\_\+\+\_\+()}{\_\_init\_\_()}}
+{\footnotesize\ttfamily def rnb-\/planning.\+src.\+pkg.\+geometry.\+builder.\+scene\+\_\+builder.\+Scene\+Builder.\+\_\+\+\_\+init\+\_\+\+\_\+ (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{detector,  }\item[{}]{base\+\_\+link }\end{DoxyParamCaption})}
+
+
+\begin{DoxyParams}{Parameters}
+{\em detector} & detector to use when building the scene \\
+\hline
+{\em base\+\_\+link} & name of base link in urdf content \\
+\hline
+\end{DoxyParams}
+
+
+\subsection{Member Function Documentation}
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_a24657f84567fdda54f6091db17dd1383}\label{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_a24657f84567fdda54f6091db17dd1383}} 
+\index{rnb-\/planning\+::src\+::pkg\+::geometry\+::builder\+::scene\+\_\+builder\+::\+Scene\+Builder@{rnb-\/planning\+::src\+::pkg\+::geometry\+::builder\+::scene\+\_\+builder\+::\+Scene\+Builder}!add\+\_\+poles@{add\+\_\+poles}}
+\index{add\+\_\+poles@{add\+\_\+poles}!rnb-\/planning\+::src\+::pkg\+::geometry\+::builder\+::scene\+\_\+builder\+::\+Scene\+Builder@{rnb-\/planning\+::src\+::pkg\+::geometry\+::builder\+::scene\+\_\+builder\+::\+Scene\+Builder}}
+\subsubsection{\texorpdfstring{add\+\_\+poles()}{add\_poles()}}
+{\footnotesize\ttfamily def rnb-\/planning.\+src.\+pkg.\+geometry.\+builder.\+scene\+\_\+builder.\+Scene\+Builder.\+add\+\_\+poles (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{xyz\+\_\+pole\+\_\+top\+\_\+dict,  }\item[{}]{thickness = {\ttfamily 0.15},  }\item[{}]{color = {\ttfamily (0.6,0.6,0.6,0.3)},  }\item[{}]{gscene = {\ttfamily None} }\end{DoxyParamCaption})}
+
+
+
+add pole geometries to the scene 
+
+
+\begin{DoxyParams}{Parameters}
+{\em xyz\+\_\+pole\+\_\+top\+\_\+dict} & dictionary of pole top locations\+: \{name\+: xyz\} \\
+\hline
+{\em thickness} & thickness of the poles (m) \\
+\hline
+{\em gscene} & \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1geometry_1_1_geometry_scene}{rnb-\/planning.\+src.\+pkg.\+geometry.\+geometry.\+Geometry\+Scene} to add poles \\
+\hline
+\end{DoxyParams}
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_aea9619cd51480a5c564ab417a376a158}\label{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_aea9619cd51480a5c564ab417a376a158}} 
+\index{rnb-\/planning\+::src\+::pkg\+::geometry\+::builder\+::scene\+\_\+builder\+::\+Scene\+Builder@{rnb-\/planning\+::src\+::pkg\+::geometry\+::builder\+::scene\+\_\+builder\+::\+Scene\+Builder}!create\+\_\+gscene@{create\+\_\+gscene}}
+\index{create\+\_\+gscene@{create\+\_\+gscene}!rnb-\/planning\+::src\+::pkg\+::geometry\+::builder\+::scene\+\_\+builder\+::\+Scene\+Builder@{rnb-\/planning\+::src\+::pkg\+::geometry\+::builder\+::scene\+\_\+builder\+::\+Scene\+Builder}}
+\subsubsection{\texorpdfstring{create\+\_\+gscene()}{create\_gscene()}}
+{\footnotesize\ttfamily def rnb-\/planning.\+src.\+pkg.\+geometry.\+builder.\+scene\+\_\+builder.\+Scene\+Builder.\+create\+\_\+gscene (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{combined\+\_\+robot,  }\item[{}]{node\+\_\+name = {\ttfamily \textquotesingle{}task\+\_\+planner\textquotesingle{}},  }\item[{}]{start\+\_\+rviz = {\ttfamily True},  }\item[{}]{gscene\+\_\+from = {\ttfamily None} }\end{DoxyParamCaption})}
+
+
+
+create and reset geometry handle with new robot configuration 
+
+
+\begin{DoxyParams}{Parameters}
+{\em combined\+\_\+robot} & \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot}{rnb-\/planning.\+src.\+pkg.\+controller.\+combined\+\_\+robot.\+Combined\+Robot} \\
+\hline
+{\em node\+\_\+name} & ros node name, by default \char`\"{}task\+\_\+planner\char`\"{} \\
+\hline
+{\em start\+\_\+rviz} & whether to start rviz or not default=True \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+joint\+\_\+names joint names 
+
+link\+\_\+names link names 
+
+urdf\+\_\+content urdf content 
+\end{DoxyReturn}
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_aa3fccf12b04d62e5d64c3abffc754971}\label{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_aa3fccf12b04d62e5d64c3abffc754971}} 
+\index{rnb-\/planning\+::src\+::pkg\+::geometry\+::builder\+::scene\+\_\+builder\+::\+Scene\+Builder@{rnb-\/planning\+::src\+::pkg\+::geometry\+::builder\+::scene\+\_\+builder\+::\+Scene\+Builder}!detect\+\_\+and\+\_\+register@{detect\+\_\+and\+\_\+register}}
+\index{detect\+\_\+and\+\_\+register@{detect\+\_\+and\+\_\+register}!rnb-\/planning\+::src\+::pkg\+::geometry\+::builder\+::scene\+\_\+builder\+::\+Scene\+Builder@{rnb-\/planning\+::src\+::pkg\+::geometry\+::builder\+::scene\+\_\+builder\+::\+Scene\+Builder}}
+\subsubsection{\texorpdfstring{detect\+\_\+and\+\_\+register()}{detect\_and\_register()}}
+{\footnotesize\ttfamily def rnb-\/planning.\+src.\+pkg.\+geometry.\+builder.\+scene\+\_\+builder.\+Scene\+Builder.\+detect\+\_\+and\+\_\+register (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{item\+\_\+names = {\ttfamily None},  }\item[{}]{level\+\_\+mask = {\ttfamily None},  }\item[{}]{color = {\ttfamily (0.6,0.6,0.6,1)},  }\item[{}]{collision = {\ttfamily True},  }\item[{}]{gscene = {\ttfamily None} }\end{DoxyParamCaption})}
+
+
+
+detect geometric items and register them in the geometry handle 
+
+
+\begin{DoxyParams}{Parameters}
+{\em item\+\_\+names} & List of string name for items \\
+\hline
+{\em level\+\_\+mask} & List of \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1detector_1_1detector__interface_1_1_detection_level}{rnb-\/planning.\+src.\+pkg.\+detector.\+detector\+\_\+interface.\+Detection\+Level} \\
+\hline
+{\em gscene} & \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1geometry_1_1_geometry_scene}{rnb-\/planning.\+src.\+pkg.\+geometry.\+geometry.\+Geometry\+Scene} to add detected environment geometry \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+gtem\+\_\+dict dictionary of detected geometry items 
+\end{DoxyReturn}
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_a291c8ecf3ad8b75ca296e722f3381d98}\label{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_a291c8ecf3ad8b75ca296e722f3381d98}} 
+\index{rnb-\/planning\+::src\+::pkg\+::geometry\+::builder\+::scene\+\_\+builder\+::\+Scene\+Builder@{rnb-\/planning\+::src\+::pkg\+::geometry\+::builder\+::scene\+\_\+builder\+::\+Scene\+Builder}!detect\+\_\+items@{detect\+\_\+items}}
+\index{detect\+\_\+items@{detect\+\_\+items}!rnb-\/planning\+::src\+::pkg\+::geometry\+::builder\+::scene\+\_\+builder\+::\+Scene\+Builder@{rnb-\/planning\+::src\+::pkg\+::geometry\+::builder\+::scene\+\_\+builder\+::\+Scene\+Builder}}
+\subsubsection{\texorpdfstring{detect\+\_\+items()}{detect\_items()}}
+{\footnotesize\ttfamily def rnb-\/planning.\+src.\+pkg.\+geometry.\+builder.\+scene\+\_\+builder.\+Scene\+Builder.\+detect\+\_\+items (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{item\+\_\+names = {\ttfamily None},  }\item[{}]{level\+\_\+mask = {\ttfamily None},  }\item[{}]{as\+\_\+matrix = {\ttfamily False} }\end{DoxyParamCaption})}
+
+
+
+detect robots 
+
+
+\begin{DoxyParams}{Parameters}
+{\em item\+\_\+names} & List of string name for items \\
+\hline
+{\em level\+\_\+mask} & List of \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1detector_1_1detector__interface_1_1_detection_level}{rnb-\/planning.\+src.\+pkg.\+detector.\+detector\+\_\+interface.\+Detection\+Level} \\
+\hline
+{\em as\+\_\+matrix} & flag to get transform matrix as-\/is \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+xyz\+\_\+rpy\+\_\+dict Dictionary of detected item coordinates in xyz(m), rpy(rad) 
+\end{DoxyReturn}
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_a2c34d82f4be323f96330d7b93911b4b4}\label{classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder_a2c34d82f4be323f96330d7b93911b4b4}} 
+\index{rnb-\/planning\+::src\+::pkg\+::geometry\+::builder\+::scene\+\_\+builder\+::\+Scene\+Builder@{rnb-\/planning\+::src\+::pkg\+::geometry\+::builder\+::scene\+\_\+builder\+::\+Scene\+Builder}!reset\+\_\+reference\+\_\+coord@{reset\+\_\+reference\+\_\+coord}}
+\index{reset\+\_\+reference\+\_\+coord@{reset\+\_\+reference\+\_\+coord}!rnb-\/planning\+::src\+::pkg\+::geometry\+::builder\+::scene\+\_\+builder\+::\+Scene\+Builder@{rnb-\/planning\+::src\+::pkg\+::geometry\+::builder\+::scene\+\_\+builder\+::\+Scene\+Builder}}
+\subsubsection{\texorpdfstring{reset\+\_\+reference\+\_\+coord()}{reset\_reference\_coord()}}
+{\footnotesize\ttfamily def rnb-\/planning.\+src.\+pkg.\+geometry.\+builder.\+scene\+\_\+builder.\+Scene\+Builder.\+reset\+\_\+reference\+\_\+coord (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{ref\+\_\+name }\end{DoxyParamCaption})}
+
+
+
+re-\/detect reference coordinate -\/ in case the camera has moved 
+
+
+\begin{DoxyParams}{Parameters}
+{\em ref\+\_\+name} & name of reference geometric item. this coordinate is synchronized with base link. \\
+\hline
+\end{DoxyParams}
+
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+src/pkg/geometry/builder/scene\+\_\+builder.\+py\end{DoxyCompactItemize}

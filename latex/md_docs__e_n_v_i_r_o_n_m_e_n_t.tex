@@ -1,0 +1,32 @@
+
+\begin{DoxyItemize}
+\item Turn off \char`\"{}\+Fast boot\char`\"{} \& \char`\"{}\+Secure boot\char`\"{} on Bios
+\item Ubuntu 18.\+04
+\item install gcc7 \& gcc5 ``` sudo add-\/apt-\/repository ppa\+:ubuntu-\/toolchain-\/r/test \&\& sudo apt-\/get update \&\& sudo apt-\/get install gcc-\/7 g++-\/7 gcc-\/7-\/multilib g++-\/7-\/multilib \textbackslash{} \&\& sudo add-\/apt-\/repository ppa\+:ubuntu-\/toolchain-\/r/test \&\& sudo apt-\/get update \&\& sudo apt-\/get install gcc-\/5 g++-\/5 gcc-\/5-\/multilib g++-\/5-\/multilib ```
+\item set gcc alternative versions\+: ``` sudo update-\/alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-\/5 20 \textbackslash{} \&\& sudo update-\/alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-\/7 40 \textbackslash{} \&\& sudo update-\/alternatives --install /usr/bin/g++ g++ /usr/bin/g++-\/5 20 \textbackslash{} \&\& sudo update-\/alternatives --install /usr/bin/g++ g++ /usr/bin/g++-\/7 40 ```
+\item check gcc/g++ alternative version ``` sudo update-\/alternatives --display gcc \&\& sudo update-\/alternatives --display g++ ```
+\item pip ``` sudo apt-\/get install python3-\/pip \&\& pip3 install --upgrade pip \textbackslash{} \&\& sudo apt-\/get install python-\/pip \&\& pip install --upgrade pip \textbackslash{} \&\& pip3 install setuptools==41.\+0.\+0 \textbackslash{} \&\& pip install setuptools==41.\+0.\+0 ```
+\end{DoxyItemize}
+
+\subsection*{Setup N\+V\+I\+D\+IA cuda 11.\+0 and cudnn 8.\+0 for tf 2.\+4.\+0 (below is official guide from homepage)}
+
+
+\begin{DoxyItemize}
+\item Update repositories ``` \section*{Add N\+V\+I\+D\+IA package repositories}
+\end{DoxyItemize}
+
+mkdir $\sim$/\+N\+V\+I\+D\+I\+A\+\_\+\+T\+MP \&\& cd $\sim$/\+N\+V\+I\+D\+I\+A\+\_\+\+T\+MP \textbackslash{} \&\& wget \href{https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-ubuntu1804.pin}{\tt https\+://developer.\+download.\+nvidia.\+com/compute/cuda/repos/ubuntu1804/x86\+\_\+64/cuda-\/ubuntu1804.\+pin} \textbackslash{} \&\& sudo mv cuda-\/ubuntu1804.\+pin /etc/apt/preferences.d/cuda-\/repository-\/pin-\/600 \textbackslash{} \&\& sudo apt-\/key adv --fetch-\/keys \href{https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub}{\tt https\+://developer.\+download.\+nvidia.\+com/compute/cuda/repos/ubuntu1804/x86\+\_\+64/7fa2af80.\+pub} \textbackslash{} \&\& sudo add-\/apt-\/repository \char`\"{}deb https\+://developer.\+download.\+nvidia.\+com/compute/cuda/repos/ubuntu1804/x86\+\_\+64/ /\char`\"{} \textbackslash{} \&\& sudo apt-\/get update \textbackslash{} \&\& wget \href{http://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64/nvidia-machine-learning-repo-ubuntu1804_1.0.0-1_amd64.deb}{\tt http\+://developer.\+download.\+nvidia.\+com/compute/machine-\/learning/repos/ubuntu1804/x86\+\_\+64/nvidia-\/machine-\/learning-\/repo-\/ubuntu1804\+\_\+1.\+0.\+0-\/1\+\_\+amd64.\+deb} \textbackslash{} \&\& sudo apt install ./nvidia-\/machine-\/learning-\/repo-\/ubuntu1804\+\_\+1.0.\+0-\/1\+\_\+amd64.\+deb \textbackslash{} \&\& sudo apt-\/get update ```
+
+
+\begin{DoxyItemize}
+\item Install N\+V\+I\+D\+IA driver ``` sudo apt-\/get install --no-\/install-\/recommends nvidia-\/driver-\/450 ```
+\item {\itshape {\bfseries \mbox{[}I\+M\+P\+O\+R\+T\+A\+NT\mbox{]}}} Reboot!!! Check that G\+P\+Us are visible using the command\+: nvidia-\/smi
+\item Install development and runtime libraries ($\sim$4\+GB) ``` cd $\sim$/\+N\+V\+I\+D\+I\+A\+\_\+\+T\+MP \textbackslash{} \&\& wget \href{https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64/libnvinfer7_7.1.3-1+cuda11.0_amd64.deb}{\tt https\+://developer.\+download.\+nvidia.\+com/compute/machine-\/learning/repos/ubuntu1804/x86\+\_\+64/libnvinfer7\+\_\+7.\+1.\+3-\/1+cuda11.\+0\+\_\+amd64.\+deb} \textbackslash{} \&\& sudo apt install ./libnvinfer7\+\_\+7.1.\+3-\/1+cuda11.0\+\_\+amd64.\+deb \textbackslash{} \&\& sudo apt-\/get update \textbackslash{} \&\& sudo apt-\/get install --no-\/install-\/recommends \textbackslash{} cuda-\/11-\/0 \textbackslash{} libcudnn8=8.\+0.\+4.\+30-\/1+cuda11.0 \textbackslash{} libcudnn8-\/dev=8.\+0.\+4.\+30-\/1+cuda11.0 ```
+\item Add P\+A\+TH variables to environment ``` echo \textquotesingle{}export P\+A\+TH=\$\+P\+A\+TH\+:/usr/local/cuda-\/11.0/bin\textquotesingle{} $>$$>$ $\sim$/.bashrc \textbackslash{} \&\& echo \textquotesingle{}export C\+U\+D\+A\+D\+IR=/usr/local/cuda-\/11.0\textquotesingle{} $>$$>$ $\sim$/.bashrc \textbackslash{} \&\& echo \textquotesingle{}if \mbox{[} -\/z \$\+L\+D\+\_\+\+L\+I\+B\+R\+A\+R\+Y\+\_\+\+P\+A\+TH \mbox{]}; then\textquotesingle{} $>$$>$ $\sim$/.bashrc \textbackslash{} \&\& echo \textquotesingle{} export L\+D\+\_\+\+L\+I\+B\+R\+A\+R\+Y\+\_\+\+P\+A\+TH=/usr/local/cuda-\/11.0/lib64\textquotesingle{} $>$$>$ $\sim$/.bashrc \textbackslash{} \&\& echo \textquotesingle{}else\textquotesingle{} $>$$>$ $\sim$/.bashrc \textbackslash{} \&\& echo \textquotesingle{} export L\+D\+\_\+\+L\+I\+B\+R\+A\+R\+Y\+\_\+\+P\+A\+TH=\$\+L\+D\+\_\+\+L\+I\+B\+R\+A\+R\+Y\+\_\+\+P\+A\+TH\+:/usr/local/cuda-\/11.0/lib64\textquotesingle{} $>$$>$ $\sim$/.bashrc \textbackslash{} \&\& echo \textquotesingle{}fi\textquotesingle{} $>$$>$ $\sim$/.bashrc ```
+\item {\itshape {\bfseries \mbox{[}I\+M\+P\+O\+R\+T\+A\+NT\mbox{]}}} Restart terminal!!!
+\item Install Tensor\+RT. Requires that libcudnn8 is installed above. ``` sudo apt-\/get install -\/y --no-\/install-\/recommends libnvinfer7=7.\+1.\+3-\/1+cuda11.0 \textbackslash{} libnvinfer-\/dev=7.\+1.\+3-\/1+cuda11.0 \textbackslash{} libnvinfer-\/plugin7=7.\+1.\+3-\/1+cuda11.0 ```
+\item Install tensorflow ``` pip3 install tensorflow-\/gpu==2.\+4.\+0 ```
+\item {\itshape {\bfseries \mbox{[}I\+M\+P\+O\+R\+T\+A\+NT\mbox{]}}} in TF 2.\+4.\+0, add below to python script before using tensorflow or you get \char`\"{}no algorithm worked\char`\"{} error! (no need to explicitly use session) ``` from tensorflow.\+compat.\+v1 import Config\+Proto from tensorflow.\+compat.\+v1 import Interactive\+Session
+
+config = Config\+Proto() config.\+gpu\+\_\+options.\+allow\+\_\+growth = True session = Interactive\+Session(config=config) ``` 
+\end{DoxyItemize}

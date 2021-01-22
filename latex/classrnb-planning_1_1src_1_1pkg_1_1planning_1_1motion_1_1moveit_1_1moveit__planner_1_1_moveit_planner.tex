@@ -1,0 +1,156 @@
+\hypertarget{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner}{}\section{rnb-\/planning.src.\+pkg.\+planning.\+motion.\+moveit.\+moveit\+\_\+planner.\+Moveit\+Planner Class Reference}
+\label{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner}\index{rnb-\/planning.\+src.\+pkg.\+planning.\+motion.\+moveit.\+moveit\+\_\+planner.\+Moveit\+Planner@{rnb-\/planning.\+src.\+pkg.\+planning.\+motion.\+moveit.\+moveit\+\_\+planner.\+Moveit\+Planner}}
+
+
+Moveit motion planner.  
+
+
+
+
+Inheritance diagram for rnb-\/planning.src.\+pkg.\+planning.\+motion.\+moveit.\+moveit\+\_\+planner.\+Moveit\+Planner\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=320pt]{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner__inherit__graph}
+\end{center}
+\end{figure}
+
+
+Collaboration diagram for rnb-\/planning.src.\+pkg.\+planning.\+motion.\+moveit.\+moveit\+\_\+planner.\+Moveit\+Planner\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=320pt]{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner__coll__graph}
+\end{center}
+\end{figure}
+\subsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+def \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner_aa7d0c47bf8634074bc0a4e28e8f7a082}{\+\_\+\+\_\+init\+\_\+\+\_\+} (self, \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1interface_1_1_motion_interface_a00c505ee267290c0439334e007b216bd}{pscene}, enable\+\_\+dual=True)
+\item 
+def \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner_ab811d10be6f7b96c26dab7560be0af5a}{update\+\_\+gscene} (self, dual\+\_\+key=None)
+\begin{DoxyCompactList}\small\item\em update changes in geometric scene and load collision boundaries to moveit planner \end{DoxyCompactList}\item 
+def \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner_a08890929bf73cebf282d70294d53bd83}{plan\+\_\+algorithm} (self, from\+\_\+state, to\+\_\+state, binding\+\_\+list, redundancy\+\_\+dict=None, timeout=0.\+1, group\+\_\+name\+\_\+handle=None, group\+\_\+name\+\_\+binder=None, kwargs)
+\begin{DoxyCompactList}\small\item\em moveit planning implementation \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner_ab249d8972e595a5732392e543e62af99}\label{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner_ab249d8972e595a5732392e543e62af99}} 
+def {\bfseries init\+\_\+online\+\_\+plan} (self, from\+\_\+state, to\+\_\+state, binding\+\_\+list, T\+\_\+step, control\+\_\+freq, playback\+\_\+rate=0.\+5, kwargs)
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner_a66be00a6fd597bfa5c0849ee0f6a40d8}\label{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner_a66be00a6fd597bfa5c0849ee0f6a40d8}} 
+def {\bfseries step\+\_\+online\+\_\+plan} (self, i\+\_\+q, pos, wp\+\_\+action=False)
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner_a865624d6388e17ab87ca147e56c0d76f}\label{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner_a865624d6388e17ab87ca147e56c0d76f}} 
+def {\bfseries update\+\_\+online} (self, obs\+Pos\+\_\+dict)
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner_a4666198daeaae4ee32db224a7e4e17af}\label{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner_a4666198daeaae4ee32db224a7e4e17af}} 
+def {\bfseries update\+\_\+target\+\_\+joint} (self, idx\+\_\+cur, traj, joint\+\_\+cur)
+\end{DoxyCompactItemize}
+\subsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner_a66e040bbeade50a76fb9fca5b78bdaef}\label{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner_a66e040bbeade50a76fb9fca5b78bdaef}} 
+{\bfseries robot\+\_\+names}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner_ab0adb7e904ec06877996a1cc3907faa5}\label{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner_ab0adb7e904ec06877996a1cc3907faa5}} 
+{\bfseries planner}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner_a0dbdb4a5827f89e6e0b76da332e7920d}\label{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner_a0dbdb4a5827f89e6e0b76da332e7920d}} 
+{\bfseries need\+\_\+mapping}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner_a50d8858f74372f2dece7f53f8f1af50c}\label{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner_a50d8858f74372f2dece7f53f8f1af50c}} 
+{\bfseries idx\+\_\+pscene\+\_\+to\+\_\+mpc}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner_ae7e891e20563a41b1085be9baa31dbfd}\label{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner_ae7e891e20563a41b1085be9baa31dbfd}} 
+{\bfseries idx\+\_\+mpc\+\_\+to\+\_\+pscene}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner_a82c4f8b61da93a75e01dc5736f2cb026}\label{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner_a82c4f8b61da93a75e01dc5736f2cb026}} 
+{\bfseries enable\+\_\+dual}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner_a5d57d888860914961c481d7ca2224c42}\label{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner_a5d57d888860914961c481d7ca2224c42}} 
+{\bfseries dual\+\_\+planner\+\_\+dict}
+\end{DoxyCompactItemize}
+\subsection*{Static Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner_a8e07beec5a065bb728797d7107031e4f}\label{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner_a8e07beec5a065bb728797d7107031e4f}} 
+string {\bfseries N\+A\+ME} = \char`\"{}Move\+It\char`\"{}
+\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+Moveit motion planner. 
+
+\begin{DoxyRemark}{Remarks}
+online planning is not supported 
+\end{DoxyRemark}
+
+\begin{DoxyParams}{Parameters}
+{\em enabla\+\_\+dual} & boolean flag to enable dual arm manipulation (default=True) \\
+\hline
+\end{DoxyParams}
+
+
+\subsection{Constructor \& Destructor Documentation}
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner_aa7d0c47bf8634074bc0a4e28e8f7a082}\label{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner_aa7d0c47bf8634074bc0a4e28e8f7a082}} 
+\index{rnb-\/planning\+::src\+::pkg\+::planning\+::motion\+::moveit\+::moveit\+\_\+planner\+::\+Moveit\+Planner@{rnb-\/planning\+::src\+::pkg\+::planning\+::motion\+::moveit\+::moveit\+\_\+planner\+::\+Moveit\+Planner}!\+\_\+\+\_\+init\+\_\+\+\_\+@{\+\_\+\+\_\+init\+\_\+\+\_\+}}
+\index{\+\_\+\+\_\+init\+\_\+\+\_\+@{\+\_\+\+\_\+init\+\_\+\+\_\+}!rnb-\/planning\+::src\+::pkg\+::planning\+::motion\+::moveit\+::moveit\+\_\+planner\+::\+Moveit\+Planner@{rnb-\/planning\+::src\+::pkg\+::planning\+::motion\+::moveit\+::moveit\+\_\+planner\+::\+Moveit\+Planner}}
+\subsubsection{\texorpdfstring{\+\_\+\+\_\+init\+\_\+\+\_\+()}{\_\_init\_\_()}}
+{\footnotesize\ttfamily def rnb-\/planning.\+src.\+pkg.\+planning.\+motion.\+moveit.\+moveit\+\_\+planner.\+Moveit\+Planner.\+\_\+\+\_\+init\+\_\+\+\_\+ (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{pscene,  }\item[{}]{enable\+\_\+dual = {\ttfamily True} }\end{DoxyParamCaption})}
+
+
+\begin{DoxyParams}{Parameters}
+{\em pscene} & \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1scene_1_1_planning_scene}{rnb-\/planning.\+src.\+pkg.\+planning.\+scene.\+Planning\+Scene} \\
+\hline
+\end{DoxyParams}
+
+
+\subsection{Member Function Documentation}
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner_a08890929bf73cebf282d70294d53bd83}\label{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner_a08890929bf73cebf282d70294d53bd83}} 
+\index{rnb-\/planning\+::src\+::pkg\+::planning\+::motion\+::moveit\+::moveit\+\_\+planner\+::\+Moveit\+Planner@{rnb-\/planning\+::src\+::pkg\+::planning\+::motion\+::moveit\+::moveit\+\_\+planner\+::\+Moveit\+Planner}!plan\+\_\+algorithm@{plan\+\_\+algorithm}}
+\index{plan\+\_\+algorithm@{plan\+\_\+algorithm}!rnb-\/planning\+::src\+::pkg\+::planning\+::motion\+::moveit\+::moveit\+\_\+planner\+::\+Moveit\+Planner@{rnb-\/planning\+::src\+::pkg\+::planning\+::motion\+::moveit\+::moveit\+\_\+planner\+::\+Moveit\+Planner}}
+\subsubsection{\texorpdfstring{plan\+\_\+algorithm()}{plan\_algorithm()}}
+{\footnotesize\ttfamily def rnb-\/planning.\+src.\+pkg.\+planning.\+motion.\+moveit.\+moveit\+\_\+planner.\+Moveit\+Planner.\+plan\+\_\+algorithm (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{from\+\_\+state,  }\item[{}]{to\+\_\+state,  }\item[{}]{binding\+\_\+list,  }\item[{}]{redundancy\+\_\+dict = {\ttfamily None},  }\item[{}]{timeout = {\ttfamily 0.1},  }\item[{}]{group\+\_\+name\+\_\+handle = {\ttfamily None},  }\item[{}]{group\+\_\+name\+\_\+binder = {\ttfamily None},  }\item[{}]{kwargs }\end{DoxyParamCaption})}
+
+
+
+moveit planning implementation 
+
+
+\begin{DoxyParams}{Parameters}
+{\em from\+\_\+state} & starting state (\hyperlink{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1scene_1_1_state}{rnb-\/planning.\+src.\+pkg.\+planning.\+scene.\+State}) \\
+\hline
+{\em to\+\_\+state} & goal state (\hyperlink{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1scene_1_1_state}{rnb-\/planning.\+src.\+pkg.\+planning.\+scene.\+State}) \\
+\hline
+{\em binding\+\_\+list} & list of bindings to pursue \\
+\hline
+{\em redundancy\+\_\+dict} & redundancy in dictionary format \{object name\+: \{axis\+: value\}\} \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+Traj Full trajectory as array of Q 
+
+LastQ Last joint configuration as array 
+
+error planning error 
+
+success success/failure of planning result 
+\end{DoxyReturn}
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner_ab811d10be6f7b96c26dab7560be0af5a}\label{classrnb-planning_1_1src_1_1pkg_1_1planning_1_1motion_1_1moveit_1_1moveit__planner_1_1_moveit_planner_ab811d10be6f7b96c26dab7560be0af5a}} 
+\index{rnb-\/planning\+::src\+::pkg\+::planning\+::motion\+::moveit\+::moveit\+\_\+planner\+::\+Moveit\+Planner@{rnb-\/planning\+::src\+::pkg\+::planning\+::motion\+::moveit\+::moveit\+\_\+planner\+::\+Moveit\+Planner}!update\+\_\+gscene@{update\+\_\+gscene}}
+\index{update\+\_\+gscene@{update\+\_\+gscene}!rnb-\/planning\+::src\+::pkg\+::planning\+::motion\+::moveit\+::moveit\+\_\+planner\+::\+Moveit\+Planner@{rnb-\/planning\+::src\+::pkg\+::planning\+::motion\+::moveit\+::moveit\+\_\+planner\+::\+Moveit\+Planner}}
+\subsubsection{\texorpdfstring{update\+\_\+gscene()}{update\_gscene()}}
+{\footnotesize\ttfamily def rnb-\/planning.\+src.\+pkg.\+planning.\+motion.\+moveit.\+moveit\+\_\+planner.\+Moveit\+Planner.\+update\+\_\+gscene (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{dual\+\_\+key = {\ttfamily None} }\end{DoxyParamCaption})}
+
+
+
+update changes in geometric scene and load collision boundaries to moveit planner 
+
+
+\begin{DoxyParams}{Parameters}
+{\em dual\+\_\+key} & key of target dual planner\+: root\+\_\+robot\+\_\+name\+\_\+end\+\_\+robot\+\_\+name \\
+\hline
+\end{DoxyParams}
+
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+src/pkg/planning/motion/moveit/moveit\+\_\+planner.\+py\end{DoxyCompactItemize}

@@ -1,0 +1,5 @@
+<map id="rnb&#45;planning.src.pkg.planning.constraint.constraint_object.FramedPoint" name="rnb&#45;planning.src.pkg.planning.constraint.constraint_object.FramedPoint">
+<area shape="rect" id="node3" href="$classrnb-planning_1_1src_1_1pkg_1_1planning_1_1constraint_1_1constraint__object_1_1_fixture_point.html" title="ActionPoint for rnb&#45;planning.src.pkg.planning.constraint.constraint_action.FixtureSlot. " alt="" coords="728,5,1041,47"/>
+<area shape="rect" id="node4" href="$classrnb-planning_1_1src_1_1pkg_1_1planning_1_1constraint_1_1constraint__object_1_1_frame_point.html" title="ActionPoint for rnb&#45;planning.src.pkg.planning.constraint.constraint_action.FramedTool. " alt="" coords="728,71,1041,112"/>
+<area shape="rect" id="node2" href="$classrnb-planning_1_1src_1_1pkg_1_1planning_1_1constraint_1_1constraint__common_1_1_action_point.html" title="Base class for all constraint action points. " alt="" coords="5,39,319,80"/>
+</map>

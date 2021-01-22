@@ -1,7 +1,7 @@
 Instruction for RNB-Planning Framework {#mainpage}
 ============
 
-# 1. Environment Setup  
+# 1 Environment Setup  
 
 ## 1.1 Tensorflow base environment  
 * Follow instruction in [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md)    
@@ -110,7 +110,12 @@ Instruction for RNB-Planning Framework {#mainpage}
 * Follow instruction in [docs/SUPPLEMENT_README.md](docs/SUPPLEMENT_README.md)
 
 
-# 3 Check shell environemnt settings
+# 3 How to
+
+* For further instruction on how to use & develop, read [docs/HOW_TO.md](docs/HOW_TO.md)
+
+
+# 4 Check shell environemnt settings
 * ~/.bashrc should contain following lines.  
    ```
    # export PATH=$PATH:~/.local/bin  

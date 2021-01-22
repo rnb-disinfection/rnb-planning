@@ -1,0 +1,122 @@
+
+\begin{DoxyItemize}
+\item jupyter
+\begin{DoxyItemize}
+\item install jupyter ``` sudo apt install python3-\/notebook python-\/notebook jupyter jupyter-\/core python-\/ipykernel ```
+\item do server setting as follows ```console jupyter notebook --generate-\/config \textbackslash{} \&\& jupyter notebook password \textbackslash{} \&\& vi $\sim$/.jupyter/jupyter\+\_\+notebook\+\_\+config.\+py ```
+\begin{DoxyItemize}
+\item enter password twice
+\item find \#c.\+Notebook\+App.\+ip = \textquotesingle{}localhost\textquotesingle{}
+\item remove \textquotesingle{}\#\textquotesingle{} and replace \textquotesingle{}localhost\textquotesingle{} with \textquotesingle{}your\+\_\+ip\textquotesingle{}
+\item find and set c.\+Notebook\+App.\+open\+\_\+browser = False if you don\textquotesingle{}t want to open browser when starting jupyter
+\end{DoxyItemize}
+\end{DoxyItemize}
+\item nvidia-\/smi-\/gui
+\begin{DoxyItemize}
+\item install ``` sudo apt-\/get install python3-\/pyqt4 \textbackslash{} \&\& mkdir $\sim$/nvidia-\/smi-\/gui \&\& cd $\sim$/nvidia-\/smi-\/gui \textbackslash{} \&\& git clone \href{https://github.com/imkzh/nvidia-smi-gui.git}{\tt https\+://github.\+com/imkzh/nvidia-\/smi-\/gui.\+git} . ```
+\item launch ``` python3 $\sim$/nvidia-\/smi-\/gui/nvidia-\/smi-\/gui.py ```
+\end{DoxyItemize}
+\item Teamviewer (autostart, password)
+\item Git\+Kraken
+\item Py\+Charm, Clion
+\begin{DoxyItemize}
+\item add \char`\"{}export P\+A\+T\+H=\$\+P\+A\+T\+H\+:\{\}/bin\char`\"{} to .bashrc
+\end{DoxyItemize}
+\item openssh-\/server ``` sudo apt-\/get install openssh-\/server -\/y \&\& sudo service ssh start ```
+\item Doxygen
+\begin{DoxyItemize}
+\item Install ``` sudo apt-\/get install -\/y doxygen doxygen-\/gui texlive-\/latex-\/base texlive-\/latex-\/recommended ko.\+tex texlive-\/fonts-\/extra ```
+\item Run ``` doxywizard ```
+\end{DoxyItemize}
+\end{DoxyItemize}
+
+\section*{T\+I\+PS}
+
+
+\begin{DoxyItemize}
+\item Launching R\+V\+IZ ``` roslaunch \char`\"{}\$\+R\+N\+B\+\_\+\+P\+L\+A\+N\+N\+I\+N\+G\+\_\+\+D\+I\+R\char`\"{}src/launch/gui\+\_\+custom\+\_\+robots\+\_\+joint\+\_\+panel.\+launch ```
+\item Launch franka ros interface
+\begin{DoxyItemize}
+\item visualization\+: ``` roslaunch franka\+\_\+visualization franka\+\_\+visualization.\+launch robot\+\_\+ip\+:=192.\+168.\+0.\+13 load\+\_\+gripper\+:=true ```
+\item launch interface\+: ``` roslaunch franka\+\_\+interface interface.\+launch ```
+\end{DoxyItemize}
+\item starting roscore if it\textquotesingle{}s not active ``` nohup roscore \& ```
+\item to reset node/topic/params, kill and restart roscore ``` sudo killall -\/9 roscore \&\& nohup roscore \& ```
+\end{DoxyItemize}
+
+\section*{Panda simulator}
+
+
+\begin{DoxyItemize}
+\item Install ``` pip install numpy numpy-\/quaternion rospy-\/message-\/converter==0.\+4.\+0 \textbackslash{} \&\& cd $\sim$/catkin\+\_\+ws \&\& sudo rm -\/rf devel build \textbackslash{} \&\& cd $\sim$/catkin\+\_\+ws/src \&\& git clone \href{https://github.com/justagist/panda_simulator}{\tt https\+://github.\+com/justagist/panda\+\_\+simulator} \&\& cd panda\+\_\+simulator \&\& ./build\+\_\+ws.sh ```
+\item Launch ``` roslaunch panda\+\_\+gazebo panda\+\_\+world.\+launch start\+\_\+moveit\+:=false ```
+\end{DoxyItemize}
+
+\section*{Launch Indy simulator (Cad\+Kit)}
+
+
+\begin{DoxyItemize}
+\item run Task\+Manager (simulator mode) on S\+T\+EP ``` cd /home/user/release/\+Indy\+Framework3.0 \&\& ./\+Task\+Manager -\/j indy\+Deploy.\+json ```
+\item open cadkit (N\+R\+MK Launcher -\/$>$ Cad\+Kit
+\begin{DoxyItemize}
+\item Insert Indy7 model (\char`\"{}\+C\+:\textbackslash{}\+Program Files (x86)\textbackslash{}neuromeka\textbackslash{}\+N\+R\+M\+K\+Foundation\textbackslash{}bin\textbackslash{}models\textbackslash{}\+Indy7\textbackslash{}\+Model\+\_\+\+Indy7.\+wrl\char`\"{})
+\item Connect -\/$>$ Enter ip of S\+T\+EP PC -\/$>$ Connect
+\end{DoxyItemize}
+\end{DoxyItemize}
+
+\section*{How to make xacro for multi-\/robot}
+
+
+\begin{DoxyItemize}
+\item find xacro file in the description package for target robot
+\item copy the xacro file to \char`\"{}\$\+R\+N\+B\+\_\+\+P\+L\+A\+N\+N\+I\+N\+G\+\_\+\+D\+I\+R\char`\"{}/src/robots
+\item delete \char`\"{}world\char`\"{} and \char`\"{}base\+\_\+link\char`\"{} links and joints connected to it
+\item add macro\+: ``` $<$xacro\+:macro name=\char`\"{}robotname\char`\"{} params=\char`\"{}robot\+\_\+id\+:=\textquotesingle{}0\textquotesingle{} description\+\_\+pkg\+:=\textquotesingle{}robot\+\_\+description\textquotesingle{} connected\+\_\+to\+:=\textquotesingle{}\textquotesingle{} xyz\+:=\textquotesingle{}0 0 0\textquotesingle{} rpy\+:=\textquotesingle{}0 0 0\textquotesingle{}\char`\"{}$>$ $<$xacro\+:unless value=\char`\"{}\$\{not connected\+\_\+to\}\char`\"{}$>$ $<$joint name=\char`\"{}robotname\$\{robot\+\_\+id\}\textbackslash{}\+\_\+joint\textbackslash{}\+\_\+\$\{connected\+\_\+to\}\char`\"{} type=\char`\"{}fixed\char`\"{}$>$ $<$parent link=\char`\"{}\$\{connected\+\_\+to\}\char`\"{}/$>$ $<$child link=\char`\"{}robotname\$\{robot\+\_\+id\}\+\_\+link0\char`\"{}/$>$ $<$origin rpy=\char`\"{}\$\{rpy\}\char`\"{} xyz=\char`\"{}\$\{xyz\}\char`\"{}/$>$ $<$/joint$>$ $<$/xacro\+:unless$>$ $<$!-- robot contents --$>$ $<$!-- robot contents --$>$ $<$!-- robot contents --$>$ $<$/xacro\+:macro$>$ ```
+\item change all item names\+: selectively replace \{name=\char`\"{}\} with \{\char`\"{}name=\char`\"{}robotname\$\{robot\+\_\+id\}\}  
+$\ast$ include and call the xacro file in \char`\"{}custom\+\_\+robots.\+urdf.\+xacro"
+\item test generating U\+R\+DF file ``` rosrun xacro xacro \char`\"{}\$\+R\+N\+B\+\_\+\+P\+L\+A\+N\+N\+I\+N\+G\+\_\+\+D\+I\+R\char`\"{}src/robots/custom\+\_\+robots.\+urdf.\+xacro $>$ \char`\"{}\$\+R\+N\+B\+\_\+\+P\+L\+A\+N\+N\+I\+N\+G\+\_\+\+D\+I\+R\char`\"{}src/robots/custom\+\_\+robots.\+urdf ```
+\item run rviz ``` roslaunch \char`\"{}\$\+R\+N\+B\+\_\+\+P\+L\+A\+N\+N\+I\+N\+G\+\_\+\+D\+I\+R\char`\"{}/src/launch/gui\+\_\+custom\+\_\+robots\+\_\+joint\+\_\+panel.launch ```
+\begin{DoxyItemize}
+\item for \char`\"{}not unique\char`\"{} error, remove it from individual xacro files and include the item on the top of \char`\"{}custom\+\_\+robots.\+urdf.\+xacro\char`\"{}
+\end{DoxyItemize}
+\end{DoxyItemize}
+
+\section*{Removing cuda}
+
+``` sudo apt remove -\/y \textquotesingle{}cuda$\ast$\textquotesingle{} sudo apt remove -\/y \textquotesingle{}libcuda$\ast$\textquotesingle{} sudo apt remove -\/y \textquotesingle{}cudnn$\ast$\textquotesingle{} sudo apt remove -\/y \textquotesingle{}libcudnn$\ast$\textquotesingle{} ```
+
+\section*{Deprecated dependencies}
+
+\#\# python packages 
+\begin{DoxyCode}
+pip install klampt
+\end{DoxyCode}
+
+
+\subsection*{Tesseract}
+
+
+\begin{DoxyItemize}
+\item clone tesseract on workspace ``` cd $\sim$/\+Projects/rnb-\/planning/ws\+\_\+ros/src \textbackslash{} \&\& git clone \href{https://github.com/ros-industrial-consortium/tesseract.git}{\tt https\+://github.\+com/ros-\/industrial-\/consortium/tesseract.\+git} ```
+\item clone all dependencies in dependency.\+rosinstall ``` git clone \href{https://github.com/ros-industrial/cmake_common_scripts.git}{\tt https\+://github.\+com/ros-\/industrial/cmake\+\_\+common\+\_\+scripts.\+git} cmake\+\_\+common\+\_\+scripts \textbackslash{} \&\& git clone \href{https://github.com/ros-industrial-consortium/tesseract_ext.git}{\tt https\+://github.\+com/ros-\/industrial-\/consortium/tesseract\+\_\+ext.\+git} tesseract\+\_\+ext \textbackslash{} \&\& git clone \href{https://github.com/ros-industrial-consortium/trajopt_ros.git}{\tt https\+://github.\+com/ros-\/industrial-\/consortium/trajopt\+\_\+ros.\+git} trajopt \textbackslash{} \&\& git clone \href{https://github.com/swri-robotics/descartes_light.git}{\tt https\+://github.\+com/swri-\/robotics/descartes\+\_\+light.\+git} descartes\+\_\+light \textbackslash{} \&\& git clone \href{https://github.com/Jmeyer1292/opw_kinematics.git}{\tt https\+://github.\+com/\+Jmeyer1292/opw\+\_\+kinematics.\+git} opw\+\_\+kinematics \textbackslash{} \&\& git clone \href{https://github.com/ethz-adrl/ifopt.git}{\tt https\+://github.\+com/ethz-\/adrl/ifopt.\+git} ifopt ```
+\begin{DoxyItemize}
+\item check if any other dependency is added on recent version.
+\end{DoxyItemize}
+\item install base dependency ``` sudo apt-\/get install gcc g++ gfortran git patch wget pkg-\/config liblapack-\/dev libmetis-\/dev \textbackslash{} \&\& sudo apt install lcov \textbackslash{} \&\& sudo apt-\/get install cmake libeigen3-\/dev coinor-\/libipopt-\/dev \&\& sudo apt-\/get install bison ```
+\item build workspace ``` cd .. \&\& sudo rm -\/rf devel \&\& sudo rm -\/rf build catkin build --force-\/cmake -\/\+D\+T\+E\+S\+S\+E\+R\+A\+C\+T\+\_\+\+E\+N\+A\+B\+L\+E\+\_\+\+T\+E\+S\+T\+I\+NG=ON -\/\+D\+C\+M\+A\+K\+E\+\_\+\+B\+U\+I\+L\+D\+\_\+\+T\+Y\+PE=Release \textbackslash{} \&\& add export T\+E\+S\+S\+E\+R\+A\+C\+T\+\_\+\+S\+U\+P\+P\+O\+R\+T\+\_\+\+D\+IR=\textquotesingle{}/home/tamp/\+Projects/rnb-\/planning/ws\+\_\+ros/devel/share/tesseract\+\_\+support\textquotesingle{} ```
+\item source workspace (done in project setup section) ``` source $\sim$\+Projects/rnb-\/planning/ws\+\_\+ros/devel/setup.bash ```
+\end{DoxyItemize}
+
+\subsection*{Moveit}
+
+
+\begin{DoxyItemize}
+\item Install moveit (after ros-\/melodic and catkin) ``` sudo apt install ros-\/melodic-\/moveit ```
+\item Tutorial
+\begin{DoxyItemize}
+\item make workspace and clone tutorial repository ``` mkdir -\/p $\sim$/ws\+\_\+moveit/src cd $\sim$/ws\+\_\+moveit/src git clone \href{https://github.com/ros-planning/moveit_tutorials.git}{\tt https\+://github.\+com/ros-\/planning/moveit\+\_\+tutorials.\+git} -\/b melodic-\/devel git clone \href{https://github.com/ros-planning/panda_moveit_config.git}{\tt https\+://github.\+com/ros-\/planning/panda\+\_\+moveit\+\_\+config.\+git} -\/b melodic-\/devel ```
+\item install packages ``` cd $\sim$/ws\+\_\+moveit/src rosdep install -\/y --from-\/paths . --ignore-\/src --rosdistro melodic cd $\sim$/ws\+\_\+moveit catkin config --extend /opt/ros/\$\{R\+O\+S\+\_\+\+D\+I\+S\+T\+RO\} --cmake-\/args -\/\+D\+C\+M\+A\+K\+E\+\_\+\+B\+U\+I\+L\+D\+\_\+\+T\+Y\+PE=Release catkin build ```
+\item source workspace ``` source $\sim$/ws\+\_\+moveit/devel/setup.bash ```
+\item follow tutorial process in ``` \href{http://docs.ros.org/en/melodic/api/moveit_tutorials/html/doc/move_group_python_interface/move_group_python_interface_tutorial.html#getting-started}{\tt http\+://docs.\+ros.\+org/en/melodic/api/moveit\+\_\+tutorials/html/doc/move\+\_\+group\+\_\+python\+\_\+interface/move\+\_\+group\+\_\+python\+\_\+interface\+\_\+tutorial.\+html\#getting-\/started} ``` 
+\end{DoxyItemize}
+\end{DoxyItemize}

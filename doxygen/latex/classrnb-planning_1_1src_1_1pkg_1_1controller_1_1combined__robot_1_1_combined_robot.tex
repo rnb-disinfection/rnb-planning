@@ -1,0 +1,173 @@
+\hypertarget{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot}{}\section{rnb-\/planning.src.\+pkg.\+controller.\+combined\+\_\+robot.\+Combined\+Robot Class Reference}
+\label{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot}\index{rnb-\/planning.\+src.\+pkg.\+controller.\+combined\+\_\+robot.\+Combined\+Robot@{rnb-\/planning.\+src.\+pkg.\+controller.\+combined\+\_\+robot.\+Combined\+Robot}}
+
+
+control interface for combined robot  
+
+
+\subsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_ad1bae4492cce3c3ea69871c943cf7566}\label{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_ad1bae4492cce3c3ea69871c943cf7566}} 
+def {\bfseries \+\_\+\+\_\+init\+\_\+\+\_\+} (self, \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a5d116642a9d547410162084f7482ba7f}{robots\+\_\+on\+\_\+scene}, connection\+\_\+list, \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a5cdbda9a04dcdccca6b1a5367b9d74a3}{vel\+\_\+scale}=0.\+5, \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a83d992d5637b5adaaa6952f2228c6054}{acc\+\_\+scale}=0.\+5)
+\item 
+def \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a6cef8899224b996aa6200e9abd5b9ae0}{update\+\_\+robot\+\_\+pos} (self, name, xyzrpy)
+\begin{DoxyCompactList}\small\item\em update robot position \end{DoxyCompactList}\item 
+def \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a9a9b8c7c2ee78d719658e4fe4e11521c}{update\+\_\+robot\+\_\+pos\+\_\+dict} (self, xyz\+\_\+rpy\+\_\+robots)
+\begin{DoxyCompactList}\small\item\em update robot position by dictionary \end{DoxyCompactList}\item 
+def \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a1566ece11baa27d6c4d5cf740b2a2a03}{reset\+\_\+connection} (self, connection\+\_\+list, address\+\_\+list=None)
+\begin{DoxyCompactList}\small\item\em reset connection \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_aa70553a7d6dba5f95a011d70197612f5}\label{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_aa70553a7d6dba5f95a011d70197612f5}} 
+def \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_aa70553a7d6dba5f95a011d70197612f5}{get\+\_\+robot\+\_\+config\+\_\+dict} (self)
+\begin{DoxyCompactList}\small\item\em get a dictionary of \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1robot__config_1_1_robot_config}{rnb-\/planning.\+src.\+pkg.\+controller.\+robot\+\_\+config.\+Robot\+Config} on scene \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a50a9c7f8909916bc5e08ec073c8354fd}\label{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a50a9c7f8909916bc5e08ec073c8354fd}} 
+def \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a50a9c7f8909916bc5e08ec073c8354fd}{get\+\_\+robot\+\_\+list} (self)
+\begin{DoxyCompactList}\small\item\em get list of robot controller interface \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a408aa085631cd2453a28bf2d6ee8c6a4}\label{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a408aa085631cd2453a28bf2d6ee8c6a4}} 
+def \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a408aa085631cd2453a28bf2d6ee8c6a4}{get\+\_\+indexing\+\_\+list} (self)
+\begin{DoxyCompactList}\small\item\em get list of each robot\textquotesingle{}s joint indexes \end{DoxyCompactList}\item 
+def \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_ac02f08e1c8b30ad707bd5b6a8d635cf0}{joint\+\_\+make\+\_\+sure} (self, Q)
+\begin{DoxyCompactList}\small\item\em move to joint pose target \end{DoxyCompactList}\item 
+def \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_ac7425b657ce6d49feb9edd31fb651754}{grasp\+\_\+by\+\_\+dict} (self, grasp\+\_\+dict)
+\begin{DoxyCompactList}\small\item\em execute grasping action \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_aa1b90cb0cdd8e92e4a80816df7270ab9}\label{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_aa1b90cb0cdd8e92e4a80816df7270ab9}} 
+def \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_aa1b90cb0cdd8e92e4a80816df7270ab9}{get\+\_\+real\+\_\+robot\+\_\+pose} (self)
+\begin{DoxyCompactList}\small\item\em get current robot\textquotesingle{}s pose or home pose if not connected (radian) \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_ad4f74f8aa278dcfea6d499d432a26997}\label{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_ad4f74f8aa278dcfea6d499d432a26997}} 
+def \hyperlink{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_ad4f74f8aa278dcfea6d499d432a26997}{wait\+\_\+step} (self, rate\+\_\+off)
+\begin{DoxyCompactList}\small\item\em wait for the first robot\textquotesingle{}s R\+OS control duration \end{DoxyCompactList}\end{DoxyCompactItemize}
+\subsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a5cdbda9a04dcdccca6b1a5367b9d74a3}\label{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a5cdbda9a04dcdccca6b1a5367b9d74a3}} 
+\hyperlink{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a5cdbda9a04dcdccca6b1a5367b9d74a3}{vel\+\_\+scale}
+\begin{DoxyCompactList}\small\item\em velocity limit scale \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a83d992d5637b5adaaa6952f2228c6054}\label{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a83d992d5637b5adaaa6952f2228c6054}} 
+\hyperlink{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a83d992d5637b5adaaa6952f2228c6054}{acc\+\_\+scale}
+\begin{DoxyCompactList}\small\item\em acceleration limit scale \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a5d116642a9d547410162084f7482ba7f}\label{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a5d116642a9d547410162084f7482ba7f}} 
+\hyperlink{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a5d116642a9d547410162084f7482ba7f}{robots\+\_\+on\+\_\+scene}
+\begin{DoxyCompactList}\small\item\em list of robot config for robots on scene \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a509e50aba1a8617f8953ce4a6f1394e4}\label{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a509e50aba1a8617f8953ce4a6f1394e4}} 
+{\bfseries joint\+\_\+names}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_acb3a8906646d2fd8f25fa4745f4ed4cc}\label{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_acb3a8906646d2fd8f25fa4745f4ed4cc}} 
+{\bfseries home\+\_\+pose}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a39891419314c82fc84e55655de74737b}\label{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a39891419314c82fc84e55655de74737b}} 
+{\bfseries idx\+\_\+dict}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a9c7fb3e837c66e2a8f5c54d6fef78ba6}\label{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a9c7fb3e837c66e2a8f5c54d6fef78ba6}} 
+\hyperlink{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a9c7fb3e837c66e2a8f5c54d6fef78ba6}{robot\+\_\+dict}
+\begin{DoxyCompactList}\small\item\em dictionary of robot control interface \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a63dd944dca0e71828563c5bac8fee60c}\label{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a63dd944dca0e71828563c5bac8fee60c}} 
+{\bfseries robot\+\_\+names}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a8fb216f7fe76f1bd6fc7313cc46799c8}\label{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a8fb216f7fe76f1bd6fc7313cc46799c8}} 
+{\bfseries custom\+\_\+limits}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_aac783ea6e3b1e12befebeeda85dc539c}\label{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_aac783ea6e3b1e12befebeeda85dc539c}} 
+{\bfseries address\+\_\+list}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a0ce0cbf1fea10c51f7d1c9c79f0dde73}\label{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a0ce0cbf1fea10c51f7d1c9c79f0dde73}} 
+{\bfseries xyz\+\_\+rpy\+\_\+robots}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a4b346e35115a4b0c86c573c7ae3d2da9}\label{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a4b346e35115a4b0c86c573c7ae3d2da9}} 
+{\bfseries joint\+\_\+num}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_ad4ce5651986e0743521c48bab8949d36}\label{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_ad4ce5651986e0743521c48bab8949d36}} 
+{\bfseries home\+\_\+dict}
+\item 
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_aaaf1addf97cd96c95873cbd03bf4bee9}\label{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_aaaf1addf97cd96c95873cbd03bf4bee9}} 
+{\bfseries connection\+\_\+list}
+\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+control interface for combined robot 
+
+\subsection{Member Function Documentation}
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_ac7425b657ce6d49feb9edd31fb651754}\label{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_ac7425b657ce6d49feb9edd31fb651754}} 
+\index{rnb-\/planning\+::src\+::pkg\+::controller\+::combined\+\_\+robot\+::\+Combined\+Robot@{rnb-\/planning\+::src\+::pkg\+::controller\+::combined\+\_\+robot\+::\+Combined\+Robot}!grasp\+\_\+by\+\_\+dict@{grasp\+\_\+by\+\_\+dict}}
+\index{grasp\+\_\+by\+\_\+dict@{grasp\+\_\+by\+\_\+dict}!rnb-\/planning\+::src\+::pkg\+::controller\+::combined\+\_\+robot\+::\+Combined\+Robot@{rnb-\/planning\+::src\+::pkg\+::controller\+::combined\+\_\+robot\+::\+Combined\+Robot}}
+\subsubsection{\texorpdfstring{grasp\+\_\+by\+\_\+dict()}{grasp\_by\_dict()}}
+{\footnotesize\ttfamily def rnb-\/planning.\+src.\+pkg.\+controller.\+combined\+\_\+robot.\+Combined\+Robot.\+grasp\+\_\+by\+\_\+dict (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{grasp\+\_\+dict }\end{DoxyParamCaption})}
+
+
+
+execute grasping action 
+
+
+\begin{DoxyParams}{Parameters}
+{\em grasp\+\_\+dict} & boolean grasp commands in dictionary form \{robot\+\_\+name\+: grasp\+\_\+bool\} \\
+\hline
+\end{DoxyParams}
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_ac02f08e1c8b30ad707bd5b6a8d635cf0}\label{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_ac02f08e1c8b30ad707bd5b6a8d635cf0}} 
+\index{rnb-\/planning\+::src\+::pkg\+::controller\+::combined\+\_\+robot\+::\+Combined\+Robot@{rnb-\/planning\+::src\+::pkg\+::controller\+::combined\+\_\+robot\+::\+Combined\+Robot}!joint\+\_\+make\+\_\+sure@{joint\+\_\+make\+\_\+sure}}
+\index{joint\+\_\+make\+\_\+sure@{joint\+\_\+make\+\_\+sure}!rnb-\/planning\+::src\+::pkg\+::controller\+::combined\+\_\+robot\+::\+Combined\+Robot@{rnb-\/planning\+::src\+::pkg\+::controller\+::combined\+\_\+robot\+::\+Combined\+Robot}}
+\subsubsection{\texorpdfstring{joint\+\_\+make\+\_\+sure()}{joint\_make\_sure()}}
+{\footnotesize\ttfamily def rnb-\/planning.\+src.\+pkg.\+controller.\+combined\+\_\+robot.\+Combined\+Robot.\+joint\+\_\+make\+\_\+sure (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{Q }\end{DoxyParamCaption})}
+
+
+
+move to joint pose target 
+
+
+\begin{DoxyParams}{Parameters}
+{\em Q} & motion target(rad) \\
+\hline
+\end{DoxyParams}
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a1566ece11baa27d6c4d5cf740b2a2a03}\label{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a1566ece11baa27d6c4d5cf740b2a2a03}} 
+\index{rnb-\/planning\+::src\+::pkg\+::controller\+::combined\+\_\+robot\+::\+Combined\+Robot@{rnb-\/planning\+::src\+::pkg\+::controller\+::combined\+\_\+robot\+::\+Combined\+Robot}!reset\+\_\+connection@{reset\+\_\+connection}}
+\index{reset\+\_\+connection@{reset\+\_\+connection}!rnb-\/planning\+::src\+::pkg\+::controller\+::combined\+\_\+robot\+::\+Combined\+Robot@{rnb-\/planning\+::src\+::pkg\+::controller\+::combined\+\_\+robot\+::\+Combined\+Robot}}
+\subsubsection{\texorpdfstring{reset\+\_\+connection()}{reset\_connection()}}
+{\footnotesize\ttfamily def rnb-\/planning.\+src.\+pkg.\+controller.\+combined\+\_\+robot.\+Combined\+Robot.\+reset\+\_\+connection (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{connection\+\_\+list,  }\item[{}]{address\+\_\+list = {\ttfamily None} }\end{DoxyParamCaption})}
+
+
+
+reset connection 
+
+
+\begin{DoxyParams}{Parameters}
+{\em connection\+\_\+list} & boolean list \\
+\hline
+{\em address\+\_\+list} & address list, None for default to use stored address \\
+\hline
+\end{DoxyParams}
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a6cef8899224b996aa6200e9abd5b9ae0}\label{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a6cef8899224b996aa6200e9abd5b9ae0}} 
+\index{rnb-\/planning\+::src\+::pkg\+::controller\+::combined\+\_\+robot\+::\+Combined\+Robot@{rnb-\/planning\+::src\+::pkg\+::controller\+::combined\+\_\+robot\+::\+Combined\+Robot}!update\+\_\+robot\+\_\+pos@{update\+\_\+robot\+\_\+pos}}
+\index{update\+\_\+robot\+\_\+pos@{update\+\_\+robot\+\_\+pos}!rnb-\/planning\+::src\+::pkg\+::controller\+::combined\+\_\+robot\+::\+Combined\+Robot@{rnb-\/planning\+::src\+::pkg\+::controller\+::combined\+\_\+robot\+::\+Combined\+Robot}}
+\subsubsection{\texorpdfstring{update\+\_\+robot\+\_\+pos()}{update\_robot\_pos()}}
+{\footnotesize\ttfamily def rnb-\/planning.\+src.\+pkg.\+controller.\+combined\+\_\+robot.\+Combined\+Robot.\+update\+\_\+robot\+\_\+pos (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{name,  }\item[{}]{xyzrpy }\end{DoxyParamCaption})}
+
+
+
+update robot position 
+
+
+\begin{DoxyParams}{Parameters}
+{\em name} & name of robot \\
+\hline
+{\em xyzrpy} & robot position (xyz(m), rpy(rad)) \\
+\hline
+\end{DoxyParams}
+\mbox{\Hypertarget{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a9a9b8c7c2ee78d719658e4fe4e11521c}\label{classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot_a9a9b8c7c2ee78d719658e4fe4e11521c}} 
+\index{rnb-\/planning\+::src\+::pkg\+::controller\+::combined\+\_\+robot\+::\+Combined\+Robot@{rnb-\/planning\+::src\+::pkg\+::controller\+::combined\+\_\+robot\+::\+Combined\+Robot}!update\+\_\+robot\+\_\+pos\+\_\+dict@{update\+\_\+robot\+\_\+pos\+\_\+dict}}
+\index{update\+\_\+robot\+\_\+pos\+\_\+dict@{update\+\_\+robot\+\_\+pos\+\_\+dict}!rnb-\/planning\+::src\+::pkg\+::controller\+::combined\+\_\+robot\+::\+Combined\+Robot@{rnb-\/planning\+::src\+::pkg\+::controller\+::combined\+\_\+robot\+::\+Combined\+Robot}}
+\subsubsection{\texorpdfstring{update\+\_\+robot\+\_\+pos\+\_\+dict()}{update\_robot\_pos\_dict()}}
+{\footnotesize\ttfamily def rnb-\/planning.\+src.\+pkg.\+controller.\+combined\+\_\+robot.\+Combined\+Robot.\+update\+\_\+robot\+\_\+pos\+\_\+dict (\begin{DoxyParamCaption}\item[{}]{self,  }\item[{}]{xyz\+\_\+rpy\+\_\+robots }\end{DoxyParamCaption})}
+
+
+
+update robot position by dictionary 
+
+
+\begin{DoxyParams}{Parameters}
+{\em xyz\+\_\+rpy\+\_\+robots} & dictionary of robot positions, (xyz(m), rpy(rad)) \\
+\hline
+\end{DoxyParams}
+
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/home/rnb/\+Projects/rnb-\/planning/src/pkg/controller/combined\+\_\+robot.\+py\end{DoxyCompactItemize}
