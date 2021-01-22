@@ -1,4 +1,5 @@
-# Recommended Tools  
+# SUPPLEMENT
+## Recommended Tools  
 * jupyter 
     * install jupyter  
         ```
@@ -27,7 +28,7 @@
         ```
         python3 ~/nvidia-smi-gui/nvidia-smi-gui.py
         ```
-* Teamviewer (autostart, password)  
+* Anydesk - enable unattended access in Settings-Security
 * GitKraken  
 * PyCharm, Clion  
     * add "export PATH=$PATH:{}/bin" to .bashrc  
@@ -48,7 +49,7 @@
         ```
 
 
-# TIPS 
+## TIPS 
 * Launching RVIZ
     ```
     roslaunch "$RNB_PLANNING_DIR"src/launch/gui_custom_robots_joint_panel.launch 
@@ -73,7 +74,7 @@
     ```
 
 
-# Panda simulator
+## Panda simulator
 * Install
     ```
     pip install numpy numpy-quaternion rospy-message-converter==0.4.0 \
@@ -86,7 +87,7 @@
     ```
 
 
-# Launch Indy simulator (CadKit)
+## Launch Indy simulator (CadKit)
 * run TaskManager (simulator mode)  on STEP
     ```
     cd /home/user/release/IndyFramework3.0 && ./TaskManager -j indyDeploy.json
@@ -96,7 +97,7 @@
     * Connect -> Enter ip of STEP PC -> Connect
 
   
-# How to make xacro for multi-robot  
+## How to make xacro for multi-robot  
 * find xacro file in the description package for target robot  
 * copy the xacro file to "$RNB_PLANNING_DIR"/src/robots  
 * delete "world" and "base_link" links and joints connected to it  
@@ -127,7 +128,7 @@
     ```
     * for "not unique" error, remove it from individual xacro files and include the item on the top of "custom_robots.urdf.xacro"  
 
-# Removing cuda  
+## Removing cuda  
     ```
     sudo apt remove -y 'cuda*'
     sudo apt remove -y 'libcuda*'
@@ -135,14 +136,14 @@
     sudo apt remove -y 'libcudnn*'
     ```
 
-# Deprecated dependencies  
+## Deprecated dependencies  
 
-## python packages  
+### python packages  
 ```
 pip install klampt
 ```
 
-## Tesseract  
+### Tesseract  
 * clone tesseract on workspace  
     ```
     cd ~/Projects/rnb-planning/ws_ros/src \
@@ -181,7 +182,7 @@ pip install klampt
     source ~Projects/rnb-planning/ws_ros/devel/setup.bash
     ``` 
   
-## Moveit
+### Moveit
 * Install moveit (after ros-melodic and catkin)
     ```
     sudo apt install ros-melodic-moveit
