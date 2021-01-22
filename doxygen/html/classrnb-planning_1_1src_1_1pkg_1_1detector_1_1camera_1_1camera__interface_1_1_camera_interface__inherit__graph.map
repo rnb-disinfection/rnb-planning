@@ -1,4 +1,0 @@
-<map id="rnb&#45;planning.src.pkg.detector.camera.camera_interface.CameraInterface" name="rnb&#45;planning.src.pkg.detector.camera.camera_interface.CameraInterface">
-<area shape="rect" id="node2" href="$classrnb-planning_1_1src_1_1pkg_1_1detector_1_1camera_1_1kinect_1_1_kinect.html" title="Kinect camera interface. " alt="" coords="348,5,628,47"/>
-<area shape="rect" id="node3" href="$classrnb-planning_1_1src_1_1pkg_1_1detector_1_1camera_1_1realsense_1_1_real_sense.html" title="realsense camera interface Must call initialize/disconnect before/after usage. " alt="" coords="337,71,639,112"/>
-</map>
