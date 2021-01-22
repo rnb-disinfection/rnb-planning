@@ -23,8 +23,8 @@ class HandleAstar(TaskInterface):
         TaskInterface.__init__(self, *args, **kwargs)
         self.manager = PriorityQueueManager()
         self.manager.start()
-        self.dict_lock = self.manager.Lock()
-        self.que_lock = self.manager.Lock()
+        self.dict_lock = LockBlock(self.manager.Lock())
+        self.que_lock = LockBlock(self.manager.Lock())
 
     def initialize(self):
         bindings = get_all_mapping(self.graph.handle_dict.keys(),
@@ -192,7 +192,7 @@ class HandleAstar(TaskInterface):
     def search(self, initial_state, goal_nodes,
                      tree_margin=0, depth_margin=0, joint_motion_num=10,
                      terminate_on_first=True, N_search=100, N_agents=None, multiprocess=False,
-                     display=False, dt_vis=None, verbose=False, print_expression=False, **kwargs):
+                     display=False, dt_vis=None, verbose=False, print_expression=False, wait_finish=True, **kwargs):
 
         self.joint_motion_num = joint_motion_num
         self.t0 = time.time()
@@ -225,8 +225,9 @@ class HandleAstar(TaskInterface):
             for proc in self.proc_list:
                 proc.start()
 
-            for proc in self.proc_list:
-                proc.join()
+            if wait_finish:
+                for proc in self.proc_list:
+                    proc.join()
         else:
             self.snode_counter = SingleValue('i', 0)
             self.search_counter = SingleValue('i', 0)

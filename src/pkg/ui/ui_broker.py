@@ -44,7 +44,7 @@ class UIBroker(Singleton):
     def start_server(self):
         if not self.__server_on:
             dash_launcher.set_tabs(self.tab_list)
-            dash_launcher.run_server(on_background=True, debug=False)
+            dash_launcher.run_server(on_background=True, debug=False, host='0.0.0.0')
             self.__server_on = True
 
     def set_tables(self):

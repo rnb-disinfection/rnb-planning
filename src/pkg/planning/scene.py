@@ -334,8 +334,8 @@ class PlanningScene:
     def add_aruco_axis(self, hl_key, atem, axis_name=None):
         oname = atem.oname
         axis_name = axis_name or oname
-        if oname in self.combined_robot.get_scene_dict():
-            link_name = RobotSpecs.get_base_link(self.combined_robot.get_scene_dict()[oname], oname)
+        if oname in self.combined_robot.get_robot_config_dict():
+            link_name = RobotSpecs.get_base_name(self.combined_robot.get_robot_config_dict()[oname].type, oname)
             Toff = atem.Toff
         else:
             aobj = self.gscene.NAME_DICT[oname]

@@ -55,7 +55,7 @@ class CombinedRobot:
     # @param name name of robot
     # @param xyzrpy robot position (xyz(m), rpy(rad))
     def update_robot_pos(self, name, xyzrpy):
-        self.get_scene_dict()[name].xyzrpy = xyzrpy
+        self.get_robot_config_dict()[name].xyzrpy = xyzrpy
         self.xyz_rpy_robots[name] = xyzrpy
 
     ##
@@ -103,8 +103,8 @@ class CombinedRobot:
                     self.robot_dict[name] = None
 
     ##
-    # @brief get robot_on_scene in dictionalry format
-    def get_scene_dict(self):
+    # @brief get a dictionary of rnb-planning.src.pkg.controller.robot_config.RobotConfig on scene
+    def get_robot_config_dict(self):
         return {rp.get_indexed_name(): rp for rp in self.robots_on_scene}
 
     ##
@@ -138,7 +138,7 @@ class CombinedRobot:
             self.__grasp_fun(grasp[0], grasp[1])
 
     def __grasp_fun(self, name, grasp):
-        scence_dict = self.get_scene_dict()
+        scence_dict = self.get_robot_config_dict()
         if scence_dict[name] == RobotType.indy7 and self.robot_dict[name] is not None:
             self.robot_dict[name].grasp(grasp, connect=True)
         elif scence_dict[name] == RobotType.panda and self.robot_dict[name] is not None:

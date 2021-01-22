@@ -174,24 +174,22 @@ class PlanningPipeline:
         ret = False
         while self.snode_counter.value < N_search and (time.time() - self.t0) < timeout_loop and not self.stop_now.value:
             loop_counter += 1
-            self.que_lock.acquire()
-            stop = False
-            if self.snode_queue.empty():
-                stop = True
-            else:
-                try:
-                    snode, from_state, to_state, redundancy_dict = self.snode_queue.get(timeout=1)[1]
-                except:
-                    stop=True
-            self.stop_dict[ID] = stop
-            if stop:
-                self.que_lock.release()
-                if all([self.stop_dict[i_proc] for i_proc in range(self.N_agents)]):
-                    break
+            with self.que_lock:
+                stop = False
+                if self.snode_queue.empty():
+                    stop = True
                 else:
-                    continue
-            self.search_counter.value = self.search_counter.value + 1
-            self.que_lock.release()
+                    try:
+                        snode, from_state, to_state, redundancy_dict = self.snode_queue.get(timeout=1)[1]
+                    except:
+                        stop=True
+                self.stop_dict[ID] = stop
+                if stop:
+                    if all([self.stop_dict[i_proc] for i_proc in range(self.N_agents)]):
+                        break
+                    else:
+                        continue
+                self.search_counter.value = self.search_counter.value + 1
             self.gtimer.tic("test_transition")
             traj, new_state, error, succ = self.__test_transition(from_state, to_state, redundancy_dict=redundancy_dict,
                                                                   display=display, dt_vis=dt_vis, **kwargs)
@@ -241,11 +239,10 @@ class PlanningPipeline:
     # @brief update snode_counter and snode.idx
     # @param SearchNode
     def __update_idx(self, snode):
-        self.dict_lock.acquire()
-        snode.idx = self.snode_counter.value
-        self.snode_dict[snode.idx] = snode
-        self.snode_counter.value = self.snode_counter.value+1
-        self.dict_lock.release()
+        with self.dict_lock:
+            snode.idx = self.snode_counter.value
+            self.snode_dict[snode.idx] = snode
+            self.snode_counter.value = self.snode_counter.value+1
         return snode
 
     ##
@@ -254,10 +251,9 @@ class PlanningPipeline:
     def __process_snode(self, snode):
         self.__update_idx(snode)
         new_queue = self.tplan.get_leafs(snode, self.N_redundant_sample)
-        self.que_lock.acquire()
-        for qtem in new_queue:
-            self.snode_queue.put(qtem)
-        self.que_lock.release()
+        with self.que_lock:
+            for qtem in new_queue:
+                self.snode_queue.put(qtem)
         return snode
 
     ##
