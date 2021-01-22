@@ -5,7 +5,7 @@
 * Other instruction documents are stored in docs/
     
 ## Doxygen
-* To generate doxygen document, run following command (after installing doxygen following [docs/SUPPLEMENT_README.md](../docs/SUPPLEMENT_README.md)
+* To generate doxygen document, run following command (after installing doxygen from [docs/SUPPLEMENT_README.md](../docs/SUPPLEMENT_README.md)
     ```console
     cd "$RNB_PLANNING_DIR" && doxygen Doxyfile
     ```
@@ -14,3 +14,4 @@
     ```console
     cd "$RNB_PLANNING_DIR"doxygen && python ./host_doxygen.py
     ```
+* Now you can browse doxygen documents from other computers in the local network at \<IP\>:\<PORT\>/index.html
