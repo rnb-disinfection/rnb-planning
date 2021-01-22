@@ -2,6 +2,7 @@ var searchData=
 [
   ['ros_20setup',['ROS Setup',['../md_docs__r_o_s__s_e_t_u_p.html',1,'']]],
   ['recommended_20tools',['Recommended Tools',['../md_docs__s_u_p_p_l_e_m_e_n_t__r_e_a_d_m_e.html',1,'']]],
+  ['moveitcompact',['MoveitCompact',['../namespace_r_n_b_1_1_moveit_compact.html',1,'RNB']]],
   ['realsense',['RealSense',['../classrnb-planning_1_1src_1_1pkg_1_1detector_1_1camera_1_1realsense_1_1_real_sense.html',1,'rnb-planning::src::pkg::detector::camera::realsense']]],
   ['rebind',['rebind',['../classrnb-planning_1_1src_1_1pkg_1_1planning_1_1scene_1_1_planning_scene.html#ae11a6a3a10a261ed791cf17d3e0073c5',1,'rnb-planning::src::pkg::planning::scene::PlanningScene']]],
   ['register_5fbinders',['register_binders',['../classrnb-planning_1_1src_1_1pkg_1_1planning_1_1constraint_1_1constraint__object_1_1_object_action.html#aec4d674f87e5a504c2797e22c375f8b9',1,'rnb-planning.src.pkg.planning.constraint.constraint_object.ObjectAction.register_binders()'],['../classrnb-planning_1_1src_1_1pkg_1_1planning_1_1constraint_1_1constraint__object_1_1_custom_object.html#a5cbd29ae9de16a60994540a89c834f12',1,'rnb-planning.src.pkg.planning.constraint.constraint_object.CustomObject.register_binders()'],['../classrnb-planning_1_1src_1_1pkg_1_1planning_1_1constraint_1_1constraint__object_1_1_single_handle_object.html#afd76e164ba6fb676385054896c20ac02',1,'rnb-planning.src.pkg.planning.constraint.constraint_object.SingleHandleObject.register_binders()'],['../classrnb-planning_1_1src_1_1pkg_1_1planning_1_1constraint_1_1constraint__object_1_1_box_action.html#a6e203fbad14b09536083a96c1374c297',1,'rnb-planning.src.pkg.planning.constraint.constraint_object.BoxAction.register_binders()']]],
@@ -15,7 +16,7 @@ var searchData=
   ['reset_5freference_5fcoord',['reset_reference_coord',['../classrnb-planning_1_1src_1_1pkg_1_1geometry_1_1builder_1_1scene__builder_1_1_scene_builder.html#a2c34d82f4be323f96330d7b93911b4b4',1,'rnb-planning::src::pkg::geometry::builder::scene_builder::SceneBuilder']]],
   ['resnet',['ResNet',['../classrnb-planning_1_1src_1_1pkg_1_1training_1_1model_1_1_res_net.html',1,'rnb-planning::src::pkg::training::model']]],
   ['resnetmodeltp',['ResNetModelTP',['../classrnb-planning_1_1src_1_1pkg_1_1training_1_1model_1_1_res_net_model_t_p.html',1,'rnb-planning::src::pkg::training::model']]],
-  ['rnb',['rnb',['../namespacernb.html',1,'']]],
+  ['rnb',['RNB',['../namespace_r_n_b.html',1,'RNB'],['../namespacernb.html',1,'rnb']]],
   ['robot',['ROBOT',['../classrnb-planning_1_1src_1_1pkg_1_1detector_1_1detector__interface_1_1_detection_level.html#ab96c534a83c71d20519d5c6ba4bce95c',1,'rnb-planning::src::pkg::detector::detector_interface::DetectionLevel']]],
   ['robot_5fdict',['robot_dict',['../classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot.html#a9c7fb3e837c66e2a8f5c54d6fef78ba6',1,'rnb-planning::src::pkg::controller::combined_robot::CombinedRobot']]],
   ['robotconfig',['RobotConfig',['../classrnb-planning_1_1src_1_1pkg_1_1controller_1_1robot__config_1_1_robot_config.html',1,'rnb-planning::src::pkg::controller::robot_config']]],

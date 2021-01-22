@@ -1,0 +1,262 @@
+\hypertarget{class_r_n_b_1_1_moveit_compact_1_1_planner}{}\section{R\+NB\+:\+:Moveit\+Compact\+:\+:Planner Class Reference}
+\label{class_r_n_b_1_1_moveit_compact_1_1_planner}\index{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner@{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner}}
+
+
+A imlplementation of ompl planner using moveit! interface.  
+
+
+
+
+{\ttfamily \#include $<$moveit\+\_\+compact.\+h$>$}
+
+
+
+Collaboration diagram for R\+NB\+:\+:Moveit\+Compact\+:\+:Planner\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=193pt]{class_r_n_b_1_1_moveit_compact_1_1_planner__coll__graph}
+\end{center}
+\end{figure}
+\subsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+bool \hyperlink{class_r_n_b_1_1_moveit_compact_1_1_planner_ae7acfa0a899d0c692e6f01701e1c360d}{init\+\_\+planner\+\_\+from\+\_\+file} (string urdf\+\_\+filepath, string srdf\+\_\+filepath, Name\+List \&group\+\_\+names, string config\+\_\+path)
+\begin{DoxyCompactList}\small\item\em initialize planner from urdf and srdf files. redirects to init\+\_\+planner \end{DoxyCompactList}\item 
+bool \hyperlink{class_r_n_b_1_1_moveit_compact_1_1_planner_a43e6dccb94ecdf155ab93ee05c47dbe4}{init\+\_\+planner} (string \&urdf\+\_\+txt, string \&srdf\+\_\+txt, Name\+List \&group\+\_\+names, string config\+\_\+path)
+\begin{DoxyCompactList}\small\item\em initialize planner with string contents of urdf and srdf files. \end{DoxyCompactList}\item 
+void \hyperlink{class_r_n_b_1_1_moveit_compact_1_1_planner_aa89d4eb9a041cd3560a23d01b763e8a5}{configure} ()
+\begin{DoxyCompactList}\small\item\em load planner plugin \end{DoxyCompactList}\item 
+void \hyperlink{class_r_n_b_1_1_moveit_compact_1_1_planner_a34aebe9c8aff383648865d359ca113dc}{clear\+\_\+context\+\_\+cache} ()
+\begin{DoxyCompactList}\small\item\em clear\+\_\+context\+\_\+cache -\/ needed to call to reset planning context \end{DoxyCompactList}\item 
+bool \hyperlink{class_r_n_b_1_1_moveit_compact_1_1_planner_a5d812b9a01c40fc99dfd2f7cd9a3c917}{add\+\_\+union\+\_\+manifold} (string group\+\_\+name, string tool\+\_\+link, \hyperlink{class_r_n_b_1_1_moveit_compact_1_1_cart_pose}{Cart\+Pose} tool\+\_\+offset, \hyperlink{class_r_n_b_1_1_moveit_compact_1_1_geometry_list}{Geometry\+List} geometry\+\_\+list, bool fix\+\_\+surface, bool fix\+\_\+normal, double tol=Union\+Manifold\+::\+D\+E\+F\+A\+U\+L\+T\+\_\+\+T\+O\+L\+E\+R\+A\+N\+CE)
+\begin{DoxyCompactList}\small\item\em create union manifold \end{DoxyCompactList}\item 
+bool \hyperlink{class_r_n_b_1_1_moveit_compact_1_1_planner_aac7f1dd0ef403cf9dfaa81de8a355cbe}{clear\+\_\+manifolds} ()
+\begin{DoxyCompactList}\small\item\em clear all manifolds \end{DoxyCompactList}\item 
+\hyperlink{struct_r_n_b_1_1_moveit_compact_1_1_plan_result}{Plan\+Result} \& \hyperlink{class_r_n_b_1_1_moveit_compact_1_1_planner_a8600287d3616809c9587ce6e5bfe1861}{plan} (string group\+\_\+name, string tool\+\_\+link, \hyperlink{class_r_n_b_1_1_moveit_compact_1_1_cart_pose}{Cart\+Pose} goal\+\_\+pose, string goal\+\_\+link, Joint\+State init\+\_\+state, string planner\+\_\+id=\char`\"{}R\+R\+T\+Connectk\+Config\+Default\char`\"{}, double allowed\+\_\+planning\+\_\+time=0.\+1)
+\begin{DoxyCompactList}\small\item\em search for plan. \end{DoxyCompactList}\item 
+\hyperlink{struct_r_n_b_1_1_moveit_compact_1_1_plan_result}{Plan\+Result} \& \hyperlink{class_r_n_b_1_1_moveit_compact_1_1_planner_a99f5b838a94452a04b5ea15ad6273026}{plan\+\_\+with\+\_\+constraints} (string group\+\_\+name, string tool\+\_\+link, \hyperlink{class_r_n_b_1_1_moveit_compact_1_1_cart_pose}{Cart\+Pose} goal\+\_\+pose, string goal\+\_\+link, Joint\+State init\+\_\+state, string planner\+\_\+id=\char`\"{}R\+R\+T\+Connectk\+Config\+Default\char`\"{}, double allowed\+\_\+planning\+\_\+time=0.\+1, bool allow\+\_\+approximation=false)
+\begin{DoxyCompactList}\small\item\em search for plan with constraints. \end{DoxyCompactList}\item 
+void \hyperlink{class_r_n_b_1_1_moveit_compact_1_1_planner_a859368ee133cab8466f06e46dc1c252a}{test\+\_\+jacobian} (Joint\+State init\+\_\+state)
+\begin{DoxyCompactList}\small\item\em test jacobian \end{DoxyCompactList}\item 
+bool \hyperlink{class_r_n_b_1_1_moveit_compact_1_1_planner_adb071291198eec7757985d1f4125e833}{process\+\_\+object} (string name, const Object\+Type type, \hyperlink{class_r_n_b_1_1_moveit_compact_1_1_cart_pose}{Cart\+Pose} pose, Vec3 dims, string link\+\_\+name, Name\+List touch\+\_\+links, bool attach, const int action)
+\begin{DoxyCompactList}\small\item\em generate and process ros object message \end{DoxyCompactList}\item 
+bool \hyperlink{class_r_n_b_1_1_moveit_compact_1_1_planner_a89a057666f1c30a49d5219879107b435}{add\+\_\+object} (string name, const Object\+Type type, \hyperlink{class_r_n_b_1_1_moveit_compact_1_1_cart_pose}{Cart\+Pose} pose, Vec3 dims, string link\+\_\+name, Name\+List touch\+\_\+links, bool attach)
+\begin{DoxyCompactList}\small\item\em simply add object \end{DoxyCompactList}\item 
+void \hyperlink{class_r_n_b_1_1_moveit_compact_1_1_planner_aeefb7ff47ed61db1e6cc2427c37d8ae2}{clear\+\_\+all\+\_\+objects} ()
+\begin{DoxyCompactList}\small\item\em clear all objects in the scene \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{class_r_n_b_1_1_moveit_compact_1_1_planner_a8c3e7920f191d102357b61f969faebbb}\label{class_r_n_b_1_1_moveit_compact_1_1_planner_a8c3e7920f191d102357b61f969faebbb}} 
+void {\bfseries terminate} ()
+\end{DoxyCompactItemize}
+\subsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{class_r_n_b_1_1_moveit_compact_1_1_planner_a699273092d7acf03820904b416011a55}\label{class_r_n_b_1_1_moveit_compact_1_1_planner_a699273092d7acf03820904b416011a55}} 
+std\+::shared\+\_\+ptr$<$ pluginlib\+::\+Class\+Loader$<$ planning\+\_\+interface\+::\+Planner\+Manager $>$ $>$ {\bfseries planner\+\_\+plugin\+\_\+loader\+\_\+}
+\item 
+\mbox{\Hypertarget{class_r_n_b_1_1_moveit_compact_1_1_planner_acb371b25a0313b228f51af6cffe53ea5}\label{class_r_n_b_1_1_moveit_compact_1_1_planner_acb371b25a0313b228f51af6cffe53ea5}} 
+std\+::string {\bfseries planner\+\_\+plugin\+\_\+name\+\_\+}
+\item 
+\mbox{\Hypertarget{class_r_n_b_1_1_moveit_compact_1_1_planner_ace4a50ccd6df165981411e7d7177f477}\label{class_r_n_b_1_1_moveit_compact_1_1_planner_ace4a50ccd6df165981411e7d7177f477}} 
+ompl\+\_\+interface\+::\+O\+M\+P\+L\+Planner\+Manager\+Custom\+Ptr {\bfseries planner\+\_\+instance\+\_\+}
+\item 
+\mbox{\Hypertarget{class_r_n_b_1_1_moveit_compact_1_1_planner_a2cd6db06c9c271f5c00d1bfb4768743d}\label{class_r_n_b_1_1_moveit_compact_1_1_planner_a2cd6db06c9c271f5c00d1bfb4768743d}} 
+robot\+\_\+model\+\_\+loader\+::\+Robot\+Model\+Loader\+Ptr {\bfseries robot\+\_\+model\+\_\+loader\+\_\+}
+\item 
+\mbox{\Hypertarget{class_r_n_b_1_1_moveit_compact_1_1_planner_a4cb1bfd8389d3697aef6371cd5a16028}\label{class_r_n_b_1_1_moveit_compact_1_1_planner_a4cb1bfd8389d3697aef6371cd5a16028}} 
+robot\+\_\+model\+::\+Robot\+Model\+Ptr {\bfseries robot\+\_\+model\+\_\+}
+\item 
+\mbox{\Hypertarget{class_r_n_b_1_1_moveit_compact_1_1_planner_aa4eafd49a28d153cafcf17d248016c92}\label{class_r_n_b_1_1_moveit_compact_1_1_planner_aa4eafd49a28d153cafcf17d248016c92}} 
+planning\+\_\+scene\+::\+Planning\+Scene\+Ptr {\bfseries planning\+\_\+scene\+\_\+}
+\item 
+\mbox{\Hypertarget{class_r_n_b_1_1_moveit_compact_1_1_planner_af298d58a5ff8a485337dfd8e203a1f54}\label{class_r_n_b_1_1_moveit_compact_1_1_planner_af298d58a5ff8a485337dfd8e203a1f54}} 
+std\+::vector$<$ ompl\+::base\+::\+Constraint\+Ptr $>$ {\bfseries manifolds}
+\item 
+\mbox{\Hypertarget{class_r_n_b_1_1_moveit_compact_1_1_planner_a1fa16030261b411fe82e729d8f25a492}\label{class_r_n_b_1_1_moveit_compact_1_1_planner_a1fa16030261b411fe82e729d8f25a492}} 
+\hyperlink{struct_r_n_b_1_1_moveit_compact_1_1_plan_result}{Plan\+Result} {\bfseries plan\+\_\+result}
+\item 
+\mbox{\Hypertarget{class_r_n_b_1_1_moveit_compact_1_1_planner_a1cfaa56d941bd138cad2f9665602aca5}\label{class_r_n_b_1_1_moveit_compact_1_1_planner_a1cfaa56d941bd138cad2f9665602aca5}} 
+Name\+List {\bfseries joint\+\_\+names}
+\item 
+\mbox{\Hypertarget{class_r_n_b_1_1_moveit_compact_1_1_planner_a9d5e839298cc00cbef7fc53155407531}\label{class_r_n_b_1_1_moveit_compact_1_1_planner_a9d5e839298cc00cbef7fc53155407531}} 
+int {\bfseries joint\+\_\+num}
+\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+A imlplementation of ompl planner using moveit! interface. 
+
+\begin{DoxyAuthor}{Author}
+Junsu Kang 
+\end{DoxyAuthor}
+
+
+\subsection{Member Function Documentation}
+\mbox{\Hypertarget{class_r_n_b_1_1_moveit_compact_1_1_planner_a89a057666f1c30a49d5219879107b435}\label{class_r_n_b_1_1_moveit_compact_1_1_planner_a89a057666f1c30a49d5219879107b435}} 
+\index{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner@{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner}!add\+\_\+object@{add\+\_\+object}}
+\index{add\+\_\+object@{add\+\_\+object}!R\+N\+B\+::\+Moveit\+Compact\+::\+Planner@{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner}}
+\subsubsection{\texorpdfstring{add\+\_\+object()}{add\_object()}}
+{\footnotesize\ttfamily bool Planner\+::add\+\_\+object (\begin{DoxyParamCaption}\item[{string}]{name,  }\item[{const Object\+Type}]{type,  }\item[{\hyperlink{class_r_n_b_1_1_moveit_compact_1_1_cart_pose}{Cart\+Pose}}]{pose,  }\item[{Vec3}]{dims,  }\item[{string}]{link\+\_\+name,  }\item[{Name\+List}]{touch\+\_\+links,  }\item[{bool}]{attach }\end{DoxyParamCaption})}
+
+
+
+simply add object 
+
+\begin{DoxyAuthor}{Author}
+Junsu Kang 
+\end{DoxyAuthor}
+\mbox{\Hypertarget{class_r_n_b_1_1_moveit_compact_1_1_planner_a5d812b9a01c40fc99dfd2f7cd9a3c917}\label{class_r_n_b_1_1_moveit_compact_1_1_planner_a5d812b9a01c40fc99dfd2f7cd9a3c917}} 
+\index{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner@{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner}!add\+\_\+union\+\_\+manifold@{add\+\_\+union\+\_\+manifold}}
+\index{add\+\_\+union\+\_\+manifold@{add\+\_\+union\+\_\+manifold}!R\+N\+B\+::\+Moveit\+Compact\+::\+Planner@{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner}}
+\subsubsection{\texorpdfstring{add\+\_\+union\+\_\+manifold()}{add\_union\_manifold()}}
+{\footnotesize\ttfamily bool Planner\+::add\+\_\+union\+\_\+manifold (\begin{DoxyParamCaption}\item[{string}]{group\+\_\+name,  }\item[{string}]{tool\+\_\+link,  }\item[{\hyperlink{class_r_n_b_1_1_moveit_compact_1_1_cart_pose}{Cart\+Pose}}]{tool\+\_\+offset,  }\item[{\hyperlink{class_r_n_b_1_1_moveit_compact_1_1_geometry_list}{Geometry\+List}}]{geometry\+\_\+list,  }\item[{bool}]{fix\+\_\+surface,  }\item[{bool}]{fix\+\_\+normal,  }\item[{double}]{tol = {\ttfamily UnionManifold\+:\+:DEFAULT\+\_\+TOLERANCE} }\end{DoxyParamCaption})}
+
+
+
+create union manifold 
+
+\begin{DoxyAuthor}{Author}
+Junsu Kang 
+\end{DoxyAuthor}
+\mbox{\Hypertarget{class_r_n_b_1_1_moveit_compact_1_1_planner_aeefb7ff47ed61db1e6cc2427c37d8ae2}\label{class_r_n_b_1_1_moveit_compact_1_1_planner_aeefb7ff47ed61db1e6cc2427c37d8ae2}} 
+\index{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner@{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner}!clear\+\_\+all\+\_\+objects@{clear\+\_\+all\+\_\+objects}}
+\index{clear\+\_\+all\+\_\+objects@{clear\+\_\+all\+\_\+objects}!R\+N\+B\+::\+Moveit\+Compact\+::\+Planner@{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner}}
+\subsubsection{\texorpdfstring{clear\+\_\+all\+\_\+objects()}{clear\_all\_objects()}}
+{\footnotesize\ttfamily void Planner\+::clear\+\_\+all\+\_\+objects (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})}
+
+
+
+clear all objects in the scene 
+
+\begin{DoxyAuthor}{Author}
+Junsu Kang 
+\end{DoxyAuthor}
+\mbox{\Hypertarget{class_r_n_b_1_1_moveit_compact_1_1_planner_a34aebe9c8aff383648865d359ca113dc}\label{class_r_n_b_1_1_moveit_compact_1_1_planner_a34aebe9c8aff383648865d359ca113dc}} 
+\index{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner@{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner}!clear\+\_\+context\+\_\+cache@{clear\+\_\+context\+\_\+cache}}
+\index{clear\+\_\+context\+\_\+cache@{clear\+\_\+context\+\_\+cache}!R\+N\+B\+::\+Moveit\+Compact\+::\+Planner@{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner}}
+\subsubsection{\texorpdfstring{clear\+\_\+context\+\_\+cache()}{clear\_context\_cache()}}
+{\footnotesize\ttfamily void Planner\+::clear\+\_\+context\+\_\+cache (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})}
+
+
+
+clear\+\_\+context\+\_\+cache -\/ needed to call to reset planning context 
+
+\begin{DoxyAuthor}{Author}
+Junsu Kang 
+\end{DoxyAuthor}
+\mbox{\Hypertarget{class_r_n_b_1_1_moveit_compact_1_1_planner_aac7f1dd0ef403cf9dfaa81de8a355cbe}\label{class_r_n_b_1_1_moveit_compact_1_1_planner_aac7f1dd0ef403cf9dfaa81de8a355cbe}} 
+\index{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner@{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner}!clear\+\_\+manifolds@{clear\+\_\+manifolds}}
+\index{clear\+\_\+manifolds@{clear\+\_\+manifolds}!R\+N\+B\+::\+Moveit\+Compact\+::\+Planner@{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner}}
+\subsubsection{\texorpdfstring{clear\+\_\+manifolds()}{clear\_manifolds()}}
+{\footnotesize\ttfamily bool Planner\+::clear\+\_\+manifolds (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})}
+
+
+
+clear all manifolds 
+
+\begin{DoxyAuthor}{Author}
+Junsu Kang 
+\end{DoxyAuthor}
+\mbox{\Hypertarget{class_r_n_b_1_1_moveit_compact_1_1_planner_aa89d4eb9a041cd3560a23d01b763e8a5}\label{class_r_n_b_1_1_moveit_compact_1_1_planner_aa89d4eb9a041cd3560a23d01b763e8a5}} 
+\index{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner@{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner}!configure@{configure}}
+\index{configure@{configure}!R\+N\+B\+::\+Moveit\+Compact\+::\+Planner@{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner}}
+\subsubsection{\texorpdfstring{configure()}{configure()}}
+{\footnotesize\ttfamily void Planner\+::configure (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})}
+
+
+
+load planner plugin 
+
+\begin{DoxyAuthor}{Author}
+Junsu Kang 
+\end{DoxyAuthor}
+\mbox{\Hypertarget{class_r_n_b_1_1_moveit_compact_1_1_planner_a43e6dccb94ecdf155ab93ee05c47dbe4}\label{class_r_n_b_1_1_moveit_compact_1_1_planner_a43e6dccb94ecdf155ab93ee05c47dbe4}} 
+\index{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner@{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner}!init\+\_\+planner@{init\+\_\+planner}}
+\index{init\+\_\+planner@{init\+\_\+planner}!R\+N\+B\+::\+Moveit\+Compact\+::\+Planner@{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner}}
+\subsubsection{\texorpdfstring{init\+\_\+planner()}{init\_planner()}}
+{\footnotesize\ttfamily bool Planner\+::init\+\_\+planner (\begin{DoxyParamCaption}\item[{string \&}]{urdf\+\_\+txt,  }\item[{string \&}]{srdf\+\_\+txt,  }\item[{Name\+List \&}]{group\+\_\+names,  }\item[{string}]{config\+\_\+path }\end{DoxyParamCaption})}
+
+
+
+initialize planner with string contents of urdf and srdf files. 
+
+
+\begin{DoxyParams}{Parameters}
+{\em config\+\_\+path} & directory path where kinematics.\+yaml, ompl\+\_\+plugin.\+yaml, planning\+\_\+plugin.\+yaml is stored \\
+\hline
+\end{DoxyParams}
+\begin{DoxyAuthor}{Author}
+Junsu Kang 
+\end{DoxyAuthor}
+\mbox{\Hypertarget{class_r_n_b_1_1_moveit_compact_1_1_planner_ae7acfa0a899d0c692e6f01701e1c360d}\label{class_r_n_b_1_1_moveit_compact_1_1_planner_ae7acfa0a899d0c692e6f01701e1c360d}} 
+\index{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner@{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner}!init\+\_\+planner\+\_\+from\+\_\+file@{init\+\_\+planner\+\_\+from\+\_\+file}}
+\index{init\+\_\+planner\+\_\+from\+\_\+file@{init\+\_\+planner\+\_\+from\+\_\+file}!R\+N\+B\+::\+Moveit\+Compact\+::\+Planner@{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner}}
+\subsubsection{\texorpdfstring{init\+\_\+planner\+\_\+from\+\_\+file()}{init\_planner\_from\_file()}}
+{\footnotesize\ttfamily bool Planner\+::init\+\_\+planner\+\_\+from\+\_\+file (\begin{DoxyParamCaption}\item[{string}]{urdf\+\_\+filepath,  }\item[{string}]{srdf\+\_\+filepath,  }\item[{Name\+List \&}]{group\+\_\+names,  }\item[{string}]{config\+\_\+path }\end{DoxyParamCaption})}
+
+
+
+initialize planner from urdf and srdf files. redirects to init\+\_\+planner 
+
+\begin{DoxyAuthor}{Author}
+Junsu Kang 
+\end{DoxyAuthor}
+\mbox{\Hypertarget{class_r_n_b_1_1_moveit_compact_1_1_planner_a8600287d3616809c9587ce6e5bfe1861}\label{class_r_n_b_1_1_moveit_compact_1_1_planner_a8600287d3616809c9587ce6e5bfe1861}} 
+\index{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner@{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner}!plan@{plan}}
+\index{plan@{plan}!R\+N\+B\+::\+Moveit\+Compact\+::\+Planner@{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner}}
+\subsubsection{\texorpdfstring{plan()}{plan()}}
+{\footnotesize\ttfamily \hyperlink{struct_r_n_b_1_1_moveit_compact_1_1_plan_result}{Plan\+Result} \& Planner\+::plan (\begin{DoxyParamCaption}\item[{string}]{group\+\_\+name,  }\item[{string}]{tool\+\_\+link,  }\item[{\hyperlink{class_r_n_b_1_1_moveit_compact_1_1_cart_pose}{Cart\+Pose}}]{goal\+\_\+pose,  }\item[{string}]{goal\+\_\+link,  }\item[{Joint\+State}]{init\+\_\+state,  }\item[{string}]{planner\+\_\+id = {\ttfamily \char`\"{}RRTConnectkConfigDefault\char`\"{}},  }\item[{double}]{allowed\+\_\+planning\+\_\+time = {\ttfamily 0.1} }\end{DoxyParamCaption})}
+
+
+
+search for plan. 
+
+\begin{DoxyAuthor}{Author}
+Junsu Kang 
+\end{DoxyAuthor}
+\mbox{\Hypertarget{class_r_n_b_1_1_moveit_compact_1_1_planner_a99f5b838a94452a04b5ea15ad6273026}\label{class_r_n_b_1_1_moveit_compact_1_1_planner_a99f5b838a94452a04b5ea15ad6273026}} 
+\index{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner@{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner}!plan\+\_\+with\+\_\+constraints@{plan\+\_\+with\+\_\+constraints}}
+\index{plan\+\_\+with\+\_\+constraints@{plan\+\_\+with\+\_\+constraints}!R\+N\+B\+::\+Moveit\+Compact\+::\+Planner@{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner}}
+\subsubsection{\texorpdfstring{plan\+\_\+with\+\_\+constraints()}{plan\_with\_constraints()}}
+{\footnotesize\ttfamily \hyperlink{struct_r_n_b_1_1_moveit_compact_1_1_plan_result}{Plan\+Result} \& Planner\+::plan\+\_\+with\+\_\+constraints (\begin{DoxyParamCaption}\item[{string}]{group\+\_\+name,  }\item[{string}]{tool\+\_\+link,  }\item[{\hyperlink{class_r_n_b_1_1_moveit_compact_1_1_cart_pose}{Cart\+Pose}}]{goal\+\_\+pose,  }\item[{string}]{goal\+\_\+link,  }\item[{Joint\+State}]{init\+\_\+state,  }\item[{string}]{planner\+\_\+id = {\ttfamily \char`\"{}RRTConnectkConfigDefault\char`\"{}},  }\item[{double}]{allowed\+\_\+planning\+\_\+time = {\ttfamily 0.1},  }\item[{bool}]{allow\+\_\+approximation = {\ttfamily false} }\end{DoxyParamCaption})}
+
+
+
+search for plan with constraints. 
+
+\begin{DoxyAuthor}{Author}
+Junsu Kang 
+\end{DoxyAuthor}
+\mbox{\Hypertarget{class_r_n_b_1_1_moveit_compact_1_1_planner_adb071291198eec7757985d1f4125e833}\label{class_r_n_b_1_1_moveit_compact_1_1_planner_adb071291198eec7757985d1f4125e833}} 
+\index{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner@{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner}!process\+\_\+object@{process\+\_\+object}}
+\index{process\+\_\+object@{process\+\_\+object}!R\+N\+B\+::\+Moveit\+Compact\+::\+Planner@{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner}}
+\subsubsection{\texorpdfstring{process\+\_\+object()}{process\_object()}}
+{\footnotesize\ttfamily bool Planner\+::process\+\_\+object (\begin{DoxyParamCaption}\item[{string}]{name,  }\item[{const Object\+Type}]{type,  }\item[{\hyperlink{class_r_n_b_1_1_moveit_compact_1_1_cart_pose}{Cart\+Pose}}]{pose,  }\item[{Vec3}]{dims,  }\item[{string}]{link\+\_\+name,  }\item[{Name\+List}]{touch\+\_\+links,  }\item[{bool}]{attach,  }\item[{const int}]{action }\end{DoxyParamCaption})}
+
+
+
+generate and process ros object message 
+
+\begin{DoxyAuthor}{Author}
+Junsu Kang 
+\end{DoxyAuthor}
+\mbox{\Hypertarget{class_r_n_b_1_1_moveit_compact_1_1_planner_a859368ee133cab8466f06e46dc1c252a}\label{class_r_n_b_1_1_moveit_compact_1_1_planner_a859368ee133cab8466f06e46dc1c252a}} 
+\index{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner@{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner}!test\+\_\+jacobian@{test\+\_\+jacobian}}
+\index{test\+\_\+jacobian@{test\+\_\+jacobian}!R\+N\+B\+::\+Moveit\+Compact\+::\+Planner@{R\+N\+B\+::\+Moveit\+Compact\+::\+Planner}}
+\subsubsection{\texorpdfstring{test\+\_\+jacobian()}{test\_jacobian()}}
+{\footnotesize\ttfamily void Planner\+::test\+\_\+jacobian (\begin{DoxyParamCaption}\item[{Joint\+State}]{init\+\_\+state }\end{DoxyParamCaption})}
+
+
+
+test jacobian 
+
+\begin{DoxyAuthor}{Author}
+Junsu Kang 
+\end{DoxyAuthor}
+
+
+The documentation for this class was generated from the following files\+:\begin{DoxyCompactItemize}
+\item 
+lib/moveit\+\_\+interface\+\_\+py/include/moveit\+\_\+compact.\+h\item 
+lib/moveit\+\_\+interface\+\_\+py/src/moveit\+\_\+compact.\+cpp\end{DoxyCompactItemize}

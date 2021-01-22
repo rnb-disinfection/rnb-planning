@@ -1,0 +1,113 @@
+\hypertarget{namespace_r_n_b_1_1_moveit_compact}{}\section{R\+NB\+:\+:Moveit\+Compact Namespace Reference}
+\label{namespace_r_n_b_1_1_moveit_compact}\index{R\+N\+B\+::\+Moveit\+Compact@{R\+N\+B\+::\+Moveit\+Compact}}
+
+
+classes and functions designed for easy use of Moveit  
+
+
+\subsection*{Classes}
+\begin{DoxyCompactItemize}
+\item 
+class \hyperlink{class_r_n_b_1_1_moveit_compact_1_1_cart_pose}{Cart\+Pose}
+\item 
+struct \hyperlink{struct_r_n_b_1_1_moveit_compact_1_1_geometry}{Geometry}
+\item 
+class \hyperlink{class_r_n_b_1_1_moveit_compact_1_1_geometry_list}{Geometry\+List}
+\item 
+class \hyperlink{class_r_n_b_1_1_moveit_compact_1_1_planner}{Planner}
+\begin{DoxyCompactList}\small\item\em A imlplementation of ompl planner using moveit! interface. \end{DoxyCompactList}\item 
+struct \hyperlink{struct_r_n_b_1_1_moveit_compact_1_1_plan_result}{Plan\+Result}
+\begin{DoxyCompactList}\small\item\em Planning result holder. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\subsection*{Typedefs}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{namespace_r_n_b_1_1_moveit_compact_a12d887c14238fd8fef3533b806d89395}\label{namespace_r_n_b_1_1_moveit_compact_a12d887c14238fd8fef3533b806d89395}} 
+typedef std\+::vector$<$ std\+::string $>$ {\bfseries Name\+List}
+\item 
+\mbox{\Hypertarget{namespace_r_n_b_1_1_moveit_compact_a90c8589ca6eb0324e91486d6c40f52d5}\label{namespace_r_n_b_1_1_moveit_compact_a90c8589ca6eb0324e91486d6c40f52d5}} 
+typedef Eigen\+::\+Vector3d {\bfseries Vec3}
+\item 
+\mbox{\Hypertarget{namespace_r_n_b_1_1_moveit_compact_a221b0a25f4edf59ac8f28d3d087cb9a9}\label{namespace_r_n_b_1_1_moveit_compact_a221b0a25f4edf59ac8f28d3d087cb9a9}} 
+typedef Eigen\+::\+Vector\+Xd {\bfseries Joint\+State}
+\item 
+\mbox{\Hypertarget{namespace_r_n_b_1_1_moveit_compact_ab55b022b32b4efe14f273a372f84f981}\label{namespace_r_n_b_1_1_moveit_compact_ab55b022b32b4efe14f273a372f84f981}} 
+typedef std\+::vector$<$ Joint\+State $>$ {\bfseries Trajectory}
+\item 
+\mbox{\Hypertarget{namespace_r_n_b_1_1_moveit_compact_afa853fe0bac304883eb0fa1f0d0e4954}\label{namespace_r_n_b_1_1_moveit_compact_afa853fe0bac304883eb0fa1f0d0e4954}} 
+typedef Eigen\+::\+Matrix$<$ long double,-\/1, 1 $>$ {\bfseries Vector\+Xld}
+\item 
+\mbox{\Hypertarget{namespace_r_n_b_1_1_moveit_compact_aca60db6037e22cecf685e1fdc8afe9e9}\label{namespace_r_n_b_1_1_moveit_compact_aca60db6037e22cecf685e1fdc8afe9e9}} 
+typedef Eigen\+::\+Matrix$<$ long double,-\/1, -\/1 $>$ {\bfseries Matrix\+Xld}
+\item 
+\mbox{\Hypertarget{namespace_r_n_b_1_1_moveit_compact_ab8909dbc5dce1db70332a589ce254475}\label{namespace_r_n_b_1_1_moveit_compact_ab8909dbc5dce1db70332a589ce254475}} 
+typedef Eigen\+::\+Matrix$<$ double, 7, 1 $>$ {\bfseries Cart\+Pose}
+\item 
+\mbox{\Hypertarget{namespace_r_n_b_1_1_moveit_compact_afc30435d92a67eac613a6ad79ff7d2f6}\label{namespace_r_n_b_1_1_moveit_compact_afc30435d92a67eac613a6ad79ff7d2f6}} 
+typedef std\+::vector$<$ \hyperlink{struct_r_n_b_1_1_moveit_compact_1_1_geometry}{Geometry} $>$ {\bfseries Geometry\+List}
+\end{DoxyCompactItemize}
+\subsection*{Enumerations}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{namespace_r_n_b_1_1_moveit_compact_a30e71dcacf927103e0bf218000be6569}\label{namespace_r_n_b_1_1_moveit_compact_a30e71dcacf927103e0bf218000be6569}} 
+enum {\bfseries Object\+Type} \{ {\bfseries B\+OX} =shape\+\_\+msgs\+:\+:Solid\+Primitive\+:\+:B\+OX, 
+{\bfseries S\+P\+H\+E\+RE} =shape\+\_\+msgs\+:\+:Solid\+Primitive\+:\+:S\+P\+H\+E\+RE, 
+{\bfseries C\+Y\+L\+I\+N\+D\+ER} =shape\+\_\+msgs\+:\+:Solid\+Primitive\+:\+:C\+Y\+L\+I\+N\+D\+ER, 
+{\bfseries P\+L\+A\+NE} =104u
+ \}
+\end{DoxyCompactItemize}
+\subsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{namespace_r_n_b_1_1_moveit_compact_a6bef4f8f273f898f25e79f47e98564a1}\label{namespace_r_n_b_1_1_moveit_compact_a6bef4f8f273f898f25e79f47e98564a1}} 
+ros\+::\+Node\+Handle\+Ptr {\bfseries init\+\_\+ros} (string name=\char`\"{}moveit\+\_\+interface\+\_\+py\char`\"{})
+\item 
+Eigen\+::\+Quaterniond \hyperlink{namespace_r_n_b_1_1_moveit_compact_a54930af2dcdc8fc1cf279e850baf5fba}{get\+Quaternion} (\hyperlink{class_r_n_b_1_1_moveit_compact_1_1_cart_pose}{Cart\+Pose} pose)
+\begin{DoxyCompactList}\small\item\em Extract quaternion from \hyperlink{class_r_n_b_1_1_moveit_compact_1_1_cart_pose}{R\+N\+B\+::\+Moveit\+Compact\+::\+Cart\+Pose}. \end{DoxyCompactList}\item 
+Eigen\+::\+Affine3d \hyperlink{namespace_r_n_b_1_1_moveit_compact_a7428e08b7f80d96545b3e82eef22d52e}{get\+Affine3d} (\hyperlink{class_r_n_b_1_1_moveit_compact_1_1_cart_pose}{Cart\+Pose} pose)
+\begin{DoxyCompactList}\small\item\em Get Eigen\+::\+Affine3d from \hyperlink{class_r_n_b_1_1_moveit_compact_1_1_cart_pose}{R\+N\+B\+::\+Moveit\+Compact\+::\+Cart\+Pose}. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{namespace_r_n_b_1_1_moveit_compact_a245347a5fd86adfd96f2e3bbd1d576ad}\label{namespace_r_n_b_1_1_moveit_compact_a245347a5fd86adfd96f2e3bbd1d576ad}} 
+Eigen\+::\+Matrix\+Xd {\bfseries get\+Qmat} (Eigen\+::\+Quaterniond a)
+\item 
+\mbox{\Hypertarget{namespace_r_n_b_1_1_moveit_compact_a2f1ab177e91faf3466b9589d36ca03c3}\label{namespace_r_n_b_1_1_moveit_compact_a2f1ab177e91faf3466b9589d36ca03c3}} 
+Eigen\+::\+Matrix\+Xd {\bfseries get\+Qhat} (Eigen\+::\+Quaterniond a)
+\item 
+\mbox{\Hypertarget{namespace_r_n_b_1_1_moveit_compact_aa19d0d745e3ebea45b025414dd173918}\label{namespace_r_n_b_1_1_moveit_compact_aa19d0d745e3ebea45b025414dd173918}} 
+Eigen\+::\+Matrix3d {\bfseries get\+Hat} (Eigen\+::\+Vector3d vec)
+\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+classes and functions designed for easy use of Moveit 
+
+\begin{DoxyAuthor}{Author}
+Junsu Kang 
+\end{DoxyAuthor}
+
+
+\subsection{Function Documentation}
+\mbox{\Hypertarget{namespace_r_n_b_1_1_moveit_compact_a7428e08b7f80d96545b3e82eef22d52e}\label{namespace_r_n_b_1_1_moveit_compact_a7428e08b7f80d96545b3e82eef22d52e}} 
+\index{R\+N\+B\+::\+Moveit\+Compact@{R\+N\+B\+::\+Moveit\+Compact}!get\+Affine3d@{get\+Affine3d}}
+\index{get\+Affine3d@{get\+Affine3d}!R\+N\+B\+::\+Moveit\+Compact@{R\+N\+B\+::\+Moveit\+Compact}}
+\subsubsection{\texorpdfstring{get\+Affine3d()}{getAffine3d()}}
+{\footnotesize\ttfamily Eigen\+::\+Affine3d R\+N\+B\+::\+Moveit\+Compact\+::get\+Affine3d (\begin{DoxyParamCaption}\item[{\hyperlink{class_r_n_b_1_1_moveit_compact_1_1_cart_pose}{Cart\+Pose}}]{pose }\end{DoxyParamCaption})}
+
+
+
+Get Eigen\+::\+Affine3d from \hyperlink{class_r_n_b_1_1_moveit_compact_1_1_cart_pose}{R\+N\+B\+::\+Moveit\+Compact\+::\+Cart\+Pose}. 
+
+\begin{DoxyAuthor}{Author}
+Junsu Kang 
+\end{DoxyAuthor}
+\mbox{\Hypertarget{namespace_r_n_b_1_1_moveit_compact_a54930af2dcdc8fc1cf279e850baf5fba}\label{namespace_r_n_b_1_1_moveit_compact_a54930af2dcdc8fc1cf279e850baf5fba}} 
+\index{R\+N\+B\+::\+Moveit\+Compact@{R\+N\+B\+::\+Moveit\+Compact}!get\+Quaternion@{get\+Quaternion}}
+\index{get\+Quaternion@{get\+Quaternion}!R\+N\+B\+::\+Moveit\+Compact@{R\+N\+B\+::\+Moveit\+Compact}}
+\subsubsection{\texorpdfstring{get\+Quaternion()}{getQuaternion()}}
+{\footnotesize\ttfamily Eigen\+::\+Quaterniond R\+N\+B\+::\+Moveit\+Compact\+::get\+Quaternion (\begin{DoxyParamCaption}\item[{\hyperlink{class_r_n_b_1_1_moveit_compact_1_1_cart_pose}{Cart\+Pose}}]{pose }\end{DoxyParamCaption})}
+
+
+
+Extract quaternion from \hyperlink{class_r_n_b_1_1_moveit_compact_1_1_cart_pose}{R\+N\+B\+::\+Moveit\+Compact\+::\+Cart\+Pose}. 
+
+\begin{DoxyAuthor}{Author}
+Junsu Kang 
+\end{DoxyAuthor}
