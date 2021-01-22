@@ -24,7 +24,7 @@ Instruction for RNB-Planning Framework {#mainpage}
   ```
   
 * Install OMPL (takes >30min)
-    * Download ompl install bash file [here](third-party/ompl/install-ompl-ubuntu.sh)
+    * Download ompl install bash file [third-party/ompl/install-ompl-ubuntu.sh](third-party/ompl/install-ompl-ubuntu.sh)
     * From the downloaded directory, 
         ```
         chmod +x ./install-ompl-ubuntu.sh
@@ -107,7 +107,7 @@ Instruction for RNB-Planning Framework {#mainpage}
     ```
 
 ## 2.4 Install recommended tools
-* Follow instruction in [SUPPLEMENT_README.md](docs/SUPPLEMENT_README.md)
+* Follow instruction in [docs/SUPPLEMENT_README.md](docs/SUPPLEMENT_README.md)
 
 
 # 3 Check shell environemnt settings
