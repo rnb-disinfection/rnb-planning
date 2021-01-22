@@ -1,16 +1,15 @@
 from .table_interface import *
-from ...constraint_graph import *
-from ...sampler.handle_a_star import *
-from ...sampler.object_a_star import *
+from ...planning.task.handle_a_star import *
+from ...planning.task.object_a_star import *
 
 
 class TaskPlanTable(TableInterface):
     HEADS = [IDENTIFY_COL, "MultiProcess"]
     HILIGHT_KEY = 'task'
     CUSTOM_BUTTONS = ['Plan', 'Initialize']
-    task_plan_candi = {"ObjectAstarSampler": {"MultiProcess":True},
-                       "HandleAstarSampler": {"MultiProcess":True}}
-    task_plan_names = ["ObjectAstarSampler", "HandleAstarSampler"]
+    task_plan_candi = {"ObjectAstar": {"MultiProcess":True},
+                       "HandleAstar": {"MultiProcess":True}}
+    task_plan_names = ["ObjectAstar", "HandleAstar"]
     task_plan_fun = None
 
     def get_items(self):
@@ -33,15 +32,15 @@ class TaskPlanTable(TableInterface):
                                       N_search=100000, display=True, dt_vis=dt_sim / 4,
                                       verbose=True, print_expression=False, error_skip=0,
                                       ** dict(N=N_fullstep, dt=dt_sim, vel_conv=0.5e-2, err_conv=1e-3))
-                if gtem[0] == "ObjectAstarSampler":
-                    sampler = ObjectAstarSampler(self.graph)
-                    print("Set ObjectAstarSampler")
-                elif gtem[0] == "HandleAstarSampler":
-                    sampler = HandleAstarSampler(self.graph)
-                    print("Set HandleAstarSampler")
+                if gtem[0] == "ObjectAstar":
+                    sampler = ObjectAstar(self.planning_pipeline.pscene)
+                    print("Set ObjectAstar")
+                elif gtem[0] == "HandleAstar":
+                    sampler = HandleAstar(self.planning_pipeline.pscene)
+                    print("Set HandleAstar")
                 else:
                     raise(RuntimeError("Undefined sampler"))
-                self.graph.set_sampler(sampler)
+                self.planning_pipeline.pscene.set_sampler(sampler)
 
     def add_item(self, value):
         raise(RuntimeError("Cannot add or delete planner"))
@@ -62,34 +61,17 @@ class TaskPlanTable(TableInterface):
         if button == TAB_BUTTON.CUSTOM:
             if args[0]:
                 if hasattr(self, 'initial_state') and hasattr(self, 'goal_nodes'):
-                    graph = self.graph
-                    self.pl_kwargs["multiprocess"] = self.task_plan_candi[graph.sampler.__class__.__name__]["MultiProcess"]
-                    graph.sampler.search_graph(self.initial_state, self.goal_nodes, **self.pl_kwargs)
+                    planning_pipeline = self.planning_pipeline
+                    self.pl_kwargs["multiprocess"] = self.task_plan_candi[planning_pipeline.tplan.__class__.__name__]["MultiProcess"]
+                    planning_pipeline.tplan.search(self.initial_state, self.goal_nodes, **self.pl_kwargs)
                 else:
                     print("not initialized")
             elif args[1]:
-                graph = self.graph
-                graph.sampler.build_graph()
-                sampler = graph.sampler
-                OBJECT_DICT = {k: dict(_type=v.__class__) for k, v in graph.object_dict.items()}
-                objectPose_dict_mv, corner_dict_mv, color_image, aruco_map_mv = \
-                    detect_objects(graph.cam.aruco_map, graph.cam.dictionary)
-                xyz_rvec_mv_dict, put_point_dict, up_point_dict = calc_put_point(graph.ghnd,
-                    objectPose_dict_mv, graph.cam.aruco_map, OBJECT_DICT, graph.cam.ref_tuple)
-                update_geometries(graph.ghnd, objectPose_dict_mv.keys(), objectPose_dict_mv, graph.cam.ref_tuple[1])
-                initial_state = State(tuple([(oname, put_point_dict[oname], 'floor') for oname in graph.object_list]),
-                                      {oname: graph.object_dict[oname].object.Toff for oname in
-                                       graph.object_list},
-                                      graph.get_real_robot_pose(), graph)
-                binding_dict = match_point_binder(graph, initial_state, objectPose_dict_mv)
-                self.initial_state = State(
-                    tuple([(oname, put_point_dict[oname], binding_dict[oname]) for oname in graph.object_list]),
-                    {oname: graph.object_dict[oname].object.Toff for oname in graph.object_list},
-                    graph.get_real_robot_pose(), graph)
-                goal_nodes_1 = get_goal_nodes(initial_state.node, "box1", "goal_bd")
-                self.goal_nodes = []
-                for gnode in goal_nodes_1:
-                    self.goal_nodes += get_goal_nodes(gnode, "box2", "floor")
+                planning_pipeline = self.planning_pipeline
+                planning_pipeline.tplan.prepare()
+                tplan = planning_pipeline.tplan
+                self.initial_state = planning_pipeline.pscene.get_state(planning_pipeline.combined_robot.get_real_robot_pose())
+                self.goal_nodes = planning_pipeline.pscene.get_goal_nodes(self.initial_state.node, "box1", "goal_bd")
             else:
                 print("Unknown button")
         else:

@@ -1,12 +1,12 @@
 import matplotlib.pyplot as plt
 from pkg.marker_config import *
-from pkg.constraint_graph import *
+from pkg.tmp_framework import *
 from pkg.constraint.constraint_action import *
 from pkg.constraint.constraint_object import *
 from pkg.constants import *
 from pkg.utils.plot_utils import *
 from pkg.utils.utils import *
-from pkg.environment_builder import *
+from pkg.scene_builder import *
 from pkg.ui.ui_broker import *
 from pkg.controller.combined_robot import *
 from pkg.controller.combined_robot import CombinedRobot, XYZ_RPY_ROBOTS_DEFAULT
@@ -103,18 +103,18 @@ for i_dat, data_tuple in enumerate(data_list):
 
     cam = None
     # set urdf
-    xcustom, JOINT_NAMES, LINK_NAMES, urdf_content = set_custom_robots(crob.robots_on_scene, Trbt_dict,
+    xcustom, JOINT_NAMES, LINK_NAMES, urdf_content = create_gscene(crob.robots_on_scene, Trbt_dict,
                                                                        crob.custom_limits, start_rviz=VISUALIZE,
                                                                        custom_xacro=custom_xacro)
-    ghnd = GeometryHandle(urdf_content)
+    gscene = GeometryScene(urdf_content)
     if VISUALIZE: time.sleep(2)
 
     # set graph
-    graph = ConstraintGraph(ghnd=ghnd, urdf_path=URDF_PATH, joint_names=JOINT_NAMES, link_names=LINK_NAMES,
+    graph = TMPFramework(gscene=gscene, urdf_path=URDF_PATH, joint_names=JOINT_NAMES, link_names=LINK_NAMES,
                             urdf_content=urdf_content, combined_robot=crob)
     graph.set_camera(cam)
     graph.set_cam_robot_collision(_add_cam_poles=False, color=(1, 1, 0, 0.3))
-    if VISUALIZE: graph.set_rviz()
+    if VISUALIZE: graphgscene.set_rviz()
 
     # # start UI
     # ui_broker = UIBroker.instance()
@@ -122,14 +122,14 @@ for i_dat, data_tuple in enumerate(data_list):
     # ui_broker.start_server()
 
     # set rviz
-    if VISUALIZE: graph.set_rviz(crob.home_pose)
+    if VISUALIZE: graphgscene.set_rviz(crob.home_pose)
     # ui_broker.set_tables()
 
     for gripper in GRIPPER_REFS.values():
         graph.register_binder(name=gripper['bname'], _type=FramedTool, point=gripper['tcp_ref'], rpy=[0, 0, 0],
                               link_name=gripper['link_name'])
     graph.register_binder(name='base', _type=PlaceFrame, point=[0, 0, 0], rpy=[0, 0, 0], link_name=BASE_LINK)
-    vtem = graph.ghnd.create_safe(name="virtual", gtype=GEOTYPE.SPHERE, link_name=BASE_LINK,
+    vtem = graph.gscene.create_safe(name="virtual", gtype=GEOTYPE.SPHERE, link_name=BASE_LINK,
                                   dims=(0, 0, 0), center=(0, 0, 0), rpy=(0, 0, 0), collision=False, display=False
                                   )
     graph.add_object("virtual",
@@ -158,7 +158,7 @@ for i_dat, data_tuple in enumerate(data_list):
     for obj in obj_list: graph.remove_geometry(obj)
     for odat in obj_dat:
         nbox, gtype, dims, color, center, rpy = odat["nbox"], getattr(GEOTYPE, odat["gtype"]), odat["dims"],                                                 odat["color"], odat["center"], odat["rpy"]
-        obj = graph.ghnd.create_safe(
+        obj = graph.gscene.create_safe(
             name="{}_{}_{}_{}".format(gtype.name, *nbox), link_name=BASE_LINK, gtype=gtype,
             center=center, rpy=rpy, dims=dims, color=color, display=True, collision=True, fixed=True)
         obj_list.append(obj)
@@ -166,9 +166,9 @@ for i_dat, data_tuple in enumerate(data_list):
 
     for obj in col_obj_list: graph.remove_geometry(obj)
 
-    if VISUALIZE: graph.set_rviz()
+    if VISUALIZE: graphgscene.set_rviz()
     dcol = DataCollector(graph, GRIPPER_REFS, S_F_RATIO=S_F_RATIO)
-    if VISUALIZE: graph.set_rviz()
+    if VISUALIZE: graphgscene.set_rviz()
 
 #########################################################################
     # ## initialize scene params
@@ -179,10 +179,10 @@ for i_dat, data_tuple in enumerate(data_list):
     joint_index_dict = {joint.name:None for joint in urdf_content.joints}
     joint_index_dict.update({jname:idx for idx, jname in zip(range(joint_num), joint_names)})
     centers = get_centers(Nwdh, L_CELL)
-    merge_pairs = get_merge_pairs(ghnd, BASE_LINK)
-    merge_paired_ctems(ghnd=graph.ghnd, merge_pairs=merge_pairs, VISUALIZE=VISUALIZE, graph=graph)
+    merge_pairs = get_merge_pairs(gscene, BASE_LINK)
+    merge_paired_ctems(gscene=graph.gscene, merge_pairs=merge_pairs, VISUALIZE=VISUALIZE, graph=graph)
     for cname in IGNORE_CTEMS:
-        graph.remove_geometry(graph.ghnd.NAME_DICT[cname])
+        graph.remove_geometry(graph.gscene.NAME_DICT[cname])
 
     N_vtx_box = 3*8
     N_mask_box = 1
@@ -248,7 +248,7 @@ for i_dat, data_tuple in enumerate(data_list):
     gtimer.toc("calc_cell")
     gtimer.tic("calc_ctems")
     ctem_names, ctem_TFs, ctem_dims, ctem_cells, ctem_links, ctem_joints, ctem_types =             defaultdict(list), defaultdict(list), defaultdict(list), defaultdict(list), defaultdict(list), defaultdict(list), dict()
-    for ctem in ghnd:
+    for ctem in gscene:
         if not ctem.collision:
             continue
         key = gtype_to_otype(ctem.gtype).name
@@ -331,7 +331,7 @@ for i_dat, data_tuple in enumerate(data_list):
     # snode
     snode = dcol.snode_dict[i_act]
     rname, inhand, obj, tar, dims_bak, color_bak, succ, _ = load_manipulation_from_dict(snode,
-                                                                                        graph.ghnd)
+                                                                                        graph.gscene)
 
 
     # action type

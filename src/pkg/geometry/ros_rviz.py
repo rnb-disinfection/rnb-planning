@@ -6,8 +6,13 @@ import rospy
 from sensor_msgs.msg import JointState
 from visualization_msgs.msg import Marker
 
-from .geometry import *
+from .geotype import GEOTYPE
+from ..utils.rotation_utils import SE3
+from scipy.spatial.transform import Rotation
 
+
+##
+# @brief create and get publisher
 def get_publisher(joint_names, robot_name="", control_freq=100):
     pub = rospy.Publisher(robot_name+'/joint_states', JointState, queue_size=10000)
     rate = rospy.Rate(control_freq) # 10hz
@@ -25,6 +30,8 @@ def get_publisher(joint_names, robot_name="", control_freq=100):
     print('published: {}'.format(joints.position))
     return pub, joints, rate
 
+##
+# @brief show motion with markers
 def show_motion(pose_list, marker_list, pub, joints, joint_names, error_skip=0, period=1e-6):
     pvec_last = np.array(pose_list)+1
     for pvec in pose_list:
@@ -39,25 +46,9 @@ def show_motion(pose_list, marker_list, pub, joints, joint_names, error_skip=0, 
             marker.move_marker({joints.name[i]: joints.position[i] for i in range(len(joint_names))})
         timer.sleep(period)
 
-def show_motion_dict(pose_list_dict, marker_list_dict, pub_dict, joints_dict, joint_names_dict, error_skip=1e-6, period=1e-6):
-    for robot, pose_list in pose_list_dict:
-        marker_list, pub, joints, joint_names =\
-            marker_list_dict[robot], pub_dict[robot], joints_dict[robot], joint_names_dict[robot]
-        pvec_last = np.array(pose_list)+1
-        for pvec in pose_list:
-            if np.linalg.norm(pvec-pvec_last)<error_skip:
-                break
-            pvec_last = pvec
-            joints.header.seq += 1
-            joints.header.stamp = rospy.Time.now()
-            joints.position = pvec.tolist()
-            pub.publish(joints);
-            for marker in marker_list:
-                marker.move_marker({joints.name[i]: joints.position[i] for i in range(len(joint_names))})
-            timer.sleep(period)
-    #         print('published: {}'.format(joints.position), end="\r")
-        
-def set_markers(geometry_items, joints, joint_names):
+##
+# @brief get markers from geometry items
+def get_markers(geometry_items, joints, joint_names):
     marker_list = []
     joint_dict = {joints.name[i]: joints.position[i] for i in range(len(joint_names))}
     for ctem in geometry_items:
@@ -66,6 +57,10 @@ def set_markers(geometry_items, joints, joint_names):
             marker_list[-1].set_marker(joint_dict)
     return marker_list
 
+
+##
+# @class GeoMarker
+# @brief geometry marker message generator for rviz
 class GeoMarker:
     ID_COUNT = 0
     def __init__(self, geometry, mark_name='visualization_marker'):
@@ -104,7 +99,7 @@ class GeoMarker:
 
 #         self.marker.header.frame_id = self.geometry.link_name # let rviz transform link - buggy
         if hasattr(self.geometry, 'uri'):
-            self.marker.mesh_resource = self.geometry.uri;
+            self.marker.mesh_resource = self.geometry.uri
         if self.geometry.gtype == GEOTYPE.MESH:
             self.marker.scale.x, self.marker.scale.y, self.marker.scale.z = self.geometry.scale
         if self.geometry.gtype == GEOTYPE.CAPSULE:

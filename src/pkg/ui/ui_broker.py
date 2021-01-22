@@ -20,20 +20,20 @@ class UIBroker(Singleton):
         self.__server_on = False
         pass
 
-    def initialize(self, graph):
-        self.graph = graph
+    def initialize(self, planning_pipeline, s_builder):
+        self.planning_pipeline = planning_pipeline
+        self.s_builder = s_builder
         self.tab_list = [
-            TabInfo("Instances", [TableInfo("Geometry", '550px', interface=GeometryTable(graph)),
-                                 TableInfo("Object", '250px', interface=ObjectTable(graph))]),
-            TabInfo("Binding", [TableInfo("Handle", '550px', interface=HandleTable(graph)),
-                                TableInfo("Binder", '250px', interface=BinderTable(graph))]),
-            TabInfo("Mark", [TableInfo("Marker", '550px', interface=MarkerTable(graph)),
-                             TableInfo("MarkerGroup", '250px', interface=MarkerGroupTable(graph))]),
-            TabInfo("Plan", [TableInfo("MotionPlan", '180px', row_selectable='single', interface=MotionPlanTable(graph)),
-                             TableInfo("TaskPlan", '150px', row_selectable='single', interface=TaskPlanTable(graph)),
-                             TableInfo("PlanList", '420px', row_selectable='single', interface=PlanListTable(graph))]),
-            TabInfo("Setting", [TableInfo("Camera", '300px', interface=CameraTable(graph)),
-                             TableInfo("Robot", '300px', interface=RobotTable(graph))])
+            TabInfo("Instances", [TableInfo("Geometry", '550px', interface=GeometryTable(planning_pipeline, s_builder)),
+                                 TableInfo("Object", '250px', interface=ObjectTable(planning_pipeline, s_builder))]),
+            TabInfo("Binding", [TableInfo("Handle", '550px', interface=HandleTable(planning_pipeline, s_builder)),
+                                TableInfo("Binder", '250px', interface=BinderTable(planning_pipeline, s_builder))]),
+            TabInfo("Mark", [TableInfo("Marker", '550px', interface=MarkerTable(planning_pipeline, s_builder)),
+                             TableInfo("MarkerGroup", '250px', interface=MarkerGroupTable(planning_pipeline, s_builder))]),
+            TabInfo("Plan", [TableInfo("MotionPlan", '180px', row_selectable='single', interface=MotionPlanTable(planning_pipeline, s_builder)),
+                             TableInfo("TaskPlan", '150px', row_selectable='single', interface=TaskPlanTable(planning_pipeline, s_builder)),
+                             TableInfo("PlanList", '420px', row_selectable='single', interface=PlanListTable(planning_pipeline, s_builder))]),
+            TabInfo("Setting", [TableInfo("Robot", '500px', interface=RobotTable(planning_pipeline, s_builder))])
         ]
         self.table_dict = {}
         for tab in self.tab_list:
@@ -44,7 +44,7 @@ class UIBroker(Singleton):
     def start_server(self):
         if not self.__server_on:
             dash_launcher.set_tabs(self.tab_list)
-            dash_launcher.run_server(on_background=True, debug=False)
+            dash_launcher.run_server(on_background=True, debug=False, host='0.0.0.0')
             self.__server_on = True
 
     def set_tables(self):

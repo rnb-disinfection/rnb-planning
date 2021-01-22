@@ -220,6 +220,25 @@ def CallHolder(caller, arg_keys, *args, **kwargs):
     fun.kwargs=kwargs
     return fun
 
+
+##
+# @class LockBLock
+# @brief block wrapper for Lock instance
+class LockBlock:
+    ##
+    # @param lock Lock instance from multiprocessing or threading
+    def __init__(self, lock):
+        self.lock = lock
+
+    def __enter__(self):
+        self.lock.acquire()
+
+    def __exit__(self):
+        self.lock.release()
+
+
+##
+#@ class dummy class to imitate multiprocess.Value
 class SingleValue:
     def __init__(self, _type, _value):
         self.type = _type

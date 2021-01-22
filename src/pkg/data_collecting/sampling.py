@@ -1,6 +1,4 @@
-import numpy as np
 import time
-from ..geometry.geometry import GEOTYPE
 from ..utils.utils import Logger
 OBJ_GEN_LIST = [lambda L_MAX: (GEOTYPE.BOX, tuple(np.random.random((3,))*L_MAX), (0.0, 0.0, 0.9, 0.2)),
                 lambda L_MAX: (GEOTYPE.CYLINDER, tuple((np.random.random((2,))*L_MAX)[[0,0,1]]), (0.0, 0.9, 0.0, 0.3))]
@@ -20,28 +18,28 @@ def show_workspace(graph, Nwdh, CENTER, L_CELL, thickness=1e-2, alpha=0.1, WDH_s
     Nw, Nd, Nh = Nwdh
     Ws, Ds, Hs = WDH = tuple(np.multiply((Nw, Nd, Nh), L_CELL))
     WDH_e = WDH_e or (int(Ws / L_CELL) + 1, int(Ds / L_CELL) + 1, int(Hs / L_CELL) + 1)
-    graph.add_marker(graph.ghnd.create_safe(
+    graph.add_marker(graph.gscene.create_safe(
         name="workspace", link_name="base_link", gtype=GEOTYPE.BOX,
         center=CENTER, rpy=(0, 0, 0), dims=WDH,
         color=(1, 1, 1, alpha), display=True, collision=False, fixed=True))
     time.sleep(0.01)
     for iw in range(WDH_s[0],WDH_e[0]):
         for id in range(WDH_s[1],WDH_e[1]):
-            graph.add_marker(graph.ghnd.create_safe(
+            graph.add_marker(graph.gscene.create_safe(
                 name="grid_xy_{}_{}".format(iw, id), link_name="base_link", gtype=GEOTYPE.BOX,
                 center=(iw * L_CELL, id * L_CELL, CENTER[2]), rpy=(0, 0, 0), dims=(thickness, thickness, Hs),
                 color=(0, 0, 0, alpha), display=True, collision=False, fixed=True))
             time.sleep(0.01)
     for id in range(WDH_s[1],WDH_e[1]):
         for ih in range(WDH_s[2],WDH_e[2]):
-            graph.add_marker(graph.ghnd.create_safe(
+            graph.add_marker(graph.gscene.create_safe(
                 name="grid_yz_{}_{}".format(id, ih), link_name="base_link", gtype=GEOTYPE.BOX,
                 center=(CENTER[0], id * L_CELL, ih * L_CELL,), rpy=(0, 0, 0), dims=(Ws, thickness, thickness),
                 color=(0, 0, 0, alpha), display=True, collision=False, fixed=True))
             time.sleep(0.01)
     for iw in range(WDH_s[0],WDH_e[0]):
         for ih in range(WDH_s[2],WDH_e[2]):
-            graph.add_marker(graph.ghnd.create_safe(
+            graph.add_marker(graph.gscene.create_safe(
                 name="grid_xz_{}_{}".format(iw, ih), link_name="base_link", gtype=GEOTYPE.BOX,
                 center=(iw * L_CELL, CENTER[1], ih * L_CELL,), rpy=(0, 0, 0), dims=(thickness, Hs, thickness),
                 color=(0, 0, 0, alpha), display=True, collision=False, fixed=True))
@@ -52,9 +50,8 @@ import sys
 
 sys.path.append(os.path.join(os.environ["RNB_PLANNING_DIR"], "lib/openGJK/lib"))
 import openGJKlib as oGJK
-from ..geometry.geometry import DEFAULT_VERT_DICT, GEOTYPE, GeometryHandle
+from ..geometry.geometry import DEFAULT_VERT_DICT, GEOTYPE
 from ..utils.rotation_utils import Rot_rpy
-from ..utils.utils import list2dict
 import numpy as np
 
 POINT_DEFAULT = np.array([[0,0,0]])
@@ -84,7 +81,7 @@ def getPointList(point_rows_np):
 def get_links(graph, Q_s):
     links = []
     for rname in graph.combined_robot.robot_names:
-        links += [gtem for gtem in graph.ghnd if rname in gtem.name and gtem.collision]
+        links += [gtem for gtem in graph.gscene if rname in gtem.name and gtem.collision]
 
     link_verts = []
     link_rads = []
@@ -171,7 +168,6 @@ def get_reachable_cells(Nwdh, L_CELL, reach_center_dict, MAX_REACH_DICT, robot_n
                     free_boxes.append([iw, id, ih])
     return free_boxes
 
-import random
 
 def sample_obs_goal_boxes(free_boxes, Ns, Nt):
     obs_boxes = random.sample(free_boxes, Ns)
@@ -179,14 +175,14 @@ def sample_obs_goal_boxes(free_boxes, Ns, Nt):
     return obs_boxes, goal_boxes
 
 def remove_geometries_by_prefix(graph, ID):
-    for gtem in [gtem for gtem in graph.ghnd if gtem.name.startswith(ID)]:
+    for gtem in [gtem for gtem in graph.gscene if gtem.name.startswith(ID)]:
         graph.remove_geometry(gtem)
 
 # draw cells
 def draw_cells(graph, ID, cells, L_CELL, color, link_name="base_link"):
     remove_geometries_by_prefix(graph, ID)
     for cell in cells:
-        gtem = graph.ghnd.create_safe(
+        gtem = graph.gscene.create_safe(
             name="{}_{}_{}_{}".format(ID, *cell), link_name=link_name, gtype=GEOTYPE.BOX,
             center=tuple(np.multiply(cell, L_CELL)+L_CELL/2), rpy=(0, 0, 0), dims=(L_CELL, L_CELL, L_CELL),
             color=color, display=True, collision=False, fixed=True)
@@ -304,14 +300,14 @@ def sample_putpoint(tar):
     T_lp = np.matmul(tar.Toff, T_zplace)
     return T_lp
 
-def sample_putobject(tar, T_lp, L_MAX, ghnd):
+def sample_putobject(tar, T_lp, L_MAX, gscene):
     geo_gen = random.choice(OBJ_GEN_LIST)
     gtype, dims, color = geo_gen(L_MAX)
     Rz = Rot_rpy(random.choice(DIR_RPY_DICT.values()))
     ax_z = np.argmax(np.abs(Rz[:, 2]))
     Tzoff = SE3(Rz, [0, 0, dims[ax_z] / 2])
     T_lo = np.matmul(T_lp, Tzoff)
-    ontarget = ghnd.create_safe(
+    ontarget = gscene.create_safe(
         name="ontarget", link_name=tar.link_name, gtype=gtype,
         center=T_lo[:3, 3], rpy=Rot2rpy(T_lo[:3, :3]), dims=dims,
         color=(1,0,0,0.5), display=True, collision=False, fixed=False)
@@ -323,13 +319,13 @@ def gtem_to_dict(gtem):
             "color":gtem.color, "display":gtem.display,
             "collision": gtem.collision, "fixed": gtem.fixed, "soft": gtem.soft}
 
-def dict_to_gtem(gdict, ghnd):
-    return ghnd.create_safe(**gdict)
+def dict_to_gtem(gdict, gscene):
+    return gscene.create_safe(**gdict)
 
 
 
 ########################### pick sampling functions @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-def sample_pick(GRIPPER_REFS, obj_list, L_CELL, ghnd):
+def sample_pick(GRIPPER_REFS, obj_list, L_CELL, gscene):
     rname, gripper = random.choice(GRIPPER_REFS.items())
     depth_range = gripper['depth_range']
     width_range = gripper['width_range']
@@ -341,32 +337,32 @@ def sample_pick(GRIPPER_REFS, obj_list, L_CELL, ghnd):
     obj.dims = dims_new
     T_lg = SE3(np.identity(3), gripper['tcp_ref'])
     T_lgo = np.matmul(T_lg, SE3_inv(T_og))
-    inhand = ghnd.create_safe(
+    inhand = gscene.create_safe(
         name="inhand", link_name=gripper["link_name"], gtype=obj.gtype,
         center=T_lgo[:3, 3], rpy=Rot2rpy(T_lgo[:3, :3]), dims=obj.dims,
         color=(1, 0, 0, 0.5), display=True, collision=False, fixed=False)
     return rname, inhand, obj, None, dims_bak, color_bak
 
-def sample_place(GRIPPER_REFS, obj_list, L_CELL, ghnd):
+def sample_place(GRIPPER_REFS, obj_list, L_CELL, gscene):
     rname, gripper = random.choice(GRIPPER_REFS.items())
     depth_range = gripper['depth_range']
     width_range = gripper['width_range']
     tar = random.choice(obj_list)
     color_bak = tar.color
     T_lp = sample_putpoint(tar)
-    ontarget, T_lo = sample_putobject(tar, T_lp, L_CELL, ghnd)
+    ontarget, T_lo = sample_putobject(tar, T_lp, L_CELL, gscene)
     T_ygrip, dims_new, dims_bak = sample_grasp(
         ontarget, WIDTH_RANGE=width_range, DEPTH_RANGE=depth_range, DIM_MAX=L_CELL, fit_dim=False)
     T_glo = np.matmul(SE3(np.identity(3),gripper['tcp_ref']), SE3_inv(T_ygrip))
-    inhand = ghnd.create_safe(
+    inhand = gscene.create_safe(
         name="inhand", link_name=gripper["link_name"], gtype=ontarget.gtype,
         center=T_glo[:3,3], rpy=Rot2rpy(T_glo[:3,:3]), dims=ontarget.dims,
         color=(1,0,0,1), display=True, collision=True, fixed=False)
     return rname, inhand, ontarget, None, dims_bak, color_bak
 
-def sample_handover(src, tar, L_CELL, ghnd):
+def sample_handover(src, tar, L_CELL, gscene):
     gtype, dims, color = random.choice(OBJ_GEN_LIST)(L_CELL)
-    handed = ghnd.create_safe(gtype=gtype, name="handed_in_src", link_name=src[1]['link_name'],
+    handed = gscene.create_safe(gtype=gtype, name="handed_in_src", link_name=src[1]['link_name'],
                                     center=(0,0,0), rpy=(0,0,0), dims=dims, color=(0,1,1,1),
                                     display=True, collision=True, fixed=False)
     Ttar_ygrip, dims_new, dims_bak = sample_grasp(
@@ -379,7 +375,7 @@ def sample_handover(src, tar, L_CELL, ghnd):
     T_slo = np.matmul(SE3(np.identity(3),src[1]['tcp_ref']), SE3_inv(Tsrc_ygrip))
     handed.set_offset_tf(center=T_slo[:3,3], orientation_mat=T_slo[:3,:3])
     T_tlo = np.matmul(SE3(np.identity(3),tar[1]['tcp_ref']), SE3_inv(Ttar_ygrip))
-    intar = ghnd.create_safe(gtype=handed.gtype, name="handed_in_tar", link_name=tar[1]['link_name'],
+    intar = gscene.create_safe(gtype=handed.gtype, name="handed_in_tar", link_name=tar[1]['link_name'],
                                    center=T_tlo[:3,3], rpy=Rot2rpy(T_tlo[:3,:3]), dims=handed.dims, color=(1,0,0.5,0.5),
                                    display=True, collision=False, fixed=False)
     return src[0], handed, intar, tar[0], (0.1,)*3, (0.5,)*4
@@ -389,10 +385,10 @@ def log_manipulation(SAMPLED_DATA, key, rname1, obj1, obj2, rname2, dims_bak, co
                                    "obj2": gtem_to_dict(obj2), "rname2": rname2,
                                    "dims_bak":dims_bak, "color_bak":color_bak}
 
-def load_manipulation(SAMPLED_DATA, key, ghnd):
+def load_manipulation(SAMPLED_DATA, key, gscene):
     rname1, obj1, obj2, rname2, dims_bak, color_bak = [
         SAMPLED_DATA["ACTION"][key][prm] for prm in ["rname1", "obj1", "obj2", "rname2", "dims_bak", "color_bak"]]
-    return rname1, dict_to_gtem(obj1, ghnd), dict_to_gtem(obj2, ghnd), rname2, dims_bak, color_bak
+    return rname1, dict_to_gtem(obj1, gscene), dict_to_gtem(obj2, gscene), rname2, dims_bak, color_bak
 
 def show_manip_coords(graph, GRIPPER_REFS, key, rname1, obj1, obj2, rname2, axis_len=0.05):
     ## show target objects
@@ -424,15 +420,15 @@ def show_grip_axis(graph, key, gripper, obj1, obj2, axis_len=0.5):
 def reset_rendering(graph, key, obj_keep_list, obj_virtual_list, dims_bak=None, color_bak=None, vis=True, sleep=False):
     graph.clear_highlight(key)
     for obj_keep in obj_keep_list:
-        graph.ghnd.NAME_DICT[obj_keep.name].dims = dims_bak
-        graph.ghnd.NAME_DICT[obj_keep.name].color = color_bak
+        graph.gscene.NAME_DICT[obj_keep.name].dims = dims_bak
+        graph.gscene.NAME_DICT[obj_keep.name].color = color_bak
         graph.remove_marker(obj_keep, vis=vis, sleep=sleep)
         graph.add_marker(obj_keep, vis=vis)
     for obj_virtual in obj_virtual_list:
         graph.remove_geometry(obj_virtual, sleep=sleep)
 
 ########################### place sampling functions @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-from ..constraint_graph import State
+from ..planning.scene import State
 
 def get_pick_states(graph, GRIPPER_REFS, rname, inhand, obj, tar, Q_s):
     T_lgo, T_bo = inhand.Toff, obj.Toff
@@ -447,9 +443,9 @@ def get_pick_states(graph, GRIPPER_REFS, rname, inhand, obj, tar, Q_s):
     return state_s, state_g
 
 def test_pick(graph, GRIPPER_REFS, rname, inhand, obj, tar, Q_s, mplan, **kwargs):
-    mplan.update(graph)
+    mplan.update_gscene()
     state_s, state_g = get_pick_states(graph, GRIPPER_REFS, rname, inhand, obj, tar, Q_s)
-    mplan.update(graph)
+    mplan.update_gscene()
     return mplan.plan_transition(state_s, state_g, state_g.node, **kwargs)
 
 def get_place_states(graph, GRIPPER_REFS, rname, inhand, ontarget, tar, Q_s):
@@ -465,12 +461,12 @@ def get_place_states(graph, GRIPPER_REFS, rname, inhand, ontarget, tar, Q_s):
     return state_s, state_g
 
 def test_place(graph, GRIPPER_REFS, rname, inhand, ontarget, tar, Q_s, mplan, **kwargs):
-    mplan.update(graph)
+    mplan.update_gscene()
     state_s, state_g = get_place_states(graph, GRIPPER_REFS, rname, inhand, ontarget, tar, Q_s)
-    mplan.update(graph)
+    mplan.update_gscene()
     return mplan.plan_transition(state_s, state_g, state_g.node, **kwargs)
 
-from ..planner.moveit.moveit_planner import transfer_ctem
+from ..planning.motion.moveit.moveit_planner import transfer_ctem
 from ..utils.utils import list2dict, dict2list
 
 def get_handover_states(graph, GRIPPER_REFS, src, handed, intar, tar, Q_s):
@@ -489,12 +485,12 @@ def get_handover_states(graph, GRIPPER_REFS, src, handed, intar, tar, Q_s):
 
 def test_handover(graph, GRIPPER_REFS, src, handed, intar, tar, Q_s, mplan,
                   N=250, dt=0.04, vel_conv=0.5e-2, err_conv=1e-3, **kwargs):
-    graph.ghnd.update()
+    graph.gscene.update()
     state_s, state_g = get_handover_states(graph, GRIPPER_REFS, src, handed, intar, tar, Q_s)
-    graph.ghnd.update()
-    transfer_ctem(graph.ghnd, mplan.ghnd)
-    mplan.update(graph)
-    transfer_ctem(graph.ghnd, mplan.ghnd)
+    graph.gscene.update()
+    transfer_ctem(graph.gscene, mplan.gscene)
+    mplan.update_gscene()
+    transfer_ctem(graph.gscene, mplan.gscene)
     trajectory, Q_last, error, success = mplan.plan_transition(state_s, state_g, state_g.node,
                           N=N, dt=dt, vel_conv=vel_conv, err_conv=err_conv,
                           **kwargs)
@@ -515,7 +511,7 @@ def test_full_mp(dcol, GRIPPER_REFS, Q_s, dual_mplan_dict, mplan, ID=None, UPDAT
             dcol.dict_lock.release()
             acquired = False
             rname, inhand, obj, tar, dims_bak, color_bak, succ, _ = load_manipulation_from_dict(snode,
-                                                                                                graph.ghnd)
+                                                                                                graph.gscene)
         except Exception as e:
             if acquired:
                 dcol.dict_lock.release()
@@ -574,14 +570,14 @@ def test_full_mp(dcol, GRIPPER_REFS, Q_s, dual_mplan_dict, mplan, ID=None, UPDAT
             
     print("============================ TERMINATE {} ===================================".format(ID))
 
-def load_manipulation_from_dict(dict_log, ghnd):
+def load_manipulation_from_dict(dict_log, gscene):
     rname1, obj1, obj2, rname2, dims_bak, color_bak, success = [
         dict_log[prm] for prm in ["rname1", "obj1", "obj2", "rname2", "dims_bak", "color_bak", "success"]]
     trajectory = dict_log['trajectory'] if 'trajectory' in dict_log else []
-    return rname1, dict_to_gtem(obj1, ghnd), dict_to_gtem(obj2, ghnd), rname2, dims_bak, color_bak, success, trajectory
+    return rname1, dict_to_gtem(obj1, gscene), dict_to_gtem(obj2, gscene), rname2, dims_bak, color_bak, success, trajectory
 
 
-from multiprocessing import Process, Lock, cpu_count
+from multiprocessing import Process, cpu_count
 from multiprocessing.managers import SyncManager
 import random
 
@@ -600,7 +596,7 @@ class DataCollector:
         self.manager.start()
         self.dict_lock = self.manager.Lock()
         self.graph = graph
-        self.ghnd = graph.ghnd
+        self.gscene = graph.gscene
         self.GRIPPER_REFS = GRIPPER_REFS
         self.S_F_RATIO = S_F_RATIO
 
@@ -612,7 +608,7 @@ class DataCollector:
         acquired = False
         for i in range(N_search):
             try:
-                rname, inhand, obj, _, dims_bak, color_bak = sample_pick(GRIPPER_REFS, obj_list, L_CELL, self.ghnd)
+                rname, inhand, obj, _, dims_bak, color_bak = sample_pick(GRIPPER_REFS, obj_list, L_CELL, self.gscene)
                 for _ in range(N_retry):
                     trajectory, Q_last, error, success = test_pick(graph, GRIPPER_REFS, rname, inhand, obj, None, Q_s,
                                                                    mplan, timeout=timeout)
@@ -652,7 +648,7 @@ class DataCollector:
         acquired = False
         for i in range(N_search):
             try:
-                rname, inhand, ontarget, _, dims_bak, color_bak = sample_place(GRIPPER_REFS, obj_list, L_CELL, self.ghnd)
+                rname, inhand, ontarget, _, dims_bak, color_bak = sample_place(GRIPPER_REFS, obj_list, L_CELL, self.gscene)
                 for _ in range(N_retry):
                     trajectory, Q_last, error, success = test_place(graph, GRIPPER_REFS, rname, inhand, ontarget, None, Q_s,
                                                                     mplan, timeout=timeout)
@@ -694,7 +690,7 @@ class DataCollector:
             try:
                 src, tar = random.sample(GRIPPER_REFS.items(), 2)
                 mplan = mplan_dict[(src[0], tar[0])]
-                src, handed, intar, tar, dims_bak, color_bak = sample_handover(src, tar, L_CELL, mplan.ghnd)
+                src, handed, intar, tar, dims_bak, color_bak = sample_handover(src, tar, L_CELL, mplan.gscene)
                 for _ in range(N_retry):
                     trajectory, Q_last, error, success = test_handover(graph, GRIPPER_REFS, src, handed, intar, tar, Q_s,
                                                                        mplan, timeout=timeout)
@@ -769,7 +765,7 @@ class DataCollector:
     def play_all(self, graph, GRIPPER_REFS, key, test_fun, Q_s, period=0.05, remove_map=[[1], [0]]):
         for k in range(self.snode_counter.value):
             rname, inhand, obj, tar, dims_bak, color_bak, succ, trajectory = load_manipulation_from_dict(
-                self.snode_dict[k], graph.ghnd)
+                self.snode_dict[k], graph.gscene)
             show_manip_coords(graph, GRIPPER_REFS, key, rname, inhand, obj, rname2=tar)
             graph.show_motion(trajectory, period=period)
             remove1 = [[inhand, obj][iii] for iii in remove_map[0]]
@@ -777,12 +773,12 @@ class DataCollector:
             reset_rendering(graph, key, remove1, remove2, dims_bak, color_bak, sleep=True, vis=True)
             print("DONE: {}".format(k))
 
-def get_merge_pairs(ghnd, BASE_LINK):
+def get_merge_pairs(gscene, BASE_LINK):
     merge_pairs = []
-    for idx1, ctem1 in zip(range(len(ghnd)), ghnd):
+    for idx1, ctem1 in zip(range(len(gscene)), gscene):
         if ctem1.link_name == BASE_LINK:
             continue
-        for ctem2 in ghnd[idx1+1:]:
+        for ctem2 in gscene[idx1+1:]:
             if ctem2.link_name == BASE_LINK:
                 continue
             if ctem1!=ctem2 and ctem1.link_name == ctem2.link_name and ctem1.gtype==ctem2.gtype and ctem1.collision and ctem2.collision:
@@ -795,14 +791,14 @@ def get_merge_pairs(ghnd, BASE_LINK):
                     merge_pairs.append((ctem1.name, ctem2.name))
     return merge_pairs
 
-def merge_paired_ctems(ghnd, merge_pairs, VISUALIZE=False, graph=None):
+def merge_paired_ctems(gscene, merge_pairs, VISUALIZE=False, graph=None):
     for mpair in merge_pairs:
-        ctem1, ctem2 = ghnd.NAME_DICT[mpair[0]], ghnd.NAME_DICT[mpair[1]]
+        ctem1, ctem2 = gscene.NAME_DICT[mpair[0]], gscene.NAME_DICT[mpair[1]]
         offs = np.subtract(ctem2.center, ctem1.center)    
         dims = np.divide(np.add(ctem1.dims, ctem2.dims),2)
         new_center = tuple(np.add(ctem1.center, offs/2))
         new_dims = tuple(dims+np.abs(np.matmul(ctem1.orientation_mat.transpose(), offs)))
-        ctem_new = ghnd.create_safe(gtype=GEOTYPE.BOX, name=ctem1.name+"_"+ctem2.name.split("_")[-1],
+        ctem_new = gscene.create_safe(gtype=GEOTYPE.BOX, name=ctem1.name+"_"+ctem2.name.split("_")[-1],
                                     link_name=ctem1.link_name, dims=new_dims, center=new_center, rpy=ctem1.rpy, 
                                     color=ctem1.color, display=ctem1.display,
                                     collision=ctem1.collision, fixed=ctem1.fixed, soft=ctem1.soft, 
@@ -812,8 +808,8 @@ def merge_paired_ctems(ghnd, merge_pairs, VISUALIZE=False, graph=None):
             graph.remove_geometry(ctem2)
             graph.add_marker(ctem_new, vis=VISUALIZE)
         else:
-            ghnd.remove(ctem1)
-            ghnd.remove(ctem2)
+            gscene.remove(ctem1)
+            gscene.remove(ctem2)
         
 
 def select_minial_combination(diff_mat):
@@ -962,7 +958,7 @@ def load_scene_data(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION, joint_num, ge
     else:
         return scene_data, success, skey
 
-def get_box_diplay(ghnd, name, cell_dat, N_BEGIN, joint_num, center, color=(0.8,0.0,0.0,0.5), dim_offset=(0,0,0)):
+def get_box_diplay(gscene, name, cell_dat, N_BEGIN, joint_num, center, color=(0.8,0.0,0.0,0.5), dim_offset=(0,0,0)):
     N_vtx_box = 3*8
     verts = cell_dat[N_BEGIN:N_BEGIN+N_vtx_box]
     mask = bool(cell_dat[N_BEGIN+N_vtx_box])
@@ -979,7 +975,7 @@ def get_box_diplay(ghnd, name, cell_dat, N_BEGIN, joint_num, center, color=(0.8,
         R = np.matmul(np.linalg.pinv(verts_ref), verts_ctd).transpose()
         rpy = tuple(Rot2rpy(R))
         center = tuple(np.add(center, center_loc))
-        box = ghnd.create_safe(name=name, gtype=GEOTYPE.BOX, link_name="base_link",
+        box = gscene.create_safe(name=name, gtype=GEOTYPE.BOX, link_name="base_link",
                                dims=tuple(np.add(dims, dim_offset)), center=center, rpy=rpy,
                                collision=False, display=True, color=color)
     else:
@@ -988,7 +984,7 @@ def get_box_diplay(ghnd, name, cell_dat, N_BEGIN, joint_num, center, color=(0.8,
 
 from ..utils.rotation_utils import calc_zvec_R
 
-def get_cyl_diplay(ghnd, name, cell_dat, N_BEGIN, joint_num, center, color=(0.8,0.0,0.0,0.5), dim_offset=(0,0,0)):
+def get_cyl_diplay(gscene, name, cell_dat, N_BEGIN, joint_num, center, color=(0.8,0.0,0.0,0.5), dim_offset=(0,0,0)):
     N_vtx_cyl = 3*2+1
     verts = cell_dat[N_BEGIN:N_BEGIN+N_vtx_cyl]
     mask = bool(cell_dat[N_BEGIN+N_vtx_cyl])
@@ -1003,14 +999,14 @@ def get_cyl_diplay(ghnd, name, cell_dat, N_BEGIN, joint_num, center, color=(0.8,
         vec=(verts_ctd[1] -verts_ctd[0])/dims[2]
         rpy = Rot2rpy(calc_zvec_R(vec))
         center = tuple(np.add(center, center_loc))
-        cyl = ghnd.create_safe(name=name, gtype=GEOTYPE.CYLINDER, link_name="base_link",
+        cyl = gscene.create_safe(name=name, gtype=GEOTYPE.CYLINDER, link_name="base_link",
                                dims=tuple(np.add(dims, dim_offset)), center=center, rpy=rpy,
                                collision=False, display=True, color=color)
     else:
         cyl = None
     return cyl, mask, chain
 
-def get_twist_tems(ghnd, cell_dat, center, chain, idx_chain, joint_num, L_CELL, load_limits=True):
+def get_twist_tems(gscene, cell_dat, center, chain, idx_chain, joint_num, L_CELL, load_limits=True):
     i_j = np.where(chain)[0][idx_chain]
     if load_limits:
         N_joint_limits = 3 * joint_num
@@ -1034,15 +1030,15 @@ def get_twist_tems(ghnd, cell_dat, center, chain, idx_chain, joint_num, L_CELL, 
     joint_point = center - __q
     rpy = Rot2rpy(np.matmul(calc_zvec_R(q_nm), Rot_axis(2,np.pi/2)))
     dims = (0.01,3,3)
-    ptem = ghnd.create_safe(name="joint_plane_{}".format(i_j), gtype=GEOTYPE.BOX, link_name="base_link", center = joint_point, rpy=rpy, dims=dims, collision=False, display=True, color=(0.5,0.5,0.5,0.5))
-    atem = ghnd.create_safe(name="joint_dir_{}".format(i_j), gtype=GEOTYPE.ARROW, link_name="base_link",
+    ptem = gscene.create_safe(name="joint_plane_{}".format(i_j), gtype=GEOTYPE.BOX, link_name="base_link", center = joint_point, rpy=rpy, dims=dims, collision=False, display=True, color=(0.5,0.5,0.5,0.5))
+    atem = gscene.create_safe(name="joint_dir_{}".format(i_j), gtype=GEOTYPE.ARROW, link_name="base_link",
                             center = center, rpy=rpy, dims=(q_abs,0.01,0.01,),
                             collision=False, display=True, color=(1,0,0,1))
     rpy_v = Rot2rpy(np.matmul(calc_zvec_R(v_nm), Rot_axis(2,np.pi/2)))
-    vtem = ghnd.create_safe(name="joint_vel_{}".format(i_j), gtype=GEOTYPE.ARROW, link_name="base_link",
+    vtem = gscene.create_safe(name="joint_vel_{}".format(i_j), gtype=GEOTYPE.ARROW, link_name="base_link",
                             center = center, rpy=rpy_v, dims=(v_abs,0.01,0.01,),
                             collision=False, display=True, color=(0,0,1,1))
-    btem = ghnd.create_safe(name="cell_{}".format(i_j), gtype=GEOTYPE.BOX, link_name="base_link",
+    btem = gscene.create_safe(name="cell_{}".format(i_j), gtype=GEOTYPE.BOX, link_name="base_link",
                             center = center, rpy=(0,0,0), dims=(L_CELL,L_CELL,L_CELL,),
                             collision=False, display=True, color=(0.7,0.7,0.6,0.2))
     return ptem, vtem, atem, btem

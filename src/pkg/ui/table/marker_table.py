@@ -1,5 +1,5 @@
 from .table_interface import *
-from ...sensor.marker import ObjectMarker
+from ...detector.aruco.detector import ObjectMarker
 
 class MarkerTable(TableInterface):
     HEADS = ['Object', IDENTIFY_COL, 'Size', 'Point', 'Direction']
@@ -7,7 +7,7 @@ class MarkerTable(TableInterface):
 
     def get_items(self):
         aruco_list = []
-        for k, v in self.graph.cam.aruco_map.items():
+        for k, v in self.detector.aruco_map.items():
             aruco_list+=v
         return sorted(aruco_list, key=lambda x:x.idx)
 
@@ -19,13 +19,13 @@ class MarkerTable(TableInterface):
         return [atem.oname, atem.idx, atem.size, round_it_str(atem.point), round_it_str(atem.direction)]
 
     def highlight_item(self, atem, color=None):
-        self.graph.highlight_geometry(self.HILIGHT_KEY, atem.oname, color=color)
-        self.graph.add_aruco_axis(self.HILIGHT_KEY, atem)
+        self.planning_pipeline.pscene.gscene.highlight_geometry(self.HILIGHT_KEY, atem.oname, color=color)
+        self.planning_pipeline.pscene.add_aruco_axis(self.HILIGHT_KEY, atem)
 
     def add_item(self, value):
         oname = value["Object"]
-        if oname in self.graph.cam.aruco_map:
-            self.graph.cam.aruco_map[oname].append(
+        if oname in self.detector.aruco_map:
+            self.detector.aruco_map[oname].append(
                 ObjectMarker(oname, int(value[IDENTIFY_COL]),
                              float(value['Size']), str_num_it(value['Point']), str_num_it(value['Direction']))
             )
@@ -36,22 +36,22 @@ class MarkerTable(TableInterface):
         aruco_dict = self.get_items_dict()
         atem = aruco_dict[active_row]
         oname = atem.oname
-        idx_atem =self.graph.cam.aruco_map[oname].index(atem)
-        del self.graph.cam.aruco_map[oname][idx_atem]
-        if not self.graph.cam.aruco_map[oname]:
-            del self.graph.cam.aruco_map[oname]
+        idx_atem =self.detector.aruco_map[oname].index(atem)
+        del self.detector.aruco_map[oname][idx_atem]
+        if not self.detector.aruco_map[oname]:
+            del self.detector.aruco_map[oname]
 
     def update_item(self, atem, active_col, value):
         res, msg = True, ""
         if active_col == 'Object':
             oname_old = atem.oname
             oname_new = str(value)
-            if oname_new not in self.graph.cam.aruco_map:
+            if oname_new not in self.detector.aruco_map:
                 res, msg = False, "marker name not defined ({})".format(oname_new)
             else:
                 atem.oname = oname_new
-                self.graph.cam.aruco_map[oname_new].append(atem)
-                del self.graph.cam.aruco_map[oname_old][atem]
+                self.detector.aruco_map[oname_new].append(atem)
+                del self.detector.aruco_map[oname_old][atem]
         elif active_col == IDENTIFY_COL:
             atem.idx = int(value)
         elif active_col == "Size":

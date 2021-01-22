@@ -3,13 +3,13 @@ from IPython.core.display import display, HTML
 display(HTML("<style>.container { width:90% !important; } </style>"))
 import matplotlib.pyplot as plt
 from pkg.marker_config import *
-from pkg.constraint_graph import *
+from pkg.tmp_framework import *
 from pkg.constraint.constraint_action import *
 from pkg.constraint.constraint_object import *
 from pkg.constants import *
 from pkg.utils.plot_utils import *
 from pkg.utils.utils import *
-from pkg.environment_builder import *
+from pkg.scene_builder import *
 from pkg.ui.ui_broker import *
 from pkg.controller.combined_robot import *
 
@@ -91,17 +91,17 @@ def main(root_dir=None, BASE_LINK="base_link", ROBOT_NAMES=["indy0", "panda1"], 
 
         cam = None
         # set urdf
-        xcustom, JOINT_NAMES, LINK_NAMES, urdf_content = set_custom_robots(crob.robots_on_scene, Trbt_dict, crob.custom_limits, start_rviz=VISUALIZE)
-        ghnd = GeometryHandle(urdf_content)
+        xcustom, JOINT_NAMES, LINK_NAMES, urdf_content = create_gscene(crob.robots_on_scene, Trbt_dict, crob.custom_limits, start_rviz=VISUALIZE)
+        gscene = GeometryScene(urdf_content)
         time.sleep(2)
 
 
         # set graph
-        graph = ConstraintGraph(ghnd=ghnd, urdf_path=URDF_PATH, joint_names=JOINT_NAMES, link_names=LINK_NAMES,
+        graph = TMPFramework(gscene=gscene, urdf_path=URDF_PATH, joint_names=JOINT_NAMES, link_names=LINK_NAMES,
                                 urdf_content=urdf_content, combined_robot=crob)
         graph.set_camera(cam)
         graph.set_cam_robot_collision(_add_cam_poles=False, color=(1,1,0,0.3))
-        if VISUALIZE: graph.set_rviz()
+        if VISUALIZE: graphgscene.set_rviz()
 
         # start UI
         ui_broker = UIBroker.instance()
@@ -109,13 +109,13 @@ def main(root_dir=None, BASE_LINK="base_link", ROBOT_NAMES=["indy0", "panda1"], 
         ui_broker.start_server()
 
         # set rviz
-        if VISUALIZE: graph.set_rviz(crob.home_pose)
+        if VISUALIZE: graphgscene.set_rviz(crob.home_pose)
         ui_broker.set_tables()
 
         for gripper in GRIPPER_REFS.values():
             graph.register_binder(name=gripper['bname'], _type=FramedTool, point=gripper['tcp_ref'], rpy=[0,0,0], link_name=gripper['link_name'])
         graph.register_binder(name='base', _type=PlaceFrame, point=[0,0,0], rpy=[0,0,0], link_name=BASE_LINK)
-        vtem = graph.ghnd.create_safe(name="virtual", gtype=GEOTYPE.SPHERE, link_name=BASE_LINK,
+        vtem = graph.gscene.create_safe(name="virtual", gtype=GEOTYPE.SPHERE, link_name=BASE_LINK,
                                       dims=(0,0,0), center=(0,0,0), rpy=(0,0,0), collision=False, display=False
                                       )
         graph.add_object("virtual",
@@ -192,7 +192,7 @@ def main(root_dir=None, BASE_LINK="base_link", ROBOT_NAMES=["indy0", "panda1"], 
             for obj in obj_list: graph.remove_geometry(obj)
             for odat in obj_dat:
                 nbox, gtype, dims, color, center, rpy = odat["nbox"], getattr(GEOTYPE, odat["gtype"]), odat["dims"], odat["color"], odat["center"], odat["rpy"]
-                obj = graph.ghnd.create_safe(
+                obj = graph.gscene.create_safe(
                     name="{}_{}_{}_{}".format(gtype.name,*nbox), link_name=BASE_LINK, gtype=gtype,
                     center=center, rpy=rpy, dims=dims, color=color, display=True, collision=True, fixed=True)
                 obj_list.append(obj)
@@ -201,7 +201,7 @@ def main(root_dir=None, BASE_LINK="base_link", ROBOT_NAMES=["indy0", "panda1"], 
             for obj in col_obj_list: graph.remove_geometry(obj)
             for odat in coll_list:
                 nbox, gtype, dims, color, center, rpy = odat["nbox"], getattr(GEOTYPE, odat["gtype"]), odat["dims"], odat["color"], odat["center"], odat["rpy"]
-                obj = graph.ghnd.create_safe(
+                obj = graph.gscene.create_safe(
                     name="col_obj_{}_{}_{}".format(*nbox), link_name=BASE_LINK, gtype=gtype,
                     center=center, rpy=rpy, dims=dims, color=color, display=True, collision=False, fixed=True)
                 col_obj_list.append(obj)
@@ -209,19 +209,19 @@ def main(root_dir=None, BASE_LINK="base_link", ROBOT_NAMES=["indy0", "panda1"], 
 
             for obj in col_obj_list: graph.remove_geometry(obj)
 
-            if VISUALIZE: graph.set_rviz()
+            if VISUALIZE: graphgscene.set_rviz()
 
             ####################################################################################
             ############################## Sample action #######################################
             ####################################################################################
             for _ in range(SAMPLE_NUM_ACTION):
                 dcol = DataCollector(graph, GRIPPER_REFS, S_F_RATIO=S_F_RATIO)
-                if VISUALIZE: graph.set_rviz()
+                if VISUALIZE: graphgscene.set_rviz()
 
                 # planners
                 mplan = MoveitPlanner(joint_names=graph.joint_names, link_names=graph.link_names, urdf_path=graph.urdf_path, urdf_content=graph.urdf_content,
-                                      robot_names=graph.combined_robot.robot_names, binder_links=[v.object.link_name for v in graph.binder_dict.values()], ghnd=graph.ghnd)
-                dual_mplan_dict = get_dual_planner_dict(GRIPPER_REFS, graph.ghnd, graph.urdf_content, graph.urdf_path, graph.link_names, graph.combined_robot.robot_names)
+                                      robot_names=graph.combined_robot.robot_names, binder_links=[v.geometry.link_name for v in graph.binder_dict.values()], gscene=graph.gscene)
+                dual_mplan_dict = get_dual_planner_dict(GRIPPER_REFS, graph.gscene, graph.urdf_content, graph.urdf_path, graph.link_names, graph.combined_robot.robot_names)
 
                 # handover
                 dcol.search_loop_mp(Q_s, obj_list, dual_mplan_dict, search_fun=dcol.handover_search, L_CELL=L_CELL, N_agents=None, N_search=N_search, N_retry=N_retry, timeout=TIMEOUT)
@@ -230,14 +230,14 @@ def main(root_dir=None, BASE_LINK="base_link", ROBOT_NAMES=["indy0", "panda1"], 
 
                 # pick
                 graph.set_planner(mplan)
-                mplan.update(graph)
+                mplan.update_gscene()
                 dcol.search_loop_mp(Q_s, obj_list, mplan, search_fun=dcol.pick_search, L_CELL=L_CELL, N_agents=None, timeout=TIMEOUT, N_search=N_search, N_retry=N_retry)
                 save_json(os.path.join(SCENE_PATH, get_now()+".json"),  {idx: {k:v for k,v in item.items() if k !="trajectory"} for idx, item in dcol.snode_dict.items()})
                 if VISUALIZE: dcol.play_all(graph, GRIPPER_REFS, "PICK", test_pick, Q_s, remove_map=[[1],[0]])
 
                 #place
                 graph.set_planner(mplan)
-                mplan.update(graph)
+                mplan.update_gscene()
                 dcol.search_loop_mp(Q_s, obj_list, mplan, search_fun=dcol.place_search, L_CELL=L_CELL, N_agents=None, timeout=TIMEOUT, N_search=N_search, N_retry=N_retry)
                 save_json(os.path.join(SCENE_PATH, get_now()+".json"),  {idx: {k:v for k,v in item.items() if k !="trajectory"} for idx, item in dcol.snode_dict.items()})
                 if VISUALIZE: dcol.play_all(graph, GRIPPER_REFS, "PLACE", test_place, Q_s, remove_map=[[],[0,1]])
@@ -252,7 +252,7 @@ if __name__ == "__main__":
     import argparse
     
     parser = argparse.ArgumentParser(description='Collect data.')
-    parser.add_argument('-n', '--sample_num', type=int, default=100,
+    parser.add_argument('-n', '--N_redundant_sample', type=int, default=100,
                         help='(Optional) the number of sample worlds')
     parser.add_argument('-f', '--fix_robots', type=str2bool, default=False,
                         help="fix robots on default position")
@@ -263,7 +263,7 @@ if __name__ == "__main__":
     from pkg.utils.utils import str2bool
 
     gtimer.tic("Collect")
-    DATASET = main(SAMPLE_NUM_WORLD=args.sample_num,
+    DATASET = main(SAMPLE_NUM_WORLD=args.N_redundant_sample,
                    Trbt_dict_fixed=
                    {k: (np.add(v[0], [1.5,1.5,0.75]), v[1]) for k, v in XYZ_RPY_ROBOTS_DEFAULT.items()}
                    if args.fix_robots else None)
