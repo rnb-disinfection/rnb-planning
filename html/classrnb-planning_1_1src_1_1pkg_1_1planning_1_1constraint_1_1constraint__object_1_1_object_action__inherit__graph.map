@@ -1,5 +1,0 @@
-<map id="rnb&#45;planning.src.pkg.planning.constraint.constraint_object.ObjectAction" name="rnb&#45;planning.src.pkg.planning.constraint.constraint_object.ObjectAction">
-<area shape="rect" id="node2" href="$classrnb-planning_1_1src_1_1pkg_1_1planning_1_1constraint_1_1constraint__object_1_1_box_action.html" title="Box object with hexahedral action points. " alt="" coords="367,5,680,47"/>
-<area shape="rect" id="node3" href="$classrnb-planning_1_1src_1_1pkg_1_1planning_1_1constraint_1_1constraint__object_1_1_custom_object.html" title="Customizable object that handles can be defined by user. " alt="" coords="367,71,680,112"/>
-<area shape="rect" id="node4" href="$classrnb-planning_1_1src_1_1pkg_1_1planning_1_1constraint_1_1constraint__object_1_1_single_handle_object.html" title="Object with single defined handle. " alt="" coords="367,136,680,177"/>
-</map>

@@ -26,7 +26,5 @@ var searchData=
   ['get_5ftargets_5fof_5flevels',['get_targets_of_levels',['../classrnb-planning_1_1src_1_1pkg_1_1detector_1_1aruco_1_1stereo_1_1_aruco_stereo.html#a88d4104cd83e3d1fd82168a9bc449237',1,'rnb-planning.src.pkg.detector.aruco.stereo.ArucoStereo.get_targets_of_levels()'],['../classrnb-planning_1_1src_1_1pkg_1_1detector_1_1detector__interface_1_1_detector_interface.html#aca91ec41e0e87dcca165c6eb10806357',1,'rnb-planning.src.pkg.detector.detector_interface.DetectorInterface.get_targets_of_levels()']]],
   ['get_5ftf_5fhandle',['get_tf_handle',['../classrnb-planning_1_1src_1_1pkg_1_1planning_1_1constraint_1_1constraint__common_1_1_action_point.html#abf49647c397c65245efac8cf6b4fc39b',1,'rnb-planning::src::pkg::planning::constraint::constraint_common::ActionPoint']]],
   ['get_5funique_5fbinders',['get_unique_binders',['../classrnb-planning_1_1src_1_1pkg_1_1planning_1_1scene_1_1_planning_scene.html#a2c51e54199eb66a9d2772ff56b90e030',1,'rnb-planning::src::pkg::planning::scene::PlanningScene']]],
-  ['getaffine3d',['getAffine3d',['../namespace_r_n_b_1_1_moveit_compact.html#a7428e08b7f80d96545b3e82eef22d52e',1,'RNB::MoveitCompact']]],
-  ['getquaternion',['getQuaternion',['../namespace_r_n_b_1_1_moveit_compact.html#a54930af2dcdc8fc1cf279e850baf5fba',1,'RNB::MoveitCompact']]],
   ['grasp_5fby_5fdict',['grasp_by_dict',['../classrnb-planning_1_1src_1_1pkg_1_1controller_1_1combined__robot_1_1_combined_robot.html#ac7425b657ce6d49feb9edd31fb651754',1,'rnb-planning::src::pkg::controller::combined_robot::CombinedRobot']]]
 ];
