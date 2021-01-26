@@ -2,11 +2,11 @@
 ## Recommended Tools  
 * jupyter 
   * install jupyter  
-  ```console
+  ```bash
   sudo apt install python3-notebook python-notebook jupyter jupyter-core python-ipykernel  
   ```
   * do server setting as follows
-  ```console
+  ```bash
   jupyter notebook --generate-config \
   && jupyter notebook password \
   && vi ~/.jupyter/jupyter_notebook_config.py
@@ -19,13 +19,13 @@
   
 * nvidia-smi-gui
   * install  
-  ```console
+  ```bash
   sudo apt-get install python3-pyqt4 \
   && mkdir ~/nvidia-smi-gui && cd ~/nvidia-smi-gui \
   && git clone https://github.com/imkzh/nvidia-smi-gui.git .
   ```
   * launch  
-  ```console
+  ```bash
   python3 ~/nvidia-smi-gui/nvidia-smi-gui.py
   ```
 * Anydesk - enable unattended access in Settings-Security
@@ -33,63 +33,63 @@
 * PyCharm, Clion  
   * add "export PATH=$PATH:{}/bin" to .bashrc  
 * openssh-server  
-  ```console
+  ```bash
   sudo apt-get install openssh-server -y && sudo service ssh start
   ```
 
 * Doxygen
   * Install
-  ```console
+  ```bash
   sudo apt-get install -y doxygen doxygen-gui texlive-latex-base texlive-latex-recommended ko.tex texlive-fonts-extra
   ```
 
   * Run
-  ```console
+  ```bash
   doxywizard
   ```
 
 
 ## TIPS 
 * Launching RVIZ
-  ```console
+  ```bash
   roslaunch "$RNB_PLANNING_DIR"src/launch/gui_custom_robots_joint_panel.launch 
   ``` 
 
 * Launch franka ros interface  
   * visualization:
-  ```console
+  ```bash
   roslaunch franka_visualization franka_visualization.launch robot_ip:=192.168.0.13 load_gripper:=true  
   ```
   * launch interface: 
-  ```console
+  ```bash
   roslaunch franka_interface interface.launch
   ```
 * starting roscore if it's not active  
-  ```console
+  ```bash
   nohup roscore &  
   ```
 * to reset node/topic/params, kill and restart roscore  
-  ```console
+  ```bash
   sudo killall -9 roscore && nohup roscore &  
   ```
 
 
 ## Panda simulator
 * Install
-  ```console
+  ```bash
   pip install numpy numpy-quaternion rospy-message-converter==0.4.0 \
   && cd ~/catkin_ws && sudo rm -rf devel build \
   && cd ~/catkin_ws/src && git clone https://github.com/justagist/panda_simulator && cd panda_simulator && ./build_ws.sh  
   ```
 * Launch
-  ```console
+  ```bash
   roslaunch panda_gazebo panda_world.launch start_moveit:=false   
   ```
 
 
 ## Launch Indy simulator (CadKit)
 * run TaskManager (simulator mode)  on STEP
-  ```console
+  ```bash
   cd /home/user/release/IndyFramework3.0 && ./TaskManager -j indyDeploy.json
   ```
 * open cadkit (NRMK Launcher -> CadKit
@@ -119,17 +119,17 @@
 * change all item names: selectively replace {name="} with {"name="robotname${robot_id}}  
 * include and call the xacro file in "custom_robots.urdf.xacro"  
 * test generating URDF file  
-  ```console
+  ```bash
   rosrun xacro xacro "$RNB_PLANNING_DIR"src/robots/custom_robots.urdf.xacro \> "$RNB_PLANNING_DIR"src/robots/custom_robots.urdf  
   ```
 * run rviz  
-  ```console
+  ```bash
   roslaunch "$RNB_PLANNING_DIR"/src/launch/gui_custom_robots_joint_panel.launch  
   ```
   * for "not unique" error, remove it from individual xacro files and include the item on the top of "custom_robots.urdf.xacro"  
 
 ## Removing cuda  
-  ```console
+  ```bash
   sudo apt remove -y 'cuda*'
   sudo apt remove -y 'libcuda*'
   sudo apt remove -y 'cudnn*'
@@ -139,19 +139,19 @@
 ## Deprecated dependencies  
 
 ### python packages  
-```console
+```bash
 pip install klampt
 ```
 
 ### Tesseract  
 * clone tesseract on workspace  
-  ```console
+  ```bash
   cd ~/Projects/rnb-planning/ws_ros/src \
   && git clone https://github.com/ros-industrial-consortium/tesseract.git  
   ```
    
 * clone all dependencies in dependency.rosinstall  
-  ```console
+  ```bash
   git clone https://github.com/ros-industrial/cmake_common_scripts.git cmake_common_scripts \
   && git clone https://github.com/ros-industrial-consortium/tesseract_ext.git tesseract_ext \
   && git clone https://github.com/ros-industrial-consortium/trajopt_ros.git trajopt \
@@ -163,7 +163,7 @@ pip install klampt
   
   
 * install base dependency
-  ```console
+  ```bash
   sudo apt-get install gcc g++ gfortran git patch wget pkg-config liblapack-dev libmetis-dev \
   && sudo apt install lcov \
   && sudo apt-get install cmake libeigen3-dev coinor-libipopt-dev
@@ -171,33 +171,33 @@ pip install klampt
   ```
 
 * build workspace
-  ```console
+  ```bash
   cd .. && sudo rm -rf devel && sudo rm -rf build
   catkin build --force-cmake -DTESSERACT_ENABLE_TESTING=ON -DCMAKE_BUILD_TYPE=Release \
   && add export TESSERACT_SUPPORT_DIR='/home/tamp/Projects/rnb-planning/ws_ros/devel/share/tesseract_support'  
   ```
   
 * source workspace (done in project setup section)
-  ```console
+  ```bash
   source ~Projects/rnb-planning/ws_ros/devel/setup.bash
   ``` 
   
 ### Moveit
 * Install moveit (after ros-melodic and catkin)
-  ```console
+  ```bash
   sudo apt install ros-melodic-moveit
   ```
 
 * Tutorial
   * make workspace and clone tutorial repository
-  ```console
+  ```bash
   mkdir -p ~/ws_moveit/src
   cd ~/ws_moveit/src
   git clone https://github.com/ros-planning/moveit_tutorials.git -b melodic-devel
   git clone https://github.com/ros-planning/panda_moveit_config.git -b melodic-devel
   ```
   * install packages
-  ```console
+  ```bash
   cd ~/ws_moveit/src
   rosdep install -y --from-paths . --ignore-src --rosdistro melodic
   cd ~/ws_moveit
@@ -205,7 +205,7 @@ pip install klampt
   catkin build
   ```
   * source workspace
-  ```console
+  ```bash
   source ~/ws_moveit/devel/setup.bash
   ```
   * follow tutorial process in http://docs.ros.org/en/melodic/api/moveit_tutorials/html/doc/move_group_python_interface/move_group_python_interface_tutorial.html#getting-started

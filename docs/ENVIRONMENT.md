@@ -2,23 +2,23 @@
 * Turn off "Fast boot" & "Secure boot" on Bios
 * Ubuntu 18.04  
 * install gcc7 & gcc5
-  ```console
+```bash
   sudo add-apt-repository ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install gcc-7 g++-7 gcc-7-multilib g++-7-multilib \
   && sudo add-apt-repository ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install gcc-5 g++-5 gcc-5-multilib g++-5-multilib  
   ```
 * set gcc alternative versions:  
-  ```console
+```bash
   sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-5 20 \
   && sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 40 \
   && sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-5 20 \
   && sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-7 40  
   ```
 * check gcc/g++ alternative version  
-  ```console
+```bash
   sudo update-alternatives --display gcc && sudo update-alternatives --display g++  
   ```
 * pip
-  ```console
+```bash
   sudo apt-get install python3-pip && pip3 install --upgrade pip \
   && sudo apt-get install python-pip && pip install --upgrade pip \
   && pip3 install setuptools==41.0.0 \
@@ -28,7 +28,7 @@
 ## Setup NVIDIA cuda 11.0 and cudnn 8.0 for tf 2.4.0 (below is official guide from homepage)
 
 * Update repositories
-  ```console
+```bash
   # Add NVIDIA package repositories
   mkdir ~/NVIDIA_TMP && cd ~/NVIDIA_TMP \
   && wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-ubuntu1804.pin \
@@ -42,7 +42,7 @@
   ```
 
 * Install NVIDIA driver
-  ```console
+```bash
   sudo apt-get install --no-install-recommends nvidia-driver-450
   ```
 * ***[IMPORTANT]*** Reboot!!!  
@@ -50,7 +50,7 @@
 
 
 * Install development and runtime libraries (~4GB)
-  ```console
+```bash
   cd ~/NVIDIA_TMP \
   && wget https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64/libnvinfer7_7.1.3-1+cuda11.0_amd64.deb \
   && sudo apt install ./libnvinfer7_7.1.3-1+cuda11.0_amd64.deb \
@@ -62,7 +62,7 @@
   ```
 
 * Add PATH variables to environment
-  ```console
+```bash
   echo 'export PATH=$PATH:/usr/local/cuda-11.0/bin' >> ~/.bashrc \
   && echo 'export CUDADIR=/usr/local/cuda-11.0' >> ~/.bashrc \
   && echo 'if [ -z $LD_LIBRARY_PATH ]; then' >> ~/.bashrc \
@@ -75,7 +75,7 @@
 * ***[IMPORTANT]*** Restart terminal!!!
 
 * Install TensorRT. Requires that libcudnn8 is installed above.
-  ```console
+```bash
   sudo apt-get install -y --no-install-recommends libnvinfer7=7.1.3-1+cuda11.0 \
     libnvinfer-dev=7.1.3-1+cuda11.0 \
     libnvinfer-plugin7=7.1.3-1+cuda11.0
@@ -83,7 +83,7 @@
 
   
 * Install tensorflow
-  ```console
+```bash
   pip3 install tensorflow-gpu==2.4.0
   ```
 

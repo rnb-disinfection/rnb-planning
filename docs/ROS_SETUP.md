@@ -1,6 +1,6 @@
 # ROS Setup
 * ROS Melodic  
-  ```console
+  ```bash
   mkdir ~/ROS_TMP && cd ~/ROS_TMP \
   && wget https://raw.githubusercontent.com/orocapangyo/meetup/master/190830/install_ros_melodic.sh && chmod 755 ./install_ros_melodic.sh && bash ./install_ros_melodic.sh \
   && sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list' \
@@ -17,16 +17,16 @@
   * **RESTART TERMINAL!**  
   
 * Moveit  
-  ```console
+  ```bash
   sudo apt-get install -y ros-melodic-moveit ros-melodic-industrial-core ros-melodic-moveit-visual-tools ros-melodic-joint-state-publisher-gui  
   ```  
 * Gazebo  
-  ```console
+  ```bash
   sudo apt-get install -y ros-melodic-gazebo-ros-pkgs ros-melodic-gazebo-ros-control ros-melodic-joint-state-controller ros-melodic-effort-controllers ros-melodic-position-controllers ros-melodic-joint-trajectory-controller  
   ```
 * UR package  
   * link: https://github.com/ros-industrial/universal_robot  
-  ```console
+  ```bash
   cd $HOME/catkin_ws/src \
   && git clone -b $ROS_DISTRO-devel https://github.com/ros-industrial/universal_robot.git \
   && cd $HOME/catkin_ws \
@@ -35,13 +35,13 @@
   && catkin_make -DCMAKE_BUILD_TYPE=Release  
   ```
 * Indy package
-  ```console
+  ```bash
   cd ~/catkin_ws/src && git clone -b  release-2.3 https://github.com/neuromeka-robotics/indy-ros \
   && cd ~/catkin_ws && catkin_make -DCMAKE_BUILD_TYPE=Release
   ```
   * (not used now) To update Indy to 3.0, Follow instruction on external/IndyFramework3.0/ReadMe.md
 * Franka package  
-  ```console
+  ```bash
   sudo apt install ros-melodic-libfranka ros-melodic-franka-ros \
   && cd ~/catkin_ws \
   && git clone https://github.com/justagist/franka_ros_interface src/franka_ros_interface \
@@ -49,11 +49,11 @@
   && source devel/setup.bash
   ```
   * Copy/move the franka.sh file to the root of the catkin_ws
-  ```console
+  ```bash
   cp ~/catkin_ws/src/franka_ros_interface/franka.sh ~/catkin_ws/
   ```
   * ~~Change the values in the copied file (described in the file).~~
 * python compatibility  
-  ```console
+  ```bash
   pip install rospkg  
   ```
