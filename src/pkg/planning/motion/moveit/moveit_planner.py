@@ -51,12 +51,12 @@ def make_constraint_list(gtem_list, use_box=False):
 # @class MoveitPlanner
 # @brief Moveit motion planner
 # @remark online planning is not supported
-# @param enabla_dual    boolean flag to enable dual arm manipulation (default=True)
 class MoveitPlanner(MotionInterface):
     NAME = "MoveIt"
 
     ##
     # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
+    # @param enable_dual    boolean flag to enable dual arm manipulation (default=True)
     def __init__(self, pscene, enable_dual=True):
         MotionInterface.__init__(self, pscene)
         config_path = os.path.dirname(self.urdf_path)+"/"

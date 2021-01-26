@@ -30,5 +30,16 @@
 #### ModelBasedStateSpace::StateType
   * 스테이트는 double * values에 저장, tag, flags, distance 등 멤버 변수 추가
   * state_validity_checker, constraints_library, projection_evaluators에서만 사용 (ModelBasedStateSpace::StateType로 검색)
+
+```console
+rnb@rnb:~/home$ cd hi
+$ cd hi
+cd hi
+```
+```bash
+rnb@rnb:~/home$ cd hi
+$ cd hi
+cd hi
+```
   
   
