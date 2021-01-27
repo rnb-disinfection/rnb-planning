@@ -102,9 +102,7 @@ namespace RNB {
                         val = geo_tool_tf.translation().z();
                         break;
                     case ObjectType::BOX:
-                        std::cout << TEXT_RED("ERROR: BOX it not tested") << std::endl;
-                        throw std::runtime_error("ERROR: BOX it not tested");
-                        val = (geo_tool_tf.translation().cwiseAbs()-geo.dims).minCoeff();
+                        val = (geo_tool_tf.translation().cwiseAbs()-geo.dims/2).maxCoeff();
                         break;
                     default:
                         std::cout << "ERROR: UNDEFINED SHAPE" << std::endl;
@@ -133,13 +131,13 @@ namespace RNB {
                 return (I-vec*vec.transpose())/vec_norm;
             }
 
-            Eigen::VectorXd min_dir_(Eigen::VectorXd vec) const {
-                if(vec[0]<vec[1]){ // not 1
-                    if(vec[0]<vec[2]) return xvec;  // not 2
+            Eigen::VectorXd max_dir_(Eigen::VectorXd vec) const {
+                if(vec[0]>vec[1]){ // not 1
+                    if(vec[0]>vec[2]) return xvec;  // not 2
                     else return zvec;  // not 0
                 }
                 else{ // not 0
-                    if(vec[1]<vec[2]) return yvec; // not 2
+                    if(vec[1]>vec[2]) return yvec; // not 2
                     else return zvec; // not 1
                 }
             }
@@ -183,9 +181,7 @@ namespace RNB {
                         vec /= norm;
                         break;
                     case ObjectType::BOX:
-                        std::cout << TEXT_RED("ERROR: BOX it not tested") << std::endl;
-                        throw std::runtime_error("ERROR: BOX it not tested");
-                        vec = min_dir_(geo_tool_tf.translation().cwiseAbs()-geo.dims);
+                        vec = max_dir_(geo_tool_tf.translation().cwiseAbs()-geo.dims/2);
                         vec = geo_tool_tf.translation().cwiseProduct(vec);
                         norm = vec.norm();
                         vec /= norm;
