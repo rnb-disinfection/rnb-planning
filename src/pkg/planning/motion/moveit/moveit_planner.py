@@ -1,7 +1,7 @@
 from moveit_py import MoveitCompactPlanner_BP, ObjectType, ObjectMPC, Geometry, GeometryList, CartPose, Vec3, make_assign_arr
 from ..interface import MotionInterface
 from ....utils.utils import list2dict
-from ....utils.rotation_utils import SE3, SE3_inv, Rot_rpy
+from ....utils.rotation_utils import SE3, SE3_inv, Rot_rpy, T2xyzquat
 from ....geometry.geometry import GEOTYPE, GeometryScene
 from ...constraint.constraint_common import calc_redundancy
 from scipy.spatial.transform import Rotation
@@ -48,7 +48,7 @@ def make_constraint_item(gtem, use_box=False):
 
 ##
 # @brief make list of moveit constraint geometry list
-def make_constraint_list(gtem_list, use_box=False):
+def make_constraint_list(gtem_list, use_box=True):
     return make_assign_arr(GeometryList, [make_constraint_item(gtem, use_box) for gtem in gtem_list])
 
 ##
@@ -209,6 +209,22 @@ class MoveitPlanner(MotionInterface):
 
     def update_target_joint(self, idx_cur, traj, joint_cur):
         raise(RuntimeError("online operation not implemented with moveit"))
+
+    ##
+    # @brief add motion constraint for moveit planner
+    # @param group_name manipulator chain group name
+    # @param tool_link tool link name
+    # @param tool_offset_T tool offset 4x4 transformation matrix in tool link coordinate
+    # @param geometry_list list of rnb-planning.src.pkg.geometry.geometry.GeometryItem
+    # @param fix_surface boolean flag to constrain tool position to surface
+    # @param fix_normal boolean flag to constrain tool orienation to surface normal
+    # @param tol tolerance (default=1e-3)
+    # @param use_box boolean flag for using box, to convert box to plane, set this value False (default=True)
+    def add_constraint(self, group_name, tool_link, tool_offset_T, geometry_list, fix_surface, fix_normal, tol=1e-3, use_box=True):
+        constraint_manifold_list = make_constraint_list(geometry_list, use_box=use_box)
+        xyzquat = T2xyzquat(tool_offset_T)
+        self.planner.add_union_manifold_py(group_name=group_name, tool_link=tool_link, tool_offset=xyzquat[0]+xyzquat[1],
+                                           geometry_list=constraint_manifold_list, fix_surface=fix_surface, fix_normal=fix_normal, tol=tol)
 
 
 from itertools import permutations

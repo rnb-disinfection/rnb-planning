@@ -2,9 +2,9 @@
 
 ## TODO
   0. GeometryGroup -> Group object v
-  0.a. non-parent binder
+  0.a. non-parent binder v
   1. Constraint: Geometry + Toolpoint v
-  1.a. Box geometry constraint
+  1.a. Box geometry constraint v
   2. Task: Constraint + task_state + ?
   3. State: node + state_param(obj_pose_dict) + Q
   4. Constraint + Object(action_point)

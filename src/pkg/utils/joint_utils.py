@@ -123,14 +123,20 @@ def get_joint_tf(joint, joint_dict):
 def get_tf(to_link, joint_dict, urdf_content, from_link='base_link'):
     T = np.identity(4)
     link_cur = to_link
+    link_root = urdf_content.get_root()
     while link_cur != from_link:
-        pjname = get_parent_joint(link_cur, urdf_content)
-        if pjname is None:
+        if link_cur != link_root:
+            pjname = get_parent_joint(link_cur, urdf_content)
+            if pjname is None:
+                break
+            parent_joint = urdf_content.joint_map[pjname]
+            Tj = get_joint_tf(parent_joint, joint_dict)
+            T = np.matmul(Tj,T)
+            link_cur = parent_joint.parent
+        else:
+            T_from_link = get_tf(from_link, joint_dict=joint_dict, urdf_content=urdf_content, from_link=link_root)
+            T = np.matmul(SE3_inv(T_from_link), T)
             break
-        parent_joint = urdf_content.joint_map[pjname]
-        Tj = get_joint_tf(parent_joint, joint_dict)
-        T = np.matmul(Tj,T)
-        link_cur = parent_joint.parent
     return T
 
 

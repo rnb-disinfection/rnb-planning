@@ -302,7 +302,7 @@ class GeometryItem(object):
     # @param link_name name of link to be attached
     def set_link(self, link_name, call_from_parent=False):
         if self.parent is not None and not call_from_parent:
-            return# child geometry's link is only set from parent
+            self.gscene.NAME_DICT[self.parent].set_link(link_name)
         self.link_name = link_name
         self.adjacent_links = self.gscene.link_adjacency_map[self.link_name]
         for child in self.children:
@@ -356,12 +356,14 @@ class GeometryItem(object):
             ## @brief roll-pitch-yaw orientation relative to attached link coordinate
             self.rpy = Rot2rpy(self.orientation_mat)
         else:
-            if self.parent is not None:
-                return # child geometry's offset is only set from parent
             self.center = center if center is not None else self.center
             self.rpy = Rot2rpy(orientation_mat) if orientation_mat is not None else self.rpy
             self.orientation_mat = orientation_mat if orientation_mat is not None else self.orientation_mat
             self.Toff = SE3(self.orientation_mat, self.center)
+            if self.parent is not None:
+                Toff_parent = np.matmul(self.Toff, SE3_inv(self.Toff_child))
+                self.gscene.NAME_DICT[self.parent].set_offset_tf(center=tuple(Toff_parent[:3,3]), orientation_mat=Toff_parent[:3,:3])
+
         for child in self.children:
             self.gscene.NAME_DICT[child].set_offset_tf(call_in_parent_coord=True)
 

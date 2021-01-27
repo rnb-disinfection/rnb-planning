@@ -31,7 +31,7 @@ class ActionPoint:
     ctype=None
     ##
     # @param    name        action point name
-    # @param    geometry    parent geometry
+    # @param    geometry    geometry of the action point (rnb-planning.src.pkg.geometry.geometry.GeometryItem)
     # @param    point       action point offset respect to parent geometry
     # @param    rpy         orientation offset respect to parent geometry
     # @param    name_full   constraint full name, mainly for eTaSL constraint definition
@@ -114,5 +114,11 @@ def sample_redundancy(redundancy_tot):
     return {k: random.uniform(*red) for k, red in redundancy_tot.items()}
 
 
+##
+# @class MotionConstraint
+# @brief definition of fixture constraint
+class MotionConstraint:
+    def __init__(self, geometry_list, fix_surface, fix_normal, tol=1e-3):
+        self.geometry_list, self.fix_surface, self.fix_normal, self.tol = geometry_list, fix_surface, fix_normal, tol
 
 
