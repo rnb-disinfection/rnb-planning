@@ -10,11 +10,11 @@ from ..controller.combined_robot import RobotSpecs
 class State:
     ##
     # @param node           tuple of binding state ((object name, binding point, binder), ..)
-    # @param obj_pos_dict   object pose dictionary {object name: 4x4 offset relative to attached link}
+    # @param state_param    object pose dictionary {object name: 4x4 offset relative to attached link}
     # @param Q              robot joint configuration
     # @param pscene         PlanningScene instance
-    def __init__(self, node, obj_pos_dict, Q, pscene):
-        self.obj_pos_dict = obj_pos_dict
+    def __init__(self, node, state_param, Q, pscene):
+        self.state_param = state_param
         self.Q = Q
         self.set_node(node, pscene)
 
@@ -25,15 +25,15 @@ class State:
         self.onode = node2onode(pscene, self.node)
 
     def get_tuple(self):
-        return (self.node, self.obj_pos_dict, self.Q)
+        return (self.node, self.state_param, self.Q)
 
     def copy(self, pscene):
-        return State(self.node, self.obj_pos_dict, self.Q, pscene)
+        return State(self.node, self.state_param, self.Q, pscene)
 
     def __str__(self):
         return str((self.node,
                     {k: str(np.round(v, 2)) for k, v in
-                     self.obj_pos_dict.items()} if self.obj_pos_dict is not None else None,
+                     self.state_param.items()} if self.state_param is not None else None,
                     str(np.round(self.Q, 2)) if self.Q is not None else None))
 
 ##
@@ -132,7 +132,7 @@ class PlanningScene:
     def create_object(self, oname, gname, _type, binding=None, **kwargs):
         self.remove_object(oname)
         geometry = self.gscene.NAME_DICT[gname]
-        _object = _type(geometry, **kwargs)
+        _object = _type(oname, geometry, **kwargs)
         self.add_object(oname, _object, binding)
         return _object
 
@@ -149,9 +149,10 @@ class PlanningScene:
                 bd_list += [bd] # prevent using previous info ( move back to end )
             else:
                 obj = self.object_dict[bd[0]]
-                frame = state.obj_pos_dict[bd[0]]
-                binder.link_name = binder.geometry.link_name # sync linke name with parent
-                obj.set_state(frame, binder.link_name, bd[1], bd[2])
+                state_param = state.state_param[bd[0]]
+                binder.link_name = state_param[0] # sync linke name with parent
+                frame = state_param[1]
+                obj.set_state(bd[1:], (binder.link_name, frame))
                 bd_list_done += [bd]
 
     ##
@@ -163,8 +164,8 @@ class PlanningScene:
         pose_dict = {}
         for k in self.object_list:
             v = self.object_dict[k]
-            node += ((k,) + v.binding,)
-            pose_dict[k] = v.geometry.Toff
+            node += ((k,) + v.get_node_item(),)
+            pose_dict[k] = (v.get_state_param())
         return node, pose_dict
 
     ##
@@ -289,13 +290,13 @@ class PlanningScene:
         node = tuple(node)
 
         # calculate object pose relative to binder link
-        obj_pos_dict = {}
+        state_param = {}
         for binding in node:
             obj = self.object_dict[binding[0]]
             binder = self.binder_dict[binding[2]]
-            obj_pos_dict[binding[0]] = obj.geometry.get_tf(Q_dict, from_link=binder.geometry.link_name)
+            state_param[binding[0]] = (obj.geometry.link_name, obj.geometry.get_tf(Q_dict, from_link=binder.geometry.link_name))
 
-        return State(node, obj_pos_dict, Q, self)
+        return State(node, state_param, Q, self)
 
     ##
     # @brief get goal nodes that link object to target binder

@@ -1,5 +1,6 @@
 from .table_interface import *
-from ...tmp_framework import *
+from ...geometry.builder.scene_builder import *
+from ...controller.repeater.repeater import DEFAULT_TRAJ_FREQUENCY
 
 
 class PlanListTable(TableInterface):

@@ -62,30 +62,103 @@ class FixturePoint(FramedPoint):
 
 
 ##
+# @class Action
+# @brief Base class for action definitions
+class Action:
+
+    ##
+    # @brief (prototype) set state
+    # @param node_item state node item
+    # @param state_param state parameter item
+    @abstractmethod
+    def set_state(self, node_item, state_param):
+        pass
+
+    ##
+    # @brief (prototype) get node item
+    # @return item for node tuple
+    @abstractmethod
+    def get_node_item(self):
+        pass
+
+    ##
+    # @brief (prototype) get state param
+    # @return item for state_param
+    @abstractmethod
+    def get_state_param(self):
+        pass
+
+
+##
+# @class TaskAction
+# @brief Base class for task definition
+class TaskAction(Action):
+    def __init__(self):
+        raise(NotImplementedError("TaskAction is abstract class"))
+
+
+##
+# @class TaskAction
+# @brief Base class for task definition
+class SwipTask(Action):
+    def __init__(self):
+        raise(NotImplementedError("TaskAction is abstract class"))
+
+    ##
+    # @brief set state of task action
+    # @param task_node state node item describing the task
+    # @param state_param task state parameter
+    def set_state(self, task_node, state_param):
+        self.task_node = task_node
+        self.state_param = state_param
+
+    ##
+    # @brief (prototype) get node item
+    # @return item for node tuple
+    def get_node_item(self):
+        pass
+
+    ##
+    # @brief (prototype) get state param
+    # @return item for state_param
+    def get_state_param(self):
+        pass
+
+
+##
 # @class ObjectAction
 # @brief Base class for objects with defined action points (handles)
 # @remark get_conflicting_handles and register_binders should be implemented with child classes
-class ObjectAction:
+class ObjectAction(Action):
     def __init__(self):
-        raise NotImplementedError("ObjectAction is abstract class")
+        raise(NotImplementedError("ObjectAction is abstract class"))
 
     ##
     # @brief set object binding state and update location
-    # @param frame target offset transformation in 4x4 matrix
-    # @param link_name target link name
-    # @param bind_point handle name
-    # @param binder binder name
-    def set_state(self, frame, link_name, bind_point, binder):
+    # @param binding (handle name, binder name)
+    # @param link_frame (link name, offset transformation in 4x4 matrix)
+    def set_state(self, binding, link_frame):
+        link_name = link_frame[0]
+        frame = link_frame[1]
         self.geometry.set_offset_tf(frame[:3, 3], frame[:3,:3])
         self.geometry.set_link(link_name)
-        self.__bind(bind_point, binder)
+        self.binding = binding
         for ap in self.action_points_dict.values():
             ap.update_handle()
         for bp in self.binder_points_dict.values():
             bp.update_handle()
 
-    def __bind(self, point, target):
-        self.binding = (point, target)
+    ##
+    # @brief get binding (point_name, binder_name)
+    # @return item for node tuple
+    def get_node_item(self):
+        return self.binding
+
+    ##
+    # @brief get state param (link_name, Toff)
+    # @return item for state_param
+    def get_state_param(self):
+        return (self.geometry.link_name, self.geometry.Toff)
 
     ##
     # @brief function prototype to get conflicting handles to build efficient search tree
@@ -110,10 +183,12 @@ class ObjectAction:
 # @brief Customizable object that handles can be defined by user
 class CustomObject(ObjectAction):
     ##
+    # @param oname object's name
     # @param geometry parent geometry
     # @param action_points_dict pre-defined action points as dictionary
     # @param binder_points_dict pre-defined binder points as dictionary
-    def __init__(self, geometry, action_points_dict, binder_points_dict=None):
+    def __init__(self, oname, geometry, action_points_dict, binder_points_dict=None):
+        self.oname = oname
         if binder_points_dict is None:
             binder_points_dict = {}
         self.geometry = geometry
@@ -137,10 +212,12 @@ class CustomObject(ObjectAction):
 # @brief Object with single defined handle
 class SingleHandleObject(ObjectAction):
     ##
+    # @param oname object's name
     # @param geometry parent geometry
     # @param action_point pre-defined single action point
     # @param binder_points_dict pre-defined binder points as dictionary
-    def __init__(self, geometry, action_point, binder_points_dict=None):
+    def __init__(self, oname, geometry, action_point, binder_points_dict=None):
+        self.oname = oname
         if binder_points_dict is None:
             binder_points_dict = {}
         self.geometry = geometry
@@ -160,14 +237,16 @@ class SingleHandleObject(ObjectAction):
 
 
 ##
-# @class BoxAction
+# @class BoxObject
 # @brief Box object with hexahedral action points
-class BoxAction(ObjectAction):
+class BoxObject(ObjectAction):
     ##
+    # @param oname object's name
     # @param geometry parent geometry
     # @param hexahedral If True, all hexahedral points are defined. Otherwise, only top and bottom points are defined
     # @param binder_points_dict pre-defined binder points as dictionary
-    def __init__(self, geometry, hexahedral=True, binder_points_dict=None):
+    def __init__(self, oname, geometry, hexahedral=True, binder_points_dict=None):
+        self.oname = oname
         if binder_points_dict is None:
             binder_points_dict = {}
         self.geometry = geometry
@@ -248,8 +327,8 @@ def ctype_to_htype(cstr):
 ##
 # @brief convert object type string to object type
 def otype_to_class(ostr):
-    if ostr == 'BoxAction':
-        return BoxAction
+    if ostr == 'BoxObject':
+        return BoxObject
     if ostr == 'SingleHandleObject':
         return SingleHandleObject
     if ostr == 'CustomObject':

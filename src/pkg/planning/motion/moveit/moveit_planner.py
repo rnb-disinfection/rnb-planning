@@ -215,16 +215,13 @@ class MoveitPlanner(MotionInterface):
     # @param group_name manipulator chain group name
     # @param tool_link tool link name
     # @param tool_offset_T tool offset 4x4 transformation matrix in tool link coordinate
-    # @param geometry_list list of rnb-planning.src.pkg.geometry.geometry.GeometryItem
-    # @param fix_surface boolean flag to constrain tool position to surface
-    # @param fix_normal boolean flag to constrain tool orienation to surface normal
-    # @param tol tolerance (default=1e-3)
+    # @param motion_constraint rnb-planning.src.pkg.planning.constraint.constraint_common.MotionConstraint
     # @param use_box boolean flag for using box, to convert box to plane, set this value False (default=True)
-    def add_constraint(self, group_name, tool_link, tool_offset_T, geometry_list, fix_surface, fix_normal, tol=1e-3, use_box=True):
-        constraint_manifold_list = make_constraint_list(geometry_list, use_box=use_box)
+    def add_constraint(self, group_name, tool_link, tool_offset_T, motion_constraint, use_box=True):
         xyzquat = T2xyzquat(tool_offset_T)
         self.planner.add_union_manifold_py(group_name=group_name, tool_link=tool_link, tool_offset=xyzquat[0]+xyzquat[1],
-                                           geometry_list=constraint_manifold_list, fix_surface=fix_surface, fix_normal=fix_normal, tol=tol)
+                                           geometry_list=make_constraint_list(motion_constraint.geometry_list, use_box=use_box),
+                                           fix_surface=motion_constraint.fix_surface, fix_normal=motion_constraint.fix_normal, tol=motion_constraint.tol)
 
 
 from itertools import permutations

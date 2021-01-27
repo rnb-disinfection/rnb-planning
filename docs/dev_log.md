@@ -5,8 +5,8 @@
   0.a. non-parent binder v
   1. Constraint: Geometry + Toolpoint v
   1.a. Box geometry constraint v
-  2. Task: Constraint + task_state + ?
-  3. State: node + state_param(obj_pose_dict) + Q
+  2. State: node + state_param(obj_pose_dict) + Q v
+  3. TaskAction: Constraint + task_state + ?
   4. Constraint + Object(action_point)
 
 ## OMPL 정리

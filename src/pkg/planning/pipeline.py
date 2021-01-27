@@ -50,7 +50,7 @@ class SearchNode:
     # @brief    copy SearchNode
     # @param    pscene  rnb-planning.src.pkg.planning.scene.PlanningScene
     def copy(self, pscene):
-        return SearchNode(self.idx, State(self.state.node, self.state.obj_pos_dict, self.state.Q, pscene),
+        return SearchNode(self.idx, State(self.state.node, self.state.state_param, self.state.Q, pscene),
                           self.parents, self.leafs, self.depth, self.edepth, self.redundancy_dict)
 
 
@@ -277,8 +277,8 @@ class PlanningPipeline:
             for bd in binding_list:
                 self.pscene.rebind(bd, list2dict(LastQ, self.pscene.gscene.joint_names))
 
-        node, obj_pos_dict = self.pscene.get_object_state()
-        end_state = State(node, obj_pos_dict, list(LastQ), self.pscene)
+        node, state_param = self.pscene.get_object_state()
+        end_state = State(node, state_param, list(LastQ), self.pscene)
         return Traj, end_state, error, success
 
     ##
