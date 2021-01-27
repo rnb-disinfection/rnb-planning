@@ -71,6 +71,7 @@ class ActionPoint:
     def get_redundancy(self):
         pass
 
+
 ##
 # @brief    calculate redundancy offset
 # @param redundancy   redundancy dictionary
@@ -89,6 +90,7 @@ def calc_redundancy(redundancy, target):
             point_add[2] += target.geometry.dims[2]/2
     return point_add, rpy_add
 
+
 ##
 # @brief    combine redundancy of handle and binder
 # @param to_ap      handle
@@ -104,5 +106,13 @@ def combine_redundancy(to_ap, to_binder):
             redundancy_tot[k] = redundancy_ap[k]
     return redundancy_tot
 
+
+##
+# @brief    sample redundancy of handle and binder
+# @param redundancy_tot      redundancy dictionary
 def sample_redundancy(redundancy_tot):
     return {k: random.uniform(*red) for k, red in redundancy_tot.items()}
+
+
+
+

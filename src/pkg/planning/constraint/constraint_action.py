@@ -141,7 +141,7 @@ class PlaceFrame(FrameBinding):
 
 ##
 # @class FixtureSlot
-# @brief Fixture slot to implement assembly object with bindings. Should be removed when assembly object is implemented.
+# @brief Fixture slot to implement assembly object with bindings.
 class FixtureSlot(PointerBinding):
     controlled = False
     multiple = True
