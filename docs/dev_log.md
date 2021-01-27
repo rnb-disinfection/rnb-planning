@@ -1,12 +1,13 @@
 # Development log
 
 ## TODO
-  1. Constraint: Geometry + Toolpoint
+  0. GeometryGroup -> Group object v
+  0.a. non-parent binder
+  1. Constraint: Geometry + Toolpoint v
+  1.a. Box geometry constraint
   2. Task: Constraint + task_state + ?
   3. State: node + state_param(obj_pose_dict) + Q
   4. Constraint + Object(action_point)
-  5. GeometryGroup -> Custom object
-  - Validity checker를 ConstrainedState에 맞춰 수정
 
 ## OMPL 정리
 ### class ModelBasedPlanningContext : public planning_interface::PlanningContext
