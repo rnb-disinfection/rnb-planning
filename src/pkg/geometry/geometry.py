@@ -65,7 +65,7 @@ class GeometryScene(list):
     # @brief remove one item from handle
     def remove(self, geo, call_from_parent=False):
         for child in geo.children:
-            self.remove(child, call_from_parent=True)
+            self.remove(self.NAME_DICT[child], call_from_parent=True)
         if not call_from_parent:
             if geo.parent is not None:
                 self.NAME_DICT[geo.parent].remove(geo.name)
@@ -101,16 +101,15 @@ class GeometryScene(list):
         if name in self.NAME_DICT:
             gtem = self.NAME_DICT[name]
             self.remove(gtem)
-            gtem.__init__(self, gtype=gtype, name=name, link_name=link_name,
-                          center=center, rpy=rpy, dims=dims,
-                          color=color, display=display, collision=collision, fixed=fixed,
-                          create=False, **kwargs)
-
-        else:
-            gtem = GeometryItem(self,  gtype=gtype, name=name, link_name=link_name,
-                          center=center, rpy=rpy, dims=dims,
-                          color=color, display=display, collision=collision, fixed=fixed,
-                          create=True, **kwargs)
+        #     gtem.__init__(self, gtype=gtype, name=name, link_name=link_name,
+        #                   center=center, rpy=rpy, dims=dims,
+        #                   color=color, display=display, collision=collision, fixed=fixed,
+        #                   create=False, **kwargs)
+        # else:
+        gtem = GeometryItem(self,  gtype=gtype, name=name, link_name=link_name,
+                      center=center, rpy=rpy, dims=dims,
+                      color=color, display=display, collision=collision, fixed=fixed,
+                      create=True, **kwargs)
         return gtem
 
     ##
@@ -120,10 +119,10 @@ class GeometryScene(list):
     # @param display specify display flag to change
     # @param collision specify collision flag to change
     def copy_from(self, gtem, new_name=None, color=None, display=None, collision=None):
-        color = color or gtem.color
-        display = display or gtem.display
-        collision = collision or gtem.collision
-        new_name = new_name or gtem.name
+        color = gtem.color if color is None else color
+        display = gtem.display if display is None else display
+        collision = gtem.collision if collision is None else collision
+        new_name = gtem.name if new_name is None else new_name
         return self.create_safe(name=new_name, link_name=gtem.link_name, gtype=gtem.gtype,
                                 center=gtem.center, rpy=gtem.rpy, dims=gtem.dims,
                                 color=color, display=display, collision=collision, fixed=gtem.fixed)

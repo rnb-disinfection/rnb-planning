@@ -154,7 +154,7 @@ class TMPFramework:
             print('-'*20)
             print("{}-{}".format(i_state, state_new.node))
             traj, new_state, error, succ = self.test_transition(state_cur, state_new, display=True,
-                                                                redundancy_dict=snode.redundancy, N=N, dt=dt,**kwargs)
+                                                                redundancy_dict=snode.redundancy_dict, N=N, dt=dt,**kwargs)
             try: self.show_pose(traj[-1])
             except: pass
             sleep(0.5)
@@ -179,7 +179,7 @@ class TMPFramework:
             to_snode = snode_schedule[i_s + 1]
             to_state = to_snode.state
             traj = to_snode.get_traj()
-            redundancy = to_snode.redundancy
+            redundancy_dict = to_snode.redundancy_dict
             idx_cur = 0
             end_traj = len(traj)-1
 
@@ -189,7 +189,7 @@ class TMPFramework:
             binding_list = self.get_slack_bindings(from_state, to_state)
 
             pos, binding_list = \
-                planner.init_online_plan(from_state, to_state, binding_list, redundancy_dict=redundancy,
+                planner.init_online_plan(from_state, to_state, binding_list, redundancy_dict=redundancy_dict,
                                               control_freq=control_freq, playback_rate=playback_rate,
                                               T_step=T_step, **kwargs
                                               )

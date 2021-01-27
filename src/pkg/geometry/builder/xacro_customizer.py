@@ -6,6 +6,7 @@ from ..geometry import *
 from ...utils.singleton import Singleton
 from time import sleep
 
+XACRO_PATH_SRC = '{}src/robots/custom_robots_src.urdf.xacro'.format(RNB_PLANNING_DIR)
 XACRO_PATH_DEFAULT = '{}src/robots/custom_robots.urdf.xacro'.format(RNB_PLANNING_DIR)
 URDF_PATH_DEFAULT = '{}src/robots/custom_robots.urdf'.format(RNB_PLANNING_DIR)
 
@@ -44,7 +45,7 @@ class XacroCustomizer(Singleton):
         self.rexpression_list += [rexpression]
         
     def __write_xacro(self):
-        xacro_file = open(self.xacro_path, "r")
+        xacro_file = open(XACRO_PATH_SRC, "r")
 
         new_xacro_content = ""
         toggle_body = False

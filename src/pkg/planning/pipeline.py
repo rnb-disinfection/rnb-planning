@@ -27,11 +27,11 @@ class SearchNode:
     # @param leafs      list of available nodes
     # @param depth      depth of current node = number of parent
     # @param edepth     expected depth of current node = depth + optimal number of remaining steps
-    # @param redundancy defined redundancy of transition in dictionary form, {object name: {axis: value}}
+    # @param redundancy_dict defined redundancy of transition in dictionary form, {object name: {axis: value}}
     def __init__(self, idx, state, parents, leafs, depth=None, edepth=None,
-                 redundancy=None):
-        self.idx, self.state, self.parents, self.leafs, self.depth, self.edepth, self.redundancy = \
-            idx, state, parents, leafs, depth, edepth, redundancy
+                 redundancy_dict=None):
+        self.idx, self.state, self.parents, self.leafs, self.depth, self.edepth, self.redundancy_dict = \
+            idx, state, parents, leafs, depth, edepth, redundancy_dict
         self.traj = None
         self.traj_size = 0
         self.traj_length = 0
@@ -51,7 +51,7 @@ class SearchNode:
     # @param    pscene  rnb-planning.src.pkg.planning.scene.PlanningScene
     def copy(self, pscene):
         return SearchNode(self.idx, State(self.state.node, self.state.obj_pos_dict, self.state.Q, pscene),
-                          self.parents, self.leafs, self.depth, self.edepth, self.redundancy)
+                          self.parents, self.leafs, self.depth, self.edepth, self.redundancy_dict)
 
 
 ##
@@ -61,6 +61,7 @@ class PlanningPipeline:
     ##
     # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
     def __init__(self, pscene):
+        pscene.set_object_state(pscene.get_state(pscene.combined_robot.home_pose))
         ## @brief rnb-planning.src.pkg.planning.scene.PlanningScene
         self.pscene = pscene
         ## @brief rnb-planning.src.pkg.planning.motion.interface.MotionInterface
@@ -199,7 +200,7 @@ class PlanningPipeline:
                 snode_new = SearchNode(
                     idx=0, state=new_state, parents=snode.parents + [snode.idx], leafs=[],
                     depth=depth_new, edepth=depth_new+self.tplan.get_optimal_remaining_steps(new_state),
-                    redundancy=redundancy_dict)
+                    redundancy_dict=redundancy_dict)
                 snode_new.set_traj(traj)
                 snode_new = self.__process_snode(snode_new)
                 snode.leafs += [snode_new.idx]

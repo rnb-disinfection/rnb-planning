@@ -39,11 +39,15 @@ def get_binder_links_in_order(pscene, robot_names):
     links = [pscene.binder_dict[bkey].geometry.link_name for bkey in pscene.get_controlled_binders()]
     return [[lname for lname in links if rname in lname][0] for rname in robot_names]
 
+##
+# @brief make moveit constraint geometry item
 def make_constraint_item(gtem, use_box=False):
     cartpose = tuple(gtem.center) + tuple(Rotation.from_dcm(gtem.orientation_mat).as_quat())
     return Geometry(gtype_to_otype(gtem.gtype) if use_box else gtype_to_ctype(gtem.gtype),
                     CartPose(*cartpose), Vec3(*gtem.dims))
 
+##
+# @brief make list of moveit constraint geometry list
 def make_constraint_list(gtem_list, use_box=False):
     return make_assign_arr(GeometryList, [make_constraint_item(gtem, use_box) for gtem in gtem_list])
 
@@ -65,7 +69,7 @@ class MoveitPlanner(MotionInterface):
         srdf_path = write_srdf(robot_names=self.robot_names, binder_links=binder_links,
                                     link_names=self.link_names, joint_names=self.joint_names,
                                     urdf_content=self.urdf_content, urdf_path=self.urdf_path
-                                    )
+                               )
         self.planner = MoveitCompactPlanner_BP(self.urdf_path, srdf_path, self.robot_names, config_path)
         if not all([a==b for a,b in zip(self.joint_names, self.planner.joint_names_py)]):
             self.need_mapping = True
@@ -120,8 +124,7 @@ class MoveitPlanner(MotionInterface):
     # @return LastQ     Last joint configuration as array
     # @return error     planning error
     # @return success   success/failure of planning result
-    def plan_algorithm(self, from_state, to_state, binding_list, redundancy_dict=None, timeout=0.1,
-                        group_name_handle=None, group_name_binder=None, **kwargs):
+    def plan_algorithm(self, from_state, to_state, binding_list, redundancy_dict=None, timeout=0.1, **kwargs):
         if len(binding_list)!=1:
             raise(RuntimeError("Only single manipulator operation is implemented with moveit!"))
         self.update_gscene()
@@ -140,8 +143,8 @@ class MoveitPlanner(MotionInterface):
             group_name_handle = self.planner.group_names if handle.geometry.link_name in self.urdf_content.parent_map else []
             group_name_binder = self.planner.group_names if binder.geometry.link_name in self.urdf_content.parent_map else []
         else:
-            group_name_handle = group_name_handle or [gname for gname in self.planner.group_names if gname in handle.geometry.link_name]
-            group_name_binder = group_name_binder or [gname for gname in self.planner.group_names if gname in binder.geometry.link_name]
+            group_name_handle = [gname for gname in self.planner.group_names if gname in handle.geometry.link_name]
+            group_name_binder = [gname for gname in self.planner.group_names if gname in binder.geometry.link_name]
 
         dual = False
         if group_name_binder and not group_name_handle:
@@ -223,27 +226,6 @@ def transfer_ctem(gscene, gscene_new):
                 T_jp = SE3(Rot_rpy(joint_child.origin.rpy), joint_child.origin.xyz)
                 Toff_new = np.matmul(T_jp, gtem_new.Toff)
                 gtem_new.set_offset_tf(Toff_new[:3,3], Toff_new[:3,:3])
-#             else:
-#                 print("as-is: {}".format(gtem_new.name))
-#         else:
-#             print("no-collision: {}".format(gtem.name))
-
-# def get_dual_planner_dict(GRIPPER_REFS, gscene, urdf_content, urdf_path, link_names, robot_names):
-#     glist = GRIPPER_REFS.keys()
-#     dual_chain_list = list(permutations(glist,2))
-#     dual_mplan_dict = {}
-#     for grip_root_name, grip_end_name in dual_chain_list:
-#         grip_root = GRIPPER_REFS[grip_root_name]
-#         grip_end = GRIPPER_REFS[grip_end_name]
-#         grip_root_link = urdf_content.link_map[grip_root['link_name']]
-#         grip_end_link = urdf_content.link_map[grip_end['link_name']]
-#         rname_new = "{}_{}".format(grip_root_name, grip_end_name)
-#         urdf_content_new, urdf_path_new, srdf_path_new, new_joints = save_converted_chain(urdf_content, urdf_path, rname_new, grip_root_link.name, grip_end_link.name)
-#         gscene_new = GeometryScene(urdf_content_new)
-#         transfer_ctem(gscene, gscene_new)
-#         dual_mplan_dict[(grip_root_name, grip_end_name)] = MoveitPlanner(gscene=gscene_new, joint_names=new_joints, link_names=link_names, urdf_path=urdf_path_new, urdf_content=urdf_content_new,
-#                                                                          robot_names=[rname_new], robot_names=robot_names)
-#     return dual_mplan_dict
 
 ##
 # @class DualMoveitPlanner

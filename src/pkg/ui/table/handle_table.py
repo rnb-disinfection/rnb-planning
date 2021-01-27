@@ -18,7 +18,7 @@ class HandleTable(TableInterface):
                 round_it_str(htem.point), round_it_str(htem.rpy_point)]
 
     def highlight_item(self, handle, color=None):
-        self.planning_pipeline.pscene.add_handle_axis(self.HILIGHT_KEY, handle, color=color)
+        self.planning_pipeline.pscene.add_handle_axis(self.HILIGHT_KEY, handle)
         self.planning_pipeline.pscene.gscene.highlight_geometry(self.HILIGHT_KEY, handle.geometry.name, color=color)
 
     def add_item(self, value):
