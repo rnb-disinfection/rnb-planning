@@ -50,7 +50,7 @@ class PlanListTable(TableInterface):
                     planner.update_gscene()
 
                     with DynamicDetector(self.s_builder, self.s_builder.detector.get_targets_of_levels([DetectionLevel.ONLINE])) as dynamic_detector, \
-                            RvizPublisher(planning_pipeline.pscene, planner.online_names) as rviz_pub:
+                            RvizPublisher(planning_pipeline.gscene, planner.online_names) as rviz_pub:
                         e_sim = planning_pipeline.execute_schedule_online(snode_schedule, planner, control_freq=DEFAULT_TRAJ_FREQUENCY,
                                                               playback_rate=0.5,
                                                               vel_conv=0, err_conv=1e-3, T_step=100,

@@ -245,11 +245,10 @@ class DynamicDetector:
 # @class RvizPublisher
 # @brief rviz publisher for DynamicDetector
 class RvizPublisher:
-    def __init__(self, pscene, obs_names):
-        self.pscene, self.obs_names = pscene, obs_names
+    def __init__(self, gscene, obs_names):
+        self.gscene, self.obs_names = gscene, obs_names
         self.obsPos_dict = None
         self.POS_CUR = None
-        self.gscene = pscene.gscene
 
     def rviz_thread_fun(self):
         self.rviz_stop = False
@@ -261,7 +260,7 @@ class RvizPublisher:
                 if oname in self.obsPos_dict:
                     T_bo = self.obsPos_dict[oname]
                     self.gscene.NAME_DICT[oname].set_offset_tf(T_bo[:3, 3], T_bo[:3, :3])
-            self.pscene.show_pose(self.POS_CUR)
+            self.gscene.show_pose(self.POS_CUR)
 
     def stop_rviz(self):
         self.rviz_stop = True

@@ -168,7 +168,7 @@ class PlanningScene:
         pose_dict = {}
         for k in self.subject_name_list:
             v = self.subject_dict[k]
-            binding_state += ((k,) + v.get_binding_state_item(),)
+            binding_state += ((k,) + v.binding,)
             pose_dict[k] = (v.get_state_param())
         return binding_state, pose_dict
 
@@ -366,7 +366,7 @@ class PlanningScene:
         bd_list = [self.actor_dict[bname] for bname in self.geometry_actor_dict[bgname]
                    if self.actor_dict[bname].check_available(Q_dict) and bname != bd_exclude]
 
-        apk_exclude = obj.get_conflicting_handles(ap_exclude)
+        apk_exclude = obj.get_conflicting_points(ap_exclude)
         ap_list = [ap_dict[apk] for apk in apk_list if apk not in apk_exclude]
 
         available_bindings = []

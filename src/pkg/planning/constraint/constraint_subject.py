@@ -62,8 +62,11 @@ class FixturePoint(FramedPoint):
 
 
 ##
-# @class Subject
-# @brief Base class for state subject definitions
+# @class    Subject
+# @brief    Base class for state subject definitions
+# @remark   Subject consist of parent geometry and action points.
+#           action_points are reference points for action, which are bound to actors.
+#           binding represents current binding state with an actor.
 class Subject:
     def __init__(self):
         ## @brief name of object
@@ -72,32 +75,36 @@ class Subject:
         self.geometry = None
         ## @brief dictionary of action points {point name: rnb-planning.src.pkg.planning.constraint.constraint_common.ActionPoint}
         self.action_points_dict = {}
+        ## @brief object's binding state tuple (point, actor)
+        self.binding = (None, None)
         raise(NotImplementedError("ObjectBinding is abstract class"))
 
     ##
     # @brief set object binding state and update location
     # @param binding (handle name, binder name)
-    # @param link_frame (link name, offset transformation in 4x4 matrix)
-    def set_state(self, binding, link_frame):
-        link_name = link_frame[0]
-        frame = link_frame[1]
+    # @param state_param (link name, offset transformation in 4x4 matrix)
+    def set_state(self, binding, state_param):
+        link_name = state_param[0]
+        frame = state_param[1]
         self.geometry.set_offset_tf(frame[:3, 3], frame[:3,:3])
         self.geometry.set_link(link_name)
-        self.binding = binding
         for ap in self.action_points_dict.values():
             ap.update_handle()
-
-    ##
-    # @brief get binding (point_name, binder_name)
-    # @return item for binding_state tuple
-    def get_binding_state_item(self):
-        return self.binding
+        self.binding = binding
 
     ##
     # @brief get conflicting handles to build efficient search tree
     # @param handle name
-    def get_conflicting_handles(self, hname):
+    def get_conflicting_points(self, hname):
         return [hname]
+
+    ##
+    # @brief (prototype) set state param
+    # @param binding (handle name, binder name)
+    # @param state_param
+    @abstractmethod
+    def set_state(self, binding, state_param):
+        pass
 
     ##
     # @brief (prototype) get state param
@@ -117,35 +124,58 @@ class TaskInterface(Subject):
 
 ##
 # @class TaskAction
-# @brief Base class for task definition
-class SwipTask(TaskInterface):
-    def __init__(self, tname, motion_constraint):
-        self.tname, self.motion_constraint = tname, motion_constraint
+# @brief sweep action points in alphabetical order
+class SweepTask(TaskInterface):
+    ##
+    # @param oname object's name
+    # @param geometry parent geometry
+    # @param action_points_dict pre-defined action points as dictionary
+    def __init__(self, oname, geometry, action_points_dict):
+        self.oname = oname
+        self.geometry = geometry
+        self.action_points_dict = action_points_dict
+        self.action_points_order = sorted(self.action_points_dict.keys())
+        self.state_param = np.zeros(len(self.action_points_order), dtype=np.bool)
 
     ##
-    # @brief (prototype) get current binding
-    # @return binding tuple
-    def get_binding_state_item(self):
-        pass
+    # @brief set object binding state and update location
+    # @param binding (handle name, binder name)
+    # @param state_param list of done-mask
+    def set_state(self, binding, state_param):
+        self.binding = binding
+        self.state_param = state_param.copy()
 
     ##
     # @brief (prototype) get state param
     # @return item for state_param
     def get_state_param(self):
-        pass
+        return self.state_param
 
 
 ##
 # @class ObjectBinding
 # @brief Base class for objects with defined action points (handles)
-# @remark get_conflicting_handles and register_binders should be implemented with child classes
+# @remark get_conflicting_points and register_binders should be implemented with child classes
 class ObjectBinding(Subject):
+
+    ##
+    # @brief set object binding state and update location
+    # @param binding (handle name, binder name)
+    # @param state_param (link name, offset transformation in 4x4 matrix)
+    def set_state(self, binding, state_param):
+        link_name = state_param[0]
+        frame = state_param[1]
+        self.geometry.set_offset_tf(frame[:3, 3], frame[:3,:3])
+        self.geometry.set_link(link_name)
+        for ap in self.action_points_dict.values():
+            ap.update_handle()
+        self.binding = binding
 
     ##
     # @brief get state param (link_name, Toff)
     # @return item for state_param
     def get_state_param(self):
-        return (self.geometry.link_name, self.geometry.Toff)
+        return self.geometry.link_name, self.geometry.Toff
 
     ##
     # @brief function prototype to register pre-defined binders
