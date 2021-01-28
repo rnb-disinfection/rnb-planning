@@ -112,7 +112,7 @@ class PlanningPipeline:
     ##
     # @brief run search algorithm
     # @param initial_state rnb-planning.src.pkg.planning.scene.State
-    # @param goal definition of goal, depends on algorithem
+    # @param goal_states liset of goal states
     # @param multiprocess boolean flag for multiprocess search
     # @param N_redundant_sample number of redundancy sampling
     # @param terminate_on_first boolean flag for terminate on first answer
@@ -122,14 +122,14 @@ class PlanningPipeline:
     # @param display boolean flag for one-by-one motion display on rvia
     # @param dt_vis display period
     # @param verbose boolean flag for printing intermediate process
-    def search(self, initial_state, goal, multiprocess=False, N_redundant_sample=30,
+    def search(self, initial_state, goal_states, multiprocess=False, N_redundant_sample=30,
                      terminate_on_first=True, N_search=100, N_agents=None,
                      display=False, dt_vis=0.01, verbose=False, timeout_loop=600, **kwargs):
         ## @brief runber of redundancy sampling
         self.N_redundant_sample = N_redundant_sample
         self.t0 = time.time()
         self.DOF = len(initial_state.Q)
-        self.tplan.init_search(initial_state, goal)
+        self.tplan.init_search(initial_state, goal_states)
         snode_root = SearchNode(idx=0, state=initial_state, parents=[], leafs=[],
                                 depth=0, edepth=self.tplan.get_optimal_remaining_steps(initial_state))
 

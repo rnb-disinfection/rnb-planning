@@ -15,7 +15,7 @@ class State:
     # @param Q              robot joint configuration
     # @param pscene         PlanningScene instance
     def __init__(self, binding_state, state_param, Q, pscene):
-        self.state_param = state_param
+        self.state_param = state_param if state_param is not None else defaultdict(lambda:None)
         self.Q = Q
         self.set_binding_state(binding_state, pscene)
 
@@ -23,7 +23,7 @@ class State:
         ## @brief tuple of binding state ((object name, binding point, binder), ..)
         self.binding_state = binding_state
         ## @brief tuple of simplified binding state (binder geometry name 1, binder geometry name 2, ..)
-        self.node = binding_state2node(pscene, self.binding_state)
+        self.node = State.get_node(pscene, self.binding_state, self.state_param)
 
     def get_tuple(self):
         return (self.binding_state, self.state_param, self.Q)
@@ -37,10 +37,13 @@ class State:
                      self.state_param.items()} if self.state_param is not None else None,
                     str(np.round(self.Q, 2)) if self.Q is not None else None))
 
-##
-# @brief convert binding_state to object-level node: binder geometry name in full connection of object-point-binder-geometry
-def binding_state2node(pscene, binding_state):
-    return tuple([pscene.actor_dict[binding[2]].geometry.name for binding in binding_state])
+    @classmethod
+    def get_node(cls, pscene, binding_state, state_param):
+        node = []
+        for stype, binding in zip(pscene.subject_type_list, binding_state):
+            node.append(stype.get_node_component(binding, state_param[binding[0]]))
+        return tuple(node)
+
 
 
 ##
@@ -119,14 +122,14 @@ class PlanningScene:
             self.actor_dict[binding[1]].bind(self.subject_dict[name], binding[0],
                                               list2dict([0] * len(self.gscene.joint_names),
                                                         item_names=self.gscene.joint_names))
-        self.update_handles()
+        self.update_subjects()
 
     ##
     # @brief remove a object from the scene
     def remove_object(self, name):
         if name in self.subject_dict:
             del self.subject_dict[name]
-        self.update_handles()
+        self.update_subjects()
 
     ##
     # @param oname object name
@@ -156,7 +159,7 @@ class PlanningScene:
                 state_param = state.state_param[bd[0]]
                 binder.link_name = state_param[0] # sync linke name with parent
                 frame = state_param[1]
-                obj.set_state(bd[1:], (binder.link_name, frame))
+                obj.set_state(bd, (binder.link_name, frame))
                 bd_list_done += [bd]
 
     ##
@@ -168,7 +171,7 @@ class PlanningScene:
         pose_dict = {}
         for k in self.subject_name_list:
             v = self.subject_dict[k]
-            binding_state += ((k,) + v.binding,)
+            binding_state += (v.binding,)
             pose_dict[k] = (v.get_state_param())
         return binding_state, pose_dict
 
@@ -203,12 +206,14 @@ class PlanningScene:
     # @brief    collect all objects' handle items and update to the scene,
     #           automatically called when object is added/removed.
     #           updates: handle_dict, handle_list, object_list.
-    def update_handles(self):
+    def update_subjects(self):
         self.handle_dict = {}
         self.handle_list = []
         self.subject_name_list = sorted(self.subject_dict.keys())
+        self.subject_type_list = []
         for k in self.subject_name_list:
             v = self.subject_dict[k]
+            self.subject_type_list.append(v.__class__)
             ap_list = v.action_points_dict
             self.handle_dict[k] = []
             for ap in ap_list.keys():
@@ -222,15 +227,15 @@ class PlanningScene:
     def rebind(self, binding, joint_dict):
         binder = self.actor_dict[binding[2]]
         object_tar = self.subject_dict[binding[0]]
-        binder.bind(action_obj=object_tar, bind_point=binding[1], joint_dict_last=joint_dict)
-        for binder_sub in [k for k,v in self.actor_dict.items() if v.geometry == object_tar.geometry]:
-            for binding_sub in [(k,v.binding[0]) for k, v in self.subject_dict.items()
-                                if v.binding[1] == binder_sub]:
-                binding_sub += (binder_sub,)
-                self.rebind(binding_sub, joint_dict)
+        binder.bind(action_obj=object_tar, bind_point=binding[1], joint_dict_last=joint_dict) # bind given binding
+        for binder_sub in [k for k,v in self.actor_dict.items()
+                           if v.geometry == object_tar.geometry]: # find bound object's sub-binder
+            for binding_sub in [v.binding for v in self.subject_dict.values()
+                                if v.binding[2] == binder_sub]: # find object bound to the sub-binder
+                self.rebind(binding_sub, joint_dict) # update binding of the sub-binder too
 
     ##
-    # @brief get binding to transit
+    # @brief get exact bindings to transit
     # @param from_state State
     # @param to_state   State
     def get_slack_bindings(self, from_state, to_state):
@@ -291,7 +296,7 @@ class PlanningScene:
                         min_val = bd_val_norm
                         min_point = bd.name
                         min_binder = kbd
-            binding_state.append((kobj, min_point, min_binder))
+            binding_state.append((kobj, min_point, min_binder, self.actor_dict[min_binder].geometry.name))
         binding_state = tuple(binding_state)
 
         # calculate object pose relative to binder link
@@ -307,18 +312,21 @@ class PlanningScene:
     # @brief get goal nodes that link object to target binder
     # @param initial_binding_state   initial binding state
     # @param obj            object name
-    # @param binder         target binder name
-    def get_goal_nodes(self, initial_binding_state, obj, binder):
+    # @param binder_geo         target binder geometry name
+    # @return type checked binding_states
+    def get_goal_states(self, initial_binding_state, obj, binder_geo):
         _object = self.subject_dict[obj]
-        _binder = self.actor_dict[binder]
         type_checked_bindings = []
-        for k, v in _object.action_points_dict.items():
-            if _binder.check_type(v):
-                type_checked_bindings.append((obj, k, binder))
+        for bname in self.geometry_actor_dict[binder_geo]:
+            _binder = self.actor_dict[bname]
+            for k, v in _object.action_points_dict.items():
+                if _binder.check_type(v):
+                    type_checked_bindings.append((obj, k, bname, binder_geo))
+        binding_state_list = [tuple(binding if bd[0] == binding[0]\
+                                    else bd for bd in initial_binding_state)\
+                              for binding in type_checked_bindings]
 
-        return tuple(tuple(binding if bd[0] == binding[0] \
-                               else bd for bd in initial_binding_state) \
-                     for binding in type_checked_bindings)
+        return [State(binding_state, None, None,self) for binding_state in binding_state_list]
 
     ##
     # @brief make goal state that with specific binding target
@@ -373,7 +381,7 @@ class PlanningScene:
         for bd in bd_list:
             for ap in ap_list:
                 if bd.check_type(ap):
-                    available_bindings.append((ap.name, bd.name))
+                    available_bindings.append((ap.name, bd.name, bd.geometry.name))
         if not available_bindings:
             print("=================================")
             print("=================================")

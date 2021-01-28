@@ -15,7 +15,7 @@ class Actor(ActionPoint):
         Tbo = action_obj.geometry.get_tf(joint_dict_last)
         Tbt = get_tf(self.geometry.link_name, joint_dict_last, self.gscene.urdf_content)
         Tto = np.matmul(np.linalg.inv(Tbt), Tbo)
-        action_obj.set_state((bind_point, self.name), (self.geometry.link_name, Tto))
+        action_obj.set_state((action_obj.oname, bind_point, self.name, self.geometry.name), (self.geometry.link_name, Tto))
 
     def check_type(self, action_point):
         return action_point.ctype == self.ctype

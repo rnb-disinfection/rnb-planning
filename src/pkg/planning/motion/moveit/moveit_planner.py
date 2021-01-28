@@ -129,7 +129,7 @@ class MoveitPlanner(MotionInterface):
             raise(RuntimeError("Only single manipulator operation is implemented with moveit!"))
         self.update_gscene()
 
-        obj_name, ap_name, binder_name = binding_list[0]
+        obj_name, ap_name, binder_name, binder_geometry_name = binding_list[0]
         redundancy = redundancy_dict[obj_name] if redundancy_dict else None
 
         binder = self.pscene.actor_dict[binder_name]

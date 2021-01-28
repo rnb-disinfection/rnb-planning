@@ -59,7 +59,7 @@ class HandleTable(TableInterface):
     def button(self, button, *args, **kwargs):
         print("button clicked")
         if button == TAB_BUTTON.CUSTOM:
-            self.planning_pipeline.pscene.update_handles()
+            self.planning_pipeline.pscene.update_subjects()
             self.planning_pipeline.update()
         else:
             TableInterface.button(self, button, *args, **kwargs)

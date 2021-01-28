@@ -1,7 +1,7 @@
 from .interface import *
 from ...utils.utils import *
 from ...utils.joint_utils import *
-from ..scene import binding_state2node
+from ..scene import State
 from collections import defaultdict
 import random
 
@@ -77,9 +77,9 @@ class ObjectAstar(TaskInterface):
 
     ##
     # @brief calculate initial/goal scores and filter valid nodes
-    def init_search(self, initial_state, goal, tree_margin=None, depth_margin=None):
+    def init_search(self, initial_state, goal_states, tree_margin=None, depth_margin=None):
 
-        goal_nodes = list(set([binding_state2node(self.pscene, gnode) for gnode in goal]))
+        goal_nodes = list(set([State.get_node(self.pscene, goal_state.binding_state, goal_state.state_param) for goal_state in goal_states]))
         self.initial_state = initial_state
         self.goal_nodes = goal_nodes
         self.init_cost_dict, self.goal_cost_dict = self.score_graph(initial_state.node), self.score_graph(goal_nodes)

@@ -75,13 +75,13 @@ class Subject:
         self.geometry = None
         ## @brief dictionary of action points {point name: rnb-planning.src.pkg.planning.constraint.constraint_common.ActionPoint}
         self.action_points_dict = {}
-        ## @brief object's binding state tuple (point, actor)
-        self.binding = (None, None)
+        ## @brief object's binding state tuple (object name, point, actor, actor-geometry)
+        self.binding = (None, None, None, None)
         raise(NotImplementedError("ObjectBinding is abstract class"))
 
     ##
     # @brief set object binding state and update location
-    # @param binding (handle name, binder name)
+    # @param binding (handle name, binder name, binder geometry)
     # @param state_param (link name, offset transformation in 4x4 matrix)
     def set_state(self, binding, state_param):
         link_name = state_param[0]
@@ -111,6 +111,13 @@ class Subject:
     # @return item for state_param
     @abstractmethod
     def get_state_param(self):
+        pass
+
+    ##
+    # @brief (prototype) get object-level node component
+    @classmethod
+    @abstractmethod
+    def get_node_component(cls, binding_state, state_param):
         pass
 
 
@@ -149,7 +156,13 @@ class SweepTask(TaskInterface):
     # @brief (prototype) get state param
     # @return item for state_param
     def get_state_param(self):
-        return self.state_param
+        return self.state_param.copy()
+
+    ##
+    # @brief get object-level node component (finished waypoint count)
+    @classmethod
+    def get_node_component(cls, binding_state, state_param):
+        return int(np.sum(state_param))
 
 
 ##
@@ -160,7 +173,7 @@ class ObjectBinding(Subject):
 
     ##
     # @brief set object binding state and update location
-    # @param binding (handle name, binder name)
+    # @param binding (object name, handle name, binder name, binder geometry name)
     # @param state_param (link name, offset transformation in 4x4 matrix)
     def set_state(self, binding, state_param):
         link_name = state_param[0]
@@ -169,6 +182,7 @@ class ObjectBinding(Subject):
         self.geometry.set_link(link_name)
         for ap in self.action_points_dict.values():
             ap.update_handle()
+        assert binding[0] == self.oname, "wrong binding given {} <- {}".format(self.oname, binding[0])
         self.binding = binding
 
     ##
@@ -184,6 +198,12 @@ class ObjectBinding(Subject):
     @abstractmethod
     def register_binders(self, planning_scene, _type):
         pass
+
+    ##
+    # @brief get object-level node component (binder geometry name)
+    @classmethod
+    def get_node_component(cls, binding, state_param):
+        return binding[3]
 
 ################################# USABLE CLASS #########################################
 
