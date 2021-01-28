@@ -36,7 +36,7 @@ def get_mpc_dims(gtem):
 
 def get_binder_links_in_order(pscene, robot_names):
     # links on robots should include robot names
-    links = [pscene.binder_dict[bkey].geometry.link_name for bkey in pscene.get_controlled_binders()]
+    links = [pscene.actor_dict[bkey].geometry.link_name for bkey in pscene.get_controlled_binders()]
     return [[lname for lname in links if rname in lname][0] for rname in robot_names]
 
 ##
@@ -132,8 +132,8 @@ class MoveitPlanner(MotionInterface):
         obj_name, ap_name, binder_name = binding_list[0]
         redundancy = redundancy_dict[obj_name] if redundancy_dict else None
 
-        binder = self.pscene.binder_dict[binder_name]
-        obj = self.pscene.object_dict[obj_name]
+        binder = self.pscene.actor_dict[binder_name]
+        obj = self.pscene.subject_dict[obj_name]
         handle = obj.action_points_dict[ap_name]
         point_add, rpy_add = calc_redundancy(redundancy, binder)
         T_handle = handle.Toff_lh

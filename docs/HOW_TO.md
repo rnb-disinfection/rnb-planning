@@ -14,7 +14,7 @@
   ```bash
   cd "$RNB_PLANNING_DIR"doxygen && python ./host_doxygen.py
   ```
-* Now you can browse doxygen documents from other computers in the local network at \<IP\>:\<PORT\>/index.html
+* Now you can browse doxygen documents from other computers in the local network at \<IP\>:\<PORT\>
 
 ## Scripts
 * Scripts to use or test the framework are in src/scripts

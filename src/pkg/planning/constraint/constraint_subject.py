@@ -28,110 +28,51 @@ class FramedPoint(ActionPoint):
 
 ##
 # @class PlacePoint
-# @brief ActionPoint for rnb-planning.src.pkg.planning.constraint.constraint_action.PlacePlane
+# @brief ActionPoint for rnb-planning.src.pkg.planning.constraint.constraint_actor.PlacePlane
 class PlacePoint(DirectedPoint):
     ctype=ConstraintType.Place
 
 
 ##
 # @class FramePoint
-# @brief ActionPoint for rnb-planning.src.pkg.planning.constraint.constraint_action.FramedTool
+# @brief ActionPoint for rnb-planning.src.pkg.planning.constraint.constraint_actor.FramedTool
 class FramePoint(FramedPoint):
     ctype=ConstraintType.Frame
 
 
 ##
 # @class VacuumPoint
-# @brief ActionPoint for rnb-planning.src.pkg.planning.constraint.constraint_action.VacuumTool
+# @brief ActionPoint for rnb-planning.src.pkg.planning.constraint.constraint_actor.VacuumTool
 class VacuumPoint(DirectedPoint):
     ctype=ConstraintType.Vacuum
 
 
 ##
 # @class Grasp2Point
-# @brief ActionPoint for rnb-planning.src.pkg.planning.constraint.constraint_action.Gripper2Tool
+# @brief ActionPoint for rnb-planning.src.pkg.planning.constraint.constraint_actor.Gripper2Tool
 class Grasp2Point(DirectedPoint):
     ctype=ConstraintType.Grasp2
 
 
 ##
 # @class FixturePoint
-# @brief ActionPoint for rnb-planning.src.pkg.planning.constraint.constraint_action.FixtureSlot
+# @brief ActionPoint for rnb-planning.src.pkg.planning.constraint.constraint_actor.FixtureSlot
 class FixturePoint(FramedPoint):
     ctype=ConstraintType.Fixture
 
 
 ##
-# @class Action
-# @brief Base class for action definitions
-class Action:
-
-    ##
-    # @brief (prototype) set state
-    # @param node_item state node item
-    # @param state_param state parameter item
-    @abstractmethod
-    def set_state(self, node_item, state_param):
-        pass
-
-    ##
-    # @brief (prototype) get node item
-    # @return item for node tuple
-    @abstractmethod
-    def get_node_item(self):
-        pass
-
-    ##
-    # @brief (prototype) get state param
-    # @return item for state_param
-    @abstractmethod
-    def get_state_param(self):
-        pass
-
-
-##
-# @class TaskAction
-# @brief Base class for task definition
-class TaskAction(Action):
+# @class Subject
+# @brief Base class for state subject definitions
+class Subject:
     def __init__(self):
-        raise(NotImplementedError("TaskAction is abstract class"))
-
-
-##
-# @class TaskAction
-# @brief Base class for task definition
-class SwipTask(Action):
-    def __init__(self):
-        raise(NotImplementedError("TaskAction is abstract class"))
-
-    ##
-    # @brief set state of task action
-    # @param task_node state node item describing the task
-    # @param state_param task state parameter
-    def set_state(self, task_node, state_param):
-        self.task_node = task_node
-        self.state_param = state_param
-
-    ##
-    # @brief (prototype) get node item
-    # @return item for node tuple
-    def get_node_item(self):
-        pass
-
-    ##
-    # @brief (prototype) get state param
-    # @return item for state_param
-    def get_state_param(self):
-        pass
-
-
-##
-# @class ObjectAction
-# @brief Base class for objects with defined action points (handles)
-# @remark get_conflicting_handles and register_binders should be implemented with child classes
-class ObjectAction(Action):
-    def __init__(self):
-        raise(NotImplementedError("ObjectAction is abstract class"))
+        ## @brief name of object
+        self.oname = None
+        ## @brief geometry instance for the object (rnb-planning.src.pkg.geometry.geometry.GeometryItem)
+        self.geometry = None
+        ## @brief dictionary of action points {point name: rnb-planning.src.pkg.planning.constraint.constraint_common.ActionPoint}
+        self.action_points_dict = {}
+        raise(NotImplementedError("ObjectBinding is abstract class"))
 
     ##
     # @brief set object binding state and update location
@@ -145,14 +86,60 @@ class ObjectAction(Action):
         self.binding = binding
         for ap in self.action_points_dict.values():
             ap.update_handle()
-        for bp in self.binder_points_dict.values():
-            bp.update_handle()
 
     ##
     # @brief get binding (point_name, binder_name)
-    # @return item for node tuple
-    def get_node_item(self):
+    # @return item for binding_state tuple
+    def get_binding_state_item(self):
         return self.binding
+
+    ##
+    # @brief get conflicting handles to build efficient search tree
+    # @param handle name
+    def get_conflicting_handles(self, hname):
+        return [hname]
+
+    ##
+    # @brief (prototype) get state param
+    # @return item for state_param
+    @abstractmethod
+    def get_state_param(self):
+        pass
+
+
+##
+# @class TaskInterface
+# @brief Base class for task definition
+class TaskInterface(Subject):
+    def __init__(self):
+        raise(NotImplementedError("TaskAction is abstract class"))
+
+
+##
+# @class TaskAction
+# @brief Base class for task definition
+class SwipTask(TaskInterface):
+    def __init__(self, tname, motion_constraint):
+        self.tname, self.motion_constraint = tname, motion_constraint
+
+    ##
+    # @brief (prototype) get current binding
+    # @return binding tuple
+    def get_binding_state_item(self):
+        pass
+
+    ##
+    # @brief (prototype) get state param
+    # @return item for state_param
+    def get_state_param(self):
+        pass
+
+
+##
+# @class ObjectBinding
+# @brief Base class for objects with defined action points (handles)
+# @remark get_conflicting_handles and register_binders should be implemented with child classes
+class ObjectBinding(Subject):
 
     ##
     # @brief get state param (link_name, Toff)
@@ -161,16 +148,9 @@ class ObjectAction(Action):
         return (self.geometry.link_name, self.geometry.Toff)
 
     ##
-    # @brief function prototype to get conflicting handles to build efficient search tree
-    # @param handle name
-    @abstractmethod
-    def get_conflicting_handles(self, hname):
-        pass
-
-    ##
     # @brief function prototype to register pre-defined binders
     # @param planning_scene rnb-planning.src.pkg.planning.scene.PlanningScene
-    # @param _type          subclass of rnb-planning.src.pkg.planning.constraint.constraint_action.Binding
+    # @param _type          subclass of rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
     @abstractmethod
     def register_binders(self, planning_scene, _type):
         pass
@@ -181,25 +161,15 @@ class ObjectAction(Action):
 ##
 # @class CustomObject
 # @brief Customizable object that handles can be defined by user
-class CustomObject(ObjectAction):
+class CustomObject(ObjectBinding):
     ##
     # @param oname object's name
     # @param geometry parent geometry
     # @param action_points_dict pre-defined action points as dictionary
-    # @param binder_points_dict pre-defined binder points as dictionary
-    def __init__(self, oname, geometry, action_points_dict, binder_points_dict=None):
+    def __init__(self, oname, geometry, action_points_dict):
         self.oname = oname
-        if binder_points_dict is None:
-            binder_points_dict = {}
         self.geometry = geometry
         self.action_points_dict = action_points_dict
-        self.binder_points_dict = binder_points_dict
-
-    ##
-    # @brief only self conflict is expected
-    # @param handle name
-    def get_conflicting_handles(self, hname):
-        return [hname]
 
     ##
     # @brief do nothing
@@ -210,25 +180,15 @@ class CustomObject(ObjectAction):
 ##
 # @class SingleHandleObject
 # @brief Object with single defined handle
-class SingleHandleObject(ObjectAction):
+class SingleHandleObject(ObjectBinding):
     ##
     # @param oname object's name
     # @param geometry parent geometry
     # @param action_point pre-defined single action point
-    # @param binder_points_dict pre-defined binder points as dictionary
-    def __init__(self, oname, geometry, action_point, binder_points_dict=None):
+    def __init__(self, oname, geometry, action_point):
         self.oname = oname
-        if binder_points_dict is None:
-            binder_points_dict = {}
         self.geometry = geometry
         self.action_points_dict = {action_point.name: action_point}
-        self.binder_points_dict = binder_points_dict
-
-    ##
-    # @brief only self conflict is expected
-    # @param handle name
-    def get_conflicting_handles(self, hname):
-        return [hname]
 
     ##
     # @brief do nothing
@@ -239,19 +199,15 @@ class SingleHandleObject(ObjectAction):
 ##
 # @class BoxObject
 # @brief Box object with hexahedral action points
-class BoxObject(ObjectAction):
+class BoxObject(ObjectBinding):
     ##
     # @param oname object's name
     # @param geometry parent geometry
     # @param hexahedral If True, all hexahedral points are defined. Otherwise, only top and bottom points are defined
-    # @param binder_points_dict pre-defined binder points as dictionary
-    def __init__(self, oname, geometry, hexahedral=True, binder_points_dict=None):
+    def __init__(self, oname, geometry, hexahedral=True):
         self.oname = oname
-        if binder_points_dict is None:
-            binder_points_dict = {}
         self.geometry = geometry
         Xhalf, Yhalf, Zhalf = np.divide(geometry.dims,2)
-        self.binder_points_dict = binder_points_dict
         self.action_points_dict = {
             "top_p": PlacePoint("top_p", geometry, [0,0,Zhalf], [np.pi,0,0]),
             "bottom_p": PlacePoint("bottom_p", geometry, [0,0,-Zhalf], [0,0,0]),
@@ -298,7 +254,7 @@ class BoxObject(ObjectAction):
     ##
     # @brief register hexahedral binders
     # @param planning_scene rnb-planning.src.pkg.planning.scene.PlanningScene
-    # @param _type          subclass of rnb-planning.src.pkg.planning.constraint.constraint_action.Binding
+    # @param _type          subclass of rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
     def register_binders(self, planning_scene, _type):
         gname = self.geometry.name
         dims = self.geometry.dims

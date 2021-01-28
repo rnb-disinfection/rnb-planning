@@ -4,10 +4,10 @@ from .constraint_common import *
 
 
 ##
-# @class Binding
+# @class Actor
 # @brief Base class for binder
 # @remark get_redundancy and check_available should be implemented with child classes
-class Binding(ActionPoint):
+class Actor(ActionPoint):
     controlled = None
     multiple = None
         
@@ -32,10 +32,10 @@ class Binding(ActionPoint):
 
 
 ##
-# @class PointerBinding
+# @class PointerActor
 # @brief Base class for Pointer type binder. z-direction and contact are constrained.
 # @remark not usable at this level
-class PointerBinding(Binding):
+class PointerActor(Actor):
     ##
     # @brief currently support only x-y plane
     def get_redundancy(self):
@@ -49,10 +49,10 @@ class PointerBinding(Binding):
 
 
 ##
-# @class FrameBinding
+# @class FrameActor
 # @brief Base class for Frame type binder. Full orientation and contact are constrained.
 # @remark not usable at this level
-class FrameBinding(Binding):
+class FrameActor(Actor):
     ##
     # @brief currently support only x-y plane
     def get_redundancy(self):
@@ -68,8 +68,8 @@ class FrameBinding(Binding):
 
 ##
 # @class VacuumTool
-# @brief Binding class for vacuum type tool. z-direction is constrained. (PointerBinding)
-class VacuumTool(PointerBinding):
+# @brief Actor class for vacuum type tool. z-direction is constrained. (PointerActor)
+class VacuumTool(PointerActor):
     controlled = True
     multiple = False
     ctype = ConstraintType.Vacuum
@@ -82,8 +82,8 @@ class VacuumTool(PointerBinding):
 
 ##
 # @class Gripper2Tool
-# @brief Binding class for 2-finger gripper type tool. z-direction is constrained. (PointerBinding)
-class Gripper2Tool(PointerBinding):
+# @brief Actor class for 2-finger gripper type tool. z-direction is constrained. (PointerActor)
+class Gripper2Tool(PointerActor):
     controlled = True
     multiple = False
     ctype = ConstraintType.Grasp2
@@ -96,8 +96,8 @@ class Gripper2Tool(PointerBinding):
 
 ##
 # @class FramedTool
-# @brief Binding class for fully constrained tool. (FrameBinding)
-class FramedTool(FrameBinding):
+# @brief Actor class for fully constrained tool. (FrameActor)
+class FramedTool(FrameActor):
     controlled = True
     multiple = False
     ctype = ConstraintType.Frame
@@ -110,8 +110,8 @@ class FramedTool(FrameBinding):
 
 ##
 # @class PlacePlane
-# @brief Binding class for placing plane. z-direction constrained. (PointerBinding)
-class PlacePlane(PointerBinding):
+# @brief Actor class for placing plane. z-direction constrained. (PointerActor)
+class PlacePlane(PointerActor):
     controlled = False
     multiple = True
     ctype = ConstraintType.Place
@@ -125,8 +125,8 @@ class PlacePlane(PointerBinding):
 
 ##
 # @class PlaceFrame
-# @brief Binding class for placing frame. Fully constrained. (FrameBinding)
-class PlaceFrame(FrameBinding):
+# @brief Actor class for placing frame. Fully constrained. (FrameActor)
+class PlaceFrame(FrameActor):
     controlled = False
     multiple = True
     ctype = ConstraintType.Frame
@@ -141,7 +141,7 @@ class PlaceFrame(FrameBinding):
 ##
 # @class FixtureSlot
 # @brief Fixture slot to implement assembly object with bindings.
-class FixtureSlot(PointerBinding):
+class FixtureSlot(PointerActor):
     controlled = False
     multiple = True
     ctype = ConstraintType.Fixture
@@ -151,7 +151,7 @@ class FixtureSlot(PointerBinding):
 
 
 ##
-# @brief convert constraint type to Binding type
+# @brief convert constraint type to Constraint type
 def ctype_to_btype(cstr):
     if cstr == ConstraintType.Grasp2.name:
         return Gripper2Tool

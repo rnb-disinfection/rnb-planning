@@ -1,5 +1,4 @@
 from .table_interface import *
-from ...planning.task.handle_a_star import *
 from ...planning.task.object_a_star import *
 
 
@@ -7,9 +6,8 @@ class TaskPlanTable(TableInterface):
     HEADS = [IDENTIFY_COL, "MultiProcess"]
     HILIGHT_KEY = 'task'
     CUSTOM_BUTTONS = ['Plan', 'Initialize']
-    task_plan_candi = {"ObjectAstar": {"MultiProcess":True},
-                       "HandleAstar": {"MultiProcess":True}}
-    task_plan_names = ["ObjectAstar", "HandleAstar"]
+    task_plan_candi = {"ObjectAstar": {"MultiProcess":True}}
+    task_plan_names = ["ObjectAstar"]
     task_plan_fun = None
 
     def get_items(self):
@@ -25,19 +23,10 @@ class TaskPlanTable(TableInterface):
         if color == (0.3, 0.3, 1, 0.5):
             self.pl_kwargs = {}
             if "Astar" in gtem[0]:
-                dt_sim = 0.04
-                T_step = 10
-                N_fullstep = int(T_step / dt_sim)
-                self.pl_kwargs = dict(tree_margin=2, depth_margin=2, terminate_on_first=True,
-                                      N_search=100000, display=True, dt_vis=dt_sim / 4,
-                                      verbose=True, print_expression=False, error_skip=0,
-                                      ** dict(N=N_fullstep, dt=dt_sim, vel_conv=0.5e-2, err_conv=1e-3))
+                self.pl_kwargs = dict(verbose=True)
                 if gtem[0] == "ObjectAstar":
                     sampler = ObjectAstar(self.planning_pipeline.pscene)
                     print("Set ObjectAstar")
-                elif gtem[0] == "HandleAstar":
-                    sampler = HandleAstar(self.planning_pipeline.pscene)
-                    print("Set HandleAstar")
                 else:
                     raise(RuntimeError("Undefined sampler"))
                 self.planning_pipeline.pscene.set_sampler(sampler)
@@ -69,9 +58,8 @@ class TaskPlanTable(TableInterface):
             elif args[1]:
                 planning_pipeline = self.planning_pipeline
                 planning_pipeline.tplan.prepare()
-                tplan = planning_pipeline.tplan
                 self.initial_state = planning_pipeline.pscene.get_state(planning_pipeline.combined_robot.get_real_robot_pose())
-                self.goal_nodes = planning_pipeline.pscene.get_goal_nodes(self.initial_state.node, "box1", "goal_bd")
+                self.goal_nodes = planning_pipeline.pscene.get_goal_nodes(self.initial_state.binding_state, "box1", "goal_bd")
             else:
                 print("Unknown button")
         else:

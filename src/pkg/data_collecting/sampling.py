@@ -433,7 +433,7 @@ from ..planning.scene import State
 def get_pick_states(graph, GRIPPER_REFS, rname, inhand, obj, tar, Q_s):
     T_lgo, T_bo = inhand.Toff, obj.Toff
     bname = GRIPPER_REFS[rname]["bname"]
-    T_lg = graph.binder_dict[bname].Toff_lh
+    T_lg = graph.actor_dict[bname].Toff_lh
     T_bgl = np.matmul(T_bo, SE3_inv(T_lgo))
     T_bg = np.matmul(T_bgl, T_lg)
     state_s = State((("virtual", "point", "base"),), {"virtual":T_bg}, Q_s, graph)
@@ -451,7 +451,7 @@ def test_pick(graph, GRIPPER_REFS, rname, inhand, obj, tar, Q_s, mplan, **kwargs
 def get_place_states(graph, GRIPPER_REFS, rname, inhand, ontarget, tar, Q_s):
     T_lgo, T_bo = inhand.Toff, ontarget.Toff
     bname = GRIPPER_REFS[rname]["bname"]
-    T_lg = graph.binder_dict[bname].Toff_lh
+    T_lg = graph.actor_dict[bname].Toff_lh
     T_bgl = np.matmul(T_bo, SE3_inv(T_lgo))
     T_bg = np.matmul(T_bgl, T_lg)
     state_s = State((("virtual", "point", "base"),), {"virtual":T_bg}, Q_s, graph)
@@ -474,7 +474,7 @@ def get_handover_states(graph, GRIPPER_REFS, src, handed, intar, tar, Q_s):
     T_lso, T_lto = handed.Toff, intar.Toff
     sbname = GRIPPER_REFS[src]["bname"]
     tbname = GRIPPER_REFS[tar]["bname"]
-    T_lt = graph.binder_dict[tbname].Toff_lh
+    T_lt = graph.actor_dict[tbname].Toff_lh
     T_lstl = np.matmul(T_lso, SE3_inv(T_lto))
     T_lst = np.matmul(T_lstl, T_lt)
     state_s = State((("virtual", "point", sbname),), {"virtual":T_lst}, Q_s_new, graph)

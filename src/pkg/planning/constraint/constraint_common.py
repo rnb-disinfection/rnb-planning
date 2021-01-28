@@ -109,9 +109,10 @@ def combine_redundancy(to_ap, to_binder):
 
 ##
 # @brief    sample redundancy of handle and binder
-# @param redundancy_tot      redundancy dictionary
-def sample_redundancy(redundancy_tot):
-    return {k: random.uniform(*red) for k, red in redundancy_tot.items()}
+# @param redundancy_tot     redundancy dictionary
+# @param sampler            sampling function to be applied to redundancy param (default=random.uniform)
+def sample_redundancy(redundancy_tot, sampler=random.uniform):
+    return {k: sampler(*red) for k, red in redundancy_tot.items()}
 
 
 ##

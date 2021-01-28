@@ -50,7 +50,7 @@ class SearchNode:
     # @brief    copy SearchNode
     # @param    pscene  rnb-planning.src.pkg.planning.scene.PlanningScene
     def copy(self, pscene):
-        return SearchNode(self.idx, State(self.state.node, self.state.state_param, self.state.Q, pscene),
+        return SearchNode(self.idx, State(self.state.binding_state, self.state.state_param, self.state.Q, pscene),
                           self.parents, self.leafs, self.depth, self.edepth, self.redundancy_dict)
 
 
@@ -209,7 +209,7 @@ class PlanningPipeline:
                     ret = True
             simtime = self.gtimer.toc("test_transition")
             if verbose:
-                print('node: {}->{} = {}'.format(from_state.onode, to_state.onode, "success" if succ else "fail"))
+                print('node: {}->{} = {}'.format(from_state.node, to_state.node, "success" if succ else "fail"))
                 if succ:
                     print('Remaining:{}->{} / branching: {}->{} ({}/{} s, steps/err: {}({} ms)/{})'.format(
                         int(self.tplan.get_optimal_remaining_steps(from_state)), int(self.tplan.get_optimal_remaining_steps(to_state)),
@@ -277,8 +277,8 @@ class PlanningPipeline:
             for bd in binding_list:
                 self.pscene.rebind(bd, list2dict(LastQ, self.pscene.gscene.joint_names))
 
-        node, state_param = self.pscene.get_object_state()
-        end_state = State(node, state_param, list(LastQ), self.pscene)
+        binding_state, state_param = self.pscene.get_object_state()
+        end_state = State(binding_state, state_param, list(LastQ), self.pscene)
         return Traj, end_state, error, success
 
     ##

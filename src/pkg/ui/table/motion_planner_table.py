@@ -1,5 +1,5 @@
 from .table_interface import *
-from ...planning.motion.etasl.etasl import *
+from ...planning.motion.etasl.etasl_planner import *
 from ...planning.motion.moveit.moveit_planner import *
 
 class MotionPlanTable(TableInterface):
@@ -8,7 +8,7 @@ class MotionPlanTable(TableInterface):
     CUSTOM_BUTTONS = ['ReadPose']
 
     def get_items(self):
-        return [("HybridPlanner",), ( "MoveIt",), ("eTaSL",)]
+        return [( "MoveIt",), ("eTaSL",)]
 
     def get_items_dict(self):
         return {item[0]: item for item in self.get_items()}

@@ -1,8 +1,7 @@
 from .interface import *
 from ...utils.utils import *
 from ...utils.joint_utils import *
-from ..constraint.constraint_common import combine_redundancy, sample_redundancy
-from ..scene import node2onode
+from ..scene import binding_state2node
 from collections import defaultdict
 import random
 
@@ -31,19 +30,18 @@ class ObjectAstar(TaskInterface):
     def prepare(self):
         pscene = self.pscene
 
-        oname_list = pscene.object_list
-        boname_list = pscene.object_binder_dict.keys()
-        obj_binding_dict = get_available_binder_dict(pscene, oname_list,
-                                                     boname_list)  # matching possible binder dictionary
+        oname_list = pscene.subject_name_list
+        bgname_list = pscene.geometry_actor_dict.keys()
+        obj_binding_dict = pscene.get_available_actor_dict()  # matching possible binder dictionary
         binder_combinations = list(
             product(*[obj_binding_dict[oname] for oname in oname_list]))  # all possible binding combination list
         uniq_binders = pscene.get_unique_binders()  # binders cannot be shared by multiple objects
-        uniq_bo_list = [boname for boname in boname_list if
-                        (len(pscene.object_binder_dict[boname]) == 1 and all(
-                            [bname in uniq_binders for bname in pscene.object_binder_dict[boname]]))]
+        uniq_bo_list = [bgname for bgname in bgname_list if
+                        (len(pscene.geometry_actor_dict[bgname]) == 1 and all(
+                            [bname in uniq_binders for bname in pscene.geometry_actor_dict[bgname]]))]
         ctrl_binders = pscene.get_controlled_binders()  # all controllable binders
-        ctrl_bo_list = [boname for boname in boname_list if
-                        all([bname in ctrl_binders for bname in pscene.object_binder_dict[boname]])]
+        ctrl_bo_list = [bgname for bgname in bgname_list if
+                        all([bname in ctrl_binders for bname in pscene.geometry_actor_dict[bgname]])]
 
         # filter out conflicting use of uniq binding object
         usage_conflicts = []
@@ -53,7 +51,7 @@ class ObjectAstar(TaskInterface):
                 if sum([ubo == bo for bo in bc]) > 1:
                     usage_conflicts.append(bc)
                     break
-            if any([oname == boname for oname, boname in zip(pscene.object_list, bc)]):
+            if any([oname == bgname for oname, bgname in zip(pscene.subject_name_list, bc)]):
                 self_binding.append(bc)
 
         all_conflicts = list(set(self_binding + usage_conflicts))
@@ -81,17 +79,17 @@ class ObjectAstar(TaskInterface):
     # @brief calculate initial/goal scores and filter valid nodes
     def init_search(self, initial_state, goal, tree_margin=None, depth_margin=None):
 
-        goal_nodes = list(set([node2onode(self.pscene, gnode) for gnode in goal]))
+        goal_nodes = list(set([binding_state2node(self.pscene, gnode) for gnode in goal]))
         self.initial_state = initial_state
         self.goal_nodes = goal_nodes
-        self.init_cost_dict, self.goal_cost_dict = self.score_graph(initial_state.onode), self.score_graph(goal_nodes)
+        self.init_cost_dict, self.goal_cost_dict = self.score_graph(initial_state.node), self.score_graph(goal_nodes)
 
         # set default margins
-        tree_margin = tree_margin or self.goal_cost_dict[initial_state.onode]
-        depth_margin = depth_margin or self.goal_cost_dict[initial_state.onode]
+        tree_margin = tree_margin or self.goal_cost_dict[initial_state.node]
+        depth_margin = depth_margin or self.goal_cost_dict[initial_state.node]
 
         self.reset_valid_node(tree_margin)
-        self.depth_min = self.goal_cost_dict[initial_state.onode]
+        self.depth_min = self.goal_cost_dict[initial_state.node]
         self.max_depth = self.depth_min+depth_margin
 
         for k in self.valid_node_dict.keys():
@@ -102,23 +100,22 @@ class ObjectAstar(TaskInterface):
     # @param snode A validated SearchNode of which leafs should be added to queue
     # @param N_redundant_sample number of redundant samples
     # @return snode_tuple_list list of tuple(priority, (snode, from_state, to_state, redundancy))
-    @abstractmethod
     def get_leafs(self, snode, N_redundant_sample):
         queue = []
         state = snode.state
-        leafs = self.valid_node_dict[state.onode]
+        leafs = self.valid_node_dict[state.node]
         Q_dict = list2dict(state.Q, self.pscene.gscene.joint_names)
         for leaf in leafs:
             depth = len(snode.parents) + 1
             expected_depth = depth + self.goal_cost_dict[leaf]
             if expected_depth > self.max_depth:
                 continue
-            available_binding_dict = self.get_available_binding_dict(state, leaf, Q_dict)
+            available_binding_dict = self.pscene.get_available_binding_dict(state, leaf, Q_dict)
             if not all([len(abds)>0 for abds in available_binding_dict.values()]):
                 print("============== Non-available transition: Break =====================")
                 break
             for _ in range(N_redundant_sample):
-                to_state, redundancy_dict = self.sample_leaf_state(state, available_binding_dict, leaf)
+                to_state, redundancy_dict = self.pscene.sample_leaf_state(state, available_binding_dict, leaf)
                 priority = (expected_depth - depth) * self.DSCALE + depth ## greedy
                 queue.append((priority, (snode, state, to_state, redundancy_dict)))
         return queue
@@ -126,14 +123,13 @@ class ObjectAstar(TaskInterface):
     ##
     # @brief get optimal remaining steps
     def get_optimal_remaining_steps(self, state):
-        return self.goal_cost_dict[state.onode]
+        return self.goal_cost_dict[state.node]
 
     ##
     # @brief check if a state is in pre-defined goal nodes
     # @param state rnb-planning.src.pkg.planning.scene.State
-    @abstractmethod
     def check_goal(self, state):
-        return state.onode in self.goal_nodes
+        return state.node in self.goal_nodes
 
     def score_graph(self, goal_node):
         came_from = {}
@@ -176,7 +172,7 @@ class ObjectAstar(TaskInterface):
 
     def reset_valid_node(self, margin=0, node=None):
         if node == None:
-            node = self.initial_state.onode
+            node = self.initial_state.node
             self.valid_node_dict = {goal:[] for goal in self.goal_nodes}
         if node in self.valid_node_dict or self.check_goal_by_score(node):
             return
@@ -190,43 +186,12 @@ class ObjectAstar(TaskInterface):
             if leaf != node and new_margin>=0:
                 self.reset_valid_node(margin=new_margin, node=leaf)
 
-    def get_available_binding_dict(self, state, to_onode, Q_dict=None, pscene=None):
-        if pscene is None:
-            pscene = self.pscene
-        if Q_dict is None:
-            Q_dict = list2dict(state.Q, pscene.gscene.joint_names)
-        return {oname:get_available_bindings(pscene, oname, boname, sbinding[1], sbinding[2],
-                                                                 Q_dict=Q_dict)\
-                                              if sboname!=boname else [sbinding[1:]]
-                                      for oname, boname, sboname, sbinding
-                                      in zip(pscene.object_list, to_onode, state.onode, state.node)}
-
-    def sample_leaf_state(self, state, available_binding_dict, to_onode, pscene=None):
-        if pscene is None:
-            pscene = self.pscene
-        to_state = state.copy(pscene)
-        to_node = tuple([(((oname,)+\
-                           random.choice(available_binding_dict[oname]))
-                          if sboname!=boname else sbinding)
-                         for oname, boname, sboname, sbinding
-                         in zip(pscene.object_list, to_onode, state.onode, state.node)])
-        to_state.set_node(to_node, pscene)
-        redundancy_dict = {}
-        for from_binding, to_binding in zip(state.node, to_node):
-            obj = pscene.object_dict[from_binding[0]]
-            to_ap = obj.action_points_dict[to_binding[1]]
-            to_binder = pscene.binder_dict[to_binding[2]]
-            redundancy_tot = combine_redundancy(to_ap, to_binder)
-            redundancy = sample_redundancy(redundancy_tot)
-            redundancy_dict[from_binding[0]] = redundancy
-        return to_state, redundancy_dict
-
     def quiver_snodes(self, figsize=(10,10)):
         import matplotlib.pyplot as plt
         N_plot = self.snode_counter.value
         snode_vec = [v for k,v in sorted(self.snode_dict.items(), key=lambda x: x)]
-        cost_vec = [self.goal_cost_dict[snode.state.onode] for snode in snode_vec[1:N_plot]]
-        parent_vec = [self.goal_cost_dict[self.snode_dict[snode.parents[-1]].state.onode] for snode in snode_vec[1:N_plot]]
+        cost_vec = [self.goal_cost_dict[snode.state.node] for snode in snode_vec[1:N_plot]]
+        parent_vec = [self.goal_cost_dict[self.snode_dict[snode.parents[-1]].state.node] for snode in snode_vec[1:N_plot]]
         plt.figure(figsize=figsize)
         X = list(range(1,N_plot))
         plt.quiver(X, parent_vec,
@@ -236,51 +201,3 @@ class ObjectAstar(TaskInterface):
         plt.plot(X, cost_vec,'.')
         plt.plot(X, parent_vec,'.')
         plt.axis([0,N_plot+1,-0.5,4.5])
-
-
-def get_available_binder_dict(pscene, oname_list, bname_list):
-    available_binder_dict = defaultdict(list)
-    for bname in bname_list:
-        for oname in oname_list:
-            pass_now = False
-            for binder_name in pscene.object_binder_dict[bname]:
-                binder = pscene.binder_dict[binder_name]
-                for ap in pscene.object_dict[oname].action_points_dict.values():
-                    if binder.check_type(ap):
-                        available_binder_dict[oname].append(binder.geometry.name)
-                        pass_now = True
-                        break
-                if pass_now:
-                    break
-    return available_binder_dict
-
-
-def get_available_bindings(pscene, oname, boname, ap_exclude, bd_exclude, Q_dict):
-    obj = pscene.object_dict[oname]
-    ap_dict = obj.action_points_dict
-    apk_list = ap_dict.keys()
-    bd_list = [pscene.binder_dict[bname] for bname in pscene.object_binder_dict[boname]
-               if pscene.binder_dict[bname].check_available(Q_dict)]
-
-    apk_exclude = obj.get_conflicting_handles(ap_exclude)
-    ap_list = [ap_dict[apk] for apk in apk_list if apk not in apk_exclude]
-    bd_exclude = pscene.binder_dict[bd_exclude]
-    if bd_exclude in bd_list:
-        bd_list.remove(pscene.binder_dict[bd_exclude])
-
-    available_bindings = []
-    for bd in bd_list:
-        for ap in ap_list:
-            if bd.check_type(ap):
-                available_bindings.append((ap.name, bd.name))
-    if not available_bindings:
-        print("=================================")
-        print("=================================")
-        print("=================================")
-        print("Not available:{}-{}".format(oname,boname))
-        print("np_exclude:{}".format(ap_exclude))
-        print("bd_exclude:{}".format(bd_exclude.name))
-        print("=================================")
-        print("=================================")
-        print("=================================")
-    return available_bindings

@@ -108,6 +108,11 @@ class CombinedRobot:
         return {rp.get_indexed_name(): rp for rp in self.robots_on_scene}
 
     ##
+    # @brief get {robot name:base_link}
+    def get_robot_base_dict(self):
+        return {rname: RobotSpecs.get_base_name(rconfig.type, rname) for rname, rconfig in self.get_robot_config_dict().items()}
+
+    ##
     # @brief get list of robot controller interface
     def get_robot_list(self):
         return [self.robot_dict[name] for name in self.robot_names]

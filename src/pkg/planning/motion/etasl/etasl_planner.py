@@ -92,7 +92,7 @@ class EtaslPlanner(MotionInterface):
 
         full_context, kwargs = \
             self.__get_transition_context(from_state, to_state, binding_list,
-                                        N=N, dt=dt_sim, activation=(from_state.node != to_state.node),
+                                        N=N, dt=dt_sim, activation=(from_state.binding_state != to_state.binding_state),
                                         **kwargs)
 
         if "inp_lbl" not in kwargs:
@@ -101,7 +101,7 @@ class EtaslPlanner(MotionInterface):
             kwargs["inp"] = []
         self.jact_idx = -1
         self.cact_idx = -1
-        if from_state.node != to_state.node:
+        if from_state.binding_state != to_state.binding_state:
             joint_context = make_joint_constraints(self.joint_names, priority=2, make_error=False, activation=True)
             kwargs["inp_lbl"] = list(kwargs["inp_lbl"]) + ["target_{joint_name}".format(joint_name=joint_name) for joint_name in self.joint_names]
             kwargs["inp_lbl"] += ['joint_activation', 'constraint_activation']
@@ -201,7 +201,7 @@ class EtaslPlanner(MotionInterface):
         additional_constraints = '\nconstraint_activation = ctx:createInputChannelScalar("constraint_activation",0.0) \n' if activation else ""
         for bd1 in binding_list:
             additional_constraints += make_action_constraints(
-                self.pscene.object_dict[bd1[0]].action_points_dict[bd1[1]], self.pscene.binder_dict[bd1[2]],
+                self.pscene.subject_dict[bd1[0]].action_points_dict[bd1[1]], self.pscene.actor_dict[bd1[2]],
                 redundancy=redundancy_dict[bd1[0]] if redundancy_dict else None, activation=activation)
 
         if additional_constraints=="" and to_state.Q is not None:# and np.sum(np.abs(np.subtract(to_state.Q,from_state.Q)))>1e-2:

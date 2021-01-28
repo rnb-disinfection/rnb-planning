@@ -3,7 +3,7 @@ from __future__ import print_function
 from ....utils.rotation_utils import *
 from ....geometry.geometry import GEOTYPE
 from ...constraint.constraint_common import calc_redundancy
-from ...constraint.constraint_object import FramedPoint, DirectedPoint
+from ...constraint.constraint_subject import FramedPoint, DirectedPoint
 
 
 def get_tf_name(gtem):

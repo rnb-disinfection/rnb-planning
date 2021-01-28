@@ -1,5 +1,5 @@
 from .table_interface import *
-from ...planning.constraint.constraint_object import otype_to_class
+from ...planning.constraint.constraint_subject import otype_to_class
 from ...utils.utils import list2dict
 
 class ObjectTable(TableInterface):
@@ -8,10 +8,10 @@ class ObjectTable(TableInterface):
     CUSTOM_BUTTONS = ["Apply"]
 
     def get_items(self):
-        return map(lambda x: x[1], sorted(self.planning_pipeline.pscene.object_dict.items(), key=lambda x:x[0]))
+        return map(lambda x: x[1], sorted(self.planning_pipeline.pscene.subject_dict.items(), key=lambda x:x[0]))
 
     def get_items_dict(self):
-        return self.planning_pipeline.pscene.object_dict
+        return self.planning_pipeline.pscene.subject_dict
 
     def serialize(self, otem):
         return [otem.geometry.name, otem.__class__.__name__, otem.binding[0], otem.binding[1]]
