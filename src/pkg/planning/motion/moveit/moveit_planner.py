@@ -36,7 +36,7 @@ def get_mpc_dims(gtem):
 
 def get_binder_links_in_order(pscene, robot_names):
     # links on robots should include robot names
-    links = [pscene.actor_dict[bkey].geometry.link_name for bkey in pscene.get_controlled_binders()]
+    links = [pscene.actor_dict[bkey].geometry.link_name for bkey in pscene.divide_binders_by_control()[0]]
     return [[lname for lname in links if rname in lname][0] for rname in robot_names]
 
 ##

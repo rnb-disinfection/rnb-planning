@@ -1,8 +1,10 @@
 from collections import defaultdict
 from ..utils.utils import list2dict
 from .constraint.constraint_common import combine_redundancy, sample_redundancy
+from itertools import product
 import numpy as np
 import random
+from copy import deepcopy
 
 
 ##
@@ -23,7 +25,7 @@ class State:
         ## @brief tuple of binding state ((object name, binding point, binder), ..)
         self.binding_state = binding_state
         ## @brief tuple of simplified binding state (binder geometry name 1, binder geometry name 2, ..)
-        self.node = State.get_node(pscene, self.binding_state, self.state_param)
+        self.node = pscene.get_node(self.binding_state, self.state_param)
 
     def get_tuple(self):
         return (self.binding_state, self.state_param, self.Q)
@@ -36,13 +38,6 @@ class State:
                     {k: str(np.round(v, 2)) for k, v in
                      self.state_param.items()} if self.state_param is not None else None,
                     str(np.round(self.Q, 2)) if self.Q is not None else None))
-
-    @classmethod
-    def get_node(cls, pscene, binding_state, state_param):
-        node = []
-        for stype, binding in zip(pscene.subject_type_list, binding_state):
-            node.append(stype.get_node_component(binding, state_param[binding[0]]))
-        return tuple(node)
 
 
 
@@ -104,15 +99,26 @@ class PlanningScene:
                 uniq_binders += [k_b]
         return uniq_binders
 
+    ##
+    # @brief get unique binder geometries
+    def get_unique_binder_geometries(self):
+        uniq_binders = []
+        for k_b, binder in self.actor_dict.items():
+            if not binder.multiple:
+                uniq_binders += [binder.geometry.name]
+        return uniq_binders
 
     ##
     # @brief get controlled binders in dictionary
-    def get_controlled_binders(self):
+    def divide_binders_by_control(self):
         controlled_binders = []
+        uncontrolled_binders = []
         for k_b, binder in self.actor_dict.items():
             if binder.controlled:
                 controlled_binders += [k_b]
-        return controlled_binders
+            else:
+                uncontrolled_binders += [k_b]
+        return controlled_binders, uncontrolled_binders
 
     ##
     # @brief add a object to the scene
@@ -174,6 +180,42 @@ class PlanningScene:
             binding_state += (v.binding,)
             pose_dict[k] = (v.get_state_param())
         return binding_state, pose_dict
+
+    # get all existing type-checked nodes
+    def get_all_nodes(self):
+        node_components_list = []  # get all nodes
+        for sname in self.subject_name_list:
+            node_components_list.append(self.subject_dict[sname].get_all_node_components(self))
+        type_checked_nodes = list(product(*node_components_list))
+
+        no_self_binding_nodes = []  # filter out self-binding
+        for node in type_checked_nodes:
+            if all([a != b for a, b in zip(node, self.subject_name_list)]):
+                no_self_binding_nodes.append(node)
+
+        uniq_binder_geometries = self.get_unique_binder_geometries()  # binders cannot be shared by multiple objects
+        available_nodes = []  # filter out duplicate unique binding
+        for node in no_self_binding_nodes:
+            if np.all([np.sum([a == gname for a in node]) <= 1 for gname in uniq_binder_geometries]):
+                available_nodes.append(node)
+        return available_nodes
+
+    def get_node(self, binding_state, state_param):
+        node = []
+        for stype, binding in zip(self.subject_type_list, binding_state):
+            node.append(stype.get_node_component(binding, state_param[binding[0]]))
+        return tuple(node)
+
+    def get_node_neighbor(self, node):
+        neighbor_list = []
+        len_node = len(node)
+        for i, sname in enumerate(self.subject_name_list):  # make transition one by one
+            new_node_component_list = self.subject_dict[sname].get_neighbor_node_component_list(node[i], self)
+            for new_node_component in new_node_component_list:
+                node_new = deepcopy(node)
+                node_new = node_new[:i] + (new_node_component,) + (node_new[i + 1:] if len_node > 1 else ())
+                neighbor_list.append(node_new)
+        return neighbor_list
 
     ##
     # @brief get all handles in the scene

@@ -120,6 +120,18 @@ class Subject:
     def get_node_component(cls, binding_state, state_param):
         pass
 
+    ##
+    # @brief (prototype) get object-level node component
+    @abstractmethod
+    def get_neighbor_node_component_list(self, node, pscene):
+        pass
+
+    ##
+    # @brief (prototype) get all object-level node component
+    @classmethod
+    def get_all_node_components(cls, pscene):
+        pass
+
 
 ##
 # @class TaskInterface
@@ -162,7 +174,23 @@ class SweepTask(TaskInterface):
     # @brief get object-level node component (finished waypoint count)
     @classmethod
     def get_node_component(cls, binding_state, state_param):
-        return int(np.sum(state_param))
+        if binding_state[1] is not None:
+            return int(np.sum(state_param))
+        else:
+            return 0
+
+    ##
+    # @brief get object-level neighbor component (detach or next waypoint)
+    def get_neighbor_node_component_list(self, node, pscene):
+        if node < len(self.state_param):
+            return [0, node+1]
+        else:
+            return [0]
+
+    ##
+    # @brief get all object-level node component
+    def get_all_node_components(self, pscene):
+        return list(range(len(self.state_param+1)))
 
 
 ##
@@ -204,6 +232,24 @@ class ObjectBinding(Subject):
     @classmethod
     def get_node_component(cls, binding, state_param):
         return binding[3]
+
+    ##
+    # @brief    get object-level neighbor component (other available binder geometry name)
+    #           other binding point in the scene
+    def get_neighbor_node_component_list(self, node_tem, pscene):
+        ctrl_binders, uctrl_binders = pscene.divide_binders_by_control()
+        next_node_component_list = [pscene.actor_dict[bname].geometry.name for bname in ctrl_binders]
+        if pscene.geometry_actor_dict[node_tem][0] in ctrl_binders: # if any of geometry's binder is controlled, it's controlled
+            next_node_component_list += [pscene.actor_dict[bname].geometry.name for bname in uctrl_binders]
+        if node_tem in next_node_component_list:
+            next_node_component_list.remove(node_tem)
+        return next_node_component_list
+
+    ##
+    # @brief get all object-level node component
+    def get_all_node_components(self, pscene):
+        return [v.geometry.name for k,v in pscene.actor_dict.items() if any(v.check_type(ap) for ap in self.action_points_dict.values())]
+
 
 ################################# USABLE CLASS #########################################
 

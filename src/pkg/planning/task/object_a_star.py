@@ -30,48 +30,13 @@ class ObjectAstar(TaskInterface):
     def prepare(self):
         pscene = self.pscene
 
-        oname_list = pscene.subject_name_list
-        bgname_list = pscene.geometry_actor_dict.keys()
-        obj_binding_dict = pscene.get_available_actor_dict()  # matching possible binder dictionary
-        binder_combinations = list(
-            product(*[obj_binding_dict[oname] for oname in oname_list]))  # all possible binding combination list
-        uniq_binders = pscene.get_unique_binders()  # binders cannot be shared by multiple objects
-        uniq_bo_list = [bgname for bgname in bgname_list if
-                        (len(pscene.geometry_actor_dict[bgname]) == 1 and all(
-                            [bname in uniq_binders for bname in pscene.geometry_actor_dict[bgname]]))]
-        ctrl_binders = pscene.get_controlled_binders()  # all controllable binders
-        ctrl_bo_list = [bgname for bgname in bgname_list if
-                        all([bname in ctrl_binders for bname in pscene.geometry_actor_dict[bgname]])]
-
-        # filter out conflicting use of uniq binding object
-        usage_conflicts = []
-        self_binding = []
-        for bc in binder_combinations:
-            for ubo in uniq_bo_list:
-                if sum([ubo == bo for bo in bc]) > 1:
-                    usage_conflicts.append(bc)
-                    break
-            if any([oname == bgname for oname, bgname in zip(pscene.subject_name_list, bc)]):
-                self_binding.append(bc)
-
-        all_conflicts = list(set(self_binding + usage_conflicts))
-        for conflict in all_conflicts:
-            binder_combinations.remove(conflict)
-
         # make all node connections
-        self.node_list = binder_combinations
-        self.node_dict = {k: list() for k in self.node_list}
+        self.node_list = pscene.get_all_nodes()
+        self.node_dict = {k: [] for k in self.node_list}
         for node in self.node_list:
-            fixed_idx = [i_n for i_n in range(len(node)) if node[i_n] not in ctrl_bo_list]  # fixed binding index
-            ctrl_idx = [i_n for i_n in range(len(node)) if node[i_n] in ctrl_bo_list]  # control binding index
-            for leaf in self.node_list:
-                if (all([node[fi] == leaf[fi] for fi in fixed_idx])  # fixed object is not changed
-                        and all([node[ci] == leaf[ci] or (node[ci] not in leaf) for ci in
-                                 ctrl_idx])  # controlled binder is empty or not changed
-                        and sum([node[ci] != leaf[ci] for ci in ctrl_idx])==1  # at list one controlled binder is changed
-                ):
-                    self.node_dict[node].append(leaf)
-                    self.node_dict[leaf].append(node)
+            for leaf in pscene.get_node_neighbor(node):
+                self.node_dict[node].append(leaf)
+                self.node_dict[leaf].append(node)
         for node in self.node_list:
             self.node_dict[node] = list(set(self.node_dict[node]))
 
@@ -79,7 +44,7 @@ class ObjectAstar(TaskInterface):
     # @brief calculate initial/goal scores and filter valid nodes
     def init_search(self, initial_state, goal_states, tree_margin=None, depth_margin=None):
 
-        goal_nodes = list(set([State.get_node(self.pscene, goal_state.binding_state, goal_state.state_param) for goal_state in goal_states]))
+        goal_nodes = list(set([self.pscene.get_node(goal_state.binding_state, goal_state.state_param) for goal_state in goal_states]))
         self.initial_state = initial_state
         self.goal_nodes = goal_nodes
         self.init_cost_dict, self.goal_cost_dict = self.score_graph(initial_state.node), self.score_graph(goal_nodes)
@@ -131,6 +96,24 @@ class ObjectAstar(TaskInterface):
     def check_goal(self, state):
         return state.node in self.goal_nodes
 
+    ##
+    # @brief filter out node links that cause depth to exceed the margin
+    def reset_valid_node(self, margin=0, node=None):
+        if node == None:
+            node = self.initial_state.node
+            self.valid_node_dict = {goal:[] for goal in self.goal_nodes}
+        if node in self.valid_node_dict or self.check_goal_by_score(node):
+            return
+        neighbor = self.get_valid_neighbor(node, margin=margin)
+        if node in self.valid_node_dict and self.valid_node_dict[node] == neighbor:
+            return
+        self.valid_node_dict[node] = neighbor
+        for leaf in neighbor:
+            new_margin = margin - max(0, self.goal_cost_dict[leaf]-self.goal_cost_dict[node])
+            new_margin = max(0, new_margin)
+            if leaf != node and new_margin>=0:
+                self.reset_valid_node(margin=new_margin, node=leaf)
+
     def score_graph(self, goal_node):
         came_from = {}
         node_cost_dict = {}
@@ -169,22 +152,6 @@ class ObjectAstar(TaskInterface):
 
     def check_goal_by_score(self, node):
         return self.goal_cost_dict[node] == 0
-
-    def reset_valid_node(self, margin=0, node=None):
-        if node == None:
-            node = self.initial_state.node
-            self.valid_node_dict = {goal:[] for goal in self.goal_nodes}
-        if node in self.valid_node_dict or self.check_goal_by_score(node):
-            return
-        neighbor = self.get_valid_neighbor(node, margin=margin)
-        if node in self.valid_node_dict and self.valid_node_dict[node] == neighbor:
-            return
-        self.valid_node_dict[node] = neighbor
-        for leaf in neighbor:
-            new_margin = margin - max(0, self.goal_cost_dict[leaf]-self.goal_cost_dict[node])
-            new_margin = max(0, new_margin)
-            if leaf != node and new_margin>=0:
-                self.reset_valid_node(margin=new_margin, node=leaf)
 
     def quiver_snodes(self, figsize=(10,10)):
         import matplotlib.pyplot as plt
