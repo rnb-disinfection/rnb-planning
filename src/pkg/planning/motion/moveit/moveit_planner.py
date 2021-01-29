@@ -189,9 +189,7 @@ class MoveitPlanner(MotionInterface):
         i_stem = self.pscene.subject_name_list.index(obj_name)
         binding_from = from_state.binding_state[i_stem]
         binding_to = to_state.binding_state[i_stem]
-        constraints = []
-        if binding_from[2]==binding_to[2]:
-            constraints = obj.make_constraints()
+        constraints = obj.make_constraints(binding_from, binding_to)
         if constraints:
             for motion_constraint in constraints:
                 self.add_constraint(group_name, tool.geometry.link_name, tool.Toff_lh, motion_constraint=motion_constraint)

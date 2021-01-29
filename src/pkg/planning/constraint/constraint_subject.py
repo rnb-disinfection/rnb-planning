@@ -99,7 +99,10 @@ class Subject:
 
     ##
     # @brief make constraints. by default, empty list.
-    def make_constraints(self, tol=1e-3):
+    # @remark whether to apply constarint or not is decided with previous and next bindings
+    # @param binding_from previous binding
+    # @param binding_to next binding
+    def make_constraints(self, binding_from, binding_to, tol=1e-3):
         return []
 
     ##
@@ -175,9 +178,15 @@ class SweepTask(TaskInterface):
         self.state_param = np.zeros(len(self.action_points_order), dtype=np.bool)
 
     ##
-    # @brief make sweep constraints (surface + normal)
-    def make_constraints(self, tol=1e-3):
-        return [MotionConstraint([self.geometry], True, True, tol)]
+    # @brief make constraints. by default, empty list.
+    # @remark constraint is applied when using same binding
+    # @param binding_from previous binding
+    # @param binding_to next binding
+    def make_constraints(self, binding_from, binding_to, tol=1e-3):
+        if binding_from is not None and binding_from[2] == binding_to[2]:
+            return [MotionConstraint([self.geometry], True, True, tol)]
+        else:
+            return []
 
     ##
     # @brief set object binding state and update location
