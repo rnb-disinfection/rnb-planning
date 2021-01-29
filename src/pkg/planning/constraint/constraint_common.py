@@ -13,6 +13,7 @@ class ConstraintType(Enum):
     Vacuum = 2
     Grasp2 = 3
     Fixture = 4
+    Sweep = 5
 
 OPPOSITE_DICT={
     "top": "bottom",
@@ -31,7 +32,7 @@ class ActionPoint:
     ctype=None
     ##
     # @param    name        action point name
-    # @param    geometry    parent geometry
+    # @param    geometry    geometry of the action point (rnb-planning.src.pkg.geometry.geometry.GeometryItem)
     # @param    point       action point offset respect to parent geometry
     # @param    rpy         orientation offset respect to parent geometry
     # @param    name_full   constraint full name, mainly for eTaSL constraint definition
@@ -71,6 +72,7 @@ class ActionPoint:
     def get_redundancy(self):
         pass
 
+
 ##
 # @brief    calculate redundancy offset
 # @param redundancy   redundancy dictionary
@@ -89,6 +91,7 @@ def calc_redundancy(redundancy, target):
             point_add[2] += target.geometry.dims[2]/2
     return point_add, rpy_add
 
+
 ##
 # @brief    combine redundancy of handle and binder
 # @param to_ap      handle
@@ -104,5 +107,20 @@ def combine_redundancy(to_ap, to_binder):
             redundancy_tot[k] = redundancy_ap[k]
     return redundancy_tot
 
-def sample_redundancy(redundancy_tot):
-    return {k: random.uniform(*red) for k, red in redundancy_tot.items()}
+
+##
+# @brief    sample redundancy of handle and binder
+# @param redundancy_tot     redundancy dictionary
+# @param sampler            sampling function to be applied to redundancy param (default=random.uniform)
+def sample_redundancy(redundancy_tot, sampler=random.uniform):
+    return {k: sampler(*red) for k, red in redundancy_tot.items()}
+
+
+##
+# @class MotionConstraint
+# @brief definition of fixture constraint
+class MotionConstraint:
+    def __init__(self, geometry_list, fix_surface, fix_normal, tol=1e-3):
+        self.geometry_list, self.fix_surface, self.fix_normal, self.tol = geometry_list, fix_surface, fix_normal, tol
+
+

@@ -68,7 +68,7 @@ class GeometryTable(TableInterface):
     def button(self, button, *args, **kwargs):
         print("button clicked")
         if button == TAB_BUTTON.CUSTOM:
-            self.planning_pipeline.pscene.gscene.gscene.set_rviz()
+            self.planning_pipeline.pscene.gscene.set_rviz()
             self.planning_pipeline.update()
         else:
             TableInterface.button(self, button, *args, **kwargs)

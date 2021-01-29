@@ -1,8 +1,18 @@
-## TODO
-  - Constraint 추가
-  - State space를 ConstrainedStateSpace로 변경
-  - Validity checker를 ConstrainedState에 맞춰 수정
+# Development log
 
+## TODO
+  0. GeometryGroup -> Group object v
+    0.1. non-parent binder v
+  1. Constraint: Geometry + Toolpoint v
+    1.1. Box geometry constraint v
+  2. State: node + state_param(obj_pose_dict) + Q v
+  3. TaskAction
+    3.1 get_neighbor -> node_dict v
+    3.2 get_slack_bindings, rebind v
+    3.3 constraint
+  4. Constraint + Object(action_point)
+
+## OMPL 정리
 ### class ModelBasedPlanningContext : public planning_interface::PlanningContext
   - Representation of a particular planning context -- the planning scene and the request are known, solution is not yet computed.
   - solve() 포함
@@ -30,5 +40,5 @@
 #### ModelBasedStateSpace::StateType
   * 스테이트는 double * values에 저장, tag, flags, distance 등 멤버 변수 추가
   * state_validity_checker, constraints_library, projection_evaluators에서만 사용 (ModelBasedStateSpace::StateType로 검색)
-  
+
   

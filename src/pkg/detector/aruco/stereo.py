@@ -314,3 +314,18 @@ class ArucoStereo(DetectorInterface):
         Xopt = solver.solve(problem)
 
         return SE3(*Xopt), ArucoStereo.__XYT_err(Xopt)
+
+    ##
+    # @brief    add axis marker to handle
+    # @param    robot_base_dict {robot_name: robot_base_name}
+    def add_aruco_axis(gscene, hl_key, atem, axis_name=None, robot_base_dict={}):
+        oname = atem.oname
+        axis_name = axis_name or oname
+        if oname in self.combined_robot.get_robot_config_dict():
+            link_name = RobotSpecs.get_base_name(self.combined_robot.get_robot_config_dict()[oname].type, oname)
+            Toff = atem.Toff
+        else:
+            aobj = gscene.NAME_DICT[oname]
+            link_name = aobj.link_name
+            Toff = np.matmul(aobj.Toff, atem.Toff)
+        gscene.add_highlight_axis(hl_key, axis_name, link_name, Toff[:3,3], Toff[:3,:3], axis="xyz")

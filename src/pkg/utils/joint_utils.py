@@ -3,10 +3,6 @@ import numpy as np
 from .rotation_utils import *
 from collections import defaultdict
 
-link_adjacency_map = {}
-link_adjacency_map_ext = {}
-mindist_dict = defaultdict(dict)
-
 def get_root_chain(lname, urdf_content):
     chain_list = []
     lname_cur = lname
@@ -73,7 +69,6 @@ def get_parent_joint(link_name, urdf_content):
     return urdf_content.parent_map[link_name][0]
 
 def get_link_adjacency_map(urdf_content):
-    global link_adjacency_map, link_adjacency_map_ext
     link_adjacency_map = {}
     for lname in urdf_content.link_map.keys():
         link_adjacency_map[lname] = __get_adjacent_links(lname, urdf_content)
@@ -85,8 +80,12 @@ def get_link_adjacency_map(urdf_content):
         link_adjacency_map_ext[k] = list(set(adj_list))
     return link_adjacency_map, link_adjacency_map_ext
 
-def get_link_adjacency_map_ext():
-    return link_adjacency_map_ext
+def get_link_control_dict(urdf_content):
+    root = urdf_content.get_root()
+    control_dict = {}
+    for link in urdf_content.links:
+        control_dict[link.name] = len(urdf_content.get_chain(root, link.name, joints=True, links=False, fixed=False))>0
+    return control_dict
 
 def __get_adjacent_links(link_name, urdf_content, adjacent_links=None, propagate=True):
     if adjacent_links is None:
@@ -123,14 +122,20 @@ def get_joint_tf(joint, joint_dict):
 def get_tf(to_link, joint_dict, urdf_content, from_link='base_link'):
     T = np.identity(4)
     link_cur = to_link
+    link_root = urdf_content.get_root()
     while link_cur != from_link:
-        pjname = get_parent_joint(link_cur, urdf_content)
-        if pjname is None:
+        if link_cur != link_root:
+            pjname = get_parent_joint(link_cur, urdf_content)
+            if pjname is None:
+                break
+            parent_joint = urdf_content.joint_map[pjname]
+            Tj = get_joint_tf(parent_joint, joint_dict)
+            T = np.matmul(Tj,T)
+            link_cur = parent_joint.parent
+        else:
+            T_from_link = get_tf(from_link, joint_dict=joint_dict, urdf_content=urdf_content, from_link=link_root)
+            T = np.matmul(SE3_inv(T_from_link), T)
             break
-        parent_joint = urdf_content.joint_map[pjname]
-        Tj = get_joint_tf(parent_joint, joint_dict)
-        T = np.matmul(Tj,T)
-        link_cur = parent_joint.parent
     return T
 
 

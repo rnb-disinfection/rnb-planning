@@ -154,18 +154,28 @@ def Rot_rpy(rpy):
 def Rot2rpy(R):
     return np.asarray(list(reversed(Rot2zyx(R))))
 
+##
+# @return tuple(xyz, rpy(rad))
 def T2xyzrpy(T):
     return T[:3,3].tolist(), Rot2rpy(T[:3,:3]).tolist()
 
+##
+# @return tuple(xyz, rotvec)
 def T2xyzrvec(T):
     return T[:3,3].tolist(), Rotation.from_dcm(T[:3,:3]).as_rotvec().tolist()
 
+##
+# @return tuple(xyz, quaternion)
 def T2xyzquat(T):
     return T[:3,3].tolist(), Rotation.from_dcm(T[:3,:3]).as_quat().tolist()
 
+##
+# @param xyzrpy tuple(xyz, rpy(rad))
 def T_xyzrpy(xyzrpy):
     return SE3(Rot_rpy(xyzrpy[1]), xyzrpy[0])
 
+##
+# @param xyzrpy tuple(xyz, quaternion)
 def T_xyzquat(xyzquat):
     return SE3(Rotation.from_quat(xyzquat[1]).as_dcm(), xyzquat[0])
 

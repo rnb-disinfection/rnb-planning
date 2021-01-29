@@ -11,8 +11,8 @@ display(HTML("<style>.container { width:90% !important; } </style>"))
 import matplotlib.pyplot as plt
 from pkg.marker_config import *
 from pkg.tmp_framework import *
-from pkg.constraint.constraint_action import *
-from pkg.constraint.constraint_object import *
+from pkg.constraint.constraint_actor import *
+from pkg.constraint.constraint_subject import *
 from pkg.constants import *
 from pkg.utils.plot_utils import *
 from pkg.utils.utils import *
@@ -154,7 +154,7 @@ def main(dataset_list=None, N_retry_test = None):
                 mplan = MoveitPlanner(joint_names=graph.joint_names, link_names=graph.link_names, urdf_path=graph.urdf_path,
                                       urdf_content=graph.urdf_content,
                                       robot_names=graph.combined_robot.robot_names,
-                                      binder_links=[v.geometry.link_name for v in graph.binder_dict.values()],
+                                      binder_links=[v.geometry.link_name for v in graph.actor_dict.values()],
                                       gscene=graph.gscene)
                 dual_mplan_dict = get_dual_planner_dict(GRIPPER_REFS, graph.gscene, graph.urdf_content, graph.urdf_path,
                                                         graph.link_names, graph.combined_robot.robot_names)

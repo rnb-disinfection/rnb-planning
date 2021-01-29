@@ -1,5 +1,5 @@
 import argparse
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, redirect, url_for
 app = Flask(__name__, static_folder="html")
 
 
@@ -7,6 +7,11 @@ parser = argparse.ArgumentParser(description='Host doxygen document - main page 
 parser.add_argument('--port', type=int, default=5000,
                     help='(Optional) port number to host')
 args = parser.parse_args()
+
+
+@app.route('/')
+def home():
+    return app.send_static_file('index.html')
 
 
 @app.route('/<path:path>')

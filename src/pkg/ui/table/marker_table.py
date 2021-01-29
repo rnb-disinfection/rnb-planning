@@ -1,5 +1,6 @@
 from .table_interface import *
 from ...detector.aruco.detector import ObjectMarker
+from ...controller.combined_robot import RobotSpecs
 
 class MarkerTable(TableInterface):
     HEADS = ['Object', IDENTIFY_COL, 'Size', 'Point', 'Direction']
@@ -20,7 +21,8 @@ class MarkerTable(TableInterface):
 
     def highlight_item(self, atem, color=None):
         self.planning_pipeline.pscene.gscene.highlight_geometry(self.HILIGHT_KEY, atem.oname, color=color)
-        self.planning_pipeline.pscene.add_aruco_axis(self.HILIGHT_KEY, atem)
+        self.planning_pipeline.pscene.add_aruco_axis(self.HILIGHT_KEY, atem,
+                                                     robot_base_dict=self.combined_robot.get_robot_base_dict())
 
     def add_item(self, value):
         oname = value["Object"]

@@ -1,5 +1,5 @@
 from .table_interface import *
-from ...planning.constraint.constraint_object import ctype_to_htype
+from ...planning.constraint.constraint_subject import ctype_to_htype
 
 class HandleTable(TableInterface):
     HEADS = [IDENTIFY_COL, 'Object', 'Handle', 'CType', 'Point', 'RPY']
@@ -18,11 +18,11 @@ class HandleTable(TableInterface):
                 round_it_str(htem.point), round_it_str(htem.rpy_point)]
 
     def highlight_item(self, handle, color=None):
-        self.planning_pipeline.pscene.add_handle_axis(self.HILIGHT_KEY, handle, color=color)
+        self.planning_pipeline.pscene.add_handle_axis(self.HILIGHT_KEY, handle)
         self.planning_pipeline.pscene.gscene.highlight_geometry(self.HILIGHT_KEY, handle.geometry.name, color=color)
 
     def add_item(self, value):
-        otem = self.planning_pipeline.pscene.object_dict[value["Object"]]
+        otem = self.planning_pipeline.pscene.subject_dict[value["Object"]]
         cname = value[IDENTIFY_COL]
         hname = value['Handle']
         otem.action_points_dict[hname] = ctype_to_htype(value['CType'])(hname, otem.geometry,
@@ -33,7 +33,7 @@ class HandleTable(TableInterface):
     def delete_item(self, active_row):
         hdict = self.planning_pipeline.pscene.get_all_handle_dict()
         htem = hdict[active_row]
-        otem = self.planning_pipeline.pscene.object_dict[htem.geometry.name]
+        otem = self.planning_pipeline.pscene.subject_dict[htem.geometry.name]
         self.planning_pipeline.pscene.delete_handle(htem)
         if not otem.action_points_dict.keys():
             self.planning_pipeline.pscene.remove_object(htem.geometry.name)
@@ -59,7 +59,7 @@ class HandleTable(TableInterface):
     def button(self, button, *args, **kwargs):
         print("button clicked")
         if button == TAB_BUTTON.CUSTOM:
-            self.planning_pipeline.pscene.update_handles()
+            self.planning_pipeline.pscene.update_subjects()
             self.planning_pipeline.update()
         else:
             TableInterface.button(self, button, *args, **kwargs)

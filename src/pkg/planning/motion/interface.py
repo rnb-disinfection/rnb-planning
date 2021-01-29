@@ -49,11 +49,11 @@ class MotionInterface:
     # @return success   success/failure of planning result
     # @return binding_list  list of binding
     def plan_transition(self, from_state, to_state, redundancy_dict=None, **kwargs):
+        if from_state is not None:
+            self.pscene.set_object_state(from_state)
         binding_list, success = self.pscene.get_slack_bindings(from_state, to_state)
 
         if success:
-            if from_state is not None:
-                self.pscene.set_object_state(from_state)
             Traj, LastQ, error, success = self.plan_algorithm(from_state, to_state, binding_list,
                                                               redundancy_dict=redundancy_dict, **kwargs)
         else:

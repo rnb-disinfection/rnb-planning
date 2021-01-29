@@ -1,7 +1,7 @@
 from moveit_py import MoveitCompactPlanner_BP, ObjectType, ObjectMPC, Geometry, GeometryList, CartPose, Vec3, make_assign_arr
 from ..interface import MotionInterface
 from ....utils.utils import list2dict
-from ....utils.rotation_utils import SE3, SE3_inv, Rot_rpy
+from ....utils.rotation_utils import SE3, SE3_inv, Rot_rpy, T2xyzquat
 from ....geometry.geometry import GEOTYPE, GeometryScene
 from ...constraint.constraint_common import calc_redundancy
 from scipy.spatial.transform import Rotation
@@ -36,27 +36,31 @@ def get_mpc_dims(gtem):
 
 def get_binder_links_in_order(pscene, robot_names):
     # links on robots should include robot names
-    links = [pscene.binder_dict[bkey].geometry.link_name for bkey in pscene.get_controlled_binders()]
+    links = [pscene.actor_dict[bkey].geometry.link_name for bkey in pscene.divide_binders_by_control()[0]]
     return [[lname for lname in links if rname in lname][0] for rname in robot_names]
 
+##
+# @brief make moveit constraint geometry item
 def make_constraint_item(gtem, use_box=False):
     cartpose = tuple(gtem.center) + tuple(Rotation.from_dcm(gtem.orientation_mat).as_quat())
     return Geometry(gtype_to_otype(gtem.gtype) if use_box else gtype_to_ctype(gtem.gtype),
                     CartPose(*cartpose), Vec3(*gtem.dims))
 
-def make_constraint_list(gtem_list, use_box=False):
+##
+# @brief make list of moveit constraint geometry list
+def make_constraint_list(gtem_list, use_box=True):
     return make_assign_arr(GeometryList, [make_constraint_item(gtem, use_box) for gtem in gtem_list])
 
 ##
 # @class MoveitPlanner
 # @brief Moveit motion planner
 # @remark online planning is not supported
-# @param enabla_dual    boolean flag to enable dual arm manipulation (default=True)
 class MoveitPlanner(MotionInterface):
     NAME = "MoveIt"
 
     ##
     # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
+    # @param enable_dual    boolean flag to enable dual arm manipulation (default=True)
     def __init__(self, pscene, enable_dual=True):
         MotionInterface.__init__(self, pscene)
         config_path = os.path.dirname(self.urdf_path)+"/"
@@ -65,7 +69,7 @@ class MoveitPlanner(MotionInterface):
         srdf_path = write_srdf(robot_names=self.robot_names, binder_links=binder_links,
                                     link_names=self.link_names, joint_names=self.joint_names,
                                     urdf_content=self.urdf_content, urdf_path=self.urdf_path
-                                    )
+                               )
         self.planner = MoveitCompactPlanner_BP(self.urdf_path, srdf_path, self.robot_names, config_path)
         if not all([a==b for a,b in zip(self.joint_names, self.planner.joint_names_py)]):
             self.need_mapping = True
@@ -120,17 +124,23 @@ class MoveitPlanner(MotionInterface):
     # @return LastQ     Last joint configuration as array
     # @return error     planning error
     # @return success   success/failure of planning result
-    def plan_algorithm(self, from_state, to_state, binding_list, redundancy_dict=None, timeout=0.1,
-                        group_name_handle=None, group_name_binder=None, **kwargs):
+    def plan_algorithm(self, from_state, to_state, binding_list, redundancy_dict=None, timeout=0.1, **kwargs):
+        self.planner.clear_context_cache()
+        self.planner.clear_manifolds()
+        if self.enable_dual:
+            for dual_planner in self.dual_planner_dict.values():
+                dual_planner.planner.clear_context_cache()
+                dual_planner.planner.clear_manifolds()
+
         if len(binding_list)!=1:
             raise(RuntimeError("Only single manipulator operation is implemented with moveit!"))
         self.update_gscene()
 
-        obj_name, ap_name, binder_name = binding_list[0]
+        obj_name, ap_name, binder_name, binder_geometry_name = binding_list[0]
         redundancy = redundancy_dict[obj_name] if redundancy_dict else None
 
-        binder = self.pscene.binder_dict[binder_name]
-        obj = self.pscene.object_dict[obj_name]
+        binder = self.pscene.actor_dict[binder_name]
+        obj = self.pscene.subject_dict[obj_name]
         handle = obj.action_points_dict[ap_name]
         point_add, rpy_add = calc_redundancy(redundancy, binder)
         T_handle = handle.Toff_lh
@@ -140,8 +150,8 @@ class MoveitPlanner(MotionInterface):
             group_name_handle = self.planner.group_names if handle.geometry.link_name in self.urdf_content.parent_map else []
             group_name_binder = self.planner.group_names if binder.geometry.link_name in self.urdf_content.parent_map else []
         else:
-            group_name_handle = group_name_handle or [gname for gname in self.planner.group_names if gname in handle.geometry.link_name]
-            group_name_binder = group_name_binder or [gname for gname in self.planner.group_names if gname in binder.geometry.link_name]
+            group_name_handle = [gname for gname in self.planner.group_names if gname in handle.geometry.link_name]
+            group_name_binder = [gname for gname in self.planner.group_names if gname in binder.geometry.link_name]
 
         dual = False
         if group_name_binder and not group_name_handle:
@@ -176,8 +186,20 @@ class MoveitPlanner(MotionInterface):
             else:
                 from_Q = from_state.Q
 
-        trajectory, success = planner.plan_py(
-            group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q), timeout=timeout)
+        i_stem = self.pscene.subject_name_list.index(obj_name)
+        binding_from = from_state.binding_state[i_stem]
+        binding_to = to_state.binding_state[i_stem]
+        constraints = []
+        if binding_from[2]==binding_to[2]:
+            constraints = obj.make_constraints()
+        if constraints:
+            for motion_constraint in constraints:
+                self.add_constraint(group_name, tool.geometry.link_name, tool.Toff_lh, motion_constraint=motion_constraint)
+            trajectory, success = planner.plan_constrained_py(
+                group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q), timeout=timeout)
+        else:
+            trajectory, success = planner.plan_py(
+                group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q), timeout=timeout)
 
         if success:
             if dual:
@@ -207,6 +229,19 @@ class MoveitPlanner(MotionInterface):
     def update_target_joint(self, idx_cur, traj, joint_cur):
         raise(RuntimeError("online operation not implemented with moveit"))
 
+    ##
+    # @brief add motion constraint for moveit planner
+    # @param group_name manipulator chain group name
+    # @param tool_link tool link name
+    # @param tool_offset_T tool offset 4x4 transformation matrix in tool link coordinate
+    # @param motion_constraint rnb-planning.src.pkg.planning.constraint.constraint_common.MotionConstraint
+    # @param use_box boolean flag for using box, to convert box to plane, set this value False (default=True)
+    def add_constraint(self, group_name, tool_link, tool_offset_T, motion_constraint, use_box=True):
+        xyzquat = T2xyzquat(tool_offset_T)
+        self.planner.add_union_manifold_py(group_name=group_name, tool_link=tool_link, tool_offset=xyzquat[0]+xyzquat[1],
+                                           geometry_list=make_constraint_list(motion_constraint.geometry_list, use_box=use_box),
+                                           fix_surface=motion_constraint.fix_surface, fix_normal=motion_constraint.fix_normal, tol=motion_constraint.tol)
+
 
 from itertools import permutations
 
@@ -223,27 +258,6 @@ def transfer_ctem(gscene, gscene_new):
                 T_jp = SE3(Rot_rpy(joint_child.origin.rpy), joint_child.origin.xyz)
                 Toff_new = np.matmul(T_jp, gtem_new.Toff)
                 gtem_new.set_offset_tf(Toff_new[:3,3], Toff_new[:3,:3])
-#             else:
-#                 print("as-is: {}".format(gtem_new.name))
-#         else:
-#             print("no-collision: {}".format(gtem.name))
-
-# def get_dual_planner_dict(GRIPPER_REFS, gscene, urdf_content, urdf_path, link_names, robot_names):
-#     glist = GRIPPER_REFS.keys()
-#     dual_chain_list = list(permutations(glist,2))
-#     dual_mplan_dict = {}
-#     for grip_root_name, grip_end_name in dual_chain_list:
-#         grip_root = GRIPPER_REFS[grip_root_name]
-#         grip_end = GRIPPER_REFS[grip_end_name]
-#         grip_root_link = urdf_content.link_map[grip_root['link_name']]
-#         grip_end_link = urdf_content.link_map[grip_end['link_name']]
-#         rname_new = "{}_{}".format(grip_root_name, grip_end_name)
-#         urdf_content_new, urdf_path_new, srdf_path_new, new_joints = save_converted_chain(urdf_content, urdf_path, rname_new, grip_root_link.name, grip_end_link.name)
-#         gscene_new = GeometryScene(urdf_content_new)
-#         transfer_ctem(gscene, gscene_new)
-#         dual_mplan_dict[(grip_root_name, grip_end_name)] = MoveitPlanner(gscene=gscene_new, joint_names=new_joints, link_names=link_names, urdf_path=urdf_path_new, urdf_content=urdf_content_new,
-#                                                                          robot_names=[rname_new], robot_names=robot_names)
-#     return dual_mplan_dict
 
 ##
 # @class DualMoveitPlanner

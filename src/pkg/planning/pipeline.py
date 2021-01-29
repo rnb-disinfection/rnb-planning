@@ -27,11 +27,11 @@ class SearchNode:
     # @param leafs      list of available nodes
     # @param depth      depth of current node = number of parent
     # @param edepth     expected depth of current node = depth + optimal number of remaining steps
-    # @param redundancy defined redundancy of transition in dictionary form, {object name: {axis: value}}
+    # @param redundancy_dict defined redundancy of transition in dictionary form, {object name: {axis: value}}
     def __init__(self, idx, state, parents, leafs, depth=None, edepth=None,
-                 redundancy=None):
-        self.idx, self.state, self.parents, self.leafs, self.depth, self.edepth, self.redundancy = \
-            idx, state, parents, leafs, depth, edepth, redundancy
+                 redundancy_dict=None):
+        self.idx, self.state, self.parents, self.leafs, self.depth, self.edepth, self.redundancy_dict = \
+            idx, state, parents, leafs, depth, edepth, redundancy_dict
         self.traj = None
         self.traj_size = 0
         self.traj_length = 0
@@ -50,8 +50,8 @@ class SearchNode:
     # @brief    copy SearchNode
     # @param    pscene  rnb-planning.src.pkg.planning.scene.PlanningScene
     def copy(self, pscene):
-        return SearchNode(self.idx, State(self.state.node, self.state.obj_pos_dict, self.state.Q, pscene),
-                          self.parents, self.leafs, self.depth, self.edepth, self.redundancy)
+        return SearchNode(self.idx, State(self.state.binding_state, self.state.state_param, self.state.Q, pscene),
+                          self.parents, self.leafs, self.depth, self.edepth, self.redundancy_dict)
 
 
 ##
@@ -61,6 +61,7 @@ class PlanningPipeline:
     ##
     # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
     def __init__(self, pscene):
+        pscene.set_object_state(pscene.update_state(pscene.combined_robot.home_pose))
         ## @brief rnb-planning.src.pkg.planning.scene.PlanningScene
         self.pscene = pscene
         ## @brief rnb-planning.src.pkg.planning.motion.interface.MotionInterface
@@ -111,7 +112,7 @@ class PlanningPipeline:
     ##
     # @brief run search algorithm
     # @param initial_state rnb-planning.src.pkg.planning.scene.State
-    # @param goal definition of goal, depends on algorithem
+    # @param goal_nodes list of goal nodes
     # @param multiprocess boolean flag for multiprocess search
     # @param N_redundant_sample number of redundancy sampling
     # @param terminate_on_first boolean flag for terminate on first answer
@@ -121,14 +122,14 @@ class PlanningPipeline:
     # @param display boolean flag for one-by-one motion display on rvia
     # @param dt_vis display period
     # @param verbose boolean flag for printing intermediate process
-    def search(self, initial_state, goal, multiprocess=False, N_redundant_sample=30,
+    def search(self, initial_state, goal_nodes, multiprocess=False, N_redundant_sample=30,
                      terminate_on_first=True, N_search=100, N_agents=None,
                      display=False, dt_vis=0.01, verbose=False, timeout_loop=600, **kwargs):
         ## @brief runber of redundancy sampling
         self.N_redundant_sample = N_redundant_sample
         self.t0 = time.time()
         self.DOF = len(initial_state.Q)
-        self.tplan.init_search(initial_state, goal)
+        self.tplan.init_search(initial_state, goal_nodes)
         snode_root = SearchNode(idx=0, state=initial_state, parents=[], leafs=[],
                                 depth=0, edepth=self.tplan.get_optimal_remaining_steps(initial_state))
 
@@ -191,6 +192,7 @@ class PlanningPipeline:
                         continue
                 self.search_counter.value = self.search_counter.value + 1
             self.gtimer.tic("test_transition")
+            print("__test_transition node: {} -> {}".format(from_state.node, to_state.node))
             traj, new_state, error, succ = self.__test_transition(from_state, to_state, redundancy_dict=redundancy_dict,
                                                                   display=display, dt_vis=dt_vis, **kwargs)
             ret = False
@@ -199,7 +201,7 @@ class PlanningPipeline:
                 snode_new = SearchNode(
                     idx=0, state=new_state, parents=snode.parents + [snode.idx], leafs=[],
                     depth=depth_new, edepth=depth_new+self.tplan.get_optimal_remaining_steps(new_state),
-                    redundancy=redundancy_dict)
+                    redundancy_dict=redundancy_dict)
                 snode_new.set_traj(traj)
                 snode_new = self.__process_snode(snode_new)
                 snode.leafs += [snode_new.idx]
@@ -208,7 +210,7 @@ class PlanningPipeline:
                     ret = True
             simtime = self.gtimer.toc("test_transition")
             if verbose:
-                print('node: {}->{} = {}'.format(from_state.onode, to_state.onode, "success" if succ else "fail"))
+                print('node: {}->{} = {}'.format(from_state.node, to_state.node, "success" if succ else "fail"))
                 if succ:
                     print('Remaining:{}->{} / branching: {}->{} ({}/{} s, steps/err: {}({} ms)/{})'.format(
                         int(self.tplan.get_optimal_remaining_steps(from_state)), int(self.tplan.get_optimal_remaining_steps(to_state)),
@@ -276,8 +278,8 @@ class PlanningPipeline:
             for bd in binding_list:
                 self.pscene.rebind(bd, list2dict(LastQ, self.pscene.gscene.joint_names))
 
-        node, obj_pos_dict = self.pscene.get_object_state()
-        end_state = State(node, obj_pos_dict, list(LastQ), self.pscene)
+        binding_state, state_param = self.pscene.get_object_state()
+        end_state = State(binding_state, state_param, list(LastQ), self.pscene)
         return Traj, end_state, error, success
 
     ##

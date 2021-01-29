@@ -1,5 +1,6 @@
 from .table_interface import *
-from ...tmp_framework import *
+from ...geometry.builder.scene_builder import *
+from ...controller.repeater.repeater import DEFAULT_TRAJ_FREQUENCY
 
 
 class PlanListTable(TableInterface):
@@ -19,7 +20,7 @@ class PlanListTable(TableInterface):
         return self.planning_pipeline.snode_dict if hasattr(self.planning_pipeline,"snode_dict") else {}
 
     def serialize(self, gtem):
-        return [str(gtem.idx), str(gtem.state.node), gtem.parents[-1] if gtem.parents else "None",
+        return [str(gtem.idx), str(gtem.state.binding_state), gtem.parents[-1] if gtem.parents else "None",
                 gtem.depth, gtem.edepth-gtem.depth, gtem.edepth, "%.2f"%(gtem.traj_tot)]
 
     def select(self, selected_row_ids, active_row, active_col):
@@ -49,7 +50,7 @@ class PlanListTable(TableInterface):
                     planner.update_gscene()
 
                     with DynamicDetector(self.s_builder, self.s_builder.detector.get_targets_of_levels([DetectionLevel.ONLINE])) as dynamic_detector, \
-                            RvizPublisher(planning_pipeline.pscene, planner.online_names) as rviz_pub:
+                            RvizPublisher(planning_pipeline.gscene, planner.online_names) as rviz_pub:
                         e_sim = planning_pipeline.execute_schedule_online(snode_schedule, planner, control_freq=DEFAULT_TRAJ_FREQUENCY,
                                                               playback_rate=0.5,
                                                               vel_conv=0, err_conv=1e-3, T_step=100,

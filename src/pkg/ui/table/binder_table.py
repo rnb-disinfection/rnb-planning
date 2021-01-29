@@ -1,5 +1,5 @@
 from .table_interface import *
-from ...planning.constraint.constraint_action import ctype_to_btype
+from ...planning.constraint.constraint_actor import ctype_to_btype
 
 class BinderTable(TableInterface):
     HEADS = [IDENTIFY_COL, 'CType', 'Geometry', 'RPY', 'Point', 'Control', 'Multi']
@@ -7,10 +7,10 @@ class BinderTable(TableInterface):
     CUSTOM_BUTTONS = ["Apply"]
 
     def get_items(self):
-        return map(lambda x: x[1], sorted(self.planning_pipeline.pscene.binder_dict.items(), key=lambda x:x[0]))
+        return map(lambda x: x[1], sorted(self.planning_pipeline.pscene.actor_dict.items(), key=lambda x:x[0]))
 
     def get_items_dict(self):
-        return self.planning_pipeline.pscene.binder_dict
+        return self.planning_pipeline.pscene.actor_dict
 
     def serialize(self, binder):
         return [binder.name, binder.ctype.name, binder.geometry.name,

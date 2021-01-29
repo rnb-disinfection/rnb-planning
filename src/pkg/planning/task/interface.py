@@ -1,9 +1,4 @@
 from abc import *
-import numpy as np
-from ..scene import State
-from ..scene import node2onode
-import time
-from collections import defaultdict
 
 
 __metaclass__ = type
@@ -33,9 +28,9 @@ class TaskInterface:
     ##
     # @brief (prototype) initialize searching loop with given initial state and goal
     # @param initial_state rnb-planning.src.pkg.planning.scene.State
-    # @param goal definition of goal, different depending on algorithm
+    # @param goal_nodes list of nodes
     @abstractmethod
-    def init_search(self, initial_state, goal, *args, **kwargs):
+    def init_search(self, initial_state, goal_nodes, *args, **kwargs):
         raise(NotImplementedError("abstract method"))
 
     ##
