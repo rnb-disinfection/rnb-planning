@@ -6,9 +6,10 @@
   1. Constraint: Geometry + Toolpoint v
     1.1. Box geometry constraint v
   2. State: node + state_param(obj_pose_dict) + Q v
-  3. TaskAction: Constraint + task_state + ?
+  3. TaskAction
     3.1 get_neighbor -> node_dict v
-    3.1 get_slack_bindings, rebind
+    3.2 get_slack_bindings, rebind v
+    3.3 constraint
   4. Constraint + Object(action_point)
 
 ## OMPL 정리

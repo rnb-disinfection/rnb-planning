@@ -117,6 +117,13 @@ class Subject:
         pass
 
     ##
+    # @brief get object-level state_param component
+    @abstractmethod
+    def get_state_param_update(self, binding, state_param):
+        pass
+
+
+    ##
     # @brief (prototype) get object-level node component
     @classmethod
     @abstractmethod
@@ -176,6 +183,13 @@ class SweepTask(TaskInterface):
         return self.state_param.copy()
 
     ##
+    # @brief get object-level state_param component
+    def get_state_param_update(self, binding, state_param):
+        if binding[1] is not None:
+            state_param[self.action_points_order.index(binding[1])] = True
+        return state_param
+
+    ##
     # @brief get object-level node component (finished waypoint count)
     @classmethod
     def get_node_component(cls, binding_state, state_param):
@@ -231,6 +245,11 @@ class ObjectBinding(Subject):
     @abstractmethod
     def register_binders(self, planning_scene, _type):
         pass
+
+    ##
+    # @brief get object-level state_param update
+    def get_state_param_update(self, binding, state_param):
+        return state_param
 
     ##
     # @brief get object-level node component (binder geometry name)

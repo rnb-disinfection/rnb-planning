@@ -192,6 +192,7 @@ class PlanningPipeline:
                         continue
                 self.search_counter.value = self.search_counter.value + 1
             self.gtimer.tic("test_transition")
+            print("__test_transition node: {} -> {}".format(from_state.node, to_state.node))
             traj, new_state, error, succ = self.__test_transition(from_state, to_state, redundancy_dict=redundancy_dict,
                                                                   display=display, dt_vis=dt_vis, **kwargs)
             ret = False

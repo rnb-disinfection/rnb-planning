@@ -154,19 +154,3 @@ class ObjectAstar(TaskInterface):
 
     def check_goal_by_score(self, node):
         return self.goal_cost_dict[node] == 0
-
-    def quiver_snodes(self, figsize=(10,10)):
-        import matplotlib.pyplot as plt
-        N_plot = self.snode_counter.value
-        snode_vec = [v for k,v in sorted(self.snode_dict.items(), key=lambda x: x)]
-        cost_vec = [self.goal_cost_dict[snode.state.node] for snode in snode_vec[1:N_plot]]
-        parent_vec = [self.goal_cost_dict[self.snode_dict[snode.parents[-1]].state.node] for snode in snode_vec[1:N_plot]]
-        plt.figure(figsize=figsize)
-        X = list(range(1,N_plot))
-        plt.quiver(X, parent_vec,
-                   [0]*(N_plot-1),
-                   np.subtract(cost_vec, parent_vec),
-                   angles='xy', scale_units='xy', scale=1)
-        plt.plot(X, cost_vec,'.')
-        plt.plot(X, parent_vec,'.')
-        plt.axis([0,N_plot+1,-0.5,4.5])

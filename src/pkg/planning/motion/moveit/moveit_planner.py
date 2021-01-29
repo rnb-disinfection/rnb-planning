@@ -179,6 +179,7 @@ class MoveitPlanner(MotionInterface):
             else:
                 from_Q = from_state.Q
 
+
         trajectory, success = planner.plan_py(
             group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q), timeout=timeout)
 
