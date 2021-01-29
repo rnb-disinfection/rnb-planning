@@ -10,12 +10,14 @@ from .constraint_common import *
 class Actor(ActionPoint):
     controlled = None
     multiple = None
-        
+
     def bind(self, action_obj, bind_point, joint_dict_last):
         Tbo = action_obj.geometry.get_tf(joint_dict_last)
         Tbt = get_tf(self.geometry.link_name, joint_dict_last, self.gscene.urdf_content)
         Tto = np.matmul(np.linalg.inv(Tbt), Tbo)
-        action_obj.set_state((action_obj.oname, bind_point, self.name, self.geometry.name), (self.geometry.link_name, Tto))
+        binding = (action_obj.oname, bind_point, self.name, self.geometry.name)
+        state_param = (self.geometry.link_name, Tto)
+        action_obj.set_state(binding, state_param)
 
     def check_type(self, action_point):
         return action_point.ctype == self.ctype
@@ -148,6 +150,26 @@ class FixtureSlot(PointerActor):
 
     def check_available(self, joint_dict):
         return False
+
+
+##
+# @class SweepTool
+# @brief Actor class for placing plane. z-direction constrained. (PointerActor)
+class SweepTool(PointerActor):
+    controlled = True
+    multiple = False
+    ctype = ConstraintType.Sweep
+    VERTICAL_CUT = np.cos(np.deg2rad(10))
+
+    def bind(self, action_obj, bind_point, joint_dict_last):
+        state_param = action_obj.state_param
+        state_param[action_obj.action_points_order.index(bind_point)] = True
+        action_obj.set_state((action_obj.oname, bind_point, self.name, self.geometry.name), state_param)
+
+    ##
+    # @brief place plane is only available when vertical direction is in range of VERTICAL_CUT (10 deg)
+    def check_available(self, joint_dict):
+        return self.geometry.is_controlled()
 
 
 ##

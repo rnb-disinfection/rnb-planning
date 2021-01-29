@@ -3,7 +3,7 @@ from __future__ import print_function
 from .ros_rviz import show_motion, get_markers, get_publisher
 from .geotype import GEOTYPE
 from ..utils.rotation_utils import *
-from ..utils.joint_utils import get_tf, get_link_adjacency_map, get_min_distance_map
+from ..utils.joint_utils import get_tf, get_link_adjacency_map, get_min_distance_map, get_link_control_dict
 from collections import defaultdict
 
 POINT_DEFAULT = np.array([[0,0,0]])
@@ -37,6 +37,7 @@ class GeometryScene(list):
         self.urdf_content = urdf_content
         self.urdf_path = urdf_path
         self.link_adjacency_map, self.link_adjacency_map_ext = get_link_adjacency_map(urdf_content)
+        self.link_control_map = get_link_control_dict(urdf_content)
         self.min_distance_map = get_min_distance_map(urdf_content)
 
     ##
@@ -367,6 +368,10 @@ class GeometryItem(object):
         for child in self.children:
             self.gscene.NAME_DICT[child].set_offset_tf(call_in_parent_coord=True)
 
+    ##
+    # @brief check if the geometry can be controlled with joints
+    def is_controlled(self):
+        return self.gscene.link_control_map[self.link_name]
 
     ##
     # @brief get maximum distance from the link origin

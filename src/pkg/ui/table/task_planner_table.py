@@ -58,7 +58,7 @@ class TaskPlanTable(TableInterface):
             elif args[1]:
                 planning_pipeline = self.planning_pipeline
                 planning_pipeline.tplan.prepare()
-                self.initial_state = planning_pipeline.pscene.get_state(planning_pipeline.combined_robot.get_real_robot_pose())
+                self.initial_state = planning_pipeline.pscene.update_state(planning_pipeline.combined_robot.get_real_robot_pose())
                 self.goal_nodes = planning_pipeline.pscene.get_goal_nodes(self.initial_state.binding_state, "box1", "goal_bd")
             else:
                 print("Unknown button")

@@ -13,6 +13,7 @@ class ConstraintType(Enum):
     Vacuum = 2
     Grasp2 = 3
     Fixture = 4
+    Sweep = 5
 
 OPPOSITE_DICT={
     "top": "bottom",

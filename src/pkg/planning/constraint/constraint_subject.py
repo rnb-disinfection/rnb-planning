@@ -55,10 +55,24 @@ class Grasp2Point(DirectedPoint):
 
 
 ##
+# @class SweepPoint
+# @brief ActionPoint for rnb-planning.src.pkg.planning.constraint.constraint_actor.SweepTool
+class SweepPoint(DirectedPoint):
+    ctype=ConstraintType.Sweep
+
+
+##
 # @class FixturePoint
 # @brief ActionPoint for rnb-planning.src.pkg.planning.constraint.constraint_actor.FixtureSlot
 class FixturePoint(FramedPoint):
     ctype=ConstraintType.Fixture
+
+
+##
+# @class    SubjectType
+class SubjectType(Enum):
+    OBJECT = 0
+    TASK = 1
 
 
 ##
@@ -68,6 +82,8 @@ class FixturePoint(FramedPoint):
 #           action_points are reference points for action, which are bound to actors.
 #           binding represents current binding state with an actor.
 class Subject:
+    ## @brief SubjectType
+    stype = None
     def __init__(self):
         ## @brief name of object
         self.oname = None
@@ -78,19 +94,6 @@ class Subject:
         ## @brief object's binding state tuple (object name, point, actor, actor-geometry)
         self.binding = (None, None, None, None)
         raise(NotImplementedError("ObjectBinding is abstract class"))
-
-    ##
-    # @brief set object binding state and update location
-    # @param binding (handle name, binder name, binder geometry)
-    # @param state_param (link name, offset transformation in 4x4 matrix)
-    def set_state(self, binding, state_param):
-        link_name = state_param[0]
-        frame = state_param[1]
-        self.geometry.set_offset_tf(frame[:3, 3], frame[:3,:3])
-        self.geometry.set_link(link_name)
-        for ap in self.action_points_dict.values():
-            ap.update_handle()
-        self.binding = binding
 
     ##
     # @brief get conflicting handles to build efficient search tree
@@ -137,12 +140,13 @@ class Subject:
 # @class TaskInterface
 # @brief Base class for task definition
 class TaskInterface(Subject):
+    stype = SubjectType.TASK
     def __init__(self):
         raise(NotImplementedError("TaskAction is abstract class"))
 
 
 ##
-# @class TaskAction
+# @class SweepTask
 # @brief sweep action points in alphabetical order
 class SweepTask(TaskInterface):
     ##
@@ -160,9 +164,10 @@ class SweepTask(TaskInterface):
     # @brief set object binding state and update location
     # @param binding (handle name, binder name)
     # @param state_param list of done-mask
-    def set_state(self, binding, state_param):
+    def set_state(self, binding, state_param=None):
         self.binding = binding
-        self.state_param = state_param.copy()
+        if state_param is not None:
+            self.state_param = state_param.copy()
 
     ##
     # @brief (prototype) get state param
@@ -181,16 +186,16 @@ class SweepTask(TaskInterface):
 
     ##
     # @brief get object-level neighbor component (detach or next waypoint)
-    def get_neighbor_node_component_list(self, node, pscene):
-        if node < len(self.state_param):
-            return [0, node+1]
+    def get_neighbor_node_component_list(self, node_tem, pscene):
+        if node_tem < len(self.state_param):
+            return [node_tem, node_tem+1]
         else:
-            return [0]
+            return [node_tem]
 
     ##
     # @brief get all object-level node component
     def get_all_node_components(self, pscene):
-        return list(range(len(self.state_param+1)))
+        return list(range(len(self.state_param)+1))
 
 
 ##
@@ -198,7 +203,7 @@ class SweepTask(TaskInterface):
 # @brief Base class for objects with defined action points (handles)
 # @remark get_conflicting_points and register_binders should be implemented with child classes
 class ObjectBinding(Subject):
-
+    stype = SubjectType.OBJECT
     ##
     # @brief set object binding state and update location
     # @param binding (object name, handle name, binder name, binder geometry name)
@@ -236,11 +241,12 @@ class ObjectBinding(Subject):
     ##
     # @brief    get object-level neighbor component (other available binder geometry name)
     #           other binding point in the scene
+    # @param    node_tem    geometry name of binder currently attached
     def get_neighbor_node_component_list(self, node_tem, pscene):
-        ctrl_binders, uctrl_binders = pscene.divide_binders_by_control()
+        ctrl_binders, uctrl_binders = pscene.divide_binders_by_control([ap.ctype for ap in self.action_points_dict.values()])
         next_node_component_list = [pscene.actor_dict[bname].geometry.name for bname in ctrl_binders]
-        if pscene.geometry_actor_dict[node_tem][0] in ctrl_binders: # if any of geometry's binder is controlled, it's controlled
-            next_node_component_list += [pscene.actor_dict[bname].geometry.name for bname in uctrl_binders]
+        if pscene.geometry_actor_dict[node_tem][0] in ctrl_binders: # if any of currently attached binder geometry's binder is controlled, it's controlled
+            next_node_component_list += [pscene.actor_dict[bname].geometry.name for bname in uctrl_binders] # thus we can add move it to uncontrolled binders
         if node_tem in next_node_component_list:
             next_node_component_list.remove(node_tem)
         return next_node_component_list

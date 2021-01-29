@@ -33,21 +33,22 @@ class ObjectAstar(TaskInterface):
         # make all node connections
         self.node_list = pscene.get_all_nodes()
         self.node_dict = {k: [] for k in self.node_list}
+        self.node_parent_dict = {k: [] for k in self.node_list}
         for node in self.node_list:
             for leaf in pscene.get_node_neighbor(node):
                 self.node_dict[node].append(leaf)
-                self.node_dict[leaf].append(node)
+                self.node_parent_dict[leaf].append(node)
         for node in self.node_list:
             self.node_dict[node] = list(set(self.node_dict[node]))
+            self.node_parent_dict[node] = list(set(self.node_parent_dict[node]))
 
     ##
     # @brief calculate initial/goal scores and filter valid nodes
-    def init_search(self, initial_state, goal_states, tree_margin=None, depth_margin=None):
-
-        goal_nodes = list(set([self.pscene.get_node(goal_state.binding_state, goal_state.state_param) for goal_state in goal_states]))
+    def init_search(self, initial_state, goal_nodes, tree_margin=None, depth_margin=None):
         self.initial_state = initial_state
         self.goal_nodes = goal_nodes
-        self.init_cost_dict, self.goal_cost_dict = self.score_graph(initial_state.node), self.score_graph(goal_nodes)
+        self.init_cost_dict, self.goal_cost_dict = \
+            self.score_graph(initial_state.node), self.score_graph(goal_nodes, reverse=True)
 
         # set default margins
         tree_margin = tree_margin or self.goal_cost_dict[initial_state.node]
@@ -114,24 +115,25 @@ class ObjectAstar(TaskInterface):
             if leaf != node and new_margin>=0:
                 self.reset_valid_node(margin=new_margin, node=leaf)
 
-    def score_graph(self, goal_node):
+    def score_graph(self, reference_node, reverse=False):
+        node_dict = self.node_parent_dict if reverse else self.node_dict
         came_from = {}
         node_cost_dict = {}
         frontier = PriorityQueue()
-        if isinstance(goal_node, list):
-            for goal in goal_node:
+        if isinstance(reference_node, list):
+            for goal in reference_node:
                 frontier.put((0, goal))
                 came_from[goal] = None
                 node_cost_dict[goal] = 0
         else:
-            frontier.put((0, goal_node))
-            came_from[goal_node] = None
-            node_cost_dict[goal_node] = 0
+            frontier.put((0, reference_node))
+            came_from[reference_node] = None
+            node_cost_dict[reference_node] = 0
 
         while not frontier.empty():
             current = frontier.get()[1]
 
-            for next in self.node_dict[current]:
+            for next in node_dict[current]:
                 if next == current:
                     continue
                 new_cost = node_cost_dict[current] + self.DEFAULT_TRANSIT_COST
