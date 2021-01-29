@@ -93,7 +93,14 @@ class Subject:
         self.action_points_dict = {}
         ## @brief object's binding state tuple (object name, point, actor, actor-geometry)
         self.binding = (None, None, None, None)
+        ## @brief object's binding state tuple (object name, point, actor, actor-geometry)
+        self.constrain = (None, None, None, None)
         raise(NotImplementedError("ObjectBinding is abstract class"))
+
+    ##
+    # @brief make constraints. by default, empty list.
+    def make_constraints(self, tol=1e-3):
+        return []
 
     ##
     # @brief get conflicting handles to build efficient search tree
@@ -166,6 +173,11 @@ class SweepTask(TaskInterface):
         self.action_points_dict = action_points_dict
         self.action_points_order = sorted(self.action_points_dict.keys())
         self.state_param = np.zeros(len(self.action_points_order), dtype=np.bool)
+
+    ##
+    # @brief make sweep constraints (surface + normal)
+    def make_constraints(self, tol=1e-3):
+        return [MotionConstraint([self.geometry], True, True, tol)]
 
     ##
     # @brief set object binding state and update location

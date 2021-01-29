@@ -19,7 +19,7 @@ class State:
     # @param pscene         PlanningScene instance
     def __init__(self, binding_state, state_param, Q, pscene):
         self.state_param = state_param if state_param is not None else defaultdict(lambda:None)
-        self.Q = Q
+        self.Q = np.array(Q)
         self.set_binding_state(binding_state, pscene)
 
     def set_binding_state(self, binding_state, pscene):
@@ -443,8 +443,6 @@ class PlanningScene:
         apk_exclude = obj.get_conflicting_points(ap_exclude)
         if obj.stype == SubjectType.TASK:
             apk = obj.action_points_order[node - 1]
-            print("apk: {}".format(apk))
-            print("apk_exclude: {}".format(apk_exclude))
             ap_list = [ap_dict[apk]] if apk not in apk_exclude else []
             ctypes = [ap.ctype for ap in ap_list]
             bd_list = [actor for actor in self.actor_dict.values() if actor.ctype in ctypes] # bd_exclude is ignored as previous binding is re-used in sweep
@@ -481,8 +479,6 @@ class PlanningScene:
     # @param Q_dict current joint configuration in dictionary
     # @return {object name: [(point name, binder name)]}
     def get_available_binding_dict(self, state, to_node, Q_dict=None):
-        print("######################################################################################")
-        print("############## get_available_binding_dict: {} -> {}".format(state.node, to_node))
         if Q_dict is None:
             Q_dict = list2dict(state.Q, self.gscene.joint_names)
         available_binding_dict = {}
@@ -497,8 +493,6 @@ class PlanningScene:
                                                                             Q_dict=Q_dict)
             else:
                 available_binding_dict[oname] = [from_binding_state[1:]]
-        print("#######   {}".format(available_binding_dict))
-        print("######################################################################################")
         return available_binding_dict
 
     ##
@@ -519,7 +513,6 @@ class PlanningScene:
                           if sbgname!=bgname else sbinding)
                          for oname, bgname, sbgname, sbinding
                          in zip(self.subject_name_list, to_node, state.node, state.binding_state)])
-        print("to_binding_state: {}".format(to_binding_state))
         to_state.set_binding_state(to_binding_state, self)
         redundancy_dict = {}
         for from_binding, to_binding in zip(state.binding_state, to_binding_state):

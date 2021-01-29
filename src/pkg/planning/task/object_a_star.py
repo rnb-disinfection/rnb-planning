@@ -36,8 +36,9 @@ class ObjectAstar(TaskInterface):
         self.node_parent_dict = {k: [] for k in self.node_list}
         for node in self.node_list:
             for leaf in pscene.get_node_neighbor(node):
-                self.node_dict[node].append(leaf)
-                self.node_parent_dict[leaf].append(node)
+                if leaf in self.node_list:
+                    self.node_dict[node].append(leaf)
+                    self.node_parent_dict[leaf].append(node)
         for node in self.node_list:
             self.node_dict[node] = list(set(self.node_dict[node]))
             self.node_parent_dict[node] = list(set(self.node_parent_dict[node]))

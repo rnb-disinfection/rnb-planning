@@ -125,6 +125,13 @@ class MoveitPlanner(MotionInterface):
     # @return error     planning error
     # @return success   success/failure of planning result
     def plan_algorithm(self, from_state, to_state, binding_list, redundancy_dict=None, timeout=0.1, **kwargs):
+        self.planner.clear_context_cache()
+        self.planner.clear_manifolds()
+        if self.enable_dual:
+            for dual_planner in self.dual_planner_dict.values():
+                dual_planner.planner.clear_context_cache()
+                dual_planner.planner.clear_manifolds()
+
         if len(binding_list)!=1:
             raise(RuntimeError("Only single manipulator operation is implemented with moveit!"))
         self.update_gscene()
@@ -179,9 +186,20 @@ class MoveitPlanner(MotionInterface):
             else:
                 from_Q = from_state.Q
 
-
-        trajectory, success = planner.plan_py(
-            group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q), timeout=timeout)
+        i_stem = self.pscene.subject_name_list.index(obj_name)
+        binding_from = from_state.binding_state[i_stem]
+        binding_to = to_state.binding_state[i_stem]
+        constraints = []
+        if binding_from[2]==binding_to[2]:
+            constraints = obj.make_constraints()
+        if constraints:
+            for motion_constraint in constraints:
+                self.add_constraint(group_name, tool.geometry.link_name, tool.Toff_lh, motion_constraint=motion_constraint)
+            trajectory, success = planner.plan_constrained_py(
+                group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q), timeout=timeout)
+        else:
+            trajectory, success = planner.plan_py(
+                group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q), timeout=timeout)
 
         if success:
             if dual:
