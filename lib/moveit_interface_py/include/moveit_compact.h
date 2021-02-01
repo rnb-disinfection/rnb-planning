@@ -96,6 +96,13 @@ namespace RNB {
                              double allowed_planning_time=0.1);
 
             /**
+             * @brief search for joint motion plan.
+             * @author Junsu Kang
+             */
+            PlanResult &plan_joint_motion(string group_name, JointState goal_state, JointState init_state,
+                             string planner_id="RRTConnectkConfigDefault", double allowed_planning_time=0.1);
+
+            /**
              * @brief search for plan with constraints.
              * @author Junsu Kang
              */

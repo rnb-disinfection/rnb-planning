@@ -245,7 +245,7 @@ class DynamicDetector:
 # @class RvizPublisher
 # @brief rviz publisher for DynamicDetector
 class RvizPublisher:
-    def __init__(self, gscene, obs_names):
+    def __init__(self, gscene, obs_names=[]):
         self.gscene, self.obs_names = gscene, obs_names
         self.obsPos_dict = None
         self.POS_CUR = None

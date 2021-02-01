@@ -1,6 +1,8 @@
 import time
 from .scene import State
 from ..utils.utils import SingleValue, list2dict, differentiate, GlobalTimer
+from ..utils.joint_utils import apply_vel_acc_lims
+from ..controller.repeater.repeater import DEFAULT_TRAJ_FREQUENCY, MultiTracker
 import numpy as np
 
 try:
@@ -87,7 +89,7 @@ class PlanningPipeline:
         self.manager.start()
         self.dict_lock = self.manager.Lock()
         self.que_lock = self.manager.Lock()
-        self.gtimer = GlobalTimer()
+        self.gtimer = GlobalTimer.instance()
 
     ##
     # @param mplan subclass instance of rnb-planning.src.pkg.planning.motion.interface.MotionInterface
@@ -192,7 +194,7 @@ class PlanningPipeline:
                         continue
                 self.search_counter.value = self.search_counter.value + 1
             self.gtimer.tic("test_transition")
-            print("__test_transition node: {} -> {}".format(from_state.node, to_state.node))
+            # print("__test_transition node: {} -> {}".format(from_state.node, to_state.node))
             traj, new_state, error, succ = self.__test_transition(from_state, to_state, redundancy_dict=redundancy_dict,
                                                                   display=display, dt_vis=dt_vis, **kwargs)
             ret = False
@@ -336,4 +338,80 @@ class PlanningPipeline:
         for snode in snode_schedule:
             if snode.traj is not None:
                 self.pscene.gscene.show_motion(snode.traj, period=period)
+            self.pscene.set_object_state(snode.state)
+
+    ##
+    # @brief execute grasping as described in the given state
+    def execute_grip(self, state):
+        grasp_dict = {}
+        for name in self.pscene.combined_robot.robot_names:
+            grasp_dict[name] = False
+
+        for binding in state.binding_state:
+            oname, bpoint, binder, bgeo = binding
+            if binder in self.pscene.actor_robot_dict:
+                rname = self.pscene.actor_robot_dict[binder]
+                if rname is not None:
+                    grasp_dict[rname] = True
+
+        self.pscene.combined_robot.grasp_by_dict(grasp_dict)
+
+    ##
+    # @brief execute schedule
+    def execute_schedule(self, snode_schedule, control_freq=DEFAULT_TRAJ_FREQUENCY, on_rviz=False, stop_count_ref=25,
+                         vel_scale=0.2, acc_scale=0.005, rviz_pub=None):
+        snode_schedule = [snode for snode in snode_schedule]    # re-wrap not to modify outer list
+        state_0 = snode_schedule[0].state
+        state_fin = snode_schedule[-1].state
+        state_home = state_fin.copy(self.pscene)
+        state_home.Q = np.array(self.pscene.combined_robot.home_pose)
+        trajectory, Q_last, error, success, binding_list = self.mplan.plan_transition(state_fin, state_home)
+        if success:
+            snode_home = SearchNode(0, state_home, [], [], depth=0, edepth=0, redundancy_dict=None)
+            snode_home.set_traj(trajectory)
+            snode_schedule.append(snode_home)
+
+        if not on_rviz:
+            self.execute_grip(state_0)
+            self.pscene.set_object_state(state_0)
+
+        for snode in snode_schedule:
+            if snode.traj is not None:
+                trajectory, trajectory_vel = apply_vel_acc_lims(snode.traj, DT=1 / float(control_freq),
+                                                                urdf_content=self.pscene.gscene.urdf_content,
+                                                                joint_names=self.pscene.gscene.joint_names,
+                                                                vel_scale=vel_scale, acc_scale=acc_scale)
+                Q0 = trajectory[0]
+                time.sleep(1)
+                if not on_rviz:
+                    self.pscene.combined_robot.joint_make_sure(Q0)
+
+                with MultiTracker(self.pscene.combined_robot.get_robot_list(), self.pscene.combined_robot.get_indexing_list(),
+                                  Q0, on_rviz=on_rviz) as mt:
+                    stop_count = 0
+                    N_traj = len(trajectory)
+                    i_q = 0
+                    while True:
+                        POS_CUR = trajectory[i_q]
+                        self.gtimer.tic("move_wait")
+                        if on_rviz:
+                            self.pscene.combined_robot.wait_step(self.pscene.gscene.rate)
+                            all_sent = True
+                        else:
+                            all_sent = mt.move_possible_joints_x4(POS_CUR)
+                        self.gtimer.toc("move_wait", stack=True)
+                        self.gtimer.tic("rviz")
+                        if rviz_pub is not None:
+                            rviz_pub.update({}, POS_CUR)
+                        self.gtimer.toc("rviz", stack=True)
+
+                        if all_sent:
+                            if i_q < N_traj-1:
+                                i_q += 1            # go to next Q
+                            else:
+                                stop_count += 1     # increase stop count (slow stop)
+
+                            if stop_count>stop_count_ref:
+                                break               # stop after reference count
+
             self.pscene.set_object_state(snode.state)

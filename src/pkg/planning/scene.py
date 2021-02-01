@@ -65,10 +65,19 @@ class PlanningScene:
         self.handle_list = []
         ## @brief {action name, action instance (rnb-planning.src.pkg.planning.constraint.constraint_subject.Action)}
         self.subject_dict = {}
+        ## @brief {actor name: corresponding robot name}
+        self.actor_robot_dict = {}
+        ## @brief {robot name: corresponding actor name}
+        self.robot_actor_dict = {}
 
     ##
     # @brief add a binder to the scene
-    def add_binder(self, binder):
+    # @param rname indexed full name of corresponding robot
+    # @param binder instance of subclass of rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
+    def add_binder(self, rname, binder):
+        self.actor_robot_dict[binder.name] = rname
+        if rname is not None:
+            self.robot_actor_dict[rname] = binder.name
         self.actor_dict[binder.name] = binder
         self.geometry_actor_dict[binder.geometry.name].append(binder.name)
 
@@ -78,18 +87,21 @@ class PlanningScene:
         if bname in self.actor_dict:
             self.geometry_actor_dict[self.actor_dict[bname].geometry.name].remove(bname)
             del self.actor_dict[bname]
+            del self.actor_robot_dict[bname]
+            del self.robot_actor_dict[bname]
 
     ##
     # @param bname binder name
     # @param gname name of parent object
+    # @param rname indexed full name of corresponding robot, None if free actor
     # @param _type type of binder, subclass of rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
     # @param point binding point offset from object (m)
     # @param rpy   orientation of binding point (rad)
-    def create_binder(self, bname, gname, _type, point=None, rpy=(0, 0, 0)):
+    def create_binder(self, bname, gname, _type, rname=None, point=None, rpy=(0, 0, 0)):
         self.remove_binder(bname)
         geometry = self.gscene.NAME_DICT[gname]
         binder = _type(bname, geometry=geometry, point=point, rpy=rpy)
-        self.add_binder(binder)
+        self.add_binder(rname, binder)
         return binder
 
     ##
@@ -123,6 +135,16 @@ class PlanningScene:
                 else:
                     uncontrolled_binders += [k_b]
         return controlled_binders, uncontrolled_binders
+    ##
+    # @brief get robot chain dictionary {robot name: {"tip_link": effector link name, "joint_names": joint name list}}
+    def get_robot_chain_dict(self):
+        base_dict = self.combined_robot.get_robot_base_dict()
+        chain_dict = {}
+        for rname in self.combined_robot.robot_names:
+            effector_link = self.actor_dict[self.robot_actor_dict[rname]].geometry.link_name
+            joint_chain = self.gscene.urdf_content.get_chain(root=base_dict[rname], tip=effector_link, fixed=False, joints=True, links=False)
+            chain_dict[rname] = {"tip_link": effector_link, "joint_names": joint_chain}
+        return chain_dict
 
     ##
     # @brief add a object to the scene
@@ -314,12 +336,16 @@ class PlanningScene:
                     # assert bd0[1] == bd1[1] , "impossible transition" ## removed because sweep action, which use same binder
                     pass
 
-        success = len(binding_list)>0
-        for binding in binding_list:
-            if not self.actor_dict[binding[2]].check_available(
-                    list2dict(from_state.Q, self.gscene.joint_names)):
-                success = False
-
+        success = True
+        if len(binding_list)>0:
+            for binding in binding_list:
+                if not self.actor_dict[binding[2]].check_available(
+                        list2dict(from_state.Q, self.gscene.joint_names)):
+                    success = False
+        else:
+            if from_state.Q is not None and to_state.Q is not None:
+                if np.sum(np.abs(from_state.Q - to_state.Q))<1e-3:
+                    success = False
         return binding_list, success
 
     ##

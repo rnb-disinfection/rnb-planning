@@ -118,6 +118,8 @@ BOOST_PYTHON_MODULE(moveit_interface_py){
             .def("init_planner_from_file", &Planner::init_planner_from_file)
             .def("plan", &Planner::plan,
                  return_value_policy<copy_non_const_reference>())
+            .def("plan_joint_motion", &Planner::plan_joint_motion,
+                 return_value_policy<copy_non_const_reference>())
             .def("plan_with_constraints", &Planner::plan_with_constraints,
                  return_value_policy<copy_non_const_reference>())
             .def("test_jacobian", &Planner::test_jacobian)

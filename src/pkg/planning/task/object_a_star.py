@@ -83,7 +83,7 @@ class ObjectAstar(TaskInterface):
                 break
             for _ in range(N_redundant_sample):
                 to_state, redundancy_dict = self.pscene.sample_leaf_state(state, available_binding_dict, leaf)
-                priority = (expected_depth - depth) * self.DSCALE + depth ## greedy
+                priority = ((expected_depth - depth), + depth, random.random()) ## greedy
                 queue.append((priority, (snode, state, to_state, redundancy_dict)))
         return queue
 

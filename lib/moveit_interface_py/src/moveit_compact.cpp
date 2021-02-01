@@ -200,6 +200,7 @@ PlanResult& Planner::plan(string group_name, string tool_link,
     _req.planner_id = planner_id;
     _req.allowed_planning_time = allowed_planning_time;
     _constrinat_pose_goal = kinematic_constraints::constructGoalConstraints(tool_link, _goal_pose, tolerance_pose, tolerance_angle);
+    _req.goal_constraints.clear();
     _req.goal_constraints.push_back(_constrinat_pose_goal);
 
     auto state_cur = planning_scene_->getCurrentState();
@@ -242,6 +243,65 @@ PlanResult& Planner::plan(string group_name, string tool_link,
     plan_result.success = true;
     return plan_result;
 }
+
+
+PlanResult& Planner::plan_joint_motion(string group_name, JointState goal_state, JointState init_state,
+                                       string planner_id, double allowed_planning_time){
+    PRINT_FRAMED_LOG("set goal", true);
+    robot_state::JointModelGroup* joint_model_group = robot_model_->getJointModelGroup(group_name);
+    robot_state::RobotState goal_state_moveit(robot_model_);
+    goal_state_moveit.setJointGroupPositions(joint_model_group, goal_state);
+    moveit_msgs::Constraints joint_goal = kinematic_constraints::constructGoalConstraints(goal_state_moveit, joint_model_group);
+
+    planning_interface::MotionPlanRequest _req;
+    planning_interface::MotionPlanResponse _res;
+    _req.group_name = group_name; //"indy0"; // "indy0_tcp"
+    _req.planner_id = planner_id;
+    _req.allowed_planning_time = allowed_planning_time;
+    _req.goal_constraints.clear();
+    _req.goal_constraints.push_back(joint_goal);
+
+    auto state_cur = planning_scene_->getCurrentState();
+    state_cur.setVariablePositions(init_state.data());
+    planning_scene_->setCurrentState(state_cur);
+
+    plan_result.trajectory.clear();
+
+    planning_interface::PlanningContextPtr context =
+            planner_instance_->getPlanningContext(planning_scene_, _req, _res.error_code_);
+
+    context->solve(_res);
+
+#ifdef PRINT_DEBUG
+    std::cout <<"init_state: "<<init_state.transpose()<<std::endl;
+    std::cout <<"goal_pose: "<<goal_pose.transpose()<<std::endl;
+#endif
+
+    /* Check that the planning was successful */
+    if (_res.error_code_.val != _res.error_code_.SUCCESS)
+    {
+        plan_result.success = false;
+        PRINT_ERROR(("failed to generatePlan ("+std::to_string(_res.error_code_.val)+")").c_str());
+        return plan_result;
+    }
+    int traj_len = _res.trajectory_->getWayPointCount();
+    for( int i=0; i<traj_len; i++){
+        const double* wp_buff = _res.trajectory_->getWayPoint(i).getVariablePositions();
+        JointState wp(joint_num);
+        memcpy(wp.data(), wp_buff, sizeof(double)*joint_num);
+        plan_result.trajectory.push_back(wp);
+    }
+
+    PRINT_FRAMED_LOG((std::string("got trajectory - ")+std::to_string(plan_result.trajectory.size())).c_str(), true);
+
+//    printf(LOG_FRAME_LINE);
+//    PRINT_FRAMED_LOG("last pose below");
+//    cout << *(plan_result.trajectory.end()-1) << endl;
+//    printf(LOG_FRAME_LINE "\n");
+    plan_result.success = true;
+    return plan_result;
+}
+
 void Planner::clear_context_cache(){
     planner_instance_->resetContextCache();
 }
@@ -278,6 +338,7 @@ PlanResult& Planner::plan_with_constraints(string group_name, string tool_link,
     _req.planner_id = planner_id;
     _req.allowed_planning_time = allowed_planning_time;
     _constrinat_pose_goal = kinematic_constraints::constructGoalConstraints(tool_link, _goal_pose, tolerance_pose, tolerance_angle);
+    _req.goal_constraints.clear();
     _req.goal_constraints.push_back(_constrinat_pose_goal);
 
     auto state_cur = planning_scene_->getCurrentState();
