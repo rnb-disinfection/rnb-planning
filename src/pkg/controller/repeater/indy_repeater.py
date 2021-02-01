@@ -1,5 +1,6 @@
 from .repeater import *
 from .indy_utils.indydcp_client import IndyDCPClient
+from .indy_utils.indy_program_maker import JsonProgramComponent
 from functools import wraps
 
 INDY_DOF = 6
@@ -41,10 +42,26 @@ class indytraj_client(IndyDCPClient, Repeater):
         while not self.get_robot_status()['movedone']:
             time.sleep(period)
 
-    @connect_indy
-    def joint_move_make_sure(self, Q, N_repeat=1):
-        for _ in range(N_repeat):
-            self.joint_move_to(Q)
+    ##
+    # @param Q radian
+    def joint_move_make_sure(self, Q, N_repeat=2):
+        with self:
+            for _ in range(N_repeat):
+                self.joint_move_to(np.rad2deg(Q))
+                self.wait_motion()
+
+    ##
+    # @param trajectory radian
+    def move_joint_wp(self, trajectory, vel_limits, acc_limits):
+        blend = 3
+        vel = int(np.ceil(9*(np.min(vel_limits)/np.deg2rad(150))))
+        trajectory = np.rad2deg(trajectory)
+        prog = JsonProgramComponent(policy=0, resume_time=2)
+        for Q in trajectory:
+            prog.add_joint_move_to(list(Q), vel=vel, blend=blend)
+        prog_json = prog.program_done()
+        with self:
+            self.set_and_start_json_program(prog_json)
             self.wait_motion()
 
     @connect_indy

@@ -121,11 +121,12 @@ class PlanningPipeline:
     # @param N_search maximum number of search for each thread
     # @param timeout_loop search timeout default = 600 sec
     # @param N_agents number of multiprocess agents, Default = cpu_count
+    # @param wait_proc wait for sub processes
     # @param display boolean flag for one-by-one motion display on rvia
     # @param dt_vis display period
     # @param verbose boolean flag for printing intermediate process
     def search(self, initial_state, goal_nodes, multiprocess=False, N_redundant_sample=30,
-                     terminate_on_first=True, N_search=100, N_agents=None,
+                     terminate_on_first=True, N_search=100, N_agents=None, wait_proc=True,
                      display=False, dt_vis=0.01, verbose=False, timeout_loop=600, **kwargs):
         ## @brief runber of redundancy sampling
         self.N_redundant_sample = N_redundant_sample
@@ -157,8 +158,9 @@ class PlanningPipeline:
             for proc in self.proc_list:
                 proc.start()
 
-            for proc in self.proc_list:
-                proc.join()
+            if wait_proc:
+                for proc in self.proc_list:
+                    proc.join()
         else:
             self.N_agents = 1
             self.snode_counter = SingleValue('i', 0)
@@ -349,8 +351,10 @@ class PlanningPipeline:
 
         for binding in state.binding_state:
             oname, bpoint, binder, bgeo = binding
+            print("binder: {}".format(binder))
             if binder in self.pscene.actor_robot_dict:
                 rname = self.pscene.actor_robot_dict[binder]
+                print("rname: {}".format(rname))
                 if rname is not None:
                     grasp_dict[rname] = True
 
@@ -358,7 +362,33 @@ class PlanningPipeline:
 
     ##
     # @brief execute schedule
-    def execute_schedule(self, snode_schedule, control_freq=DEFAULT_TRAJ_FREQUENCY, on_rviz=False, stop_count_ref=25,
+    def execute_schedule(self, snode_schedule, vel_scale=None, acc_scale=None):
+        snode_schedule = [snode for snode in snode_schedule]    # re-wrap not to modify outer list
+        state_0 = snode_schedule[0].state
+        state_fin = snode_schedule[-1].state
+        state_home = state_fin.copy(self.pscene)
+        state_home.Q = np.array(self.pscene.combined_robot.home_pose)
+        trajectory, Q_last, error, success, binding_list = self.mplan.plan_transition(state_fin, state_home)
+        if success:
+            snode_home = SearchNode(0, state_home, [], [], depth=0, edepth=0, redundancy_dict=None)
+            snode_home.set_traj(trajectory)
+            snode_schedule.append(snode_home)
+
+        self.execute_grip(state_0)
+        self.pscene.set_object_state(state_0)
+
+        for snode in snode_schedule:
+            if snode.traj is not None:
+                time.sleep(1)
+                print("go")
+                self.pscene.combined_robot.move_joint_wp(snode.traj, vel_scale, acc_scale)
+
+            self.pscene.set_object_state(snode.state)
+            self.execute_grip(snode.state)
+
+    ##
+    # @brief execute schedule
+    def execute_schedule_in_sync(self, snode_schedule, control_freq=DEFAULT_TRAJ_FREQUENCY, on_rviz=False, stop_count_ref=25,
                          vel_scale=0.2, acc_scale=0.005, rviz_pub=None):
         snode_schedule = [snode for snode in snode_schedule]    # re-wrap not to modify outer list
         state_0 = snode_schedule[0].state
@@ -382,7 +412,7 @@ class PlanningPipeline:
                                                                 joint_names=self.pscene.gscene.joint_names,
                                                                 vel_scale=vel_scale, acc_scale=acc_scale)
                 Q0 = trajectory[0]
-                time.sleep(1)
+                time.sleep(0.2)
                 if not on_rviz:
                     self.pscene.combined_robot.joint_make_sure(Q0)
 
@@ -415,3 +445,5 @@ class PlanningPipeline:
                                 break               # stop after reference count
 
             self.pscene.set_object_state(snode.state)
+            if not on_rviz:
+                self.execute_grip(state_0)

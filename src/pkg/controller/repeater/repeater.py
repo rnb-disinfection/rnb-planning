@@ -104,6 +104,28 @@ class Repeater(object):
             Q = qcur + DQ * (np.sin(np.pi * (float(i_step) / N_div - 0.5)) + 1) / 2
             i_step += self.move_possible_joints_x4(Q)
 
+    ##
+    # @param Q radian
+    @abc.abstractmethod
+    def joint_move_make_sure(self, Q):
+        pass
+
+    ##
+    # @param trajectory radian
+    # @param vel_limits radian
+    # @param acc_limits radian
+    def move_joint_wp(self, trajectory, vel_limits, acc_limits):
+        Q_prev = trajectory[0]
+        for i in range(len(trajectory)):
+            Q_cur = trajectory[i]
+            diff_abs = np.abs(Q_cur - Q_prev)
+            max_diff = np.max(diff_abs, axis=0)
+            T_vmax = np.max(2 * max_diff / vel_limits)
+            T_amax = np.sqrt(np.max(2 * max_diff / acc_limits))
+            T = np.maximum(T_vmax, T_amax)
+            self.move_joint_interpolated(Q_cur, N_div=np.ceil(T/float(self.traj_freq*4)))
+            Q_prev = Q_cur
+
     @abc.abstractmethod
     def start_online_tracking(self, Q0):
         pass

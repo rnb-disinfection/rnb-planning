@@ -128,26 +128,45 @@ class CombinedRobot:
     def joint_make_sure(self, Q):
         for name, rconfig in zip(self.robot_names, self.robots_on_scene):
             _type = rconfig.type
-            if _type == RobotType.indy7:
-                self.robot_dict[name].joint_move_make_sure(np.rad2deg(Q[self.idx_dict[name]]), N_repeat=2, connect=True)
-            elif _type == RobotType.panda:
-                self.robot_dict[name].move_joint_interpolated(Q[self.idx_dict[name]], N_div=200)
+            robot = self.robot_dict[name]
+            robot.joint_move_make_sure(Q[self.idx_dict[name]])
+
+    ##
+    # @brief move joint with waypoints, one-by-one
+    # @param trajectory numpy array (trajectory length, joint num)
+    def move_joint_wp(self, trajectory, vel_scale=None, acc_scale=None):
+        vel_scale = vel_scale or self.vel_scale
+        acc_scale = acc_scale or self.acc_scale
+        for name, rconfig in zip(self.robot_names, self.robots_on_scene):
+            _type = rconfig.type
+            robot = self.robot_dict[name]
+            traj_cur_rbt = trajectory[:,self.idx_dict[name]]
+            diff_abs_arr = np.abs(traj_cur_rbt - traj_cur_rbt[0:1, :])
+            if np.max(diff_abs_arr) > 1e-3:
+                vel_limits = np.multiply(RobotSpecs.get_vel_limits(_type), vel_scale)
+                acc_limits = np.multiply(RobotSpecs.get_acc_limits(_type), acc_scale)
+                robot.move_joint_wp(traj_cur_rbt, vel_limits, acc_limits)
 
     ##
     # @brief execute grasping action
     # @param grasp_dict boolean grasp commands in dictionary form {robot_name: grasp_bool}
     def grasp_by_dict(self, grasp_dict):
+        print("grasp_dict")
+        print(grasp_dict)
         grasp_seq = [(k, v) for k, v in grasp_dict.items()]
         grasp_seq = list(sorted(grasp_seq, key=lambda x: not x[1]))
+        print("grasp_seq")
+        print(grasp_seq)
         for grasp in grasp_seq:
             self.__grasp_fun(grasp[0], grasp[1])
 
     def __grasp_fun(self, name, grasp):
         scence_dict = self.get_robot_config_dict()
-        if scence_dict[name] == RobotType.indy7 and self.robot_dict[name] is not None:
-            self.robot_dict[name].grasp(grasp, connect=True)
-        elif scence_dict[name] == RobotType.panda and self.robot_dict[name] is not None:
-            self.robot_dict[name].move_finger(grasp)
+        if self.robot_dict[name] is not None:
+            if scence_dict[name].type == RobotType.indy7:
+                self.robot_dict[name].grasp(grasp, connect=True)
+            elif scence_dict[name].type == RobotType.panda:
+                self.robot_dict[name].move_finger(grasp)
 
     ##
     # @brief get current robot's pose or home pose if not connected (radian)

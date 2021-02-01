@@ -40,6 +40,11 @@ class PandaRepeater(Repeater):
         self.close_bool = close_bool
         return self.close_bool
 
+    ##
+    # @param Q radian
+    def joint_move_make_sure(self, Q):
+        self.move_joint_interpolated(Q, N_div=200)
+
     def start_online_tracking(self, Q0):
         self.reset()
 

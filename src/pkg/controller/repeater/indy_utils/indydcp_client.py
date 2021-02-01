@@ -448,7 +448,7 @@ def tcp_command(cmd, response_type=None):
 # Indy Client Class                                                           #
 ###############################################################################
 class IndyDCPClient(object):
-    def __init__(self, server_ip, robot_name, robot_version=""):
+    def __init__(self, server_ip, robot_name, robot_version="2.3.0"):
         global JOINT_DOF
 
         self.__server_port = 6066
@@ -1050,21 +1050,28 @@ class IndyDCPClient(object):
     # Waypoint move
     @tcp_command(CMD_JOINT_PUSH_BACK_WAYPOINT_SET)
     def joint_waypoint_append(self, q, wp_type=0, blend_radius=0):
-        # wp_type: 0 (absolute), 1 (relative joint)
-        # blend_radius: 0 ~ 23 [deg]
+        if self.robot_version < "2.4.0":
+            data = Data()
+            data_size = (JOINT_DOF) * 8
 
-        data = Data()
-        data_size = (JOINT_DOF + 2) * 8
-        data.doubleArr[0] = wp_type
+            for i in range(JOINT_DOF):
+                data.doubleArr[i] = q[i]
+        else:
+            # wp_type: 0 (absolute), 1 (relative joint)
+            # blend_radius: 0 ~ 23 [deg]
 
-        if blend_radius >= 3 and blend_radius <= 27:
-            data.doubleArr[1] = blend_radius
-        else: 
-            data.doubleArr[1] = 0
+            data = Data()
+            data_size = (JOINT_DOF + 2) * 8
+            data.doubleArr[0] = wp_type
 
-        for i in range(JOINT_DOF):
-            data.doubleArr[i + 2] = q[i]
-        
+            if blend_radius >= 3 and blend_radius <= 27:
+                data.doubleArr[1] = blend_radius
+            else:
+                data.doubleArr[1] = 0
+
+            for i in range(JOINT_DOF):
+                data.doubleArr[i + 2] = q[i]
+
         return (data, data_size)
 
     @tcp_command(CMD_JOINT_POP_BACK_WAYPOINT_SET)
@@ -1078,19 +1085,22 @@ class IndyDCPClient(object):
 # gwkim
     @tcp_command(CMD_JOINT_EXECUTE_WAYPOINT_SET)
     def joint_waypoint_execute(self, policy=0, resume_time=2):
-        # 0 : stop
-        # 1 : auto resume
-        # 2 : auto resume reverse
-        # 3 : no detection
-        # return : target waypoint number when robot is collided
+        if self.robot_version < "2.4.0":
+            pass
+        else:
+            # 0 : stop
+            # 1 : auto resume
+            # 2 : auto resume reverse
+            # 3 : no detection
+            # return : target waypoint number when robot is collided
 
-        data = Data()
-        data_size = 2 * 8
+            data = Data()
+            data_size = 2 * 8
 
-        data.doubleArr[0] = policy
-        data.doubleArr[1] = resume_time
-        
-        return (data, data_size)
+            data.doubleArr[0] = policy
+            data.doubleArr[1] = resume_time
+
+            return (data, data_size)
 
     @tcp_command(CMD_TASK_PUSH_BACK_WAYPOINT_SET)
     def task_waypoint_append(self, p, wp_type=0, blend_radius=0):
