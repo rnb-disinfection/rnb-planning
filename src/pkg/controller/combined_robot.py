@@ -55,8 +55,9 @@ class CombinedRobot:
     # @param name name of robot
     # @param xyzrpy robot position (xyz(m), rpy(rad))
     def update_robot_pos(self, name, xyzrpy):
-        self.get_robot_config_dict()[name].xyzrpy = xyzrpy
-        self.xyz_rpy_robots[name] = xyzrpy
+        if name in self.robot_names:
+            self.get_robot_config_dict()[name].xyzrpy = xyzrpy
+            self.xyz_rpy_robots[name] = xyzrpy
 
     ##
     # @brief update robot position by dictionary

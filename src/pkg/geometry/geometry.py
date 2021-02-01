@@ -69,7 +69,7 @@ class GeometryScene(list):
             self.remove(self.NAME_DICT[child], call_from_parent=True)
         if not call_from_parent:
             if geo.parent is not None:
-                self.NAME_DICT[geo.parent].remove(geo.name)
+                self.NAME_DICT[geo.parent].children.remove(geo.name)
         if self.rviz:
             self.__remove_marker(geo)
         list.remove(self, geo)
