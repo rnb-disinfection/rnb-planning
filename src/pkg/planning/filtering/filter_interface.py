@@ -1,6 +1,10 @@
 from abc import *
 __metaclass__ = type
 
+
+##
+# @class    MotionFilterInterface
+# @brief    Base class for motion planning filters
 class MotionFilterInterface:
 
     ##

@@ -4,6 +4,10 @@ from ..constraint.constraint_common import calc_redundancy
 from ...utils.joint_utils import *
 from ...utils.gjk import get_point_list, get_gjk_distance
 
+
+##
+# @class    GraspChecker
+# @brief    grasp checker
 class GraspChecker(MotionFilterInterface):
     ##
     # @param gscene rnb-planning.src.pkg.geometry.GeometryScene
