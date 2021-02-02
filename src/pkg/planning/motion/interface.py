@@ -9,7 +9,7 @@ __metaclass__ = type
 # @class MotionInterface
 # @brief Motion planner class interface
 # @remark   Child classes should be implemented with update_gscene and plan_algorithm.
-#           Child classes' constructor should call MotionInterface.__init__(self, pscene).
+#           Child classes' constructor should call MotionInterface.__init__(self, pscene, motion_filters).
 #           Specify NAME = "" for a child class as a class variable
 #           To use online planning, additionally implement init_online_algorithm, step_online_plan, update_online and update_target_joint.
 class MotionInterface:
@@ -19,9 +19,12 @@ class MotionInterface:
     # @brief    Basic initiailization of motion planner
     # @remark   Constructors of all child class should call MotionInterface.__init__(self, pscene)
     # @param    pscene rnb-planning.src.pkg.planning.scene.PlanningScene
-    def __init__(self, pscene, *args, **kwargs):
+    # @param    motion_filters list of child-class of rnb-planning.src.pkg.planning.motion.filtering.filter_interface.MotionFilterInterface
+    def __init__(self, pscene, motion_filters=[], *args, **kwargs):
         ## @brief an instance of planning scene (rnb-planning.src.pkg.planning.scene.PlanningScene)
         self.pscene = pscene
+        ## @brief motion_filters list of child-class of rnb-planning.src.pkg.planning.motion.filtering.filter_interface.MotionFilterInterface
+        self.motion_filters = motion_filters
         ## @brief geometry scene of the planning scene (rnb-planning.src.pkg.geometry.geometry.GeometryScene)
         self.gscene = pscene.gscene
         ## @brief combined robot in the planning scene (rnb-planning.src.pkg.controller.combined_robot.CombinedRobot)
@@ -52,6 +55,15 @@ class MotionInterface:
         if from_state is not None:
             self.pscene.set_object_state(from_state)
         binding_list, success = self.pscene.get_slack_bindings(from_state, to_state)
+
+        if success:
+            for mfilter in self.motion_filters:
+                for binding in binding_list:
+                    obj_name, ap_name, binder_name, binder_geometry_name = binding
+                    actor, obj = self.pscene.actor_dict[binder_name], self.pscene.subject_dict[obj_name]
+                    handle = obj.action_points_dict[ap_name]
+                    redundancy, Q_dict = redundancy_dict[obj_name], list2dict(from_state.Q, self.joint_names)
+                    success = mfilter.check(actor, obj, handle, redundancy, Q_dict)
 
         if success:
             Traj, LastQ, error, success = self.plan_algorithm(from_state, to_state, binding_list,

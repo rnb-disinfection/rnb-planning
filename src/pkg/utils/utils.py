@@ -105,6 +105,27 @@ class GlobalTimer(Singleton):
                 timeunit=self.timeunit, minT=round(self.min_time_dict[name],3), maxT=round(self.max_time_dict[name],3)
             )
         return strout
+
+    def block(self, key):
+        return BlockTimer(self, key)
+
+    def __enter__(self):
+        self.tic("block")
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.toc("block")
+
+class BlockTimer:
+    def __init__(self, gtimer, key):
+        self.gtimer, self.key = gtimer, key
+
+    def __enter__(self):
+        self.gtimer.tic(self.key)
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.gtimer.toc(self.key)
     
     
 import os
@@ -233,7 +254,7 @@ class LockBlock:
     def __enter__(self):
         self.lock.acquire()
 
-    def __exit__(self):
+    def __exit__(self, exc_type, exc_val, exc_tb):
         self.lock.release()
 
 

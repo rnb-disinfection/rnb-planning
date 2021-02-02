@@ -240,6 +240,11 @@ class GeometryScene(list):
             self.__add_marker(axtemz)
             self.highlight_dict[hl_key][axtemz.name] = axtemz
 
+    ##
+    # @brief get geometries attched to specific links
+    # @param links list of link names
+    def get_items_on_links(self, links):
+        return [gtem for gtem in self if gtem.link_name in links]
 
 ##
 # @class GeometryItem
@@ -380,7 +385,12 @@ class GeometryItem(object):
         Roff, Poff = Toff[:3, :3], Toff[:3, 3]
         return np.abs(Poff) + np.abs(np.matmul(Roff, self.dims))/2
     ##
-    # @brief get maximum radius of the geometry
+    # @brief get local vertice and maximum radius of the geometry
     def get_vertice_radius(self):
         return np.multiply(DEFAULT_VERT_DICT[self.gtype], self.dims), self.radius
+    ##
+    # @brief get vertice from specific link
+    def get_vertice_from(self, joint_dict, from_link='base_link'):
+        T = self.get_tf(joint_dict, from_link=from_link)
+        return np.transpose(np.matmul(T[:3,:3], np.multiply(DEFAULT_VERT_DICT[self.gtype], self.dims).transpose()) + T[:3,3:])
 

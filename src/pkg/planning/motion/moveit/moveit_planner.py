@@ -59,8 +59,9 @@ class MoveitPlanner(MotionInterface):
     ##
     # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
     # @param enable_dual    boolean flag to enable dual arm manipulation (default=True)
-    def __init__(self, pscene, enable_dual=True):
-        MotionInterface.__init__(self, pscene)
+    # @param    motion_filters list of child-class of rnb-planning.src.pkg.planning.motion.filtering.filter_interface.MotionFilterInterface
+    def __init__(self, pscene, motion_filters=[], enable_dual=True):
+        MotionInterface.__init__(self, pscene, motion_filters)
         config_path = os.path.dirname(self.urdf_path)+"/"
         self.robot_names = self.combined_robot.robot_names
         chain_dict = pscene.get_robot_chain_dict()

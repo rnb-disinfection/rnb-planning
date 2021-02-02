@@ -166,7 +166,14 @@ def build_T_chain(link_names, joint_dict, urdf_content, Tlink_dict=None):
                 build_T_chain(list(set(link_names)-set([lname])), joint_dict, urdf_content, Tlink_dict)
             Tp = Tlink_dict[plname]
             Tlink_dict[lname] = np.matmul(Tp, get_joint_tf(urdf_content.joint_map[pjname], joint_dict))
-    return Tlink_dict            
+    return Tlink_dict
+
+def get_reverse_T_dict(link_names, joint_dict, urdf_content):
+    ref_link = link_names[0]
+    Tinv_dict = {ref_link: np.identity(4)}
+    for link_name in link_names[1:]:
+        Tinv_dict[link_name] = SE3_inv(get_tf(ref_link, joint_dict, urdf_content, from_link=link_name))
+    return Tinv_dict
 
 def get_joint_names_csv(joint_names):
     jnames_format = ""

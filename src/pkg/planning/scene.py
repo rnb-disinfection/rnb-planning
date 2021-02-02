@@ -184,15 +184,15 @@ class PlanningScene:
         while bd_list:
             bd = bd_list.pop(0)
             obj = self.subject_dict[bd[0]]
+            state_param = state.state_param[bd[0]]
             if None in bd:
-                obj.set_state(bd, None)
+                obj.set_state(bd, state_param)
                 continue
             binder = self.actor_dict[bd[2]]
             if binder.geometry in [self.subject_dict[bd_tmp[0]].geometry for bd_tmp in bd_list]:
                 bd_list += [bd] # prevent using previous info ( move back to end )
             else:
                 # binder.bind(obj, bd[1], list2dict(state.Q, self.combined_robot.joint_names))
-                state_param = state.state_param[bd[0]]
                 if obj.stype == SubjectType.OBJECT:
                     binder_link_name = state_param[0]
                     frame = state_param[1]
