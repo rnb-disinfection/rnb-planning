@@ -10,6 +10,8 @@ JOINT_LIM_DICT = []
 # @class CombinedRobot
 # @brief control interface for combined robot
 class CombinedRobot:
+    ##
+    # @param robots_on_scene list of rnb-planning.src.pkg.controller.robot_config.RobotConfig
     def __init__(self, robots_on_scene, connection_list, vel_scale=0.5, acc_scale=0.5):
         ## @brief velocity limit scale
         self.vel_scale = vel_scale

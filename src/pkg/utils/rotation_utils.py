@@ -207,3 +207,20 @@ def calc_zvec_R(zvec):
     R = Rot_zyx(w,v,0)
     return R
 
+
+##
+# @brief convert cylindrical coordinate to cartesian coordinate
+# @param radius x-y plane radius
+# @param theta angle from x-axis, along z-axis
+# @param height height from x-y plane
+def cyl2cart(radius, theta, height):
+    return np.cos(theta)*radius, np.sin(theta)*radius, height
+
+##
+# @brief convert cylindrical coordinate to cartesian coordinate
+# @param theta position vector angle from x-axis, along z-axis
+# @param azimuth_loc angle from radial axis along z axis
+# @param zenith angle from bottom zenith
+def hori2mat(theta, azimuth_loc, zenith):
+    return Rot_axis_series([3,2], [theta+azimuth_loc, np.pi-zenith])
+

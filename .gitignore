@@ -6,6 +6,8 @@
 src/markers/
 src/data/
 src/logs/
+data/
+model/
 
 # Pycharm
 .idea/
