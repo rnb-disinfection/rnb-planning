@@ -17,4 +17,15 @@
 * Now you can browse doxygen documents from other computers in the local network at \<IP\>:\<PORT\>
 
 ## Scripts
-* Scripts to use or test the framework are in src/scripts
+* Scripts to use or test the framework are in src/scripts and src/code_test
+* Try src/scripts/\[TUTORIAL\] ConstrainedTaskPanning(Sweep).ipynb to learn basic usage
+
+## NOTE!
+* Please follow PEP8 coding convention.
+* Please add doxygen-style comments to any function and class that you implement.
+* Please follow git-flow branching strategy.
+    * master: latest release
+    * develop: main development branch
+    * feature: to add specific feature
+    * release: to prepare release
+    * hotfix: quick bugfix from a release version

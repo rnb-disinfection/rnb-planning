@@ -1,6 +1,11 @@
 Instruction for RNB-Planning Framework {#mainpage}
 ============
 
+RNB-Planning Framework is an integrated framework for combined planning of task and motion.  
+
+![framework](./docs/framework.png)
+
+
 # 1 Environment Setup  
 
 ## 1.1 Tensorflow base environment  
