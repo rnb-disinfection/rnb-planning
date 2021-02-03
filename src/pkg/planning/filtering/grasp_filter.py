@@ -65,4 +65,6 @@ class GraspChecker(MotionFilterInterface):
         for actor_vertice, actor_radius in actor_vertice_list:
             for object_vertice, object_radius in object_vertice_list:
                 dist_list.append(get_gjk_distance(actor_vertice, object_vertice) - actor_radius - object_radius)
-        return np.min(dist_list) > 0
+
+        res = np.min(dist_list) > 0
+        return res

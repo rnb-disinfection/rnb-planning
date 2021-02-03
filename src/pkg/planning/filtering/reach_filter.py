@@ -19,9 +19,8 @@ class ReachChecker(MotionFilterInterface):
         chain_dict = pscene.get_robot_chain_dict()
         binder_links = [chain_dict[rname]['tip_link'] for rname in self.robot_names]
         self.binder_link_robot_dict = {blink: rname for blink, rname in zip(binder_links, self.robot_names)}
-        for rconfig in self.combined_robots.robots_on_scene:
+        for rconfig in self.combined_robot.robots_on_scene:
             self.model_dict[rconfig.get_indexed_name()] = ReachTrainer(None).load_model(rconfig.type)
-
 
     ##
     # @brief check end-effector collision in grasping
@@ -35,10 +34,31 @@ class ReachChecker(MotionFilterInterface):
         actor_link = actor.geometry.link_name
         object_link = obj.geometry.link_name
 
-        #     with gtimer.block("link_offset"):
         T_handle_lh = handle.Toff_lh
         T_actor_lh = np.matmul(actor.Toff_lh, SE3(Rot_rpy(rpy_add), point_add))
-        T_link_handle_actor_link = np.matmul(T_handle_lh, SE3_inv(T_actor_lh))
+
+
+        group_name_handle = self.binder_link_robot_dict[handle.geometry.link_name] if handle.geometry.link_name in self.binder_link_robot_dict else None
+        group_name_actor = self.binder_link_robot_dict[actor.geometry.link_name] if actor.geometry.link_name in self.binder_link_robot_dict else None
+
+        if group_name_actor and not group_name_handle:
+            group_name = group_name_actor
+            T_handle_link = get_tf(object_link, Q_dict, self.pscene.gscene.urdf_content)
+            T_link_handle_actor_link = np.matmul(T_handle_lh, SE3_inv(T_actor_lh))
+            T_tar = np.matmul(T_handle_link, T_link_handle_actor_link)
+        elif group_name_handle and not group_name_actor:
+            group_name = group_name_handle
+            T_actor_link = get_tf(actor_link, Q_dict, self.pscene.gscene.urdf_content)
+            T_link_actor_handle_link = np.matmul(T_actor_lh, SE3_inv(T_actor_link))
+            T_tar = np.matmul(T_actor_link, T_link_actor_handle_link)
+        else:
+            # dual motion not predictable
+            return True
+        radius, theta, height = cart2cyl(*T_tar[:3,3])
+        azimuth_loc, zenith = mat2ori(T_tar[:3,:3], theta)
+        featurevec = (radius, theta, height, azimuth_loc, zenith)
+        res = self.model_dict[group_name].predict([featurevec])[0]
+        return res
 
 
 from ...utils.utils import *
@@ -90,8 +110,15 @@ class ReachTrainer:
 
         feature_mat_train = np.array(self.featurevec_list_train)
         feature_mat_test = np.array(self.featurevec_list_test)
-        train_res = np.equal(self.clf.predict(feature_mat_train), self.success_list_train)
-        test_res = np.equal(self.clf.predict(feature_mat_test), self.success_list_test)
+
+        gtimer = GlobalTimer.instance()
+        gtimer.reset()
+        with gtimer.block("trainset"):
+            train_res = np.equal(self.clf.predict(feature_mat_train), self.success_list_train)
+        with gtimer.block("testset"):
+            test_res = np.equal(self.clf.predict(feature_mat_test), self.success_list_test)
+        print("=" * 80)
+        print(gtimer)
 
         print("=" * 80)
         print("trainning accuracy = {} %".format(round(np.mean(train_res) * 100, 2)))
@@ -112,20 +139,23 @@ class ReachTrainer:
     def load_and_learn(self, ROBOT_TYPE, C_svm=10, save_model=True):
         self.featurevec_list_train, self.success_list_train = self.load_data(ROBOT_TYPE, "train")
         self.featurevec_list_test, self.success_list_test = self.load_data(ROBOT_TYPE, "test")
+
         feature_mat_train = np.array(self.featurevec_list_train)
         feature_mat_test = np.array(self.featurevec_list_test)
 
-        feature_mat_train = np.array(self.featurevec_list_train)
         self.clf = svm.SVC(kernel='rbf', C=C_svm)
         self.clf.fit(feature_mat_train, self.success_list_train)
         if save_model:
             self.save_model()
 
-
-        feature_mat_train = np.array(self.featurevec_list_train)
-        feature_mat_test = np.array(self.featurevec_list_test)
-        train_res = np.equal(self.clf.predict(feature_mat_train), self.success_list_train)
-        test_res = np.equal(self.clf.predict(feature_mat_test), self.success_list_test)
+        gtimer = GlobalTimer.instance()
+        gtimer.reset()
+        with gtimer.block("trainset"):
+            train_res = np.equal(self.clf.predict(feature_mat_train), self.success_list_train)
+        with gtimer.block("testset"):
+            test_res = np.equal(self.clf.predict(feature_mat_test), self.success_list_test)
+        print("=" * 80)
+        print(gtimer)
 
         print("=" * 80)
         print("trainning accuracy = {} %".format(round(np.mean(train_res) * 100, 2)))
@@ -150,8 +180,15 @@ class ReachTrainer:
         feature_mat_test = np.array(self.featurevec_list_test)
 
         self.load_model(ROBOT_TYPE)
-        train_res = np.equal(self.clf.predict(feature_mat_train), self.success_list_train)
-        test_res = np.equal(self.clf.predict(feature_mat_test), self.success_list_test)
+
+        gtimer = GlobalTimer.instance()
+        gtimer.reset()
+        with gtimer.block("trainset"):
+            train_res = np.equal(self.clf.predict(feature_mat_train), self.success_list_train)
+        with gtimer.block("testset"):
+            test_res = np.equal(self.clf.predict(feature_mat_test), self.success_list_test)
+        print("=" * 80)
+        print(gtimer)
 
         print("=" * 80)
         print("trainning accuracy = {} %".format(round(np.mean(train_res) * 100, 2)))

@@ -64,6 +64,8 @@ class MotionInterface:
                     handle = obj.action_points_dict[ap_name]
                     redundancy, Q_dict = redundancy_dict[obj_name], list2dict(from_state.Q, self.joint_names)
                     success = mfilter.check(actor, obj, handle, redundancy, Q_dict)
+                    if not success:
+                        break
 
         if success:
             Traj, LastQ, error, success = self.plan_algorithm(from_state, to_state, binding_list,

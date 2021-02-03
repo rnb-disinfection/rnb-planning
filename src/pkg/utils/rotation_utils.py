@@ -216,11 +216,39 @@ def calc_zvec_R(zvec):
 def cyl2cart(radius, theta, height):
     return np.cos(theta)*radius, np.sin(theta)*radius, height
 
+
 ##
-# @brief convert cylindrical coordinate to cartesian coordinate
+# @brief convert horizontal coordinate to orientation matrix
 # @param theta position vector angle from x-axis, along z-axis
 # @param azimuth_loc angle from radial axis along z axis
 # @param zenith angle from bottom zenith
 def hori2mat(theta, azimuth_loc, zenith):
     return Rot_axis_series([3,2], [theta+azimuth_loc, np.pi-zenith])
+
+
+##
+# @brief convert cartesian coordinate to cylindrical coordinate
+# @return radius x-y plane radius
+# @return theta angle from x-axis, along z-axis
+# @return height height from x-y plane
+def cart2cyl(x, y, z):
+    r = np.sqrt(x**2+y**2)
+    theta = np.arctan2(y,x)
+    height = z
+    return r, theta, height
+
+
+##
+# @brief convert orientation matrix to horizontal coordinate
+# @param theta position vector angle from x-axis, along z-axis
+# @param orientaion_mat orentation
+# @return azimuth_loc angle from radial axis along z axis
+# @return zenith angle from bottom zenith
+def mat2ori(orientation_mat, theta=0):
+    x,y,z = orientation_mat[:,2]
+    azimuth = np.arctan2(y,x)
+    azimuth_loc = (azimuth-theta + np.pi)%(2*np.pi)-np.pi
+    zenith = np.arctan2(np.sqrt(x**2+y**2), -z)%np.pi
+    return azimuth_loc, zenith
+
 
