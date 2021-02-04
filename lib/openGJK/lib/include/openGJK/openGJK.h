@@ -59,8 +59,6 @@ public:
 
 typedef std::vector<Point3> PointList;
 
-double gjk_cpp(PointList pl1, PointList pl2);
-
 /**
  * @brief Structure of a body.
  */
@@ -79,7 +77,55 @@ struct simplex {
   int    wids    [4];    /**< Label of the simplex's vertices. 			*/  
   double lambdas [4];    /**< Barycentric coordiantes for each vertex.  */
   double  p [4][3];     /**< Points of P that form the simplex  */  
-  double  q [4][3];	    /**< Points of Q that form the simplex  */ 
+  double  q [4][3];	    /**< Points of Q that form the simplex  */
+
+  void clear(){
+      nvrtx=0;
+      vrtx[0][0]=0;
+      vrtx[1][0]=0;
+      vrtx[2][0]=0;
+      vrtx[3][0]=0;
+      vrtx[0][1]=0;
+      vrtx[1][1]=0;
+      vrtx[2][1]=0;
+      vrtx[3][1]=0;
+      vrtx[0][2]=0;
+      vrtx[1][2]=0;
+      vrtx[2][2]=0;
+      vrtx[3][2]=0;
+      wids[0]=0;
+      wids[1]=0;
+      wids[2]=0;
+      wids[3]=0;
+      lambdas[0]=0;
+      lambdas[1]=0;
+      lambdas[2]=0;
+      lambdas[3]=0;
+      p[0][0]=0;
+      p[1][0]=0;
+      p[2][0]=0;
+      p[3][0]=0;
+      p[0][1]=0;
+      p[1][1]=0;
+      p[2][1]=0;
+      p[3][1]=0;
+      p[0][2]=0;
+      p[1][2]=0;
+      p[2][2]=0;
+      p[3][2]=0;
+      q[0][0]=0;
+      q[1][0]=0;
+      q[2][0]=0;
+      q[3][0]=0;
+      q[0][1]=0;
+      q[1][1]=0;
+      q[2][1]=0;
+      q[3][1]=0;
+      q[0][2]=0;
+      q[1][2]=0;
+      q[2][2]=0;
+      q[3][2]=0;
+  }
 };
 
 /**

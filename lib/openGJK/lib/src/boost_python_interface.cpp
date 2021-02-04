@@ -44,5 +44,45 @@ BOOST_PYTHON_MODULE(openGJKlib){
             .def("__delitem__", &std_item<PointList>::del)
             ;
 
+    class_<PointListList>("PointListList", init<>())
+            .def("__len__", &PointListList::size)
+            .def("clear", &PointListList::clear)
+            .def("append", &std_item<PointListList>::add,
+                 with_custodian_and_ward<1,2>()) // to let container keep value
+            .def("__getitem__", &std_item<PointListList>::get,
+                 return_value_policy<copy_non_const_reference>())
+            .def("__setitem__", &std_item<PointListList>::set,
+                 with_custodian_and_ward<1,2>()) // to let container keep value
+            .def("__delitem__", &std_item<PointListList>::del)
+            ;
+
+    class_<DoubleList>("DoubleList", init<>())
+            .def("__len__", &DoubleList::size)
+            .def("clear", &DoubleList::clear)
+            .def("append", &std_item<DoubleList>::add,
+                 with_custodian_and_ward<1,2>()) // to let container keep value
+            .def("__getitem__", &std_item<DoubleList>::get,
+                 return_value_policy<copy_non_const_reference>())
+            .def("__setitem__", &std_item<DoubleList>::set,
+                 with_custodian_and_ward<1,2>()) // to let container keep value
+            .def("__delitem__", &std_item<DoubleList>::del)
+            ;
+
+    class_<DoubleListList>("DoubleListList", init<>())
+            .def("__len__", &DoubleListList::size)
+            .def("clear", &DoubleListList::clear)
+            .def("append", &std_item<DoubleListList>::add,
+                 with_custodian_and_ward<1,2>()) // to let container keep value
+            .def("__getitem__", &std_item<DoubleListList>::get,
+                 return_value_policy<copy_non_const_reference>())
+            .def("__setitem__", &std_item<DoubleListList>::set,
+                 with_custodian_and_ward<1,2>()) // to let container keep value
+            .def("__delitem__", &std_item<DoubleListList>::del)
+            ;
+
     def("gjk_cpp", gjk_cpp);
+
+    def("gjk_cpp_min", gjk_cpp_min);
+
+    def("gjk_cpp_all", gjk_cpp_all);
 }

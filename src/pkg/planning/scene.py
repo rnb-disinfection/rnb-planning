@@ -65,6 +65,10 @@ class PlanningScene:
         self.handle_list = []
         ## @brief {action name, action instance (rnb-planning.src.pkg.planning.constraint.constraint_subject.Action)}
         self.subject_dict = {}
+        ## @brief list of subject names in order
+        self.subject_name_list = []
+        ## @brief list of subject types in order
+        self.subject_type_list = []
         ## @brief {actor name: corresponding robot name}
         self.actor_robot_dict = {}
         ## @brief {robot name: corresponding actor name}

@@ -10,8 +10,27 @@ def get_point_list(point_rows_np):
         pl.append(oGJK.Point3(*v))
     return pl
 
+def get_point_list_list(point_rows_list_np):
+    pll = oGJK.PointListList()
+    for point_rows_np in point_rows_list_np:
+        pll.append(get_point_list(point_rows_np))
+    return pll
+
+def get_point_list_list_from_point_list(point_list_list):
+    pll = oGJK.PointListList()
+    for point_list in point_list_list:
+        pll.append(point_list)
+    return pll
+
 def get_gjk_distance(point_list1, point_list2):
     return oGJK.gjk_cpp(point_list1, point_list2)
+
+def get_gjk_distance_min(point_list, point_list_list):
+    return oGJK.gjk_cpp_min(point_list, point_list_list)
+
+def get_gjk_distance_all(point_list, point_list_list):
+    return oGJK.gjk_cpp_all(point_list, point_list_list)
+
 # clib.gjk_flat_batch.restype = ctypes.c_double
 #
 # MAX_VTX_ARR_TYPE = c_double * (VTX_MAX * 3)
