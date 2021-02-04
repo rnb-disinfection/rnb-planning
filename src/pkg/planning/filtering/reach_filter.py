@@ -234,6 +234,8 @@ class ReachTrainer:
 
         # create scene
         gscene = self.scene_builder.create_gscene(crob, start_rviz=False)
+        self.scene_builder.add_robot_geometries(color=(0, 1, 0, 0.5), display=True, collision=True)
+        print("added robot collision boundaries")
         pscene = PlanningScene(gscene, combined_robot=crob)
 
         # make dummy binders
@@ -250,7 +252,7 @@ class ReachTrainer:
         featurevec_list = []
         success_list = []
         for i_s in range(N_s):
-            featurevec, success, trajectory = self.sample_reaching("indy0", "indy0_tcp", home_pose=crob.home_pose)
+            featurevec, success, trajectory = self.sample_reaching(ROBOT_NAME, TIP_LINK, home_pose=crob.home_pose)
             xyz = cyl2cart(*featurevec[:3])
             orientation_mat = hori2mat(featurevec[1], *featurevec[-2:])
     #         gscene.add_highlight_axis("hl", "toolvec", "base_link", xyz, orientation_mat)
