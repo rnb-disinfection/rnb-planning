@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6"/>
+	<Project>
+		<Option title="latticizer"/>
+		<Option makefile_is_custom="1"/>
+		<Option compiler="gcc"/>
+		<Option virtualFolders="CMake Files\;CMake Files\..\;CMake Files\..\..\;CMake Files\..\..\..\;CMake Files\..\..\..\..\;CMake Files\..\..\..\..\..\;CMake Files\..\..\..\..\..\..\;CMake Files\..\..\..\..\..\..\usr\;CMake Files\..\..\..\..\..\..\usr\lib\;CMake Files\..\..\..\..\..\..\usr\lib\cmake\;CMake Files\..\..\..\..\..\..\usr\lib\cmake\eigen3\;"/>
+		<Build>
+			<Target title="all">
+				<Option working_dir="/home/rnb/Projects/rnb-planning/lib/latticizer"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -f &quot;/home/rnb/Projects/rnb-planning/lib/latticizer/Makefile&quot;  VERBOSE=1 all"/>
+					<CompileFile command="/usr/bin/make -f &quot;/home/rnb/Projects/rnb-planning/lib/latticizer/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -f &quot;/home/rnb/Projects/rnb-planning/lib/latticizer/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -f &quot;/home/rnb/Projects/rnb-planning/lib/latticizer/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="rebuild_cache">
+				<Option working_dir="/home/rnb/Projects/rnb-planning/lib/latticizer"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -f &quot;/home/rnb/Projects/rnb-planning/lib/latticizer/Makefile&quot;  VERBOSE=1 rebuild_cache"/>
+					<CompileFile command="/usr/bin/make -f &quot;/home/rnb/Projects/rnb-planning/lib/latticizer/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -f &quot;/home/rnb/Projects/rnb-planning/lib/latticizer/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -f &quot;/home/rnb/Projects/rnb-planning/lib/latticizer/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="edit_cache">
+				<Option working_dir="/home/rnb/Projects/rnb-planning/lib/latticizer"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -f &quot;/home/rnb/Projects/rnb-planning/lib/latticizer/Makefile&quot;  VERBOSE=1 edit_cache"/>
+					<CompileFile command="/usr/bin/make -f &quot;/home/rnb/Projects/rnb-planning/lib/latticizer/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -f &quot;/home/rnb/Projects/rnb-planning/lib/latticizer/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -f &quot;/home/rnb/Projects/rnb-planning/lib/latticizer/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="latticizer-test">
+				<Option output="/home/rnb/Projects/rnb-planning/lib/latticizer/latticizer-test" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/rnb/Projects/rnb-planning/lib/latticizer"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/home/rnb/Projects/rnb-planning/lib/latticizer/include"/>
+					<Add directory="/usr/include/python2.7"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -f &quot;/home/rnb/Projects/rnb-planning/lib/latticizer/Makefile&quot;  VERBOSE=1 latticizer-test"/>
+					<CompileFile command="/usr/bin/make -f &quot;/home/rnb/Projects/rnb-planning/lib/latticizer/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -f &quot;/home/rnb/Projects/rnb-planning/lib/latticizer/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -f &quot;/home/rnb/Projects/rnb-planning/lib/latticizer/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="latticizer-test/fast">
+				<Option output="/home/rnb/Projects/rnb-planning/lib/latticizer/latticizer-test" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/rnb/Projects/rnb-planning/lib/latticizer"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/home/rnb/Projects/rnb-planning/lib/latticizer/include"/>
+					<Add directory="/usr/include/python2.7"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -f &quot;/home/rnb/Projects/rnb-planning/lib/latticizer/Makefile&quot;  VERBOSE=1 latticizer-test/fast"/>
+					<CompileFile command="/usr/bin/make -f &quot;/home/rnb/Projects/rnb-planning/lib/latticizer/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -f &quot;/home/rnb/Projects/rnb-planning/lib/latticizer/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -f &quot;/home/rnb/Projects/rnb-planning/lib/latticizer/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="latticizer">
+				<Option output="/home/rnb/Projects/rnb-planning/lib/latticizer/latticizer.so" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/rnb/Projects/rnb-planning/lib/latticizer"/>
+				<Option object_output="./"/>
+				<Option type="3"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/home/rnb/Projects/rnb-planning/lib/latticizer/include"/>
+					<Add directory="/usr/include/python2.7"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -f &quot;/home/rnb/Projects/rnb-planning/lib/latticizer/Makefile&quot;  VERBOSE=1 latticizer"/>
+					<CompileFile command="/usr/bin/make -f &quot;/home/rnb/Projects/rnb-planning/lib/latticizer/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -f &quot;/home/rnb/Projects/rnb-planning/lib/latticizer/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -f &quot;/home/rnb/Projects/rnb-planning/lib/latticizer/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="latticizer/fast">
+				<Option output="/home/rnb/Projects/rnb-planning/lib/latticizer/latticizer.so" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/rnb/Projects/rnb-planning/lib/latticizer"/>
+				<Option object_output="./"/>
+				<Option type="3"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/home/rnb/Projects/rnb-planning/lib/latticizer/include"/>
+					<Add directory="/usr/include/python2.7"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -f &quot;/home/rnb/Projects/rnb-planning/lib/latticizer/Makefile&quot;  VERBOSE=1 latticizer/fast"/>
+					<CompileFile command="/usr/bin/make -f &quot;/home/rnb/Projects/rnb-planning/lib/latticizer/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -f &quot;/home/rnb/Projects/rnb-planning/lib/latticizer/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -f &quot;/home/rnb/Projects/rnb-planning/lib/latticizer/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+		</Build>
+		<Unit filename="/home/rnb/Projects/rnb-planning/lib/latticizer/include/timer.h">
+			<Option target="latticizer"/>
+		</Unit>
+		<Unit filename="/home/rnb/Projects/rnb-planning/lib/latticizer/src/boost_python_interface.cpp">
+			<Option target="latticizer"/>
+		</Unit>
+		<Unit filename="/home/rnb/Projects/rnb-planning/lib/latticizer/src/latticizer.cpp">
+			<Option target="latticizer"/>
+		</Unit>
+		<Unit filename="/home/rnb/Projects/rnb-planning/lib/latticizer/src/test.cpp">
+			<Option target="latticizer-test"/>
+		</Unit>
+		<Unit filename="/home/rnb/Projects/rnb-planning/lib/latticizer/CMakeLists.txt">
+			<Option virtualFolder="CMake Files\"/>
+		</Unit>
+		<Unit filename="/home/rnb/Projects/rnb-planning/lib/latticizer/../../../../../../usr/lib/cmake/eigen3/Eigen3Config.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\..\usr\lib\cmake\eigen3\"/>
+		</Unit>
+		<Unit filename="/home/rnb/Projects/rnb-planning/lib/latticizer/../../../../../../usr/lib/cmake/eigen3/Eigen3ConfigVersion.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\..\usr\lib\cmake\eigen3\"/>
+		</Unit>
+		<Unit filename="/home/rnb/Projects/rnb-planning/lib/latticizer/../../../../../../usr/lib/cmake/eigen3/Eigen3Targets.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\..\usr\lib\cmake\eigen3\"/>
+		</Unit>
+	</Project>
+</CodeBlocks_project_file>

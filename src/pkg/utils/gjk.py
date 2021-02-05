@@ -4,6 +4,9 @@ import os
 sys.path.append(os.path.join(os.environ["RNB_PLANNING_DIR"], "lib/openGJK/lib"))
 import openGJKlib as oGJK
 
+def make_point3(x, y, z):
+    return oGJK.Point3(x, y, z)
+
 def get_point_list(point_rows_np):
     pl = oGJK.PointList()
     for v in point_rows_np:
