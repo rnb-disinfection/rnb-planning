@@ -44,10 +44,19 @@ def get_mean_std(X, outlier_count=2):
     return np.mean(X_ex, axis=0), np.std(X_ex, axis=0)
 
 
+##
+# @class    GlobalTimer
+# @brief    A singleton timer to record timings anywhere in the code.
+# @remark   Call GlobalTimer.instance() to get the singleton timer.
+#           To see the recorded times, just print the timer: print(global_timer)
 class GlobalTimer(Singleton):
     def __init__(self, scale=1000, timeunit='ms'):
         self.reset(scale, timeunit)
-        
+
+    ##
+    # @brief    reset the timer.
+    # @param    scale       scale of the timer compared to a second. For ms timer, 1000
+    # @param    timeunit    name of time unit for printing the log
     def reset(self, scale=1000, timeunit='ms'):
         self.scale = scale
         self.timeunit = timeunit
@@ -59,16 +68,25 @@ class GlobalTimer(Singleton):
         self.count_dict = collections.defaultdict(lambda: 0)
         self.timelist_dict = collections.defaultdict(list)
         self.switch(True)
-        
+
+    ##
+    # @brief    switch for recording time. switch-off to prevent time recording for optimal performance
     def switch(self, onoff):
         self.__on = onoff
-    
+
+    ##
+    # @brief    mark starting point of time record
+    # @param    name    name of the section to record time.
     def tic(self, name):
         if self.__on:
             if name not in self.name_list:
                 self.name_list.append(name)
             self.ts_dict[name] = time.time()
-        
+
+    ##
+    # @brief    record the time passed from last call of tic with same name
+    # @param    name    name of the section to record time
+    # @param    stack   to stack each time duration to timelist_dict, set this value to True
     def toc(self, name, stack=False):
         if self.__on:
             dt = (time.time() - self.ts_dict[name]) * self.scale
@@ -79,22 +97,16 @@ class GlobalTimer(Singleton):
             if stack:
                 self.timelist_dict[name].append(dt)
             return dt
-            
+
+    ##
+    # @brief    record and start next timer in a line.
     def toctic(self, name_toc, name_tic, stack=False):
         dt = self.toc(name_toc, stack=stack)
         self.tic(name_tic)
         return dt
-        
-    def print_time_log(self, names=None):
-        if names is None:
-            names = self.name_list
-        for name in names:
-            print("{name}: \t{tot_T} {timeunit}/{tot_C} = {per_T} {timeunit} ({minT}/{maxT})\n".format(
-                name=name, tot_T=np.round(np.sum(self.time_dict[name])), tot_C=self.count_dict[name], 
-                per_T= np.round(np.sum(self.time_dict[name])/self.count_dict[name], 3),
-                timeunit=self.timeunit, minT=round(self.min_time_dict[name],3), maxT=round(self.max_time_dict[name],3)
-            ))
-            
+
+    ##
+    # @brief you can just print the timer instance to see the record
     def __str__(self):
         strout = "" 
         names = self.name_list
@@ -106,6 +118,8 @@ class GlobalTimer(Singleton):
             )
         return strout
 
+    ##
+    # @brief use "with timer:" to easily record duration of a code block
     def block(self, key):
         return BlockTimer(self, key)
 
@@ -116,6 +130,9 @@ class GlobalTimer(Singleton):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.toc("block")
 
+##
+# @class    BlockTimer
+# @brief    Wrapper class to record timing of a code block.
 class BlockTimer:
     def __init__(self, gtimer, key):
         self.gtimer, self.key = gtimer, key

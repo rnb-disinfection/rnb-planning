@@ -1,0 +1,6 @@
+#ifndef LATTICIZER_LATTICIZER_H
+#define LATTICIZER_LATTICIZER_H
+
+void hello();
+
+#endif //LATTICIZER_LATTICIZER_H
