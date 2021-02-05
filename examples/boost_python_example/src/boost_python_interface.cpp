@@ -1,14 +1,16 @@
-//
-// Created by tamp on 20. 11. 25..
-//
+/**
+ * @file bp_container_interface.h
+ * @date Feb. 2021
+ * @brief Example of boost python module.
+ */
 
 
 
 #include <boost/python.hpp>
 #include "bp_container_interface.h"
-#include "latticizer.h"
+#include "library.h"
 
-BOOST_PYTHON_MODULE(latticizer){
+BOOST_PYTHON_MODULE(boost_python_example){
     using namespace boost::python;
     def("hello", hello);
 

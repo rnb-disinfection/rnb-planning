@@ -2,7 +2,7 @@
 // Created by rnb on 21. 2. 5..
 //
 
-#include "latticizer.h"
+#include "library.h"
 
 int main(){
     hello("builder");

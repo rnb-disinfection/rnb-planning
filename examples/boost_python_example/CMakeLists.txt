@@ -1,11 +1,10 @@
 cmake_minimum_required(VERSION 3.5)
-project(latticizer)
+project(boost_python_example)
 
 set(CMAKE_CXX_STANDARD 14)
 
 find_package(PythonInterp 2.7 REQUIRED)
 find_package(PythonLibs 2.7 REQUIRED)
-set(BOOST_PYTHONLIB python2)
 
 find_package(Eigen3 REQUIRED)
 find_package(Boost REQUIRED system filesystem date_time thread python)
@@ -21,7 +20,7 @@ set(CMAKE_SHARED_LIBRARY_PREFIX "") # output file name should match with BOOST_P
 ############################################################################
 ##############################  BUILD LIBRARY ##############################
 add_library(${PROJECT_NAME} SHARED
-        src/latticizer.cpp
+        src/library.cpp
         src/boost_python_interface.cpp)
 target_link_libraries(${PROJECT_NAME} ${PYTHON_LIBRARIES} ${Boost_LIBRARIES} ${Eigen3_LIBRARIES})
 ##############################  BUILD LIBRARY ##############################

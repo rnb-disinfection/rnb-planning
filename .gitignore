@@ -148,3 +148,5 @@ log/
 **/Release/
 **.so
 **/Makefile
+**/CMakeCache.txt
+**/cmake_install.cmake

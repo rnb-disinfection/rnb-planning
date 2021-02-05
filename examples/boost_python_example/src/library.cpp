@@ -1,4 +1,4 @@
-#include "latticizer.h"
+#include "../include/library.h"
 
 #include <iostream>
 
