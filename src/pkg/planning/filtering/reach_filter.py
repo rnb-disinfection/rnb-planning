@@ -8,6 +8,7 @@ from ...utils.gjk import get_point_list, get_gjk_distance
 ##
 # @class    ReachChecker
 # @brief    check reach regarding kinematic chain
+# @remark   You need to train ReachTrainer tu use ReachChecker. See src/scripts/training/ReachSVM.ipynb
 class ReachChecker(MotionFilterInterface):
     ##
     # @param pscene rnb-planning.src.pkg.planning.scene
@@ -81,6 +82,7 @@ try_mkdir(MODEL_PATH)
 ##
 # @class    ReachChecker
 # @brief    check reach regarding kinematic chain
+# @remark   to train ReachChecker, see src/scripts/training/ReachSVM.ipynb
 class ReachTrainer:
 
     ##
