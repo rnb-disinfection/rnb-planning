@@ -140,3 +140,11 @@ dmypy.json
 # Ros build
 install/
 log/
+
+
+# c build
+**/cmake-build-*/
+**/CMakeFiles/
+**/Release/
+**.so
+**/Makefile
