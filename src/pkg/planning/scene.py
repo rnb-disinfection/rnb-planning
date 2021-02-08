@@ -91,8 +91,10 @@ class PlanningScene:
         if bname in self.actor_dict:
             self.geometry_actor_dict[self.actor_dict[bname].geometry.name].remove(bname)
             del self.actor_dict[bname]
+            rname = self.actor_robot_dict[bname]
             del self.actor_robot_dict[bname]
-            del self.robot_actor_dict[bname]
+            if rname is not None:
+                del self.robot_actor_dict[rname]
 
     ##
     # @param bname binder name

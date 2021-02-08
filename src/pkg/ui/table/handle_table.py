@@ -15,7 +15,8 @@ class HandleTable(TableInterface):
     def serialize(self, htem):
         return [htem.name_full, htem.geometry.name,
                 htem.name, htem.ctype.name,
-                round_it_str(htem.point), round_it_str(htem.rpy_point)]
+                round_it_str(htem.point) if htem.point is not None else "None",
+                round_it_str(htem.rpy_point) if htem.rpy_point is not None else "None"]
 
     def highlight_item(self, handle, color=None):
         self.planning_pipeline.pscene.add_handle_axis(self.HILIGHT_KEY, handle)

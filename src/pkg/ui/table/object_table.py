@@ -14,16 +14,17 @@ class ObjectTable(TableInterface):
         return self.planning_pipeline.pscene.subject_dict
 
     def serialize(self, otem):
-        return [otem.geometry.name, otem.__class__.__name__, otem.binding[0], otem.binding[1]]
+        return [otem.oname, otem.__class__.__name__, otem.binding[1], otem.binding[2]]
 
     def highlight_item(self, otem, color=None):
         self.planning_pipeline.pscene.gscene.highlight_geometry(self.HILIGHT_KEY, otem.geometry.name, color=color)
 
     def add_item(self, value):
         try:
+            binder_geometry = self.planning_pipeline.pscene.actor_dict[value['Binder']].geometry.name
             self.planning_pipeline.pscene.create_object(oname=value[IDENTIFY_COL], gname=value[IDENTIFY_COL],
                                                         _type=otype_to_class(value['OType']),
-                                                        binding=(value['Binding'], value['Binder']))
+                                                        binding=(value[IDENTIFY_COL], value['Binding'], value['Binder'], binder_geometry))
         except Exception as e:
             print(e)
 
@@ -37,12 +38,12 @@ class ObjectTable(TableInterface):
         elif active_col == "OType":
             res, msg = False, "Object Type is not changeable"
         elif active_col == "Binding":
-            binding = (otem.geometry.name,value, otem.binding[1], self.planning_pipeline.pscene.actor_dict[otem.binding[1]].geometry.name)
+            binding = (otem.oname, value, otem.binding[2], otem.binding[3])
             joint_dict = list2dict(self.planning_pipeline.pscene.gscene.joints.position,
                                    self.planning_pipeline.pscene.combined_robot.joint_names)
             self.planning_pipeline.pscene.rebind(binding, joint_dict)
         elif active_col == "Binder":
-            binding = (otem.geometry.name, otem.binding[0],value, self.planning_pipeline.pscene.actor_dict[value].geometry.name)
+            binding = (otem.oname, otem.binding[1], value, otem.binding[3])
             joint_dict = list2dict(self.planning_pipeline.pscene.gscene.joints.position,
                                    self.planning_pipeline.pscene.combined_robot.joint_names)
             self.planning_pipeline.pscene.rebind(binding, joint_dict)

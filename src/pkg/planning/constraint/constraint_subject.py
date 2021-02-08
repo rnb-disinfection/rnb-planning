@@ -93,8 +93,6 @@ class Subject:
         self.action_points_dict = {}
         ## @brief object's binding state tuple (object name, point, actor, actor-geometry)
         self.binding = (None, None, None, None)
-        ## @brief object's binding state tuple (object name, point, actor, actor-geometry)
-        self.constrain = (None, None, None, None)
         raise(NotImplementedError("ObjectBinding is abstract class"))
 
     ##
@@ -176,6 +174,7 @@ class SweepTask(TaskInterface):
         self.action_points_dict = action_points_dict
         self.action_points_order = sorted(self.action_points_dict.keys())
         self.state_param = np.zeros(len(self.action_points_order), dtype=np.bool)
+        self.binding = (self.oname, None, None, None)
 
     ##
     # @brief make constraints. by default, empty list.
@@ -312,6 +311,7 @@ class CustomObject(ObjectBinding):
         self.oname = oname
         self.geometry = geometry
         self.action_points_dict = action_points_dict
+        self.binding = (self.oname, None, None, None)
 
     ##
     # @brief do nothing
@@ -331,6 +331,7 @@ class SingleHandleObject(ObjectBinding):
         self.oname = oname
         self.geometry = geometry
         self.action_points_dict = {action_point.name: action_point}
+        self.binding = (self.oname, None, None, None)
 
     ##
     # @brief do nothing
@@ -386,6 +387,7 @@ class BoxObject(ObjectBinding):
                             if hname[-1] == "g" else [OPPOSITE_DICT[hname[:-2]]+"_g"])
                 for hname in self.action_points_dict.keys()
             }
+        self.binding = (self.oname, None, None, None)
 
     ##
     # @brief get conflicting handles in hexahedral geometry

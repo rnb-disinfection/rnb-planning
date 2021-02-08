@@ -149,11 +149,20 @@ class GeometryScene(list):
     ##
     # @brief republish markers with last published position
     def update_marker(self, gtem):
-        joint_dict = {self.joints.name[i]: self.joints.position[i] for i in range(len(self.joint_names))}
-        marks = [mk for mk in self.marker_list if mk.geometry == gtem]
-        for mk in marks:
-            mk.set_marker(joint_dict, create=False)
-        return marks
+        if self.rviz:
+            joint_dict = {self.joints.name[i]: self.joints.position[i] for i in range(len(self.joint_names))}
+            marks = [mk for mk in self.marker_list if mk.geometry == gtem]
+            for mk in marks:
+                mk.set_marker(joint_dict, create=False)
+            return marks
+
+    ##
+    # @brief republish all markers with last published position
+    def update_markers_all(self, gtem):
+        if self.rviz:
+            joint_dict = {self.joints.name[i]: self.joints.position[i] for i in range(len(self.joint_names))}
+            for mk in self.marker_list:
+                mk.set_marker(joint_dict, create=False)
 
     ##
     # @brief remove marker for specific geometry item
