@@ -279,7 +279,11 @@ def make_action_constraints(handle, effector, redundancy=None, activation=False)
             raise(NotImplementedError("non-implemented handle type"))
         const_txt = make_constraint_fun(handle, effector, handle.name_full, activation=activation)
     else:
-        point_add, rpy_add = calc_redundancy(redundancy, effector)
+        point_add_handle, rpy_add_handle = calc_redundancy(redundancy[handle.name], handle)
+        point_add_effector, rpy_add_effector = calc_redundancy(redundancy[effector.name], effector)
+        T_add = np.matmul(SE3(Rot_rpy(rpy_add_effector), point_add_effector), SE3_inv(Rot_rpy(rpy_add_handle), point_add_handle))
+        point_add = T_add[:3,3]
+        rpy_add = Rot2rpy(T_add[:3,:3])
         const_txt = make_oriented_point_constraint(handle, effector, handle.name_full,
                                                    point_add=point_add, rpy_add=rpy_add,
                                                    activation=activation)

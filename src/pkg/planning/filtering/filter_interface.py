@@ -12,7 +12,7 @@ class MotionFilterInterface:
     # @param actor  rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
     # @param obj    rnb-planning.src.pkg.planning.constraint.constraint_subject.Subject
     # @param handle rnb-planning.src.pkg.planning.constraint.constraint_common.ActionPoint
-    # @param redundancy redundancy in dictionary format {axis: value}
+    # @param redundancy redundancy in dictionary format {point name: {axis: value}}
     # @param Q_dict joint configuration in dictionary format {joint name: radian value}
     # @return True if feasible, else False
     @abstractmethod

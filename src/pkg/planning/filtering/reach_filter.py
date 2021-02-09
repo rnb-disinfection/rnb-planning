@@ -31,12 +31,13 @@ class ReachChecker(MotionFilterInterface):
     # @param redundancy redundancy in dictionary format {axis: value}
     # @param Q_dict joint configuration in dictionary format {joint name: radian value}
     def check(self, actor, obj, handle, redundancy, Q_dict):
-        point_add, rpy_add = calc_redundancy(redundancy, actor)
+        point_add_handle, rpy_add_handle = calc_redundancy(redundancy[handle.name], handle)
+        point_add_actor, rpy_add_actor = calc_redundancy(redundancy[actor.name], actor)
         actor_link = actor.geometry.link_name
         object_link = obj.geometry.link_name
 
-        T_handle_lh = handle.Toff_lh
-        T_actor_lh = np.matmul(actor.Toff_lh, SE3(Rot_rpy(rpy_add), point_add))
+        T_handle_lh = np.matmul(handle.Toff_lh, SE3(Rot_rpy(rpy_add_handle), point_add_handle))
+        T_actor_lh = np.matmul(actor.Toff_lh, SE3(Rot_rpy(rpy_add_actor), point_add_actor))
 
 
         group_name_handle = self.binder_link_robot_dict[handle.geometry.link_name] if handle.geometry.link_name in self.binder_link_robot_dict else None

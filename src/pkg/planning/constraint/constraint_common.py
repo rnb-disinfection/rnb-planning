@@ -75,9 +75,9 @@ class ActionPoint:
 
 ##
 # @brief    calculate redundancy offset
-# @param redundancy   redundancy dictionary
-# @param target       target action point
-def calc_redundancy(redundancy, target):
+# @param redundancy   redundancy dictionary {direction: value}
+# @param action_point action point to which redundancy will be added
+def calc_redundancy(redundancy, action_point):
     point_add = [0,0,0]
     rpy_add = [0,0,0]
     if redundancy:
@@ -87,8 +87,8 @@ def calc_redundancy(redundancy, target):
                 point_add[ax] += redundancy[k]
             else:
                 rpy_add[ax-3] += redundancy[k]
-        if target.point is None: # WARNING: CURRENTLY ASSUME UPPER PLANE
-            point_add[2] += target.geometry.dims[2]/2
+        if action_point.point is None: # WARNING: CURRENTLY ASSUME UPPER PLANE
+            point_add[2] += action_point.geometry.dims[2]/2
     return point_add, rpy_add
 
 
@@ -96,24 +96,21 @@ def calc_redundancy(redundancy, target):
 # @brief    combine redundancy of handle and binder
 # @param to_ap      handle
 # @param to_binder  binder
+# @return {point name: {direction: (min, max)}}
 def combine_redundancy(to_ap, to_binder):
-    redundancy_bd = to_binder.get_redundancy()
-    redundancy_ap = to_ap.get_redundancy()
-    redundancy_tot = deepcopy(redundancy_bd)
-    for k in redundancy_ap.keys():
-        if k in redundancy_tot:
-            redundancy_tot[k] = tuple(np.add(redundancy_tot[k], redundancy_ap[k]))
-        else:
-            redundancy_tot[k] = redundancy_ap[k]
+    redundancy_bd = deepcopy(to_binder.get_redundancy())
+    redundancy_ap = deepcopy(to_ap.get_redundancy())
+    redundancy_tot = {to_ap.name: redundancy_ap, to_binder.name: redundancy_bd}
     return redundancy_tot
 
 
 ##
 # @brief    sample redundancy of handle and binder
-# @param redundancy_tot     redundancy dictionary
+# @param redundancy_tot     {point name: {direction: (min, max)}}
 # @param sampler            sampling function to be applied to redundancy param (default=random.uniform)
+# @return {point name: {direction: sampled value}}
 def sample_redundancy(redundancy_tot, sampler=random.uniform):
-    return {k: sampler(*red) for k, red in redundancy_tot.items()}
+    return {point: {dir: sampler(*red) for dir, red in redundancy.items()} for point, redundancy in redundancy_tot.items()}
 
 
 ##

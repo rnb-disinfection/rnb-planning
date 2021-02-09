@@ -41,7 +41,7 @@ class PointerActor(Actor):
     ##
     # @brief currently support only x-y plane
     def get_redundancy(self):
-        if self.point:
+        if self.point is not None:
             return {"w":(-np.pi,np.pi)}
         else:
             dims =self.geometry.dims

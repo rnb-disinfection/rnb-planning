@@ -40,7 +40,9 @@ class Latticizer:
     def clear(self, names=None, names_except=[]):
         if names is None and len(names_except)==0:
             self.coll_idx_dict = {}
-        elif names is None:
+            return
+
+        if names is None:
             names = self.coll_idx_dict.keys()
 
         for name in [nm for nm in names if nm not in names_except]:
@@ -79,11 +81,13 @@ class Latticizer:
 
     ##
     # @brief update colliding cell indexes with geomerty list
-    def convert(self, gtem_list, Qdict):
+    def convert(self, gtem_list, Qdict, Tref=None):
         for gtem in gtem_list:
             if not gtem.collision:
                 continue
             Tgtem = gtem.get_tf(Qdict)
+            if Tref is not None:
+                Tgtem = np.matmul(SE3_inv(Tref), Tgtem)
             Rcoeffs = tuple(Tgtem[:3, :3].flatten())
             Pcoeffs = tuple(Tgtem[:3, 3])
             verts, radii = gtem.get_vertice_radius()
@@ -98,6 +102,29 @@ class Latticizer:
             for i in range(num_colls):
                 coll_idxes[i] = coll_idxes_bp[i]
             self.coll_idx_dict[gtem.name] = coll_idxes
+
+    ##
+    # @brief update colliding cell indexes with geomerty list
+    # @param vertices_radius_list [(vertices, radius), ... ]
+    # @param Tref reference coodinate
+    def convert_vertices(self, vertinfo_list, Qdict, Tref=None):
+        if Tref is not None:
+            Tref_inv = SE3_inv(Tref)
+        else:
+            Tref_inv = np.identity(4)
+
+        for geo_name, T, verts, radius, geo_dims in vertinfo_list:
+            Tfull = np.matmul(Tref_inv, T)
+            Rcoeffs = tuple(map(float, Tfull[:3, :3].flatten()))
+            Pcoeffs = tuple(map(float, Tfull[:3, 3]))
+            verts_gjk = get_point_list_ltc(verts)
+            dims_bp = make_point3_ltc(*geo_dims)
+            coll_idxes_bp = self.ltc_bp.get_colliding_cells(*(Rcoeffs + Pcoeffs + (verts_gjk, dims_bp, radius)))
+            num_colls = len(coll_idxes_bp)
+            coll_idxes = np.zeros(num_colls, dtype=np.int)
+            for i in range(num_colls):
+                coll_idxes[i] = coll_idxes_bp[i]
+            self.coll_idx_dict[geo_name] = coll_idxes
 
     ##
     # @brief convert flattened index to 3D grid indices

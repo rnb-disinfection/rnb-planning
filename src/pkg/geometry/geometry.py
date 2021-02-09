@@ -158,7 +158,7 @@ class GeometryScene(list):
 
     ##
     # @brief republish all markers with last published position
-    def update_markers_all(self, gtem):
+    def update_markers_all(self):
         if self.rviz:
             joint_dict = {self.joints.name[i]: self.joints.position[i] for i in range(len(self.joint_names))}
             for mk in self.marker_list:

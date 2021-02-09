@@ -175,9 +175,10 @@ class MoveitPlanner(MotionInterface):
             binder = self.pscene.actor_dict[binder_name]
             obj = self.pscene.subject_dict[obj_name]
             handle = obj.action_points_dict[ap_name]
-            point_add, rpy_add = calc_redundancy(redundancy, binder)
-            T_handle = handle.Toff_lh
-            T_binder = np.matmul(binder.Toff_lh, SE3(Rot_rpy(rpy_add), point_add))
+            point_add_handle, rpy_add_handle = calc_redundancy(redundancy[handle.name], handle)
+            point_add_binder, rpy_add_binder = calc_redundancy(redundancy[binder.name], binder)
+            T_handle = np.matmul(handle.Toff_lh, SE3(Rot_rpy(rpy_add_handle), point_add_handle))
+            T_binder = np.matmul(binder.Toff_lh, SE3(Rot_rpy(rpy_add_binder), point_add_binder))
 
             group_name_handle = self.binder_link_robot_dict[handle.geometry.link_name] if handle.geometry.link_name in self.binder_link_robot_dict else None
             group_name_binder = self.binder_link_robot_dict[binder.geometry.link_name] if binder.geometry.link_name in self.binder_link_robot_dict else None
@@ -187,10 +188,14 @@ class MoveitPlanner(MotionInterface):
                 group_name = group_name_binder
                 tool, T_tool = binder, T_binder
                 target, T_tar = handle, T_handle
+                point_add_tool, rpy_add_tool = point_add_binder, rpy_add_binder
+                point_add_tar, rpy_add_tar = point_add_handle, rpy_add_handle
             elif group_name_handle and not group_name_binder:
                 group_name = group_name_handle
                 tool, T_tool = handle, T_handle
                 target, T_tar = binder, T_binder
+                point_add_tool, rpy_add_tool = point_add_handle, rpy_add_handle
+                point_add_tar, rpy_add_tar = point_add_binder, rpy_add_binder
             else:
                 if not self.enable_dual:
                     raise(RuntimeError("dual arm motion is not enabled"))
@@ -199,6 +204,8 @@ class MoveitPlanner(MotionInterface):
                 self.update_gscene(group_name)
                 tool, T_tool = handle, T_handle
                 target, T_tar = binder, T_binder
+                point_add_tool, rpy_add_tool = point_add_handle, rpy_add_handle
+                point_add_tar, rpy_add_tar = point_add_binder, rpy_add_binder
 
             T_tar_tool = np.matmul(T_tar, SE3_inv(T_tool))
             goal_pose = tuple(T_tar_tool[:3,3]) \
@@ -240,7 +247,11 @@ class MoveitPlanner(MotionInterface):
                 error = np.sum(np.abs(to_state.Q - Q_last))
             elif motion_type == MoveitPlanner.TASK_MOTION:
                 T_tar, T_tool = target.get_tf_handle(Q_last_dict), tool.get_tf_handle(Q_last_dict)
-                T_tar = np.matmul(T_tar, SE3(Rot_rpy(rpy_add), point_add))
+                T_tar = np.matmul(T_tar, SE3(Rot_rpy(rpy_add_tar), point_add_tar))
+                T_tool = np.matmul(T_tool, SE3(Rot_rpy(rpy_add_tool), point_add_tool))
+
+                # T_handle = np.matmul(handle.Toff_lh, SE3(Rot_rpy(rpy_add_handle), point_add_handle))
+                # T_binder = np.matmul(binder.Toff_lh, SE3(Rot_rpy(rpy_add_binder), point_add_binder))
                 error = np.linalg.norm(T_tar-T_tool)
         else:
             Q_last, error = [0]*self.planner.joint_num, None

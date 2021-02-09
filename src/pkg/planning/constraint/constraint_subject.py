@@ -12,7 +12,13 @@ __metaclass__ = type
 # @brief ActionPoint with z-axis constraint
 class DirectedPoint(ActionPoint):
     def get_redundancy(self):
-        return {"w":(-np.pi,np.pi)}
+        if self.point is not None:
+            return {"w":(-np.pi,np.pi)}
+        else:
+            dims =self.geometry.dims
+            return {"x":(-dims[0]/2,dims[0]/2),
+                    "y":(-dims[1]/2,dims[1]/2),
+                    "w":(-np.pi,np.pi)}
 
 
 ##
@@ -20,7 +26,12 @@ class DirectedPoint(ActionPoint):
 # @brief ActionPoint with full orientation constraint
 class FramedPoint(ActionPoint):
     def get_redundancy(self):
-        return {}
+        if self.point is not None:
+            return {}
+        else:
+            dims =self.geometry.dims
+            return {"x":(-dims[0]/2,dims[0]/2),
+                    "y":(-dims[1]/2,dims[1]/2)}
 
 
 ################################# USABLE CLASS #########################################

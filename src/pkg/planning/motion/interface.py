@@ -57,12 +57,12 @@ class MotionInterface:
         binding_list, success = self.pscene.get_slack_bindings(from_state, to_state)
 
         if success:
-            for mfilter in self.motion_filters:
-                for binding in binding_list:
-                    obj_name, ap_name, binder_name, binder_geometry_name = binding
-                    actor, obj = self.pscene.actor_dict[binder_name], self.pscene.subject_dict[obj_name]
-                    handle = obj.action_points_dict[ap_name]
-                    redundancy, Q_dict = redundancy_dict[obj_name], list2dict(from_state.Q, self.joint_names)
+            for binding in binding_list:
+                obj_name, ap_name, binder_name, binder_geometry_name = binding
+                actor, obj = self.pscene.actor_dict[binder_name], self.pscene.subject_dict[obj_name]
+                handle = obj.action_points_dict[ap_name]
+                redundancy, Q_dict = redundancy_dict[obj_name], list2dict(from_state.Q, self.joint_names)
+                for mfilter in self.motion_filters:
                     success = mfilter.check(actor, obj, handle, redundancy, Q_dict)
                     if not success:
                         break
