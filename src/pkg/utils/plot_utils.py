@@ -33,4 +33,4 @@ def scatter_3d(X, style='.', view=None, xlabel="x",ylabel="y", zlabel="z",
     sub.set_xlabel(xlabel)
     sub.set_ylabel(ylabel)
     sub.set_zlabel(zlabel)
-    sub.axis('equal')
+    # sub.axis('equal')

@@ -364,3 +364,6 @@ class Logger:
         self.count += 1
         save_json(os.path.join(self.ERROR_FOLDER, prefix + get_now()), error)
         return self.count < self.countout
+
+def sigmoid(x):
+    return 1 / (1 +np.exp(-x))

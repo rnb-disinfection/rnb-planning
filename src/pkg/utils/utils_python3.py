@@ -9,13 +9,39 @@ import time
 import numpy as np
 import collections
 
+import datetime
+def get_now():
+    return str(datetime.datetime.now().strftime('%Y%m%d-%H%M%S'))
+
+
+def try_mkdir(path):
+    try: os.mkdir(path)
+    except: pass
+
+##
+# @class    Singleton
+# @brief    Template to make a singleton class.
+# @remark   Inherit this class to make a class a singleton.
+#           Do not call the class constructor directly, but call <class name>.instance() to get singleton instance.
+class Singleton:
+    __instance = None
+
+    @classmethod
+    def __getInstance(cls):
+        return cls.__instance
+
+    @classmethod
+    def instance(cls, *args, **kargs):
+        cls.__instance = cls(*args, **kargs)
+        cls.instance = cls.__getInstance
+        return cls.__instance
 
 ##
 # @class    GlobalTimer
 # @brief    A singleton timer to record timings anywhere in the code.
 # @remark   Call GlobalTimer.instance() to get the singleton timer.
 #           To see the recorded times, just print the timer: print(global_timer)
-class GlobalTimer:
+class GlobalTimer(Singleton):
     def __init__(self, scale=1000, timeunit='ms'):
         self.reset(scale, timeunit)
 
@@ -83,6 +109,32 @@ class GlobalTimer:
                 timeunit=self.timeunit, minT=round(self.min_time_dict[name], 3), maxT=round(self.max_time_dict[name], 3)
             )
         return strout
+
+    ##
+    # @brief use "with timer:" to easily record duration of a code block
+    def block(self, key):
+        return BlockTimer(self, key)
+
+    def __enter__(self):
+        self.tic("block")
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.toc("block")
+
+##
+# @class    BlockTimer
+# @brief    Wrapper class to record timing of a code block.
+class BlockTimer:
+    def __init__(self, gtimer, key):
+        self.gtimer, self.key = gtimer, key
+
+    def __enter__(self):
+        self.gtimer.tic(self.key)
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.gtimer.toc(self.key)
 
 
 import json
@@ -174,3 +226,116 @@ def load_scene_data(CONVERTED_PATH, DATASET, WORLD, SCENE, ACTION, joint_num, ge
         return scene_data, success, skey, cell_init, cell_goal
     else:
         return scene_data, success, skey
+
+from math import *
+
+def rad2deg(rads):
+    return rads/np.pi*180
+        
+def deg2rad(degs):
+    return degs/180*np.pi
+
+def Rot_axis( axis, q ):
+    '''
+    make rotation matrix along axis
+    '''
+    if axis==1:
+        R = np.asarray([[1,0,0],
+                        [0,cos(q),-sin(q)],
+                        [0,sin(q),cos(q)]])
+    if axis==2:
+        R = np.asarray([[cos(q),0,sin(q)],
+                        [0,1,0],
+                        [-sin(q),0,cos(q)]])
+    if axis==3:
+        R = np.asarray([[cos(q),-sin(q),0],
+                        [sin(q),cos(q),0],
+                        [0,0,1]])
+    return R
+
+def Rot_axis_series(axis_list, rad_list):
+    '''
+    zyx rotation matrix - caution: axis order: z,y,x
+    '''
+    R = Rot_axis(axis_list[0], rad_list[0])
+    for ax_i, rad_i in zip(axis_list[1:], rad_list[1:]):
+        R = np.matmul(R, Rot_axis(ax_i,rad_i))
+    return R
+
+def Rot_zyx(zr,yr,xr):
+    '''
+    zyx rotation matrix - caution: axis order: z,y,x
+    '''
+    return Rot_axis_series([3,2,1], [zr,yr,xr])
+
+def Rot_zxz(zr1,xr2,zr3):
+    '''
+    zxz rotation matrix - caution: axis order: z,x,z
+    '''
+    return Rot_axis_series([3,1,3], [zr1,xr2,zr3])
+
+def Rot2zyx(R):
+    '''
+    rotation matrix to zyx angles - caution: axis order: z,y,x
+    '''
+    sy = sqrt(R[0,0]**2 + R[1,0]**2)
+
+    if sy > 0.000001:
+        x = atan2(R[2,1] , R[2,2])
+        y = atan2(-R[2,0], sy)
+        z = atan2(R[1,0], R[0,0])
+    else:
+        x = atan2(-R[1,2], R[1,1])
+        y = atan2(-R[2,0], sy)
+        z = 0
+    return np.asarray([z,y,x])
+
+def Rot2zxz(R):
+    '''
+    rotatio matrix to zyx angles - caution: axis order: z,y,x
+    '''
+    sy = sqrt(R[0,2]**2 + R[1,2]**2)
+
+    if sy > 0.000001:
+        z1 = atan2(R[0,2] , -R[1,2])
+        x2 = atan2(sy,R[2,2])
+        z3 = atan2(R[2,0], R[2,1])
+    else:
+        z1 = 0
+        x2 = atan2(sy,R[2,2])
+        z3 = atan2(-R[0,1], R[0,0])
+    return np.asarray([z1,x2,z3])
+
+def SE3(R,P):
+    T = np.identity(4,dtype='float32')
+    T[0:3,0:3]=R
+    T[0:3,3]=P
+    return T
+
+def SE3_inv(T):
+    R=T[0:3,0:3].transpose()
+    P=-np.matmul(R,T[0:3,3])
+    return (SE3(R,P))
+
+##
+# @brief convert cylindrical coordinate to cartesian coordinate
+# @param radius x-y plane radius
+# @param theta angle from x-axis, along z-axis
+# @param height height from x-y plane
+def cyl2cart(radius, theta, height):
+    return np.cos(theta)*radius, np.sin(theta)*radius, height
+
+##
+# @brief convert cartesian coordinate to cylindrical coordinate
+# @return radius x-y plane radius
+# @return theta angle from x-axis, along z-axis
+# @return height height from x-y plane
+def cart2cyl(x, y, z):
+    r = np.sqrt(x**2+y**2)
+    theta = np.arctan2(y,x)
+    height = z
+    return r, theta, height
+
+
+def sigmoid(x):
+    return 1 / (1 +np.exp(-x))
