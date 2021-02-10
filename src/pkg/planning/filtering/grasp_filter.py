@@ -10,12 +10,12 @@ from ...utils.gjk import get_point_list, get_gjk_distance
 # @brief    grasp checker
 class GraspChecker(MotionFilterInterface):
     ##
-    # @param gscene rnb-planning.src.pkg.geometry.GeometryScene
+    # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
     # @param end_link_couple_dict links to douple  in reserse order, {end_link: [end_link, parent1, parnt2, ...]}
-    def __init__(self, gscene, end_link_couple_dict):
+    def __init__(self, pscene, end_link_couple_dict):
         for k,v in end_link_couple_dict.items():
             assert v[0] == k, "actor_link_names should be in reverse order including actor's link as the first item"
-        self.gscene = gscene
+        self.gscene = pscene.gscene
         self.end_link_couple_dict = end_link_couple_dict
 
     ##
