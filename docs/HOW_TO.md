@@ -20,7 +20,7 @@
 * Scripts to use or test the framework are in src/scripts and src/code_test
 * Try src/scripts/\[TUTORIAL\] ConstrainedTaskPanning(Sweep).ipynb to learn basic usage
 
-## NOTE!
+## NOTE for Developers
 * Please follow PEP8 coding convention.
 * Please add doxygen-style comments to any function and class that you implement.
 * Please follow git-flow branching strategy.

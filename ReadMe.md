@@ -103,6 +103,13 @@ RNB-Planning Framework is an integrated framework for combined planning of task 
   && cmake -DCMAKE_BUILD_TYPE=Release \
   && make
   ```
+
+* build latticizer
+```bash
+  cd "$RNB_PLANNING_DIR"lib/latticizer \
+  && cmake -DCMAKE_BUILD_TYPE=Release \
+  && make
+  ```
   
 * build custom workspace  
 ```bash
