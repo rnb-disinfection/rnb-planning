@@ -4,7 +4,7 @@ sys.path.append(os.path.join(os.environ["RNB_PLANNING_DIR"], "lib/latticizer"))
 import latticizer as ltc
 GJK_PATH_DEFAULT = os.path.join(os.environ["RNB_PLANNING_DIR"], "lib/openGJK/lib/openGJKlib.so")
 
-from ...geometry.geometry import *
+from ....geometry.geometry import *
 
 def make_point3_ltc(x, y, z):
     return ltc.Point3(x, y, z)

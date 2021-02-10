@@ -1,6 +1,6 @@
 from abc import *
 import numpy as np
-from ...utils.utils import list2dict
+from ...utils.utils import list2dict, GlobalTimer
 
 __metaclass__ = type
 
@@ -34,6 +34,19 @@ class MotionInterface:
         self.urdf_path = self.gscene.urdf_path
         self.urdf_content = self.gscene.urdf_content
         self.joint_num = self.gscene.joint_num
+        self.gtimer = GlobalTimer.instance()
+        ## @brief log of plan results
+        self.result_log = {}
+        self.reset_log()
+
+    ##
+    # @brief reset log data and set log flag
+    # @param flag_log set this value True to log filter results
+    def reset_log(self, flag_log=False):
+        self.flag_log = flag_log
+        self.result_log = {mfilter.__class__.__name__: [] for mfilter in self.motion_filters}
+        self.result_log["planning"] = []
+        self.gtimer.reset()
 
     ##
     # @brief (prototype) update changes in geometric scene
@@ -63,13 +76,23 @@ class MotionInterface:
                 handle = obj.action_points_dict[ap_name]
                 redundancy, Q_dict = redundancy_dict[obj_name], list2dict(from_state.Q, self.joint_names)
                 for mfilter in self.motion_filters:
+                    if self.flag_log:
+                        self.gtimer.tic(mfilter.__class__.__name__)
                     success = mfilter.check(actor, obj, handle, redundancy, Q_dict)
+                    if self.flag_log:
+                        self.gtimer.toc(mfilter.__class__.__name__)
+                        self.result_log[mfilter.__class__.__name__].append(success)
                     if not success:
                         break
 
         if success:
+            if self.flag_log:
+                self.gtimer.tic('planning')
             Traj, LastQ, error, success = self.plan_algorithm(from_state, to_state, binding_list,
                                                               redundancy_dict=redundancy_dict, **kwargs)
+            if self.flag_log:
+                self.gtimer.toc('planning')
+                self.result_log['planning'].append(success)
         else:
             Traj, LastQ, error, success = [], [], 1e10, False
         return Traj, LastQ, error, success, binding_list

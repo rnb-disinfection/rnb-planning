@@ -1,5 +1,5 @@
 import os
-PROJ_DIR = os.environ["RNB_PLANNING_DIR"]
+RNB_PLANNING_DIR = os.environ["RNB_PLANNING_DIR"]
 
 import numpy as np
 from .filter_interface import MotionFilterInterface
@@ -9,8 +9,9 @@ from ...utils.gjk import get_point_list, get_gjk_distance
 from ...utils.rotation_utils import *
 from ...utils.utils import *
 import itertools
+import subprocess
 
-from .lattice_predictor import *
+from .lattice_model.lattice_predictor import *
 from .grasp_filter import *
 import SharedArray as sa
 
@@ -32,11 +33,11 @@ def div_h(h):
 ##
 # @class    LatticedChecker
 # @brief    lattice the scene and predict feasibility by a learnt model
-# @remark   launch SharedArray predictor server in src/scripts/training/SharedLatticizedMP.ipynb,
+# @remark   launch SharedArray predictor server rnb-planning.src.pkg.planning.filtering.lattice_model.shared_lattice_predictor.SharedLatticePredictor,
 #           which is separated because tensorflow needs to be run in python 3
 class LatticedChecker(MotionFilterInterface):
     ##
-    # @param gscene rnb-planning.src.pkg.geometry.GeometryScene
+    # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
     # @param end_link_couple_dict links to douple  in reserse order, {end_link: [end_link, parent1, parnt2, ...]}
     def __init__(self, pscene, end_link_couple_dict):
         self.pscene = pscene
@@ -54,14 +55,31 @@ class LatticedChecker(MotionFilterInterface):
         self.ltc_effector = Latticizer(WDH=(1, 1, 1), L_CELL=0.05, OFFSET_ZERO=(0.5, 0.5, 0.5))
         self.ltc_arm_10 = Latticizer(WDH=(2, 2, 2), L_CELL=0.10, OFFSET_ZERO=(0.5, 1.0, 1.0))
         # Create an array in shared memory.
-        self.robot_type_p = sa.attach("shm://robot_type")
-        self.grasp_img_p = sa.attach("shm://grasp_img")
-        self.arm_img_p = sa.attach("shm://arm_img")
-        self.rh_mask_p = sa.attach("shm://rh_mask")
-        self.result_p = sa.attach("shm://result")
-        self.query_in = sa.attach("shm://query_in")
-        self.response_out = sa.attach("shm://response_out")
-        self.query_quit = sa.attach("shm://query_quit")
+        self.prepared_p_dict = {}
+        self.grasp_img_p_dict, self.arm_img_p_dict, self.rh_mask_p_dict, self.result_p_dict,\
+            self.query_in_dict, self.response_out_dict, self.query_quit_dict, = {}, {}, {}, {}, {}, {}, {}
+
+        self.subp_list=[]
+        for rconfig in self.combined_robot.robots_on_scene:
+            robot_type_name = rconfig.type.name
+            try:
+                self.prepared_p_dict[robot_type_name] = sa.attach("shm://{}.prepared".format(robot_type_name))
+            except:
+                self.subp_list.append(subprocess.Popen(['python3',
+                                                        '{}src/pkg/planning/filtering/lattice_model/shared_lattice_predictor.py'.format(RNB_PLANNING_DIR),
+                                                        '--rtype', robot_type_name]))
+                time.sleep(0.5)
+                self.prepared_p_dict[robot_type_name] = sa.attach("shm://{}.prepared".format(robot_type_name))
+                while not self.prepared_p_dict[robot_type_name][0]:
+                    time.sleep(0.1)
+
+            self.grasp_img_p_dict[robot_type_name] = sa.attach("shm://{}.grasp_img".format(robot_type_name))
+            self.arm_img_p_dict[robot_type_name] = sa.attach("shm://{}.arm_img".format(robot_type_name))
+            self.rh_mask_p_dict[robot_type_name] = sa.attach("shm://{}.rh_mask".format(robot_type_name))
+            self.result_p_dict[robot_type_name] = sa.attach("shm://{}.result".format(robot_type_name))
+            self.query_in_dict[robot_type_name] = sa.attach("shm://{}.query_in".format(robot_type_name))
+            self.response_out_dict[robot_type_name] = sa.attach("shm://{}.response_out".format(robot_type_name))
+            self.query_quit_dict[robot_type_name] = sa.attach("shm://{}.query_quit".format(robot_type_name))
         assert len(self.robot_names) == 1 and self.robot_names[0] == "indy0", \
             "only indy0 supported. to use other, make shoulder_height as dictionary and modify predictor server to inference depending on robot type"
         shoulder_link = pscene.gscene.urdf_content.joint_map[pscene.gscene.joint_names[1]].child
@@ -153,20 +171,24 @@ class LatticedChecker(MotionFilterInterface):
         arm_img = np.zeros(ARM_SHAPE + (1,))
         arm_img[np.unravel_index(arm_tar_idx, shape=ARM_SHAPE)] = 1
         grasp_img = np.stack([grasp_tool_img, grasp_tar_img], axis=-1)
-        res = self.query_wait_response(np.array([grasp_img]), np.array([arm_img]), np.array([rh_mask]),
-                                       self.rconfig_dict[group_name].type.value)[0]
-        return res
+        res = self.query_wait_response(self.rconfig_dict[group_name].type.name,
+                                       np.array([grasp_img]), np.array([arm_img]), np.array([rh_mask]),
+                                       )[0]
+        return res[-1]>0.5
 
-    def query_wait_response(self, grasp_img_batch, arm_img_batch, rh_mask_batch, rtypeint):
-        self.robot_type_p[0] = rtypeint
-        self.grasp_img_p[:] = grasp_img_batch[:]
-        self.arm_img_p[:] = arm_img_batch[:]
-        self.rh_mask_p[:] = rh_mask_batch[:]
-        self.query_in[0] = True
-        while not self.response_out[0]:
+    def query_wait_response(self, robot_type_name, grasp_img_batch, arm_img_batch, rh_mask_batch):
+        self.grasp_img_p_dict[robot_type_name][:] = grasp_img_batch[:]
+        self.arm_img_p_dict[robot_type_name][:] = arm_img_batch[:]
+        self.rh_mask_p_dict[robot_type_name][:] = rh_mask_batch[:]
+        self.query_in_dict[robot_type_name][0] = True
+        while not self.response_out_dict[robot_type_name][0]:
             time.sleep(SERVER_PERIOD)
-        self.response_out[0] = False
-        return np.copy(self.result_p)
+        self.response_out_dict[robot_type_name][0] = False
+        return np.copy(self.result_p_dict[robot_type_name])
 
-    def quit_shared_server(self):
-        self.query_quit[0] = True
+    def quit_shared_server(self, robot_type_name):
+        self.query_quit_dict[robot_type_name][0] = True
+
+    def __del__(self):
+        for rconfig in self.combined_robot.robots_on_scene:
+            self.quit_shared_server(rconfig.type.name)

@@ -85,7 +85,6 @@ try_mkdir(MODEL_PATH)
 # @brief    check reach regarding kinematic chain
 # @remark   to train ReachChecker, see src/scripts/training/ReachSVM.ipynb
 class ReachTrainer:
-
     ##
     # @param scene_builder  scene builder is required to make data scene (rnb-planning.src.pkg.geometry.builder.scene_builder.SceneBuilder)
     #                       not needed if not training the algorithm
