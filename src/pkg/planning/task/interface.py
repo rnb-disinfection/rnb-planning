@@ -24,7 +24,6 @@ class SearchNode:
                  redundancy_dict=None):
         self.idx, self.state, self.parents, self.leafs, self.depth, self.redundancy_dict = \
             idx, state, parents, leafs, depth, redundancy_dict
-        self.root = parents[0] if len(parents)>1 else None
         self.traj = None
         self.traj_size = 0
         self.traj_length = 0
@@ -75,6 +74,19 @@ class TaskInterface:
         raise(NotImplementedError("abstract method"))
 
     ##
+    # @brief prepare memory variables
+    # @param multiprocess_manager multiprocess_mananger instance if multiprocessing is used
+    def initialize_memory(self, multiprocess_manager):
+        if multiprocess_manager is not None:
+            self.snode_dict = multiprocess_manager.dict()
+            self.snode_counter = multiprocess_manager.Value('i', 0)
+            self.search_tree_lock = multiprocess_manager.Lock()
+        else:
+            self.snode_dict = {}
+            self.snode_counter = SingleValue('i', 0)
+            self.search_tree_lock = DummyBlock()
+
+    ##
     # @brief (prototype) initialize searching loop with given initial state and goal. automatically called when starting search.
     # @remark Don't forget to make root SearchNode and connect, update it
     # @param initial_state rnb-planning.src.pkg.planning.scene.State
@@ -83,7 +95,7 @@ class TaskInterface:
     def init_search(self, initial_state, goal_nodes, multiprocess_manager):
         ## When overiding init_search, Don't forget to make root SearchNode and connect, update it, as below!
         snode_root = self.make_search_node(None, initial_state, None, None)
-        self.connect(None, snode_root, DummyBlock())
+        self.connect(None, snode_root)
         self.update(snode_root, True)
         raise(NotImplementedError("abstract method"))
 
@@ -95,7 +107,7 @@ class TaskInterface:
         raise(NotImplementedError("abstract method"))
 
     ##
-    # @brief (prototype) update connection result to the searchng algorithm
+    # @brief (prototype) update connection result to the searching algorithm
     @abstractmethod
     def update(self, snode_new, connection_result):
         raise(NotImplementedError("abstract method"))
@@ -106,19 +118,6 @@ class TaskInterface:
     @abstractmethod
     def check_goal(self, state):
         raise(NotImplementedError("abstract method"))
-
-    ##
-    # @brief prepare memory variables
-    # @param multiprocess_manager multiprocess_mananger instance if multiprocessing is used
-    def initialize_memory(self, multiprocess_manager):
-        if multiprocess_manager is not None:
-            self.snode_dict = multiprocess_manager.dict()
-            self.snode_counter = multiprocess_manager.Value('i', 0)
-            self.snode_queue = multiprocess_manager.PriorityQueue()
-        else:
-            self.snode_dict = {}
-            self.snode_counter = SingleValue('i', 0)
-            self.snode_queue = PriorityQueue()
 
     ##
     # @brief update snode_counter and snode.idx
@@ -136,13 +135,14 @@ class TaskInterface:
                 depth=len(snode_pre.parents) + 1, redundancy_dict=redundancy_dict)
             snode_new.set_traj(traj, snode_pre.traj_tot)
         return snode_new
+
     ##
     # @brief update snode_counter and snode.idx
     # @param snode_pre SearchNode
     # @param snode_new SearchNode
     # @param search_tree_lock lock instance for search tree
-    def connect(self, snode_pre, snode_new, search_tree_lock):
-        with search_tree_lock:
+    def connect(self, snode_pre, snode_new):
+        with self.search_tree_lock:
             snode_new.idx = self.snode_counter.value
             self.snode_dict[snode_new.idx] = snode_new
             self.snode_counter.value = self.snode_counter.value+1
@@ -151,3 +151,33 @@ class TaskInterface:
                 self.snode_dict[snode_pre.idx] = snode_pre
         return snode_new
 
+
+##
+# @brief get dictionary of discrete node distance
+def get_node_cost_dict(reference_node, node_dict, transit_cost=1.0):
+    came_from = {}
+    node_cost_dict = {}
+    frontier = PriorityQueue()
+    if isinstance(reference_node, list):
+        for goal in reference_node:
+            frontier.put((0, goal))
+            came_from[goal] = None
+            node_cost_dict[goal] = 0
+    else:
+        frontier.put((0, reference_node))
+        came_from[reference_node] = None
+        node_cost_dict[reference_node] = 0
+
+    while not frontier.empty():
+        current = frontier.get()[1]
+
+        for next in node_dict[current]:
+            if next == current:
+                continue
+            new_cost = node_cost_dict[current] + transit_cost
+            if next not in node_cost_dict or new_cost < node_cost_dict[next]:
+                node_cost_dict[next] = new_cost
+                priority = new_cost
+                frontier.put((priority, next))
+                came_from[next] = current
+    return node_cost_dict

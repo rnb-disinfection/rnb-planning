@@ -44,9 +44,7 @@ class PlanningPipeline:
         ## @brief PriorityQueueManager
         self.manager = PriorityQueueManager()
         self.manager.start()
-        self.sample_lock = self.manager.Lock()
         self.counter_lock = self.manager.Lock()
-        self.search_tree_lock = self.manager.Lock()
         self.gtimer = GlobalTimer.instance()
 
     ##
@@ -130,7 +128,7 @@ class PlanningPipeline:
         ret = False
         while self.tplan.snode_counter.value < N_search and (time.time() - self.t0) < timeout_loop and not self.stop_now.value:
             loop_counter += 1
-            snode, from_state, to_state, redundancy_dict, sample_fail = self.tplan.sample(self.sample_lock)
+            snode, from_state, to_state, redundancy_dict, sample_fail = self.tplan.sample()
             with self.counter_lock:
                 if not sample_fail:
                     self.search_counter.value = self.search_counter.value + 1
@@ -146,7 +144,7 @@ class PlanningPipeline:
             simtime = self.gtimer.toc("test_connection")
             snode_new = self.tplan.make_search_node(snode, new_state, traj,  redundancy_dict)
             if succ:
-                snode_new = self.tplan.connect(snode, snode_new, self.search_tree_lock)
+                snode_new = self.tplan.connect(snode, snode_new)
             ret = self.tplan.update(snode_new, succ)
             if verbose:
                 print('node: {}->{} = {}'.format(from_state.node, to_state.node, "success" if succ else "fail"))
