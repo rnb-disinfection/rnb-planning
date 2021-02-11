@@ -107,7 +107,7 @@ class MoveitCompactPlanner_BP(mpc.Planner):
     ##
     # @brief search for plan that bring tool_link to goal_pose in coordinate of goal_link.
     # @param goal_pose xyzquat(xyzw) style pose of goal transformation in goal_link.
-    def plan_py(self, robot_name, tool_link, goal_pose, goal_link, Q_init, plannerconfig="RRTConnectkConfigDefault", timeout=0.1):
+    def plan_py(self, robot_name, tool_link, goal_pose, goal_link, Q_init, plannerconfig="RRTConnectkConfigDefault", timeout=1):
         self.clear_context_cache()
         plan = self.plan(robot_name, str(tool_link), CartPose(*goal_pose), str(goal_link),
                          JointState(self.joint_num, *Q_init), plannerconfig, timeout)
@@ -117,7 +117,7 @@ class MoveitCompactPlanner_BP(mpc.Planner):
     ##
     # @brief search for plan that bring tool_link to goal_pose in coordinate of goal_link.
     # @param goal_state joint value list only corresponding to specified robot chain
-    def plan_joint_motion_py(self, robot_name, goal_state, Q_init, plannerconfig="RRTConnectkConfigDefault", timeout=0.1):
+    def plan_joint_motion_py(self, robot_name, goal_state, Q_init, plannerconfig="RRTConnectkConfigDefault", timeout=1):
         self.clear_context_cache()
         plan = self.plan_joint_motion(robot_name, JointState(len(goal_state), *goal_state),
                                            JointState(self.joint_num, *Q_init), plannerconfig, timeout)
@@ -127,7 +127,7 @@ class MoveitCompactPlanner_BP(mpc.Planner):
     ##
     # @brief search for plan that bring tool_link to goal_pose in coordinate of goal_link, with constraints
     # @param goal_pose xyzquat(xyzw) style pose of goal transformation in goal_link.
-    def plan_constrained_py(self, robot_name, tool_link, goal_pose, goal_link, Q_init, plannerconfig="RRTConnectkConfigDefault", timeout=0.1, allow_approximate=False):
+    def plan_constrained_py(self, robot_name, tool_link, goal_pose, goal_link, Q_init, plannerconfig="RRTConnectkConfigDefault", timeout=1, allow_approximate=False):
         assert goal_link=="base_link", "Constrained planning is only available in base_link currently!"
         self.clear_context_cache()
         plan = self.plan_with_constraints(robot_name, tool_link,

@@ -12,18 +12,17 @@ except:
 
 
 ##
-# @class    ObjectAstar
+# @class    TaskAstar
 # @brief    object level A* algorithm
-class ObjectAstar(TaskInterface):
-    DEFAULT_TRANSIT_COST = 1.0
-    DQ_MAX = np.deg2rad(45)
-    WEIGHT_DEFAULT = 2.0
-    DSCALE = 1e4
+class TaskAstar(TaskInterface):
 
     ##
     # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
-    def __init__(self, pscene):
+    def __init__(self, pscene, N_redundant_sample=30):
         TaskInterface.__init__(self, pscene)
+        ## @brief waiting queue for non-validated search nodes
+        self.snode_queue = None
+        self.N_redundant_sample = N_redundant_sample
 
     ##
     # @brief build object-level node graph
@@ -44,12 +43,24 @@ class ObjectAstar(TaskInterface):
             self.node_parent_dict[node] = list(set(self.node_parent_dict[node]))
 
     ##
+    # @brief prepare memory variables
+    # @param multiprocess_manager multiprocess_mananger instance if multiprocessing is used
+    def initialize_memory(self, multiprocess_manager):
+        TaskInterface.initialize_memory(self, multiprocess_manager)
+        if multiprocess_manager is not None:
+            self.snode_queue = multiprocess_manager.PriorityQueue()
+            self.sample_lock = multiprocess_manager.Lock()
+        else:
+            self.snode_queue = PriorityQueue()
+            self.sample_lock = DummyBlock()
+
+    ##
     # @brief calculate initial/goal scores and filter valid nodes
     def init_search(self, initial_state, goal_nodes, tree_margin=None, depth_margin=None):
         self.initial_state = initial_state
         self.goal_nodes = goal_nodes
         self.init_cost_dict, self.goal_cost_dict = \
-            self.score_graph(initial_state.node), self.score_graph(goal_nodes, reverse=True)
+            get_node_cost_dict(initial_state.node, self.node_dict), get_node_cost_dict(goal_nodes, self.node_parent_dict)
 
         # set default margins
         tree_margin = tree_margin or self.goal_cost_dict[initial_state.node]
@@ -61,6 +72,51 @@ class ObjectAstar(TaskInterface):
 
         for k in self.valid_node_dict.keys():
             self.valid_node_dict[k].reverse()
+
+        snode_root = self.make_search_node(None, initial_state, None, None)
+        self.connect(None, snode_root)
+        self.update(snode_root, True)
+
+    ##
+    # @brief sample new state
+    # @param lock lock instance to multiprocess
+    def sample(self):
+        with self.sample_lock:
+            try:
+                snode, from_state, to_state, redundancy_dict = self.snode_queue.get(timeout=1)[1]
+                sample_fail = False
+            except:
+                snode, from_state, to_state, redundancy_dict =  None, None, None, None
+                sample_fail=True
+        return snode, from_state, to_state, redundancy_dict, sample_fail
+
+
+    ##
+    # @brief update snode_counter and snode.idx
+    # @param snode_pre SearchNode
+    # @param new_state State
+    # @param traj traj from previous state to new state
+    # @param redundancy_dict redundancy of current transition
+    def make_search_node(self, snode_pre, new_state, traj,  redundancy_dict):
+        snode_new = TaskInterface.make_search_node(self, snode_pre, new_state, traj,  redundancy_dict)
+        ## edepth (custom)
+        snode_new.edepth = snode_new.depth + self.get_optimal_remaining_steps(new_state)
+        return snode_new
+
+    ##
+    # @brief (prototype) update connection result to the searching algorithm
+    def update(self, snode_new, connection_result):
+        ret = False
+        if connection_result:
+            ## add leafs (custom)
+            new_queue = self.get_leafs(snode_new, self.N_redundant_sample)
+            for qtem in new_queue:
+                self.snode_queue.put(qtem)
+
+            ## check goal (custom)
+            if self.check_goal(snode_new.state):
+                ret = True
+        return ret
 
     ##
     # @brief get sample leafs from snode
@@ -115,35 +171,6 @@ class ObjectAstar(TaskInterface):
             new_margin = max(0, new_margin)
             if leaf != node and new_margin>=0:
                 self.reset_valid_node(margin=new_margin, node=leaf)
-
-    def score_graph(self, reference_node, reverse=False):
-        node_dict = self.node_parent_dict if reverse else self.node_dict
-        came_from = {}
-        node_cost_dict = {}
-        frontier = PriorityQueue()
-        if isinstance(reference_node, list):
-            for goal in reference_node:
-                frontier.put((0, goal))
-                came_from[goal] = None
-                node_cost_dict[goal] = 0
-        else:
-            frontier.put((0, reference_node))
-            came_from[reference_node] = None
-            node_cost_dict[reference_node] = 0
-
-        while not frontier.empty():
-            current = frontier.get()[1]
-
-            for next in node_dict[current]:
-                if next == current:
-                    continue
-                new_cost = node_cost_dict[current] + self.DEFAULT_TRANSIT_COST
-                if next not in node_cost_dict or new_cost < node_cost_dict[next]:
-                    node_cost_dict[next] = new_cost
-                    priority = new_cost
-                    frontier.put((priority, next))
-                    came_from[next] = current
-        return node_cost_dict
 
     def get_valid_neighbor(self, node, margin=0):
         neighbor = self.node_dict[node]

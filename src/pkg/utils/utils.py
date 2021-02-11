@@ -260,22 +260,6 @@ def CallHolder(caller, arg_keys, *args, **kwargs):
 
 
 ##
-# @class LockBLock
-# @brief block wrapper for Lock instance
-class LockBlock:
-    ##
-    # @param lock Lock instance from multiprocessing or threading
-    def __init__(self, lock):
-        self.lock = lock
-
-    def __enter__(self):
-        self.lock.acquire()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.lock.release()
-
-
-##
 #@ class dummy class to imitate multiprocess.Value
 class SingleValue:
     def __init__(self, _type, _value):
@@ -367,3 +351,17 @@ class Logger:
 
 def sigmoid(x):
     return 1 / (1 +np.exp(-x))
+
+
+##
+# @class DummyBlock
+# @brief dummy for None instance for with phrase
+class DummyBlock:
+    def __init__(self):
+        pass
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass

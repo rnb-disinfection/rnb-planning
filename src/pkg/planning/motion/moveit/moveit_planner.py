@@ -125,7 +125,7 @@ class MoveitPlanner(MotionInterface):
     # @return LastQ     Last joint configuration as array
     # @return error     planning error
     # @return success   success/failure of planning result
-    def plan_algorithm(self, from_state, to_state, binding_list, redundancy_dict=None, timeout=0.1, **kwargs):
+    def plan_algorithm(self, from_state, to_state, binding_list, redundancy_dict=None, timeout=1, **kwargs):
         self.planner.clear_context_cache()
         self.planner.clear_manifolds()
         if self.enable_dual:
