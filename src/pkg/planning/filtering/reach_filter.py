@@ -92,6 +92,11 @@ class ReachTrainer:
         self.algorithm_name = 'reach_svm'
         self.scene_builder = scene_builder ##< rnb-planning.src.pkg.geometry.builder.scene_builder.SceneBuilder
 
+        self.data_path = os.path.join(DATA_PATH, self.algorithm_name)
+        try_mkdir(self.data_path)
+        self.model_path = os.path.join(MODEL_PATH, self.algorithm_name)
+        try_mkdir(self.model_path)
+
     ##
     # @brief collect and learn
     def collect_and_learn(self, ROBOT_TYPE, END_LINK, TRAIN_COUNT=10000, TEST_COUNT=10000,
@@ -268,25 +273,24 @@ class ReachTrainer:
         return featurevec_list, success_list
 
     def save_data(self, div, featurevec_list, success_list):
-        try_mkdir(os.path.join(DATA_PATH, self.robot_type.name))
-        data_path = os.path.join(DATA_PATH, self.robot_type.name, div)
-        try_mkdir(data_path)
-        save_json(os.path.join(data_path, "featurevec_list.json"), featurevec_list)
-        save_json(os.path.join(data_path, "success_list.json"), success_list)
+        robot_path = os.path.join(self.data_path, self.robot_type.name)
+        try_mkdir(robot_path)
+        div_path = os.path.join(self.data_path, self.robot_type.name, div)
+        try_mkdir(div_path)
+        save_json(os.path.join(div_path, "featurevec_list.json"), featurevec_list)
+        save_json(os.path.join(div_path, "success_list.json"), success_list)
 
     def load_data(self, robot_type, div):
         self.robot_type = robot_type
-        data_path = os.path.join(DATA_PATH, self.robot_type.name, div)
+        data_path = os.path.join(self.data_path, self.robot_type.name, div)
         return (load_json(os.path.join(data_path, "featurevec_list.json")),
                 load_json(os.path.join(data_path, "success_list.json")))
 
     def save_model(self):
-        model_path = os.path.join(MODEL_PATH, self.algorithm_name)
-        try_mkdir(model_path)
+        try_mkdir(self.model_path)
         save_pickle(os.path.join(model_path, "{}.json".format(self.robot_type.name)), self.clf)
 
     def load_model(self, robot_type):
         self.robot_type = robot_type
-        model_path = os.path.join(MODEL_PATH, self.algorithm_name)
-        self.clf = load_pickle(os.path.join(model_path, "{}.json".format(self.robot_type.name)))
+        self.clf = load_pickle(os.path.join(self.model_path, "{}.json".format(self.robot_type.name)))
         return self.clf
