@@ -12,19 +12,18 @@ except:
 
 
 ##
-# @class    ObjectAstar
-# @brief    object level A* algorithm
-class ObjectAstar(TaskInterface):
+# @class    TaskRRT
+# @brief    task level RRT algorithm
+class TaskRRT(TaskInterface):
     DEFAULT_TRANSIT_COST = 1.0
     DQ_MAX = np.deg2rad(45)
 
     ##
     # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
-    def __init__(self, pscene, N_redundant_sample=30):
+    def __init__(self, pscene):
         TaskInterface.__init__(self, pscene)
         ## @brief waiting queue for non-validated search nodes
         self.snode_queue = None
-        self.N_redundant_sample = N_redundant_sample
 
     ##
     # @brief build object-level node graph
@@ -63,9 +62,14 @@ class ObjectAstar(TaskInterface):
         for k in self.valid_node_dict.keys():
             self.valid_node_dict[k].reverse()
 
-        snode_root = self.make_search_node(None, initial_state, None, None)
-        self.connect(None, snode_root, DummyBlock())
-        self.update(snode_root, True)
+        snode_root = SearchNode(idx=0, state=initial_state, parents=[], leafs=[],
+                                depth=0)
+        snode_root.edepth = self.get_optimal_remaining_steps(initial_state)
+        self.snode_dict[snode_root.idx] = snode_root
+        self.snode_counter.value = 1
+        new_queue = self.get_leafs(snode_root, self.N_redundant_sample)
+        for qtem in new_queue:
+            self.snode_queue.put(qtem)
 
     ##
     # @brief sample new state
@@ -88,9 +92,12 @@ class ObjectAstar(TaskInterface):
     # @param traj traj from previous state to new state
     # @param redundancy_dict redundancy of current transition
     def make_search_node(self, snode_pre, new_state, traj,  redundancy_dict):
-        snode_new = TaskInterface.make_search_node(self, snode_pre, new_state, traj,  redundancy_dict)
+        snode_new = SearchNode(
+            idx=0, state=new_state, parents=snode_pre.parents + [snode_pre.idx], leafs=[],
+            depth=len(snode_pre.parents) + 1, redundancy_dict=redundancy_dict)
+        snode_new.set_traj(traj, snode_pre.traj_tot)
         ## edepth (custom)
-        snode_new.edepth = snode_new.depth + self.get_optimal_remaining_steps(new_state)
+        snode_new.edepth = snode_new.depth + self.get_optimal_remaining_steps(snode_new.state)
         return snode_new
 
     ##

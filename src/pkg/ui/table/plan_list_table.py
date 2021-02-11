@@ -4,24 +4,24 @@ from ...controller.repeater.repeater import DEFAULT_TRAJ_FREQUENCY
 
 
 class PlanListTable(TableInterface):
-    HEADS = [IDENTIFY_COL, "Node", "Parent", "Depth", "Cost", "EDepth", "Trajectory"]
+    HEADS = [IDENTIFY_COL, "Node", "Parent", "Depth", "Trajectory"]
     HILIGHT_KEY = 'plan'
     CUSTOM_BUTTONS = ['Execute', 'Replay']
 
     def get_items(self):
         planning_pipeline = self.planning_pipeline
-        snode_list = [tem[1] for tem in sorted(planning_pipeline.snode_dict.items(), key=lambda x: x[0])] \
-            if hasattr(planning_pipeline, "snode_dict") else []
+        snode_list = [tem[1] for tem in sorted(planning_pipeline.tplan.snode_dict.items(), key=lambda x: x[0])] \
+            if hasattr(planning_pipeline, "tplan") and hasattr(planning_pipeline.tplan, "snode_dict") else []
         for snode in snode_list:
             snode.traj_tot = snode.traj_length + (snode_list[snode.parents[-1]].traj_tot if snode.parents else 0)
         return snode_list
 
     def get_items_dict(self):
-        return self.planning_pipeline.snode_dict if hasattr(self.planning_pipeline,"snode_dict") else {}
+        return self.planning_pipeline.tplan.snode_dict if hasattr(self.planning_pipeline,"snode_dict") else {}
 
     def serialize(self, gtem):
         return [str(gtem.idx), str(gtem.state.binding_state), gtem.parents[-1] if gtem.parents else "None",
-                gtem.depth, gtem.edepth-gtem.depth, gtem.edepth, "%.2f"%(gtem.traj_tot)]
+                gtem.depth, "%.2f"%(gtem.traj_tot)]
 
     def select(self, selected_row_ids, active_row, active_col):
         self.selected_row_ids = selected_row_ids
@@ -43,7 +43,7 @@ class PlanListTable(TableInterface):
                 if self.selected_row_ids:
                     selected = int(self.selected_row_ids[0])
                     planning_pipeline = self.planning_pipeline
-                    snode_selected = planning_pipeline.snode_dict[selected]
+                    snode_selected = planning_pipeline.tplan.snode_dict[selected]
                     schedule = snode_selected.parents + [snode_selected.idx]
                     planner = planning_pipeline.mplan
                     snode_schedule = planning_pipeline.idxSchedule2SnodeScedule(schedule, planning_pipeline.combined_robot.home_pose)
@@ -65,9 +65,9 @@ class PlanListTable(TableInterface):
                 if self.selected_row_ids:
                     selected = int(self.selected_row_ids[0])
                     planning_pipeline = self.planning_pipeline
-                    snode_selected = planning_pipeline.snode_dict[selected]
+                    snode_selected = planning_pipeline.tplan.snode_dict[selected]
                     schedule = snode_selected.parents + [snode_selected.idx]
-                    initial_state = planning_pipeline.snode_dict[0].state
+                    initial_state = planning_pipeline.tplan.snode_dict[0].state
                     planning_pipeline.pscene.set_object_state(initial_state)
                     planning_pipeline.pscene.gscene.show_pose(initial_state.Q)
                     time.sleep(0.1)
