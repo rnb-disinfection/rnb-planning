@@ -16,9 +16,9 @@ def get_point_list_ltc(point_rows_np):
     return pl
 
 ##
-# @class    Latticizer
+# @class    Latticizer_py
 # @brief    Latticize a geometry scene
-class Latticizer:
+class Latticizer_py:
     def __init__(self, WDH=(3, 3, 2), L_CELL=0.05, OFFSET_ZERO=(1.5, 1.5, 0.5), gjk_path=GJK_PATH_DEFAULT):
         self.WDH = WDH
         self.L_CELL = L_CELL

@@ -11,7 +11,7 @@ from ...utils.utils import *
 import itertools
 import subprocess
 
-from .lattice_model.latticizer import *
+from .lattice_model.latticizer_py import *
 from .grasp_filter import *
 import SharedArray as sa
 
@@ -52,8 +52,8 @@ class LatticedChecker(MotionFilterInterface):
         self.gscene = pscene.gscene
         self.end_link_couple_dict = end_link_couple_dict
         self.gcheck = GraspChecker(pscene=pscene, end_link_couple_dict=end_link_couple_dict)
-        self.ltc_effector = Latticizer(WDH=(1, 1, 1), L_CELL=0.05, OFFSET_ZERO=(0.5, 0.5, 0.5))
-        self.ltc_arm_10 = Latticizer(WDH=(2, 2, 2), L_CELL=0.10, OFFSET_ZERO=(0.5, 1.0, 1.0))
+        self.ltc_effector = Latticizer_py(WDH=(1, 1, 1), L_CELL=0.05, OFFSET_ZERO=(0.5, 0.5, 0.5))
+        self.ltc_arm_10 = Latticizer_py(WDH=(2, 2, 2), L_CELL=0.10, OFFSET_ZERO=(0.5, 1.0, 1.0))
         # Create an array in shared memory.
         self.prepared_p_dict = {}
         self.grasp_img_p_dict, self.arm_img_p_dict, self.rh_mask_p_dict, self.result_p_dict,\
@@ -80,10 +80,12 @@ class LatticedChecker(MotionFilterInterface):
             self.query_in_dict[robot_type_name] = sa.attach("shm://{}.query_in".format(robot_type_name))
             self.response_out_dict[robot_type_name] = sa.attach("shm://{}.response_out".format(robot_type_name))
             self.query_quit_dict[robot_type_name] = sa.attach("shm://{}.query_quit".format(robot_type_name))
-        assert len(self.robot_names) == 1 and self.robot_names[0] == "indy0", \
-            "only indy0 supported. to use other, make shoulder_height as dictionary and modify predictor server to inference depending on robot type"
-        shoulder_link = pscene.gscene.urdf_content.joint_map[pscene.gscene.joint_names[1]].child
-        self.shoulder_height = get_tf(shoulder_link, self.combined_robot.home_dict, pscene.gscene.urdf_content)[2,3]
+
+        self.shoulder_link_dict = {rname: pscene.gscene.urdf_content.joint_map[rchain['joint_names'][1]].child
+                                   for rname, rchain in chain_dict.items()}
+        self.shoulder_height_dict = {
+            rname: get_tf(shoulder_link, self.combined_robot.home_dict, pscene.gscene.urdf_content)[2, 3]
+            for rname, shoulder_link in self.shoulder_link_dict.items()}
 
     ##
     # @brief check end-effector collision in grasping
@@ -144,7 +146,7 @@ class LatticedChecker(MotionFilterInterface):
         self.ltc_effector.convert_vertices(tool_vertinfo_list, self.combined_robot.home_dict, Tref=Tref)
         self.ltc_effector.convert_vertices(target_vertinfo_list, self.combined_robot.home_dict, Tref=Tref)
 
-        Tref_base = SE3(Tref[:3, :3], (0, 0, self.shoulder_height))
+        Tref_base = SE3(Tref[:3, :3], (0, 0, self.shoulder_height_dict[group_name]))
         self.ltc_arm_10.convert([gtem for gtem in self.gscene if gtem.collision and gtem.link_name=="base_link"], self.combined_robot.home_dict,
                            Tref=Tref_base)
 
