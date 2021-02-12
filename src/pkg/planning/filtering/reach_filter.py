@@ -151,7 +151,7 @@ class ReachTrainer:
 
     ##
     # @brief load and learn
-    def load_and_learn(self, ROBOT_TYPE, C_svm=100, save_model=True):
+    def load_and_learn(self, ROBOT_TYPE, C_svm=170, save_model=True):
         self.featurevec_list_train, self.success_list_train = self.load_data(ROBOT_TYPE, "train")
         self.featurevec_list_test, self.success_list_test = self.load_data(ROBOT_TYPE, "test")
 

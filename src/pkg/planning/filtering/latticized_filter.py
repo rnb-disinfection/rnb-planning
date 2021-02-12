@@ -11,7 +11,7 @@ from ...utils.utils import *
 import itertools
 import subprocess
 
-from .lattice_model.lattice_predictor import *
+from .lattice_model.latticizer import *
 from .grasp_filter import *
 import SharedArray as sa
 
@@ -137,7 +137,8 @@ class LatticedChecker(MotionFilterInterface):
 
         r, th, h = cart2cyl(*T_end_effector[:3, 3])
         Tref = SE3(Rot_axis(3, th), T_end_effector[:3, 3])
-        target_names = [item[0] for item in target_vertinfo_list]
+        obj_names = [obj.geometry.name] + obj.geometry.children
+        target_names = [item[0] for item in target_vertinfo_list if item[0] not in obj_names]
         tool_names = [item[0] for item in tool_vertinfo_list]
 
         self.ltc_effector.convert_vertices(tool_vertinfo_list, self.combined_robot.home_dict, Tref=Tref)
@@ -150,6 +151,8 @@ class LatticedChecker(MotionFilterInterface):
         grasp_tar_idx = sorted(set(itertools.chain(*[self.ltc_effector.coll_idx_dict[tname] for tname in target_names if
                                                      tname in self.ltc_effector.coll_idx_dict])))
         grasp_tool_idx = sorted(set(itertools.chain(*[self.ltc_effector.coll_idx_dict[tname] for tname in tool_names if
+                                                      tname in self.ltc_effector.coll_idx_dict])))
+        grasp_obj_idx = sorted(set(itertools.chain(*[self.ltc_effector.coll_idx_dict[tname] for tname in obj_names if
                                                       tname in self.ltc_effector.coll_idx_dict])))
         arm_tar_idx = sorted(set(itertools.chain(*[self.ltc_arm_10.coll_idx_dict[tname] for tname in target_names if
                                                    tname in self.ltc_arm_10.coll_idx_dict])))
@@ -166,11 +169,13 @@ class LatticedChecker(MotionFilterInterface):
         rh_mask = np.concatenate([r_mask, h_mask])
         grasp_tool_img = np.zeros(GRASP_SHAPE)
         grasp_tar_img = np.zeros(GRASP_SHAPE)
+        grasp_obj_img = np.zeros(GRASP_SHAPE)
         grasp_tool_img[np.unravel_index(grasp_tool_idx, shape=GRASP_SHAPE)] = 1
         grasp_tar_img[np.unravel_index(grasp_tar_idx, shape=GRASP_SHAPE)] = 1
+        grasp_obj_img[np.unravel_index(grasp_obj_idx, shape=GRASP_SHAPE)] = 1
         arm_img = np.zeros(ARM_SHAPE + (1,))
         arm_img[np.unravel_index(arm_tar_idx, shape=ARM_SHAPE)] = 1
-        grasp_img = np.stack([grasp_tool_img, grasp_tar_img], axis=-1)
+        grasp_img = np.stack([grasp_tool_img, grasp_obj_img, grasp_tar_img], axis=-1)
         res = self.query_wait_response(self.rconfig_dict[group_name].type.name,
                                        np.array([grasp_img]), np.array([arm_img]), np.array([rh_mask]),
                                        )[0]

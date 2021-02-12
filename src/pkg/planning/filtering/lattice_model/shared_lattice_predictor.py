@@ -100,7 +100,7 @@ class SharedLatticePredictor:
     # @brief Create an array in shared memory.
     # @param prepared_p bool shared array (1,) to signal readiness
     def start_server(self, prepared_p):
-        grasp_img_p = sa.create(f"shm://{self.ROBOT_TYPE_NAME}.grasp_img", (BATCH_SIZE,) + GRASP_SHAPE + (2,))
+        grasp_img_p = sa.create(f"shm://{self.ROBOT_TYPE_NAME}.grasp_img", (BATCH_SIZE,) + GRASP_SHAPE + (3,))
         arm_img_p = sa.create(f"shm://{self.ROBOT_TYPE_NAME}.arm_img", (BATCH_SIZE,) + ARM_SHAPE + (1,))
         rh_mask_p = sa.create(f"shm://{self.ROBOT_TYPE_NAME}.rh_mask", (BATCH_SIZE, RH_MASK_SIZE * 2))
         result_p = sa.create(f"shm://{self.ROBOT_TYPE_NAME}.result", (BATCH_SIZE, 2))
