@@ -100,10 +100,10 @@ class ReachTrainer:
     ##
     # @brief collect and learn
     def collect_and_learn(self, ROBOT_TYPE, END_LINK, TRAIN_COUNT=10000, TEST_COUNT=10000,
-                          save_data=True, save_model=True, C_svm = 10):
-        self.featurevec_list_train, self.success_list_train = self.collect_reaching_data(ROBOT_TYPE, END_LINK, TRAIN_COUNT)
+                          save_data=True, save_model=True, C_svm = 10, timeout=0.1):
+        self.featurevec_list_train, self.success_list_train = self.collect_reaching_data(ROBOT_TYPE, END_LINK, TRAIN_COUNT, timeout=timeout)
 
-        self.featurevec_list_test, self.success_list_test = self.collect_reaching_data(ROBOT_TYPE, END_LINK, TEST_COUNT)
+        self.featurevec_list_test, self.success_list_test = self.collect_reaching_data(ROBOT_TYPE, END_LINK, TEST_COUNT, timeout=timeout)
         if save_data:
             self.save_data("train", self.featurevec_list_train, self.success_list_train)
             self.save_data("test", self.featurevec_list_test, self.success_list_test)
@@ -230,7 +230,7 @@ class ReachTrainer:
             robot_name, tool_link, goal_pose, base_link, tuple(home_pose), timeout=timeout)
         return (radius, theta, height, azimuth_loc, zenith), success, trajectory
 
-    def collect_reaching_data(self, robot_type, TIP_LINK, N_s):
+    def collect_reaching_data(self, robot_type, TIP_LINK, N_s, timeout=0.1):
         self.robot_type = robot_type
         # set robot
         crob = CombinedRobot(robots_on_scene=[
@@ -258,8 +258,11 @@ class ReachTrainer:
         gtimer.tic("full_loop")
         featurevec_list = []
         success_list = []
+        self.time_list = []
         for i_s in range(N_s):
-            featurevec, success, trajectory = self.sample_reaching(ROBOT_NAME, TIP_LINK, home_pose=crob.home_pose)
+            gtimer.tic("sample_reaching")
+            featurevec, success, trajectory = self.sample_reaching(ROBOT_NAME, TIP_LINK, home_pose=crob.home_pose, timeout=timeout)
+            self.time_list.append(gtimer.toc("sample_reaching"))
             xyz = cyl2cart(*featurevec[:3])
             orientation_mat = hori2mat(featurevec[1], *featurevec[-2:])
     #         gscene.add_highlight_axis("hl", "toolvec", "base_link", xyz, orientation_mat)

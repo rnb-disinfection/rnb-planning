@@ -403,7 +403,8 @@ class GeometryItem(object):
         return np.multiply(DEFAULT_VERT_DICT[self.gtype], self.dims), (0 if self.gtype == GEOTYPE.CYLINDER else self.radius)
     ##
     # @brief get vertice from specific link
-    def get_vertice_from(self, joint_dict, from_link='base_link'):
+    def get_vertice_radius_from(self, joint_dict, from_link='base_link'):
         T = self.get_tf(joint_dict, from_link=from_link)
-        return np.transpose(np.matmul(T[:3,:3], np.multiply(DEFAULT_VERT_DICT[self.gtype], self.dims).transpose()) + T[:3,3:])
+        verts, radius = self.get_vertice_radius()
+        return np.transpose(np.matmul(T[:3,:3], verts.transpose()) + T[:3,3:]), radius
 
