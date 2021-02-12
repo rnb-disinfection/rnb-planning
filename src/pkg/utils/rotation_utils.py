@@ -244,7 +244,7 @@ def cart2cyl(x, y, z):
 # @param orientaion_mat orentation
 # @return azimuth_loc angle from radial axis along z axis
 # @return zenith angle from bottom zenith
-def mat2ori(orientation_mat, theta=0):
+def mat2hori(orientation_mat, theta=0):
     x,y,z = orientation_mat[:,2]
     azimuth = np.arctan2(y,x)
     azimuth_loc = (azimuth-theta + np.pi)%(2*np.pi)-np.pi

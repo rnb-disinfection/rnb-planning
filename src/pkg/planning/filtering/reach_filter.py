@@ -22,6 +22,11 @@ class ReachChecker(MotionFilterInterface):
         self.binder_link_robot_dict = {blink: rname for blink, rname in zip(binder_links, self.robot_names)}
         for rconfig in self.combined_robot.robots_on_scene:
             self.model_dict[rconfig.get_indexed_name()] = ReachTrainer(None).load_model(rconfig.type)
+        
+        self.shoulder_link_dict = {rname: pscene.gscene.urdf_content.joint_map[rchain['joint_names'][1]].child 
+                                   for rname, rchain in chain_dict.items()}
+        self.shoulder_height_dict = {rname: get_tf(shoulder_link, self.combined_robot.home_dict, pscene.gscene.urdf_content)[2,3] 
+                                     for rname, shoulder_link in self.shoulder_link_dict.items()}
 
     ##
     # @brief check end-effector collision in grasping
@@ -57,8 +62,10 @@ class ReachChecker(MotionFilterInterface):
             # dual motion not predictable
             return True
         radius, theta, height = cart2cyl(*T_tar[:3,3])
-        azimuth_loc, zenith = mat2ori(T_tar[:3,:3], theta)
-        featurevec = (radius, theta, height, azimuth_loc, zenith)
+        azimuth_loc, zenith = mat2hori(T_tar[:3,:3], theta)
+        shoulder_height = self.shoulder_height_dict[group_name]
+        ee_dist = np.linalg.norm([radius, height-shoulder_height])
+        featurevec = (radius, theta, height, azimuth_loc, zenith, radius**2, ee_dist, ee_dist**2)
         res = self.model_dict[group_name].predict([featurevec])[0]
         return res
 
@@ -84,6 +91,7 @@ try_mkdir(MODEL_PATH)
 # @class    ReachChecker
 # @brief    check reach regarding kinematic chain
 # @remark   to train ReachChecker, see src/scripts/training/ReachSVM.ipynb
+#           used features are: (radius,theta, height, azimuth_loc, zenith, radius**2, ee_dist, ee_dist**2)
 class ReachTrainer:
     ##
     # @param scene_builder  scene builder is required to make data scene (rnb-planning.src.pkg.geometry.builder.scene_builder.SceneBuilder)
@@ -100,7 +108,7 @@ class ReachTrainer:
     ##
     # @brief collect and learn
     def collect_and_learn(self, ROBOT_TYPE, END_LINK, TRAIN_COUNT=10000, TEST_COUNT=10000,
-                          save_data=True, save_model=True, C_svm = 10, timeout=0.1):
+                          save_data=True, save_model=True, C_svm = 170, timeout=1):
         self.featurevec_list_train, self.success_list_train = self.collect_reaching_data(ROBOT_TYPE, END_LINK, TRAIN_COUNT, timeout=timeout)
 
         self.featurevec_list_test, self.success_list_test = self.collect_reaching_data(ROBOT_TYPE, END_LINK, TEST_COUNT, timeout=timeout)
@@ -143,7 +151,7 @@ class ReachTrainer:
 
     ##
     # @brief load and learn
-    def load_and_learn(self, ROBOT_TYPE, C_svm=10, save_model=True):
+    def load_and_learn(self, ROBOT_TYPE, C_svm=100, save_model=True):
         self.featurevec_list_train, self.success_list_train = self.load_data(ROBOT_TYPE, "train")
         self.featurevec_list_test, self.success_list_test = self.load_data(ROBOT_TYPE, "test")
 
@@ -213,8 +221,9 @@ class ReachTrainer:
 
     ##
     # @brief sample reaching plan results
-    def sample_reaching(self, robot_name, tool_link, home_pose, base_link="base_link", timeout=0.1,
-                        radius_min=0.0, radius_max=1.5, theta_min=-np.pi, theta_max=np.pi,
+    # @remark accuracy decreases when very small radius is included in the dataset. radius lowerbound 0.2 is recommended
+    def sample_reaching(self, robot_name, tool_link, home_pose, base_link="base_link", timeout=1,
+                        radius_min=0.2, radius_max=1.5, theta_min=-np.pi, theta_max=np.pi,
                         height_min=-0.7, height_max=1.5, zenith_min=0, zenith_max=np.pi,
                         azimuth_min=-np.pi, azimuth_max=np.pi):
         radius = random.uniform(radius_min, radius_max)
@@ -230,10 +239,11 @@ class ReachTrainer:
         trajectory, success = self.planner.planner.plan_py(
             robot_name, tool_link, goal_pose, base_link, tuple(home_pose), timeout=timeout)
         self.time_plan.append(GlobalTimer.instance().toc("plan_py"))
+        
+        ee_dist = np.linalg.norm([radius, height-self.shoulder_height])
+        return (radius, theta, height, azimuth_loc, zenith, radius**2, ee_dist, ee_dist**2), success, trajectory
 
-        return (radius, theta, height, azimuth_loc, zenith), success, trajectory
-
-    def collect_reaching_data(self, robot_type, TIP_LINK, N_s, timeout=0.1):
+    def collect_reaching_data(self, robot_type, TIP_LINK, N_s, timeout=1):
         self.robot_type = robot_type
         # set robot
         crob = CombinedRobot(robots_on_scene=[
@@ -247,6 +257,9 @@ class ReachTrainer:
         self.scene_builder.add_robot_geometries(color=(0, 1, 0, 0.5), display=True, collision=True)
         print("added robot collision boundaries")
         pscene = PlanningScene(gscene, combined_robot=crob)
+        
+        self.shoulder_link = gscene.urdf_content.joint_map[gscene.joint_names[1]].child
+        self.shoulder_height = get_tf(self.shoulder_link, crob.home_dict, gscene.urdf_content)[2,3]
 
         # make dummy binders
         gscene.create_safe(gtype=GEOTYPE.SPHERE, name="grip0", link_name=TIP_LINK,
