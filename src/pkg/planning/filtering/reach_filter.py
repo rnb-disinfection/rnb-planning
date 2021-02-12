@@ -214,7 +214,7 @@ class ReachTrainer:
     ##
     # @brief sample reaching plan results
     def sample_reaching(self, robot_name, tool_link, home_pose, base_link="base_link", timeout=0.1,
-                        radius_min=0.2, radius_max=1.3, theta_min=-np.pi, theta_max=np.pi,
+                        radius_min=0.0, radius_max=1.5, theta_min=-np.pi, theta_max=np.pi,
                         height_min=-0.7, height_max=1.5, zenith_min=0, zenith_max=np.pi,
                         azimuth_min=-np.pi, azimuth_max=np.pi):
         radius = random.uniform(radius_min, radius_max)
