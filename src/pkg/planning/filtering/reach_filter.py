@@ -226,8 +226,11 @@ class ReachTrainer:
         xyz = cyl2cart(radius, theta, height)
         quat = tuple(Rotation.from_dcm(hori2mat(theta, azimuth_loc, zenith)).as_quat())
         goal_pose = xyz+quat
+        GlobalTimer.instance().tic("plan_py")
         trajectory, success = self.planner.planner.plan_py(
             robot_name, tool_link, goal_pose, base_link, tuple(home_pose), timeout=timeout)
+        self.time_plan.append(GlobalTimer.instance().toc("plan_py"))
+
         return (radius, theta, height, azimuth_loc, zenith), success, trajectory
 
     def collect_reaching_data(self, robot_type, TIP_LINK, N_s, timeout=0.1):
@@ -253,6 +256,7 @@ class ReachTrainer:
         self.planner = MoveitPlanner(pscene)
         self.planner.update_gscene()
 
+        self.time_plan = []
         gtimer = GlobalTimer.instance()
         gtimer.reset()
         gtimer.tic("full_loop")
@@ -291,7 +295,7 @@ class ReachTrainer:
 
     def save_model(self):
         try_mkdir(self.model_path)
-        save_pickle(os.path.join(model_path, "{}.json".format(self.robot_type.name)), self.clf)
+        save_pickle(os.path.join(self.model_path, "{}.json".format(self.robot_type.name)), self.clf)
 
     def load_model(self, robot_type):
         self.robot_type = robot_type
