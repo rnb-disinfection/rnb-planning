@@ -186,7 +186,7 @@ class SceneBuilder(Singleton):
                     gname = "{}_{}_{}".format(link.name, geotype, id_dict[link.name])
                     geometry_items.append(
                         gscene.create_safe(
-                            name=gname, link_name=link.name, gtype=GEOTYPE.CAPSULE,
+                            name=gname, link_name=link.name, gtype=GEOTYPE.CYLINDER,
                             center=xyz, dims=(geometry.radius * 2, geometry.radius * 2, geometry.length), rpy=rpy,
                             color=color, display=display, collision=collision, fixed=True)
                     )

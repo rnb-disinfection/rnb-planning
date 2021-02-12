@@ -8,11 +8,15 @@ from collections import defaultdict
 
 POINT_DEFAULT = np.array([[0,0,0]])
 SEG_DEFAULT = np.array([[0,0,1.0],[0,0,-1.0]])/2
+N_CYL = 32
+CYL_DEFAULT = np.reshape(np.array([[np.cos(float(i_theta)/N_CYL*np.pi*2)/2, np.sin(float(i_theta)/N_CYL*np.pi*2)/2, 0] for i_theta in range(N_CYL)])[:,np.newaxis,:]
+                         + (np.array([[0,0,1.0],[0,0,-1.0]])/2)[np.newaxis,:,:], newshape=(-1,3))
 BOX_DEFAULT = np.array([[[(i,j,k) for k in range(2)] for j in range(2)] for i in range(2)], dtype=np.float).reshape((-1,3))-0.5
 
 DEFAULT_VERT_DICT = {
     GEOTYPE.SPHERE: POINT_DEFAULT,
     GEOTYPE.CAPSULE: SEG_DEFAULT,
+    GEOTYPE.CYLINDER: CYL_DEFAULT,
     GEOTYPE.BOX: BOX_DEFAULT,
     GEOTYPE.MESH: BOX_DEFAULT
 }
@@ -396,7 +400,7 @@ class GeometryItem(object):
     ##
     # @brief get local vertice and maximum radius of the geometry
     def get_vertice_radius(self):
-        return np.multiply(DEFAULT_VERT_DICT[self.gtype], self.dims), self.radius
+        return np.multiply(DEFAULT_VERT_DICT[self.gtype], self.dims), (0 if self.gtype == GEOTYPE.CYLINDER else self.radius)
     ##
     # @brief get vertice from specific link
     def get_vertice_from(self, joint_dict, from_link='base_link'):
