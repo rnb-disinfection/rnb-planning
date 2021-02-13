@@ -108,7 +108,7 @@ class ReachTrainer:
     ##
     # @brief collect and learn
     def collect_and_learn(self, ROBOT_TYPE, END_LINK, TRAIN_COUNT=10000, TEST_COUNT=10000,
-                          save_data=True, save_model=True, C_svm = 170, timeout=1):
+                          save_data=True, save_model=True, C_svm=500, timeout=1):
         self.featurevec_list_train, self.success_list_train = self.collect_reaching_data(ROBOT_TYPE, END_LINK, TRAIN_COUNT, timeout=timeout)
 
         self.featurevec_list_test, self.success_list_test = self.collect_reaching_data(ROBOT_TYPE, END_LINK, TEST_COUNT, timeout=timeout)
@@ -151,7 +151,7 @@ class ReachTrainer:
 
     ##
     # @brief load and learn
-    def load_and_learn(self, ROBOT_TYPE, C_svm=170, save_model=True):
+    def load_and_learn(self, ROBOT_TYPE, C_svm=500, save_model=True):
         self.featurevec_list_train, self.success_list_train = self.load_data(ROBOT_TYPE, "train")
         self.featurevec_list_test, self.success_list_test = self.load_data(ROBOT_TYPE, "test")
 
