@@ -22,8 +22,11 @@ ARM_SHAPE = (20,20,20)
 RH_MASK_SIZE = 512
 RH_MASK_STEP = 64
 
+# def div_r(r):
+#     return floor(sigmoid((r)/0.1-8)*8)
+
 def div_r(r):
-    return int(floor(sigmoid((r) / 0.1 - 8) * 8))
+    return floor(sigmoid((r)/0.1-7)*8)
 
 
 def div_h(h):
