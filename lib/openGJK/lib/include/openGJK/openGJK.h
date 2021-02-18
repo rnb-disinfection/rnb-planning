@@ -55,9 +55,23 @@ public:
         this->push_back(y);
         this->push_back(z);
     }
+
+    void set_value(double x, double y, double z){
+        (*this)[0] = x;
+        (*this)[1] = y;
+        (*this)[2] = z;
+    }
 };
 
-typedef std::vector<Point3> PointList;
+class PointList: public std::vector<Point3> {
+public:
+    void set_value(int idx, double x, double y, double z){
+        auto item = (*this)[idx];
+        item[0] = x;
+        item[1] = y;
+        item[2] = z;
+    }
+};
 
 /**
  * @brief Structure of a body.

@@ -30,6 +30,7 @@ BOOST_PYTHON_MODULE(openGJKlib){
             .def("__setitem__", &std_item<Point3>::set,
                  with_custodian_and_ward<1,2>()) // to let container keep value
             .def("__delitem__", &std_item<Point3>::del)
+            .def("set_value", &Point3::set_value)
             ;
 
     class_<PointList>("PointList", init<>())
@@ -42,6 +43,7 @@ BOOST_PYTHON_MODULE(openGJKlib){
             .def("__setitem__", &std_item<PointList>::set,
                  with_custodian_and_ward<1,2>()) // to let container keep value
             .def("__delitem__", &std_item<PointList>::del)
+            .def("set_value", &PointList::set_value)
             ;
 
     class_<PointListList>("PointListList", init<>())

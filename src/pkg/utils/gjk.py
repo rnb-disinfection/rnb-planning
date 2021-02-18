@@ -13,6 +13,10 @@ def get_point_list(point_rows_np):
         pl.append(oGJK.Point3(*v))
     return pl
 
+def set_point_list(pl, point_rows_np):
+    for i_p, v in enumerate(point_rows_np):
+        pl.set_value(i_p, *v)
+
 def get_point_list_list(point_rows_list_np):
     pll = oGJK.PointListList()
     for point_rows_np in point_rows_list_np:
