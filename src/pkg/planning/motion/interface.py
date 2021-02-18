@@ -1,6 +1,7 @@
 from abc import *
 import numpy as np
 from ...utils.utils import list2dict, GlobalTimer
+from ..constraint.constraint_common import calc_redundancy
 
 __metaclass__ = type
 
@@ -69,16 +70,21 @@ class MotionInterface:
             self.pscene.set_object_state(from_state)
         binding_list, success = self.pscene.get_slack_bindings(from_state, to_state)
 
+        redundancy_values = {}
+
         if success:
             for binding in binding_list:
                 obj_name, ap_name, binder_name, binder_geometry_name = binding
                 actor, obj = self.pscene.actor_dict[binder_name], self.pscene.subject_dict[obj_name]
                 handle = obj.action_points_dict[ap_name]
                 redundancy, Q_dict = redundancy_dict[obj_name], list2dict(from_state.Q, self.joint_names)
+                redundancy_values[(obj_name, handle.name)] = calc_redundancy(redundancy[handle.name], handle)
+                redundancy_values[(obj_name, actor.name)] = calc_redundancy(redundancy[actor.name], actor)
+
                 for mfilter in self.motion_filters:
                     if self.flag_log:
                         self.gtimer.tic(mfilter.__class__.__name__)
-                    success = mfilter.check(actor, obj, handle, redundancy, Q_dict)
+                    success = mfilter.check(actor, obj, handle, redundancy_values, Q_dict)
                     if self.flag_log:
                         self.gtimer.toc(mfilter.__class__.__name__)
                         self.result_log[mfilter.__class__.__name__].append(success)
@@ -89,7 +95,7 @@ class MotionInterface:
             if self.flag_log:
                 self.gtimer.tic('planning')
             Traj, LastQ, error, success = self.plan_algorithm(from_state, to_state, binding_list,
-                                                              redundancy_dict=redundancy_dict, **kwargs)
+                                                              redundancy_values=redundancy_values, **kwargs)
             if self.flag_log:
                 self.gtimer.toc('planning')
                 self.result_log['planning'].append(success)
@@ -102,13 +108,13 @@ class MotionInterface:
     # @param from_state     starting state (rnb-planning.src.pkg.planning.scene.State)
     # @param to_state       goal state (rnb-planning.src.pkg.planning.scene.State)
     # @param binding_list   list of bindings to pursue
-    # @param redundancy_dict    redundancy in dictionary format {object name: {axis: value}}
+    # @param redundancy_values calculated redundancy values in dictionary format {(object name, point name): (xyz, rpy)}
     # @return Traj      Full trajectory as array of Q
     # @return LastQ     Last joint configuration as array
     # @return error     planning error
     # @return success   success/failure of planning result
     @abstractmethod
-    def plan_algorithm(self, from_state, to_state, binding_list, redundancy_dict=None, **kwargs):
+    def plan_algorithm(self, from_state, to_state, binding_list, redundancy_values=None, **kwargs):
         return [], [], 1e10, False
 
     ##
@@ -116,10 +122,24 @@ class MotionInterface:
     # @remark  call step_online_plan to get each step plans
     # @param from_state starting state (rnb-planning.src.pkg.planning.scene.State)
     # @param to_state   goal state (rnb-planning.src.pkg.planning.scene.State)
-    def init_online_plan(self, from_state, to_state, T_step, control_freq, playback_rate=0.5, **kwargs):
+    def init_online_plan(self, from_state, to_state, T_step, control_freq, playback_rate=0.5,
+                         redundancy_dict=None, **kwargs):
         binding_list, success = self.pscene.get_slack_bindings(from_state, to_state)
-        return self.init_online_algorithm(from_state, to_state, binding_list=binding_list,
-                                          T_step=T_step, control_freq=control_freq, playback_rate=playback_rate, **kwargs)
+        redundancy_values = {}
+        if success:
+            if redundancy_dict is not None:
+                for binding in binding_list:
+                    obj_name, ap_name, binder_name, binder_geometry_name = binding
+                    actor, obj = self.pscene.actor_dict[binder_name], self.pscene.subject_dict[obj_name]
+                    handle = obj.action_points_dict[ap_name]
+                    redundancy, Q_dict = redundancy_dict[obj_name], list2dict(from_state.Q, self.joint_names)
+                    redundancy_values[(obj_name, handle.name)] = calc_redundancy(redundancy[handle.name], handle)
+                    redundancy_values[(obj_name, actor.name)] = calc_redundancy(redundancy[actor.name], actor)
+            return self.init_online_algorithm(from_state, to_state, binding_list=binding_list,
+                                              T_step=T_step, control_freq=control_freq, playback_rate=playback_rate,
+                                              redundancy_values=redundancy_values**kwargs)
+        else:
+            raise(RuntimeError("init online plan fail - get_slack_bindings"))
 
 
     ##
@@ -127,7 +147,8 @@ class MotionInterface:
     # @param from_state starting state (rnb-planning.src.pkg.planning.scene.State)
     # @param to_state   goal state (rnb-planning.src.pkg.planning.scene.State)
     @abstractmethod
-    def init_online_algorithm(self, from_state, to_state, T_step, control_freq, playback_rate=0.5, **kwargs):
+    def init_online_algorithm(self, from_state, to_state, T_step, control_freq, redundancy_values=None,
+                              playback_rate=0.5, **kwargs):
         pass
 
     ##

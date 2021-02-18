@@ -140,6 +140,25 @@ namespace RNB {
             void clear_all_objects();
 
             void terminate();
+
+            /**
+             * @brief solve inverse kinematics
+             * @param timeout_single    timeout for single ik
+             * @param timeout_sampling  timeout for sampling loop
+             * @param self_collision    to check self-collision
+             * @param fulll_collision   to check full collision with environment
+             * @author Junsu Kang
+             */
+            JointState solve_ik(string group_name, CartPose goal_pose,
+                                double timeout_single, double timeout_sampling,
+                                bool self_collision, bool fulll_collision);
+
+            /**
+             * @brief check current status of collision
+             * @author Junsu Kang
+             * @param only_self    to check only self-collision
+             */
+            bool check_collision(bool only_self);
         };
 
     }

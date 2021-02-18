@@ -26,6 +26,47 @@ int main(int argc, char** argv) {
     kinematic_state->setJointGroupPositions(joint_model_group, init_state.data());
     const Eigen::Affine3d &end_effector_tf = kinematic_state->getGlobalLinkTransform(tool_link);
 
+    std::vector<double> joint_values;
+    const std::vector<std::string> &joint_names = joint_model_group->getJointModelNames();
+    kinematic_state->copyJointGroupPositions(joint_model_group, joint_values);
+    for(std::size_t i = 0; i < joint_names.size(); ++i)
+    {
+        ROS_INFO("Joint %s: %f", joint_names[i].c_str(), joint_values[i]);
+    }
+    const Eigen::Isometry3d& end_effector_state = kinematic_state->getGlobalLinkTransform(tool_link);
+
+    /* Set one joint in the right arm outside its joint limit */
+    joint_values[0] = 1.57;
+    kinematic_state->setJointGroupPositions(joint_model_group, joint_values);
+
+    /* Check whether any joint is outside its joint limits */
+    ROS_INFO_STREAM("Current state is " << (kinematic_state->satisfiesBounds() ? "valid" : "not valid"));
+
+    /* Enforce the joint limits for this state and check again*/
+    kinematic_state->enforceBounds();
+    ROS_INFO_STREAM("Current state is " << (kinematic_state->satisfiesBounds() ? "valid" : "not valid"));
+
+    bool found_ik = kinematic_state->setFromIK(joint_model_group, end_effector_state, 0.1);
+    if (found_ik)
+    {
+        kinematic_state->copyJointGroupPositions(joint_model_group, joint_values);
+        for(std::size_t i=0; i < joint_names.size(); ++i)
+        {
+            ROS_INFO("Joint %s: %f", joint_names[i].c_str(), joint_values[i]);
+        }
+    }
+    else
+    {
+        ROS_INFO("Did not find IK solution");
+    }
+
+    collision_detection::CollisionRequest collision_request;
+    collision_detection::CollisionResult collision_result;
+    planner.planning_scene_->checkSelfCollision(collision_request, collision_result);
+    ROS_INFO_STREAM("Test 1: Current state is "
+                            << (collision_result.collision ? "in" : "not in")
+                            << " self collision");
+
     Eigen::Vector3d _vec(end_effector_tf.translation());
     Eigen::Quaterniond _rot(end_effector_tf.linear());
 

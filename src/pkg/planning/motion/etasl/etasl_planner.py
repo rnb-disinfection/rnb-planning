@@ -50,23 +50,22 @@ class EtaslPlanner(MotionInterface):
     # @param from_state starting state (rnb-planning.src.pkg.planning.scene.State)
     # @param to_state   goal state (rnb-planning.src.pkg.planning.scene.State)
     # @param binding_list   list of bindings to pursue
-    # @param redundancy_dict    not supported
+    # @param redundancy_values calculated redundancy values in dictionary format {(object name, point name): (xyz, rpy)}
     # @return Traj      Full trajectory as array of Q
     # @return LastQ     Last joint configuration as array
     # @return error     planning error
     # @return success   success/failure of planning result
-    def plan_algorithm(self, from_state, to_state, binding_list, redundancy_dict=None,
+    def plan_algorithm(self, from_state, to_state, binding_list, redundancy_values=None,
                        vel_conv=1e-2, err_conv=1e-3, collision=True, N=1000, dt=1e-2,
                        print_expression=False, cut_dot=False, traj_count=DEFAULT_TRAJ_COUNT,
                        timeout=None, **kwargs):
-        if redundancy_dict is not None:
-            raise(NotImplementedError("Fixed redundancy is not implemented in eTaSL"))
         if len(binding_list)>1:
             print("===================== plan simultaneous manipulation =====================")
         if len(binding_list)==0:
             print("===================== plan joint manipulation =====================")
         full_context, kwargs = self.__get_transition_context(
-            from_state, to_state, binding_list, vel_conv, err_conv, collision=collision, **kwargs)
+            from_state, to_state, binding_list, vel_conv, err_conv, collision=collision,
+            redundancy_values=redundancy_values, **kwargs)
         if print_expression:
             print(full_context)
         e = self.__set_simulate(full_context, initial_jpos=np.array(from_state.Q),
@@ -184,7 +183,7 @@ class EtaslPlanner(MotionInterface):
 
     def __get_transition_context(self, from_state=None, to_state=None, binding_list=[],
                                vel_conv=1e-2, err_conv=1e-4, collision=True,
-                               activation=False, redundancy_dict=None, **kwargs):
+                               activation=False, redundancy_values=None, **kwargs):
         kwargs.update(deepcopy(self.kwargs_online))
 
         tf_text = self.fixed_tf_text + self.online_input_text + get_tf_text(self.gscene.movable_gtems)
@@ -200,9 +199,9 @@ class EtaslPlanner(MotionInterface):
 
         additional_constraints = '\nconstraint_activation = ctx:createInputChannelScalar("constraint_activation",0.0) \n' if activation else ""
         for bd1 in binding_list:
-            additional_constraints += make_action_constraints(
+            additional_constraints += make_action_constraints(self.pscene.subject_dict[bd1[0]],
                 self.pscene.subject_dict[bd1[0]].action_points_dict[bd1[1]], self.pscene.actor_dict[bd1[2]],
-                redundancy=redundancy_dict[bd1[0]] if redundancy_dict else None, activation=activation)
+                redundancy_values=redundancy_values, activation=activation)
 
         if additional_constraints=="" and to_state.Q is not None:# and np.sum(np.abs(np.subtract(to_state.Q,from_state.Q)))>1e-2:
             additional_constraints=make_joint_constraints(joint_names=self.joint_names)

@@ -120,12 +120,12 @@ class MoveitPlanner(MotionInterface):
     # @param from_state starting state (rnb-planning.src.pkg.planning.scene.State)
     # @param to_state   goal state (rnb-planning.src.pkg.planning.scene.State)
     # @param binding_list   list of bindings to pursue
-    # @param redundancy_dict    redundancy in dictionary format {object name: {axis: value}}
+    # @param redundancy_values calculated redundancy values in dictionary format {(object name, point name): (xyz, rpy)}
     # @return Traj      Full trajectory as array of Q
     # @return LastQ     Last joint configuration as array
     # @return error     planning error
     # @return success   success/failure of planning result
-    def plan_algorithm(self, from_state, to_state, binding_list, redundancy_dict=None, timeout=1, **kwargs):
+    def plan_algorithm(self, from_state, to_state, binding_list, redundancy_values=None, timeout=1, **kwargs):
         self.planner.clear_context_cache()
         self.planner.clear_manifolds()
         if self.enable_dual:

@@ -269,8 +269,8 @@ Constraint{{
         error_statement = error_val
     return joint_constraints + error_statement
 
-def make_action_constraints(handle, effector, redundancy=None, activation=False):
-    if redundancy is None:
+def make_action_constraints(object, handle, effector, redundancy_values=None, activation=False):
+    if redundancy_values is None:
         if isinstance(handle, FramedPoint):
             make_constraint_fun = make_oriented_point_constraint
         elif isinstance(handle, DirectedPoint):
@@ -279,8 +279,8 @@ def make_action_constraints(handle, effector, redundancy=None, activation=False)
             raise(NotImplementedError("non-implemented handle type"))
         const_txt = make_constraint_fun(handle, effector, handle.name_full, activation=activation)
     else:
-        point_add_handle, rpy_add_handle = calc_redundancy(redundancy[handle.name], handle)
-        point_add_effector, rpy_add_effector = calc_redundancy(redundancy[effector.name], effector)
+        point_add_handle, rpy_add_handle = calc_redundancy(redundancy_values[(object.name, handle.name)], handle)
+        point_add_effector, rpy_add_effector = calc_redundancy(redundancy_values[(object.name, effector.name)], effector)
         T_add = np.matmul(SE3(Rot_rpy(rpy_add_effector), point_add_effector), SE3_inv(Rot_rpy(rpy_add_handle), point_add_handle))
         point_add = T_add[:3,3]
         rpy_add = Rot2rpy(T_add[:3,:3])

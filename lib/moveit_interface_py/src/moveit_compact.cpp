@@ -431,7 +431,6 @@ bool Planner::process_object(string name, const ObjectType type, CartPose pose, 
                     string link_name, NameList touch_links, bool attach, const int action){
     bool res = false;
 
-    moveit_msgs::PlanningScene scene_msg;
     moveit_msgs::AttachedCollisionObject att_object;
     moveit_msgs::CollisionObject object;
     geometry_msgs::Pose _pose;
@@ -528,4 +527,69 @@ bool Planner::add_union_manifold(string group_name, string tool_link, CartPose t
 bool Planner::clear_manifolds(){
     manifolds.clear();
     return true;
+}
+
+JointState Planner::solve_ik(string group_name, CartPose goal_pose,
+                             double timeout_single, double timeout_sampling,
+                             bool self_collision, bool fulll_collision){
+    auto state_cur = planning_scene_->getCurrentState();
+
+    robot_state::JointModelGroup* joint_model_group = robot_model_->getJointModelGroup(group_name);
+
+    robot_state::RobotStatePtr kinematic_state = std::make_shared<robot_state::RobotState>(robot_model_);
+    Eigen::Isometry3d end_effector_goal = Eigen::Translation3d(goal_pose[0], goal_pose[1], goal_pose[2]) * Eigen::Quaterniond(goal_pose[6], goal_pose[3], goal_pose[4], goal_pose[5]);
+
+    collision_detection::CollisionRequest collision_request;
+    collision_detection::CollisionResult collision_result;
+
+    std::vector<double> joint_values;
+    const std::vector<std::string> &joint_names = joint_model_group->getJointModelNames();
+    JointState result(joint_names.size());
+    bool found_ik;
+    bool collision_ok;
+    ros::Time begin = ros::Time::now();
+    do{
+        collision_ok = true;
+        found_ik = kinematic_state->setFromIK(joint_model_group, end_effector_goal, timeout_single);
+        if (found_ik) {
+            kinematic_state->copyJointGroupPositions(joint_model_group, joint_values);
+            for (std::size_t i = 0; i < joint_names.size(); ++i) {
+                result[i] = joint_values[i];
+            }
+            state_cur.setJointGroupPositions(joint_model_group, result.data());
+            planning_scene_->setCurrentState(state_cur);
+            if(self_collision){
+                planning_scene_->checkSelfCollision(collision_request, collision_result);
+                collision_ok = !collision_result.collision;
+            }
+            if(fulll_collision && collision_ok){
+                planning_scene_->checkCollision(collision_request, collision_result);
+                collision_ok = !collision_result.collision;
+            }
+        }
+        ros::Duration elapsed = ros::Time::now() - begin;
+        if(elapsed.toSec() > timeout_sampling){
+            break;
+        }
+    } while (!collision_ok && found_ik);
+
+    if (!found_ik){
+        for (std::size_t i = 0; i < joint_names.size(); ++i) {
+            result[i] = 0;
+        }
+    }
+    return result;
+}
+
+bool Planner::check_collision(bool only_self){
+    collision_detection::CollisionRequest collision_request;
+    collision_detection::CollisionResult collision_result;
+
+    if(only_self){
+        planning_scene_->checkSelfCollision(collision_request, collision_result);
+    }
+    else{
+        planning_scene_->checkCollision(collision_request, collision_result);
+    }
+    return collision_result.collision;
 }

@@ -47,6 +47,8 @@
   ```bash
   doxywizard
   ```
+  
+* ikfast (http://docs.ros.org/en/melodic/api/moveit_tutorials/html/doc/ikfast/ikfast_tutorial.html) - cannot install openrave
 
 
 ## TIPS 

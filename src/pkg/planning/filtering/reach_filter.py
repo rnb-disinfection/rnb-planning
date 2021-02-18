@@ -33,13 +33,14 @@ class ReachChecker(MotionFilterInterface):
     # @param actor  rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
     # @param obj    rnb-planning.src.pkg.planning.constraint.constraint_subject.Subject
     # @param handle rnb-planning.src.pkg.planning.constraint.constraint_common.ActionPoint
-    # @param redundancy redundancy in dictionary format {axis: value}
+    # @param redundancy_values calculated redundancy values in dictionary format {(object name, point name): (xyz, rpy)}
     # @param Q_dict joint configuration in dictionary format {joint name: radian value}
-    def check(self, actor, obj, handle, redundancy, Q_dict):
-        point_add_handle, rpy_add_handle = calc_redundancy(redundancy[handle.name], handle)
-        point_add_actor, rpy_add_actor = calc_redundancy(redundancy[actor.name], actor)
+    def check(self, actor, obj, handle, redundancy_values, Q_dict):
         actor_link = actor.geometry.link_name
         object_link = obj.geometry.link_name
+
+        point_add_handle, rpy_add_handle = redundancy_values[(obj.oname, handle.name)]
+        point_add_actor, rpy_add_actor = redundancy_values[(obj.oname, actor.name)]
 
         T_handle_lh = np.matmul(handle.Toff_lh, SE3(Rot_rpy(rpy_add_handle), point_add_handle))
         T_actor_lh = np.matmul(actor.Toff_lh, SE3(Rot_rpy(rpy_add_actor), point_add_actor))
@@ -214,9 +215,17 @@ class ReachTrainer:
         print("trainning failure accuracy = {} %".format(
             round(np.mean(train_res[np.where(np.logical_not(self.success_list_train))]) * 100, 2)))
         print("=" * 80)
-        print("test success accuracy = {} %".format(round(np.mean(test_res[np.where(self.success_list_test)]) * 100, 2)))
-        print("test failure accuracy = {} %".format(
-            round(np.mean(test_res[np.where(np.logical_not(self.success_list_test))]) * 100, 2)))
+        print("test success accuracy = {} % ({}/{})".format(
+            round(np.mean(test_res[np.where(self.success_list_test)]) * 100, 2),
+            np.sum(test_res[np.where(self.success_list_test)]), len(np.where(self.success_list_test)[0])
+        )
+        )
+        print("test failure accuracy = {} % ({}/{})".format(
+            round(np.mean(test_res[np.where(np.logical_not(self.success_list_test))]) * 100, 2),
+            np.sum(test_res[np.where(np.logical_not(self.success_list_test))]),
+            len(np.where(np.logical_not(self.success_list_test))[0])
+        )
+        )
         print("=" * 80)
 
     ##

@@ -25,12 +25,12 @@ class GraspChecker(MotionFilterInterface):
     # @param actor  rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
     # @param obj    rnb-planning.src.pkg.planning.constraint.constraint_subject.Subject
     # @param handle rnb-planning.src.pkg.planning.constraint.constraint_common.ActionPoint
-    # @param redundancy redundancy in dictionary format {axis: value}
+    # @param redundancy_values calculated redundancy values in dictionary format {(object name, point name): (xyz, rpy)}
     # @param Q_dict joint configuration in dictionary format {joint name: radian value}
-    def check(self, actor, obj, handle, redundancy, Q_dict):
+    def check(self, actor, obj, handle, redundancy_values, Q_dict):
         # gtimer = GlobalTimer.instance()
         # gtimer.tic("get_grasping_vert_infos")
-        actor_vertinfo_list, object_vertinfo_list, _, _, _ = self.get_grasping_vert_infos(actor, obj, handle, redundancy, Q_dict)
+        actor_vertinfo_list, object_vertinfo_list, _, _, _ = self.get_grasping_vert_infos(actor, obj, handle, redundancy_values, Q_dict)
         # gtimer.toc("get_grasping_vert_infos")
         actor_vertice_list = []
         for geo_name, T, verts, radius, geo_dims in actor_vertinfo_list:
@@ -77,16 +77,16 @@ class GraspChecker(MotionFilterInterface):
     # @param actor  rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
     # @param obj    rnb-planning.src.pkg.planning.constraint.constraint_subject.Subject
     # @param handle rnb-planning.src.pkg.planning.constraint.constraint_common.ActionPoint
-    # @param redundancy redundancy in dictionary format {axis: value}
+    # @param redundancy_values calculated redundancy values in dictionary format {(object name, point name): (xyz, rpy)}
     # @param Q_dict joint configuration in dictionary format {joint name: radian value}
     # @return   information for objects attached to the actor in actor_vertinfo_list and
     #           information for objects attached to the object in object_vertinfo_list.
     #           each list item consist of (geometry name, T(4x4), vertices, radius, geometry dimensions)
-    def get_grasping_vert_infos(self, actor, obj, handle, redundancy, Q_dict):
+    def get_grasping_vert_infos(self, actor, obj, handle, redundancy_values, Q_dict):
         # gtimer = GlobalTimer.instance()
         # gtimer.tic("preprocess")
-        point_add_handle, rpy_add_handle = calc_redundancy(redundancy[handle.name], handle)
-        point_add_actor, rpy_add_actor = calc_redundancy(redundancy[actor.name], actor)
+        point_add_handle, rpy_add_handle = redundancy_values[(obj.oname, handle.name)]
+        point_add_actor, rpy_add_actor = redundancy_values[(obj.oname, actor.name)]
         actor_link = actor.geometry.link_name
         object_link = obj.geometry.link_name
         actor_link_names = self.end_link_couple_dict[actor_link]

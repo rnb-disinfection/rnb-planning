@@ -92,6 +92,7 @@ BOOST_PYTHON_MODULE(moveit_interface_py){
                  return_value_policy<copy_non_const_reference>())
             .def("__setitem__", &std_item<JointState>::set,
                  with_custodian_and_ward<1,2>()) // to let container keep value
+            .def("__len__", &JointState::size)
             ;
 
     class_<Trajectory>("Trajectory", init<>())
@@ -130,5 +131,7 @@ BOOST_PYTHON_MODULE(moveit_interface_py){
             .def("process_object", &Planner::process_object)
             .def("clear_all_objects", &Planner::clear_all_objects)
             .def("terminate", &Planner::terminate)
+            .def("solve_ik", &Planner::solve_ik)
+            .def("check_collision", &Planner::check_collision)
             ;
 }
