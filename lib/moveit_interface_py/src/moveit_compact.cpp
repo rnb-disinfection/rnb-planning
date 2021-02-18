@@ -593,3 +593,19 @@ bool Planner::check_collision(bool only_self){
     }
     return collision_result.collision;
 }
+
+JointState Planner::get_jacobian(string group_name, JointState Q){
+    auto state_cur = planning_scene_->getCurrentState();
+    robot_state::JointModelGroup* joint_model_group = robot_model_->getJointModelGroup(group_name);
+    state_cur.setVariablePositions(Q.data());
+    planning_scene_->setCurrentState(state_cur);
+    robot_state::RobotStatePtr kinematic_state = std::make_shared<robot_state::RobotState>(robot_model_);
+    Eigen::Vector3d reference_point_position(0.0, 0.0, 0.0);
+    Eigen::MatrixXd jacobian;
+    kinematic_state->getJacobian(joint_model_group,
+                                 kinematic_state->getLinkModel(joint_model_group->getLinkModelNames().back()),
+                                 reference_point_position, jacobian);
+
+    JointState return_val((Eigen::Map<Eigen::VectorXd>(jacobian.data(), jacobian.cols()*jacobian.rows())));
+    return return_val;
+}

@@ -133,5 +133,6 @@ BOOST_PYTHON_MODULE(moveit_interface_py){
             .def("terminate", &Planner::terminate)
             .def("solve_ik", &Planner::solve_ik)
             .def("check_collision", &Planner::check_collision)
+            .def("get_jacobian", &Planner::get_jacobian)
             ;
 }

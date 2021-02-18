@@ -159,6 +159,8 @@ namespace RNB {
              * @param only_self    to check only self-collision
              */
             bool check_collision(bool only_self);
+
+            JointState get_jacobian(string group_name, JointState Q);
         };
 
     }
