@@ -18,7 +18,7 @@ class GraspChecker(MotionFilterInterface):
             assert v[0] == k, "actor_link_names should be in reverse order including actor's link as the first item"
         self.gscene = pscene.gscene
         self.end_link_couple_dict = end_link_couple_dict
-        self.verts_holder_dict = {}
+        # self.verts_holder_dict = {}
 
     ##
     # @brief check end-effector collision in grasping
@@ -35,30 +35,32 @@ class GraspChecker(MotionFilterInterface):
         actor_vertice_list = []
         for geo_name, T, verts, radius, geo_dims in actor_vertinfo_list:
             verts = np.matmul(verts, T[:3,:3].transpose())+T[:3,3]
-            if geo_name not in self.verts_holder_dict:
-                # gtimer.tic("ac_get_point_list")
-                vert_point_list = get_point_list(verts)
-                self.verts_holder_dict[geo_name] = vert_point_list
-                # gtimer.toc("ac_get_point_list")
-            else:
-                # gtimer.tic("ac_set_point_list")
-                vert_point_list = self.verts_holder_dict[geo_name]
-                set_point_list(vert_point_list, verts)
-                # gtimer.toc("ac_set_point_list")
+            vert_point_list = get_point_list(verts)
+            # if geo_name not in self.verts_holder_dict:
+            #     # gtimer.tic("ac_get_point_list")
+            #     vert_point_list = get_point_list(verts)
+            #     self.verts_holder_dict[geo_name] = vert_point_list
+            #     # gtimer.toc("ac_get_point_list")
+            # else:
+            #     # gtimer.tic("ac_set_point_list")
+            #     vert_point_list = self.verts_holder_dict[geo_name]
+            #     set_point_list(vert_point_list, verts)
+            #     # gtimer.toc("ac_set_point_list")
             actor_vertice_list.append((vert_point_list, radius))
         object_vertice_list = []
         for geo_name, T, verts, radius, geo_dims in object_vertinfo_list:
             verts = np.matmul(verts, T[:3,:3].transpose())+T[:3,3]
-            if geo_name not in self.verts_holder_dict:
-                # gtimer.tic("obj_get_point_list")
-                vert_point_list = get_point_list(verts)
-                self.verts_holder_dict[geo_name] = vert_point_list
-                # gtimer.toc("obj_get_point_list")
-            else:
-                # gtimer.tic("obj_set_point_list")
-                vert_point_list = self.verts_holder_dict[geo_name]
-                set_point_list(vert_point_list, verts)
-                # gtimer.toc("obj_set_point_list")
+            vert_point_list = get_point_list(verts)
+            # if geo_name not in self.verts_holder_dict:
+            #     # gtimer.tic("obj_get_point_list")
+            #     vert_point_list = get_point_list(verts)
+            #     self.verts_holder_dict[geo_name] = vert_point_list
+            #     # gtimer.toc("obj_get_point_list")
+            # else:
+            #     # gtimer.tic("obj_set_point_list")
+            #     vert_point_list = self.verts_holder_dict[geo_name]
+            #     set_point_list(vert_point_list, verts)
+            #     # gtimer.toc("obj_set_point_list")
             object_vertice_list.append((vert_point_list, radius))
 
         #     with gtimer.block("calc_distance"):
@@ -98,6 +100,7 @@ class GraspChecker(MotionFilterInterface):
         T_handle_lh = np.matmul(handle.Toff_lh, SE3(Rot_rpy(rpy_add_handle), point_add_handle))
         T_actor_lh = np.matmul(actor.Toff_lh, SE3(Rot_rpy(rpy_add_actor), point_add_actor))
         T_link_handle_actor_link = np.matmul(T_handle_lh, SE3_inv(T_actor_lh))
+
         # gtimer.toc("preprocess")
 
         #     with gtimer.block('extract_vertices'):
