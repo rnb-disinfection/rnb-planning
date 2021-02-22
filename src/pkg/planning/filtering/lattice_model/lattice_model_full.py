@@ -10,12 +10,12 @@ class ResNetModelTP_FULL(Model):
                  ConvLayer=KL.Conv3D, ZeroPadding=KL.ZeroPadding3D, MaxPool=KL.MaxPool3D, 
                  ConvBlock=ConvBlock3D, IdentityBlock=IdentityBlock3D, activation=tf.keras.activations.swish):
         super(ResNetModelTP_FULL, self).__init__()
-        self.resnet = ResNet(stage5=[512, 512, 256], ConvLayer=ConvLayer, ZeroPadding=ZeroPadding, MaxPool=MaxPool, 
+        self.resnet = ResNet(stage5=[512, 512, 1024], ConvLayer=ConvLayer, ZeroPadding=ZeroPadding, MaxPool=MaxPool, 
                              ConvBlock=ConvBlock, IdentityBlock=IdentityBlock, activation=activation,
                              preconv_kernel=5, preconv_strides=2, preconv_padding="same", stride_2=2
                             )
         self.fl = KL.Flatten()
-        dense_depth1, dense_depth2, dense_depth3= 256, 128, 64
+        dense_depth1, dense_depth2, dense_depth3= 512, 256, 64
         self.dens1 = KL.Dense(dense_depth1, name="dens1", activation=activation) # DenseBN(512, "dens1")
         self.dropout1 = KL.Dropout(0.2)
         self.dens2 = DenseBN(dense_depth2, name="dens2", activation=activation) # DenseBN(512, "dens1")

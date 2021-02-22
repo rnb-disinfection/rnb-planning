@@ -138,7 +138,7 @@ class ResNet(KL.Layer):
     def __init__(self, architecture="resnet50", stage1=None, stage2=[64, 64, 128], stage3=[128, 128, 256], 
                  stage4=[256, 256, 512], stage5=None, 
                  ConvLayer=KL.Conv2D, ZeroPadding=KL.ZeroPadding2D, MaxPool=KL.MaxPooling2D, 
-                 ConvBlock=ConvBlock, IdentityBlock=IdentityBlock, activation='relu', input_size=(15,15,15), joint_num=13, 
+                 ConvBlock=ConvBlock, IdentityBlock=IdentityBlock, activation='relu', 
                  return_all_stage=False, preconv_kernel=5, preconv_strides=1, preconv_padding="valid", stride_2=None
                 ):
         super(ResNet, self).__init__()
@@ -149,8 +149,6 @@ class ResNet(KL.Layer):
         assert architecture in ["resnet50", "resnet101"]
         self.stage1 = stage1 is not None
         self.stage5 = stage5 is not None
-        self.input_size = input_size
-        self.joint_num = joint_num
         self.return_all_stage = return_all_stage
         
         if self.stage1:
