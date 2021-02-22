@@ -110,16 +110,16 @@ class LatticedChecker(MotionFilterInterface):
         if group_name_actor and not group_name_handle:
             group_name = group_name_actor
             tool_Tinv_dict = actor_Tinv_dict
+            T_end_effector = T_link_handle_actor_link
             tool_vertinfo_list = actor_vertinfo_list
             target_vertinfo_list = object_vertinfo_list
-            T_end_effector = T_link_handle_actor_link
             TOOL_LINK_BUNDLE = self.end_link_couple_dict[actor.geometry.link_name]
         elif group_name_handle and not group_name_actor:
             group_name = group_name_handle
             tool_Tinv_dict = object_Tinv_dict
-            tool_vertinfo_list = object_vertinfo_list
-            target_vertinfo_list = actor_vertinfo_list
             T_end_effector = SE3_inv(T_link_handle_actor_link)
+            tool_vertinfo_list = [(name, np.matmul(T_end_effector, T), verts, radius, dims) for name, T, verts, radius, dims in object_vertinfo_list]
+            target_vertinfo_list = [(name, np.matmul(T_end_effector, T), verts, radius, dims) for name, T, verts, radius, dims in actor_vertinfo_list]
             TOOL_LINK_BUNDLE = self.end_link_couple_dict[handle.geometry.link_name]
         else:
             raise ("Invaild robot")

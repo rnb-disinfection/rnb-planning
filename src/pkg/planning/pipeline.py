@@ -82,7 +82,7 @@ class PlanningPipeline:
     # @param dt_vis display period
     # @param verbose boolean flag for printing intermediate process
     def search(self, initial_state, goal_nodes, multiprocess=False,
-                     terminate_on_first=True, N_search=100, N_agents=None, wait_proc=True,
+                     terminate_on_first=True, N_search=None, N_agents=None, wait_proc=True,
                      display=False, dt_vis=0.01, verbose=False, timeout_loop=600, **kwargs):
         ## @brief runber of redundancy sampling
         self.t0 = time.time()
@@ -126,7 +126,7 @@ class PlanningPipeline:
         loop_counter = 0
         self.stop_dict[ID] = False
         ret = False
-        while self.tplan.snode_counter.value < N_search and (time.time() - self.t0) < timeout_loop and not self.stop_now.value:
+        while (N_search is None or self.tplan.snode_counter.value < N_search) and (time.time() - self.t0) < timeout_loop and not self.stop_now.value:
             loop_counter += 1
             snode, from_state, to_state, redundancy_dict, sample_fail = self.tplan.sample()
             with self.counter_lock:
@@ -160,7 +160,7 @@ class PlanningPipeline:
 
         if self.stop_dict[ID]:
             term_reson = "node queue empty"
-        elif self.tplan.snode_counter.value >= N_search:
+        elif N_search is not None and self.tplan.snode_counter.value >= N_search:
             term_reson = "max search node count reached ({}/{})".format(self.tplan.snode_counter.value, N_search)
         elif (time.time() - self.t0) >= timeout_loop:
             term_reson = "max iteration time reached ({}/{} s)".format(int(time.time()), self.t0)
