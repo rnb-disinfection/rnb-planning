@@ -59,7 +59,7 @@ class LatticedChecker(MotionFilterInterface):
         self.ltc_arm_10 = Latticizer_py(WDH=(2, 2, 2), L_CELL=0.10, OFFSET_ZERO=(0.5, 1.0, 1.0))
         # Create an array in shared memory.
         self.prepared_p_dict = {}
-        self.grasp_img_p_dict, self.arm_img_p_dict, self.rh_mask_p_dict, self.result_p_dict,\
+        self.grasp_img_p_dict, self.arm_img_p_dict, self.rh_vals_p_dict, self.result_p_dict,\
             self.query_in_dict, self.response_out_dict, self.query_quit_dict, = {}, {}, {}, {}, {}, {}, {}
 
         self.subp_list=[]
@@ -78,7 +78,7 @@ class LatticedChecker(MotionFilterInterface):
 
             self.grasp_img_p_dict[robot_type_name] = sa.attach("shm://{}.grasp_img".format(robot_type_name))
             self.arm_img_p_dict[robot_type_name] = sa.attach("shm://{}.arm_img".format(robot_type_name))
-            self.rh_mask_p_dict[robot_type_name] = sa.attach("shm://{}.rh_mask".format(robot_type_name))
+            self.rh_vals_p_dict[robot_type_name] = sa.attach("shm://{}.rh_vals".format(robot_type_name))
             self.result_p_dict[robot_type_name] = sa.attach("shm://{}.result".format(robot_type_name))
             self.query_in_dict[robot_type_name] = sa.attach("shm://{}.query_in".format(robot_type_name))
             self.response_out_dict[robot_type_name] = sa.attach("shm://{}.response_out".format(robot_type_name))
@@ -165,13 +165,7 @@ class LatticedChecker(MotionFilterInterface):
 
         r, th, h = cart2cyl(*T_ee[:3, 3])
         r_ej, th, h_ej = cart2cyl(*T_ej[:3, 3])
-        r_class = div_r(r_ej)
-        h_class = div_h(h_ej)
-        r_mask = np.zeros(RH_MASK_SIZE)
-        r_mask[r_class * RH_MASK_STEP:r_class * RH_MASK_STEP + RH_MASK_STEP] = 1
-        h_mask = np.zeros(RH_MASK_SIZE)
-        h_mask[h_class * RH_MASK_STEP:h_class * RH_MASK_STEP + RH_MASK_STEP] = 1
-        rh_mask = np.concatenate([r_mask, h_mask])
+        rh_vals = np.array(r_ej, h_ej)
         grasp_tool_img = np.zeros(GRASP_SHAPE)
         grasp_tar_img = np.zeros(GRASP_SHAPE)
         grasp_obj_img = np.zeros(GRASP_SHAPE)
@@ -182,14 +176,14 @@ class LatticedChecker(MotionFilterInterface):
         arm_img[np.unravel_index(arm_tar_idx, shape=ARM_SHAPE)] = 1
         grasp_img = np.stack([grasp_tool_img, grasp_obj_img, grasp_tar_img], axis=-1)
         res = self.query_wait_response(self.rconfig_dict[group_name].type.name,
-                                       np.array([grasp_img]), np.array([arm_img]), np.array([rh_mask]),
+                                       np.array([grasp_img]), np.array([arm_img]), np.array([rh_vals]),
                                        )[0]
         return res[-1]>0.5
 
-    def query_wait_response(self, robot_type_name, grasp_img_batch, arm_img_batch, rh_mask_batch):
+    def query_wait_response(self, robot_type_name, grasp_img_batch, arm_img_batch, rh_vals_batch):
         self.grasp_img_p_dict[robot_type_name][:] = grasp_img_batch[:]
         self.arm_img_p_dict[robot_type_name][:] = arm_img_batch[:]
-        self.rh_mask_p_dict[robot_type_name][:] = rh_mask_batch[:]
+        self.rh_vals_p_dict[robot_type_name][:] = rh_vals_batch[:]
         self.query_in_dict[robot_type_name][0] = True
         while not self.response_out_dict[robot_type_name][0]:
             time.sleep(SERVER_PERIOD)

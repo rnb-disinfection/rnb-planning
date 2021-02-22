@@ -73,6 +73,15 @@ RH_MASK_STEP = 64
 BATCH_SIZE = 1
 SERVER_PERIOD = 1e-3
 
+def gaussian(x, mu, sig):
+    return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
+
+def div_r_gaussian(r_val):
+    return gaussian(r_val, np.arange(0.1,1.2, 0.05),0.1)
+
+def div_h_gaussian(h_val):
+    return gaussian(h_val, np.arange(-0.5,1.1, 0.05),0.1)
+
 ##
 # @class SharedLatticePredictor
 class SharedLatticePredictor:
@@ -102,21 +111,25 @@ class SharedLatticePredictor:
     def start_server(self, prepared_p):
         grasp_img_p = sa.create(f"shm://{self.ROBOT_TYPE_NAME}.grasp_img", (BATCH_SIZE,) + GRASP_SHAPE + (3,))
         arm_img_p = sa.create(f"shm://{self.ROBOT_TYPE_NAME}.arm_img", (BATCH_SIZE,) + ARM_SHAPE + (1,))
-        rh_mask_p = sa.create(f"shm://{self.ROBOT_TYPE_NAME}.rh_mask", (BATCH_SIZE, RH_MASK_SIZE * 2))
+        rh_vals_p = sa.create(f"shm://{self.ROBOT_TYPE_NAME}.rh_vals", (BATCH_SIZE, 2))
         result_p = sa.create(f"shm://{self.ROBOT_TYPE_NAME}.result", (BATCH_SIZE, 2))
         query_in = sa.create(f"shm://{self.ROBOT_TYPE_NAME}.query_in", (1,), dtype=np.bool)
         response_out = sa.create(f"shm://{self.ROBOT_TYPE_NAME}.response_out", (1,), dtype=np.bool)
         query_quit = sa.create(f"shm://{self.ROBOT_TYPE_NAME}.query_quit", (1,), dtype=np.bool)
         grasp_img_p[:] = 0
         arm_img_p[:] = 0
-        rh_mask_p[:] = 0
+        rh_vals_p[:] = 0
         result_p[:] = 0
         query_in[0] = False
         response_out[0] = False
         query_quit[0] = False
+        rh_mask = np.zeros((BATCH_SIZE, 54))
 
         print("============= wait for initialization ================")
-        self.inference([grasp_img_p, arm_img_p, rh_mask_p])
+        r_mask = div_r_gaussian(rh_vals_p[0][0])
+        h_mask = div_h_gaussian(rh_vals_p[0][1])
+        rh_mask[0] = np.concatenate([r_mask, h_mask])
+        self.inference([grasp_img_p, arm_img_p, rh_mask])
         print("=============== initialization done ==================")
         prepared_p[0] = True
 
@@ -127,14 +140,17 @@ class SharedLatticePredictor:
                     continue
                 query_in[0] = False
                 ## TODO: inference depending on robot type
-                result = self.inference([grasp_img_p, arm_img_p, rh_mask_p])
+                r_mask = div_r_gaussian(rh_vals_p[0][0])
+                h_mask = div_h_gaussian(rh_vals_p[0][1])
+                rh_mask[0] = np.concatenate([r_mask, h_mask])
+                result = self.inference([grasp_img_p, arm_img_p, rh_mask])
                 for i_b in range(BATCH_SIZE):
                     result_p[i_b] = result[i_b]
                 response_out[0] = True
         finally:
             sa.delete(f"shm://{self.ROBOT_TYPE_NAME}.grasp_img")
             sa.delete(f"shm://{self.ROBOT_TYPE_NAME}.arm_img")
-            sa.delete(f"shm://{self.ROBOT_TYPE_NAME}.rh_mask")
+            sa.delete(f"shm://{self.ROBOT_TYPE_NAME}.rh_vals")
             sa.delete(f"shm://{self.ROBOT_TYPE_NAME}.result")
             sa.delete(f"shm://{self.ROBOT_TYPE_NAME}.query_in")
             sa.delete(f"shm://{self.ROBOT_TYPE_NAME}.response_out")
