@@ -133,7 +133,7 @@ class TaskAstar(TaskInterface):
             expected_depth = depth + self.goal_cost_dict[leaf]
             if expected_depth > self.max_depth:
                 continue
-            available_binding_dict = self.pscene.get_available_binding_dict(state, leaf, Q_dict)
+            available_binding_dict, transition_count = self.pscene.get_available_binding_dict(state, leaf, Q_dict)
             if not all([len(abds)>0 for abds in available_binding_dict.values()]):
                 print("============== Non-available transition: Break =====================")
                 break

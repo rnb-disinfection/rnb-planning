@@ -9,7 +9,7 @@ try:
     from queue import PriorityQueue
 except:
     from Queue import PriorityQueue
-
+from Queue import Queue
 
 ##
 # @class    TaskRRT
@@ -50,11 +50,15 @@ class TaskRRT(TaskInterface):
             self.neighbor_nodes = multiprocess_manager.dict()
             self.node_snode_dict = multiprocess_manager.dict()
             self.snode_dict_lock = multiprocess_manager.Lock()
+            self.attempt_reseved = multiprocess_manager.Queue()
+            self.reserve_lock = multiprocess_manager.Lock()
         else:
             self.visited_nodes = dict()
             self.neighbor_nodes = dict()
             self.node_snode_dict = dict()
             self.snode_dict_lock = DummyBlock()
+            self.attempt_reseved = Queue()
+            self.reserve_lock = DummyBlock()
 
     ##
     # @brief calculate initial/goal scores and filter valid nodes
@@ -72,13 +76,22 @@ class TaskRRT(TaskInterface):
     def sample(self):
         sample_fail = True
         while sample_fail:
-            new_node = random.choice(self.neighbor_nodes.keys())
-            parent_nodes = self.node_parent_dict[new_node]
-            parent_node = random.choice(list(parent_nodes.intersection(self.node_snode_dict.keys())))
-            parent_sidx = random.choice(self.node_snode_dict[parent_node])
+            get_reserved = False
+            with self.reserve_lock:
+                if not self.attempt_reseved.empty():
+                    try:
+                        parent_sidx, new_node = self.attempt_reseved.get(timeout=0.1)
+                        get_reserved = True
+                    except:
+                        pass
+            if not get_reserved:
+                new_node = random.choice(self.neighbor_nodes.keys())
+                parent_nodes = self.node_parent_dict[new_node]
+                parent_node = random.choice(list(parent_nodes.intersection(self.node_snode_dict.keys())))
+                parent_sidx = random.choice(self.node_snode_dict[parent_node])
             parent_snode = self.snode_dict[parent_sidx]
             from_state = parent_snode.state
-            available_binding_dict = self.pscene.get_available_binding_dict(from_state, new_node,
+            available_binding_dict, transition_count = self.pscene.get_available_binding_dict(from_state, new_node,
                                                                             list2dict(from_state.Q, self.pscene.gscene.joint_names))
             if not all([len(abds)>0 for abds in available_binding_dict.values()]):
                 print("============== Non-available transition: sample again =====================")
@@ -105,10 +118,15 @@ class TaskRRT(TaskInterface):
                 else:
                     self.node_snode_dict[snode_new.state.node] = self.node_snode_dict[snode_new.state.node]+[snode_new.idx]
 
-
             ## check goal (custom)
             if self.check_goal(snode_new.state):
                 ret = True
+            else:
+                for gnode in self.goal_nodes:
+                    available_binding_dict, transition_count = self.pscene.get_available_binding_dict(snode_new.state, gnode,
+                                                                                    list2dict(snode_new.state.Q, self.pscene.gscene.joint_names))
+                    if transition_count == 1:
+                        self.attempt_reseved.put((snode_new.idx, gnode))
         return ret
 
     ##
