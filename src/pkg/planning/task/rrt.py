@@ -19,8 +19,6 @@ class TaskRRT(TaskInterface):
     # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
     def __init__(self, pscene):
         TaskInterface.__init__(self, pscene)
-        ## @brief waiting queue for non-validated search nodes
-        self.snode_queue = None
 
     ##
     # @brief build object-level node graph
@@ -123,9 +121,7 @@ class TaskRRT(TaskInterface):
                 ret = True
             else:
                 for gnode in self.goal_nodes:
-                    available_binding_dict, transition_count = self.pscene.get_available_binding_dict(snode_new.state, gnode,
-                                                                                    list2dict(snode_new.state.Q, self.pscene.gscene.joint_names))
-                    if transition_count == 1:
+                    if snode_new.state.node in self.node_parent_dict[gnode]:
                         self.attempt_reseved.put((snode_new.idx, gnode))
         return ret
 
