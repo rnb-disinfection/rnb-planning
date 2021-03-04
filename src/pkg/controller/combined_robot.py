@@ -63,7 +63,7 @@ class CombinedRobot:
 
     ##
     # @brief update robot position by dictionary
-    # @param xyz_rpy_robots dictionary of robot positions, (xyz(m), rpy(rad))
+    # @param xyz_rpy_robots dictionary of robot positions, {robot name: (xyz(m), rpy(rad))}
     def update_robot_pos_dict(self, xyz_rpy_robots):
         for k,v in xyz_rpy_robots.items():
             self.update_robot_pos(k, v)

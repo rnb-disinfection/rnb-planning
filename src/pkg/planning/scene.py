@@ -438,7 +438,7 @@ class PlanningScene:
     # @param binder     binder name
     def make_goal_state(self, from_state, obj, handle, binder):
         to_state = from_state.copy(self)
-        to_state.binding_state = tuple([(obj, handle, binder) if binding[0] == obj else binding for binding in to_state.binding_state])
+        to_state.binding_state = tuple([(obj, handle, binder, self.actor_dict[binder].geometry.name) if binding[0] == obj else binding for binding in to_state.binding_state])
         return to_state
 
     ##
