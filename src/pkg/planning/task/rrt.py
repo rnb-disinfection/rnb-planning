@@ -122,6 +122,7 @@ class TaskRRT(TaskInterface):
             else:
                 for gnode in self.goal_nodes:
                     if snode_new.state.node in self.node_parent_dict[gnode]:
+                        print("=============== try reaching goal =================")
                         self.attempt_reseved.put((snode_new.idx, gnode))
         return ret
 

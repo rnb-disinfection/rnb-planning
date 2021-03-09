@@ -117,7 +117,8 @@ class PlanningPipeline:
 
             if wait_proc:
                 for proc in self.proc_list:
-                    proc.join()
+                    while not self.stop_now.value:
+                        proc.join(timeout=0.1)
         else:
             self.__search_loop(0, terminate_on_first, N_search, display, dt_vis, verbose, timeout_loop, **kwargs)
 
