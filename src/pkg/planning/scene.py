@@ -202,7 +202,9 @@ class PlanningScene:
                 if obj.stype == SubjectType.OBJECT:
                     binder_link_name = state_param[0]
                     frame = state_param[1]
-                    assert binder.geometry.link_name == binder_link_name, "binder link name wrong" # sync link name with parent
+                    assert binder.geometry.link_name == binder_link_name, \
+                        "binder link name wrong {} / {} / {}".format(
+                            binder.geometry.name, binder.geometry.link_name, binder_link_name) # sync link name with parent
                     state_param = (binder_link_name, frame)
                 obj.set_state(bd, state_param)
                 bd_list_done += [bd]

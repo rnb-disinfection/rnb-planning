@@ -77,6 +77,10 @@ class MotionInterface:
                 obj_name, ap_name, binder_name, binder_geometry_name = binding
                 actor, obj = self.pscene.actor_dict[binder_name], self.pscene.subject_dict[obj_name]
                 handle = obj.action_points_dict[ap_name]
+                if obj_name not in redundancy_dict:
+                    print("========== obj_name {} not in redundancy_dict {} -> {} =============".format(obj_name, from_state.node, to_state.node))
+                    success = False
+                    break
                 redundancy, Q_dict = redundancy_dict[obj_name], list2dict(from_state.Q, self.joint_names)
                 redundancy_values[(obj_name, handle.name)] = calc_redundancy(redundancy[handle.name], handle)
                 redundancy_values[(obj_name, actor.name)] = calc_redundancy(redundancy[actor.name], actor)

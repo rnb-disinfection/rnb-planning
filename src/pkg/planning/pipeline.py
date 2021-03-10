@@ -233,18 +233,18 @@ class PlanningPipeline:
 
     ##
     # @brief add return motion to a SearchNode schedule
-    def add_return_motion(self, snode_schedule):
+    def add_return_motion(self, snode_schedule, timeout=5):
         snode_last = snode_schedule[-1]
         state_last = snode_last.state
         state_first = snode_schedule[0].state
         state_new = state_last.copy(self.pscene)
         state_new.Q = copy(state_first.Q)
         traj, new_state, error, succ = self.test_connection(state_last, state_new, redundancy_dict=None,
-                                                              display=False)
+                                                              display=False, timeout=timeout)
         snode_new = self.tplan.make_search_node(snode_last, new_state, traj, None)
         if succ:
             snode_new = self.tplan.connect(snode_last, snode_new)
-        snode_schedule.append(snode_new)
+            snode_schedule.append(snode_new)
         return snode_schedule
 
     ##

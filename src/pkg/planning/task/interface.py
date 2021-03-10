@@ -24,18 +24,22 @@ class SearchNode:
                  redundancy_dict=None):
         self.idx, self.state, self.parents, self.leafs, self.depth, self.redundancy_dict = \
             idx, state, parents, leafs, depth, redundancy_dict
-        self.traj = None
-        self.traj_size = 0
-        self.traj_length = 0
-        self.traj_tot = 0
+        self.set_traj(None, 0)
 
     ##
     # @brief    set current transition's trajectory + update trajectory length
     def set_traj(self, traj_full, traj_tot_parent):
-        self.traj_size = len(traj_full)
-        self.traj_length = np.sum(np.abs(differentiate(traj_full, 1)[:-1])) if self.traj_size > 1 else 0
-        self.traj_tot = traj_tot_parent + self.traj_length
-        self.traj = np.array(traj_full)
+        if traj_full is not None:
+            self.traj_size = len(traj_full)
+            self.traj_length = np.sum(np.abs(differentiate(traj_full, 1)[:-1])) if self.traj_size > 1 else 0
+            self.traj_tot = traj_tot_parent + self.traj_length
+            self.traj = np.array(traj_full)
+        else:
+            self.traj = None
+            self.traj_size = 0
+            self.traj_length = 0
+            if traj_tot_parent is not None:
+                self.traj_tot = traj_tot_parent
 
     def get_traj(self):
         return self.traj
@@ -128,7 +132,7 @@ class TaskInterface:
     def make_search_node(self, snode_pre, new_state, traj,  redundancy_dict):
         if snode_pre is None:
             snode_new = SearchNode(idx=0, state=new_state, parents=[], leafs=[],
-                                    depth=0)
+                                    depth=0, redundancy_dict=redundancy_dict)
         else:
             snode_new = SearchNode(
                 idx=0, state=new_state, parents=snode_pre.parents + [snode_pre.idx], leafs=[],
@@ -159,7 +163,8 @@ class TaskInterface:
         for i in range(self.snode_counter.value):
             snode = self.snode_dict[i]
             state = snode.state
-            if self.check_goal(state):
+            # parent should be checked - there are bi-directional trees
+            if (self.check_goal(state) and len(snode.parents)>0 and snode.parents[0] == 0):
                 schedule = snode.parents + [i]
                 schedule_dict[i] = schedule
         return schedule_dict
