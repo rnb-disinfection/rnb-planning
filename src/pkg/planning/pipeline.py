@@ -5,6 +5,7 @@ from ..utils.joint_utils import apply_vel_acc_lims
 from ..controller.repeater.repeater import DEFAULT_TRAJ_FREQUENCY, MultiTracker
 from .task.interface import SearchNode
 import numpy as np
+from copy import copy
 
 try:
     from queue import PriorityQueue
@@ -228,6 +229,22 @@ class PlanningPipeline:
     # @brief get list of SearchNode from list of SearchNode index
     def idxSchedule2SnodeScedule(self, schedule):
         snode_schedule = [self.tplan.snode_dict[i_sc] for i_sc in schedule]
+        return snode_schedule
+
+    ##
+    # @brief add return motion to a SearchNode schedule
+    def add_return_motion(self, snode_schedule):
+        snode_last = snode_schedule[-1]
+        state_last = snode_last.state
+        state_first = snode_schedule[0].state
+        state_new = state_last.copy(self.pscene)
+        state_new.Q = copy(state_first.Q)
+        traj, new_state, error, succ = self.test_connection(state_last, state_new, redundancy_dict=None,
+                                                              display=False)
+        snode_new = self.tplan.make_search_node(snode_last, new_state, traj, None)
+        if succ:
+            snode_new = self.tplan.connect(snode_last, snode_new)
+        snode_schedule.append(snode_new)
         return snode_schedule
 
     ##

@@ -108,65 +108,6 @@ Visualization Manager:
           Show Axes: false
           Show Trail: false
           Value: true
-        panda1_hand:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        panda1_leftfinger:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        panda1_link0:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        panda1_link1:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        panda1_link2:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        panda1_link3:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        panda1_link4:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        panda1_link5:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        panda1_link6:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        panda1_link7:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        panda1_link8:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        panda1_rightfinger:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
       Name: RobotModel
       Robot Description: robot_description
       TF Prefix: ""
@@ -212,30 +153,6 @@ Visualization Manager:
           Value: true
         indy0_tcp:
           Value: true
-        panda1_hand:
-          Value: true
-        panda1_leftfinger:
-          Value: true
-        panda1_link0:
-          Value: true
-        panda1_link1:
-          Value: true
-        panda1_link2:
-          Value: true
-        panda1_link3:
-          Value: true
-        panda1_link4:
-          Value: true
-        panda1_link5:
-          Value: true
-        panda1_link6:
-          Value: true
-        panda1_link7:
-          Value: true
-        panda1_link8:
-          Value: true
-        panda1_rightfinger:
-          Value: true
       Marker Scale: 0.5
       Name: TF
       Show Arrows: true
@@ -252,20 +169,6 @@ Visualization Manager:
                       indy0_link6:
                         indy0_tcp:
                           {}
-          panda1_link0:
-            panda1_link1:
-              panda1_link2:
-                panda1_link3:
-                  panda1_link4:
-                    panda1_link5:
-                      panda1_link6:
-                        panda1_link7:
-                          panda1_link8:
-                            panda1_hand:
-                              panda1_leftfinger:
-                                {}
-                              panda1_rightfinger:
-                                {}
       Update Interval: 0
       Value: true
   Enabled: true
@@ -296,25 +199,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 4.26850700378418
+      Distance: 4.207040786743164
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 1.3534795045852661
-        Y: 0.8663769364356995
-        Z: 1.128482699394226
+        X: -0.1849021315574646
+        Y: 0.11404469609260559
+        Z: 0.10305661708116531
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.6553982496261597
+      Pitch: 0.655398428440094
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.6935811042785645
+      Yaw: 6.278583526611328
     Saved: ~
 Window Geometry:
   Displays:
