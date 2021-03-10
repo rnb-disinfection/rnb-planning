@@ -146,7 +146,7 @@ class PlanningPipeline:
             snode_new = self.tplan.make_search_node(snode, new_state, traj,  redundancy_dict)
             if succ:
                 snode_new = self.tplan.connect(snode, snode_new)
-            ret = self.tplan.update(snode_new, succ)
+            ret = self.tplan.update(snode, snode_new, succ)
             if verbose:
                 print('node: {}->{} = {}'.format(from_state.node, to_state.node, "success" if succ else "fail"))
                 if succ:
@@ -215,21 +215,6 @@ class PlanningPipeline:
 
     ##
     # @brief find all schedules
-    # @return list of SearchNode index list
-    def find_schedules(self):
-        self.idx_goal = []
-        schedule_dict = {}
-        for i in range(self.tplan.snode_counter.value):
-            snode = self.tplan.snode_dict[i]
-            state = snode.state
-            if self.tplan.check_goal(state):
-                self.idx_goal += [i]
-                schedule = snode.parents + [i]
-                schedule_dict[i] = schedule
-        return schedule_dict
-
-    ##
-    # @brief find all schedules
     def print_snode_list(self):
         for i_s, snode in sorted(self.tplan.snode_dict.items(), key=lambda x: x):
             print("{}{}<-{}{}".format(i_s, snode.state.node, snode.parents[-1] if snode.parents else "", self.tplan.snode_dict[snode.parents[-1]].state.node if snode.parents else ""))
@@ -253,6 +238,8 @@ class PlanningPipeline:
         for snode in snode_schedule:
             if snode.traj is not None:
                 self.pscene.gscene.show_motion(snode.traj, period=period)
+                time.sleep(period)
+                self.pscene.gscene.show_pose(snode.traj[-1])
             self.pscene.set_object_state(snode.state)
 
     ##

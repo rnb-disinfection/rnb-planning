@@ -3,6 +3,7 @@ from __future__ import print_function
 from .constraint_common import *
 from ...constants import DIR_RPY_DICT, DIR_VEC_DICT
 
+from itertools import combinations
 from abc import *
 __metaclass__ = type
 
@@ -104,7 +105,7 @@ class Subject:
         self.action_points_dict = {}
         ## @brief object's binding state tuple (object name, point, actor, actor-geometry)
         self.binding = (None, None, None, None)
-        raise(NotImplementedError("ObjectBinding is abstract class"))
+        raise(NotImplementedError("AbstractObject is abstract class"))
 
     ##
     # @brief make constraints. by default, empty list.
@@ -163,18 +164,26 @@ class Subject:
 
 
 ##
-# @class TaskInterface
+# @class AbstractTask
 # @brief Base class for task definition
-class TaskInterface(Subject):
+class AbstractTask(Subject):
     stype = SubjectType.TASK
     def __init__(self):
-        raise(NotImplementedError("TaskAction is abstract class"))
+        raise(NotImplementedError("AbstractTask is abstract class"))
+
+    ##
+    # @brief (prototype) return list of state_params corresponds to given node_item.
+    @abstractmethod
+    def get_corresponding_params(self, node_item):
+        raise(NotImplementedError("AbstractTask is abstract class"))
 
 
 ##
 # @class SweepTask
 # @brief sweep action points in alphabetical order
-class SweepTask(TaskInterface):
+# @remark   state_param: boolean vector of which each element represents if each waypoint is covered or not
+#           node_item: number of covered waypoints
+class SweepTask(AbstractTask):
     ##
     # @param oname object's name
     # @param geometry parent geometry
@@ -184,6 +193,7 @@ class SweepTask(TaskInterface):
         self.geometry = geometry
         self.action_points_dict = action_points_dict
         self.action_points_order = sorted(self.action_points_dict.keys())
+        self.action_point_len = len(self.action_points_order)
         self.state_param = np.zeros(len(self.action_points_order), dtype=np.bool)
         self.binding = (self.oname, None, None, None)
 
@@ -242,12 +252,23 @@ class SweepTask(TaskInterface):
     def get_all_node_components(self, pscene):
         return list(range(len(self.state_param)+1))
 
+    ##
+    # @brief return list of state_params corresponds to given node_item.
+    def get_corresponding_params(self, node_item):
+        idx_combs = combinations(range(self.action_point_len), node_item)
+        params_list = []
+        for comb in idx_combs:
+            param = np.zeros(len(self.action_points_order), dtype=np.bool)
+            param[list(comb)] = True
+            params_list.append(param)
+        return params_list
+
 
 ##
-# @class ObjectBinding
+# @class AbstractObject
 # @brief Base class for objects with defined action points (handles)
 # @remark get_conflicting_points and register_binders should be implemented with child classes
-class ObjectBinding(Subject):
+class AbstractObject(Subject):
     stype = SubjectType.OBJECT
     ##
     # @brief set object binding state and update location
@@ -313,7 +334,7 @@ class ObjectBinding(Subject):
 ##
 # @class CustomObject
 # @brief Customizable object that handles can be defined by user
-class CustomObject(ObjectBinding):
+class CustomObject(AbstractObject):
     ##
     # @param oname object's name
     # @param geometry parent geometry
@@ -333,7 +354,7 @@ class CustomObject(ObjectBinding):
 ##
 # @class SingleHandleObject
 # @brief Object with single defined handle
-class SingleHandleObject(ObjectBinding):
+class SingleHandleObject(AbstractObject):
     ##
     # @param oname object's name
     # @param geometry parent geometry
@@ -353,7 +374,7 @@ class SingleHandleObject(ObjectBinding):
 ##
 # @class BoxObject
 # @brief Box object with hexahedral action points
-class BoxObject(ObjectBinding):
+class BoxObject(AbstractObject):
     ##
     # @param oname object's name
     # @param geometry parent geometry

@@ -96,7 +96,7 @@ class TaskInterface:
         ## When overiding init_search, Don't forget to make root SearchNode and connect, update it, as below!
         snode_root = self.make_search_node(None, initial_state, None, None)
         self.connect(None, snode_root)
-        self.update(snode_root, True)
+        self.update(None, snode_root, True)
         raise(NotImplementedError("abstract method"))
 
     ##
@@ -109,7 +109,7 @@ class TaskInterface:
     ##
     # @brief (prototype) update connection result to the searching algorithm
     @abstractmethod
-    def update(self, snode_new, connection_result):
+    def update(self, snode_src, snode_new, connection_result):
         raise(NotImplementedError("abstract method"))
 
     ##
@@ -150,6 +150,19 @@ class TaskInterface:
                 snode_pre.leafs += [snode_new.idx]
                 self.snode_dict[snode_pre.idx] = snode_pre
         return snode_new
+
+    ##
+    # @brief find all schedules
+    # @return list of SearchNode index list
+    def find_schedules(self):
+        schedule_dict = {}
+        for i in range(self.snode_counter.value):
+            snode = self.snode_dict[i]
+            state = snode.state
+            if self.check_goal(state):
+                schedule = snode.parents + [i]
+                schedule_dict[i] = schedule
+        return schedule_dict
 
 
 ##

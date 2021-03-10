@@ -44,14 +44,12 @@ class TaskRRT(TaskInterface):
     def initialize_memory(self, multiprocess_manager):
         TaskInterface.initialize_memory(self, multiprocess_manager)
         if multiprocess_manager is not None:
-            self.visited_nodes = multiprocess_manager.dict()  # keys of dict is used as set, as set is not in multiprocess
-            self.neighbor_nodes = multiprocess_manager.dict()
+            self.neighbor_nodes = multiprocess_manager.dict()  # keys of dict is used as set, as set is not in multiprocess
             self.node_snode_dict = multiprocess_manager.dict()
             self.snode_dict_lock = multiprocess_manager.Lock()
             self.attempt_reseved = multiprocess_manager.Queue()
             self.reserve_lock = multiprocess_manager.Lock()
         else:
-            self.visited_nodes = dict()
             self.neighbor_nodes = dict()
             self.node_snode_dict = dict()
             self.snode_dict_lock = DummyBlock()
@@ -66,7 +64,7 @@ class TaskRRT(TaskInterface):
 
         snode_root = self.make_search_node(None, initial_state, None, None)
         self.connect(None, snode_root)
-        self.update(snode_root, True)
+        self.update(None, snode_root, True)
 
     ##
     # @brief sample new state
@@ -101,12 +99,9 @@ class TaskRRT(TaskInterface):
 
     ##
     # @brief (prototype) update connection result to the searchng algorithm
-    def update(self, snode_new, connection_result):
+    def update(self, snode_src, snode_new, connection_result):
         ret = False
         if connection_result:
-            if snode_new.state.node not in self.visited_nodes:
-                self.visited_nodes[snode_new.state.node] = None
-
             for leaf in self.node_dict[snode_new.state.node]:
                 self.neighbor_nodes[leaf] = None
 

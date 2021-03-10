@@ -1,5 +1,4 @@
 from .table_interface import *
-from ...planning.task.a_star import *
 from ...planning.task.rrt import *
 
 
@@ -7,8 +6,8 @@ class TaskPlanTable(TableInterface):
     HEADS = [IDENTIFY_COL, "MultiProcess"]
     HILIGHT_KEY = 'task'
     CUSTOM_BUTTONS = ['Plan', 'Initialize']
-    task_plan_candi = {"Astar": {"MultiProcess":True}, "RRT": {"MultiProcess":True}}
-    task_plan_names = ["Astar", "RRT"]
+    task_plan_candi = {"RRT": {"MultiProcess":True}}
+    task_plan_names = ["RRT"]
     task_plan_fun = None
 
     def get_items(self):
@@ -23,14 +22,6 @@ class TaskPlanTable(TableInterface):
     def highlight_item(self, gtem, color=None):
         if color == (0.3, 0.3, 1, 0.5):
             self.pl_kwargs = {}
-            if "Astar" in gtem[0]:
-                self.pl_kwargs = dict(verbose=True)
-                if gtem[0] == "Astar":
-                    sampler = TaskAstar(self.planning_pipeline.pscene)
-                    print("Set Astar")
-                else:
-                    raise(RuntimeError("Undefined sampler"))
-                self.planning_pipeline.set_sampler(sampler)
             if "RRT" in gtem[0]:
                 self.pl_kwargs = dict(verbose=True)
                 if gtem[0] == "RRT":
