@@ -3,6 +3,7 @@ from ...utils.utils import *
 from ...utils.joint_utils import *
 from ..scene import State
 from collections import defaultdict
+from copy import deepcopy
 import random
 
 try:
@@ -52,13 +53,13 @@ class TaskRRT(TaskInterface):
             self.neighbor_nodes = multiprocess_manager.dict()  # keys of dict is used as set, as set is not in multiprocess
             self.node_snode_dict = multiprocess_manager.dict()
             self.snode_dict_lock = multiprocess_manager.Lock()
-            self.attempt_reseved = multiprocess_manager.Queue()
+            self.attempts_reseved = multiprocess_manager.Queue()
             self.reserve_lock = multiprocess_manager.Lock()
         else:
             self.neighbor_nodes = dict()
             self.node_snode_dict = dict()
             self.snode_dict_lock = DummyBlock()
-            self.attempt_reseved = Queue()
+            self.attempts_reseved = Queue()
             self.reserve_lock = DummyBlock()
 
     ##
@@ -66,6 +67,7 @@ class TaskRRT(TaskInterface):
     def init_search(self, initial_state, goal_nodes, tree_margin=None, depth_margin=None):
         self.initial_state = initial_state
         self.goal_nodes = goal_nodes
+        self.reserved_attempt = False
 
         self.unstoppable_terminals = {}
         for sub_i in self.unstoppable_subjects:
@@ -76,15 +78,15 @@ class TaskRRT(TaskInterface):
         self.node_dict = {}
         for node, leafs in self.node_dict_full.items():
             self.node_dict[node] = set(
-                [lnode for lnode in leafs ## unstoppable node should change or at terminal
-                 if all([node[k] in terms or node[k]!=lnode[k]
+                [leaf for leaf in leafs ## unstoppable node should change or at terminal
+                 if all([node[k] in terms or node[k]!=leaf[k]
                          for k, terms in self.unstoppable_terminals.items()])])
 
         self.node_parent_dict = {}
         for node, parents in self.node_parent_dict_full.items():
             self.node_parent_dict[node] = set(
-                [pnode for pnode in parents ## unstoppable node should change or at terminal
-                 if all([node[k] in terms or node[k]!=pnode[k]
+                [parent for parent in parents ## unstoppable node should change or at terminal
+                 if all([node[k] in terms or node[k]!=parent[k]
                          for k, terms in self.unstoppable_terminals.items()])])
 
         if hasattr(self.new_node_sampler, "init"):
@@ -102,26 +104,22 @@ class TaskRRT(TaskInterface):
     def sample(self):
         sample_fail = True
         while sample_fail:
-            get_reserved = False
+            self.reserved_attempt = False
             with self.reserve_lock:
-                if not self.attempt_reseved.empty():
+                if not self.attempts_reseved.empty():
                     try:
-                        parent_sidx, new_node = self.attempt_reseved.get(timeout=0.1)
-                        get_reserved = True
+                        parent_sidx, new_node = self.attempts_reseved.get(timeout=0.1)
+                        self.reserved_attempt = True
                     except:
                         pass
-            if not get_reserved:
+            if not self.reserved_attempt:
                 new_node = self.new_node_sampler(self.neighbor_nodes.keys())
                 parent_nodes = self.node_parent_dict[new_node]
                 try:
                     parent_node = self.parent_node_sampler(list(parent_nodes.intersection(self.node_snode_dict.keys())))
-                except Exception as e:
-                    print("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
-                    print("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
-                    print("XXXXXXXXXXXXXXXXXXXXXXXXX ERRROR XXXXXXXXXXXXXXXXXXXXXXXXXX")
+                except Exception as e:  ## currently occurs when terminating search in multiprocess
                     print("XXXXXXXXXXXXXXXXXXXXXXXXX ERRROR XXXXXXXXXXXXXXXXXXXXXXXXXX")
                     print("XXXXX new node: {} \n XXXXX parent nodes: {}".format(new_node, parent_nodes))
-                    print("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
                     print("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
                     print(e)
                     sample_fail = True
@@ -160,8 +158,21 @@ class TaskRRT(TaskInterface):
             else:
                 for gnode in self.goal_nodes:
                     if snode_new.state.node in self.node_parent_dict[gnode]:
-                        print("=============== try reaching goal =================")
-                        self.attempt_reseved.put((snode_new.idx, gnode))
+                        self.attempts_reseved.put((snode_new.idx, gnode))
+                        print("=============== try reaching goal from {} =================".format(node_new))
+                    elif not self.reserved_attempt:
+                        nodes_near = list(self.node_dict[node_new])
+                        ## goal-matching item indexes
+                        match_self_idx = np.where([ntem_s == ntem_g for ntem_s, ntem_g in zip(node_new, gnode)])[0]
+                        if len(match_self_idx)>0:
+                            nodes_candi = [node_n
+                                           for node_n in nodes_near
+                                           if all([node_n[match_i] == node_new[match_i]
+                                                   for match_i  in match_self_idx])] ## sample new node which matching items are remained
+                            node_extend = self.new_node_sampler(nodes_candi)
+                            self.attempts_reseved.put((snode_new.idx, node_extend))
+                            print("=============== try extend to goal {} -> {} =================".format(node_new, node_extend))
+
         return ret
 
     ##
