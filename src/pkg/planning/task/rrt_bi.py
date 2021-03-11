@@ -25,16 +25,16 @@ class TaskBiRRT(TaskInterface):
 
         # make all node connections
         self.node_list = pscene.get_all_nodes()
-        self.node_dict = {k: [] for k in self.node_list}
-        self.node_parent_dict = {k: [] for k in self.node_list}
+        self.node_dict_full = {k: [] for k in self.node_list}
+        self.node_parent_dict_full = {k: [] for k in self.node_list}
         for node in self.node_list:
             for leaf in pscene.get_node_neighbor(node):
                 if leaf in self.node_list:
-                    self.node_dict[node].append(leaf)
-                    self.node_parent_dict[leaf].append(node)
+                    self.node_dict_full[node].append(leaf)
+                    self.node_parent_dict_full[leaf].append(node)
         for node in self.node_list:
-            self.node_dict[node] = set(self.node_dict[node])
-            self.node_parent_dict[node] = set(self.node_parent_dict[node])
+            self.node_dict_full[node] = set(self.node_dict_full[node])
+            self.node_parent_dict_full[node] = set(self.node_parent_dict_full[node])
 
         self.unstoppable_subjects = [i_s for i_s, sname in enumerate(self.pscene.subject_name_list)
                                      if self.pscene.subject_dict[sname].unstoppable]
@@ -90,6 +90,20 @@ class TaskBiRRT(TaskInterface):
             self.unstoppable_terminals[sub_i] = [self.initial_state.node[sub_i]]
             for goal in goal_nodes:
                 self.unstoppable_terminals[sub_i].append(goal[sub_i])
+
+        self.node_dict = {}
+        for node, leafs in self.node_dict_full.items():
+            self.node_dict[node] = set(
+                [lnode for lnode in leafs ## unstoppable node should change or at terminal
+                 if all([node[k] in terms or node[k]!=lnode[k]
+                         for k, terms in self.unstoppable_terminals.items()])])
+
+        self.node_parent_dict = {}
+        for node, parents in self.node_parent_dict_full.items():
+            self.node_parent_dict[node] = set(
+                [pnode for pnode in parents ## unstoppable node should change or at terminal
+                 if all([node[k] in terms or node[k]!=pnode[k]
+                         for k, terms in self.unstoppable_terminals.items()])])
 
         snode_root = self.make_search_node(None, initial_state, None, None)
         self.connect(None, snode_root)

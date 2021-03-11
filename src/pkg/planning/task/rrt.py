@@ -17,8 +17,10 @@ from Queue import Queue
 class TaskRRT(TaskInterface):
     ##
     # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
-    def __init__(self, pscene):
+    def __init__(self, pscene, new_node_sampler=random.choice, parent_node_sampler=random.choice):
         TaskInterface.__init__(self, pscene)
+        self.new_node_sampler = new_node_sampler
+        self.parent_node_sampler = parent_node_sampler
 
     ##
     # @brief build object-level node graph
@@ -85,6 +87,11 @@ class TaskRRT(TaskInterface):
                  if all([node[k] in terms or node[k]!=pnode[k]
                          for k, terms in self.unstoppable_terminals.items()])])
 
+        if hasattr(self.new_node_sampler, "init"):
+            self.new_node_sampler.init(self.node_dict, self.multiprocess_manager)
+        if hasattr(self.parent_node_sampler, "init"):
+            self.parent_node_sampler.init(self.node_dict, self.multiprocess_manager)
+
         snode_root = self.make_search_node(None, initial_state, None, None)
         self.connect(None, snode_root)
         self.update(None, snode_root, True)
@@ -104,9 +111,21 @@ class TaskRRT(TaskInterface):
                     except:
                         pass
             if not get_reserved:
-                new_node = random.choice(self.neighbor_nodes.keys())
+                new_node = self.new_node_sampler(self.neighbor_nodes.keys())
                 parent_nodes = self.node_parent_dict[new_node]
-                parent_node = random.choice(list(parent_nodes.intersection(self.node_snode_dict.keys())))
+                try:
+                    parent_node = self.parent_node_sampler(list(parent_nodes.intersection(self.node_snode_dict.keys())))
+                except Exception as e:
+                    print("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
+                    print("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
+                    print("XXXXXXXXXXXXXXXXXXXXXXXXX ERRROR XXXXXXXXXXXXXXXXXXXXXXXXXX")
+                    print("XXXXXXXXXXXXXXXXXXXXXXXXX ERRROR XXXXXXXXXXXXXXXXXXXXXXXXXX")
+                    print("XXXXX new node: {} \n XXXXX parent nodes: {}".format(new_node, parent_nodes))
+                    print("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
+                    print("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
+                    print(e)
+                    sample_fail = True
+                    continue
                 parent_sidx = random.choice(self.node_snode_dict[parent_node])
             parent_snode = self.snode_dict[parent_sidx]
             from_state = parent_snode.state

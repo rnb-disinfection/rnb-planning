@@ -81,6 +81,7 @@ class TaskInterface:
     # @brief prepare memory variables
     # @param multiprocess_manager multiprocess_mananger instance if multiprocessing is used
     def initialize_memory(self, multiprocess_manager):
+        self.multiprocess_manager = multiprocess_manager
         if multiprocess_manager is not None:
             self.snode_dict = multiprocess_manager.dict()
             self.snode_counter = multiprocess_manager.Value('i', 0)
