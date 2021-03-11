@@ -5,16 +5,18 @@ from ..constraint.constraint_common import combine_redundancy, sample_redundancy
 from ..filtering.grasp_filter import GraspChecker
 
 
+
 ##
 # @class    TaskBiRRT
 # @brief    task level Bi-RRT algorithm
 class TaskBiRRT(TaskInterface):
     ##
     # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
-    def __init__(self, pscene, gcheck, goal_trial_count=3):
+    def __init__(self, pscene, gcheck, goal_trial_count=3, flag_swap=False):
         TaskInterface.__init__(self, pscene)
         self.gcheck = gcheck
         self.goal_trial_count = goal_trial_count
+        self.flag_swap = flag_swap
 
     ##
     # @brief build object-level node graph
@@ -78,6 +80,7 @@ class TaskBiRRT(TaskInterface):
         self.initial_state = initial_state
         self.goal_nodes = goal_nodes
         self.target_sidx = -1
+        self.bool_forward = True
 
         snode_root = self.make_search_node(None, initial_state, None, None)
         self.connect(None, snode_root)
@@ -132,6 +135,11 @@ class TaskBiRRT(TaskInterface):
             #                         self.reserved_attempt = False
             #                         pass
             if not self.reserved_attempt:
+                self.reset_trees()
+                if self.flag_swap:
+                    if ((not self.bool_forward) and len(self.visited_snodes_rev)>0):
+                        self.swap_trees()
+                    self.bool_forward = not self.bool_forward
                 new_node = random.choice(self.neighbor_nodes_cur.keys())
                 parent_nodes = self.node_parent_dict[new_node]
                 parent_node = random.choice(list(parent_nodes.intersection(self.node_snode_dict_cur.keys())))
@@ -205,7 +213,6 @@ class TaskBiRRT(TaskInterface):
                     Qnew = self.initial_state.Q
                     Qdict = list2dict(Qnew, self.pscene.gscene.joint_names)
                     for goal in self.goal_nodes:
-                        binding_state_new = list(deepcopy(snode_src.state.binding_state))
                         sample_fail = True
                         available_binding_dict, transition_count = self.pscene.get_available_binding_dict(
                             from_state, goal, Qdict)
@@ -364,8 +371,6 @@ class TaskBiRRT(TaskInterface):
                                                            self.node_snode_dict_cur),
                                                           False  ## non-directly reachable
                                                           ))
-        self.reset_trees()
-        # self.swap_trees()
         return ret
 
     ## @brief set trees in forward direction
