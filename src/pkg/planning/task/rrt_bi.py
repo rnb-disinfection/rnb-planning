@@ -36,6 +36,9 @@ class TaskBiRRT(TaskInterface):
             self.node_dict[node] = set(self.node_dict[node])
             self.node_parent_dict[node] = set(self.node_parent_dict[node])
 
+        self.unstoppable_subjects = [i_s for i_s, sname in enumerate(self.pscene.subject_name_list)
+                                     if self.pscene.subject_dict[sname].unstoppable]
+
     ##
     # @brief prepare memory variables
     # @param multiprocess_manager multiprocess_mananger instance if multiprocessing is used
@@ -81,6 +84,12 @@ class TaskBiRRT(TaskInterface):
         self.goal_nodes = goal_nodes
         self.target_sidx = -1
         self.bool_forward = True
+
+        self.unstoppable_terminals = {}
+        for sub_i in self.unstoppable_subjects:
+            self.unstoppable_terminals[sub_i] = [self.initial_state.node[sub_i]]
+            for goal in goal_nodes:
+                self.unstoppable_terminals[sub_i].append(goal[sub_i])
 
         snode_root = self.make_search_node(None, initial_state, None, None)
         self.connect(None, snode_root)

@@ -125,7 +125,7 @@ class MoveitPlanner(MotionInterface):
     # @return LastQ     Last joint configuration as array
     # @return error     planning error
     # @return success   success/failure of planning result
-    def plan_algorithm(self, from_state, to_state, binding_list, redundancy_values=None, timeout=1, **kwargs):
+    def plan_algorithm(self, from_state, to_state, binding_list, redundancy_values=None, timeout=1, timeout_constrained=5, **kwargs):
         self.planner.clear_context_cache()
         self.planner.clear_manifolds()
         if self.enable_dual:
@@ -229,7 +229,7 @@ class MoveitPlanner(MotionInterface):
                 for motion_constraint in constraints:
                     self.add_constraint(group_name, tool.geometry.link_name, tool.Toff_lh, motion_constraint=motion_constraint)
                 trajectory, success = planner.plan_constrained_py(
-                    group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q), timeout=timeout)
+                    group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q), timeout=timeout_constrained)
             else:
                 trajectory, success = planner.plan_py(
                     group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q), timeout=timeout)
