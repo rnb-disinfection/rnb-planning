@@ -44,8 +44,8 @@ class TaskRRT(TaskInterface):
                     self.node_dict_full[node].append(leaf)
                     self.node_parent_dict_full[leaf].append(node)
         for node in self.node_list:
-            self.node_dict_full[node] = set(self.node_dict_full[node]+[node])
-            self.node_parent_dict_full[node] = set(self.node_parent_dict_full[node]+[node])
+            self.node_dict_full[node] = set(self.node_dict_full[node])
+            self.node_parent_dict_full[node] = set(self.node_parent_dict_full[node])
 
         self.unstoppable_subjects = [i_s for i_s, sname in enumerate(self.pscene.subject_name_list)
                                      if self.pscene.subject_dict[sname].unstoppable]
@@ -124,6 +124,7 @@ class TaskRRT(TaskInterface):
                     try:
                         parent_sidx, new_node = self.attempts_reseved.get(timeout=0.1)
                         self.reserved_attempt = True
+                        print("got reserved one from {}".format(parent_sidx))
                     except:
                         pass
             if not self.reserved_attempt:
@@ -132,6 +133,7 @@ class TaskRRT(TaskInterface):
                 try:
                     parent_node = self.parent_node_sampler(list(parent_nodes.intersection(self.node_snode_dict.keys())))
                     parent_sidx = self.parent_snode_sampler(self.node_snode_dict[parent_node])
+                    print("sampled one from {}".format(parent_sidx))
                 except Exception as e:  ## currently occurs when terminating search in multiprocess
                     print("ERROR sampling parent from : {} / parent nodes: {}".format(new_node, parent_nodes))
                     print(e)
@@ -158,6 +160,13 @@ class TaskRRT(TaskInterface):
     ##
     # @brief (prototype) update connection result to the searchng algorithm
     def update(self, snode_src, snode_new, connection_result):
+        if hasattr(self.new_node_sampler, "update"):
+            self.new_node_sampler.update(snode_src, snode_new, connection_result)
+        if hasattr(self.parent_node_sampler, "update"):
+            self.parent_node_sampler.update(snode_src, snode_new, connection_result)
+        if hasattr(self.parent_snode_sampler, "update"):
+            self.parent_snode_sampler.update(snode_src, snode_new, connection_result)
+
         if connection_result:
             node_new = snode_new.state.node
             for leaf in self.node_dict[node_new]:
@@ -175,9 +184,11 @@ class TaskRRT(TaskInterface):
 
         cres = False
         if self.custom_rule is not None:
-            cres, next_item = self.custom_rule(self, snode_src, snode_new, connection_result)
+            cres, next_items = self.custom_rule(self, snode_src, snode_new, connection_result)
             if cres:
-                self.attempts_reseved.put((snode_new.idx, next_item))
+                print("make custom reservation: {}".format(next_items))
+                for next_item in next_items:
+                    self.attempts_reseved.put((snode_new.idx, next_item))
 
         if not cres:
             if connection_result:

@@ -51,6 +51,7 @@ class UniformNodeSampler:
         probs = [np.exp2(self.log2_prob_dict[node]) for node in nodes]
         sumprobs = np.sum(probs)
         if sumprobs == 0:
+            print("probability saturated")
             probs = np.ones_like(probs)/len(probs)
         else:
             probs = np.divide(probs, sumprobs)
