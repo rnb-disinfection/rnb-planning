@@ -118,7 +118,7 @@ class PlanningPipeline:
 
             if wait_proc:
                 for proc in self.proc_list:
-                    while not self.stop_now.value:
+                    while ((not self.stop_now.value) and (not any(self.stop_dict.values()))):
                         proc.join(timeout=0.1)
         else:
             self.__search_loop(0, terminate_on_first, N_search, display, dt_vis, verbose, timeout_loop, **kwargs)
@@ -170,6 +170,7 @@ class PlanningPipeline:
             term_reson = "first answer acquired"
         else:
             term_reson = "first answer acquired from other agent"
+        self.stop_dict[ID] = True
 
         print("=========================================================================================================")
         print("======================= terminated {}: {} ===============================".format(ID, term_reson))
@@ -257,6 +258,7 @@ class PlanningPipeline:
                     state_pre = state_next
                 else:
                     break
+                time.sleep(0.2)
         return snode_schedule
 
     ##

@@ -125,7 +125,10 @@ class MoveitPlanner(MotionInterface):
     # @return LastQ     Last joint configuration as array
     # @return error     planning error
     # @return success   success/failure of planning result
-    def plan_algorithm(self, from_state, to_state, binding_list, redundancy_values=None, timeout=1, timeout_constrained=5, **kwargs):
+    def plan_algorithm(self, from_state, to_state, binding_list, redundancy_values=None, timeout=1,
+                       timeout_joint=None, timeout_constrained=None, **kwargs):
+        timeout_joint = timeout_joint if timeout_joint is not None else timeout
+        timeout_constrained = timeout_constrained if timeout_constrained is not None else timeout
         self.planner.clear_context_cache()
         self.planner.clear_manifolds()
         if self.enable_dual:
@@ -165,7 +168,7 @@ class MoveitPlanner(MotionInterface):
             else:
                 raise(RuntimeError("multi-robot joint motion not implemented!"))
             trajectory, success = planner.plan_joint_motion_py(
-                group_name, tuple(to_Q), tuple(from_Q), timeout=timeout)
+                group_name, tuple(to_Q), tuple(from_Q), timeout=timeout_joint)
 
         else: # task motion case
             motion_type = MoveitPlanner.TASK_MOTION
