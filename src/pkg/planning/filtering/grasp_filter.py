@@ -18,6 +18,22 @@ class GraspChecker(MotionFilterInterface):
             assert v[0] == k, "actor_link_names should be in reverse order including actor's link as the first item"
         self.gscene = pscene.gscene
         self.end_link_couple_dict = end_link_couple_dict
+        self.chain_dict = pscene.get_robot_chain_dict()
+        ##
+        # @brief link-to-robot dictionary {link name: robot name}
+        self.link_robot_dict = {}
+        ##
+        # @brief links external to the robot {robot name: [link1, link2, ...]}
+        self.robot_ex_link_dict = {}
+        for rname, chain_vals in self.chain_dict.items():
+            robot_link_names = chain_vals['link_names']
+            ex_links = [lname for lname in self.gscene.link_names if lname not in robot_link_names]
+            self.robot_ex_link_dict[rname] = []
+            for lname in ex_links:
+                self.robot_ex_link_dict[rname] += self.gscene.link_adjacency_map[lname]
+            self.robot_ex_link_dict[rname] = list(set(ex_links+self.robot_ex_link_dict[rname]))
+            for lname in robot_link_names:
+                self.link_robot_dict[lname] = rname
         # self.verts_holder_dict = {}
 
     ##
@@ -93,8 +109,15 @@ class GraspChecker(MotionFilterInterface):
         point_add_actor, rpy_add_actor = redundancy_values[(obj.oname, actor.name)]
         actor_link = actor.geometry.link_name
         object_link = obj.geometry.link_name
-        actor_link_names = self.end_link_couple_dict[actor_link]
-        object_link_names = self.end_link_couple_dict[object_link]
+        if actor_link in self.link_robot_dict:
+            actor_link_names = self.end_link_couple_dict[actor_link]
+            object_link_names = self.robot_ex_link_dict[self.link_robot_dict[actor_link]]
+        elif object_link in self.link_robot_dict:
+            actor_link_names = self.robot_ex_link_dict[self.link_robot_dict[object_link]]
+            object_link_names = self.end_link_couple_dict[object_link]
+        else:
+            actor_link_names = self.end_link_couple_dict[actor_link]
+            object_link_names = self.end_link_couple_dict[object_link]
         actor_geo_list = self.gscene.get_items_on_links(actor_link_names)
         object_geo_list = self.gscene.get_items_on_links(object_link_names)
         if obj_only:
