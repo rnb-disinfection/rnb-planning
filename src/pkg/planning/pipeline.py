@@ -234,17 +234,29 @@ class PlanningPipeline:
     ##
     # @brief add return motion to a SearchNode schedule
     def add_return_motion(self, snode_schedule, timeout=5):
+        state_first = snode_schedule[0].state
         snode_last = snode_schedule[-1]
         state_last = snode_last.state
-        state_first = snode_schedule[0].state
-        state_new = state_last.copy(self.pscene)
-        state_new.Q = copy(state_first.Q)
-        traj, new_state, error, succ = self.test_connection(state_last, state_new, redundancy_dict=None,
-                                                              display=False, timeout=timeout)
-        snode_new = self.tplan.make_search_node(snode_last, new_state, traj, None)
-        if succ:
-            snode_new = self.tplan.connect(snode_last, snode_new)
-            snode_schedule.append(snode_new)
+        diffQ = state_first.Q - state_last.Q
+        diff_dict = {rname: np.sum(np.abs(diffQ[idx]))>1e-4
+                     for rname, idx in self.pscene.combined_robot.idx_dict.items()}
+        snode_pre = snode_last
+        state_pre = state_last
+        for rname, diff in diff_dict.items():
+            if diff:
+                rbt_idx = self.pscene.combined_robot.idx_dict[rname]
+                state_new = state_pre.copy(self.pscene)
+                state_new.Q[rbt_idx] = state_first.Q[rbt_idx]
+                traj, state_next, error, succ = self.test_connection(state_pre, state_new, redundancy_dict=None,
+                                                                      display=False, timeout=timeout)
+                snode_next = self.tplan.make_search_node(snode_pre, state_next, traj, None)
+                if succ:
+                    snode_next = self.tplan.connect(snode_pre, snode_next)
+                    snode_schedule.append(snode_next)
+                    snode_pre = snode_next
+                    state_pre = state_next
+                else:
+                    break
         return snode_schedule
 
     ##

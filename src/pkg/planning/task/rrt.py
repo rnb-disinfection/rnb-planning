@@ -18,10 +18,12 @@ from Queue import Queue
 class TaskRRT(TaskInterface):
     ##
     # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
-    def __init__(self, pscene, new_node_sampler=random.choice, parent_node_sampler=random.choice):
+    def __init__(self, pscene, new_node_sampler=random.choice, parent_node_sampler=random.choice,
+                 custom_rule=None):
         TaskInterface.__init__(self, pscene)
         self.new_node_sampler = new_node_sampler
         self.parent_node_sampler = parent_node_sampler
+        self.custom_rule = custom_rule
 
     ##
     # @brief build object-level node graph
@@ -38,8 +40,8 @@ class TaskRRT(TaskInterface):
                     self.node_dict_full[node].append(leaf)
                     self.node_parent_dict_full[leaf].append(node)
         for node in self.node_list:
-            self.node_dict_full[node] = set(self.node_dict_full[node])
-            self.node_parent_dict_full[node] = set(self.node_parent_dict_full[node])
+            self.node_dict_full[node] = set(self.node_dict_full[node]+[node])
+            self.node_parent_dict_full[node] = set(self.node_parent_dict_full[node]+[node])
 
         self.unstoppable_subjects = [i_s for i_s, sname in enumerate(self.pscene.subject_name_list)
                                      if self.pscene.subject_dict[sname].unstoppable]
@@ -127,13 +129,17 @@ class TaskRRT(TaskInterface):
                 parent_sidx = random.choice(self.node_snode_dict[parent_node])
             parent_snode = self.snode_dict[parent_sidx]
             from_state = parent_snode.state
-            available_binding_dict, transition_count = self.pscene.get_available_binding_dict(from_state, new_node,
-                                                                                              list2dict(from_state.Q, self.pscene.gscene.joint_names))
-            if not all([len(abds)>0 for abds in available_binding_dict.values()]):
-                print("============== Non-available transition: sample again =====================")
-                sample_fail = True
-                continue
-            to_state, redundancy_dict = self.pscene.sample_leaf_state(from_state, available_binding_dict, new_node)
+            if isinstance(new_node, State):
+                to_state = new_node
+                redundancy_dict = deepcopy(parent_snode.redundancy_dict)
+            else:
+                available_binding_dict, transition_count = self.pscene.get_available_binding_dict(from_state, new_node,
+                                                                                                  list2dict(from_state.Q, self.pscene.gscene.joint_names))
+                if not all([len(abds)>0 for abds in available_binding_dict.values()]):
+                    print("============== Non-available transition: sample again =====================")
+                    sample_fail = True
+                    continue
+                to_state, redundancy_dict = self.pscene.sample_leaf_state(from_state, available_binding_dict, new_node)
             sample_fail = False
         return parent_snode, from_state, to_state, redundancy_dict, sample_fail
 
@@ -156,22 +162,28 @@ class TaskRRT(TaskInterface):
             if self.check_goal(snode_new.state):
                 ret = True
             else:
-                for gnode in self.goal_nodes:
-                    if snode_new.state.node in self.node_parent_dict[gnode]:
-                        self.attempts_reseved.put((snode_new.idx, gnode))
-                        print("=============== try reaching goal from {} =================".format(node_new))
-                    elif not self.reserved_attempt:
-                        nodes_near = list(self.node_dict[node_new])
-                        ## goal-matching item indexes
-                        match_self_idx = np.where([ntem_s == ntem_g for ntem_s, ntem_g in zip(node_new, gnode)])[0]
-                        if len(match_self_idx)>0:
-                            nodes_candi = [node_n
-                                           for node_n in nodes_near
-                                           if all([node_n[match_i] == node_new[match_i]
-                                                   for match_i  in match_self_idx])] ## sample new node which matching items are remained
-                            node_extend = self.new_node_sampler(nodes_candi)
-                            self.attempts_reseved.put((snode_new.idx, node_extend))
-                            print("=============== try extend to goal {} -> {} =================".format(node_new, node_extend))
+                if self.custom_rule is not None:
+                    cres, node_next = self.custom_rule(self, snode_src, snode_new, connection_result)
+                    if cres:
+                        self.attempts_reseved.put((snode_new.idx, node_next))
+
+                if not cres:
+                    for gnode in self.goal_nodes:
+                        if snode_new.state.node in self.node_parent_dict[gnode]:
+                            self.attempts_reseved.put((snode_new.idx, gnode))
+                            print("=============== try reaching goal from {} =================".format(node_new))
+                        elif not self.reserved_attempt:
+                            nodes_near = list(self.node_dict[node_new])
+                            ## goal-matching item indexes
+                            match_self_idx = np.where([ntem_s == ntem_g for ntem_s, ntem_g in zip(node_new, gnode)])[0]
+                            if len(match_self_idx)>0:
+                                nodes_candi = [node_n
+                                               for node_n in nodes_near
+                                               if all([node_n[match_i] == node_new[match_i]
+                                                       for match_i  in match_self_idx])] ## sample new node which matching items are remained
+                                node_extend = self.new_node_sampler(nodes_candi)
+                                self.attempts_reseved.put((snode_new.idx, node_extend))
+                                print("=============== try extend to goal {} -> {} =================".format(node_new, node_extend))
 
         return ret
 

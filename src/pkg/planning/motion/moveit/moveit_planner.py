@@ -161,7 +161,7 @@ class MoveitPlanner(MotionInterface):
                     to_Q = to_state.Q[[idx for idx in self.idx_pscene_to_mpc if idx in idx_rbt]]
                 else:
                     from_Q = from_state.Q
-                    to_Q =  to_state.Q
+                    to_Q =  to_state.Q[idx_rbt]
             else:
                 raise(RuntimeError("multi-robot joint motion not implemented!"))
             trajectory, success = planner.plan_joint_motion_py(
