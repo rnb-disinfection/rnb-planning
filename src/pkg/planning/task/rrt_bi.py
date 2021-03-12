@@ -205,18 +205,7 @@ class TaskBiRRT(TaskInterface):
                         snode_new.idx]
 
             ## get hashable param dict
-            param_flat_dict = {}
-            for i_obj, oname in enumerate(self.pscene.subject_name_list):
-                subject = self.pscene.subject_dict[oname]
-                if isinstance(subject, AbstractObject):
-                    link_name, param = snode_new.state.state_param[oname]
-                    param_flat = (snode_new.state.node[i_obj], link_name) + tuple(
-                        np.round(param, 4).flatten())  ## make state params hashable by flattenning
-                else:
-                    param = snode_new.state.state_param[oname]
-                    param_flat = (snode_new.state.node[i_obj],) + tuple(
-                        np.round(param, 4).flatten())  ## make state params hashable by flattenning
-                param_flat_dict[oname] = param_flat
+            param_flat_dict = make_state_param_hashable(self.pscene, snode_new.state)
 
             # update param_snode_dict_cur
             param_match_dict_cur = {}

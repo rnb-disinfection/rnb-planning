@@ -104,7 +104,7 @@ class MotionInterface:
                 self.gtimer.toc('planning')
                 self.result_log['planning'].append(success)
         else:
-            Traj, LastQ, error, success = [], [], 1e10, False
+            Traj, LastQ, error, success = [from_state.Q], from_state.Q, 1e10, False
         return Traj, LastQ, error, success, binding_list
 
     ##

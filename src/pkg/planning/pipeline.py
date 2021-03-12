@@ -121,6 +121,7 @@ class PlanningPipeline:
                     while ((not self.stop_now.value) and (not any(self.stop_dict.values()))):
                         proc.join(timeout=0.1)
         else:
+            self.proc_list = []
             self.__search_loop(0, terminate_on_first, N_search, display, dt_vis, verbose, timeout_loop, **kwargs)
 
     def __search_loop(self, ID, terminate_on_first, N_search,
@@ -140,6 +141,8 @@ class PlanningPipeline:
                         break
                     else:
                         continue
+            if verbose:
+                print('try: {} - {}->{}'.format(snode.idx, from_state.node, to_state.node))
             self.gtimer.tic("test_connection")
             traj, new_state, error, succ = self.test_connection(from_state, to_state, redundancy_dict=redundancy_dict,
                                                                   display=display, dt_vis=dt_vis, **kwargs)
@@ -149,7 +152,7 @@ class PlanningPipeline:
                 snode_new = self.tplan.connect(snode, snode_new)
             ret = self.tplan.update(snode, snode_new, succ)
             if verbose:
-                print('node: {}->{} = {}'.format(from_state.node, to_state.node, "success" if succ else "fail"))
+                print('result: {} - {}->{} = {}'.format(snode.idx, from_state.node, new_state.node, "success" if succ else "fail"))
                 if succ:
                     print('branching: {}->{} ({}/{} s, steps/err: {}({} ms)/{})'.format(
                         snode.idx, snode_new.idx if succ else "", round(time.time() - self.t0, 2), round(timeout_loop, 2),
@@ -194,8 +197,9 @@ class PlanningPipeline:
         if success:
             if display:
                 self.pscene.gscene.show_motion(Traj, error_skip=error_skip, period=dt_vis)
-            for bd in binding_list:
-                self.pscene.rebind(bd, list2dict(LastQ, self.pscene.gscene.joint_names))
+
+        for bd in binding_list:
+            self.pscene.rebind(bd, list2dict(LastQ, self.pscene.gscene.joint_names))
 
         binding_state, state_param = self.pscene.get_object_state()
         end_state = State(binding_state, state_param, list(LastQ), self.pscene)

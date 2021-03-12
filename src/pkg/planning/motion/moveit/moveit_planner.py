@@ -169,6 +169,7 @@ class MoveitPlanner(MotionInterface):
                 raise(RuntimeError("multi-robot joint motion not implemented!"))
             trajectory, success = planner.plan_joint_motion_py(
                 group_name, tuple(to_Q), tuple(from_Q), timeout=timeout_joint)
+            print("joint motion tried: {}".format(success)) ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
 
         else: # task motion case
             motion_type = MoveitPlanner.TASK_MOTION
@@ -233,9 +234,11 @@ class MoveitPlanner(MotionInterface):
                     self.add_constraint(group_name, tool.geometry.link_name, tool.Toff_lh, motion_constraint=motion_constraint)
                 trajectory, success = planner.plan_constrained_py(
                     group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q), timeout=timeout_constrained)
+                print("constrained motion tried: {}".format(success)) ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
             else:
                 trajectory, success = planner.plan_py(
                     group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q), timeout=timeout)
+                print("transition motion tried: {}".format(success)) ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
 
         if success:
             if dual:
