@@ -27,11 +27,9 @@ class GraspChecker(MotionFilterInterface):
         self.robot_ex_link_dict = {}
         for rname, chain_vals in self.chain_dict.items():
             robot_link_names = chain_vals['link_names']
-            ex_links = [lname for lname in self.gscene.link_names if lname not in robot_link_names]
-            self.robot_ex_link_dict[rname] = []
-            for lname in ex_links:
-                self.robot_ex_link_dict[rname] += self.gscene.link_adjacency_map[lname]
-            self.robot_ex_link_dict[rname] = list(set(ex_links+self.robot_ex_link_dict[rname]))
+            index_arr = np.array([self.gscene.link_names.index(lname) for lname in robot_link_names])
+            assert np.all((index_arr[1:]-index_arr[:-1])>0), "link_name should be ordered as same as chain order"
+            self.robot_ex_link_dict[rname] = [lname for lname in self.gscene.link_names if lname not in robot_link_names]
             for lname in robot_link_names:
                 self.link_robot_dict[lname] = rname
         # self.verts_holder_dict = {}
