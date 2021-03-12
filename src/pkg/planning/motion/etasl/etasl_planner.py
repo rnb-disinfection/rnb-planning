@@ -28,8 +28,8 @@ class EtaslPlanner(MotionInterface):
 
     ##
     # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
-    def __init__(self, pscene, nWSR=300, cputime=200, regularization_factor= 1e-6, timescale=0.25):
-        MotionInterface.__init__(self, pscene)
+    def __init__(self, pscene, motion_filters=[], nWSR=300, cputime=200, regularization_factor= 1e-6, timescale=0.25):
+        MotionInterface.__init__(self, pscene, motion_filters)
         self.nWSR, self.cputime, self.regularization_factor = nWSR, cputime, regularization_factor
         self.init_text = self.__get_init_text(timescale=timescale)
 
@@ -261,7 +261,7 @@ class EtaslPlanner(MotionInterface):
         return definition_text
 
     def __get_simulation(self, init_text):
-        self.etasl = etasl_simulator(nWSR=self.nWSR, cputime=self.cputime, regularization_factor= self.regularization_factor)
+        self.etasl = etasl_simulator(nWSR=self.nWSR, cputime=self.cputime, regularization_factor=self.regularization_factor)
         self.etasl.readTaskSpecificationString(init_text)
         return self.etasl
 
