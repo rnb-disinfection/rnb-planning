@@ -128,14 +128,17 @@ class TaskRRT(TaskInterface):
                     except:
                         pass
             if not self.reserved_attempt:
-                new_node = self.new_node_sampler(self.neighbor_nodes.keys())
-                parent_nodes = self.node_parent_dict[new_node]
                 try:
+                    new_node = self.new_node_sampler(self.neighbor_nodes.keys())
+                    parent_nodes = self.node_parent_dict[new_node]
                     parent_node = self.parent_node_sampler(list(parent_nodes.intersection(self.node_snode_dict.keys())))
                     parent_sidx = self.parent_snode_sampler(self.node_snode_dict[parent_node])
                     print("sampled one from {}".format(parent_sidx))
                 except Exception as e:  ## currently occurs when terminating search in multiprocess
-                    print("ERROR sampling parent from : {} / parent nodes: {}".format(new_node, parent_nodes))
+                    try:
+                        print("ERROR sampling parent from : {} / parent nodes: {}".format(new_node, parent_nodes))
+                    except:
+                        print("ERROR sampling parent")
                     print(e)
                     sample_fail = True
                     continue
