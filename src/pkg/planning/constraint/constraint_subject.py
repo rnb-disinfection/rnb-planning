@@ -72,6 +72,12 @@ class Grasp2Point(DirectedPoint):
 class SweepPoint(DirectedPoint):
     ctype=ConstraintType.Sweep
 
+##
+# @class SweepPoint
+# @brief ActionPoint for rnb-planning.src.pkg.planning.constraint.constraint_actor.SweepTool
+class SweepFrame(FramePoint):
+    ctype=ConstraintType.Sweep
+
 
 ##
 # @class FixturePoint

@@ -173,6 +173,26 @@ class SweepTool(PointerActor):
 
 
 ##
+# @class SweepFramer
+# @brief Actor class for placing plane. z-direction constrained. (PointerActor)
+class SweepFramer(FrameActor):
+    controlled = True
+    multiple = False
+    ctype = ConstraintType.Sweep
+    VERTICAL_CUT = np.cos(np.deg2rad(10))
+
+    def bind(self, action_obj, bind_point, joint_dict_last):
+        state_param = action_obj.state_param
+        state_param[action_obj.action_points_order.index(bind_point)] = True
+        action_obj.set_state((action_obj.oname, bind_point, self.name, self.geometry.name), state_param)
+
+    ##
+    # @brief place plane is only available when vertical direction is in range of VERTICAL_CUT (10 deg)
+    def check_available(self, joint_dict):
+        return self.geometry.is_controlled()
+
+
+##
 # @brief convert constraint type to Constraint type
 def ctype_to_btype(cstr):
     if cstr == ConstraintType.Grasp2.name:
