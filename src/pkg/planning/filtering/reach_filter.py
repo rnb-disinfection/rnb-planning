@@ -61,7 +61,7 @@ class ReachChecker(MotionFilterInterface):
             group_name = group_name_handle
             T_actor_link = get_tf(actor_link, Q_dict, self.pscene.gscene.urdf_content,
                                   from_link=self.base_dict[group_name])
-            T_link_actor_handle_link = np.matmul(T_actor_lh, SE3_inv(T_actor_link))
+            T_link_actor_handle_link = np.matmul(T_actor_lh, SE3_inv(T_handle_lh))
             T_tar = np.matmul(T_actor_link, T_link_actor_handle_link)
         else:
             # dual motion not predictable
