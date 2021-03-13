@@ -327,6 +327,9 @@ class PlanningPipeline:
 
             self.pscene.set_object_state(snode.state)
             self.execute_grip(snode.state)
+        for robot in self.pscene.combined_robot.robot_dict.values():
+            if hasattr(robot, "stop_tracking"):
+                robot.stop_tracking()
 
     ##
     # @brief execute schedule

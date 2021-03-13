@@ -3,6 +3,10 @@ from .indy_utils.indydcp_client import IndyDCPClient
 from .indy_utils.indy_program_maker import JsonProgramComponent
 from functools import wraps
 
+
+DEFAULT_TRAJ_PORT = 9980
+DEFAULT_TRAJ_FREQUENCY = 50
+
 INDY_DOF = 6
 INDY_CONTROL_FREQ = 4000
 
@@ -21,17 +25,107 @@ def connect_indy(func):
 
     return __wrapper
 
-
 class indytraj_client(IndyDCPClient, Repeater):
 
-    def __init__(self, server_ip, *args, **kwargs):
+    def __init__(self, server_ip,
+                 traj_port=DEFAULT_TRAJ_PORT,
+                 traj_freq=DEFAULT_TRAJ_FREQUENCY, *args, **kwargs):
         kwargs_indy, kwargs_otic = divide_kwargs(kwargs, IndyDCPClient.__init__, Repeater.__init__)
         IndyDCPClient.__init__(self, *args, server_ip=server_ip, **kwargs_indy)
         Repeater.__init__(self, repeater_ip=self.server_ip, disable_getq=True, **kwargs_otic)
         self.indy_grasp_DO = 0
+        self.traj_port = traj_port
+        self.traj_freq = traj_freq
+        self.period_s = 1.0/traj_freq
+
+    def reset(self):
+        self.qcount = self.get_qcount()
+        reset_dict = {'reset': True, 'period_s': self.period_s}
+        return send_recv(reset_dict, self.server_ip, self.traj_port)
+
+    def get_qcount(self):
+        return send_recv({'qcount': 0}, self.server_ip, self.traj_port)['qcount']
 
     def get_qcur(self):
-        return np.deg2rad(self.connect_and(self.get_joint_pos))
+        self.qcur = np.array(send_recv({'getq': 0}, self.server_ip, self.traj_port)['qval'])
+        return self.qcur
+
+    def send_qval(self, qval):
+        return send_recv({'qval': qval}, self.server_ip, self.traj_port)
+
+    def start_tracking(self):
+        return send_recv({'follow': 1}, self.server_ip, self.traj_port)
+
+    def stop_tracking(self):
+        return send_recv({'stop': 1}, self.server_ip, self.traj_port)
+
+    def terminate_loop(self):
+        return send_recv({'terminate': 1}, self.server_ip, self.traj_port)
+
+    def move_possible_joints_x4(self, Q):
+        if self.qcount >= 3:
+            self.rate_x4.sleep()
+        if self.qcount > 3:
+            self.qcount = self.get_qcount()
+            sent = False
+        else:
+            self.qcount = self.send_qval(Q)['qcount']
+            sent = True
+        return sent
+
+    def move_joint_interpolated(self, qtar, q0=None, N_div=100, N_stop=None, start=False, linear=False, end=False):
+        if N_stop is None or N_stop > N_div or N_stop<0:
+            if start or linear:
+                N_stop = N_div
+            else:
+                N_stop = N_div + 1
+
+        qcur = np.array(self.get_qcur()) if q0 is None else q0
+        DQ = qtar - qcur
+        if not (linear or end):
+            self.reset()
+        i_step = 0
+        while i_step < N_stop:
+            if start:
+                Q = qcur + DQ * (np.sin(np.pi * (float(i_step) / N_div *0.5 - 0.5)) + 1)
+            elif linear:
+                Q = qcur + DQ * (float(i_step) / N_div)
+            elif end:
+                Q = qcur + DQ * (np.sin(np.pi * (float(i_step) / N_div *0.5 )))
+            else:
+                Q = qcur + DQ * (np.sin(np.pi * (float(i_step) / N_div - 0.5)) + 1) / 2
+            i_step += self.move_possible_joints_x4(Q)
+
+    ##
+    # @param trajectory radian
+    # @param vel_limits radian
+    # @param acc_limits radian
+    def move_joint_wp(self, trajectory, vel_limits, acc_limits, wait_finish=True, auto_stop=False):
+        Q_prev = trajectory[0]
+        len_traj = len(trajectory)
+        start = True
+        self.start_tracking()
+        for i in range(len_traj):
+            Q_cur = trajectory[i]
+            diff_abs = np.abs(Q_cur - Q_prev)
+            max_diff = np.max(diff_abs, axis=0)
+            if max_diff <= 1e-3:
+                continue
+            T_vmax = np.max(max_diff / vel_limits)
+            T_amax = np.sqrt(np.max(2 * max_diff / acc_limits))
+            T = np.maximum(T_vmax, T_amax)
+            end = (i == len_traj - 1)
+            self.move_joint_interpolated(Q_cur, Q_prev,
+                                         N_div=np.ceil(T * float(self.traj_freq * 4)),
+                                         start=start, linear=not (start or end), end=end)
+            start = False
+            Q_prev = Q_cur
+        self.start_tracking()
+        if wait_finish:
+            while(self.get_qcount()>0):
+                time.sleep(self.period_s)
+            if auto_stop:
+                self.stop_tracking()
 
     def connect_and(self, func, *args, **kwargs):
         with self:
@@ -49,22 +143,6 @@ class indytraj_client(IndyDCPClient, Repeater):
             for _ in range(N_repeat):
                 self.joint_move_to(np.rad2deg(Q))
                 self.wait_motion()
-
-    ##
-    # @param trajectory radian
-    def move_joint_wp(self, trajectory, vel_limits, acc_limits):
-        print("indy")
-        blend = 3
-        vel = int(np.ceil(9*(np.min(vel_limits)/np.deg2rad(150))))
-        trajectory = np.rad2deg(trajectory)
-        prog = JsonProgramComponent(policy=0, resume_time=2)
-        for Q in trajectory:
-            print("Q: {}".format(Q))
-            prog.add_joint_move_to(list(Q), vel=vel, blend=blend)
-        prog_json = prog.program_done()
-        with self:
-            self.set_and_start_json_program(prog_json)
-            self.wait_motion()
 
     @connect_indy
     def reset_robot(self):
