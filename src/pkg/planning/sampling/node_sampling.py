@@ -52,7 +52,10 @@ class UniformNodeSampler:
         sumprobs = np.sum(probs)
         if sumprobs == 0:
             print("probability saturated")
-            probs = np.ones_like(probs)/len(probs)
+            # probs = np.ones_like(probs)/len(probs)
+            with self.prob_lock:
+                for k in self.node_dict.keys():
+                    self.log2_prob_dict[k] = 1.0
         else:
             probs = np.divide(probs, sumprobs)
         i_node = np.random.choice(len(nodes), p=probs)

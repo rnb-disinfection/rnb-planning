@@ -138,10 +138,10 @@ class TaskRRT(TaskInterface):
                     try:
                         print("ERROR sampling parent from : {} / parent nodes: {}".format(new_node, parent_nodes))
                     except:
-                        print("ERROR sampling parent - NO SAMPLE REMAINED! add initial state again")
-                        snode_root = self.make_search_node(None, self.initial_state, None, None)
-                        self.connect(None, snode_root)
-                        self.update(None, snode_root, True)
+                        print("ERROR sampling parent - NO SAMPLE REMAINED!")
+                        # snode_root = self.make_search_node(None, self.initial_state, None, None)
+                        # self.connect(None, snode_root)
+                        # self.update(None, snode_root, True)
                     print(e)
                     sample_fail = True
                     continue
