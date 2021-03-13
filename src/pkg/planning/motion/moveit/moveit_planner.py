@@ -11,14 +11,7 @@ import os
 def gtype_to_otype(gtype):
     if gtype==GEOTYPE.BOX:
         return ObjectType.BOX
-    if gtype==GEOTYPE.SPHERE:
-        return ObjectType.SPHERE
-    if gtype in [GEOTYPE.CAPSULE, GEOTYPE.CYLINDER]:
-        return ObjectType.CYLINDER
-    raise(NotImplementedError("Not implemented constraint shape - {}".format(gtype.name)))
-
-def gtype_to_ctype(gtype):
-    if gtype==GEOTYPE.BOX:
+    if gtype==GEOTYPE.PLANE:
         return ObjectType.PLANE
     if gtype==GEOTYPE.SPHERE:
         return ObjectType.SPHERE
@@ -29,6 +22,8 @@ def gtype_to_ctype(gtype):
 def get_mpc_dims(gtem):
     if gtem.gtype==GEOTYPE.BOX:
         return tuple(gtem.dims)
+    elif gtem.gtype==GEOTYPE.PLANE:
+        return tuple(gtem.dims)
     elif gtem.gtype==GEOTYPE.SPHERE:
         return (gtem.radius,gtem.radius,gtem.radius,)
     elif gtem.gtype in [GEOTYPE.CAPSULE, GEOTYPE.CYLINDER]:
@@ -37,15 +32,14 @@ def get_mpc_dims(gtem):
 
 ##
 # @brief make moveit constraint geometry item
-def make_constraint_item(gtem, use_box=False):
+def make_constraint_item(gtem):
     cartpose = tuple(gtem.center) + tuple(Rotation.from_dcm(gtem.orientation_mat).as_quat())
-    return Geometry(gtype_to_otype(gtem.gtype) if use_box else gtype_to_ctype(gtem.gtype),
-                    CartPose(*cartpose), Vec3(*gtem.dims))
+    return Geometry(gtype_to_otype(gtem.gtype), CartPose(*cartpose), Vec3(*gtem.dims))
 
 ##
 # @brief make list of moveit constraint geometry list
-def make_constraint_list(gtem_list, use_box=True):
-    return make_assign_arr(GeometryList, [make_constraint_item(gtem, use_box) for gtem in gtem_list])
+def make_constraint_list(gtem_list):
+    return make_assign_arr(GeometryList, [make_constraint_item(gtem) for gtem in gtem_list])
 
 ##
 # @class MoveitPlanner
@@ -282,10 +276,10 @@ class MoveitPlanner(MotionInterface):
     # @param tool_offset_T tool offset 4x4 transformation matrix in tool link coordinate
     # @param motion_constraint rnb-planning.src.pkg.planning.constraint.constraint_common.MotionConstraint
     # @param use_box boolean flag for using box, to convert box to plane, set this value False (default=True)
-    def add_constraint(self, group_name, tool_link, tool_offset_T, motion_constraint, use_box=True):
+    def add_constraint(self, group_name, tool_link, tool_offset_T, motion_constraint):
         xyzquat = T2xyzquat(tool_offset_T)
         self.planner.add_union_manifold_py(group_name=group_name, tool_link=tool_link, tool_offset=xyzquat[0]+xyzquat[1],
-                                           geometry_list=make_constraint_list(motion_constraint.geometry_list, use_box=use_box),
+                                           geometry_list=make_constraint_list(motion_constraint.geometry_list),
                                            fix_surface=motion_constraint.fix_surface, fix_normal=motion_constraint.fix_normal, tol=motion_constraint.tol)
 
 

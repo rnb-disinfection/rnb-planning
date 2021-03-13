@@ -12,13 +12,15 @@ N_CYL = 10
 CYL_DEFAULT = np.reshape(np.array([[np.cos(float(i_theta)/N_CYL*np.pi*2)/2, np.sin(float(i_theta)/N_CYL*np.pi*2)/2, 0] for i_theta in range(N_CYL)])[:,np.newaxis,:]
                          + (np.array([[0,0,1.0],[0,0,-1.0]])/2)[np.newaxis,:,:], newshape=(-1,3))
 BOX_DEFAULT = np.array([[[(i,j,k) for k in range(2)] for j in range(2)] for i in range(2)], dtype=np.float).reshape((-1,3))-0.5
+PLANE_DEFAULT = np.array([[[(i,j,0)] for j in range(2)] for i in range(2)], dtype=np.float).reshape((-1,3))-0.5
 
 DEFAULT_VERT_DICT = {
     GEOTYPE.SPHERE: POINT_DEFAULT,
     GEOTYPE.CAPSULE: SEG_DEFAULT,
     GEOTYPE.CYLINDER: CYL_DEFAULT,
     GEOTYPE.BOX: BOX_DEFAULT,
-    GEOTYPE.MESH: BOX_DEFAULT
+    GEOTYPE.MESH: BOX_DEFAULT,
+    GEOTYPE.PLANE: PLANE_DEFAULT
 }
 
 

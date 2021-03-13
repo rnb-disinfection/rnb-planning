@@ -10,3 +10,4 @@ class GEOTYPE(Enum):
     MESH = 3
     ARROW = 4
     CYLINDER = 5
+    PLANE = 6
