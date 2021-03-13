@@ -1,5 +1,5 @@
-from .detector.aruco.detector import *
-from .geometry.geometry import GEOTYPE
+from .detector import *
+from ...geometry.geometry import GEOTYPE
 
 def get_aruco_map():
     dictionary = aruco.getPredefinedDictionary(aruco.DICT_6X6_250)
@@ -32,12 +32,13 @@ def get_aruco_map():
                              ObjectMarker('wall', 93, 0.05, [0.1,-0.075,0], (np.pi,0,0)),
                              ObjectMarker('wall', 94, 0.05, [-0.1,-0.075,0], (np.pi,0,0))
                          ]),
-        'track':MarkerSet('track', dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX, dims=(0.9,0.15,0.01), color=(0.9,0.9,0.9,1),
+        'track':MarkerSet('track', dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX, dims=(0.6,0.4,0.01),
+                          color=(0.9,0.9,0.9,0.2),
                           _list=[
-                              ObjectMarker('track', 71, 0.05, [-0.45-0.0,0.045,0.005], (np.pi,0,0)),
-                              ObjectMarker('track', 72, 0.05, [-0.45+0.2,0.045,0.005], (np.pi,0,0)),
-                              ObjectMarker('track', 73, 0.05, [-0.45+0.2,-0.045,0.005], (np.pi,0,0)),
-                              ObjectMarker('track', 74, 0.05, [-0.45-0.0,-0.045,0.005], (np.pi,0,0))
+                              ObjectMarker('track', 71, 0.05, [-0.29-0.0,0.19-0.00,0.005], (np.pi,0,0)),
+                              ObjectMarker('track', 72, 0.05, [-0.29+0.2,0.19-0.00,0.005], (np.pi,0,0)),
+                              ObjectMarker('track', 73, 0.05, [-0.29+0.2,0.19-0.09,0.005], (np.pi,0,0)),
+                              ObjectMarker('track', 74, 0.05, [-0.29-0.0,0.19-0.09,0.005], (np.pi,0,0))
                           ]),
         'door':MarkerSet('door', dlevel=DetectionLevel.MOVABLE, gtype=GEOTYPE.BOX, dims=(0.36,0.3,0.01), color=(1,1,1,1),
                          _list=[
