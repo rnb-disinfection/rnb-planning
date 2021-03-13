@@ -307,14 +307,14 @@ class PlanningPipeline:
     def execute_schedule(self, snode_schedule, vel_scale=None, acc_scale=None):
         snode_schedule = [snode for snode in snode_schedule]    # re-wrap not to modify outer list
         state_0 = snode_schedule[0].state
-        state_fin = snode_schedule[-1].state
-        state_home = state_fin.copy(self.pscene)
-        state_home.Q = np.array(self.pscene.combined_robot.home_pose)
-        trajectory, Q_last, error, success, binding_list = self.mplan.plan_transition(state_fin, state_home)
-        if success:
-            snode_home = SearchNode(0, state_home, [], [], depth=0, redundancy_dict=None)
-            snode_home.set_traj(trajectory, 0)
-            snode_schedule.append(snode_home)
+        # state_fin = snode_schedule[-1].state
+        # state_home = state_fin.copy(self.pscene)
+        # state_home.Q = np.array(self.pscene.combined_robot.home_pose)
+        # trajectory, Q_last, error, success, binding_list = self.mplan.plan_transition(state_fin, state_home)
+        # if success:
+        #     snode_home = SearchNode(0, state_home, [], [], depth=0, redundancy_dict=None)
+        #     snode_home.set_traj(trajectory, 0)
+        #     snode_schedule.append(snode_home)
 
         self.execute_grip(state_0)
         self.pscene.set_object_state(state_0)

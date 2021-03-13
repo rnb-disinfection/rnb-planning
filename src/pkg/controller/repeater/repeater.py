@@ -91,17 +91,27 @@ class Repeater(object):
             sent = True
         return sent
 
-    def move_joint_interpolated(self, qtar, q0=None, N_div=100, N_stop=None):
+    def move_joint_interpolated(self, qtar, q0=None, N_div=100, N_stop=None, start=False, linear=False, end=False):
         if N_stop is None or N_stop > N_div or N_stop<0:
-            N_stop = N_div + 1
+            if start or linear:
+                N_stop = N_div
+            else:
+                N_stop = N_div + 1
 
         qcur = np.array(self.get_qcur()) if q0 is None else q0
         DQ = qtar - qcur
-
-        self.reset(q0)
+        if not (linear or end):
+            self.reset(q0)
         i_step = 0
         while i_step < N_stop:
-            Q = qcur + DQ * (np.sin(np.pi * (float(i_step) / N_div - 0.5)) + 1) / 2
+            if start:
+                Q = qcur + DQ * (np.sin(np.pi * (float(i_step) / N_div *0.5 - 0.5)) + 1)
+            elif linear:
+                Q = qcur + DQ * (float(i_step) / N_div)
+            elif end:
+                Q = qcur + DQ * (np.sin(np.pi * (float(i_step) / N_div *0.5 )))
+            else:
+                Q = qcur + DQ * (np.sin(np.pi * (float(i_step) / N_div - 0.5)) + 1) / 2
             i_step += self.move_possible_joints_x4(Q)
 
     ##
@@ -116,14 +126,22 @@ class Repeater(object):
     # @param acc_limits radian
     def move_joint_wp(self, trajectory, vel_limits, acc_limits):
         Q_prev = trajectory[0]
-        for i in range(len(trajectory)):
+        len_traj = len(trajectory)
+        start = True
+        for i in range(len_traj):
             Q_cur = trajectory[i]
             diff_abs = np.abs(Q_cur - Q_prev)
             max_diff = np.max(diff_abs, axis=0)
-            T_vmax = np.max(2 * max_diff / vel_limits)
+            if max_diff <= 1e-3:
+                continue
+            T_vmax = np.max(max_diff / vel_limits)
             T_amax = np.sqrt(np.max(2 * max_diff / acc_limits))
             T = np.maximum(T_vmax, T_amax)
-            self.move_joint_interpolated(Q_cur, N_div=np.ceil(T/float(self.traj_freq*4)))
+            end = (i == len_traj - 1)
+            self.move_joint_interpolated(Q_cur, Q_prev,
+                                         N_div=np.ceil(T * float(self.traj_freq * 4)),
+                                         start=start, linear=not (start or end), end=end)
+            start = False
             Q_prev = Q_cur
 
     @abc.abstractmethod

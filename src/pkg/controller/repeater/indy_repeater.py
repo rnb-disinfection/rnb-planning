@@ -53,11 +53,13 @@ class indytraj_client(IndyDCPClient, Repeater):
     ##
     # @param trajectory radian
     def move_joint_wp(self, trajectory, vel_limits, acc_limits):
+        print("indy")
         blend = 3
         vel = int(np.ceil(9*(np.min(vel_limits)/np.deg2rad(150))))
         trajectory = np.rad2deg(trajectory)
         prog = JsonProgramComponent(policy=0, resume_time=2)
         for Q in trajectory:
+            print("Q: {}".format(Q))
             prog.add_joint_move_to(list(Q), vel=vel, blend=blend)
         prog_json = prog.program_done()
         with self:
