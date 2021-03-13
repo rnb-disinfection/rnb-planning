@@ -136,12 +136,10 @@ class GraspChecker(MotionFilterInterface):
         T_link_handle_actor_link = np.matmul(T_handle_lh, SE3_inv(T_actor_lh))
 
         if interpolate:
-            print("interpolating")
             T_link_handle_actor_link_cur = get_tf(actor_link, Q_dict, self.gscene.urdf_content, from_link=object_link)
             T_lhal_list = interpolate_T(T_link_handle_actor_link_cur, T_link_handle_actor_link,
                                         POS_STEP=self.POS_STEP, ROT_STEP=self.ROT_STEP)
         else:
-            print("not interpolating")
             T_lhal_list = [T_link_handle_actor_link]
         # gtimer.toc("preprocess")
 
