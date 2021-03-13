@@ -478,10 +478,11 @@ class BoxObject(AbstractObject):
     # @param oname object's name
     # @param geometry parent geometry
     # @param hexahedral If True, all hexahedral points are defined. Otherwise, only top and bottom points are defined
-    def __init__(self, oname, geometry, hexahedral=True):
+    def __init__(self, oname, geometry, hexahedral=True, CLEARANCE=1e-3):
         self.oname = oname
         self.geometry = geometry
-        Xhalf, Yhalf, Zhalf = np.divide(geometry.dims,2)
+        self.CLEARANCE = CLEARANCE
+        Xhalf, Yhalf, Zhalf = np.divide(geometry.dims,2)+CLEARANCE
         self.action_points_dict = {
             "top_p": PlacePoint("top_p", geometry, [0,0,Zhalf], [np.pi,0,0]),
             "bottom_p": PlacePoint("bottom_p", geometry, [0,0,-Zhalf], [0,0,0]),
