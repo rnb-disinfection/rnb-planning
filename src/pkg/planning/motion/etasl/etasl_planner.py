@@ -198,10 +198,20 @@ class EtaslPlanner(MotionInterface):
             col_text = ""
 
         additional_constraints = '\nconstraint_activation = ctx:createInputChannelScalar("constraint_activation",0.0) \n' if activation else ""
-        for bd1 in binding_list:
-            additional_constraints += make_action_constraints(self.pscene.subject_dict[bd1[0]],
-                self.pscene.subject_dict[bd1[0]].action_points_dict[bd1[1]], self.pscene.actor_dict[bd1[2]],
+        for binding_to in binding_list:
+            subject = self.pscene.subject_dict[binding_to[0]]
+            additional_constraints += make_action_constraints(subject,
+                self.pscene.subject_dict[binding_to[0]].action_points_dict[binding_to[1]], self.pscene.actor_dict[binding_to[2]],
                 redundancy_values=redundancy_values, activation=activation)
+
+            i_stem = self.pscene.subject_name_list.index(binding_to[0])
+            binding_from = from_state.binding_state[i_stem]
+            constraints = subject.make_constraints(binding_from, binding_to)
+            if len(constraints)>0:
+                print("========================================================================================")
+                print("=========== constrained motion not implemented yet. make constaints here ===============")
+                print("========= Take a look at MoveitPlanner.add_constraint and MotionConstraint =============")
+                print("========================================================================================")
 
         if additional_constraints=="" and to_state.Q is not None:# and np.sum(np.abs(np.subtract(to_state.Q,from_state.Q)))>1e-2:
             additional_constraints=make_joint_constraints(joint_names=self.joint_names)
