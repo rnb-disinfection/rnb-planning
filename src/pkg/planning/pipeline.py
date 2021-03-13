@@ -270,6 +270,7 @@ class PlanningPipeline:
     # @param snode_schedule list of SearchNode
     # @param period play period
     def play_schedule(self, snode_schedule, period=0.01):
+        self.pscene.set_object_state(snode_schedule[0].state)
         for snode in snode_schedule:
             if snode.traj is not None:
                 self.pscene.gscene.show_motion(snode.traj, period=period)

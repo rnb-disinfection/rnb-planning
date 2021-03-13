@@ -14,7 +14,8 @@ class MotionFilterInterface:
     # @param handle rnb-planning.src.pkg.planning.constraint.constraint_common.ActionPoint
     # @param redundancy_values calculated redundancy values in dictionary format {(object name, point name): (xyz, rpy)}
     # @param Q_dict joint configuration in dictionary format {joint name: radian value}
+    # @param interpolate    interpolate path and check intermediate poses
     # @return True if feasible, else False
     @abstractmethod
-    def check(self, actor, obj, handle, redundancy_values, Q_dict):
+    def check(self, actor, obj, handle, redundancy_values, Q_dict, interpolate):
         pass

@@ -103,6 +103,7 @@ class Subject:
     ## @brief SubjectType
     stype = None
     unstoppable = False
+    constrained = False
     def __init__(self):
         ## @brief name of object
         self.oname = None
@@ -191,6 +192,7 @@ class AbstractTask(Subject):
 # @remark   state_param: boolean vector of which each element represents if each waypoint is covered or not
 #           node_item: number of covered waypoints
 class SweepTask(AbstractTask):
+    constrained = True
     ##
     # @param oname object's name
     # @param geometry parent geometry
@@ -278,6 +280,7 @@ class SweepTask(AbstractTask):
 #           node_item: number of covered waypoints
 class SweepLineTask(AbstractTask):
     unstoppable = True
+    constrained = True
     ##
     # @param oname object's name
     # @param geometry parent geometry

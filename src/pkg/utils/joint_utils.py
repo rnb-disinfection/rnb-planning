@@ -168,11 +168,22 @@ def build_T_chain(link_names, joint_dict, urdf_content, Tlink_dict=None):
             Tlink_dict[lname] = np.matmul(Tp, get_joint_tf(urdf_content.joint_map[pjname], joint_dict))
     return Tlink_dict
 
-def get_reverse_T_dict(link_names, joint_dict, urdf_content):
-    ref_link = link_names[0]
-    Tinv_dict = {ref_link: np.identity(4)}
-    for link_name in link_names[1:]:
-        Tinv_dict[link_name] = SE3_inv(get_tf(ref_link, joint_dict, urdf_content, from_link=link_name))
+def get_T_dict_reverse(ref_link, link_names, joint_dict, urdf_content):
+    Tinv_dict = {}
+    for link_name in link_names:
+        if ref_link == link_name:
+            Tinv_dict[link_name] = np.identity(4)
+        else:
+            Tinv_dict[link_name] = SE3_inv(get_tf(ref_link, joint_dict, urdf_content, from_link=link_name))
+    return Tinv_dict
+
+def get_T_dict_foward(ref_link, link_names, joint_dict, urdf_content):
+    Tinv_dict = {}
+    for link_name in link_names:
+        if ref_link == link_name:
+            Tinv_dict[link_name] = np.identity(4)
+        else:
+            Tinv_dict[link_name] = get_tf(link_name, joint_dict, urdf_content, from_link=ref_link)
     return Tinv_dict
 
 def get_joint_names_csv(joint_names):

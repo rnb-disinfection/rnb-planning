@@ -13,12 +13,15 @@ class GraspChecker(MotionFilterInterface):
     ##
     # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
     # @param end_link_couple_dict links to douple  in reserse order, {end_link: [end_link, parent1, parnt2, ...]}
-    def __init__(self, pscene, end_link_couple_dict):
+    def __init__(self, pscene, end_link_couple_dict, POS_STEP=0.05, ROT_STEP=np.pi/8):
         for k,v in end_link_couple_dict.items():
             assert v[0] == k, "actor_link_names should be in reverse order including actor's link as the first item"
+        self.pscene = pscene
         self.gscene = pscene.gscene
         self.end_link_couple_dict = end_link_couple_dict
         self.chain_dict = pscene.get_robot_chain_dict()
+        self.POS_STEP = POS_STEP
+        self.ROT_STEP = ROT_STEP
         ##
         # @brief link-to-robot dictionary {link name: robot name}
         self.link_robot_dict = {}
@@ -41,11 +44,13 @@ class GraspChecker(MotionFilterInterface):
     # @param handle rnb-planning.src.pkg.planning.constraint.constraint_common.ActionPoint
     # @param redundancy_values calculated redundancy values in dictionary format {(object name, point name): (xyz, rpy)}
     # @param Q_dict joint configuration in dictionary format {joint name: radian value}
-    def check(self, actor, obj, handle, redundancy_values, Q_dict, obj_only=False):
+    # @param interpolate    interpolate path and check intermediate poses
+    def check(self, actor, obj, handle, redundancy_values, Q_dict, interpolate, obj_only=False):
         # gtimer = GlobalTimer.instance()
         # gtimer.tic("get_grasping_vert_infos")
         actor_vertinfo_list, object_vertinfo_list, _, _, _ = self.get_grasping_vert_infos(
-            actor, obj, handle, redundancy_values, Q_dict, obj_only=obj_only)
+            actor, obj, handle, redundancy_values, Q_dict, obj_only=obj_only,
+            interpolate=interpolate)
         # gtimer.toc("get_grasping_vert_infos")
         actor_vertice_list = []
         for geo_name, T, verts, radius, geo_dims in actor_vertinfo_list:
@@ -97,10 +102,12 @@ class GraspChecker(MotionFilterInterface):
     # @param redundancy_values calculated redundancy values in dictionary format {(object name, point name): (xyz, rpy)}
     # @param Q_dict     joint configuration in dictionary format {joint name: radian value}
     # @param obj_only   only use object and its family's geometry from the object side
+    # @param interpolate    interpolate path and check intermediate poses
     # @return   information for objects attached to the actor in actor_vertinfo_list and
     #           information for objects attached to the object in object_vertinfo_list.
     #           each list item consist of (geometry name, T(4x4), vertices, radius, geometry dimensions)
-    def get_grasping_vert_infos(self, actor, obj, handle, redundancy_values, Q_dict, obj_only=False):
+    def get_grasping_vert_infos(self, actor, obj, handle, redundancy_values, Q_dict, obj_only=False,
+                                interpolate=False):
         # gtimer = GlobalTimer.instance()
         # gtimer.tic("preprocess")
         point_add_handle, rpy_add_handle = redundancy_values[(obj.oname, handle.name)]
@@ -128,23 +135,40 @@ class GraspChecker(MotionFilterInterface):
         T_actor_lh = np.matmul(actor.Toff_lh, SE3(Rot_rpy(rpy_add_actor), point_add_actor))
         T_link_handle_actor_link = np.matmul(T_handle_lh, SE3_inv(T_actor_lh))
 
+        if interpolate:
+            print("interpolating")
+            T_link_handle_actor_link_cur = get_tf(actor_link, Q_dict, self.gscene.urdf_content, from_link=object_link)
+            T_lhal_list = interpolate_T(T_link_handle_actor_link_cur, T_link_handle_actor_link,
+                                        POS_STEP=self.POS_STEP, ROT_STEP=self.ROT_STEP)
+        else:
+            print("not interpolating")
+            T_lhal_list = [T_link_handle_actor_link]
         # gtimer.toc("preprocess")
 
         #     with gtimer.block('extract_vertices'):
         # gtimer.tic("invT")
-        actor_Tinv_dict = get_reverse_T_dict(actor_link_names, Q_dict, self.gscene.urdf_content)
-        object_Tinv_dict = get_reverse_T_dict(object_link_names, Q_dict, self.gscene.urdf_content)
+        if actor_link == "base_link":
+            actor_Tinv_dict = get_T_dict_foward(actor_link, actor_link_names, Q_dict, self.gscene.urdf_content)
+        else:
+            actor_Tinv_dict = get_T_dict_reverse(actor_link, actor_link_names, Q_dict, self.gscene.urdf_content)
+        if object_link == "base_link":
+            object_Tinv_dict = get_T_dict_foward(object_link, object_link_names, Q_dict, self.gscene.urdf_content)
+        else:
+            object_Tinv_dict = get_T_dict_reverse(object_link, object_link_names, Q_dict, self.gscene.urdf_content)
+
         # gtimer.toc("invT")
         actor_vertinfo_list = []
         object_vertinfo_list = []
         for ac_geo in actor_geo_list:
             if ac_geo.collision:
-                # gtimer.tic("ac_geo_calc_verts")
-                T = actor_Tinv_dict[ac_geo.link_name]
-                verts, radius = ac_geo.get_vertice_radius()
-                Tac = np.matmul(T_link_handle_actor_link, np.matmul(T, ac_geo.Toff))
-                actor_vertinfo_list.append((ac_geo.name, Tac, verts, radius, ac_geo.dims))
-                # gtimer.toc("ac_geo_calc_verts")
+                for T_lhal in T_lhal_list:
+                    # gtimer.tic("ac_geo_calc_verts")
+                    T = actor_Tinv_dict[ac_geo.link_name]
+                    verts, radius = ac_geo.get_vertice_radius()
+                    Tac = np.matmul(T_lhal, np.matmul(T, ac_geo.Toff))
+                    actor_vertinfo_list.append((ac_geo.name, Tac, verts, radius, ac_geo.dims))
+                    # gtimer.toc("ac_geo_calc_verts")
+
         for obj_geo in object_geo_list:
             if obj_geo.collision:
                 # gtimer.tic("obj_geo_calc_verts")
