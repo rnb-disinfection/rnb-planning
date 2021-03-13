@@ -124,7 +124,7 @@ class TaskRRT(TaskInterface):
                     try:
                         parent_sidx, new_node = self.attempts_reseved.get(timeout=0.1)
                         self.reserved_attempt = True
-                        print("got reserved one from {}".format(parent_sidx))
+                        # print("got reserved one from {}".format(parent_sidx))
                     except:
                         pass
             if not self.reserved_attempt:
@@ -133,7 +133,7 @@ class TaskRRT(TaskInterface):
                     parent_nodes = self.node_parent_dict[new_node]
                     parent_node = self.parent_node_sampler(list(parent_nodes.intersection(self.node_snode_dict.keys())))
                     parent_sidx = self.parent_snode_sampler(self.node_snode_dict[parent_node])
-                    print("sampled one from {}".format(parent_sidx))
+                    # print("sampled one from {}".format(parent_sidx))
                 except Exception as e:  ## currently occurs when terminating search in multiprocess
                     try:
                         print("ERROR sampling parent from : {} / parent nodes: {}".format(new_node, parent_nodes))
@@ -192,7 +192,7 @@ class TaskRRT(TaskInterface):
         if self.custom_rule is not None:
             cres, next_items = self.custom_rule(self, snode_src, snode_new, connection_result)
             if cres:
-                print("make custom reservation: {}".format(next_items))
+                # print("make custom reservation: {}".format(next_items))
                 for next_item in next_items:
                     self.attempts_reseved.put((snode_new.idx, next_item))
 
@@ -214,8 +214,8 @@ class TaskRRT(TaskInterface):
                                                    for match_i  in match_self_idx])]
                             node_extend = self.new_node_sampler(nodes_candi)
                             self.attempts_reseved.put((snode_new.idx, node_extend))
-                            print("=============== try extend to goal {} -> {} =================".format(
-                                node_new, node_extend))
+                            # print("=============== try extend to goal {} -> {} =================".format(
+                            #     node_new, node_extend))
 
         return False
 
