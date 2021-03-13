@@ -124,6 +124,11 @@ class PlanningPipeline:
             self.proc_list = []
             self.__search_loop(0, terminate_on_first, N_search, display, dt_vis, verbose, timeout_loop, **kwargs)
 
+    def wait_procs(self):
+        for proc in self.proc_list:
+            while ((not self.stop_now.value) and (not any(self.stop_dict.values()))):
+                proc.join(timeout=0.1)
+
     def __search_loop(self, ID, terminate_on_first, N_search,
                       display=False, dt_vis=None, verbose=False, timeout_loop=600, **kwargs):
         loop_counter = 0
@@ -238,11 +243,12 @@ class PlanningPipeline:
 
     ##
     # @brief add return motion to a SearchNode schedule
-    def add_return_motion(self, snode_schedule, timeout=5):
-        state_first = snode_schedule[0].state
+    def add_return_motion(self, snode_schedule, initial_state=None, timeout=5):
+        if initial_state is None:
+            initial_state = snode_schedule[0].state
         snode_last = snode_schedule[-1]
         state_last = snode_last.state
-        diffQ = state_first.Q - state_last.Q
+        diffQ = initial_state.Q - state_last.Q
         diff_dict = {rname: np.sum(np.abs(diffQ[idx]))>1e-4
                      for rname, idx in self.pscene.combined_robot.idx_dict.items()}
         snode_pre = snode_last
@@ -251,7 +257,7 @@ class PlanningPipeline:
             if diff:
                 rbt_idx = self.pscene.combined_robot.idx_dict[rname]
                 state_new = state_pre.copy(self.pscene)
-                state_new.Q[rbt_idx] = state_first.Q[rbt_idx]
+                state_new.Q[rbt_idx] = initial_state.Q[rbt_idx]
                 traj, state_next, error, succ = self.test_connection(state_pre, state_new, redundancy_dict=None,
                                                                       display=False, timeout=timeout)
                 snode_next = self.tplan.make_search_node(snode_pre, state_next, traj, None)
