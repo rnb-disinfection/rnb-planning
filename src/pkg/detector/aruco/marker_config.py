@@ -20,12 +20,12 @@ def get_aruco_map():
         ]),
         'floor':MarkerSet('floor', dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX, dims=(1.52,0.72,0.01),
                           _list=[
-                              ObjectMarker('floor', 101, 0.05, [-0.1,0.07,0.005], (np.pi,0,0)),
-                              ObjectMarker('floor', 102, 0.05, [0.1,0.07,0.005], (np.pi,0,0)),
-                              ObjectMarker('floor', 103, 0.05, [0.1,-0.07,0.005], (np.pi,0,0)),
-                              ObjectMarker('floor', 104, 0.05, [-0.1,-0.07,0.005], (np.pi,0,0))
+                              ObjectMarker('floor', 101, 0.05, [0.66-0.25-0.1,-0.29+0.17+0.07,0.005], (np.pi,0,0)),
+                              ObjectMarker('floor', 102, 0.05, [0.66-0.25+0.1,-0.29+0.17+0.07,0.005], (np.pi,0,0)),
+                              ObjectMarker('floor', 103, 0.05, [0.66-0.25+0.1,-0.29+0.17-0.07,0.005], (np.pi,0,0)),
+                              ObjectMarker('floor', 104, 0.05, [0.66-0.25+-0.1,-0.29+0.17-0.07,0.005], (np.pi,0,0))
                           ]),
-        'wall':MarkerSet('wall', dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX, dims=(3,3,0.01),
+        'wall':MarkerSet('wall', dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX, dims=(3,3,0.10),
                          _list=[
                              ObjectMarker('wall', 91, 0.05, [-0.1,0.075,0], (np.pi,0,0)),
                              ObjectMarker('wall', 92, 0.05, [0.1,0.075,0], (np.pi,0,0)),

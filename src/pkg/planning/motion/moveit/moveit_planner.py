@@ -12,7 +12,7 @@ def gtype_to_otype(gtype):
     if gtype==GEOTYPE.BOX:
         return ObjectType.BOX
     if gtype==GEOTYPE.PLANE:
-        return ObjectType.PLANE
+        return ObjectType.PLANE ## Currently Errornous
     if gtype==GEOTYPE.SPHERE:
         return ObjectType.SPHERE
     if gtype in [GEOTYPE.CAPSULE, GEOTYPE.CYLINDER]:

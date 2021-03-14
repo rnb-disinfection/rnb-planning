@@ -353,6 +353,11 @@ def sigmoid(x):
     return 1 / (1 +np.exp(-x))
 
 
+def sign_positive_bias(Q):
+    signQ = np.sign(Q)
+    return signQ.astype(np.int) + (signQ==0).astype(np.int)
+
+
 ##
 # @class DummyBlock
 # @brief dummy for None instance for with phrase
