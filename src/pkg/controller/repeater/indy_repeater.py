@@ -98,34 +98,16 @@ class indytraj_client(IndyDCPClient, Repeater):
 
     ##
     # @param trajectory radian
-    # @param vel_limits radian
-    # @param acc_limits radian
-    def move_joint_wp(self, trajectory, vel_limits, acc_limits, wait_finish=True, auto_stop=False):
-        Q_prev = trajectory[0]
-        len_traj = len(trajectory)
-        start = True
+    # @param vel_lims radian/s, scalar or vector
+    # @param acc_lims radian/s2, scalar or vector
+    def move_joint_wp(self, trajectory, vel_lims, acc_lims, wait_finish=True, auto_stop=False):
+        traj_tot = calc_safe_cubic_traj(1.0/self.traj_freq, trajectory, vel_lim=vel_lims, acc_lim=acc_lims)
+        self.reset()
         self.start_tracking()
-        for i in range(len_traj):
-            Q_cur = trajectory[i]
-            diff_abs = np.abs(Q_cur - Q_prev)
-            max_diff = np.max(diff_abs, axis=0)
-            if max_diff <= 1e-3:
-                continue
-            T_vmax = np.max(max_diff / vel_limits)
-            T_amax = np.sqrt(np.max(2 * max_diff / acc_limits))
-            T = np.maximum(T_vmax, T_amax)
-            end = (i == len_traj - 1)
-            self.move_joint_interpolated(Q_cur, Q_prev,
-                                         N_div=np.ceil(T * float(self.traj_freq * 4)),
-                                         start=start, linear=not (start or end), end=end)
-            start = False
-            Q_prev = Q_cur
-        self.start_tracking()
-        if wait_finish:
-            while(self.get_qcount()>0):
-                time.sleep(self.period_s)
-            if auto_stop:
-                self.stop_tracking()
+        for Q in traj_tot:
+            self.move_possible_joints_x4(Q)
+        if auto_stop:
+            self.stop_tracking()
 
     def connect_and(self, func, *args, **kwargs):
         with self:

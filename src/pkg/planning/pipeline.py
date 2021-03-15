@@ -304,6 +304,8 @@ class PlanningPipeline:
 
     ##
     # @brief execute schedule
+    # @param vel_scale velocity scale to max. robot velocity defined in RobotConfig
+    # @param acc_scale acceleration scale to max. robot velocity defined in RobotConfig
     def execute_schedule(self, snode_schedule, vel_scale=None, acc_scale=None):
         snode_schedule = [snode for snode in snode_schedule]    # re-wrap not to modify outer list
         state_0 = snode_schedule[0].state

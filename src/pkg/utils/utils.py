@@ -36,6 +36,8 @@ def interpolate_double(X):
         [np.reshape(np.concatenate([X[:-1],X_med], axis=1), (-1, X.shape[1])),
         X[-1:]], axis=0)
 
+##
+# @brief matrix multiplication of last 2 dimensions
 def matmul_md(A, B):
     return np.sum((np.expand_dims(A, axis=-1) * np.expand_dims(B, axis=-3)), axis=-2)
 

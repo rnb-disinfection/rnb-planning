@@ -2,6 +2,7 @@ import time
 import numpy as np
 import rospy
 from ...utils.utils import *
+from ...utils.traj_utils import *
 import abc
 
 DEFAULT_PORT_REPEATER = 1189
@@ -122,27 +123,12 @@ class Repeater(object):
 
     ##
     # @param trajectory radian
-    # @param vel_limits radian
-    # @param acc_limits radian
-    def move_joint_wp(self, trajectory, vel_limits, acc_limits):
-        Q_prev = trajectory[0]
-        len_traj = len(trajectory)
-        start = True
-        for i in range(len_traj):
-            Q_cur = trajectory[i]
-            diff_abs = np.abs(Q_cur - Q_prev)
-            max_diff = np.max(diff_abs, axis=0)
-            if max_diff <= 1e-3:
-                continue
-            T_vmax = np.max(max_diff / vel_limits)
-            T_amax = np.sqrt(np.max(2 * max_diff / acc_limits))
-            T = np.maximum(T_vmax, T_amax)
-            end = (i == len_traj - 1)
-            self.move_joint_interpolated(Q_cur, Q_prev,
-                                         N_div=np.ceil(T * float(self.traj_freq * 4)),
-                                         start=start, linear=not (start or end), end=end)
-            start = False
-            Q_prev = Q_cur
+    # @param vel_lims radian/s, scalar or vector
+    # @param acc_lims radian/s2, scalar or vector
+    def move_joint_wp(self, trajectory, vel_lims, acc_lims):
+        traj_tot = calc_safe_cubic_traj(1.0/self.traj_freq, trajectory, vel_lim=vel_lims, acc_lim=acc_lims)
+        for Q in traj_tot:
+            self.move_possible_joints_x4(Q)
 
     @abc.abstractmethod
     def start_online_tracking(self, Q0):
