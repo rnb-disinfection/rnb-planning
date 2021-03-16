@@ -30,6 +30,11 @@ def calc_cubic_vel(t, a, b, c):
 
 ##
 # @brief waypoint period to observe acc&vel limits with cubic interpolation
+# @remark   Check velocity and acceleration limits by |3at^2+2bt+c|<Vmax, |6at+2b|<Amax. \n
+#           Applying time scale r to at^3+bt^2+ct+d=Q makes ar^3t^3+br^2t^2+crt+d=Q,
+#           makeing a_new = ar^3, b_new=br^2, c_new = cr. \n
+#           But this implementation is only an estimation and does not give an optimal answer,
+#           as c_new = c = v0 is a given constant value.
 # @dt_step minimal timestep
 # @return dt, a, b, c, d
 def calc_cubic_coeffs_safe(dt_step, v0, q0, q1, q2, vel_lim, acc_lim, dt_init=None):
@@ -37,46 +42,29 @@ def calc_cubic_coeffs_safe(dt_step, v0, q0, q1, q2, vel_lim, acc_lim, dt_init=No
     dt_cur = np.max(np.abs(q1 - q0) / vel_lim) if dt_init is None else dt_init
     if dt_cur < dt_step:
         return 0, 0, 0, v0, q0
-    case = 0
+
     while not all_pass:
         a, b, c, d = calc_cubic_coeffs(dt_cur, v0, q0, q1, q2)
         a6T, b2 = 6 * a * dt_cur, 2 * b
         a6T_b2 = a6T + b2
-        a3T2, b2T_v0 = 3 * a * dt_cur ** 2, 2 * b * dt_cur + c
-        a3T2_b2T_v0 = a3T2 + b2T_v0
-        if case > 0:
-            # if case == 1:
-            #     print("res1 {}: \n{} \n{}".format(np.round(dt_cur, 2), np.round(np.abs(b2),2), np.round(acc_lim, 2)))
-            if case == 2: # This is remained because case 2 is not tested yet
-                print("res2 {}: \n{} \n{}".format(np.round(dt_cur, 2), np.round(np.abs(a6T_b2),2), np.round(acc_lim,2)))
-            # if case == 3:
-            #     print("res3 {}: \n{} \n{}".format(np.round(dt_cur, 2), np.round(np.abs(a3T2_b2T_v0), 2), np.round(vel_lim, 2)))
+        a3T2, b2T = 3 * a * dt_cur ** 2, 2 * b * dt_cur
+        a3T2_b2T_c = a3T2 + b2T + c
 
-        if np.max(np.abs(b2)-acc_lim) > 0:
-            # case = 1
-            # print("case1 {}: \n{} \n{}".format(np.round(dt_cur, 2), np.round(np.abs(b2),2), np.round(acc_lim, 2)))
-            ratio = np.sqrt(np.min(acc_lim/np.abs(b2))) * 0.99
-        elif np.max(np.abs(a6T_b2)-acc_lim) > 0:
-            case = 2 # This is remained because case 2 is not tested yet
-            print("case2 {}: \n{} \n{}".format(np.round(dt_cur, 2), np.round(np.abs(a6T_b2),2), np.round(acc_lim,2)))
+        if np.max(np.abs(b2) / acc_lim) > 1:                # at t=0, |2b|<Amax
+            ratio = np.sqrt(np.min(acc_lim/np.abs(b2))) * 0.99  # give 1% margin
+        elif np.max(np.abs(a6T_b2) / acc_lim) > 1:            # at t=T, |6aT+2b|<Amax
             dir_c2 = sign_positive_bias(a6T_b2)
             roots = [np.roots([c1, c2, 0, c4]) for c1, c2, c4 in zip(a6T, b2,  -dir_c2*acc_lim)]
             ratio = np.min(
                 [np.min([np.real(rt) for rt in root_single if np.imag(rt) < 1e-6 and np.real(rt) > 0]) for
-                 root_single in roots]) * 0.99  # give 1% margin
-        elif np.max(np.abs(a3T2_b2T_v0)-vel_lim) > 0:
-            # case = 3
-            # print("case3 {}: \n{} \n{}".format(np.round(dt_cur, 2), np.round(np.abs(a3T2_b2T_v0), 2), np.round(vel_lim, 2)))
-            dir_c3 = sign_positive_bias(a3T2_b2T_v0)
-            roots = [np.roots([c1, c2, 0, c4]) for c1, c2, c4 in zip(a3T2, b2T_v0,  -dir_c3*vel_lim)]
+                 root_single in roots]) * 0.99          # give 1% margin
+        elif np.max(np.abs(a3T2_b2T_c) / vel_lim) > 1:            # at t=T, |3aT^2+2bT+c|<Vmax
+            dir_c3 = sign_positive_bias(a3T2_b2T_c)
+            roots = [np.roots([c1, c2, c3, c4]) for c1, c2, c3, c4 in zip(a3T2, b2T, c,  -dir_c3*vel_lim)]
             ratio = np.min(
                 [np.min([np.real(rt) for rt in root_single if np.imag(rt) < 1e-6 and np.real(rt) > 0]) for
-                 root_single in roots]) * 0.99  # give 1% margin
+                 root_single in roots]) * 0.99          # give 1% margin
         else:
-            case = 0
-            # print("res1 {}: \n{} \n{}".format(np.round(dt_cur, 2), np.round(np.abs(b2),2), np.round(acc_lim, 2)))
-            # print("res2 {}: \n{} \n{}".format(np.round(dt_cur, 2), np.round(np.abs(a6T_b2),2), np.round(acc_lim,2)))
-            # print("res3 {}: \n{} \n{}".format(np.round(dt_cur, 2), np.round(np.abs(a3T2_b2T_v0), 2), np.round(vel_lim, 2)))
             all_pass = True
             continue
 
@@ -137,26 +125,34 @@ def get_traj_all(dt_step, T_list, Q_list):
 # @brief get full cubic trajectory for given waypoint trajectory
 # @remark terminal deceleration considered
 def calc_safe_cubic_traj(dt_step, trajectory, vel_lim, acc_lim):
+    # calculate trajectory in forward and backward direction to consider deceleration
     T_list, Q_list, _ = get_safe_cubics(dt_step, trajectory, vel_lim=vel_lim, acc_lim=acc_lim)
     Trev_list, Qrev_list, _ = get_safe_cubics(dt_step, np.array(list(reversed(trajectory))), vel_lim=vel_lim,
                                               acc_lim=acc_lim)
+
+    # weighting values to mix waypoint times, in S curves
     Tlen = len(T_list)-1
     alphaT = (np.arange(Tlen).astype(np.float) / (Tlen - 1))
-    alphaT = (np.cos((alphaT + 1) * np.pi) + 1) / 2
-    betaT = 1 - alphaT
+    alphaT = (np.cos((alphaT + 1) * np.pi) + 1) / 2     # forward weights
+    betaT = 1 - alphaT                                  # backward weights
+    # mix waypoint times with weights
     T_list = list(((alphaT*np.array(T_list[:-1])
                     + betaT*np.array(list(reversed(Trev_list[:-1]))))
                    / dt_step).astype(np.int)*dt_step) # make sure each T is integer multiplication of dt_step
-    Trev_list = list(reversed(T_list)) + [0]
-    T_list = T_list + [0]
+    T_list, Trev_list = T_list + [0], list(reversed(T_list)) + [0]
     # T_accum = [np.sum(T_list[:i]) for i in range(len(T_list))]
+
+    # re-calculate trajectory with mixed waypoint times
     t_all, traj_all = get_traj_all(dt_step, T_list, Q_list)
     trev_all, trajrev_all = get_traj_all(dt_step, Trev_list, Qrev_list)
-    traj_all = np.array(traj_all)
-    trajrev_all = np.array(list(reversed(trajrev_all)))
+    traj_all, trajrev_all = np.array(traj_all), np.array(list(reversed(trajrev_all)))
+
+    # weighting values to mix waypoint times, in S curves
     traj_len = len(traj_all)
     alpha = (np.arange(traj_len).astype(np.float) / (traj_len - 1))[:, np.newaxis]
     alpha = (np.cos((alpha + 1) * np.pi) + 1) / 2
     beta = 1 - alpha
+
+    # mix forward and backward trajectory with S curve weights
     traj_tot = beta * traj_all + alpha * trajrev_all
     return traj_tot
