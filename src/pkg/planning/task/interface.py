@@ -159,16 +159,39 @@ class TaskInterface:
     ##
     # @brief find all schedules
     # @return list of SearchNode index list
-    def find_schedules(self):
+    def find_schedules(self, at_home=True):
         schedule_dict = {}
-        for i in range(self.snode_counter.value):
+        sidx_checked = set()
+        for i in reversed(sorted(self.snode_dict.keys())):
+            if i in sidx_checked:
+                continue
             snode = self.snode_dict[i]
             state = snode.state
             # parent should be checked - there are bi-directional trees
             if (self.check_goal(state) and len(snode.parents)>0 and snode.parents[0] == 0):
+                if at_home and np.linalg.norm(state.Q-self.initial_state.Q)>1e-2:
+                    continue
                 schedule = snode.parents + [i]
                 schedule_dict[i] = schedule
+                sidx_checked = sidx_checked.union(schedule)
         return schedule_dict
+
+    ##
+    # @brief find all schedules
+    def print_snode_list(self):
+        for i_s, snode in sorted(self.snode_dict.items(), key=lambda x: x):
+            print("{}{}<-{}{}".format(i_s, snode.state.node, snode.parents[-1] if snode.parents else "", self.tplan.snode_dict[snode.parents[-1]].state.node if snode.parents else ""))
+
+    ##
+    # @brief sort schedules
+    def sort_schedule(self, schedule_dict):
+        return sorted(schedule_dict.values(), key=lambda x: self.snode_dict[x[-1]].traj_tot)
+
+    ##
+    # @brief get list of SearchNode from list of SearchNode index
+    def idxSchedule2SnodeScedule(self, schedule):
+        snode_schedule = [self.snode_dict[i_sc] for i_sc in schedule]
+        return snode_schedule
 
 
 ##
