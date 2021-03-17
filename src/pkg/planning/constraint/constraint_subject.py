@@ -72,6 +72,12 @@ class Grasp2Point(DirectedPoint):
 class SweepPoint(DirectedPoint):
     ctype=ConstraintType.Sweep
 
+##
+# @class SweepPoint
+# @brief ActionPoint for rnb-planning.src.pkg.planning.constraint.constraint_actor.SweepTool
+class SweepFrame(FramePoint):
+    ctype=ConstraintType.Sweep
+
 
 ##
 # @class FixturePoint
@@ -96,6 +102,8 @@ class SubjectType(Enum):
 class Subject:
     ## @brief SubjectType
     stype = None
+    unstoppable = False
+    constrained = False
     def __init__(self):
         ## @brief name of object
         self.oname = None
@@ -184,6 +192,7 @@ class AbstractTask(Subject):
 # @remark   state_param: boolean vector of which each element represents if each waypoint is covered or not
 #           node_item: number of covered waypoints
 class SweepTask(AbstractTask):
+    constrained = True
     ##
     # @param oname object's name
     # @param geometry parent geometry
@@ -244,6 +253,96 @@ class SweepTask(AbstractTask):
     def get_neighbor_node_component_list(self, node_tem, pscene):
         if node_tem < len(self.state_param):
             return [node_tem, node_tem+1]
+        else:
+            return [node_tem]
+
+    ##
+    # @brief get all object-level node component
+    def get_all_node_components(self, pscene):
+        return list(range(len(self.state_param)+1))
+
+    ##
+    # @brief return list of state_params corresponds to given node_item.
+    def get_corresponding_params(self, node_item):
+        idx_combs = combinations(range(self.action_point_len), node_item)
+        params_list = []
+        for comb in idx_combs:
+            param = np.zeros(len(self.action_points_order), dtype=np.bool)
+            param[list(comb)] = True
+            params_list.append(param)
+        return params_list
+
+
+##
+# @class SweepTask
+# @brief sweep action points in alphabetical order
+# @remark   state_param: boolean vector of which each element represents if each waypoint is covered or not
+#           node_item: number of covered waypoints
+class SweepLineTask(AbstractTask):
+    unstoppable = True
+    constrained = True
+    ##
+    # @param oname object's name
+    # @param geometry parent geometry
+    # @param action_points_dict pre-defined action points as dictionary
+    def __init__(self, oname, geometry, action_points_dict, geometry_vertical):
+        self.oname = oname
+        self.geometry = geometry
+        self.geometry_vertical = geometry_vertical
+        self.action_points_dict = action_points_dict
+        self.action_points_order = sorted(self.action_points_dict.keys())
+        self.action_point_len = len(self.action_points_order)
+        self.state_param = np.zeros(len(self.action_points_order), dtype=np.bool)
+        self.binding = (self.oname, None, None, None)
+
+    ##
+    # @brief make constraints. by default, empty list.
+    # @remark constraint is applied when using same binding
+    # @param binding_from previous binding
+    # @param binding_to next binding
+    def make_constraints(self, binding_from, binding_to, tol=1e-3):
+        if binding_from is not None and binding_from[2] == binding_to[2]:
+            return [MotionConstraint([self.geometry], True, True, tol),
+                    MotionConstraint([self.geometry_vertical], True, False, tol)]
+        else:
+            return []
+
+    ##
+    # @brief set object binding state and update location
+    # @param binding (handle name, binder name)
+    # @param state_param list of done-mask
+    def set_state(self, binding, state_param=None):
+        self.binding = binding
+        if state_param is not None:
+            self.state_param = state_param.copy()
+
+    ##
+    # @brief (prototype) get state param
+    # @return item for state_param
+    def get_state_param(self):
+        return self.state_param.copy()
+
+    ##
+    # @brief get object-level state_param component
+    def get_state_param_update(self, binding, state_param):
+        if binding[1] is not None:
+            state_param[self.action_points_order.index(binding[1])] = True
+        return state_param
+
+    ##
+    # @brief get object-level node component (finished waypoint count)
+    @classmethod
+    def get_node_component(cls, binding_state, state_param):
+        if binding_state[1] is not None:
+            return int(np.sum(state_param))
+        else:
+            return 0
+
+    ##
+    # @brief get object-level neighbor component (detach or next waypoint)
+    def get_neighbor_node_component_list(self, node_tem, pscene):
+        if node_tem < len(self.state_param):
+            return [node_tem+1]
         else:
             return [node_tem]
 
@@ -379,10 +478,11 @@ class BoxObject(AbstractObject):
     # @param oname object's name
     # @param geometry parent geometry
     # @param hexahedral If True, all hexahedral points are defined. Otherwise, only top and bottom points are defined
-    def __init__(self, oname, geometry, hexahedral=True):
+    def __init__(self, oname, geometry, hexahedral=True, CLEARANCE=1e-3):
         self.oname = oname
         self.geometry = geometry
-        Xhalf, Yhalf, Zhalf = np.divide(geometry.dims,2)
+        self.CLEARANCE = CLEARANCE
+        Xhalf, Yhalf, Zhalf = np.divide(geometry.dims,2)+CLEARANCE
         self.action_points_dict = {
             "top_p": PlacePoint("top_p", geometry, [0,0,Zhalf], [np.pi,0,0]),
             "bottom_p": PlacePoint("bottom_p", geometry, [0,0,-Zhalf], [0,0,0]),

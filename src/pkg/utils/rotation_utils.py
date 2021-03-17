@@ -251,4 +251,32 @@ def mat2hori(orientation_mat, theta=0):
     zenith = np.arctan2(np.sqrt(x**2+y**2), -z)%np.pi
     return azimuth_loc, zenith
 
+##
+# @brief interpolate between 2 transformation matrices(4x4)
+# @remark Either POS_STEP and ROT_STEP or N_STEP should be given
+def interpolate_T(T1, T2, POS_STEP=None, ROT_STEP=None, N_STEP=None):
+    R_cur = T1[:3, :3]
+    R_new = T2[:3, :3]
 
+    P_cur = T1[:3, 3]
+    P_new = T2[:3, 3]
+
+    dP = P_new - P_cur
+    dPnm = np.linalg.norm(dP)
+
+    dR = np.matmul(R_cur.transpose(), R_new)
+    dRvec = Rotation.from_dcm(dR).as_rotvec()
+    dRnm = np.linalg.norm(dRvec)
+
+    if N_STEP is None:
+        assert None not in [POS_STEP, ROT_STEP], "Either POS_STEP and ROT_STEP or N_STEP should be given"
+        N_STEP = max(int(ceil(dPnm / POS_STEP)), int(ceil(dRnm / ROT_STEP)))
+
+    dPstep = dP / N_STEP
+    Parr = np.array([np.arange(P_cur[i], P_new[i] + dPstep[i]/2, dPstep[i]) for i in range(3)]).transpose()
+
+    dRstep = dRvec / N_STEP
+    dRarr = np.array([np.arange(0, dRvec[i] + dRstep[i]/2, dRstep[i]) for i in range(3)])
+    Rarr = np.array([np.matmul(R_cur, Rotation.from_rotvec(dRvec_tmp).as_dcm()) for dRvec_tmp in dRarr.transpose()])
+
+    return [SE3(R, P) for R, P in zip(Rarr, Parr)]

@@ -41,8 +41,8 @@ def div_h(h):
 class LatticedChecker(MotionFilterInterface):
     ##
     # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
-    # @param end_link_couple_dict links to douple  in reserse order, {end_link: [end_link, parent1, parnt2, ...]}
-    def __init__(self, pscene, end_link_couple_dict):
+    # @param gcheck GraspChecker
+    def __init__(self, pscene, gcheck):
         self.pscene = pscene
         self.combined_robot = pscene.combined_robot
         self.model_dict = {}
@@ -53,8 +53,8 @@ class LatticedChecker(MotionFilterInterface):
         self.rconfig_dict = self.combined_robot.get_robot_config_dict()
 
         self.gscene = pscene.gscene
-        self.end_link_couple_dict = end_link_couple_dict
-        self.gcheck = GraspChecker(pscene=pscene, end_link_couple_dict=end_link_couple_dict)
+        self.gcheck = gcheck
+        self.end_link_couple_dict = gcheck.end_link_couple_dict
         self.ltc_effector = Latticizer_py(WDH=(1, 1, 1), L_CELL=0.05, OFFSET_ZERO=(0.5, 0.5, 0.5))
         self.ltc_arm_10 = Latticizer_py(WDH=(2, 2, 2), L_CELL=0.10, OFFSET_ZERO=(0.5, 1.0, 1.0))
         # Create an array in shared memory.
@@ -97,7 +97,8 @@ class LatticedChecker(MotionFilterInterface):
     # @param handle rnb-planning.src.pkg.planning.constraint.constraint_common.ActionPoint
     # @param redundancy_values calculated redundancy values in dictionary format {(object name, point name): (xyz, rpy)}
     # @param Q_dict joint configuration in dictionary format {joint name: radian value}
-    def check(self, actor, obj, handle, redundancy_values, Q_dict):
+    # @param interpolate    interpolate path and check intermediate poses
+    def check(self, actor, obj, handle, redundancy_values, Q_dict, interpolate):
         actor_vertinfo_list, object_vertinfo_list, \
         T_link_handle_actor_link, actor_Tinv_dict, object_Tinv_dict = \
             self.gcheck.get_grasping_vert_infos(actor, obj, handle, redundancy_values, Q_dict)

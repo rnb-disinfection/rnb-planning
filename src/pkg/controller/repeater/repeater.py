@@ -2,6 +2,7 @@ import time
 import numpy as np
 import rospy
 from ...utils.utils import *
+from ...utils.traj_utils import *
 import abc
 
 DEFAULT_PORT_REPEATER = 1189
@@ -91,17 +92,27 @@ class Repeater(object):
             sent = True
         return sent
 
-    def move_joint_interpolated(self, qtar, q0=None, N_div=100, N_stop=None):
+    def move_joint_interpolated(self, qtar, q0=None, N_div=100, N_stop=None, start=False, linear=False, end=False):
         if N_stop is None or N_stop > N_div or N_stop<0:
-            N_stop = N_div + 1
+            if start or linear:
+                N_stop = N_div
+            else:
+                N_stop = N_div + 1
 
         qcur = np.array(self.get_qcur()) if q0 is None else q0
         DQ = qtar - qcur
-
-        self.reset(q0)
+        if not (linear or end):
+            self.reset(q0)
         i_step = 0
         while i_step < N_stop:
-            Q = qcur + DQ * (np.sin(np.pi * (float(i_step) / N_div - 0.5)) + 1) / 2
+            if start:
+                Q = qcur + DQ * (np.sin(np.pi * (float(i_step) / N_div *0.5 - 0.5)) + 1)
+            elif linear:
+                Q = qcur + DQ * (float(i_step) / N_div)
+            elif end:
+                Q = qcur + DQ * (np.sin(np.pi * (float(i_step) / N_div *0.5 )))
+            else:
+                Q = qcur + DQ * (np.sin(np.pi * (float(i_step) / N_div - 0.5)) + 1) / 2
             i_step += self.move_possible_joints_x4(Q)
 
     ##
@@ -112,19 +123,12 @@ class Repeater(object):
 
     ##
     # @param trajectory radian
-    # @param vel_limits radian
-    # @param acc_limits radian
-    def move_joint_wp(self, trajectory, vel_limits, acc_limits):
-        Q_prev = trajectory[0]
-        for i in range(len(trajectory)):
-            Q_cur = trajectory[i]
-            diff_abs = np.abs(Q_cur - Q_prev)
-            max_diff = np.max(diff_abs, axis=0)
-            T_vmax = np.max(2 * max_diff / vel_limits)
-            T_amax = np.sqrt(np.max(2 * max_diff / acc_limits))
-            T = np.maximum(T_vmax, T_amax)
-            self.move_joint_interpolated(Q_cur, N_div=np.ceil(T/float(self.traj_freq*4)))
-            Q_prev = Q_cur
+    # @param vel_lims radian/s, scalar or vector
+    # @param acc_lims radian/s2, scalar or vector
+    def move_joint_wp(self, trajectory, vel_lims, acc_lims):
+        traj_tot = calc_safe_cubic_traj(1.0/self.traj_freq, trajectory, vel_lim=vel_lims, acc_lim=acc_lims)
+        for Q in traj_tot:
+            self.move_possible_joints_x4(Q)
 
     @abc.abstractmethod
     def start_online_tracking(self, Q0):

@@ -40,8 +40,6 @@ class PlanningPipeline:
         self.search_counter = None
         ## @brief flag to stop multiprocess search
         self.stop_now =  None
-        ## @brief stop flag dictionary for multiple agents
-        self.stop_dict = None
         ## @brief PriorityQueueManager
         self.manager = PriorityQueueManager()
         self.manager.start()
@@ -88,6 +86,7 @@ class PlanningPipeline:
         ## @brief runber of redundancy sampling
         self.t0 = time.time()
         self.DOF = len(initial_state.Q)
+        self.initial_state = initial_state
         if multiprocess:
             if display:
                 print("Cannot display motion in multiprocess")
@@ -98,13 +97,11 @@ class PlanningPipeline:
             print("Use {}/{} agents".format(N_agents, cpu_count()))
             self.search_counter = self.manager.Value('i', 0)
             self.stop_now = self.manager.Value('i', 0)
-            self.stop_dict = self.manager.dict()
             self.tplan.initialize_memory(self.manager)
         else:
             self.N_agents = 1
             self.search_counter = SingleValue('i', 0)
             self.stop_now =  SingleValue('i', 0)
-            self.stop_dict = {}
             self.tplan.initialize_memory(None)
 
         self.tplan.init_search(initial_state, goal_nodes)
@@ -117,29 +114,39 @@ class PlanningPipeline:
                 proc.start()
 
             if wait_proc:
-                for proc in self.proc_list:
-                    while not self.stop_now.value:
-                        proc.join(timeout=0.1)
+                self.wait_procs()
         else:
+            self.proc_list = []
             self.__search_loop(0, terminate_on_first, N_search, display, dt_vis, verbose, timeout_loop, **kwargs)
+
+    def wait_procs(self):
+        for proc in self.proc_list:
+            while not self.stop_now.value:
+                proc.join(timeout=0.1)
 
     def __search_loop(self, ID, terminate_on_first, N_search,
                       display=False, dt_vis=None, verbose=False, timeout_loop=600, **kwargs):
         loop_counter = 0
-        self.stop_dict[ID] = False
+        sample_fail_counter = 0
+        sample_fail_max = 100
+        no_queue_stop = False
         ret = False
         while (N_search is None or self.tplan.snode_counter.value < N_search) and (time.time() - self.t0) < timeout_loop and not self.stop_now.value:
             loop_counter += 1
             snode, from_state, to_state, redundancy_dict, sample_fail = self.tplan.sample()
             with self.counter_lock:
                 if not sample_fail:
+                    sample_fail_counter = 0
                     self.search_counter.value = self.search_counter.value + 1
-                self.stop_dict[ID] = sample_fail
-                if sample_fail:
-                    if all([self.stop_dict[i_proc] for i_proc in range(self.N_agents)]):
+                else:
+                    sample_fail_counter += 1
+                    if sample_fail_counter > sample_fail_max:
+                        no_queue_stop = True
                         break
                     else:
                         continue
+            if verbose:
+                print('try: {} - {}->{}'.format(snode.idx, from_state.node, to_state.node))
             self.gtimer.tic("test_connection")
             traj, new_state, error, succ = self.test_connection(from_state, to_state, redundancy_dict=redundancy_dict,
                                                                   display=display, dt_vis=dt_vis, **kwargs)
@@ -149,7 +156,7 @@ class PlanningPipeline:
                 snode_new = self.tplan.connect(snode, snode_new)
             ret = self.tplan.update(snode, snode_new, succ)
             if verbose:
-                print('node: {}->{} = {}'.format(from_state.node, to_state.node, "success" if succ else "fail"))
+                print('result: {} - {}->{} = {}'.format(snode.idx, from_state.node, new_state.node, "success" if succ else "fail"))
                 if succ:
                     print('branching: {}->{} ({}/{} s, steps/err: {}({} ms)/{})'.format(
                         snode.idx, snode_new.idx if succ else "", round(time.time() - self.t0, 2), round(timeout_loop, 2),
@@ -157,22 +164,24 @@ class PlanningPipeline:
                         error))
                     print('=' * 150)
             if terminate_on_first and ret:
-                self.stop_now.value = 1
                 break
 
-        if self.stop_dict[ID]:
-            term_reson = "node queue empty"
+        if no_queue_stop:
+            term_reason = "node queue empty"
         elif N_search is not None and self.tplan.snode_counter.value >= N_search:
-            term_reson = "max search node count reached ({}/{})".format(self.tplan.snode_counter.value, N_search)
+            term_reason = "max search node count reached ({}/{})".format(self.tplan.snode_counter.value, N_search)
         elif (time.time() - self.t0) >= timeout_loop:
-            term_reson = "max iteration time reached ({}/{} s)".format(int(time.time()), self.t0)
+            term_reason = "max iteration time reached ({}/{} s)".format(int(time.time()), self.t0)
         elif ret:
-            term_reson = "first answer acquired"
+            print("++ adding return motion to acquired answer ++")
+            self.add_return_motion(snode_new)
+            term_reason = "first answer acquired"
         else:
-            term_reson = "first answer acquired from other agent"
+            term_reason = "first answer acquired from other agent"
+        self.stop_now.value = 1
 
         print("=========================================================================================================")
-        print("======================= terminated {}: {} ===============================".format(ID, term_reson))
+        print("======================= terminated {}: {} ===============================".format(ID, term_reason))
         print("=========================================================================================================")
 
 
@@ -193,8 +202,9 @@ class PlanningPipeline:
         if success:
             if display:
                 self.pscene.gscene.show_motion(Traj, error_skip=error_skip, period=dt_vis)
-            for bd in binding_list:
-                self.pscene.rebind(bd, list2dict(LastQ, self.pscene.gscene.joint_names))
+
+        for bd in binding_list:
+            self.pscene.rebind(bd, list2dict(LastQ, self.pscene.gscene.joint_names))
 
         binding_state, state_param = self.pscene.get_object_state()
         end_state = State(binding_state, state_param, list(LastQ), self.pscene)
@@ -215,43 +225,39 @@ class PlanningPipeline:
         return best_snode_schedule
 
     ##
-    # @brief find all schedules
-    def print_snode_list(self):
-        for i_s, snode in sorted(self.tplan.snode_dict.items(), key=lambda x: x):
-            print("{}{}<-{}{}".format(i_s, snode.state.node, snode.parents[-1] if snode.parents else "", self.tplan.snode_dict[snode.parents[-1]].state.node if snode.parents else ""))
-
-    ##
-    # @brief sort schedules
-    def sort_schedule(self, schedule_dict):
-        return sorted(schedule_dict.values(), key=lambda x: len(x))
-
-    ##
-    # @brief get list of SearchNode from list of SearchNode index
-    def idxSchedule2SnodeScedule(self, schedule):
-        snode_schedule = [self.tplan.snode_dict[i_sc] for i_sc in schedule]
-        return snode_schedule
-
-    ##
     # @brief add return motion to a SearchNode schedule
-    def add_return_motion(self, snode_schedule, timeout=5):
-        snode_last = snode_schedule[-1]
+    def add_return_motion(self, snode_last, initial_state=None, timeout=5):
+        if initial_state is None:
+            initial_state = self.initial_state
         state_last = snode_last.state
-        state_first = snode_schedule[0].state
-        state_new = state_last.copy(self.pscene)
-        state_new.Q = copy(state_first.Q)
-        traj, new_state, error, succ = self.test_connection(state_last, state_new, redundancy_dict=None,
-                                                              display=False, timeout=timeout)
-        snode_new = self.tplan.make_search_node(snode_last, new_state, traj, None)
-        if succ:
-            snode_new = self.tplan.connect(snode_last, snode_new)
-            snode_schedule.append(snode_new)
-        return snode_schedule
+        diffQ = initial_state.Q - state_last.Q
+        diff_dict = {rname: np.sum(np.abs(diffQ[idx]))>1e-4
+                     for rname, idx in self.pscene.combined_robot.idx_dict.items()}
+        snode_pre = snode_last
+        state_pre = state_last
+        for rname, diff in diff_dict.items():   # add return motion to robots not at home
+            if diff:
+                rbt_idx = self.pscene.combined_robot.idx_dict[rname]
+                state_new = state_pre.copy(self.pscene)
+                state_new.Q[rbt_idx] = initial_state.Q[rbt_idx]
+                traj, state_next, error, succ = self.test_connection(state_pre, state_new, redundancy_dict=None,
+                                                                      display=False, timeout=timeout)
+                snode_next = self.tplan.make_search_node(snode_pre, state_next, traj, None)
+                if succ:
+                    snode_next = self.tplan.connect(snode_pre, snode_next)
+                    self.tplan.update(snode_pre, snode_next, succ)
+                    snode_pre = snode_next
+                    state_pre = state_next
+                else:
+                    break
+                time.sleep(0.2)
 
     ##
     # @brief play schedule on rviz
     # @param snode_schedule list of SearchNode
     # @param period play period
     def play_schedule(self, snode_schedule, period=0.01):
+        self.pscene.set_object_state(snode_schedule[0].state)
         for snode in snode_schedule:
             if snode.traj is not None:
                 self.pscene.gscene.show_motion(snode.traj, period=period)
@@ -279,17 +285,19 @@ class PlanningPipeline:
 
     ##
     # @brief execute schedule
+    # @param vel_scale velocity scale to max. robot velocity defined in RobotConfig
+    # @param acc_scale acceleration scale to max. robot velocity defined in RobotConfig
     def execute_schedule(self, snode_schedule, vel_scale=None, acc_scale=None):
         snode_schedule = [snode for snode in snode_schedule]    # re-wrap not to modify outer list
         state_0 = snode_schedule[0].state
-        state_fin = snode_schedule[-1].state
-        state_home = state_fin.copy(self.pscene)
-        state_home.Q = np.array(self.pscene.combined_robot.home_pose)
-        trajectory, Q_last, error, success, binding_list = self.mplan.plan_transition(state_fin, state_home)
-        if success:
-            snode_home = SearchNode(0, state_home, [], [], depth=0, redundancy_dict=None)
-            snode_home.set_traj(trajectory, 0)
-            snode_schedule.append(snode_home)
+        # state_fin = snode_schedule[-1].state
+        # state_home = state_fin.copy(self.pscene)
+        # state_home.Q = np.array(self.pscene.combined_robot.home_pose)
+        # trajectory, Q_last, error, success, binding_list = self.mplan.plan_transition(state_fin, state_home)
+        # if success:
+        #     snode_home = SearchNode(0, state_home, [], [], depth=0, redundancy_dict=None)
+        #     snode_home.set_traj(trajectory, 0)
+        #     snode_schedule.append(snode_home)
 
         self.execute_grip(state_0)
         self.pscene.set_object_state(state_0)
@@ -302,6 +310,9 @@ class PlanningPipeline:
 
             self.pscene.set_object_state(snode.state)
             self.execute_grip(snode.state)
+        for robot in self.pscene.combined_robot.robot_dict.values():
+            if hasattr(robot, "stop_tracking"):
+                robot.stop_tracking()
 
     ##
     # @brief execute schedule

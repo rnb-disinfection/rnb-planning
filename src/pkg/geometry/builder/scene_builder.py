@@ -4,7 +4,6 @@ from threading import Thread
 from .xacro_customizer import *
 import rospy
 from ...utils.utils import *
-from ...marker_config import *
 
 
 ##
@@ -124,6 +123,8 @@ class SceneBuilder(Singleton):
         xyz_rpy_dict = self.detect_items(item_names=item_names, level_mask=level_mask)
         gtem_dict = {}
         for ename, xyzrpy in xyz_rpy_dict.items():
+            if np.linalg.norm(xyzrpy[0])>2:
+                continue
             kwargs = dict(name=ename, center=xyzrpy[0], rpy=xyzrpy[1], color=color,
                           link_name=self.base_link, collision=collision)
             kwargs.update(self.detector.get_geometry_kwargs(ename))

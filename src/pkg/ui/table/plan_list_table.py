@@ -20,7 +20,7 @@ class PlanListTable(TableInterface):
         return self.planning_pipeline.tplan.snode_dict if hasattr(self.planning_pipeline,"snode_dict") else {}
 
     def serialize(self, gtem):
-        return [str(gtem.idx), str(gtem.state.binding_state), gtem.parents[-1] if gtem.parents else "None",
+        return [str(gtem.idx), str(gtem.state.node), gtem.parents[-1] if gtem.parents else "None",
                 gtem.depth, "%.2f"%(gtem.traj_tot)]
 
     def select(self, selected_row_ids, active_row, active_col):

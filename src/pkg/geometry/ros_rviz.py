@@ -169,6 +169,8 @@ class GeoMarker:
             return Marker.MESH_RESOURCE
         elif self.geometry.gtype == GEOTYPE.ARROW:
             return Marker.ARROW
+        elif self.geometry.gtype == GEOTYPE.PLANE:
+            return Marker.CUBE
         
     def delete(self, sleep=True):
         self.marker.action = Marker.DELETE

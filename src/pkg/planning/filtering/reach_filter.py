@@ -22,10 +22,11 @@ class ReachChecker(MotionFilterInterface):
         self.binder_link_robot_dict = {blink: rname for blink, rname in zip(binder_links, self.robot_names)}
         for rconfig in self.combined_robot.robots_on_scene:
             self.model_dict[rconfig.get_indexed_name()] = ReachTrainer(None).load_model(rconfig.type)
-        
+        self.base_dict = self.combined_robot.get_robot_base_dict()
         self.shoulder_link_dict = {rname: pscene.gscene.urdf_content.joint_map[rchain['joint_names'][1]].child 
                                    for rname, rchain in chain_dict.items()}
-        self.shoulder_height_dict = {rname: get_tf(shoulder_link, self.combined_robot.home_dict, pscene.gscene.urdf_content)[2,3] 
+        self.shoulder_height_dict = {rname: get_tf(shoulder_link, self.combined_robot.home_dict,
+                                                   pscene.gscene.urdf_content, from_link=self.base_dict[rname])[2,3]
                                      for rname, shoulder_link in self.shoulder_link_dict.items()}
 
     ##
@@ -35,7 +36,8 @@ class ReachChecker(MotionFilterInterface):
     # @param handle rnb-planning.src.pkg.planning.constraint.constraint_common.ActionPoint
     # @param redundancy_values calculated redundancy values in dictionary format {(object name, point name): (xyz, rpy)}
     # @param Q_dict joint configuration in dictionary format {joint name: radian value}
-    def check(self, actor, obj, handle, redundancy_values, Q_dict):
+    # @param interpolate    interpolate path and check intermediate poses
+    def check(self, actor, obj, handle, redundancy_values, Q_dict, interpolate):
         actor_link = actor.geometry.link_name
         object_link = obj.geometry.link_name
 
@@ -51,13 +53,15 @@ class ReachChecker(MotionFilterInterface):
 
         if group_name_actor and not group_name_handle:
             group_name = group_name_actor
-            T_handle_link = get_tf(object_link, Q_dict, self.pscene.gscene.urdf_content)
+            T_handle_link = get_tf(object_link, Q_dict, self.pscene.gscene.urdf_content,
+                                   from_link=self.base_dict[group_name])
             T_link_handle_actor_link = np.matmul(T_handle_lh, SE3_inv(T_actor_lh))
             T_tar = np.matmul(T_handle_link, T_link_handle_actor_link)
         elif group_name_handle and not group_name_actor:
             group_name = group_name_handle
-            T_actor_link = get_tf(actor_link, Q_dict, self.pscene.gscene.urdf_content)
-            T_link_actor_handle_link = np.matmul(T_actor_lh, SE3_inv(T_actor_link))
+            T_actor_link = get_tf(actor_link, Q_dict, self.pscene.gscene.urdf_content,
+                                  from_link=self.base_dict[group_name])
+            T_link_actor_handle_link = np.matmul(T_actor_lh, SE3_inv(T_handle_lh))
             T_tar = np.matmul(T_actor_link, T_link_actor_handle_link)
         else:
             # dual motion not predictable

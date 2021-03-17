@@ -25,16 +25,19 @@ class TaskBiRRT(TaskInterface):
 
         # make all node connections
         self.node_list = pscene.get_all_nodes()
-        self.node_dict = {k: [] for k in self.node_list}
-        self.node_parent_dict = {k: [] for k in self.node_list}
+        self.node_dict_full = {k: [] for k in self.node_list}
+        self.node_parent_dict_full = {k: [] for k in self.node_list}
         for node in self.node_list:
             for leaf in pscene.get_node_neighbor(node):
                 if leaf in self.node_list:
-                    self.node_dict[node].append(leaf)
-                    self.node_parent_dict[leaf].append(node)
+                    self.node_dict_full[node].append(leaf)
+                    self.node_parent_dict_full[leaf].append(node)
         for node in self.node_list:
-            self.node_dict[node] = set(self.node_dict[node])
-            self.node_parent_dict[node] = set(self.node_parent_dict[node])
+            self.node_dict_full[node] = set(self.node_dict_full[node])
+            self.node_parent_dict_full[node] = set(self.node_parent_dict_full[node])
+
+        self.unstoppable_subjects = [i_s for i_s, sname in enumerate(self.pscene.subject_name_list)
+                                     if self.pscene.subject_dict[sname].unstoppable]
 
     ##
     # @brief prepare memory variables
@@ -81,6 +84,26 @@ class TaskBiRRT(TaskInterface):
         self.goal_nodes = goal_nodes
         self.target_sidx = -1
         self.bool_forward = True
+
+        self.unstoppable_terminals = {}
+        for sub_i in self.unstoppable_subjects:
+            self.unstoppable_terminals[sub_i] = [self.initial_state.node[sub_i]]
+            for goal in goal_nodes:
+                self.unstoppable_terminals[sub_i].append(goal[sub_i])
+
+        self.node_dict = {}
+        for node, leafs in self.node_dict_full.items():
+            self.node_dict[node] = set(
+                [lnode for lnode in leafs ## unstoppable node should change or at terminal
+                 if all([node[k] in terms or node[k]!=lnode[k]
+                         for k, terms in self.unstoppable_terminals.items()])])
+
+        self.node_parent_dict = {}
+        for node, parents in self.node_parent_dict_full.items():
+            self.node_parent_dict[node] = set(
+                [pnode for pnode in parents ## unstoppable node should change or at terminal
+                 if all([node[k] in terms or node[k]!=pnode[k]
+                         for k, terms in self.unstoppable_terminals.items()])])
 
         snode_root = self.make_search_node(None, initial_state, None, None)
         self.connect(None, snode_root)
@@ -182,18 +205,7 @@ class TaskBiRRT(TaskInterface):
                         snode_new.idx]
 
             ## get hashable param dict
-            param_flat_dict = {}
-            for i_obj, oname in enumerate(self.pscene.subject_name_list):
-                subject = self.pscene.subject_dict[oname]
-                if isinstance(subject, AbstractObject):
-                    link_name, param = snode_new.state.state_param[oname]
-                    param_flat = (snode_new.state.node[i_obj], link_name) + tuple(
-                        np.round(param, 4).flatten())  ## make state params hashable by flattenning
-                else:
-                    param = snode_new.state.state_param[oname]
-                    param_flat = (snode_new.state.node[i_obj],) + tuple(
-                        np.round(param, 4).flatten())  ## make state params hashable by flattenning
-                param_flat_dict[oname] = param_flat
+            param_flat_dict = make_state_param_hashable(self.pscene, snode_new.state)
 
             # update param_snode_dict_cur
             param_match_dict_cur = {}

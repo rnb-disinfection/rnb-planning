@@ -11,15 +11,8 @@ import os
 def gtype_to_otype(gtype):
     if gtype==GEOTYPE.BOX:
         return ObjectType.BOX
-    if gtype==GEOTYPE.SPHERE:
-        return ObjectType.SPHERE
-    if gtype in [GEOTYPE.CAPSULE, GEOTYPE.CYLINDER]:
-        return ObjectType.CYLINDER
-    raise(NotImplementedError("Not implemented constraint shape - {}".format(gtype.name)))
-
-def gtype_to_ctype(gtype):
-    if gtype==GEOTYPE.BOX:
-        return ObjectType.PLANE
+    if gtype==GEOTYPE.PLANE:
+        return ObjectType.PLANE ## Currently Errornous
     if gtype==GEOTYPE.SPHERE:
         return ObjectType.SPHERE
     if gtype in [GEOTYPE.CAPSULE, GEOTYPE.CYLINDER]:
@@ -29,6 +22,8 @@ def gtype_to_ctype(gtype):
 def get_mpc_dims(gtem):
     if gtem.gtype==GEOTYPE.BOX:
         return tuple(gtem.dims)
+    elif gtem.gtype==GEOTYPE.PLANE:
+        return tuple(gtem.dims)
     elif gtem.gtype==GEOTYPE.SPHERE:
         return (gtem.radius,gtem.radius,gtem.radius,)
     elif gtem.gtype in [GEOTYPE.CAPSULE, GEOTYPE.CYLINDER]:
@@ -37,15 +32,14 @@ def get_mpc_dims(gtem):
 
 ##
 # @brief make moveit constraint geometry item
-def make_constraint_item(gtem, use_box=False):
+def make_constraint_item(gtem):
     cartpose = tuple(gtem.center) + tuple(Rotation.from_dcm(gtem.orientation_mat).as_quat())
-    return Geometry(gtype_to_otype(gtem.gtype) if use_box else gtype_to_ctype(gtem.gtype),
-                    CartPose(*cartpose), Vec3(*gtem.dims))
+    return Geometry(gtype_to_otype(gtem.gtype), CartPose(*cartpose), Vec3(*gtem.dims))
 
 ##
 # @brief make list of moveit constraint geometry list
-def make_constraint_list(gtem_list, use_box=True):
-    return make_assign_arr(GeometryList, [make_constraint_item(gtem, use_box) for gtem in gtem_list])
+def make_constraint_list(gtem_list):
+    return make_assign_arr(GeometryList, [make_constraint_item(gtem) for gtem in gtem_list])
 
 ##
 # @class MoveitPlanner
@@ -125,7 +119,10 @@ class MoveitPlanner(MotionInterface):
     # @return LastQ     Last joint configuration as array
     # @return error     planning error
     # @return success   success/failure of planning result
-    def plan_algorithm(self, from_state, to_state, binding_list, redundancy_values=None, timeout=1, **kwargs):
+    def plan_algorithm(self, from_state, to_state, binding_list, redundancy_values=None, timeout=1,
+                       timeout_joint=None, timeout_constrained=None, **kwargs):
+        timeout_joint = timeout_joint if timeout_joint is not None else timeout
+        timeout_constrained = timeout_constrained if timeout_constrained is not None else timeout
         self.planner.clear_context_cache()
         self.planner.clear_manifolds()
         if self.enable_dual:
@@ -161,11 +158,12 @@ class MoveitPlanner(MotionInterface):
                     to_Q = to_state.Q[[idx for idx in self.idx_pscene_to_mpc if idx in idx_rbt]]
                 else:
                     from_Q = from_state.Q
-                    to_Q =  to_state.Q
+                    to_Q =  to_state.Q[idx_rbt]
             else:
                 raise(RuntimeError("multi-robot joint motion not implemented!"))
             trajectory, success = planner.plan_joint_motion_py(
-                group_name, tuple(to_Q), tuple(from_Q), timeout=timeout)
+                group_name, tuple(to_Q), tuple(from_Q), timeout=timeout_joint)
+            print("joint motion tried: {}".format(success)) ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
 
         else: # task motion case
             motion_type = MoveitPlanner.TASK_MOTION
@@ -229,10 +227,12 @@ class MoveitPlanner(MotionInterface):
                 for motion_constraint in constraints:
                     self.add_constraint(group_name, tool.geometry.link_name, tool.Toff_lh, motion_constraint=motion_constraint)
                 trajectory, success = planner.plan_constrained_py(
-                    group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q), timeout=timeout)
+                    group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q), timeout=timeout_constrained)
+                print("constrained motion tried: {}".format(success)) ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
             else:
                 trajectory, success = planner.plan_py(
                     group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q), timeout=timeout)
+                print("transition motion tried: {}".format(success)) ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
 
         if success:
             if dual:
@@ -276,10 +276,10 @@ class MoveitPlanner(MotionInterface):
     # @param tool_offset_T tool offset 4x4 transformation matrix in tool link coordinate
     # @param motion_constraint rnb-planning.src.pkg.planning.constraint.constraint_common.MotionConstraint
     # @param use_box boolean flag for using box, to convert box to plane, set this value False (default=True)
-    def add_constraint(self, group_name, tool_link, tool_offset_T, motion_constraint, use_box=True):
+    def add_constraint(self, group_name, tool_link, tool_offset_T, motion_constraint):
         xyzquat = T2xyzquat(tool_offset_T)
         self.planner.add_union_manifold_py(group_name=group_name, tool_link=tool_link, tool_offset=xyzquat[0]+xyzquat[1],
-                                           geometry_list=make_constraint_list(motion_constraint.geometry_list, use_box=use_box),
+                                           geometry_list=make_constraint_list(motion_constraint.geometry_list),
                                            fix_surface=motion_constraint.fix_surface, fix_normal=motion_constraint.fix_normal, tol=motion_constraint.tol)
 
 

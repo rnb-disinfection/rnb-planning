@@ -149,7 +149,8 @@ class PlanningScene:
         for rname in self.combined_robot.robot_names:
             effector_link = self.actor_dict[self.robot_actor_dict[rname]].geometry.link_name
             joint_chain = self.gscene.urdf_content.get_chain(root=base_dict[rname], tip=effector_link, fixed=False, joints=True, links=False)
-            chain_dict[rname] = {"tip_link": effector_link, "joint_names": joint_chain}
+            link_chain = self.gscene.urdf_content.get_chain(root=base_dict[rname], tip=effector_link, fixed=False, joints=False, links=True)
+            chain_dict[rname] = {"tip_link": effector_link, "joint_names": joint_chain, "link_names": link_chain}
         return chain_dict
 
     ##
@@ -544,6 +545,18 @@ class PlanningScene:
     def sample_leaf_state(self, state, available_binding_dict, to_node,
                           binding_sampler=random.choice, redundancy_sampler=random.uniform):
         to_state = state.copy(self)
+        if state.node == to_node:
+            dQ = (self.combined_robot.home_pose - to_state.Q)
+            rcandis = [rname
+                       for rname in self.combined_robot.robot_names
+                       if np.sum(np.abs(dQ[self.combined_robot.idx_dict[rname]])) > 1e-4]
+            if len(rcandis)>0:
+                rname = random.choice(rcandis)
+                to_state.Q[self.combined_robot.idx_dict[rname]] = \
+                    self.combined_robot.home_pose[self.combined_robot.idx_dict[rname]]
+                redundancy_dict = {}
+                print("============= try go home ({}) ===================".format(rname))
+                return to_state, redundancy_dict
         to_binding_state = tuple([(((oname,)+\
                            binding_sampler(available_binding_dict[oname]))
                           if sbgname!=bgname else sbinding)
