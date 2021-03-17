@@ -52,21 +52,5 @@
   roslaunch panda_ros_repeater joint_velocity_repeater.launch robot_ip:=192.168.0.13 load_gripper:=false
   ```
 
-## Setup and launch indy online tracker
-* Download and install NRMK IndyFramework and PlatformSDK (framework 2.3.1 -> Platform 3.0.5)  
-* Clone IndyFramework2.0 project and copy "external/IndyFramework2.0/IndyController/*" and "external/IndyFramework2.0/IndyHRI/*" from this project to corresponding folders in framework source.  
-* build project  
-```bash
-  source /opt/neuromeka/NRMKFoundation/script/nrmk_env.sh  
-  cmake -DROBOT_NAME=Indy7 -DSIMULATION=OFF  
-  make install  
-  ```
-* send the file to CB  
-  ```bash
-  scp $HOME/Projects/external/IndyFramework2.0/deployment/* root@192.168.0.63:/home/user/release/TasksDeployment  
-  ```
-* Run TaskMan on CB, through ssh
-```bash
-  cd /home/user/release/TasksDeployment  
-  ./TaskManager -j indyDeploy.json  
-  ```
+## Setup and launch indy
+* MUST use ControlHub and TrajectoryInterface in [rnb-control](https://github.com/rnb-disinfection/rnb-control)
