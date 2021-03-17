@@ -1,12 +1,12 @@
-from .repeater import *
+from .trajectory_client import *
 import rospy
 from control_msgs.msg import GripperCommandActionGoal
 import subprocess
 
 
-class PandaRepeater(Repeater):
-    def __init__(self, repeater_ip, robot_ip, **kwargs):
-        Repeater.__init__(self, repeater_ip=repeater_ip, disable_getq=False, **kwargs)
+class PandaTrajectoryClient(TrajectoryClient):
+    def __init__(self, server_ip, robot_ip, **kwargs):
+        TrajectoryClient.__init__(self, server_ip=server_ip, disable_getq=False, **kwargs)
         self.robot_ip = robot_ip
         self.reset()
         self.clear()

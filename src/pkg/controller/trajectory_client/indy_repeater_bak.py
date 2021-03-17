@@ -1,4 +1,4 @@
-from .repeater import *
+from .trajectory_client import *
 from .indy_utils.indydcp_client import IndyDCPClient
 from .indy_utils.indy_program_maker import JsonProgramComponent
 from functools import wraps
@@ -22,12 +22,12 @@ def connect_indy(func):
     return __wrapper
 
 
-class indytraj_client(IndyDCPClient, Repeater):
+class indytraj_client(IndyDCPClient, TrajectoryClient):
 
     def __init__(self, server_ip, *args, **kwargs):
-        kwargs_indy, kwargs_otic = divide_kwargs(kwargs, IndyDCPClient.__init__, Repeater.__init__)
+        kwargs_indy, kwargs_otic = divide_kwargs(kwargs, IndyDCPClient.__init__, TrajectoryClient.__init__)
         IndyDCPClient.__init__(self, *args, server_ip=server_ip, **kwargs_indy)
-        Repeater.__init__(self, repeater_ip=self.server_ip, disable_getq=True, **kwargs_otic)
+        TrajectoryClient.__init__(self, server_ip=self.server_ip, disable_getq=True, **kwargs_otic)
         self.indy_grasp_DO = 0
 
     def get_qcur(self):

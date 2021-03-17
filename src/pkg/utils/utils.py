@@ -13,6 +13,7 @@ def try_mkdir(path):
     except: pass
 
 import time
+from threading import Thread, Event
 import collections
 import numpy as np
 from .singleton import Singleton
@@ -44,6 +45,67 @@ def matmul_md(A, B):
 def get_mean_std(X, outlier_count=2):
     X_ex = [x[0] for x in sorted(zip(X,np.linalg.norm(X-np.mean(X, axis=0), axis=1)), key=lambda x: x[1])][:-outlier_count]
     return np.mean(X_ex, axis=0), np.std(X_ex, axis=0)
+
+
+##
+# @class PeriodicTimer
+# @brief    Creates a timer that can wait for periodic events.
+# @remark   It is recommended to stop timer thread when its use is expired.
+class PeriodicTimer:
+    ##
+    # @param period     period of the timer event, in secondes
+    def __init__(self, period):
+        self.period = period
+        self.__tic = Event()
+        self.__stop = Event()
+        self.thread_periodic = Thread(target=self.__tic_loop)
+        self.thread_periodic.start()
+
+    def __tic_loop(self):
+        while not self.__stop.wait(timeout=self.period):
+            self.__tic.set()
+
+    ##
+    # @brief    wait for next timer event
+    def wait(self): # Just waiting full period makes too much threading delay - make shorter loop
+        while not self.__tic.wait(self.period / 100):
+            pass
+        self.__tic.clear()
+
+    ##
+    # @brief    stop the timer thread
+    def stop(self):
+        self.__stop.set()
+
+    def __del__(self):
+        self.stop()
+
+
+##
+# @class PeriodicIterator
+# @brief create an iterator that makes periodic value returns.
+class PeriodicIterator(PeriodicTimer):
+    def __init__(self, item_list, period):
+        PeriodicTimer.__init__(self, period)
+        self.item_list = item_list
+        self.item_itor = item_list.__iter__()
+
+    def next(self):
+        self.wait()
+        try:
+            return next(self.item_itor)
+        except StopIteration as e:
+            self.stop()
+            raise (e)
+
+    def __next__(self):
+        return self.next()
+
+    def __iter__(self):
+        return self
+
+    def __len__(self):
+        return len(self.item_list)
 
 
 ##

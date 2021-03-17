@@ -1,5 +1,5 @@
-from .repeater.indy_repeater import *
-from .repeater.panda_repeater import *
+from .trajectory_client.indy_trajectory_client import *
+from .trajectory_client.panda_trajectory_client import *
 from .robot_config import *
 from collections import defaultdict
 
@@ -99,7 +99,7 @@ class CombinedRobot:
                         if hasattr(self.robot_dict[name], 'k_gain'):
                             self.robot_dict[name].set_k_gain(self.robot_dict[name].k_gain)
                     else:
-                        self.robot_dict[name] = PandaRepeater(*addr.split("/"))
+                        self.robot_dict[name] = PandaTrajectoryClient(*addr.split("/"))
             else:
                 if self.robot_dict[name] is not None:
                     self.robot_dict[name].disconnect()

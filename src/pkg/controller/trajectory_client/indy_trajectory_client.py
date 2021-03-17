@@ -1,4 +1,4 @@
-from .repeater import *
+from .trajectory_client import *
 from .indy_utils.indydcp_client import IndyDCPClient
 from .indy_utils.indy_program_maker import JsonProgramComponent
 from functools import wraps
@@ -25,14 +25,14 @@ def connect_indy(func):
 
     return __wrapper
 
-class indytraj_client(IndyDCPClient, Repeater):
+class indytraj_client(IndyDCPClient, TrajectoryClient):
 
     def __init__(self, server_ip,
                  traj_port=DEFAULT_TRAJ_PORT,
                  traj_freq=DEFAULT_TRAJ_FREQUENCY, *args, **kwargs):
-        kwargs_indy, kwargs_otic = divide_kwargs(kwargs, IndyDCPClient.__init__, Repeater.__init__)
+        kwargs_indy, kwargs_otic = divide_kwargs(kwargs, IndyDCPClient.__init__, TrajectoryClient.__init__)
         IndyDCPClient.__init__(self, *args, server_ip=server_ip, **kwargs_indy)
-        Repeater.__init__(self, repeater_ip=self.server_ip, disable_getq=True, **kwargs_otic)
+        TrajectoryClient.__init__(self, server_ip=self.server_ip, **kwargs_otic)
         self.indy_grasp_DO = 0
         self.traj_port = traj_port
         self.traj_freq = traj_freq
@@ -64,7 +64,7 @@ class indytraj_client(IndyDCPClient, Repeater):
 
     def move_possible_joints_x4(self, Q):
         if self.qcount >= 3:
-            self.rate_x4.sleep()
+            self.periodic_x4.wait()
         if self.qcount > 3:
             self.qcount = self.get_qcount()
             sent = False
