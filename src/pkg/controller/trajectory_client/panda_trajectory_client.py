@@ -1,12 +1,12 @@
-from .repeater import *
+from .trajectory_client import *
 import rospy
 from control_msgs.msg import GripperCommandActionGoal
 import subprocess
 
 
-class PandaRepeater(Repeater):
-    def __init__(self, repeater_ip, robot_ip, **kwargs):
-        Repeater.__init__(self, repeater_ip=repeater_ip, disable_getq=False, **kwargs)
+class PandaTrajectoryClient(TrajectoryClient):
+    def __init__(self, server_ip, robot_ip, **kwargs):
+        TrajectoryClient.__init__(self, server_ip=server_ip, **kwargs)
         self.robot_ip = robot_ip
         self.reset()
         self.clear()
@@ -29,7 +29,7 @@ class PandaRepeater(Repeater):
     def clear(self):
         self.__kill_existing_subprocess()
 
-    def move_finger(self, close_bool, max_width=0.039, min_width=0.025, effort=1):
+    def grasp(self, close_bool, max_width=0.039, min_width=0.025, effort=1):
         if close_bool != self.close_bool:
             self.finger_cmd.goal.command.position = (max_width-min_width)*(1-close_bool)+min_width
             self.finger_cmd.goal.command.max_effort = effort
@@ -43,13 +43,7 @@ class PandaRepeater(Repeater):
     ##
     # @param Q radian
     def joint_move_make_sure(self, Q):
-        self.move_joint_interpolated(Q, N_div=200)
-
-    def start_online_tracking(self, Q0):
-        self.reset()
-
-    def finish_online_tracking(self):
-        self.stop_tracking()
+        self.move_joint_s_curve(Q, N_div=200, auto_stop=True)
 
     def disconnect(self):
         pass

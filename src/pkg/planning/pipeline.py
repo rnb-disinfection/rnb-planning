@@ -2,7 +2,7 @@ import time
 from .scene import State
 from ..utils.utils import SingleValue, list2dict, differentiate, GlobalTimer
 from ..utils.joint_utils import apply_vel_acc_lims
-from ..controller.repeater.repeater import DEFAULT_TRAJ_FREQUENCY, MultiTracker
+from ..controller.trajectory_client.trajectory_client import DEFAULT_TRAJ_FREQUENCY, MultiTracker
 from .task.interface import SearchNode
 import numpy as np
 from copy import copy

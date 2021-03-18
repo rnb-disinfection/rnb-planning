@@ -1,5 +1,5 @@
-from .repeater.indy_repeater import *
-from .repeater.panda_repeater import *
+from .trajectory_client.indy_trajectory_client import *
+from .trajectory_client.panda_trajectory_client import *
 from .robot_config import *
 from collections import defaultdict
 
@@ -83,7 +83,7 @@ class CombinedRobot:
             if cnt:
                 if _type == RobotType.indy7:
                     if not self.robot_dict[name]:
-                        self.robot_dict[name] = indytraj_client(server_ip=addr, robot_name="NRMK-Indy7")
+                        self.robot_dict[name] = IndyTrajectoryClient(server_ip=addr, robot_name="NRMK-Indy7")
                     with self.robot_dict[name]:
                         self.robot_dict[name].set_collision_level(5)
                         self.robot_dict[name].set_joint_vel_level(3)
@@ -99,7 +99,7 @@ class CombinedRobot:
                         if hasattr(self.robot_dict[name], 'k_gain'):
                             self.robot_dict[name].set_k_gain(self.robot_dict[name].k_gain)
                     else:
-                        self.robot_dict[name] = PandaRepeater(*addr.split("/"))
+                        self.robot_dict[name] = PandaTrajectoryClient(*addr.split("/"))
             else:
                 if self.robot_dict[name] is not None:
                     self.robot_dict[name].disconnect()
@@ -164,12 +164,8 @@ class CombinedRobot:
             self.__grasp_fun(grasp[0], grasp[1])
 
     def __grasp_fun(self, name, grasp):
-        scence_dict = self.get_robot_config_dict()
         if self.robot_dict[name] is not None:
-            if scence_dict[name].type == RobotType.indy7:
-                self.robot_dict[name].grasp(grasp, connect=True)
-            elif scence_dict[name].type == RobotType.panda:
-                self.robot_dict[name].move_finger(grasp)
+            self.robot_dict[name].grasp(grasp)
 
     ##
     # @brief get current robot's pose or home pose if not connected (radian)
