@@ -49,62 +49,100 @@ class TrajectoryClient(object):
     def terminate_loop(self):
         return send_recv({'terminate': 1}, self.robot_ip, self.robot_port)
 
-    def move_possible_joints_x4(self, Q):
-        if self.qcount >= 3:
-            self.periodic_x4.wait()
-        if self.qcount > 3:
-            self.qcount = self.get_qcount()
-            sent = False
-        else:
-            self.qcount = self.send_qval(Q)['qcount']
-            sent = True
-        return sent
-
-    def move_joint_interpolated(self, qtar, q0=None, N_div=100, N_stop=None, start=False, linear=False, end=False):
-        if N_stop is None or N_stop > N_div or N_stop<0:
-            if start or linear:
-                N_stop = N_div
-            else:
-                N_stop = N_div + 1
-
-        qcur = np.array(self.get_qcur()) if q0 is None else q0
-        DQ = qtar - qcur
-        if not (linear or end):
-            self.reset(q0)
-        i_step = 0
-        while i_step < N_stop:
-            if start:
-                Q = qcur + DQ * (np.sin(np.pi * (float(i_step) / N_div *0.5 - 0.5)) + 1)
-            elif linear:
-                Q = qcur + DQ * (float(i_step) / N_div)
-            elif end:
-                Q = qcur + DQ * (np.sin(np.pi * (float(i_step) / N_div *0.5 )))
-            else:
-                Q = qcur + DQ * (np.sin(np.pi * (float(i_step) / N_div - 0.5)) + 1) / 2
-            i_step += self.move_possible_joints_x4(Q)
+    ##
+    # @brief Wait until the queue on the server is empty. This also means the trajectory motion is finished.
+    def wait_queue_empty(self):
+        while self.get_qcount()>0:
+            self.period_s
 
     ##
-    # @param Q radian
-    @abc.abstractmethod
-    def joint_move_make_sure(self, Q):
-        pass
+    # @brief    Send target pose to the server and store the queue count.
+    # @param online If this flag is set True, it will wait the queue on the server to sync the motion.
+    def push_Q(self, Q, online=False):
+        if online:
+            if self.qcount >= 3:
+                time.sleep(self.period_s/4)
+            if self.qcount > 3:
+                self.qcount = self.get_qcount()
+                sent = False
+                return sent
+        self.qcount = self.send_qval(Q)['qcount']
+        sent = True
+        return sent
+
+    ##
+    # @brief send off-line s-surve trajectory to move joint to target position
+    # @param qtar           target joint configuration
+    # @param N_div          the number of divided steps (default=100)
+    # @param wait_finish    send trajectory off-line but wait until finish (default=100)
+    # @param start_tracking to reset trajectory and start tracking
+    # @param auto_stop      auto-stop trajectory-following after finishing the motion
+    def move_joint_s_curve(self, qtar, q0=None, N_div=100, wait_finish=True, start_tracking=True, auto_stop=False):
+        qcur = np.array(self.get_qcur()) if q0 is None else q0
+        DQ = qtar - qcur
+        if start_tracking:
+            self.reset()
+        i_step = 0
+        while i_step < N_div+1:
+            Q = qcur + DQ * (np.sin(np.pi * (float(i_step) / N_div - 0.5)) + 1) / 2
+            i_step += self.push_Q(Q)
+        if start_tracking:
+            self.start_tracking()
+        if wait_finish:
+            self.wait_queue_empty()
+            if auto_stop:
+                self.stop_tracking()
+        else:
+            assert not auto_stop, "Cannot auto-stop trajectory following not waiting end of the motion"
+
+    ##
+    # @brief    send s-surve trajectory on-line to move joint to target position.
+    #           To test on-line trajectory following for adaptive motion
+    # @param qtar         target joint configuration
+    # @param N_div          the number of divided steps (default=100)
+    # @param start_tracking to reset trajectory and start tracking
+    # @param auto_stop      auto-stop trajectory-following after finishing the motion
+    def move_joint_s_curve_online(self, qtar, q0=None, N_div=100, auto_stop=False):
+        qcur = np.array(self.get_qcur()) if q0 is None else q0
+        DQ = qtar - qcur
+
+        self.reset()
+        self.start_tracking()
+        i_step = 0
+        while i_step < N_div+1:
+            Q = qcur + DQ * (np.sin(np.pi * (float(i_step) / N_div - 0.5)) + 1) / 2
+            i_step += self.push_Q(Q, online=True)
+        if auto_stop:
+            self.stop_tracking()
 
     ##
     # @param trajectory radian
     # @param vel_lims radian/s, scalar or vector
     # @param acc_lims radian/s2, scalar or vector
-    def move_joint_wp(self, trajectory, vel_lims, acc_lims):
+    def move_joint_wp(self, trajectory, vel_lims, acc_lims, auto_stop=False):
         traj_tot = calc_safe_cubic_traj(1.0/self.traj_freq, trajectory, vel_lim=vel_lims, acc_lim=acc_lims)
         for Q in traj_tot:
-            self.move_possible_joints_x4(Q)
+            self.push_Q(Q)
+        self.start_tracking()
+        self.wait_queue_empty()
+        if auto_stop:
+            self.stop_tracking()
 
+    ##
+    # @brief Move joints to Q using the most guaranteed method for each robot.
+    # @remark Robot-specific implementation is required.
+    # @param Q radian
     @abc.abstractmethod
-    def start_online_tracking(self, Q0):
-        pass
+    def joint_move_make_sure(self, Q):
+        raise(NotImplementedError("Robot-specific implementation is required for joint_move_make_sure"))
 
+    ##
+    # @brief Execute grasping
+    # @remark Robot-specific implementation is required.
+    # @param grasp True: grasp / False: release
     @abc.abstractmethod
-    def finish_online_tracking(self):
-        pass
+    def grasp(self, grasp):
+        raise(NotImplementedError("Robot-specific implementation is required for grasp function"))
 
 
 class MultiTracker:
@@ -119,22 +157,22 @@ class MultiTracker:
     def __enter__(self):
         if not self.on_rviz:
             for rbt, idx in zip(self.robots, self.idx_list):
-                rbt.start_online_tracking(self.Q0)
+                rbt.start_tracking(self.Q0)
             self.sent_list = [False] * self.num_robots
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if not self.on_rviz:
             for rbt in self.robots:
-                rbt.finish_online_tracking()
+                rbt.stop_tracking()
 
-    def move_possible_joints_x4(self, Q):
+    def push_Q_x4(self, Q):
         gtimer = GlobalTimer.instance()
         for i_rbt in range(self.num_robots):
             rbt, idx, sent = self.robots[i_rbt], self.idx_list[i_rbt], self.sent_list[i_rbt]
             if not sent:
                 gtimer.tic("send-robot-{}".format(i_rbt))
-                self.sent_list[i_rbt] = rbt.move_possible_joints_x4(Q[idx])
+                self.sent_list[i_rbt] = rbt.push_Q(Q[idx], online=True)
                 gtimer.toc("send-robot-{}".format(i_rbt), stack=True)
             else:
                 gtimer.tic("count-robot-{}".format(i_rbt))
