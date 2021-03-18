@@ -45,12 +45,9 @@
   pip install pyrealsense2  
   ```
   
-## Setup and launch panda repeater
-* setup panda_ros_repeater on panda master pc (https://github.com/Cucumberkjs/panda_ros_repeater.git)  
+## Setup and launch indy and panda
+* setup [rnb-control](https://github.com/rnb-disinfection/rnb-control) on indy and panda
 * launch panda command repeater on matser  
 ```bash
-  roslaunch panda_ros_repeater joint_velocity_repeater.launch robot_ip:=192.168.0.13 load_gripper:=false
+  roslaunch panda_control joint_control_rnb.launch robot_ip:=192.168.0.13 load_gripper:=false
   ```
-
-## Setup and launch indy
-* MUST use ControlHub and TrajectoryInterface in [rnb-control](https://github.com/rnb-disinfection/rnb-control)

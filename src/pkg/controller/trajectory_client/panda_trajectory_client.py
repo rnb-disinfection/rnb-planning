@@ -5,8 +5,8 @@ import subprocess
 
 
 class PandaTrajectoryClient(TrajectoryClient):
-    def __init__(self, server_ip, robot_ip, server_port=1189, **kwargs):
-        TrajectoryClient.__init__(self, server_ip=server_ip, server_port=server_port, **kwargs)
+    def __init__(self, server_ip, robot_ip, **kwargs):
+        TrajectoryClient.__init__(self, server_ip=server_ip, **kwargs)
         self.robot_ip = robot_ip
         self.reset()
         self.clear()
