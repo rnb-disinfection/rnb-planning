@@ -41,19 +41,19 @@ class TrajectoryClient(object):
         return send_recv({'qval': qval}, self.server_ip, self.server_port)
 
     def start_tracking(self):
-        return send_recv({'follow': 1}, self.robot_ip, self.robot_port)
+        return send_recv({'follow': 1}, self.server_ip, self.server_port)
 
     def stop_tracking(self):
-        return send_recv({'stop': 1}, self.robot_ip, self.robot_port)
+        return send_recv({'stop': 1}, self.server_ip, self.server_port)
 
     def terminate_loop(self):
-        return send_recv({'terminate': 1}, self.robot_ip, self.robot_port)
+        return send_recv({'terminate': 1}, self.server_ip, self.server_port)
 
     ##
     # @brief Wait until the queue on the server is empty. This also means the trajectory motion is finished.
     def wait_queue_empty(self):
         while self.get_qcount()>0:
-            self.period_s
+            self.periodic_x4.wait()
 
     ##
     # @brief    Send target pose to the server and store the queue count.
@@ -61,7 +61,7 @@ class TrajectoryClient(object):
     def push_Q(self, Q, online=False):
         if online:
             if self.qcount >= 3:
-                time.sleep(self.period_s/4)
+                self.periodic_x4.wait()
             if self.qcount > 3:
                 self.qcount = self.get_qcount()
                 sent = False

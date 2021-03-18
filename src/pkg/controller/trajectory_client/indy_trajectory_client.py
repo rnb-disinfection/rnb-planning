@@ -22,6 +22,7 @@ class IndyTrajectoryClient(IndyDCPClient, TrajectoryClient):
     # @brief Make sure the joints move to Q using the indy DCP joint_move_to function.
     # @param Q radian
     def joint_move_make_sure(self, Q, N_repeat=2):
+        self.stop_tracking()
         with self:
             for _ in range(N_repeat):
                 self.joint_move_to(np.rad2deg(Q))
