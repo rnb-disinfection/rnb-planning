@@ -27,7 +27,12 @@
 ### 4. PlanningPipeline
 *\* ~~Strikethrough~~ means no-error but none-functional cases.*
 * **4.1 PlanningScene**  
-  - create_binder, create_object, update_state
+  - create_binder
+    - actor: PlacePlane, Gripper2Tool, SweepTool
+    - handle: Grasp2Point, PlacePoint, SweepPoint
+  - create_subject
+    - subject: CustomObject, SweepTask
+  - update_state
 * **4.2 MotionPlanner**  
   - MoveitPlanner
     - pick, place, sweep
