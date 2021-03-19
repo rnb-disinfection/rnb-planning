@@ -64,7 +64,7 @@
 * show_motion
 
 
-### 4. PlanningPipeline
+### 4. PlanningPipeline - virtual
 
 #### 4.1 PlanningScene
 * create_binder
@@ -82,34 +82,36 @@
 
 #### 4.4 TaskPlanner
 * RRT
-* Sampler
-
-#### 4.5 Execution
 * play_schedule
-* execute_schedule
 
 
-### 5. Web UI
+### 5 Planning & Execution - make test function
+* Indy
+* Panda
+* Indy&Panda
 
-#### 5.1 Geometry
+
+### 6. Web UI
+
+#### 6.1 Geometry
 * highlight
 * add/delete
 * move
 * apply
 * save/load
 
-#### 5.2 Binding
+#### 6.2 Binding
 * highlight
 * move
 * apply
 * save/load
 
-#### 5.3 Mark
+#### 6.3 Mark
 * highlight
 * MarkEnv
 * MarkObj
 
-#### 5.4 Plan
+#### 6.4 Plan
 * MotionPlanner
 * TaskPlanner
   * Plan
@@ -119,19 +121,19 @@
 ##### TaskPlanner - specify goal
 ##### Save/Load
 
-#### 5.4 Setting - TBD
+#### 6.5 Setting - TBD
 
 
-### 6. Custom Tasks
+### 7. Custom Tasks
 
-#### 6.1 Sweep Task
+#### 7.1 Sweep Task
 * script
 
 
-### 7. Demo
+### 8. Demo
 
-#### 7.1 Multi Object Handing
+#### 8.1 Multi Object Handing
 * script
 
-#### 7.2 White board sweeping
+#### 8.2 White board sweeping
 * script
