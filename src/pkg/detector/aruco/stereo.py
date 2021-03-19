@@ -39,7 +39,7 @@ class ArucoStereo(DetectorInterface):
 
     ##
     # @brief disconnect cameras
-    def disconnnect(self):
+    def disconnect(self):
         for cam in self.camera_list:
             cam.disconnect()
 

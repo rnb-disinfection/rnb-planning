@@ -41,7 +41,7 @@ class DetectorInterface:
     ##
     # @brief function prototype for disconnection
     @abstractmethod
-    def disconnnect(self):
+    def disconnect(self):
         pass
 
     ##

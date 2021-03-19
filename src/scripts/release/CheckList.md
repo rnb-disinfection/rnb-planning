@@ -22,18 +22,25 @@
 
 ### 2. Sensors
 #### 2.1 Kinect
+* initialize()
+* get_config()
 * get_image()
+* disconnect()
 
 #### 2.2 Realsense
+* initialize()
+* get_config()
 * get_image()
+* disconnect()
 
 #### 2.3 ArucoStereo
+* initialize()
 * calibrate()
 * detect()
   * level_mask
   * name_mask
   * visualize
-* add_item_axis()
+* disconnect()
 
 ### 3. SceneBuilder, GeometryHandle
 #### 3.1 SceneBuilder
