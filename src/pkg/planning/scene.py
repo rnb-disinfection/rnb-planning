@@ -154,9 +154,9 @@ class PlanningScene:
         return chain_dict
 
     ##
-    # @brief add a object to the scene
-    def add_object(self, name, _object, binding=None):
-        self.subject_dict[name] = _object
+    # @brief add a subjct to the scene
+    def add_subjct(self, name, subject, binding=None):
+        self.subject_dict[name] = subject
         if binding is not None:
             self.actor_dict[binding[1]].bind(self.subject_dict[name], binding[0],
                                               list2dict([0] * len(self.gscene.joint_names),
@@ -165,7 +165,7 @@ class PlanningScene:
 
     ##
     # @brief remove a object from the scene
-    def remove_object(self, name):
+    def remove_subjct(self, name):
         if name in self.subject_dict:
             del self.subject_dict[name]
         self.update_subjects()
