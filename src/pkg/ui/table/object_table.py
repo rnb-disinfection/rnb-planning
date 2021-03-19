@@ -22,7 +22,7 @@ class ObjectTable(TableInterface):
     def add_item(self, value):
         try:
             binder_geometry = self.planning_pipeline.pscene.actor_dict[value['Binder']].geometry.name
-            self.planning_pipeline.pscene.create_object(oname=value[IDENTIFY_COL], gname=value[IDENTIFY_COL],
+            self.planning_pipeline.pscene.create_subject(oname=value[IDENTIFY_COL], gname=value[IDENTIFY_COL],
                                                         _type=otype_to_class(value['OType']),
                                                         binding=(value[IDENTIFY_COL], value['Binding'], value['Binder'], binder_geometry))
         except Exception as e:

@@ -34,11 +34,11 @@
   - EtaslPlanner
     - pick, place, ~~sweep~~
 * **4.3 MotionFilter**  
-  - GraspFilter
+  - GraspChecker
     - pick, place, sweep
-  - ReachFilter
+  - ReachChecker
     - pick, place, ~~sweep~~
-  - LatticedFilter
+  - LatticedChecker
     - pick, place, ~~sweep~~
 * **4.4 TaskPlanner**  
   - RRT
@@ -71,7 +71,9 @@
 ### 7. Demo
 * **7.1 Multi Object Handing**  
   - script
-* **7.2 White board sweeping**  
+* **7.2 Using Tool to sweep**  
+  - script
+* **7.3 White board sweeping**  
   - script
   
   

@@ -175,7 +175,7 @@ class PlanningScene:
     # @param gname name of parent object
     # @param _type type of object, subclass of rnb-planning.src.pkg.planning.constraint.constraint_subject.AbstractObject
     # @param binding point offset from object (m)
-    def create_object(self, oname, gname, _type, binding=None, **kwargs):
+    def create_subject(self, oname, gname, _type, binding=None, **kwargs):
         self.remove_object(oname)
         geometry = self.gscene.NAME_DICT[gname]
         _object = _type(oname, geometry, **kwargs)
