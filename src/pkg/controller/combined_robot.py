@@ -18,7 +18,7 @@ class CombinedRobot:
         ## @brief acceleration limit scale
         self.acc_scale = acc_scale
         self.__set_robots_on_scene(robots_on_scene)
-        self.reset_connection(connection_list)
+        self.reset_connection(*connection_list)
 
     def __set_robots_on_scene(self, robots_on_scene):
         ## @brief list of robot config for robots on scene

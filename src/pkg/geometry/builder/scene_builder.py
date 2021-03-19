@@ -40,7 +40,7 @@ class SceneBuilder(Singleton):
     ##
     # @param detector    detector to use when building the scene
     # @param base_link   name of base link in urdf content
-    def __init__(self, detector, base_link):
+    def __init__(self, detector, base_link="base_link"):
         self.detector = detector
         self.base_link = base_link
 
