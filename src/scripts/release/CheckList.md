@@ -2,7 +2,7 @@
 
 ### 0. Installation
 
-### 1. Robot
+### 1. Robots
 #### 1.1. indy
 * joint_move_make_sure()
 * move_joint_s_curve()
@@ -20,7 +20,7 @@
 * move_joint_wp()
 * grasp()
 
-### 2. Sensor
+### 2. Sensors
 #### 2.1 Kinect
 * get_image()
 
