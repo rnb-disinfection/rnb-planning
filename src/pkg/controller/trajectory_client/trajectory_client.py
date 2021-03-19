@@ -77,7 +77,7 @@ class TrajectoryClient(object):
     # @param wait_finish    send trajectory off-line but wait until finish (default=100)
     # @param start_tracking to reset trajectory and start tracking
     # @param auto_stop      auto-stop trajectory-following after finishing the motion
-    def move_joint_s_curve(self, qtar, q0=None, N_div=100, wait_finish=True, start_tracking=True, auto_stop=False):
+    def move_joint_s_curve(self, qtar, q0=None, N_div=100, wait_finish=True, start_tracking=True, auto_stop=True):
         qcur = np.array(self.get_qcur()) if q0 is None else q0
         DQ = qtar - qcur
         if start_tracking:
@@ -102,7 +102,7 @@ class TrajectoryClient(object):
     # @param N_div          the number of divided steps (default=100)
     # @param start_tracking to reset trajectory and start tracking
     # @param auto_stop      auto-stop trajectory-following after finishing the motion
-    def move_joint_s_curve_online(self, qtar, q0=None, N_div=100, auto_stop=False):
+    def move_joint_s_curve_online(self, qtar, q0=None, N_div=100, auto_stop=True):
         qcur = np.array(self.get_qcur()) if q0 is None else q0
         DQ = qtar - qcur
 
@@ -113,13 +113,15 @@ class TrajectoryClient(object):
             Q = qcur + DQ * (np.sin(np.pi * (float(i_step) / N_div - 0.5)) + 1) / 2
             i_step += self.push_Q(Q, online=True)
         if auto_stop:
+            self.wait_queue_empty()
             self.stop_tracking()
 
     ##
     # @param trajectory radian
     # @param vel_lims radian/s, scalar or vector
     # @param acc_lims radian/s2, scalar or vector
-    def move_joint_wp(self, trajectory, vel_lims, acc_lims, auto_stop=False):
+    def move_joint_wp(self, trajectory, vel_lims, acc_lims, auto_stop=True):
+        trajectory = np.concatenate([[self.get_qcur()], trajectory])
         traj_tot = calc_safe_cubic_traj(1.0/self.traj_freq, trajectory, vel_lim=vel_lims, acc_lim=acc_lims)
         for Q in traj_tot:
             self.push_Q(Q)

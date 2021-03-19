@@ -281,7 +281,7 @@ class PlanningPipeline:
                 if rname is not None:
                     grasp_dict[rname] = True
 
-        self.pscene.combined_robot.grasp_by_dict(grasp_dict)
+        self.pscene.combined_robot.grasp(**grasp_dict)
 
     ##
     # @brief execute schedule
@@ -342,7 +342,7 @@ class PlanningPipeline:
                 Q0 = trajectory[0]
                 time.sleep(0.2)
                 if not on_rviz:
-                    self.pscene.combined_robot.joint_make_sure(Q0)
+                    self.pscene.combined_robot.joint_move_make_sure(Q0)
 
                 with MultiTracker(self.pscene.combined_robot.get_robot_list(), self.pscene.combined_robot.get_indexing_list(),
                                   Q0, on_rviz=on_rviz) as mt:

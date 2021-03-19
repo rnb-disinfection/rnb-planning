@@ -83,23 +83,9 @@ class CombinedRobot:
             if cnt:
                 if _type == RobotType.indy7:
                     if not self.robot_dict[name]:
-                        self.robot_dict[name] = IndyTrajectoryClient(server_ip=addr, robot_name="NRMK-Indy7")
-                    with self.robot_dict[name]:
-                        self.robot_dict[name].set_collision_level(5)
-                        self.robot_dict[name].set_joint_vel_level(3)
-                        self.robot_dict[name].set_task_vel_level(3)
-                        self.robot_dict[name].set_joint_blend_radius(20)
-                        self.robot_dict[name].set_task_blend_radius(0.2)
+                        self.robot_dict[name] = IndyTrajectoryClient(server_ip=addr)
                 elif _type == RobotType.panda:
-                    if self.robot_dict[name]:
-                        if hasattr(self.robot_dict[name], 'alpha_lpf'):
-                            self.robot_dict[name].set_alpha_lpf(self.robot_dict[name].alpha_lpf)
-                        if hasattr(self.robot_dict[name], 'd_gain'):
-                            self.robot_dict[name].set_d_gain(self.robot_dict[name].d_gain)
-                        if hasattr(self.robot_dict[name], 'k_gain'):
-                            self.robot_dict[name].set_k_gain(self.robot_dict[name].k_gain)
-                    else:
-                        self.robot_dict[name] = PandaTrajectoryClient(*addr.split("/"))
+                    self.robot_dict[name] = PandaTrajectoryClient(*addr.split("/"))
             else:
                 if self.robot_dict[name] is not None:
                     self.robot_dict[name].disconnect()
@@ -128,7 +114,7 @@ class CombinedRobot:
     ##
     # @brief move to joint pose target
     # @param Q motion target(rad)
-    def joint_make_sure(self, Q):
+    def joint_move_make_sure(self, Q):
         for name, rconfig in zip(self.robot_names, self.robots_on_scene):
             _type = rconfig.type
             robot = self.robot_dict[name]
@@ -138,6 +124,7 @@ class CombinedRobot:
     # @brief move joint with waypoints, one-by-one
     # @param trajectory numpy array (trajectory length, joint num)
     def move_joint_wp(self, trajectory, vel_scale=None, acc_scale=None):
+        trajectory = np.array(trajectory)
         vel_scale = vel_scale or self.vel_scale
         acc_scale = acc_scale or self.acc_scale
         for name, rconfig in zip(self.robot_names, self.robots_on_scene):
@@ -152,14 +139,10 @@ class CombinedRobot:
 
     ##
     # @brief execute grasping action
-    # @param grasp_dict boolean grasp commands in dictionary form {robot_name: grasp_bool}
-    def grasp_by_dict(self, grasp_dict):
-        print("grasp_dict")
-        print(grasp_dict)
-        grasp_seq = [(k, v) for k, v in grasp_dict.items()]
+    # @param kwargs boolean grasp commands for each robot, robot_name=grasp_bool
+    def grasp(self, **kwargs):
+        grasp_seq = [(k, v) for k, v in kwargs.items()]
         grasp_seq = list(sorted(grasp_seq, key=lambda x: not x[1]))
-        print("grasp_seq")
-        print(grasp_seq)
         for grasp in grasp_seq:
             self.__grasp_fun(grasp[0], grasp[1])
 

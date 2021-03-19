@@ -30,8 +30,8 @@ class UIBroker(Singleton):
                                 TableInfo("Binder", '250px', interface=BinderTable(planning_pipeline, s_builder))]),
             TabInfo("Mark", [TableInfo("Marker", '550px', interface=MarkerTable(planning_pipeline, s_builder)),
                              TableInfo("MarkerGroup", '250px', interface=MarkerGroupTable(planning_pipeline, s_builder))]),
-            TabInfo("Plan", [TableInfo("MotionPlan", '180px', row_selectable='single', interface=MotionPlanTable(planning_pipeline, s_builder)),
-                             TableInfo("TaskPlan", '150px', row_selectable='single', interface=TaskPlanTable(planning_pipeline, s_builder)),
+            TabInfo("Plan", [TableInfo("MotionPlanner", '180px', row_selectable='single', interface=MotionPlanTable(planning_pipeline, s_builder)),
+                             TableInfo("TaskPlanner", '150px', row_selectable='single', interface=TaskPlanTable(planning_pipeline, s_builder)),
                              TableInfo("PlanList", '420px', row_selectable='single', interface=PlanListTable(planning_pipeline, s_builder))]),
             TabInfo("Setting", [TableInfo("Robot", '500px', interface=RobotTable(planning_pipeline, s_builder))])
         ]
