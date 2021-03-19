@@ -72,11 +72,18 @@ class CombinedRobot:
     # @brief reset connection
     # @param connection_list boolean list
     # @param address_list address list, None for default to use stored address
-    def reset_connection(self, connection_list, address_list=None):
-        self.connection_list = connection_list
-        self.address_list = address_list or self.address_list
-        print("connection_list")
-        print(connection_list)
+    def reset_connection(self, *args, **kwargs):
+        assert np.logical_xor(len(args)>0, len(kwargs)>0), \
+            "Give bool connection state for each robot as *args or **kwargs"
+        if len(args)>0:
+            self.connection_list = args
+        else:
+            self.connection_list = [kwargs[rname] for rname in self.robot_names]
+
+        print("connection command:")
+        for rname, connection in zip(self.robot_names, self.connection_list):
+            print("{}: {}".format(rname, connection))
+
         for rbt, cnt, addr in zip(self.robots_on_scene, self.connection_list, self.address_list):
             name = rbt.get_indexed_name()
             _type = rbt.type
