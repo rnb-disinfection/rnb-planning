@@ -73,19 +73,24 @@
 
 #### 4.2 MotionPlanner
 * MoveitPlanner
+  - pick, place, sweep
 * EtaslPlanner
+  - pick, place, sweep
 
 #### 4.3 MotionFilter
 * GraspFilter
+  - pick, place, sweep
 * ReachFilter
+  - pick, place, sweep
 * LatticedFilter
+  - pick, place, sweep
 
 #### 4.4 TaskPlanner
 * RRT
-* play_schedule
+  - pick & place, sweep, combined
 
 
-### 5 Planning & Execution - make test function
+### 5 Planning & Execution - make test function (real world single object P&P)
 * Indy
 * Panda
 * Indy&Panda
@@ -119,21 +124,15 @@
 * Replay
 * Execute
 ##### TaskPlanner - specify goal
-##### Save/Load
+##### Save/Load - deactivate
 
 #### 6.5 Setting - TBD
 
 
-### 7. Custom Tasks
+### 7. Demo
 
-#### 7.1 Sweep Task
+#### 7.1 Multi Object Handing
 * script
 
-
-### 8. Demo
-
-#### 8.1 Multi Object Handing
-* script
-
-#### 8.2 White board sweeping
+#### 7.2 White board sweeping
 * script
