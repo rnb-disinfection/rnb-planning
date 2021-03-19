@@ -54,9 +54,10 @@ class DetectorInterface:
     # @brief    function prototype for detection
     # @param    name_mask   object names to detect
     # @param    level_mask  list of rnb-planning.src.pkg.detector.detector_interface.DetectionLevel
+    # @param    visualize   visualize the detection result
     # @return   object_pose_dict dictionary for object transformations
     @abstractmethod
-    def detect(self, name_mask=None, level_mask=None):
+    def detect(self, name_mask=None, level_mask=None, visualize=False):
         pass
 
     ##
@@ -73,4 +74,10 @@ class DetectorInterface:
     # @return   kwargs  kwargs
     @abstractmethod
     def get_geometry_kwargs(self, name):
+        pass
+
+    ##
+    # @brief    add axis marker to GeometryHandle
+    @abstractmethod
+    def add_item_axis(self, gscene, hl_key, item, axis_name=None):
         pass

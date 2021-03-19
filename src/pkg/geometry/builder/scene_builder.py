@@ -94,11 +94,11 @@ class SceneBuilder(Singleton):
     # @param level_mask     List of rnb-planning.src.pkg.detector.detector_interface.DetectionLevel
     # @param as_matrix      flag to get transform matrix as-is
     # @return xyz_rpy_dict  Dictionary of detected item coordinates in xyz(m), rpy(rad)
-    def detect_items(self, item_names=None, level_mask=None, as_matrix=False):
+    def detect_items(self, item_names=None, level_mask=None, as_matrix=False, visualize=False):
         xyz_rpy_dict = {}
         while True:
             try:
-                objectPose_dict = self.detector.detect(name_mask=item_names, level_mask=level_mask)
+                objectPose_dict = self.detector.detect(name_mask=item_names, level_mask=level_mask, visualize=visualize)
                 for okey in objectPose_dict.keys():
                     Tbr = np.matmul(self.ref_coord_inv, objectPose_dict[okey])
                     xyz_rpy_dict[okey] = Tbr if as_matrix else T2xyzrpy(Tbr)
@@ -117,14 +117,13 @@ class SceneBuilder(Singleton):
     # @param level_mask     List of rnb-planning.src.pkg.detector.detector_interface.DetectionLevel
     # @param gscene   rnb-planning.src.pkg.geometry.geometry.GeometryScene to add detected environment geometry
     # @return gtem_dict dictionary of detected geometry items
-    def detect_and_register(self, item_names=None, level_mask=None, color=(0.6,0.6,0.6,1), collision=True, gscene=None):
+    def detect_and_register(self, item_names=None, level_mask=None, color=(0.6,0.6,0.6,1), collision=True,
+                            gscene=None, visualize=False):
         if gscene is None:
             gscene = self.gscene
-        xyz_rpy_dict = self.detect_items(item_names=item_names, level_mask=level_mask)
+        xyz_rpy_dict = self.detect_items(item_names=item_names, level_mask=level_mask, visualize=visualize)
         gtem_dict = {}
         for ename, xyzrpy in xyz_rpy_dict.items():
-            if np.linalg.norm(xyzrpy[0])>2:
-                continue
             kwargs = dict(name=ename, center=xyzrpy[0], rpy=xyzrpy[1], color=color,
                           link_name=self.base_link, collision=collision)
             kwargs.update(self.detector.get_geometry_kwargs(ename))
