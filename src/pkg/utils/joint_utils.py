@@ -96,16 +96,14 @@ def __get_adjacent_links(link_name, urdf_content, adjacent_links=None, propagate
     if link_name in urdf_content.parent_map:
         pjname, plname  = urdf_content.parent_map[link_name]
         pjoint = urdf_content.joint_map[pjname]
-        if not (propagate or pjoint.type == 'fixed'):
-            return adjacent_links
-        adjacent_links = __get_adjacent_links(plname, urdf_content, adjacent_links, propagate and pjoint.type == 'fixed')
+        if (propagate or pjoint.type == 'fixed'):
+            adjacent_links = __get_adjacent_links(plname, urdf_content, adjacent_links, propagate and pjoint.type == 'fixed')
     if link_name in urdf_content.child_map:
         child_list = urdf_content.child_map[link_name]
         for cjname, clname in child_list:
             cjoint = urdf_content.joint_map[cjname]
-            if not (propagate or cjoint.type == 'fixed'):
-                return adjacent_links
-            adjacent_links = __get_adjacent_links(clname, urdf_content, adjacent_links, propagate and cjoint.type == 'fixed')
+            if (propagate or cjoint.type == 'fixed'):
+                adjacent_links = __get_adjacent_links(clname, urdf_content, adjacent_links, propagate and cjoint.type == 'fixed')
     return list(set(adjacent_links))
 
 def get_joint_tf(joint, joint_dict):
