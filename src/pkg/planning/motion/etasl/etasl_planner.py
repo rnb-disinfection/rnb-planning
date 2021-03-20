@@ -32,6 +32,7 @@ class EtaslPlanner(MotionInterface):
         MotionInterface.__init__(self, pscene)
         self.nWSR, self.cputime, self.regularization_factor = nWSR, cputime, regularization_factor
         self.init_text = self.__get_init_text(timescale=timescale)
+        self.update_gscene()
 
     ##
     # @brief update changes in geometric scene and prepare collision context

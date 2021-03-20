@@ -323,6 +323,19 @@ class PlanningScene:
                 self.rebind(binding_sub, joint_dict) # update binding of the sub-binder too
 
     ##
+    # @brief change binding state
+    # @param binding    list of binding tuple [(object name, binding point, binder), ..]
+    # @param Q          joint pose in radian array
+    # @return           rebinded new state
+    def rebind_all(self, binding_list, Q):
+        for bd in binding_list:
+            self.rebind(bd, list2dict(Q, self.gscene.joint_names))
+
+        binding_state, state_param = self.get_object_state()
+        end_state = State(binding_state, state_param, list(Q), self)
+        return end_state
+
+    ##
     # @brief get exact bindings to transit
     # @param from_state State
     # @param to_state   State
@@ -506,12 +519,11 @@ class PlanningScene:
     # @param state current state
     # @param to_node target object-level node
     # @param Q_dict current joint configuration in dictionary
-    # @return {object name: [(point name, binder name)]}, transition_count
+    # @return {object name: [(point name, binder name)]}
     def get_available_binding_dict(self, state, to_node, Q_dict=None):
         if Q_dict is None:
             Q_dict = list2dict(state.Q, self.gscene.joint_names)
         available_binding_dict = {}
-        transition_count = 0
         for oname, to_node_item, from_node_item, from_binding_state in zip(
                 self.subject_name_list, to_node, state.node, state.binding_state):
             # bgname: binder geometry name
@@ -521,10 +533,9 @@ class PlanningScene:
             if sbgname != bgname:
                 available_binding_dict[oname] = self.get_available_bindings(oname, bgname, from_binding_state[1], from_binding_state[2],
                                                                             Q_dict=Q_dict)
-                transition_count += len(available_binding_dict[oname]) > 0
             else:
                 available_binding_dict[oname] = [from_binding_state[1:]]
-        return available_binding_dict, transition_count
+        return available_binding_dict
 
     ##
     # @brief    sample next state for given transition

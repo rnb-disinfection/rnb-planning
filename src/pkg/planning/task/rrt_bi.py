@@ -136,7 +136,7 @@ class TaskBiRRT(TaskInterface):
                         print("direct reaching: {} -> {}".format(parent_sidx, self.target_sidx))
                     else:
                         new_node = new_item
-                        available_binding_dict, transition_count = self.pscene.get_available_binding_dict(from_state,
+                        available_binding_dict = self.pscene.get_available_binding_dict(from_state,
                                                                                                           new_node,
                                                                                                           list2dict(
                                                                                                               from_state.Q,
@@ -169,7 +169,7 @@ class TaskBiRRT(TaskInterface):
                 parent_sidx = random.choice(self.node_snode_dict_cur[parent_node])
                 parent_snode = self.snode_dict[parent_sidx]
                 from_state = parent_snode.state
-                available_binding_dict, transition_count = self.pscene.get_available_binding_dict(from_state, new_node,
+                available_binding_dict = self.pscene.get_available_binding_dict(from_state, new_node,
                                                                                                   list2dict(
                                                                                                       from_state.Q,
                                                                                                       self.pscene.gscene.joint_names))
@@ -226,7 +226,7 @@ class TaskBiRRT(TaskInterface):
                     Qdict = list2dict(Qnew, self.pscene.gscene.joint_names)
                     for goal in self.goal_nodes:
                         sample_fail = True
-                        available_binding_dict, transition_count = self.pscene.get_available_binding_dict(
+                        available_binding_dict = self.pscene.get_available_binding_dict(
                             from_state, goal, Qdict)
 
                         trial_count = 0

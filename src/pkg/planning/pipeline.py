@@ -203,11 +203,7 @@ class PlanningPipeline:
             if display:
                 self.pscene.gscene.show_motion(Traj, error_skip=error_skip, period=dt_vis)
 
-        for bd in binding_list:
-            self.pscene.rebind(bd, list2dict(LastQ, self.pscene.gscene.joint_names))
-
-        binding_state, state_param = self.pscene.get_object_state()
-        end_state = State(binding_state, state_param, list(LastQ), self.pscene)
+        end_state = self.pscene.rebind_all(binding_list, LastQ)
         return Traj, end_state, error, success
 
     ##
