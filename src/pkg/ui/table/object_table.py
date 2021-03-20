@@ -29,7 +29,7 @@ class ObjectTable(TableInterface):
             print(e)
 
     def delete_item(self, active_row):
-        self.planning_pipeline.pscene.remove_object(active_row)
+        self.planning_pipeline.pscene.remove_subject(active_row)
 
     def update_item(self, otem, active_col, value):
         res, msg = True, ""

@@ -35,12 +35,6 @@ class State:
     def copy(self, pscene):
         return State(deepcopy(self.binding_state), deepcopy(self.state_param), deepcopy(self.Q), pscene)
 
-    def __str__(self):
-        return str((self.binding_state,
-                    {k: str(np.round(v, 2)) for k, v in
-                     self.state_param.items()} if isinstance(self.state_param, dict) else self.state_param,
-                    str(np.round(self.Q, 2)) if self.Q is not None else None))
-
 
 
 ##
@@ -155,7 +149,7 @@ class PlanningScene:
 
     ##
     # @brief add a subjct to the scene
-    def add_subjct(self, name, subject, binding=None):
+    def add_subject(self, name, subject, binding=None):
         self.subject_dict[name] = subject
         if binding is not None:
             self.actor_dict[binding[1]].bind(self.subject_dict[name], binding[0],
@@ -165,7 +159,7 @@ class PlanningScene:
 
     ##
     # @brief remove a object from the scene
-    def remove_subjct(self, name):
+    def remove_subject(self, name):
         if name in self.subject_dict:
             del self.subject_dict[name]
         self.update_subjects()
@@ -176,10 +170,10 @@ class PlanningScene:
     # @param _type type of object, subclass of rnb-planning.src.pkg.planning.constraint.constraint_subject.AbstractObject
     # @param binding point offset from object (m)
     def create_subject(self, oname, gname, _type, binding=None, **kwargs):
-        self.remove_object(oname)
+        self.remove_subject(oname)
         geometry = self.gscene.NAME_DICT[gname]
         _object = _type(oname, geometry, **kwargs)
-        self.add_object(oname, _object, binding)
+        self.add_subject(oname, _object, binding)
         return _object
 
     ##
@@ -294,7 +288,7 @@ class PlanningScene:
         otem = self.subject_dict[htem.geometry.name]
         del otem.action_points_dict[htem.name]
         if not otem.action_points_dict.keys():
-            self.remove_object(htem.geometry.name)
+            self.remove_subject(htem.geometry.name)
 
     ##
     # @brief    collect all objects' handle items and update to the scene,
