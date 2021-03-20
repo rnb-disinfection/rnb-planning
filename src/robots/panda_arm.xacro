@@ -135,12 +135,6 @@
           <cylinder length="0.18" radius="0.05"/>
         </geometry>
       </collision>
-      <collision>
-        <origin xyz="0.      0.037 0" rpy="0 1.57079633 1.57079633"/>
-        <geometry>
-          <cylinder length="0.20" radius="0.06"/>
-        </geometry>
-      </collision>
     </link>
     <joint name="${arm_id}_joint5" type="revolute">
       <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>
@@ -157,9 +151,9 @@
         </geometry>
       </visual>
       <collision>
-        <origin xyz="0.09 0.005 0." rpy="1.57079633         0.  0."/>
+        <origin xyz="0.   0 -0.037" rpy="0 0 0"/>
         <geometry>
-          <cylinder length="0.16" radius="0.05"/>
+          <cylinder length="0.20" radius="0.06"/>
         </geometry>
       </collision>
     </link>

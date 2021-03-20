@@ -68,10 +68,10 @@ def get_min_distance_map(urdf_content):
 def get_parent_joint(link_name, urdf_content):
     return urdf_content.parent_map[link_name][0]
 
-def get_link_adjacency_map(urdf_content):
+def get_link_adjacency_map(urdf_content, fixed_only=False):
     link_adjacency_map = {}
     for lname in urdf_content.link_map.keys():
-        link_adjacency_map[lname] = __get_adjacent_links(lname, urdf_content)
+        link_adjacency_map[lname] = __get_adjacent_links(lname, urdf_content, propagate=not fixed_only)
     link_adjacency_map_ext = {}
     for k, v in link_adjacency_map.items():
         adj_list = []

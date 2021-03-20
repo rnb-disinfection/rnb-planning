@@ -2,7 +2,6 @@ from .rrt import  *
 from copy import deepcopy
 from ..constraint.constraint_subject import AbstractObject, AbstractTask
 from ..constraint.constraint_common import combine_redundancy, sample_redundancy, calc_redundancy
-from ..filtering.grasp_filter import GraspChecker
 
 
 

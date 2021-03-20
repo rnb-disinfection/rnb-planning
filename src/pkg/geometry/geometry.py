@@ -43,6 +43,7 @@ class GeometryScene(list):
         self.urdf_content = urdf_content
         self.urdf_path = urdf_path
         self.link_adjacency_map, self.link_adjacency_map_ext = get_link_adjacency_map(urdf_content)
+        self.fixed_link_adjacency_map, _ = get_link_adjacency_map(urdf_content, fixed_only=True)
         self.link_control_map = get_link_control_dict(urdf_content)
         self.min_distance_map = get_min_distance_map(urdf_content)
 
