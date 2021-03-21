@@ -48,13 +48,13 @@ class PlanningPipeline:
 
     ##
     # @param mplan subclass instance of rnb-planning.src.pkg.planning.motion.interface.MotionInterface
-    def set_motion(self, mplan):
+    def set_motion_planner(self, mplan):
         self.mplan = mplan
         mplan.update_gscene()
 
     ##
     # @param tplan subclass instance of rnb-planning.src.pkg.planning.task.interface.TaskInterface
-    def set_sampler(self, tplan):
+    def set_task_planner(self, tplan):
         self.tplan = tplan
         self.tplan.prepare()
 

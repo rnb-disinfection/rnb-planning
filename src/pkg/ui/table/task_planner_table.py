@@ -29,7 +29,7 @@ class TaskPlanTable(TableInterface):
                     print("Set RRT")
                 else:
                     raise(RuntimeError("Undefined sampler"))
-                self.planning_pipeline.set_sampler(sampler)
+                self.planning_pipeline.set_task_planner(sampler)
 
     def add_item(self, value):
         raise(RuntimeError("Cannot add or delete planner"))

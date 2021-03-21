@@ -38,16 +38,20 @@
     - pick, place, sweep
   - EtaslPlanner
     - pick, place, ~~sweep~~
-* **4.3 MotionFilter**  
-  - GraspChecker
-    - pick, place, sweep
-  - ReachChecker
-    - pick, place, ~~sweep~~
-  - LatticedChecker
-    - pick, place, ~~sweep~~
-* **4.4 TaskPlanner**  
+* **4.3 TaskPlanner**  
   - RRT
-    - pick & place, sweep, combined
+    - pick & place & sweep
+      - single process
+      - multi process
+    
+### 4-A MotionFilter
+*\* ~~Strikethrough~~ means no-error but none-functional cases.*
+* **4-A.1 GraspChecker**  
+  - pick, place, sweep
+* **4-A.2 ReachChecker**  
+  - pick, place, ~~sweep~~
+* **4-A.3 LatticedChecker**  
+  - pick, place, ~~sweep~~
 
 ### 5 Planning & Execution
  - make test function (real world single object P&P)
