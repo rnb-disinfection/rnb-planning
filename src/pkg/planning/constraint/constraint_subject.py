@@ -226,6 +226,8 @@ class SweepTask(AbstractTask):
         self.binding = binding
         if state_param is not None:
             self.state_param = state_param.copy()
+        for ap in self.action_points_dict.values():     # you should update action points here
+            ap.update_handle()
 
     ##
     # @brief (prototype) get state param
@@ -336,6 +338,8 @@ class SweepLineTask(AbstractTask):
         self.binding = binding
         if state_param is not None:
             self.state_param = state_param.copy()
+        for ap in self.action_points_dict.values():     # you should update action points here
+            ap.update_handle()
 
     ##
     # @brief (prototype) get state param
@@ -399,7 +403,7 @@ class AbstractObject(Subject):
         frame = state_param[1]
         self.geometry.set_offset_tf(frame[:3, 3], frame[:3,:3])
         self.geometry.set_link(link_name)
-        for ap in self.action_points_dict.values():
+        for ap in self.action_points_dict.values():     # you should update action points here
             ap.update_handle()
         assert binding[0] == self.oname, "wrong binding given {} <- {}".format(self.oname, binding[0])
         self.binding = binding

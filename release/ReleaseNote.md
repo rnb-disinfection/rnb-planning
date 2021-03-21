@@ -48,12 +48,18 @@
 *\* ~~Strikethrough~~ means no-error but none-functional cases.*
 * **4-A.1 GraspChecker**  
   - pick, place, sweep
+    - single process
+    - multi process
 * **4-A.2 ReachChecker**  
   - pick, place, ~~sweep~~
+    - single process
+    - multi process
 * **4-A.3 LatticedChecker**  
   - pick, place, ~~sweep~~
+    - single process
+    - *multi process is not supported with LatticedChecker, which uses GPU*
 
-### 5 Planning & Execution
+### 5. Planning & Execution
  - make test function (real world single object P&P)
 * **5.1 Indy**
 * **5.2 Panda**
