@@ -58,7 +58,7 @@ class MoveitPlanner(MotionInterface):
         MotionInterface.__init__(self, pscene, motion_filters)
         config_path = os.path.dirname(self.urdf_path)+"/"
         self.robot_names = self.combined_robot.robot_names
-        chain_dict = pscene.get_robot_chain_dict()
+        chain_dict = pscene.robot_chain_dict
         binder_links = [chain_dict[rname]['tip_link'] for rname in self.robot_names]
         self.binder_link_robot_dict = {blink: rname for blink, rname in zip(binder_links, self.robot_names)}
         srdf_path = write_srdf(robot_names=self.robot_names, chain_dict=chain_dict,

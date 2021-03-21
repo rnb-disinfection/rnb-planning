@@ -106,7 +106,14 @@ class CombinedRobot:
     ##
     # @brief get {robot name:base_link}
     def get_robot_base_dict(self):
-        return {rname: RobotSpecs.get_base_name(rconfig.type, rname) for rname, rconfig in self.get_robot_config_dict().items()}
+        return {rname: RobotSpecs.get_base_name(rconfig.type, rname)
+                for rname, rconfig in self.get_robot_config_dict().items()}
+
+    ##
+    # @brief get {robot name:tip_link}
+    def get_robot_tip_dict(self):
+        return {rname: RobotSpecs.get_tip_name(rconfig.type, rname)
+                for rname, rconfig in self.get_robot_config_dict().items()}
 
     ##
     # @brief get list of robot controller interface

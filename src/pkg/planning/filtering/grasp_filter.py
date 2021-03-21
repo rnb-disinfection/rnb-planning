@@ -15,7 +15,7 @@ class GraspChecker(MotionFilterInterface):
     def __init__(self, pscene, POS_STEP=0.05, ROT_STEP=np.pi/8):
         self.pscene = pscene
         self.gscene = pscene.gscene
-        self.chain_dict = pscene.get_robot_chain_dict()
+        self.chain_dict = pscene.robot_chain_dict
         self.POS_STEP = POS_STEP
         self.ROT_STEP = ROT_STEP
         ##

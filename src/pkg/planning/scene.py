@@ -67,12 +67,24 @@ class PlanningScene:
         self.actor_robot_dict = {}
         ## @brief {robot name: corresponding actor name}
         self.robot_actor_dict = {}
+        # set robot chain from ComrinedRobot and GeometryScene
+        self.set_robot_chain_dict()
 
     ##
     # @brief add a binder to the scene
     # @param rname indexed full name of corresponding robot
     # @param binder instance of subclass of rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
-    def add_binder(self, rname, binder):
+    def add_binder(self, binder):
+        rnames = [rname for rname, chain_dict in self.robot_chain_dict.items()
+                 if binder.geometry.link_name in chain_dict["link_names"]]
+        if len(rnames)==1:
+            rname = rnames[0]
+        elif len(rnames)==0:
+            rname = None
+        else:
+            raise(RuntimeError(
+                "binder link included in multiple robot chains - {} - {}".format(binder.name,
+                                                                                 binder.geometry.link_name)))
         self.actor_robot_dict[binder.name] = rname
         if rname is not None:
             self.robot_actor_dict[rname] = binder.name
@@ -93,15 +105,14 @@ class PlanningScene:
     ##
     # @param bname binder name
     # @param gname name of parent object
-    # @param rname indexed full name of corresponding robot, None if free actor
     # @param _type type of binder, subclass of rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
     # @param point binding point offset from object (m)
     # @param rpy   orientation of binding point (rad)
-    def create_binder(self, bname, gname, _type, rname=None, point=None, rpy=(0, 0, 0)):
+    def create_binder(self, bname, gname, _type, point=None, rpy=(0, 0, 0)):
         self.remove_binder(bname)
         geometry = self.gscene.NAME_DICT[gname]
         binder = _type(bname, geometry=geometry, point=point, rpy=rpy)
-        self.add_binder(rname, binder)
+        self.add_binder(binder)
         return binder
 
     ##
@@ -135,17 +146,24 @@ class PlanningScene:
                 else:
                     uncontrolled_binders += [k_b]
         return controlled_binders, uncontrolled_binders
+
     ##
-    # @brief get robot chain dictionary {robot name: {"tip_link": effector link name, "joint_names": joint name list}}
-    def get_robot_chain_dict(self):
+    # @brief set robot chain dictionary {robot name: {"tip_link": effector link name, "joint_names": joint name list}}
+    def set_robot_chain_dict(self):
         base_dict = self.combined_robot.get_robot_base_dict()
-        chain_dict = {}
+        tip_dict = self.combined_robot.get_robot_tip_dict()
+        ## @brief {robot name: {"tip_link": effector link name, "joint_names": joint name list}}
+        self.robot_chain_dict = {}
         for rname in self.combined_robot.robot_names:
-            effector_link = self.actor_dict[self.robot_actor_dict[rname]].geometry.link_name
-            joint_chain = self.gscene.urdf_content.get_chain(root=base_dict[rname], tip=effector_link, fixed=False, joints=True, links=False)
-            link_chain = self.gscene.urdf_content.get_chain(root=base_dict[rname], tip=effector_link, fixed=False, joints=False, links=True)
-            chain_dict[rname] = {"tip_link": effector_link, "joint_names": joint_chain, "link_names": link_chain}
-        return chain_dict
+            effector_link = tip_dict[rname]
+            base_link = base_dict[rname]
+            joint_chain = self.gscene.urdf_content.get_chain(
+                root=base_link, tip=effector_link, fixed=False, joints=True, links=False)
+            link_chain = self.gscene.urdf_content.get_chain(
+                root=base_link, tip=effector_link, fixed=False, joints=False, links=True)
+            self.robot_chain_dict[rname] = {"tip_link": effector_link,
+                                            "joint_names": joint_chain,
+                                            "link_names": link_chain}
 
     ##
     # @brief add a subjct to the scene
