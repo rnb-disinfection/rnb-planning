@@ -54,13 +54,9 @@
   - pick, place, ~~sweep~~
     - single process
     - multi process
-* **4-A.3 LatticedChecker**  
-  - pick, place, ~~sweep~~
-    - single process
-    - *multi process is not supported with LatticedChecker, which uses GPU*
 
 ### 5. Planning & Execution
- - make test function (real world single object P&P)
+ - simple test scenario: real world single object P&P
 * **5.1 Indy**
 * **5.2 Panda**
 * **5.3 Indy&Panda**
@@ -94,6 +90,13 @@
   
 ## Deprecated features
 * **None (First release)**  
+  
+  
+## Preparing features
+* **4-A.3 LatticedChecker**  
+  - pick, place
+    - single process
+    - *multi process is not supported with LatticedChecker, which uses GPU*
   
   
 ## Requirements

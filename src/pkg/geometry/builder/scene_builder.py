@@ -62,6 +62,7 @@ class SceneBuilder(Singleton):
     # @return link_names        link names
     # @return urdf_content      urdf content
     def create_gscene(self, combined_robot, node_name='task_planner', start_rviz=True, gscene_from=None):
+        self.combined_robot = combined_robot
         robots_on_scene = combined_robot.robots_on_scene
         custom_limits   = combined_robot.custom_limits
 
@@ -129,6 +130,23 @@ class SceneBuilder(Singleton):
             kwargs.update(self.detector.get_geometry_kwargs(ename))
             gtem_dict[ename] = gscene.create_safe(**kwargs)
         return gtem_dict
+
+    ##
+    # @brief shift geometry item slightly to make sure there is a clearance from the floor
+    # @param floor GeometryItem for floor
+    # @param gtem_list list of GeometryItem to shift
+    # @param clearance the amount of clearance to give, in m units
+    def give_clearance(self, floor, gtem_list, clearance=1e-3):
+        Ttrack = floor.get_tf(self.combined_robot.home_dict)
+        Ttrack_inv = SE3_inv(Ttrack)
+        for gtem in gtem_list:
+            verts, _ = gtem.get_vertice_radius_from(self.combined_robot.home_dict, from_link="base_link")
+            verts_loc = np.matmul(Ttrack_inv[:3, :3], verts.transpose()) + Ttrack_inv[:3, 3:]
+            off = floor.dims[2] / 2 - np.min(verts_loc[2, :]) + clearance
+            center_loc = np.matmul(Ttrack_inv[:3, :3], gtem.center) + Ttrack_inv[:3, 3]
+            center_loc_new = center_loc + [0, 0, off]
+            center_new = np.matmul(Ttrack[:3, :3], center_loc_new) + Ttrack[:3, 3]
+            gtem.set_offset_tf(center=center_new)
 
     ##
     # @brief add pole geometries to the scene
