@@ -153,8 +153,13 @@ class CombinedRobot:
 
     ##
     # @brief execute grasping action
+    # @param args boolean grasp commands for each robot
     # @param kwargs boolean grasp commands for each robot, robot_name=grasp_bool
-    def grasp(self, **kwargs):
+    def grasp(self, *args, **kwargs):
+        if len(args)>0:
+            kwargs = {k: v for k,v in zip(self.robot_names, args)}
+        else:
+            assert kwargs is not None, "Grasp status should be passed either in arguments or keyward arguments "
         grasp_seq = [(k, v) for k, v in kwargs.items()]
         grasp_seq = list(sorted(grasp_seq, key=lambda x: not x[1]))
         for grasp in grasp_seq:

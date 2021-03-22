@@ -80,11 +80,7 @@
   - TaskPlanner
 
 ### 7. Demo
-* **7.1 Multi Object Handing**  
-  - script
-* **7.2 Using Tool to sweep**  
-  - script
-* **7.3 White board sweeping**  
+* **7.1 White board sweeping**  
   - script
   
   
@@ -97,8 +93,15 @@
   - pick, place
     - single process
     - *multi process is not supported with LatticedChecker, which uses GPU*
+    
 * **6. Web UI**
   - save/load buttons
+  - auto page refresh
+  
+* **7.2 Using Tool to sweep**  
+  - script
+* **7.3 Multi Object Handing**  
+  - script
   
   
 ## Requirements

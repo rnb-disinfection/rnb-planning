@@ -2,6 +2,7 @@ from collections import defaultdict
 from ..utils.utils import list2dict
 from .constraint.constraint_common import combine_redundancy, sample_redundancy
 from .constraint.constraint_subject import SubjectType
+from ..geometry.geotype import *
 from itertools import product
 import numpy as np
 import random
