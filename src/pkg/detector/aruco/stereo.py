@@ -326,13 +326,24 @@ class ArucoStereo(DetectorInterface):
     def add_item_axis(self, gscene, hl_key, item, axis_name=None):
         oname = item.oname
         axis_name = axis_name or oname
-        if oname in self.combined_robot.get_robot_config_dict():
-            link_name = RobotSpecs.get_base_name(self.combined_robot.get_robot_config_dict()[oname].type, oname)
-            Toff = item.Toff
-        else:
+        if oname in gscene.NAME_DICT:
             aobj = gscene.NAME_DICT[oname]
             link_name = aobj.link_name
             Toff = np.matmul(aobj.Toff, item.Toff)
+        else:
+            link_candis = list(set([lname for lname in gscene.link_names
+                                    if oname in lname
+                                    and lname in [child_pair[1]
+                                                  for child_pair
+                                                  in gscene.urdf_content.child_map["base_link"]]
+                                    ]))
+            if len(link_candis) == 0:
+                link_name = "base_link"
+            elif len(link_candis) == 1:
+                link_name = link_candis[0]
+            else:
+                raise(RuntimeError("Multiple object link candidates - marker link cannot be determined"))
+            Toff = item.Toff
         gscene.add_highlight_axis(hl_key, axis_name, link_name, Toff[:3,3], Toff[:3,:3], axis="xyz")
 
     ##

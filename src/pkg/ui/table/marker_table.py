@@ -21,7 +21,7 @@ class MarkerTable(TableInterface):
 
     def highlight_item(self, atem, color=None):
         self.planning_pipeline.pscene.gscene.highlight_geometry(self.HILIGHT_KEY, atem.oname, color=color)
-        self.planning_pipeline.detector.add_item_axis(self.planning_pipeline.pscene.gscene, self.HILIGHT_KEY, atem)
+        self.detector.add_item_axis(self.planning_pipeline.pscene.gscene, self.HILIGHT_KEY, atem)
 
     def add_item(self, value):
         oname = value["Object"]

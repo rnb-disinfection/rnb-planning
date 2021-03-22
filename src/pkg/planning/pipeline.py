@@ -207,20 +207,6 @@ class PlanningPipeline:
         return Traj, end_state, error, success
 
     ##
-    # @brief find best schedule by trajectory length
-    def find_best_schedule(self, schedule_sorted):
-        best_snode_schedule = None
-        best_score = 1e10
-        for ss in schedule_sorted:
-            schedule = ss
-            snode_schedule_list = self.idxSchedule2SnodeScedule(schedule, self.pscene.combined_robot.home_pose)
-            score = np.sum([snode.traj_length for snode in snode_schedule_list])
-            if score < best_score:
-                best_score = score
-                best_snode_schedule = snode_schedule_list
-        return best_snode_schedule
-
-    ##
     # @brief add return motion to a SearchNode schedule
     def add_return_motion(self, snode_last, initial_state=None, timeout=5):
         if initial_state is None:

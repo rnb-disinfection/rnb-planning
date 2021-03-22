@@ -20,7 +20,8 @@ class MarkerGroupTable(TableInterface):
     def highlight_item(self, gtem, color=None):
         self.planning_pipeline.pscene.gscene.highlight_geometry(self.HILIGHT_KEY, gtem.name, color=color)
         for i, atem in zip(range(len(gtem)), gtem):
-            self.planning_pipeline.detector.add_item_axis(self.planning_pipeline.pscene.gscene, self.HILIGHT_KEY, atem)
+            self.detector.add_item_axis(self.planning_pipeline.pscene.gscene, self.HILIGHT_KEY, atem,
+                                        axis_name=atem.oname+"%d"%i)
 
     def add_item(self, value):
         name = value[IDENTIFY_COL]

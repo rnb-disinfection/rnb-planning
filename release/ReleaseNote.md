@@ -62,22 +62,22 @@
 * **5.3 Indy&Panda**
 
 ### 6. Web UI
-* **6.1 Geometry**  
-  - highlight, add/delete, move, apply, save/load
-* **6.2 Binding**  
-  - highlight, move, apply, save/load
-* **6.3 Mark**  
+* **6.1 Instance tab**  
+  - highlight, add/delete, edit, apply
+* **6.2 Binding tab**  
+  - highlight, edit
+* **6.3 Mark tab**  
   - highlight
   - MarkEnv, MarkObj
-* **6.4 Plan**  
-  - MotionPlanner
-  - TaskPlanner
-    - Plan
+* **6.4 Planning tab**  
+  - Conditions
+    - Initialize, Plan
   - PlanList
     - Replay, Execute
-* **6.5 Setting - TBD**  
-##### TaskPlanner - specify goal
-##### Save/Load - deactivate
+* **6.5 Setting tab**  
+  - Robot
+  - MotionPlanner
+  - TaskPlanner
 
 ### 7. Demo
 * **7.1 Multi Object Handing**  
@@ -97,6 +97,8 @@
   - pick, place
     - single process
     - *multi process is not supported with LatticedChecker, which uses GPU*
+* **6. Web UI**
+  - save/load buttons
   
   
 ## Requirements

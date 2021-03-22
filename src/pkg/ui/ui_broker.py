@@ -12,6 +12,7 @@ from .table.camera_table import  *
 from .table.robot_table import  *
 from .table.task_planner_table import *
 from .table.motion_planner_table import *
+from .table.plan_condition_table import  *
 from .table.plan_list_table import *
 
 class UIBroker(Singleton):
@@ -30,10 +31,16 @@ class UIBroker(Singleton):
                                 TableInfo("Binder", '250px', interface=BinderTable(planning_pipeline, s_builder))]),
             TabInfo("Mark", [TableInfo("Marker", '550px', interface=MarkerTable(planning_pipeline, s_builder)),
                              TableInfo("MarkerGroup", '250px', interface=MarkerGroupTable(planning_pipeline, s_builder))]),
-            TabInfo("Plan", [TableInfo("MotionPlanner", '180px', row_selectable='single', interface=MotionPlanTable(planning_pipeline, s_builder)),
-                             TableInfo("TaskPlanner", '150px', row_selectable='single', interface=TaskPlanTable(planning_pipeline, s_builder)),
-                             TableInfo("PlanList", '420px', row_selectable='single', interface=PlanListTable(planning_pipeline, s_builder))]),
-            TabInfo("Setting", [TableInfo("Robot", '500px', interface=RobotTable(planning_pipeline, s_builder))])
+            TabInfo("Planning", [TableInfo("PlanConditions", '200px', row_selectable='single',
+                                           interface=PlanConditionTable(planning_pipeline, s_builder)),
+                                 TableInfo("PlanList", '420px', row_selectable='single',
+                                           interface=PlanListTable(planning_pipeline, s_builder))]),
+            TabInfo("Setting", [TableInfo("Robot", '200px', interface=RobotTable(planning_pipeline, s_builder)),
+                                TableInfo("MotionPlanner", '200px', row_selectable='single',
+                                          interface=MotionPlanTable(planning_pipeline, s_builder)),
+                                TableInfo("TaskPlanner", '200px', row_selectable='single',
+                                          interface=TaskPlanTable(planning_pipeline, s_builder))
+                                ])
         ]
         self.table_dict = {}
         for tab in self.tab_list:
