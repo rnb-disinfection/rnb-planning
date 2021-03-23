@@ -22,15 +22,3 @@
   * moveit_core::KinematicConstraintSet::decide
   * ModelBasedPlanningContext::PlanningScene::isStateFeasible
   * ModelBasedPlanningContext::PlanningScene::checkCollision
-  
-  * __node_handle 사용처:
-  kinematics.yaml, ompl_planning.yaml, planning_plugin.yaml 로딩
-  getParam("planning_plugin") -> planner name=OMPLPlannerCustom
-  planner_instance->initialize(getNamesapce()="ompl_interface_py") -> nh_ 재생성 -> OMPLInterface에 전달, ns/ompl -> OMPLDynamicReconfigureConfig 추가
-  
-  * nh_ 사용처:
-  
-  
-  ## TODO
-  * ros 최소화, 노드 사용 파트 삭제
-  * TangentBundleSpace로 변경

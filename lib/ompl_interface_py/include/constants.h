@@ -1,0 +1,10 @@
+//
+// Created by tamp on 21. 1. 2..
+//
+
+#ifndef MOVEIT_PLAN_COMPACT_CONSTANTS_H
+#define MOVEIT_PLAN_COMPACT_CONSTANTS_H
+
+//#define PRINT_DEBUG
+
+#endif //MOVEIT_PLAN_COMPACT_CONSTANTS_H
