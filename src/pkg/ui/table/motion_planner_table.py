@@ -21,11 +21,11 @@ class MotionPlanTable(TableInterface):
             if gtem[0] == "eTaSL":
                 planning_pipeline = self.planning_pipeline
                 eplan = EtaslPlanner(self.planning_pipeline.pscene)
-                planning_pipeline.set_planner(eplan)
+                planning_pipeline.set_motion_planner(eplan)
             if gtem[0] == "MoveIt":
                 planning_pipeline = self.planning_pipeline
                 mplan = MoveitPlanner(self.planning_pipeline.pscene)
-                planning_pipeline.set_planner(mplan)
+                planning_pipeline.set_motion_planner(mplan)
 
     def add_item(self, value):
         raise(RuntimeError("Cannot add or delete planner"))

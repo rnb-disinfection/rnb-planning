@@ -48,13 +48,13 @@ class PlanningPipeline:
 
     ##
     # @param mplan subclass instance of rnb-planning.src.pkg.planning.motion.interface.MotionInterface
-    def set_motion(self, mplan):
+    def set_motion_planner(self, mplan):
         self.mplan = mplan
         mplan.update_gscene()
 
     ##
     # @param tplan subclass instance of rnb-planning.src.pkg.planning.task.interface.TaskInterface
-    def set_sampler(self, tplan):
+    def set_task_planner(self, tplan):
         self.tplan = tplan
         self.tplan.prepare()
 
@@ -203,26 +203,8 @@ class PlanningPipeline:
             if display:
                 self.pscene.gscene.show_motion(Traj, error_skip=error_skip, period=dt_vis)
 
-        for bd in binding_list:
-            self.pscene.rebind(bd, list2dict(LastQ, self.pscene.gscene.joint_names))
-
-        binding_state, state_param = self.pscene.get_object_state()
-        end_state = State(binding_state, state_param, list(LastQ), self.pscene)
+        end_state = self.pscene.rebind_all(binding_list, LastQ)
         return Traj, end_state, error, success
-
-    ##
-    # @brief find best schedule by trajectory length
-    def find_best_schedule(self, schedule_sorted):
-        best_snode_schedule = None
-        best_score = 1e10
-        for ss in schedule_sorted:
-            schedule = ss
-            snode_schedule_list = self.idxSchedule2SnodeScedule(schedule, self.pscene.combined_robot.home_pose)
-            score = np.sum([snode.traj_length for snode in snode_schedule_list])
-            if score < best_score:
-                best_score = score
-                best_snode_schedule = snode_schedule_list
-        return best_snode_schedule
 
     ##
     # @brief add return motion to a SearchNode schedule
@@ -281,7 +263,7 @@ class PlanningPipeline:
                 if rname is not None:
                     grasp_dict[rname] = True
 
-        self.pscene.combined_robot.grasp_by_dict(grasp_dict)
+        self.pscene.combined_robot.grasp(**grasp_dict)
 
     ##
     # @brief execute schedule
@@ -342,7 +324,7 @@ class PlanningPipeline:
                 Q0 = trajectory[0]
                 time.sleep(0.2)
                 if not on_rviz:
-                    self.pscene.combined_robot.joint_make_sure(Q0)
+                    self.pscene.combined_robot.joint_move_make_sure(Q0)
 
                 with MultiTracker(self.pscene.combined_robot.get_robot_list(), self.pscene.combined_robot.get_indexing_list(),
                                   Q0, on_rviz=on_rviz) as mt:

@@ -1,3 +1,36 @@
+from ..geometry.geometry import *
+
+
+##
+# @brief add indy_gripper_asm2 mesh and collision boundary for the gripper
+# @param gscene     rnb-planning.src.pkg.geometry.geometry.GeometryScene
+# @param robot_name full indexed name of the robot
+# @param link_name  full name of the link that the gripper will be attached
+def add_indy_gripper_asm2(gscene, robot_name, link_name):
+    gscene.create_safe(GEOTYPE.MESH, "{}_gripper_vis".format(robot_name), link_name=link_name,
+                       dims=(0.1,0.1,0.1), center=(0,0,0), rpy=(0,0,np.pi/2),
+                       color=(0.1,0.1,0.1,1), display=True, fixed=True, collision=False,
+                       uri="package://my_mesh/meshes/stl/indy_gripper_asm2_res.STL", scale=(1,1,1))
+
+    gscene.create_safe(GEOTYPE.BOX, "{}_gripper".format(robot_name), link_name=link_name,
+                       dims=(0.06,0.08,0.06), center=(0,0,0.04), rpy=(0,0,0),
+                       color=(0.0,0.8,0.0,0.5), display=True, fixed=True, collision=True)
+
+    gscene.create_safe(GEOTYPE.CYLINDER, "{}_finger1".format(robot_name), link_name=link_name,
+                       dims=(0.03,0.03,0.095), center=(0.006,0.045,0.1), rpy=(0,0,0),
+                       color=(0.0,0.8,0.0,0.5), display=True, fixed=True, collision=True)
+
+    gscene.create_safe(GEOTYPE.CYLINDER, "{}_finger2".format(robot_name), link_name=link_name,
+                       dims=(0.03,0.03,0.095), center=(-0.006,0.045,0.1), rpy=(0,0,0),
+                       color=(0.0,0.8,0.0,0.5), display=True, fixed=True, collision=True)
+
+    gscene.create_safe(GEOTYPE.CYLINDER, "{}_finger3".format(robot_name), link_name=link_name,
+                       dims=(0.03,0.03,0.095), center=(0.006,-0.045,0.1), rpy=(0,0,0),
+                       color=(0.0,0.8,0.0,0.5), display=True, fixed=True, collision=True)
+
+    gscene.create_safe(GEOTYPE.CYLINDER, "{}_finger4".format(robot_name), link_name=link_name,
+                       dims=(0.03,0.03,0.095), center=(-0.006,-0.045,0.1), rpy=(0,0,0),
+                       color=(0.0,0.8,0.0,0.5), display=True, fixed=True, collision=True)
 
 
 ### resized image plot

@@ -12,14 +12,10 @@ from ...utils.utils import GlobalTimer
 class GraspChecker(MotionFilterInterface):
     ##
     # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
-    # @param end_link_couple_dict links to douple  in reserse order, {end_link: [end_link, parent1, parnt2, ...]}
-    def __init__(self, pscene, end_link_couple_dict, POS_STEP=0.05, ROT_STEP=np.pi/8):
-        for k,v in end_link_couple_dict.items():
-            assert v[0] == k, "actor_link_names should be in reverse order including actor's link as the first item"
+    def __init__(self, pscene, POS_STEP=0.05, ROT_STEP=np.pi/8):
         self.pscene = pscene
         self.gscene = pscene.gscene
-        self.end_link_couple_dict = end_link_couple_dict
-        self.chain_dict = pscene.get_robot_chain_dict()
+        self.chain_dict = pscene.robot_chain_dict
         self.POS_STEP = POS_STEP
         self.ROT_STEP = ROT_STEP
         ##
@@ -28,8 +24,14 @@ class GraspChecker(MotionFilterInterface):
         ##
         # @brief links external to the robot {robot name: [link1, link2, ...]}
         self.robot_ex_link_dict = {}
+        ##
+        # @brief coupled links in reverse order, {end_link: [end_link, parent1, parnt2, ...]}
+        self.end_link_couple_dict = {"base_link": ["base_link"]}
         for rname, chain_vals in self.chain_dict.items():
+            tip_link = chain_vals['tip_link']
             robot_link_names = chain_vals['link_names']
+            self.end_link_couple_dict[tip_link] = [lname for lname in reversed(robot_link_names)
+                                                   if lname in self.gscene.fixed_link_adjacency_map[tip_link]]
             index_arr = np.array([self.gscene.link_names.index(lname) for lname in robot_link_names])
             assert np.all((index_arr[1:]-index_arr[:-1])>0), "link_name should be ordered as same as chain order"
             self.robot_ex_link_dict[rname] = [lname for lname in self.gscene.link_names if lname not in robot_link_names]

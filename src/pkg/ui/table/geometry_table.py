@@ -33,8 +33,11 @@ class GeometryTable(TableInterface):
                                   soft=value["Soft"].lower() in ["true", "t"])
 
     def delete_item(self, active_row):
-        gtem = self.planning_pipeline.pscene.gscene.NAME_DICT[active_row]
-        self.planning_pipeline.pscene.gscene.remove(gtem)
+        try:
+            gtem = self.planning_pipeline.pscene.gscene.NAME_DICT[active_row]
+            self.planning_pipeline.pscene.gscene.remove(gtem)
+        except:
+            pass
 
     def update_item(self, gtem, active_col, value):
         res, msg = True, ""

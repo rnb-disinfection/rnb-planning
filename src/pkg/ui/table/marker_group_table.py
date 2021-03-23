@@ -20,8 +20,8 @@ class MarkerGroupTable(TableInterface):
     def highlight_item(self, gtem, color=None):
         self.planning_pipeline.pscene.gscene.highlight_geometry(self.HILIGHT_KEY, gtem.name, color=color)
         for i, atem in zip(range(len(gtem)), gtem):
-            self.planning_pipeline.pscene.add_aruco_axis(self.HILIGHT_KEY, atem, axis_name=gtem.name+"_"+str(i),
-                                                         robot_base_dict=self.combined_robot.get_robot_base_dict())
+            self.detector.add_item_axis(self.planning_pipeline.pscene.gscene, self.HILIGHT_KEY, atem,
+                                        axis_name=atem.oname+"%d"%i)
 
     def add_item(self, value):
         name = value[IDENTIFY_COL]
@@ -73,32 +73,13 @@ class MarkerGroupTable(TableInterface):
             if args[0]:
                 s_builder = self.s_builder
                 pscene = self.planning_pipeline.pscene
-                s_builder.detect_and_register(level_mask=[DetectionLevel.MOVABLE])
+                s_builder.detect_and_register(level_mask=[DetectionLevel.MOVABLE], visualize=True)
                 pscene.gscene.set_rviz()
-
-                screen_size = (1080,1920)
-                # kn_image_out = detector.aruco_map.draw_objects(color_image, objectPose_dict_mv, corner_dict_mv, *detector.kn_config, axis_len=0.1)
-                # kn_image_out_res = cv2.resize(kn_image_out, (screen_size[1], screen_size[0]))
-                # cv2.imshow("test", kn_image_out_res)
-                # cv2.waitKey(0)
-                # cv2.destroyAllWindows()
-
             elif args[1]:
                 s_builder = self.s_builder
                 pscene = self.planning_pipeline.pscene
-                s_builder.detect_and_register(level_mask=[DetectionLevel.ENVIRONMENT])
+                s_builder.detect_and_register(level_mask=[DetectionLevel.ENVIRONMENT], visualize=True)
                 pscene.gscene.set_rviz()
-
-                # screen_size = (1080,1920)
-                # kn_image_out = detector.aruco_map.draw_objects(color_image, objectPose_dict, corner_dict, *cam.kn_config, axis_len=0.1)
-                # rs_image_out = detector.aruco_map.draw_objects(rs_image, {k:v for k,v in rs_objectPose_dict.items() if k != 'wall'}, rs_corner_dict, *cam.rs_config, axis_len=0.1)
-                # kn_image_out_res = cv2.resize(kn_image_out, (rs_image_out.shape[1], rs_image_out.shape[0]))
-                # image_out = np.concatenate([kn_image_out_res, rs_image_out], axis=1)
-                # ratio = np.min(np.array(screen_size,dtype=np.float)/np.array(image_out.shape[:2],dtype=np.float))
-                # image_out_res = cv2.resize(image_out, (int(image_out.shape[1]*ratio), int(image_out.shape[0]*ratio)))
-                # cv2.imshow("test", image_out_res)
-                # cv2.waitKey(0)
-                # cv2.destroyAllWindows()
             else:
                 print("Unknown button")
         else:

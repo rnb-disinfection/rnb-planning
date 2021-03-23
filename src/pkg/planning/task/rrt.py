@@ -151,7 +151,7 @@ class TaskRRT(TaskInterface):
                 to_state = new_node
                 redundancy_dict = deepcopy(parent_snode.redundancy_dict)
             else:
-                available_binding_dict, transition_count = self.pscene.get_available_binding_dict(from_state, new_node,
+                available_binding_dict = self.pscene.get_available_binding_dict(from_state, new_node,
                                                                                                   list2dict(from_state.Q, self.pscene.gscene.joint_names))
                 if not all([len(abds)>0 for abds in available_binding_dict.values()]):
                     print("============== Non-available transition: sample again =====================")

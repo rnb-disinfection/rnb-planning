@@ -13,9 +13,10 @@ class RobotType(Enum):
 # @class RobotTemplate
 # @brief Robot spec template
 class RobotTemplate:
-    def __init__(self, robot_name, base_name, joint_names, home_pose, joint_limits, vel_limits, acc_limits):
-        self.robot_name, self.base_name, self.joint_names, self.home_pose, self.joint_limits, self.vel_limits, self.acc_limits = \
-            robot_name, base_name, joint_names, home_pose, joint_limits, vel_limits, acc_limits
+    def __init__(self, robot_name, base_name, tip_name, joint_names, home_pose, joint_limits, vel_limits, acc_limits):
+        self.robot_name, self.base_name, self.tip_name, self.joint_names, \
+            self.home_pose, self.joint_limits, self.vel_limits, self.acc_limits = \
+            robot_name, base_name, tip_name, joint_names, home_pose, joint_limits, vel_limits, acc_limits
 
 
 ##
@@ -23,13 +24,13 @@ class RobotTemplate:
 # @brief Global robot spec definition
 class RobotSpecs:
     SPEC_DICT = {
-        RobotType.indy7: RobotTemplate(robot_name='indy', base_name="link0",
+        RobotType.indy7: RobotTemplate(robot_name='indy', base_name="link0", tip_name="tcp",
                                        joint_names=["joint{}".format(idx) for idx in range(6)],
                                        home_pose=[0, 0, -np.pi / 2, 0, -np.pi / 2, 0],
                                        joint_limits=[(-3.05432619099, 3.05432619099)]*5+[(-3.75245789179, 3.75245789179)],
                                        vel_limits=np.deg2rad([150, 150, 150, 180, 180, 180])/2,
                                        acc_limits=np.deg2rad([360]*6)),
-        RobotType.panda: RobotTemplate(robot_name='panda', base_name="link0",
+        RobotType.panda: RobotTemplate(robot_name='panda', base_name="link0", tip_name="hand",
                                        joint_names=["joint{}".format(idx) for idx in range(1,8)],
                                        home_pose=[0, -np.pi / 8, 0, -np.pi / 2, 0, np.pi / 2, np.pi / 2],
                                        joint_limits=[(-2.75, 2.75), (-1.70, 1.70), (-2.75, 2.75),
@@ -48,6 +49,10 @@ class RobotSpecs:
     @classmethod
     def get_base_name(cls, _type, rname):
         return rname + "_" + cls.SPEC_DICT[_type].base_name
+
+    @classmethod
+    def get_tip_name(cls, _type, rname):
+        return rname + "_" + cls.SPEC_DICT[_type].tip_name
 
     @classmethod
     def get_joint_names(cls, _type, rname):

@@ -1,5 +1,6 @@
 from .detector import *
 from ..detector_interface import DetectorInterface
+from ...controller.robot_config import RobotSpecs
 from ...utils.rotation_utils import *
 import autograd.numpy as np
 
@@ -38,7 +39,7 @@ class ArucoStereo(DetectorInterface):
 
     ##
     # @brief disconnect cameras
-    def disconnnect(self):
+    def disconnect(self):
         for cam in self.camera_list:
             cam.disconnect()
 
@@ -128,15 +129,21 @@ class ArucoStereo(DetectorInterface):
     # @brief detect objects
     # @param    name_mask   object names to detect
     # @param    level_mask  list of rnb-planning.src.pkg.detector.detector_interface.DetectionLevel
+    # @param    visualize   visualize the detection result
     # @return object_pose_dict dictionary for object transformations
-    def detect(self, name_mask=None, level_mask=None):
+    def detect(self, name_mask=None, level_mask=None, visualize=False):
         if level_mask is not None:
             name_mask_level = self.get_targets_of_levels(level_mask)
             if name_mask is not None:
                 name_mask = list(set(name_mask).intersection(set(name_mask_level)))
             else:
                 name_mask = name_mask_level
-        return self.get_object_pose_dict(name_mask=name_mask)[0]
+        objectPose_dict, ref_corner_dict, ref_img, sub_img, sub_objectPose_dict, sub_corner_dict = \
+            self.get_object_pose_dict(name_mask=name_mask)
+        if visualize:
+            self.__visualize_detection(
+                objectPose_dict, ref_corner_dict, ref_img, sub_img, sub_objectPose_dict, sub_corner_dict)
+        return objectPose_dict
 
     ##
     # @brief    list registered targets of specific detection level
@@ -144,6 +151,7 @@ class ArucoStereo(DetectorInterface):
     # @return   names target names
     def get_targets_of_levels(self, detection_levels=None):
         return [atem.name for atem in self.aruco_map.values() if atem.dlevel in detection_levels]
+
     ##
     # @brief    Acquire geometry kwargs of item
     # @param    name    item name
@@ -286,14 +294,12 @@ class ArucoStereo(DetectorInterface):
         ref_corner_dict.update(corner_dict)
         return objectPose_dict, ref_corner_dict, ref_img, sub_img, sub_corner_dict, objectPoints_dict, point3D_dict, err_dict
 
-
     @classmethod
     def __XYT_err(cls, T):
         R = T[0]
         P = np.expand_dims(T[1], axis=1)
         ERR = ArucoStereo.__XYT_err.Y - (np.matmul(R, ArucoStereo.__XYT_err.X) + P)
         return np.sum(ERR * ERR)
-
 
     def __calc_T_stereo(objectPoints, points3D):
         ArucoStereo.__XYT_err.X = objectPoints.copy()
@@ -316,16 +322,44 @@ class ArucoStereo(DetectorInterface):
         return SE3(*Xopt), ArucoStereo.__XYT_err(Xopt)
 
     ##
-    # @brief    add axis marker to handle
-    # @param    robot_base_dict {robot_name: robot_base_name}
-    def add_aruco_axis(gscene, hl_key, atem, axis_name=None, robot_base_dict={}):
-        oname = atem.oname
+    # @brief    add axis marker to GeometryHandle
+    def add_item_axis(self, gscene, hl_key, item, axis_name=None):
+        oname = item.oname
         axis_name = axis_name or oname
-        if oname in self.combined_robot.get_robot_config_dict():
-            link_name = RobotSpecs.get_base_name(self.combined_robot.get_robot_config_dict()[oname].type, oname)
-            Toff = atem.Toff
-        else:
+        if oname in gscene.NAME_DICT:
             aobj = gscene.NAME_DICT[oname]
             link_name = aobj.link_name
-            Toff = np.matmul(aobj.Toff, atem.Toff)
+            Toff = np.matmul(aobj.Toff, item.Toff)
+        else:
+            link_candis = list(set([lname for lname in gscene.link_names
+                                    if oname in lname
+                                    and lname in [child_pair[1]
+                                                  for child_pair
+                                                  in gscene.urdf_content.child_map["base_link"]]
+                                    ]))
+            if len(link_candis) == 0:
+                link_name = "base_link"
+            elif len(link_candis) == 1:
+                link_name = link_candis[0]
+            else:
+                raise(RuntimeError("Multiple object link candidates - marker link cannot be determined"))
+            Toff = item.Toff
         gscene.add_highlight_axis(hl_key, axis_name, link_name, Toff[:3,3], Toff[:3,:3], axis="xyz")
+
+    ##
+    # @brief    detect and visualize the detection results
+    def __visualize_detection(self,
+                              objectPose_dict, ref_corner_dict, ref_img, sub_img, sub_objectPose_dict, sub_corner_dict):
+        screen_size = (1080,1920)
+        kn_image_out = self.aruco_map.draw_objects(ref_img, objectPose_dict, ref_corner_dict,
+                                                   *self.config_list[0], axis_len=0.1)
+        rs_image_out = self.aruco_map.draw_objects(sub_img, sub_objectPose_dict, sub_corner_dict,
+                                                   *self.config_list[1], axis_len=0.1)
+        kn_image_out_res = cv2.resize(kn_image_out, (rs_image_out.shape[1], rs_image_out.shape[0]))
+        image_out = np.concatenate([kn_image_out_res, rs_image_out], axis=1)
+        ratio = np.min(np.array(screen_size,dtype=np.float)/np.array(image_out.shape[:2],dtype=np.float))
+        image_out_res = cv2.resize(image_out, (int(image_out.shape[1]*ratio), int(image_out.shape[0]*ratio)))
+        cv2.imshow("visualization", image_out_res)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        return objectPose_dict

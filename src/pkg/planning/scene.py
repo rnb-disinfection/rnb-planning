@@ -2,6 +2,7 @@ from collections import defaultdict
 from ..utils.utils import list2dict
 from .constraint.constraint_common import combine_redundancy, sample_redundancy
 from .constraint.constraint_subject import SubjectType
+from ..geometry.geotype import *
 from itertools import product
 import numpy as np
 import random
@@ -35,12 +36,6 @@ class State:
     def copy(self, pscene):
         return State(deepcopy(self.binding_state), deepcopy(self.state_param), deepcopy(self.Q), pscene)
 
-    def __str__(self):
-        return str((self.binding_state,
-                    {k: str(np.round(v, 2)) for k, v in
-                     self.state_param.items()} if isinstance(self.state_param, dict) else self.state_param,
-                    str(np.round(self.Q, 2)) if self.Q is not None else None))
-
 
 
 ##
@@ -73,12 +68,24 @@ class PlanningScene:
         self.actor_robot_dict = {}
         ## @brief {robot name: corresponding actor name}
         self.robot_actor_dict = {}
+        # set robot chain from ComrinedRobot and GeometryScene
+        self.set_robot_chain_dict()
 
     ##
     # @brief add a binder to the scene
     # @param rname indexed full name of corresponding robot
     # @param binder instance of subclass of rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
-    def add_binder(self, rname, binder):
+    def add_binder(self, binder):
+        rnames = [rname for rname, chain_dict in self.robot_chain_dict.items()
+                 if binder.geometry.link_name in chain_dict["link_names"]]
+        if len(rnames)==1:
+            rname = rnames[0]
+        elif len(rnames)==0:
+            rname = None
+        else:
+            raise(RuntimeError(
+                "binder link included in multiple robot chains - {} - {}".format(binder.name,
+                                                                                 binder.geometry.link_name)))
         self.actor_robot_dict[binder.name] = rname
         if rname is not None:
             self.robot_actor_dict[rname] = binder.name
@@ -99,15 +106,14 @@ class PlanningScene:
     ##
     # @param bname binder name
     # @param gname name of parent object
-    # @param rname indexed full name of corresponding robot, None if free actor
     # @param _type type of binder, subclass of rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
     # @param point binding point offset from object (m)
     # @param rpy   orientation of binding point (rad)
-    def create_binder(self, bname, gname, _type, rname=None, point=None, rpy=(0, 0, 0)):
+    def create_binder(self, bname, gname, _type, point=None, rpy=(0, 0, 0)):
         self.remove_binder(bname)
         geometry = self.gscene.NAME_DICT[gname]
         binder = _type(bname, geometry=geometry, point=point, rpy=rpy)
-        self.add_binder(rname, binder)
+        self.add_binder(binder)
         return binder
 
     ##
@@ -141,22 +147,29 @@ class PlanningScene:
                 else:
                     uncontrolled_binders += [k_b]
         return controlled_binders, uncontrolled_binders
-    ##
-    # @brief get robot chain dictionary {robot name: {"tip_link": effector link name, "joint_names": joint name list}}
-    def get_robot_chain_dict(self):
-        base_dict = self.combined_robot.get_robot_base_dict()
-        chain_dict = {}
-        for rname in self.combined_robot.robot_names:
-            effector_link = self.actor_dict[self.robot_actor_dict[rname]].geometry.link_name
-            joint_chain = self.gscene.urdf_content.get_chain(root=base_dict[rname], tip=effector_link, fixed=False, joints=True, links=False)
-            link_chain = self.gscene.urdf_content.get_chain(root=base_dict[rname], tip=effector_link, fixed=False, joints=False, links=True)
-            chain_dict[rname] = {"tip_link": effector_link, "joint_names": joint_chain, "link_names": link_chain}
-        return chain_dict
 
     ##
-    # @brief add a object to the scene
-    def add_object(self, name, _object, binding=None):
-        self.subject_dict[name] = _object
+    # @brief set robot chain dictionary {robot name: {"tip_link": effector link name, "joint_names": joint name list}}
+    def set_robot_chain_dict(self):
+        base_dict = self.combined_robot.get_robot_base_dict()
+        tip_dict = self.combined_robot.get_robot_tip_dict()
+        ## @brief {robot name: {"tip_link": effector link name, "joint_names": joint name list}}
+        self.robot_chain_dict = {}
+        for rname in self.combined_robot.robot_names:
+            effector_link = tip_dict[rname]
+            base_link = base_dict[rname]
+            joint_chain = self.gscene.urdf_content.get_chain(
+                root=base_link, tip=effector_link, fixed=False, joints=True, links=False)
+            link_chain = self.gscene.urdf_content.get_chain(
+                root=base_link, tip=effector_link, fixed=False, joints=False, links=True)
+            self.robot_chain_dict[rname] = {"tip_link": effector_link,
+                                            "joint_names": joint_chain,
+                                            "link_names": link_chain}
+
+    ##
+    # @brief add a subjct to the scene
+    def add_subject(self, name, subject, binding=None):
+        self.subject_dict[name] = subject
         if binding is not None:
             self.actor_dict[binding[1]].bind(self.subject_dict[name], binding[0],
                                               list2dict([0] * len(self.gscene.joint_names),
@@ -165,7 +178,7 @@ class PlanningScene:
 
     ##
     # @brief remove a object from the scene
-    def remove_object(self, name):
+    def remove_subject(self, name):
         if name in self.subject_dict:
             del self.subject_dict[name]
         self.update_subjects()
@@ -175,11 +188,11 @@ class PlanningScene:
     # @param gname name of parent object
     # @param _type type of object, subclass of rnb-planning.src.pkg.planning.constraint.constraint_subject.AbstractObject
     # @param binding point offset from object (m)
-    def create_object(self, oname, gname, _type, binding=None, **kwargs):
-        self.remove_object(oname)
+    def create_subject(self, oname, gname, _type, binding=None, **kwargs):
+        self.remove_subject(oname)
         geometry = self.gscene.NAME_DICT[gname]
         _object = _type(oname, geometry, **kwargs)
-        self.add_object(oname, _object, binding)
+        self.add_subject(oname, _object, binding)
         return _object
 
     ##
@@ -294,7 +307,7 @@ class PlanningScene:
         otem = self.subject_dict[htem.geometry.name]
         del otem.action_points_dict[htem.name]
         if not otem.action_points_dict.keys():
-            self.remove_object(htem.geometry.name)
+            self.remove_subject(htem.geometry.name)
 
     ##
     # @brief    collect all objects' handle items and update to the scene,
@@ -327,6 +340,19 @@ class PlanningScene:
             for binding_sub in [v.binding for v in self.subject_dict.values()
                                 if v.binding[2] == binder_sub]: # find object bound to the sub-binder
                 self.rebind(binding_sub, joint_dict) # update binding of the sub-binder too
+
+    ##
+    # @brief change binding state
+    # @param binding    list of binding tuple [(object name, binding point, binder), ..]
+    # @param Q          joint pose in radian array
+    # @return           rebinded new state
+    def rebind_all(self, binding_list, Q):
+        for bd in binding_list:
+            self.rebind(bd, list2dict(Q, self.gscene.joint_names))
+
+        binding_state, state_param = self.get_object_state()
+        end_state = State(binding_state, state_param, list(Q), self)
+        return end_state
 
     ##
     # @brief get exact bindings to transit
@@ -512,12 +538,11 @@ class PlanningScene:
     # @param state current state
     # @param to_node target object-level node
     # @param Q_dict current joint configuration in dictionary
-    # @return {object name: [(point name, binder name)]}, transition_count
+    # @return {object name: [(point name, binder name)]}
     def get_available_binding_dict(self, state, to_node, Q_dict=None):
         if Q_dict is None:
             Q_dict = list2dict(state.Q, self.gscene.joint_names)
         available_binding_dict = {}
-        transition_count = 0
         for oname, to_node_item, from_node_item, from_binding_state in zip(
                 self.subject_name_list, to_node, state.node, state.binding_state):
             # bgname: binder geometry name
@@ -527,10 +552,9 @@ class PlanningScene:
             if sbgname != bgname:
                 available_binding_dict[oname] = self.get_available_bindings(oname, bgname, from_binding_state[1], from_binding_state[2],
                                                                             Q_dict=Q_dict)
-                transition_count += len(available_binding_dict[oname]) > 0
             else:
                 available_binding_dict[oname] = [from_binding_state[1:]]
-        return available_binding_dict, transition_count
+        return available_binding_dict
 
     ##
     # @brief    sample next state for given transition

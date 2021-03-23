@@ -37,7 +37,7 @@ class HandleTable(TableInterface):
         otem = self.planning_pipeline.pscene.subject_dict[htem.geometry.name]
         self.planning_pipeline.pscene.delete_handle(htem)
         if not otem.action_points_dict.keys():
-            self.planning_pipeline.pscene.remove_object(htem.geometry.name)
+            self.planning_pipeline.pscene.remove_subject(htem.geometry.name)
 
     def update_item(self, htem, active_col, value):
         res, msg = True, ""

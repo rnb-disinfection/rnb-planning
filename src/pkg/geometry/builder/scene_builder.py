@@ -40,7 +40,7 @@ class SceneBuilder(Singleton):
     ##
     # @param detector    detector to use when building the scene
     # @param base_link   name of base link in urdf content
-    def __init__(self, detector, base_link):
+    def __init__(self, detector, base_link="base_link"):
         self.detector = detector
         self.base_link = base_link
 
@@ -62,6 +62,7 @@ class SceneBuilder(Singleton):
     # @return link_names        link names
     # @return urdf_content      urdf content
     def create_gscene(self, combined_robot, node_name='task_planner', start_rviz=True, gscene_from=None):
+        self.combined_robot = combined_robot
         robots_on_scene = combined_robot.robots_on_scene
         custom_limits   = combined_robot.custom_limits
 
@@ -94,11 +95,11 @@ class SceneBuilder(Singleton):
     # @param level_mask     List of rnb-planning.src.pkg.detector.detector_interface.DetectionLevel
     # @param as_matrix      flag to get transform matrix as-is
     # @return xyz_rpy_dict  Dictionary of detected item coordinates in xyz(m), rpy(rad)
-    def detect_items(self, item_names=None, level_mask=None, as_matrix=False):
+    def detect_items(self, item_names=None, level_mask=None, as_matrix=False, visualize=False):
         xyz_rpy_dict = {}
         while True:
             try:
-                objectPose_dict = self.detector.detect(name_mask=item_names, level_mask=level_mask)
+                objectPose_dict = self.detector.detect(name_mask=item_names, level_mask=level_mask, visualize=visualize)
                 for okey in objectPose_dict.keys():
                     Tbr = np.matmul(self.ref_coord_inv, objectPose_dict[okey])
                     xyz_rpy_dict[okey] = Tbr if as_matrix else T2xyzrpy(Tbr)
@@ -117,19 +118,35 @@ class SceneBuilder(Singleton):
     # @param level_mask     List of rnb-planning.src.pkg.detector.detector_interface.DetectionLevel
     # @param gscene   rnb-planning.src.pkg.geometry.geometry.GeometryScene to add detected environment geometry
     # @return gtem_dict dictionary of detected geometry items
-    def detect_and_register(self, item_names=None, level_mask=None, color=(0.6,0.6,0.6,1), collision=True, gscene=None):
+    def detect_and_register(self, item_names=None, level_mask=None, color=(0.6,0.6,0.6,1), collision=True,
+                            gscene=None, visualize=False):
         if gscene is None:
             gscene = self.gscene
-        xyz_rpy_dict = self.detect_items(item_names=item_names, level_mask=level_mask)
+        xyz_rpy_dict = self.detect_items(item_names=item_names, level_mask=level_mask, visualize=visualize)
         gtem_dict = {}
         for ename, xyzrpy in xyz_rpy_dict.items():
-            if np.linalg.norm(xyzrpy[0])>2:
-                continue
             kwargs = dict(name=ename, center=xyzrpy[0], rpy=xyzrpy[1], color=color,
                           link_name=self.base_link, collision=collision)
             kwargs.update(self.detector.get_geometry_kwargs(ename))
             gtem_dict[ename] = gscene.create_safe(**kwargs)
         return gtem_dict
+
+    ##
+    # @brief shift geometry item slightly to make sure there is a clearance from the floor
+    # @param floor GeometryItem for floor
+    # @param gtem_list list of GeometryItem to shift
+    # @param clearance the amount of clearance to give, in m units
+    def give_clearance(self, floor, gtem_list, clearance=1e-3):
+        Ttrack = floor.get_tf(self.combined_robot.home_dict)
+        Ttrack_inv = SE3_inv(Ttrack)
+        for gtem in gtem_list:
+            verts, _ = gtem.get_vertice_radius_from(self.combined_robot.home_dict, from_link="base_link")
+            verts_loc = np.matmul(Ttrack_inv[:3, :3], verts.transpose()) + Ttrack_inv[:3, 3:]
+            off = floor.dims[2] / 2 - np.min(verts_loc[2, :]) + clearance
+            center_loc = np.matmul(Ttrack_inv[:3, :3], gtem.center) + Ttrack_inv[:3, 3]
+            center_loc_new = center_loc + [0, 0, off]
+            center_new = np.matmul(Ttrack[:3, :3], center_loc_new) + Ttrack[:3, 3]
+            gtem.set_offset_tf(center=center_new)
 
     ##
     # @brief add pole geometries to the scene

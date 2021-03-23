@@ -43,6 +43,7 @@ class GeometryScene(list):
         self.urdf_content = urdf_content
         self.urdf_path = urdf_path
         self.link_adjacency_map, self.link_adjacency_map_ext = get_link_adjacency_map(urdf_content)
+        self.fixed_link_adjacency_map, _ = get_link_adjacency_map(urdf_content, fixed_only=True)
         self.link_control_map = get_link_control_dict(urdf_content)
         self.min_distance_map = get_min_distance_map(urdf_content)
 
@@ -260,6 +261,28 @@ class GeometryScene(list):
     # @param links list of link names
     def get_items_on_links(self, links):
         return [gtem for gtem in self if gtem.link_name in links]
+
+    ##
+    # @brief set workspace boundary
+    def set_workspace_boundary(self, XMIN, XMAX, YMIN, YMAX, ZMIN, ZMAX):
+        self.create_safe(GEOTYPE.BOX, "ceiling_ws", "base_link", (XMAX - XMIN, YMAX - YMIN, 0.01),
+                         ((XMAX + XMIN) / 2, (YMAX + YMIN) / 2, ZMAX), rpy=(0, 0, 0),
+                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
+        self.create_safe(GEOTYPE.BOX, "floor_ws", "base_link", (XMAX - XMIN, YMAX - YMIN, 0.01),
+                         ((XMAX + XMIN) / 2, (YMAX + YMIN) / 2, ZMIN), rpy=(0, 0, 0),
+                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
+        self.create_safe(GEOTYPE.BOX, "frontwall_ws", "base_link", (0.01, YMAX - YMIN, ZMAX - ZMIN),
+                         (XMAX, (YMAX + YMIN) / 2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
+                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
+        self.create_safe(GEOTYPE.BOX, "backwall_ws", "base_link", (0.01, YMAX - YMIN, ZMAX - ZMIN),
+                         (XMIN, (YMAX + YMIN) / 2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
+                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
+        self.create_safe(GEOTYPE.BOX, "leftwall_ws", "base_link", (XMAX - XMIN, 0.01, ZMAX - ZMIN),
+                         ((XMAX + XMIN) / 2, YMIN, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
+                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
+        self.create_safe(GEOTYPE.BOX, "rightwall_ws", "base_link", (XMAX - XMIN, 0.01, ZMAX - ZMIN),
+                         ((XMAX + XMIN) / 2, YMAX, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
+                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
 
 ##
 # @class GeometryItem

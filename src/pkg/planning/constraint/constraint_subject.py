@@ -120,7 +120,7 @@ class Subject:
     # @remark whether to apply constarint or not is decided with previous and next bindings
     # @param binding_from previous binding
     # @param binding_to next binding
-    def make_constraints(self, binding_from, binding_to, tol=1e-3):
+    def make_constraints(self, binding_from, binding_to, tol=None):
         return []
 
     ##
@@ -197,7 +197,7 @@ class SweepTask(AbstractTask):
     # @param oname object's name
     # @param geometry parent geometry
     # @param action_points_dict pre-defined action points as dictionary
-    def __init__(self, oname, geometry, action_points_dict):
+    def __init__(self, oname, geometry, action_points_dict, tol=1e-3):
         self.oname = oname
         self.geometry = geometry
         self.action_points_dict = action_points_dict
@@ -205,15 +205,16 @@ class SweepTask(AbstractTask):
         self.action_point_len = len(self.action_points_order)
         self.state_param = np.zeros(len(self.action_points_order), dtype=np.bool)
         self.binding = (self.oname, None, None, None)
+        self.tol = tol
 
     ##
     # @brief make constraints. by default, empty list.
     # @remark constraint is applied when using same binding
     # @param binding_from previous binding
     # @param binding_to next binding
-    def make_constraints(self, binding_from, binding_to, tol=1e-3):
+    def make_constraints(self, binding_from, binding_to, tol=None):
         if binding_from is not None and binding_from[2] == binding_to[2]:
-            return [MotionConstraint([self.geometry], True, True, tol)]
+            return [MotionConstraint([self.geometry], True, True, tol if tol is not None else self.tol)]
         else:
             return []
 
@@ -225,6 +226,8 @@ class SweepTask(AbstractTask):
         self.binding = binding
         if state_param is not None:
             self.state_param = state_param.copy()
+        for ap in self.action_points_dict.values():     # you should update action points here
+            ap.update_handle()
 
     ##
     # @brief (prototype) get state param
@@ -285,23 +288,43 @@ class SweepLineTask(AbstractTask):
     # @param oname object's name
     # @param geometry parent geometry
     # @param action_points_dict pre-defined action points as dictionary
-    def __init__(self, oname, geometry, action_points_dict, geometry_vertical):
+    def __init__(self, oname, geometry, action_points_dict, geometry_vertical=None, tol=1e-3):
         self.oname = oname
         self.geometry = geometry
-        self.geometry_vertical = geometry_vertical
         self.action_points_dict = action_points_dict
         self.action_points_order = sorted(self.action_points_dict.keys())
         self.action_point_len = len(self.action_points_order)
         self.state_param = np.zeros(len(self.action_points_order), dtype=np.bool)
         self.binding = (self.oname, None, None, None)
+        self.tol = tol
+        if geometry_vertical is not None:
+            self.geometry_vertical = geometry_vertical
+        else:
+            # centers in local coordinate in self.geometry
+            wp_centers = [np.matmul(SE3_inv(self.geometry.Toff), sp.Toff_lh)[:3,3]
+                          for sp in self.action_points_dict.values()]
+            assert len(wp_centers) == 2, "We only consider 2-waypoint line sweep"
+            center_dist = np.linalg.norm(wp_centers[1]-wp_centers[0])
+            center_dir = (wp_centers[1]-wp_centers[0])/center_dist
+            self.geometry_vertical = geometry.gscene.create_safe(GEOTYPE.BOX,
+                                                                 "_".join([oname]+self.action_points_order),
+                                                                 link_name=self.geometry.link_name,
+                                                                 dims=(center_dist*2,center_dist*2,1e-6),
+                                                                 center=np.mean(wp_centers, axis=0),
+                                                                 rpy=Rot2rpy(
+                                                                     Rotation.from_rotvec(center_dir*np.pi/2).as_dcm()),
+                                                                 color=(0.8,0.2,0.2,0.2), display=False,
+                                                                 fixed=self.geometry.fixed, collision=False,
+                                                                 parent=self.geometry.name)
 
     ##
     # @brief make constraints. by default, empty list.
     # @remark constraint is applied when using same binding
     # @param binding_from previous binding
     # @param binding_to next binding
-    def make_constraints(self, binding_from, binding_to, tol=1e-3):
+    def make_constraints(self, binding_from, binding_to, tol=None):
         if binding_from is not None and binding_from[2] == binding_to[2]:
+            tol = tol if tol is not None else self.tol
             return [MotionConstraint([self.geometry], True, True, tol),
                     MotionConstraint([self.geometry_vertical], True, False, tol)]
         else:
@@ -315,6 +338,8 @@ class SweepLineTask(AbstractTask):
         self.binding = binding
         if state_param is not None:
             self.state_param = state_param.copy()
+        for ap in self.action_points_dict.values():     # you should update action points here
+            ap.update_handle()
 
     ##
     # @brief (prototype) get state param
@@ -378,7 +403,7 @@ class AbstractObject(Subject):
         frame = state_param[1]
         self.geometry.set_offset_tf(frame[:3, 3], frame[:3,:3])
         self.geometry.set_link(link_name)
-        for ap in self.action_points_dict.values():
+        for ap in self.action_points_dict.values():     # you should update action points here
             ap.update_handle()
         assert binding[0] == self.oname, "wrong binding given {} <- {}".format(self.oname, binding[0])
         self.binding = binding

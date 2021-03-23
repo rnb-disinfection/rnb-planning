@@ -67,7 +67,7 @@ class TaskInterface:
         ## @brief rnb-planning.src.pkg.planning.scene.PlanningScene
         self.pscene = pscene
         ## @brief search node dictionary
-        self.snode_dict = None
+        self.snode_dict = {}
         ## @brief number of valid generated search nodes
         self.snode_counter = None
 

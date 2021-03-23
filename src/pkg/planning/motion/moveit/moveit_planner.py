@@ -58,7 +58,7 @@ class MoveitPlanner(MotionInterface):
         MotionInterface.__init__(self, pscene, motion_filters)
         config_path = os.path.dirname(self.urdf_path)+"/"
         self.robot_names = self.combined_robot.robot_names
-        chain_dict = pscene.get_robot_chain_dict()
+        chain_dict = pscene.robot_chain_dict
         binder_links = [chain_dict[rname]['tip_link'] for rname in self.robot_names]
         self.binder_link_robot_dict = {blink: rname for blink, rname in zip(binder_links, self.robot_names)}
         srdf_path = write_srdf(robot_names=self.robot_names, chain_dict=chain_dict,
@@ -161,6 +161,7 @@ class MoveitPlanner(MotionInterface):
                     to_Q =  to_state.Q[idx_rbt]
             else:
                 raise(RuntimeError("multi-robot joint motion not implemented!"))
+            print("try joint motion") ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
             trajectory, success = planner.plan_joint_motion_py(
                 group_name, tuple(to_Q), tuple(from_Q), timeout=timeout_joint)
             print("joint motion tried: {}".format(success)) ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
@@ -226,10 +227,12 @@ class MoveitPlanner(MotionInterface):
             if constraints:
                 for motion_constraint in constraints:
                     self.add_constraint(group_name, tool.geometry.link_name, tool.Toff_lh, motion_constraint=motion_constraint)
+                print("try constrained motion") ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
                 trajectory, success = planner.plan_constrained_py(
                     group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q), timeout=timeout_constrained)
                 print("constrained motion tried: {}".format(success)) ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
             else:
+                print("try transition motion") ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
                 trajectory, success = planner.plan_py(
                     group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q), timeout=timeout)
                 print("transition motion tried: {}".format(success)) ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
@@ -438,7 +441,7 @@ def write_srdf(robot_names, urdf_content, urdf_path, link_names, joint_names, ch
     for idx1 in range(len(link_names)):
         lname1 = link_names[idx1]
         for lname2 in link_names[idx1:]:
-            if lname1 == lname2 or lname1 == base_link or lname2 == base_link:
+            if lname1 == lname2:
                 continue
             if lname2 in link_adjacency_map[lname1]:
                 dcol = root.createElement("disable_collisions")

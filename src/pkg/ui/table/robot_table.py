@@ -7,7 +7,7 @@ class RobotTable(TableInterface):
     CUSTOM_BUTTONS = ["Apply", "Detect"]
 
     def get_items(self):
-        cbot = self.planning_pipeline.combined_robot
+        cbot = self.planning_pipeline.pscene.combined_robot
         return [(rbt_cfg.get_indexed_name(), rbt_cfg.type.name,
                  round_it_str(rbt_cfg.xyzrpy[0], 4),
                  round_it_str(rbt_cfg.xyzrpy[1], 4)) for rbt_cfg in cbot.robots_on_scene]
@@ -22,8 +22,8 @@ class RobotTable(TableInterface):
         pass
 
     def select(self, selected_row_ids, active_row, active_col):
-        connection_list = [rbt_cfg.get_indexed_name() in selected_row_ids for rbt_cfg in self.planning_pipeline.combined_robot.robots_on_scene]
-        self.planning_pipeline.combined_robot.reset_connection(connection_list)
+        connection_list = [rbt_cfg.get_indexed_name() in selected_row_ids for rbt_cfg in self.planning_pipeline.pscene.combined_robot.robots_on_scene]
+        self.planning_pipeline.pscene.combined_robot.reset_connection(*connection_list)
 
     def add_item(self, value):
         raise(RuntimeError("Cannot add or delete robot"))
@@ -32,7 +32,7 @@ class RobotTable(TableInterface):
         raise(RuntimeError("Cannot add or delete robot"))
 
     def update_item(self, atem, active_col, value):
-        cbot = self.planning_pipeline.combined_robot
+        cbot = self.planning_pipeline.pscene.combined_robot
         res, msg = True, ""
         if active_col == IDENTIFY_COL:
             res, msg = False, "cannot change robot name"
@@ -52,11 +52,11 @@ class RobotTable(TableInterface):
         print("button clicked")
         if button == TAB_BUTTON.CUSTOM:
             if args[0]:
-                crob = self.planning_pipeline.combined_robot
+                crob = self.planning_pipeline.pscene.combined_robot
                 self.s_builder.create_gscene(crob, gscene_from=self.gscene)
             elif args[1]:
                 xyz_rpy_robots = self.s_builder.detect_items(level_mask=[DetectionLevel.ROBOT])
-                self.planning_pipeline.combined_robot.update_robot_pos_dict(xyz_rpy_robots=xyz_rpy_robots)
+                self.planning_pipeline.pscene.combined_robot.update_robot_pos_dict(xyz_rpy_robots=xyz_rpy_robots)
             else:
                 print("Unknown button")
         else:

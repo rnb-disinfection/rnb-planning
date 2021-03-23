@@ -131,7 +131,6 @@ class ArucoMap(dict):
                     objectPoints = np.concatenate([objectPoints, marker.corners], axis=0)
                     imagePoints = np.concatenate([imagePoints, corner_dict[marker.idx]], axis=0)
             if len(objectPoints) == 0:
-                objectPose_dict[obj_name] = SE3(np.identity(3), [0, 0, 10])
                 continue
             ret, rvec, tvec = cv2.solvePnP(objectPoints, imagePoints, cameraMatrix, distCoeffs)
             R, jac = cv2.Rodrigues(rvec)

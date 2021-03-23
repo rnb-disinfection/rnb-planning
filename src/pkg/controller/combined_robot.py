@@ -18,7 +18,7 @@ class CombinedRobot:
         ## @brief acceleration limit scale
         self.acc_scale = acc_scale
         self.__set_robots_on_scene(robots_on_scene)
-        self.reset_connection(connection_list)
+        self.reset_connection(*connection_list)
 
     def __set_robots_on_scene(self, robots_on_scene):
         ## @brief list of robot config for robots on scene
@@ -72,34 +72,27 @@ class CombinedRobot:
     # @brief reset connection
     # @param connection_list boolean list
     # @param address_list address list, None for default to use stored address
-    def reset_connection(self, connection_list, address_list=None):
-        self.connection_list = connection_list
-        self.address_list = address_list or self.address_list
-        print("connection_list")
-        print(connection_list)
+    def reset_connection(self, *args, **kwargs):
+        assert np.logical_xor(len(args)>0, len(kwargs)>0), \
+            "Give bool connection state for each robot as *args or **kwargs"
+        if len(args)>0:
+            self.connection_list = args
+        else:
+            self.connection_list = [kwargs[rname] for rname in self.robot_names]
+
+        print("connection command:")
+        for rname, connection in zip(self.robot_names, self.connection_list):
+            print("{}: {}".format(rname, connection))
+
         for rbt, cnt, addr in zip(self.robots_on_scene, self.connection_list, self.address_list):
             name = rbt.get_indexed_name()
             _type = rbt.type
             if cnt:
                 if _type == RobotType.indy7:
                     if not self.robot_dict[name]:
-                        self.robot_dict[name] = IndyTrajectoryClient(server_ip=addr, robot_name="NRMK-Indy7")
-                    with self.robot_dict[name]:
-                        self.robot_dict[name].set_collision_level(5)
-                        self.robot_dict[name].set_joint_vel_level(3)
-                        self.robot_dict[name].set_task_vel_level(3)
-                        self.robot_dict[name].set_joint_blend_radius(20)
-                        self.robot_dict[name].set_task_blend_radius(0.2)
+                        self.robot_dict[name] = IndyTrajectoryClient(server_ip=addr)
                 elif _type == RobotType.panda:
-                    if self.robot_dict[name]:
-                        if hasattr(self.robot_dict[name], 'alpha_lpf'):
-                            self.robot_dict[name].set_alpha_lpf(self.robot_dict[name].alpha_lpf)
-                        if hasattr(self.robot_dict[name], 'd_gain'):
-                            self.robot_dict[name].set_d_gain(self.robot_dict[name].d_gain)
-                        if hasattr(self.robot_dict[name], 'k_gain'):
-                            self.robot_dict[name].set_k_gain(self.robot_dict[name].k_gain)
-                    else:
-                        self.robot_dict[name] = PandaTrajectoryClient(*addr.split("/"))
+                    self.robot_dict[name] = PandaTrajectoryClient(*addr.split("/"))
             else:
                 if self.robot_dict[name] is not None:
                     self.robot_dict[name].disconnect()
@@ -113,7 +106,14 @@ class CombinedRobot:
     ##
     # @brief get {robot name:base_link}
     def get_robot_base_dict(self):
-        return {rname: RobotSpecs.get_base_name(rconfig.type, rname) for rname, rconfig in self.get_robot_config_dict().items()}
+        return {rname: RobotSpecs.get_base_name(rconfig.type, rname)
+                for rname, rconfig in self.get_robot_config_dict().items()}
+
+    ##
+    # @brief get {robot name:tip_link}
+    def get_robot_tip_dict(self):
+        return {rname: RobotSpecs.get_tip_name(rconfig.type, rname)
+                for rname, rconfig in self.get_robot_config_dict().items()}
 
     ##
     # @brief get list of robot controller interface
@@ -128,7 +128,7 @@ class CombinedRobot:
     ##
     # @brief move to joint pose target
     # @param Q motion target(rad)
-    def joint_make_sure(self, Q):
+    def joint_move_make_sure(self, Q):
         for name, rconfig in zip(self.robot_names, self.robots_on_scene):
             _type = rconfig.type
             robot = self.robot_dict[name]
@@ -138,6 +138,7 @@ class CombinedRobot:
     # @brief move joint with waypoints, one-by-one
     # @param trajectory numpy array (trajectory length, joint num)
     def move_joint_wp(self, trajectory, vel_scale=None, acc_scale=None):
+        trajectory = np.array(trajectory)
         vel_scale = vel_scale or self.vel_scale
         acc_scale = acc_scale or self.acc_scale
         for name, rconfig in zip(self.robot_names, self.robots_on_scene):
@@ -152,14 +153,15 @@ class CombinedRobot:
 
     ##
     # @brief execute grasping action
-    # @param grasp_dict boolean grasp commands in dictionary form {robot_name: grasp_bool}
-    def grasp_by_dict(self, grasp_dict):
-        print("grasp_dict")
-        print(grasp_dict)
-        grasp_seq = [(k, v) for k, v in grasp_dict.items()]
+    # @param args boolean grasp commands for each robot
+    # @param kwargs boolean grasp commands for each robot, robot_name=grasp_bool
+    def grasp(self, *args, **kwargs):
+        if len(args)>0:
+            kwargs = {k: v for k,v in zip(self.robot_names, args)}
+        else:
+            assert kwargs is not None, "Grasp status should be passed either in arguments or keyward arguments "
+        grasp_seq = [(k, v) for k, v in kwargs.items()]
         grasp_seq = list(sorted(grasp_seq, key=lambda x: not x[1]))
-        print("grasp_seq")
-        print(grasp_seq)
         for grasp in grasp_seq:
             self.__grasp_fun(grasp[0], grasp[1])
 

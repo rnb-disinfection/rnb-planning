@@ -10,7 +10,7 @@ from interface import CustomRuleInterface
 class SweepEntranceControlRule(CustomRuleInterface):
     def __init__(self, pscene):
         self.pscene = pscene
-        self.chain_dict = pscene.get_robot_chain_dict()
+        self.chain_dict = pscene.robot_chain_dict
         self.NUM_WP_TRIALS = 1
 
     def init(self, tplan, multiprocess_manager):
