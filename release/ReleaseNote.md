@@ -88,6 +88,10 @@
 * **None (First release)**  
   
   
+## Dropped features
+* **None (First release)**  
+  
+  
 ## Preparing features
 * **4-A.3 LatticedChecker**  
   - pick, place
