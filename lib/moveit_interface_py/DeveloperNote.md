@@ -24,9 +24,11 @@
   * ModelBasedPlanningContext::PlanningScene::checkCollision
   
   * __node_handle 사용처:
-  kinematics.yaml, ompl_planning.yaml, planning_plugin.yaml 로딩
-  getParam("planning_plugin") -> planner name=OMPLPlannerCustom
-  planner_instance->initialize(getNamesapce()="ompl_interface_py") -> nh_ 재생성 -> OMPLInterface에 전달, ns/ompl -> OMPLDynamicReconfigureConfig 추가
+    * kinematics.yaml, ompl_planning.yaml, planning_plugin.yaml 로딩
+    * getParam("planning_plugin") -> planner name=OMPLPlannerCustom
+    * planner_instance->initialize(getNamesapce()="ompl_interface_py") -> nh_ 재생성 -> OMPLInterface에 전달, ns/ompl -> OMPLDynamicReconfigureConfig 추가
+    * 기본적으로 load robot model 할 때도 노드 생성하기 때문에 ros_init 없이는 진행 불가능. 필수 요소로 봐야.
+  
   
   * nh_ 사용처:
   
