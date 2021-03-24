@@ -22,6 +22,8 @@ IDENTIFY_COL = 'Name'
 COLUMNS_SMALL_FONT = [IDENTIFY_COL, 'Dims', 'Center', 'RPY', 'Point', 'Position', 'Direction', 'Color', 'CameraMatrix', 'Distortion']
 __ID_DICT = defaultdict(lambda: str(uuid1().int))
 
+__CLICK_DICT = {}
+
 def table_updater_default(*args, **kwargs):
     print("table_updater_default-input: {}, {}".format(args, kwargs))
     return True, ""
@@ -181,11 +183,15 @@ def set_layout():
 @app.callback(Output('tabs-left-content', 'children'),
               [Input('tabs-left', 'value')])
 def render_content_left(tab):
+    for table_id in __CLICK_DICT.keys():
+        __CLICK_DICT[table_id] = {"a_clicks_prev":0, "s_clicks_prev":0}
     return __render_content_func(tab)
 
 @app.callback(Output('tabs-right-content', 'children'),
               [Input('tabs-right', 'value')])
 def render_content_right(tab):
+    for table_id in __CLICK_DICT.keys():
+        __CLICK_DICT[table_id] = {"a_clicks_prev":0, "s_clicks_prev":0}
     return __render_content_func(tab)
 
 def register_callback(table_id):
@@ -292,23 +298,24 @@ def register_callback(table_id):
         [State(table_id + '-filename', 'value'),
          State(table_id + '-table-row-ids', 'data')])
     def button_event(*args):
-
         a_clicks = args[:-3]
         s_clicks, filename, data = args[-3:]
-        a_clicks_sub = np.maximum(np.subtract(a_clicks, add_row.__a_clicks_prev), 0)
+        __a_clicks_prev = __CLICK_DICT[table_id]["a_clicks_prev"]
+        __s_clicks_prev = __CLICK_DICT[table_id]["s_clicks_prev"]
+        a_clicks_sub = np.maximum(np.subtract(a_clicks, __a_clicks_prev), 0)
         if np.sum(a_clicks_sub)>0:
-            add_row.__a_clicks_prev = a_clicks
+            __CLICK_DICT[table_id]["a_clicks_prev"] = a_clicks
             __table_dict[table_id].table_button(TAB_BUTTON.CUSTOM, *a_clicks_sub)
-        elif s_clicks-add_row.__s_clicks_prev:
-            add_row.__s_clicks_prev = s_clicks
+        elif s_clicks-__s_clicks_prev:
+            __CLICK_DICT[table_id]["s_clicks_prev"] = s_clicks
             if filename:
                 __table_dict[table_id].table_button(TAB_BUTTON.SAVE, filename=filename, data=data)
                 print("saved on :", filename)
             else:
                 print("filname is empty")
         return ""
-    add_row.__a_clicks_prev = 0
-    add_row.__s_clicks_prev = 0
+    if table_id not in __CLICK_DICT:
+        __CLICK_DICT[table_id] = {"a_clicks_prev":0, "s_clicks_prev":0}
 
     @app.callback(Output(table_id+'-javascript-refresh', 'run'),
                   [Input(table_id+'-alert-not-changeable', 'submit_n_clicks'),
