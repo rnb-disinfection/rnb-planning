@@ -1,0 +1,3 @@
+planning_plugin: ompl_interface/OMPLPlannerCustom
+#planning_plugin: chomp_interface/CHOMPPlanner
+

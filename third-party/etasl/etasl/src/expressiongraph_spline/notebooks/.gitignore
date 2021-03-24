@@ -1,0 +1,10 @@
+*.dat
+*.csv
+*.dot
+*.png
+*.bak
+examples.ipynb
+lua_scripts.ipynb
+analysing_ur_example1.ipynb
+Motion_model.ipynb
+.ipynb_checkpoints

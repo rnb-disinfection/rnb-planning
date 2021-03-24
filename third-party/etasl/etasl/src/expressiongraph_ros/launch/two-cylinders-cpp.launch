@@ -1,0 +1,7 @@
+<launch>
+    <param name="robot_description" textfile="$(find expressiongraph_tf)/robots/pr2-cylinders.urdf" />
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find expressiongraph_tf)/expressiongraph_tf.vcg" />
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher" />
+    <node name="two_cylinders" pkg="expressiongraph_tf" type="two_cylinders" output="screen"/>
+</launch>
+

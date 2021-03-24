@@ -1,0 +1,21 @@
+from abc import *
+__metaclass__ = type
+
+
+##
+# @class    MotionFilterInterface
+# @brief    Base class for motion planning filters
+class MotionFilterInterface:
+
+    ##
+    # @brief (prototype) check feasibility
+    # @param actor  rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
+    # @param obj    rnb-planning.src.pkg.planning.constraint.constraint_subject.Subject
+    # @param handle rnb-planning.src.pkg.planning.constraint.constraint_common.ActionPoint
+    # @param redundancy_values calculated redundancy values in dictionary format {(object name, point name): (xyz, rpy)}
+    # @param Q_dict joint configuration in dictionary format {joint name: radian value}
+    # @param interpolate    interpolate path and check intermediate poses
+    # @return True if feasible, else False
+    @abstractmethod
+    def check(self, actor, obj, handle, redundancy_values, Q_dict, interpolate):
+        pass

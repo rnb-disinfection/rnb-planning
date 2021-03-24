@@ -1,0 +1,7 @@
+<launch>
+    <param name="robot_description" textfile="$(find ur_description)/urdf/ur10_robot.urdf" />
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher" />
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find expressiongraph_spline)/vcg/ur10.rviz" />
+    <node name="ur10" pkg="expressiongraph_context_lua" type="script_ros" args="$(find expressiongraph_spline)/scripts/ur_example1.lua"/>
+</launch>
+

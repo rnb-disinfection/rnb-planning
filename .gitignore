@@ -2,7 +2,12 @@
 *.csv
 *.pdf
 *.npy
-eTaSL/markers/
+*.out
+src/markers/
+src/data/
+src/logs/
+data/
+model/
 
 # Pycharm
 .idea/
@@ -135,3 +140,13 @@ dmypy.json
 # Ros build
 install/
 log/
+
+
+# c build
+**/cmake-build-*/
+**/CMakeFiles/
+**/Release/
+**.so
+**/Makefile
+**/CMakeCache.txt
+**/cmake_install.cmake

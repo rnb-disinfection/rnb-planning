@@ -1,0 +1,219 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{mathtools}
+\usepackage[format=hang,justification=justified,labelfont=bf,margin={2.5cm,2.5cm}]{caption}
+
+\usepackage[left=3.5cm,right=3.5cm,top=3cm,bottom=3cm]{geometry}
+\author{Erwin Aertbeli\"en}
+%date{17 December 2015}
+\title{An Expressiongraph Node for Collision Checking}
+
+\newcommand{\transf}[2]{ \prescript{#2}{#1}{\mathbf{T}} }
+\newcommand{\rotm}[2]{ \prescript{#2}{#1}{\mathbf{R}} }
+\newcommand{\position}[2] {\prescript{}{#1}{\mathbf{p}}^{#2}}
+\newcommand{\velocity}[2] {\prescript{}{#1}{\mathbf{v}}^{#2}}
+\newcommand{\rotvelmat}[2] {[\prescript{}{#1}{\boldsymbol{\omega}}^{#2} \times ]}
+\newcommand{\rotvel}[2] {\prescript{}{#1}{\boldsymbol{\omega}}^{#2}}
+\newcommand{\myvec}[1] {\mathbf{\boldsymbol{#1}}}
+
+\setlength{\parindent}{0cm}
+
+\setlength{\parskip}{0.3cm plus3mm minus1mm}
+
+\begin{document}
+\maketitle
+
+
+
+\section{Introduction}
+This document describes the collision library for expressiongraphs: \emph{expressiongraph\_collision}.  This library allows to express the distance between geometric objects.  This library uses the FCL library for 
+the underlying geometric primitives and distance computations, and extends this to compute
+not only the distance but also its Jacobian.
+
+Only the distance between \emph{two} \emph{convex} objects is considered. Except for degenerate cases such as where planar faces are parallel to each other, we can define points of closest distance $p_a$ on object 1 and $p_b$ on object 2: points on one of the objects that are closest to the other object. 
+
+To express the derivative of an orientation, rotational velocities are used, even when expressing partial derivatives towards other variables beside time.  The pose of object 1 is described $\transf{w}{1}$ by a rotation matrix $\rotm{w}{1}$ and an origin $\position{w}{1}$ The partial derivative of the pose of object 1 is described by a rotational velocity $\rotvel{w}{1}$ and a translational velocity $\velocity{w}{1}$.  Idem for the pose and partial derivative of the pose of object 2.
+
+
+\section{Computation of the Jacobian}
+
+If a point $p_i$ lies on a vertex, it will not change its location on the object after
+infinitesimal movement of the object.  If a point $p_i$ lies on a surface, there is a supporting plane that is tangent to the surface and that is completely outside the object.
+The (infinitesimal) movement of the contact point in this surface will not influence the
+distance.  In other words, the derivative of the distance between two convex objects can
+be computed by fixing the points of closest distance $p_1$ and $p_2$ to their objects; and computing the derivative of the distance between the points $p_1$ and $p_2$:
+\begin{align}
+d(\mathrm{obj}_1, \mathrm{obj}_2) = \left\Vert \mathbf{e} \right\Vert.
+\end{align}
+where $\mathbf{e}$ is:
+\begin{align}
+\mathbf{e} = \transf{w}{1}\position{w}{1} - \transf{w}{2}\position{w}{2}
+\end{align}
+
+The partial derivative $\partial \mathbf{e}/\partial q_i$ can be computed as:
+\begin{align}
+\frac{\partial \mathbf{e}}{\partial q_i} &=
+\rotvelmat{w}{1}\rotm{w}{1}\position{1}{a} + \velocity{w}{1}
+- \rotvelmat{w}{2}\rotm{w}{2}\position{2}{b} - \velocity{w}{2}
+\end{align}
+The derivative towards the distance is:
+\begin{align}
+\frac{\partial}{\partial q_i} d(\mathrm{obj}_1, \mathrm{obj}_2) =
+\frac{\partial}{\partial q_i} \sqrt{ \mathbf{e}^T \mathbf{e}} =
+-\frac{\mathbf{e}^T}{\sqrt{ \mathbf{e}^T \mathbf{e}}}\frac{\partial \mathbf{e}}{\partial q_i}
+\end{align}
+
+In the case where the the points $p_1$ and $p_2$ are not unique, such as with two parallel planes, the derivative of the distance does not exists: the directional derivative depends on the direction by which one approaches.  So, choosing one vertex is not a bad choice (or as bad a choice as any other choice).
+
+\section{Superquadrics}
+
+\subsection{GJK Algorithm, support function and supporting point}
+The GJK algorithm~\cite{gilbert1988fast} is used for computing the distance between convex geometric objects.  A property of this algorithm is that it only needs the support function and the supporting point.  The convex geometric objects are described by a set $X$ of discrete points and its convex hull $co~X$.
+
+The support function $h_X(\myvec{\eta})$ of a set $X$ in the direction $\myvec{\eta}$ is equal to
+\begin{align}
+h_X(\myvec{\eta}) = \mathrm{max}\left\lbrace  \myvec{x} \cdot \myvec{\eta} \mid \myvec{x} \in X \right\rbrace
+\end{align}
+A supporting point $s_X(\myvec{\eta})$ is a point on the surface such that
+\begin{align}
+h_X(\myvec{\eta}) = s_X(\myvec{\eta}) \cdot \myvec{\eta}
+\end{align}
+
+\subsection{Support function and supporting point of an implicit surface}
+
+An implicit surface is described by the set of points $\mathbf{p}$ that satisfy the following equation:
+\begin{align}
+    f(\mathbf{p}) = 1
+\end{align}
+
+
+The following vector is normal to the implicit surface in the point $\mathbf{p}_0 = (x_0,y_0,z_0)$:
+\begin{align}
+    \mathbf{f}_n(\mathbf{p_0}) =
+    \left.  
+    \begin{bmatrix}
+        \frac{\partial f}{\partial x} &
+        \frac{\partial f}{\partial y} &
+        \frac{\partial f}{\partial z} 
+    \end{bmatrix} 
+    \right|_{\mathbf{p_0}}
+    %=
+    %\begin{bmatrix}
+    %    \frac{ k p_x^{k-1}}{a^k} &
+    %    \frac{ k p_y^{k-1}}{b^k} &
+    %    \frac{ k p_z^{k-1}}{c^k} 
+    %\end{bmatrix}
+\end{align}
+
+
+If $\mathbf{p}_0$ is a supporting point, the normal to the support plane should be parallell to $\myvec{\eta}$:
+\begin{align}
+    \mathbf{f}_n(\mathbf{p}_0) = -\alpha \myvec{\eta},
+    \label{eq:norm}
+\end{align}
+with $\alpha$ an arbitrary positive constant, and the point $\mathbf{p}_0$ should be on the surface:
+\begin{align}
+    f(\mathbf{p_0}) = 1.
+    \label{eq:surf}
+\end{align}
+The above results in 4 equations ([\ref{eq:norm}] and [\ref{eq:surf}]) in 4 unknowns ( $\mathbf{p}_0$ and $\alpha$ ).
+
+\subsection{Ellipsoid}
+
+\subsection{Superquadrics}
+A superquadric is a convex geometric object satisfying the following equation:
+\begin{align}
+    \left( \frac{p_x}{a} \right)^{k_1} +
+    \left( \frac{p_y}{a} \right)^{k_2} +
+    \left( \frac{p_z}{a} \right)^{k_3}    = 1.
+\end{align}
+For the purpose of this document $k_1 = k_2 = k_3 = k$ and $k$ is even.
+%
+%
+
+%In the above formula, the factor $k$ can be dropped because it uniformly scales
+%the normal.
+%
+%The normal to the support plane should be parallell to $\myvec{\eta}$ 
+%\begin{align}
+    %\mathbf{f}_n(\mathbf{p}) = \alpha \myvec{\eta}
+%\end{align}
+%
+%\begin{align}
+    %p_x^{k-1} =
+    %++
+%
+%
+%
+%
+%
+%
+
+
+
+
+
+
+
+
+
+
+%Since a superquadric is strictly convex, the supporting point is unique and the
+%normal of the supporting plane should be parallel to the direction $\myvec{\eta}$: there exists a scaling factor $\alpha$ such that:
+%\begin{align}
+%\myvec{\eta}_x &= \alpha \frac{n}{a} \mathrm{sgn}^n(x) \left| \frac{x_0}{a} \right|^{n-1} \\
+%\myvec{\eta}_y &= \alpha \frac{m}{b} \mathrm{sgn}^m(y) \left| \frac{y_0}{b} \right|^{m-1}\\
+%\myvec{\eta}_z &= \alpha \frac{k}{c} \mathrm{sgn}^k(z) \left| \frac{z_o}{c} \right|^{k-1}
+%\end{align}
+%
+%\begin{align}
+%x_0 = \alpha^{-\frac{1}{n-1}} 
+%\left( \frac{1}{n} a^n \myvec{\eta}_x \mathrm{sgn}^n(x_0)  \right)^{\frac{1}{n-1}}  
+%\end{align}
+%
+%
+%\begin{align}
+%x_0 = \alpha^{-\frac{1}{n-1}} a
+%\left( \frac{1}{n} a \myvec{\eta}_x \mathrm{sgn}^n(x_0)  \right)^{\frac{1}{n-1}}  
+%\end{align}
+%
+%\begin{align}
+%\alpha^{-\frac{n}{n-1}} 
+%\left( \frac{1}{n} a \myvec{\eta}_x \mathrm{sgn}^n(x_0)  \right)^{\frac{n}{n-1}}  
+%\end{align}
+%
+%
+\section{Available primitives}
+
+See table \ref{table:primitives}.
+
+\begin{table}
+	\centering
+	\begin{tabular}{@{}lp{10cm}@{}}
+	\toprule
+	Primitives & Description\\
+	\midrule
+	Box & a box with size $L_x$ in the $x$-direction, size $L_y$ in the $y$-direction and size $L_z$ in the $z$-direction,
+	      centred around the middle point of the box.\\
+	Sphere & a sphere with radius $R$, centred around its middle point.\\
+	Cylinder & a cylinder with length $L$ and radius $R$. \\
+	Capsule & a cylinder with length $L$ and radius $R$, capped at each end with a half sphere with radius $R$.\\
+    Cone & a cone with radius $R$ of the base and height $L$\\
+    ConvexShape & an arbitrary convex polyhedron, specified using the Wavefront file format.\\
+	\bottomrule
+	\end{tabular}
+	
+	\caption{Table of allowable primitives. The distances between any two primitives can be computed.}
+    \label{table:primitives}
+\end{table}
+
+
+\bibliography{collision}{}
+\bibliographystyle{plain}
+\end{document}
+\end{document}

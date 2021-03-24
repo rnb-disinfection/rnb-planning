@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<package>
+  <name>expressiongraph_ros</name>
+  <description>
+     expressiongraph_ros:
+        contains the aspects of expressiongraph_context that are dependent
+        on ros-code, such as reading urdf-files, and handlers to vizualize
+        aspects in RVIZ, etc...
+  </description>
+
+  <author>Erwin Aertbelien</author>
+  
+  <version>0.1.0</version>
+  <license>GNU LGPL v3</license>
+
+  <maintainer email="erwin.aertbelien@kuleuven.be">Erwin Aertbelien</maintainer>
+  <author email="erwin.aertbelien@kuleuven.be">Erwin Aertbelien</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  
+  <build_depend>rosconsole</build_depend>
+  <build_depend>expressiongraph_context</build_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>visualization_msgs</build_depend>
+  <build_depend>urdf</build_depend>
+
+  <run_depend>rosconsole</run_depend>
+  <run_depend>expressiongraph_context</run_depend>
+  <run_depend>roscpp</run_depend>
+  <run_depend>sensor_msgs</run_depend>
+  <run_depend>visualization_msgs</run_depend>
+  <run_depend>urdf</run_depend>
+
+
+  <test_depend>gtest</test_depend>
+
+</package>
+
+

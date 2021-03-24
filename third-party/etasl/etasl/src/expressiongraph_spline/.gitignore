@@ -1,0 +1,4 @@
+.ilua_history
+bin/
+build/
+lib/

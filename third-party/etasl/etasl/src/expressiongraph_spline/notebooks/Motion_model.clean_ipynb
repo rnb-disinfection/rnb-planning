@@ -1,0 +1,293 @@
+{
+ "metadata": {
+  "name": ""
+ },
+ "nbformat": 3,
+ "nbformat_minor": 0,
+ "worksheets": [
+  {
+   "cells": [
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "# Motion model using spline\n",
+      "Such a model will be used to capture the trajectory and its variations of a \n",
+      "demonstration"
+     ]
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "But first we'll do some initialisations of this notebook environment:"
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "from IPython.core.display import HTML\n",
+      "css_file = './nb_preamble.html'\n",
+      "HTML(open(css_file, \"r\").read())"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": []
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "from IPython.display import Image\n",
+      "import numpy as np;\n",
+      "import matplotlib.pyplot as plt;\n",
+      "from mpl_toolkits.mplot3d import Axes3D\n",
+      "%matplotlib inline\n"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": []
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "read_csv is a small utility in the notebooks directory to read easily csv files and gain access to the column headers."
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "import read_csv;"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": []
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "## Definition of the splines"
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "%%file model.csv\n",
+      "\"time\",\"b_x\",\"b_y\",\"b_z\",\"h1_x\",\"h1_y\",\"h1_z\",\"h2_x\",\"h2_y\",\"h2_z\", \"h3_x\",\"h3_y\",\"h3_z\",\n",
+      "0,  0, 0,   0,   0,0,0,    0,0,0,      0,0,0 \n",
+      "2,  2, 1,   0,   2,1,0,    2,0,1,      1,2,0\n",
+      "4,  4, 1.5, 0,   4,1.5,0,  4,0,1.5,    2,4,0\n",
+      "6,  6, 1,   0,   6,1.75,0, 6,0,1.75,   3,6,0\n",
+      "8,  8, 0,   0,   8,2,0,    8,0,2,      4,8,0\n"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": []
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "[b,hdr]=read_csv.read('model.csv')\n",
+      "hdr"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": []
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "print(b)"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": []
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "fig = plt.figure(figsize=(10,6));\n",
+      "ax = fig.gca(projection='3d');\n",
+      "ax.axis('equal')\n",
+      "ax.view_init(azim=90,elev=20)\n",
+      "\n",
+      "ax.plot(b[:,1],b[:,2],b[:,3],'o-');\n",
+      "plt.hold(True);\n",
+      "c=b[:,1:4]+0.1*b[:,4:7];\n",
+      "ax.plot(c[:,0],c[:,1],c[:,2],'o-');\n",
+      "d=b[:,1:4]+0.1*b[:,7:10];\n",
+      "ax.plot(d[:,0],d[:,1],d[:,2],'o-');\n",
+      "e=b[:,1:4]+0.1*b[:,10:13];\n",
+      "ax.plot(e[:,0],e[:,1],e[:,2],'o-');\n",
+      "plt.xlabel('x');\n",
+      "plt.ylabel('y');\n",
+      "\n",
+      "\n",
+      "\n"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": []
+    },
+    {
+     "cell_type": "markdown",
+     "metadata": {},
+     "source": [
+      "## Task specification"
+     ]
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "%%script ./etasl.sh\n",
+      "require(\"context\")\n",
+      "require(\"libexpressiongraph_spline\")\n",
+      "\n",
+      "\n",
+      "u=UrdfExpr();\n",
+      "u:readFromFile(\"ur10_robot.urdf\")\n",
+      "u:addTransform(\"ee\",\"ee_link\",\"base_link\")\n",
+      "r = u:getExpressions(ctx)\n",
+      "\n",
+      "print(r.ee)\n",
+      "\n",
+      "a=CubicSpline()\n",
+      "\n",
+      "retval=a:readPoints(rospack_find(\"expressiongraph_spline\")..\"/notebooks/model.csv\",\" \\t,\",1)\n",
+      "print(retval)\n",
+      "a:setInput(time);\n",
+      "print(\"hello world\")\n",
+      "b=vector(a:getOutput(0),a:getOutput(1),a:getOutput(2))*constant(0.1);\n",
+      "h1=vector(a:getOutput(3),a:getOutput(4),a:getOutput(5));\n",
+      "h2=vector(a:getOutput(6),a:getOutput(7),a:getOutput(8));\n",
+      "h3=vector(a:getOutput(9),a:getOutput(10),a:getOutput(11));\n",
+      "\n",
+      "f1=Variable{context=ctx, name=\"f1\"};\n",
+      "f2=Variable{context=ctx, name=\"f2\"};\n",
+      "f3=Variable{context=ctx, name=\"f3\"};\n",
+      "\n",
+      "traj = b+h1*f1+h2*f2+h3*f3;\n",
+      "\n",
+      "-- I'll need some way to evaluate the splines for a constant value !\n",
+      "print(\"point 1\")\n",
+      "endpoint=a:getMaxArgument()\n",
+      "b:setInputValue( ctx:getScalarNdx(\"time\"), endpoint )\n",
+      "b_endpoint = b:value()\n",
+      "print(b_endpoint)\n",
+      "h1:setInputValue( ctx:getScalarNdx(\"time\"), endpoint )\n",
+      "h1_endpoint = h1:value()\n",
+      "print(h1_endpoint)\n",
+      "h2:setInputValue( ctx:getScalarNdx(\"time\"), endpoint )\n",
+      "h2_endpoint = h2:value()\n",
+      "print(h2_endpoint)\n",
+      "h3:setInputValue( ctx:getScalarNdx(\"time\"), endpoint )\n",
+      "h3_endpoint = h3:value()\n",
+      "print(h3_endpoint)\n",
+      "print(\"point 2\")\n",
+      "traj_endpoint = constant(b_endpoint) +\n",
+      "                constant(h1_endpoint)*f1 + \n",
+      "                constant(h2_endpoint)*f2 +\n",
+      "                constant(h3_endpoint)*f3;\n",
+      "print(traj_endpoint)\n",
+      "print(\"point 3\")\n",
+      "Constraint{\n",
+      "        context = ctx,\n",
+      "        expr    = traj_endpoint,\n",
+      "        target  = Vector(7,1,3)\n",
+      "};\n",
+      "\n",
+      "print(b)\n",
+      "\n",
+      "print(\"hello world\")\n",
+      "\n",
+      "    \n",
+      "Monitor{\n",
+      "        context=ctx,\n",
+      "        name='finish_after_some_time',\n",
+      "        upper=8,\n",
+      "        actionname='exit',\n",
+      "        expr=time\n",
+      "}\n",
+      "\n",
+      "ctx:addOutput(\"time\", \"csv\",time)\n",
+      "ctx:addOutput(\"traj\",\"csv\",traj)\n",
+      "ctx:addOutput(\"b\", \"csv\", b)\n",
+      "ctx:addOutput(\"h1\", \"csv\", b+constant(0.1)*h1)\n",
+      "ctx:addOutput(\"h2\", \"csv\", b+constant(0.1)*h2)\n",
+      "\n",
+      "print(ctx);"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": []
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "import read_csv\n",
+      "[d,hdr]=read_csv.read('output.csv')\n",
+      "hdr"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": []
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "fig = plt.figure(figsize=(10,6));\n",
+      "ax = fig.gca(projection='3d');\n",
+      "ax.axis('equal')\n",
+      "ax.view_init(azim=-20,elev=30)\n",
+      "\n",
+      "i=hdr['traj_x']\n",
+      "ax.plot(d[:,i],d[:,i+1],d[:,i+2],'-');\n",
+      "ax.hold(True);\n",
+      "j=hdr['b_x'];\n",
+      "ax.plot(d[:,j],d[:,j+1],d[:,j+2],'-');\n",
+      "ax.plot([7],[1],[3],'o');\n",
+      "ax.plot([0],[0],[0],'o');\n",
+      "ax.set_zlabel('z')\n",
+      "ax.set_xlabel('x')\n",
+      "ax.set_ylabel('y')"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": []
+    },
+    {
+     "cell_type": "code",
+     "collapsed": false,
+     "input": [
+      "fig = plt.figure(figsize=(10,6));\n",
+      "ax = fig.gca(projection='3d');\n",
+      "ax.axis('equal')\n",
+      "ax.view_init(azim=50)\n",
+      "\n",
+      "ax.plot(d[:,1],d[:,2],d[:,3],'-');\n",
+      "ax.hold(True);\n",
+      "ax.plot(d[:,4],d[:,5],d[:,6],'-');\n",
+      "ax.plot(d[:,7],d[:,8],d[:,9],'-');\n",
+      "plt.xlabel('x');\n",
+      "plt.ylabel('y');\n"
+     ],
+     "language": "python",
+     "metadata": {},
+     "outputs": []
+    }
+   ],
+   "metadata": {}
+  }
+ ]
+}

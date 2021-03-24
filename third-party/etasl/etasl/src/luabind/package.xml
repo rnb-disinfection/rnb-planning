@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<package>
+  <name>luabind</name>
+  <description>
+    This package a library for easily binding C++ to LUA
+  </description>
+  <version>0.1.0</version> <!-- TODO: is this correct? -->
+  <maintainer email="erwin.aertbelien@kuleuven.be">Erwin Aertbelien</maintainer>
+  <author email="unkown@unkown.org">Daniel Wallin</author>
+  <license>without limitation except for copyright notice</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <test_depend>gtest</test_depend>
+  <build_depend>lua-dev</build_depend>
+  <run_depend>lua-dev</run_depend>
+</package>
