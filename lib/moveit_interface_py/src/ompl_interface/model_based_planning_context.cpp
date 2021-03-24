@@ -121,6 +121,7 @@ void ompl_interface::ModelBasedPlanningContext::configure(const ros::NodeHandle&
     {
         ompl::base::ScopedState<> ompl_start_state(spec_.constrained_state_space_);
         spec_.state_space_->copyToOMPLStateConstrained(ompl_start_state.get(), getCompleteInitialRobotState());
+        spec_.constrained_state_space_->anchorChart(ompl_start_state.get());
         ompl_simple_setup_->setStartState(ompl_start_state);
         ompl_simple_setup_->setStateValidityChecker(ob::StateValidityCheckerPtr(new ConstrainedStateValidityChecker(this)));
     }

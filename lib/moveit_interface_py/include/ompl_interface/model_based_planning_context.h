@@ -46,7 +46,7 @@
 #include <ompl/tools/multiplan/ParallelPlan.h>
 #include <ompl/base/StateStorage.h>
 
-#include <ompl/base/spaces/constraint/ProjectedStateSpace.h>
+#include <ompl/base/spaces/constraint/TangentBundleStateSpace.h>
 #include <ompl/base/ConstrainedSpaceInformation.h>
 
 namespace ompl_interface
@@ -72,7 +72,7 @@ namespace ompl_interface
 
         ModelBasedStateSpacePtr state_space_;
         og::SimpleSetupPtr ompl_simple_setup_;  // pass in the correct simple setup type
-        std::shared_ptr<ob::ProjectedStateSpace> constrained_state_space_;
+        std::shared_ptr<ob::TangentBundleStateSpace> constrained_state_space_;
         std::shared_ptr<ob::ConstrainedSpaceInformation> csi_;
         bool constrained=false;
         bool allow_approximate=false;

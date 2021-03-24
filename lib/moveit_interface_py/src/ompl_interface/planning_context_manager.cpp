@@ -66,7 +66,7 @@
 #include <ompl/geometric/planners/prm/LazyPRMstar.h>
 #include <ompl/geometric/planners/prm/SPARS.h>
 #include <ompl/geometric/planners/prm/SPARStwo.h>
-#include <ompl/base/spaces/constraint/ProjectedStateSpace.h>
+#include <ompl/base/spaces/constraint/TangentBundleStateSpace.h>
 #include <ompl/base/ConstrainedSpaceInformation.h>
 
 #include "ompl_interface/parameterization/joint_space/joint_model_state_space_factory.h"
@@ -417,7 +417,7 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
         context_spec.allow_approximate = allow_approximation;
 
         // Combine the ambient space and the constraint into a constrained state space.
-        context_spec.constrained_state_space_ = std::make_shared<ob::ProjectedStateSpace>(context_spec.state_space_,
+        context_spec.constrained_state_space_ = std::make_shared<ob::TangentBundleStateSpace>(context_spec.state_space_,
                                                                                           manifold_intersection);
 
         // Define the constrained space information for this constrained state space.
