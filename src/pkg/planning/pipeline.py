@@ -184,7 +184,6 @@ class PlanningPipeline:
         print("======================= terminated {}: {} ===============================".format(ID, term_reason))
         print("=========================================================================================================")
 
-
     ##
     # @brief test transition between states to connect
     # @param from_state         starting state (rnb-planning.src.pkg.planning.scene.State)
@@ -205,6 +204,56 @@ class PlanningPipeline:
 
         end_state = self.pscene.rebind_all(binding_list, LastQ)
         return Traj, end_state, error, success
+
+    ##
+    # @brief refine trajectories in a task schedule
+    # @param schedule       sequence of SearchNodes to refine trajectory
+    # @param multiprocess   use multiprocess
+    # @param kwargs         arguments to be used to refine trajectory
+    def refine_trajectory(self, schedule, multiprocess=True, **kwargs):
+        if multiprocess:
+            N_agents = cpu_count()
+            # optimal efficiency is acquired with the number of agents same as the number of cores.
+            N_try = int(np.ceil(float((len(schedule)-1))/N_agents))
+            self.refined_traj_dict = self.manager.dict()
+            self.refine_success_dict = self.manager.dict()
+            self.refine_proc_dict = {key: [Process(
+                target=self.__refine_trajectory,
+                args=(key,)+snodes, kwargs=kwargs) for _ in range(N_try)] for key, snodes in enumerate(zip(schedule[:-1], schedule[1:]))}
+            for proc_list in self.refine_proc_dict.values():
+                for proc in proc_list:
+                    proc.start()
+            while (not all([key in self.refine_success_dict for key in self.refine_proc_dict.keys()])):
+                for proc_list in self.refine_proc_dict.values():
+                    for proc in proc_list:
+                        proc.join(timeout=0.1)
+        else:
+            self.refined_traj_dict = dict()
+            self.refine_success_dict = dict()
+            for key, snodes in enumerate(zip(schedule[:-1], schedule[1:])):
+                self.__refine_trajectory(key, *snodes, **kwargs)
+        for key in self.refine_success_dict.keys():
+            if self.refine_success_dict[key]:
+                schedule[key+1].set_traj(self.refined_traj_dict[key],  schedule[key].traj_tot)
+
+
+    def __refine_trajectory(self, key, snode_from, snode_to, **kwargs):
+        from_state = snode_from.state
+        to_state = snode_to.state
+        redundancy_dict = snode_to.redundancy_dict
+        Traj, LastQ, error, success, binding_list = \
+            self.mplan.plan_transition(from_state, to_state, redundancy_dict=redundancy_dict, **kwargs)
+
+        if success:
+            if key in self.refine_success_dict and self.refine_success_dict[key]:
+                traj_old = self.refined_traj_dict[key]
+                len_traj_old = np.sum(np.abs(differentiate(traj_old, 1)[:-1]))
+                len_traj_new = np.sum(np.abs(differentiate(Traj, 1)[:-1]))
+                Traj = Traj if len_traj_new < len_traj_old else traj_old
+            self.refined_traj_dict[key] = Traj
+        self.refine_success_dict[key] = success
+
+
 
     ##
     # @brief add return motion to a SearchNode schedule

@@ -117,7 +117,8 @@ def sample_redundancy(redundancy_tot, sampler=random.uniform):
 # @class MotionConstraint
 # @brief definition of fixture constraint
 class MotionConstraint:
-    def __init__(self, geometry_list, fix_surface, fix_normal, tol=1e-3):
-        self.geometry_list, self.fix_surface, self.fix_normal, self.tol = geometry_list, fix_surface, fix_normal, tol
+    def __init__(self, geometry_list, fix_surface, fix_normal, T_tool_offset=np.identity(4), tol=1e-3):
+        self.geometry_list, self.fix_surface, self.fix_normal, self.T_tool_offset, self.tol = \
+            geometry_list, fix_surface, fix_normal, T_tool_offset, tol
 
 

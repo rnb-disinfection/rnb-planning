@@ -4,6 +4,7 @@ from .ros_rviz import show_motion, get_markers, get_publisher
 from .geotype import GEOTYPE
 from ..utils.rotation_utils import *
 from ..utils.joint_utils import get_tf, get_link_adjacency_map, get_min_distance_map, get_link_control_dict
+from ..utils.utils import list2dict
 from collections import defaultdict
 
 POINT_DEFAULT = np.array([[0,0,0]])
@@ -432,4 +433,14 @@ class GeometryItem(object):
         T = self.get_tf(joint_dict, from_link=from_link)
         verts, radius = self.get_vertice_radius()
         return np.transpose(np.matmul(T[:3,:3], verts.transpose()) + T[:3,3:]), radius
+
+    ##
+    # @brief draw trajectory coordinates
+    # @param Q_list list of joint configurations
+    # @param traj_name name id for the trajectory
+    def draw_traj_coords(self, Q_list, traj_name):
+        for i_q, q in enumerate(Q_list):
+            T_q = self.get_tf(list2dict(q, self.gscene.joint_names))
+            self.gscene.add_highlight_axis(traj_name, "{}_{}".format(traj_name, i_q),
+                                      "base_link",  center=T_q[:3,3], orientation_mat=T_q[:3,:3])
 

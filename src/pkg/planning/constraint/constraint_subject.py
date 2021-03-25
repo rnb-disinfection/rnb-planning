@@ -214,7 +214,7 @@ class SweepTask(AbstractTask):
     # @param binding_to next binding
     def make_constraints(self, binding_from, binding_to, tol=None):
         if binding_from is not None and binding_from[2] == binding_to[2]:
-            return [MotionConstraint([self.geometry], True, True, tol if tol is not None else self.tol)]
+            return [MotionConstraint([self.geometry], True, True, tol=tol if tol is not None else self.tol)]
         else:
             return []
 
@@ -299,6 +299,7 @@ class SweepLineTask(AbstractTask):
         self.tol = tol
         if geometry_vertical is not None:
             self.geometry_vertical = geometry_vertical
+            self.Rot_vertical = np.matmul(geometry.orientation_mat.transpose(), geometry_vertical.orientation_mat)
         else:
             # centers in local coordinate in self.geometry
             wp_centers = [np.matmul(SE3_inv(self.geometry.Toff), sp.Toff_lh)[:3,3]
@@ -306,13 +307,13 @@ class SweepLineTask(AbstractTask):
             assert len(wp_centers) == 2, "We only consider 2-waypoint line sweep"
             center_dist = np.linalg.norm(wp_centers[1]-wp_centers[0])
             center_dir = (wp_centers[1]-wp_centers[0])/center_dist
+            self.Rot_vertical = Rotation.from_rotvec(center_dir * np.pi / 2).as_dcm()
             self.geometry_vertical = geometry.gscene.create_safe(GEOTYPE.BOX,
                                                                  "_".join([oname]+self.action_points_order),
                                                                  link_name=self.geometry.link_name,
-                                                                 dims=(center_dist*2,center_dist*2,1e-6),
+                                                                 dims=(center_dist*1.5,center_dist*1,1e-6),
                                                                  center=np.mean(wp_centers, axis=0),
-                                                                 rpy=Rot2rpy(
-                                                                     Rotation.from_rotvec(center_dir*np.pi/2).as_dcm()),
+                                                                 rpy=Rot2rpy(self.Rot_vertical),
                                                                  color=(0.8,0.2,0.2,0.2), display=False,
                                                                  fixed=self.geometry.fixed, collision=False,
                                                                  parent=self.geometry.name)
@@ -325,8 +326,8 @@ class SweepLineTask(AbstractTask):
     def make_constraints(self, binding_from, binding_to, tol=None):
         if binding_from is not None and binding_from[2] == binding_to[2]:
             tol = tol if tol is not None else self.tol
-            return [MotionConstraint([self.geometry], True, True, tol),
-                    MotionConstraint([self.geometry_vertical], True, False, tol)]
+            return [MotionConstraint([self.geometry], True, True, tol=tol),
+                    MotionConstraint([self.geometry_vertical], True, False, tol=tol)]
         else:
             return []
 

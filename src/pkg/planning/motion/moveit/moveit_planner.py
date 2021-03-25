@@ -7,6 +7,7 @@ from ...constraint.constraint_common import calc_redundancy
 from scipy.spatial.transform import Rotation
 import numpy as np
 import os
+from enum import Enum
 
 def gtype_to_otype(gtype):
     if gtype==GEOTYPE.BOX:
@@ -40,6 +41,35 @@ def make_constraint_item(gtem):
 # @brief make list of moveit constraint geometry list
 def make_constraint_list(gtem_list):
     return make_assign_arr(GeometryList, [make_constraint_item(gtem) for gtem in gtem_list])
+
+##
+# @class PlannerConfig
+# @brief define available planner configs
+class PlannerConfig:
+    SBLkConfigDefault = 'SBLkConfigDefault'
+    ESTkConfigDefault = 'ESTkConfigDefault'
+    LBKPIECEkConfigDefault = 'LBKPIECEkConfigDefault'
+    BKPIECEkConfigDefault = 'BKPIECEkConfigDefault'
+    KPIECEkConfigDefault = 'KPIECEkConfigDefault'
+    RRTkConfigDefault = 'RRTkConfigDefault'
+    RRTConnectkConfigDefault = 'RRTConnectkConfigDefault'
+    RRTstarkConfigDefault = 'RRTstarkConfigDefault'
+    TRRTkConfigDefault = 'TRRTkConfigDefault'
+    PRMkConfigDefault = 'PRMkConfigDefault'
+    PRMstarkConfigDefault = 'PRMstarkConfigDefault'
+    FMTkConfigDefault = 'FMTkConfigDefault'
+    BFMTkConfigDefault = 'BFMTkConfigDefault'
+    PDSTkConfigDefault = 'PDSTkConfigDefault'
+    STRIDEkConfigDefault = 'STRIDEkConfigDefault'
+    BiTRRTkConfigDefault = 'BiTRRTkConfigDefault'
+    LBTRRTkConfigDefault = 'LBTRRTkConfigDefault'
+    BiESTkConfigDefault = 'BiESTkConfigDefault'
+    ProjESTkConfigDefault = 'ProjESTkConfigDefault'
+    LazyPRMkConfigDefault = 'LazyPRMkConfigDefault'
+    LazyPRMstarkConfigDefault = 'LazyPRMstarkConfigDefault'
+    SPARSkConfigDefault = 'SPARSkConfigDefault'
+    SPARStwokConfigDefault = 'SPARStwokConfigDefault'
+    TrajOptDefault = 'TrajOptDefault'
 
 ##
 # @class MoveitPlanner
@@ -163,7 +193,7 @@ class MoveitPlanner(MotionInterface):
                 raise(RuntimeError("multi-robot joint motion not implemented!"))
             print("try joint motion") ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
             trajectory, success = planner.plan_joint_motion_py(
-                group_name, tuple(to_Q), tuple(from_Q), timeout=timeout_joint)
+                group_name, tuple(to_Q), tuple(from_Q), timeout=timeout_joint, **kwargs)
             print("joint motion tried: {}".format(success)) ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
 
         else: # task motion case
@@ -235,7 +265,8 @@ class MoveitPlanner(MotionInterface):
             else:
                 print("try transition motion") ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
                 trajectory, success = planner.plan_py(
-                    group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q), timeout=timeout)
+                    group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q),
+                    timeout=timeout, **kwargs)
                 print("transition motion tried: {}".format(success)) ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
 
         if success:
@@ -281,7 +312,7 @@ class MoveitPlanner(MotionInterface):
     # @param motion_constraint rnb-planning.src.pkg.planning.constraint.constraint_common.MotionConstraint
     # @param use_box boolean flag for using box, to convert box to plane, set this value False (default=True)
     def add_constraint(self, group_name, tool_link, tool_offset_T, motion_constraint):
-        xyzquat = T2xyzquat(tool_offset_T)
+        xyzquat = T2xyzquat(np.matmul(tool_offset_T, motion_constraint.T_tool_offset))
         self.planner.add_union_manifold_py(group_name=group_name, tool_link=tool_link, tool_offset=xyzquat[0]+xyzquat[1],
                                            geometry_list=make_constraint_list(motion_constraint.geometry_list),
                                            fix_surface=motion_constraint.fix_surface, fix_normal=motion_constraint.fix_normal, tol=motion_constraint.tol)

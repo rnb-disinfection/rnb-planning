@@ -38,3 +38,10 @@
   * Projected: 평균 5초 수준, 10초 성공률 70% 수준, std/max error 0.1mm/0.5mm
   * Atlas: 중간값 130ms 수준, 평균 170ms 수준, 10초 성공률 100% 수준, std/max error 0.1mm/0.5mm
   * TangentBundle:  중간값 30 ms 수준, 평균 500ms 수준, 10초 성공률 96% 수준, std/max error 0.5mm/3mm
+  
+* Constraint - 방향 두개 동시는 속도 현저히 떨어짐
+  * Atlas를 써도 느림, TangentBundle 쓰면 빠름
+  * BOX를 쓰면 수렴 못함 (discontinuity), PLANE 쓰면 그나마 가능, 
+  * PLANE+TangentBundle 쓰면 어느정도 가능해지지만 미수렴 확률 높음, 불안정.
+  * 평행점 추가 방식은 그나마 수렴, 하지만 ATLAS는 여전히 느리고 TANGENT는 에러가 너무 큼
+  * tol 줄이면 속도 감소폭이 훨씬 큼
