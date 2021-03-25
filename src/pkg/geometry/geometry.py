@@ -439,8 +439,11 @@ class GeometryItem(object):
     # @param Q_list list of joint configurations
     # @param traj_name name id for the trajectory
     def draw_traj_coords(self, Q_list, traj_name):
+        T_q_list = []
         for i_q, q in enumerate(Q_list):
             T_q = self.get_tf(list2dict(q, self.gscene.joint_names))
             self.gscene.add_highlight_axis(traj_name, "{}_{}".format(traj_name, i_q),
                                       "base_link",  center=T_q[:3,3], orientation_mat=T_q[:3,:3])
+            T_q_list.append(T_q)
+        return T_q_list
 

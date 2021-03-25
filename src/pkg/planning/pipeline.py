@@ -218,6 +218,12 @@ class PlanningPipeline:
         schedule_dict = {i_s: snode for i_s, snode in enumerate(schedule)}
         snode_keys = sorted(schedule_dict.keys())[1:]
         try_count = 0
+        if multiprocess:
+            self.refined_traj_dict = self.manager.dict()
+            self.refine_success_dict = self.manager.dict()
+        else:
+            self.refined_traj_dict = dict()
+            self.refine_success_dict = dict()
         while len(snode_keys)>0 and try_count < max_repeat:
             try_count += 1
             if multiprocess:
@@ -226,8 +232,6 @@ class PlanningPipeline:
                     N_agents = cpu_count()
                     N_try = int(np.ceil(N_agents/float((len(snode_keys)-1))))
                 print("Try {} times for each trajectory".format(N_try))
-                self.refined_traj_dict = self.manager.dict()
-                self.refine_success_dict = self.manager.dict()
                 self.refine_proc_dict = {skey: [Process(
                     target=self.__refine_trajectory,
                     args=(skey,schedule_dict[skey-1],schedule_dict[skey]), kwargs=kwargs)
@@ -244,8 +248,6 @@ class PlanningPipeline:
                         for proc in proc_list:
                             proc.join(timeout=0.1)
             else:
-                self.refined_traj_dict = dict()
-                self.refine_success_dict = dict()
                 for skey in snode_keys:
                     self.__refine_trajectory(skey, schedule_dict[skey-1],schedule_dict[skey], **kwargs)
             snode_keys = [skey for skey in snode_keys

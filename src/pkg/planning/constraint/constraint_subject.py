@@ -297,17 +297,19 @@ class SweepLineTask(AbstractTask):
         self.state_param = np.zeros(len(self.action_points_order), dtype=np.bool)
         self.binding = (self.oname, None, None, None)
         self.tol = tol
+        self.fix_direction = False
         if geometry_vertical is not None:
             self.geometry_vertical = geometry_vertical
             self.Rot_vertical = np.matmul(geometry.orientation_mat.transpose(), geometry_vertical.orientation_mat)
+            self.center_dir = self.Rot_vertical[np.argmax(np.diag(self.Rot_vertical)), :]
         else:
             # centers in local coordinate in self.geometry
             wp_centers = [np.matmul(SE3_inv(self.geometry.Toff), sp.Toff_lh)[:3,3]
                           for sp in self.action_points_dict.values()]
             assert len(wp_centers) == 2, "We only consider 2-waypoint line sweep"
             center_dist = np.linalg.norm(wp_centers[1]-wp_centers[0])
-            center_dir = (wp_centers[1]-wp_centers[0])/center_dist
-            self.Rot_vertical = Rotation.from_rotvec(center_dir * np.pi / 2).as_dcm()
+            self.center_dir = (wp_centers[1]-wp_centers[0])/center_dist
+            self.Rot_vertical = Rotation.from_rotvec(self.center_dir * np.pi / 2).as_dcm()
             self.geometry_vertical = geometry.gscene.create_safe(GEOTYPE.BOX,
                                                                  "_".join([oname]+self.action_points_order),
                                                                  link_name=self.geometry.link_name,
@@ -326,8 +328,14 @@ class SweepLineTask(AbstractTask):
     def make_constraints(self, binding_from, binding_to, tol=None):
         if binding_from is not None and binding_from[2] == binding_to[2]:
             tol = tol if tol is not None else self.tol
-            return [MotionConstraint([self.geometry], True, True, tol=tol),
-                    MotionConstraint([self.geometry_vertical], True, False, tol=tol)]
+            if self.fix_direction:
+                return [MotionConstraint([self.geometry], True, True, tol=tol),
+                        MotionConstraint([self.geometry_vertical], True, False, tol=tol),
+                        MotionConstraint([self.geometry_vertical], True, False,
+                                         T_tool_offset=SE3(np.identity(3), self.center_dir*tol), tol=tol)]
+            else:
+                return [MotionConstraint([self.geometry], True, True, tol=tol),
+                        MotionConstraint([self.geometry_vertical], True, False, tol=tol)]
         else:
             return []
 

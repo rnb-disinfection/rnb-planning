@@ -353,8 +353,14 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
         context_spec.constraint_sampler_manager_ = constraint_sampler_manager_;
         context_spec.state_space_ = factory->getNewStateSpace(space_spec);
 
+        // Define the constrained space information for this constrained state space.
+        ob::SpaceInformationPtr si_ = std::make_shared<ob::SpaceInformation>(context_spec.state_space_);
+
         // Choose the correct simple setup type to load
         context_spec.ompl_simple_setup_.reset(new ompl::geometric::SimpleSetup(context_spec.state_space_));
+
+//        context_spec.ompl_simple_setup_->getProblemDefinition()->setOptimizationObjective(
+//                RNB::getLengthObjective(si_, 3.14*6));
 
         ROS_DEBUG_NAMED(LOGNAME, "Creating new planning context");
         context.reset(new ModelBasedPlanningContext(config.name, context_spec));
@@ -415,9 +421,6 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
         context_spec.constraint_sampler_manager_ = constraint_sampler_manager_;
         context_spec.state_space_ = factory->getNewStateSpace(space_spec);
 
-//        // Choose the correct simple setup type to load
-//        context_spec.ompl_simple_setup_.reset(new ompl::geometric::SimpleSetup(context_spec.state_space_));
-
         context_spec.constrained = true;
         context_spec.allow_approximate = allow_approximation;
 
@@ -445,8 +448,8 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
 
         // Choose the correct simple setup type to load
         context_spec.ompl_simple_setup_.reset(new ompl::geometric::SimpleSetup(context_spec.csi_));
-        context_spec.ompl_simple_setup_->getProblemDefinition()->setOptimizationObjective(
-                RNB::getLengthObjective(context_spec.csi_));
+//        context_spec.ompl_simple_setup_->getProblemDefinition()->setOptimizationObjective(
+//                RNB::getLengthObjective(context_spec.csi_, 3.14*2));
 
 
         ROS_DEBUG_NAMED(LOGNAME, "Creating new planning context");
