@@ -33,6 +33,8 @@
   * nh_ 사용처:
   
   
-  ## TODO
-  * ros 최소화, 노드 사용 파트 삭제
-  * TangentBundleSpace로 변경
+## NOTE
+* ConstrainedSpace 성능 비교 (1 line sweep) --> Atlas로 결정
+  * Projected: 평균 5초 수준, 10초 성공률 70% 수준, std/max error 0.1mm/0.5mm
+  * Atlas: 중간값 130ms 수준, 평균 170ms 수준, 10초 성공률 100% 수준, std/max error 0.1mm/0.5mm
+  * TangentBundle:  중간값 30 ms 수준, 평균 500ms 수준, 10초 성공률 96% 수준, std/max error 0.5mm/3mm

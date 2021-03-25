@@ -101,7 +101,9 @@ int main(int argc, char** argv) {
     PlanResult res = planner.plan_with_constraints(group_name, tool_link,
                                                    goal_pose, "base_link", init_state,
                                                    "RRTConnectkConfigDefault",
-                                                   10, false);
+                                                   10,
+                                                   ompl_interface::ConstrainedSpaceType::TANGENTBUNDLE,
+                                                   false);
 
     std::cout<<std::endl;
 

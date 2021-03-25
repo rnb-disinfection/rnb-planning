@@ -229,7 +229,8 @@ class MoveitPlanner(MotionInterface):
                     self.add_constraint(group_name, tool.geometry.link_name, tool.Toff_lh, motion_constraint=motion_constraint)
                 print("try constrained motion") ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
                 trajectory, success = planner.plan_constrained_py(
-                    group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q), timeout=timeout_constrained)
+                    group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q),
+                    timeout=timeout_constrained, **kwargs)
                 print("constrained motion tried: {}".format(success)) ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
             else:
                 print("try transition motion") ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp

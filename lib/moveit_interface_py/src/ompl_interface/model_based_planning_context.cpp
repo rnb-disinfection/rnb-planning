@@ -121,7 +121,16 @@ void ompl_interface::ModelBasedPlanningContext::configure(const ros::NodeHandle&
     {
         ompl::base::ScopedState<> ompl_start_state(spec_.constrained_state_space_);
         spec_.state_space_->copyToOMPLStateConstrained(ompl_start_state.get(), getCompleteInitialRobotState());
-        spec_.constrained_state_space_->anchorChart(ompl_start_state.get());
+        switch (spec_.cs_type_){
+            case ompl_interface::ConstrainedSpaceType::PROJECTED:
+                break;
+            case ompl_interface::ConstrainedSpaceType::ATLAS:
+                spec_.constrained_state_space_->as<ompl::base::AtlasStateSpace>()->anchorChart(ompl_start_state.get());
+                break;
+            case ompl_interface::ConstrainedSpaceType::TANGENTBUNDLE:
+                spec_.constrained_state_space_->as<ompl::base::TangentBundleStateSpace>()->anchorChart(ompl_start_state.get());
+                break;
+        }
         ompl_simple_setup_->setStartState(ompl_start_state);
         ompl_simple_setup_->setStateValidityChecker(ob::StateValidityCheckerPtr(new ConstrainedStateValidityChecker(this)));
     }

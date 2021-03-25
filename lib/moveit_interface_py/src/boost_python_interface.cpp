@@ -28,6 +28,13 @@ BOOST_PYTHON_MODULE(moveit_interface_py){
             .export_values()
             ;
 
+    enum_<ompl_interface::ConstrainedSpaceType>("ConstrainedSpaceType")
+            .value("PROJECTED", ompl_interface::ConstrainedSpaceType::PROJECTED)
+            .value("ATLAS", ompl_interface::ConstrainedSpaceType::ATLAS)
+            .value("TANGENTBUNDLE", ompl_interface::ConstrainedSpaceType::TANGENTBUNDLE)
+            .export_values()
+            ;
+
     class_<Geometry>("Geometry", init<ObjectType, CartPose, Vec3>())
             .def_readonly("type", &Geometry::type)
             .def_readonly("pose", &Geometry::pose)

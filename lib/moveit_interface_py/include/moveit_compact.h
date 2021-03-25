@@ -110,7 +110,10 @@ namespace RNB {
                                              CartPose goal_pose, string goal_link,
                                              JointState init_state,
                                              string planner_id="RRTConnectkConfigDefault",
-                                             double allowed_planning_time=0.1, bool allow_approximation=false);
+                                             double allowed_planning_time=0.1,
+                                             ompl_interface::ConstrainedSpaceType cs_type=
+                                                     ompl_interface::ConstrainedSpaceType::ATLAS,
+                                             bool allow_approximation=false);
 
             /**
              * @brief test jacobian

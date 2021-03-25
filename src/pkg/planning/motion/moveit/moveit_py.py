@@ -9,6 +9,7 @@ from enum import Enum
 Geometry = mpc.Geometry
 GeometryList = mpc.GeometryList
 ObjectType = mpc.ObjectType
+ConstrainedSpaceType = mpc.ConstrainedSpaceType
 
 class ObjectOperation(Enum):
     ADD = 0
@@ -127,12 +128,13 @@ class MoveitCompactPlanner_BP(mpc.Planner):
     ##
     # @brief search for plan that bring tool_link to goal_pose in coordinate of goal_link, with constraints
     # @param goal_pose xyzquat(xyzw) style pose of goal transformation in goal_link.
-    def plan_constrained_py(self, robot_name, tool_link, goal_pose, goal_link, Q_init, plannerconfig="RRTConnectkConfigDefault", timeout=1, allow_approximate=False):
+    def plan_constrained_py(self, robot_name, tool_link, goal_pose, goal_link, Q_init, plannerconfig="RRTConnectkConfigDefault",
+                            timeout=1, cs_type=ConstrainedSpaceType.ATLAS, allow_approximate=False):
         assert goal_link=="base_link", "Constrained planning is only available in base_link currently!"
         self.clear_context_cache()
         plan = self.plan_with_constraints(robot_name, tool_link,
                                           CartPose(*goal_pose), goal_link, JointState(self.joint_num, *Q_init),
-                                          plannerconfig, timeout, allow_approximate)
+                                          plannerconfig, timeout, cs_type, allow_approximate)
         return np.array(
             [spread(Q, self.joint_num) for Q in spread(plan.trajectory, len(plan.trajectory))]), plan.success
 

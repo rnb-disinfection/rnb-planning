@@ -192,6 +192,7 @@ namespace ompl_interface
                                                                    moveit_msgs::MoveItErrorCodes& error_code, const ros::NodeHandle& nh,
                                                                    bool use_constraints_approximations,
                                                                    ompl::base::ConstraintIntersectionPtr& manifold_intersection,
+                                                                   ompl_interface::ConstrainedSpaceType cs_type,
                                                                    bool allow_approximation) const;
 
         void registerPlannerAllocator(const std::string& planner_id, const ConfiguredPlannerAllocator& pa)
@@ -236,6 +237,7 @@ namespace ompl_interface
                                                         const StateSpaceFactoryTypeSelector& factory_selector,
                                                         const moveit_msgs::MotionPlanRequest& req,
                                                         ompl::base::ConstraintIntersectionPtr& manifold_intersection,
+                                                        ompl_interface::ConstrainedSpaceType cs_type,
                                                         bool allow_approximation) const;
 
         const ModelBasedStateSpaceFactoryPtr& getStateSpaceFactory1(const std::string& group_name,

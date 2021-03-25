@@ -92,6 +92,7 @@ namespace ompl_interface
                 const planning_scene::PlanningSceneConstPtr& planning_scene,
                 const planning_interface::MotionPlanRequest& req,
                 ompl::base::ConstraintIntersectionPtr& manifold_intersection,
+                ompl_interface::ConstrainedSpaceType cs_type,
                 bool allow_approximation) const;
 
         ModelBasedPlanningContextPtr getPlanningContextConstrained(
@@ -99,6 +100,7 @@ namespace ompl_interface
                 const planning_interface::MotionPlanRequest& req,
                 moveit_msgs::MoveItErrorCodes& error_code,
                 ompl::base::ConstraintIntersectionPtr& manifold_intersection,
+                ompl_interface::ConstrainedSpaceType cs_type,
                 bool allow_approximation) const;
 
         const PlanningContextManager& getPlanningContextManager() const
