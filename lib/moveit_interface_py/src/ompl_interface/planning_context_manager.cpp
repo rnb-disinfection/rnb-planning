@@ -75,6 +75,8 @@
 #include "ompl_interface/parameterization/joint_space/joint_model_state_space.h"
 #include "ompl_interface/parameterization/work_space/pose_model_state_space_factory.h"
 
+#include "planning_objective.h"
+
 using namespace std::placeholders;
 
 namespace ompl_interface
@@ -443,6 +445,9 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
 
         // Choose the correct simple setup type to load
         context_spec.ompl_simple_setup_.reset(new ompl::geometric::SimpleSetup(context_spec.csi_));
+        context_spec.ompl_simple_setup_->getProblemDefinition()->setOptimizationObjective(
+                RNB::getLengthObjective(context_spec.csi_));
+
 
         ROS_DEBUG_NAMED(LOGNAME, "Creating new planning context");
         context.reset(new ModelBasedPlanningContext(config.name, context_spec));

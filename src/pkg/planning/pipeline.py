@@ -209,32 +209,52 @@ class PlanningPipeline:
     # @brief refine trajectories in a task schedule
     # @param schedule       sequence of SearchNodes to refine trajectory
     # @param multiprocess   use multiprocess
+    # @param N_try      number of trials for each motion
+    # @param repeat_until_success   repeat for failed motions
+    # @param max_repeat    max nubmer of repeats
     # @param kwargs         arguments to be used to refine trajectory
-    def refine_trajectory(self, schedule, multiprocess=True, **kwargs):
-        if multiprocess:
-            N_agents = cpu_count()
-            # optimal efficiency is acquired with the number of agents same as the number of cores.
-            N_try = int(np.ceil(float((len(schedule)-1))/N_agents))
-            self.refined_traj_dict = self.manager.dict()
-            self.refine_success_dict = self.manager.dict()
-            self.refine_proc_dict = {key: [Process(
-                target=self.__refine_trajectory,
-                args=(key,)+snodes, kwargs=kwargs) for _ in range(N_try)] for key, snodes in enumerate(zip(schedule[:-1], schedule[1:]))}
-            for proc_list in self.refine_proc_dict.values():
-                for proc in proc_list:
-                    proc.start()
-            while (not all([key in self.refine_success_dict for key in self.refine_proc_dict.keys()])):
+    def refine_trajectory(self, schedule, multiprocess=True, N_try=None, repeat_until_success=True, max_repeat=2,
+                          **kwargs):
+        schedule_dict = {i_s: snode for i_s, snode in enumerate(schedule)}
+        snode_keys = sorted(schedule_dict.keys())[1:]
+        try_count = 0
+        while len(snode_keys)>0 and try_count < max_repeat:
+            try_count += 1
+            if multiprocess:
+                if N_try is None:
+                    # optimal efficiency is acquired with the number of agents same as the number of cores.
+                    N_agents = cpu_count()
+                    N_try = int(np.ceil(N_agents/float((len(snode_keys)-1))))
+                print("Try {} times for each trajectory".format(N_try))
+                self.refined_traj_dict = self.manager.dict()
+                self.refine_success_dict = self.manager.dict()
+                self.refine_proc_dict = {skey: [Process(
+                    target=self.__refine_trajectory,
+                    args=(skey,schedule_dict[skey-1],schedule_dict[skey]), kwargs=kwargs)
+                    for _ in range(N_try)] for skey in snode_keys}
                 for proc_list in self.refine_proc_dict.values():
                     for proc in proc_list:
-                        proc.join(timeout=0.1)
-        else:
-            self.refined_traj_dict = dict()
-            self.refine_success_dict = dict()
-            for key, snodes in enumerate(zip(schedule[:-1], schedule[1:])):
-                self.__refine_trajectory(key, *snodes, **kwargs)
+                        proc.start()
+                time_start = time.time()
+                timeout_max = np.max([v for k, v in kwargs.items() if "timeout" in k])*1.2
+                while ((not all([key in self.refine_success_dict and self.refine_success_dict[key]
+                                for key in self.refine_proc_dict.keys()]))
+                       and time.time()-time_start < timeout_max):
+                    for proc_list in self.refine_proc_dict.values():
+                        for proc in proc_list:
+                            proc.join(timeout=0.1)
+            else:
+                self.refined_traj_dict = dict()
+                self.refine_success_dict = dict()
+                for skey in snode_keys:
+                    self.__refine_trajectory(skey, schedule_dict[skey-1],schedule_dict[skey], **kwargs)
+            snode_keys = [skey for skey in snode_keys
+                          if skey not in self.refine_success_dict or not self.refine_success_dict[skey]]
+            if not repeat_until_success:
+                break
         for key in self.refine_success_dict.keys():
             if self.refine_success_dict[key]:
-                schedule[key+1].set_traj(self.refined_traj_dict[key],  schedule[key].traj_tot)
+                schedule[key].set_traj(self.refined_traj_dict[key],  schedule[key].traj_tot)
 
 
     def __refine_trajectory(self, key, snode_from, snode_to, **kwargs):

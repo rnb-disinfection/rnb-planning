@@ -132,14 +132,16 @@ void ompl_interface::ModelBasedPlanningContext::configure(const ros::NodeHandle&
                 break;
         }
         ompl_simple_setup_->setStartState(ompl_start_state);
-        ompl_simple_setup_->setStateValidityChecker(ob::StateValidityCheckerPtr(new ConstrainedStateValidityChecker(this)));
+        ompl_simple_setup_->setStateValidityChecker(
+                std::make_shared<ConstrainedStateValidityChecker>(this));
     }
     else
     {
         ompl::base::ScopedState<> ompl_start_state(spec_.state_space_);
         spec_.state_space_->copyToOMPLState(ompl_start_state.get(), getCompleteInitialRobotState());
         ompl_simple_setup_->setStartState(ompl_start_state);
-        ompl_simple_setup_->setStateValidityChecker(ob::StateValidityCheckerPtr(new StateValidityChecker(this)));
+        ompl_simple_setup_->setStateValidityChecker(
+                std::make_shared<StateValidityChecker>(this));
     }
 
     if (path_constraints_ && constraints_library_)
@@ -177,7 +179,7 @@ ompl_interface::ModelBasedPlanningContext::getProjectionEvaluator(const std::str
     {
         std::string link_name = peval.substr(5, peval.length() - 6);
         if (getRobotModel()->hasLinkModel(link_name))
-            return ob::ProjectionEvaluatorPtr(new ProjectionEvaluatorLinkPose(this, link_name));
+            return std::make_shared<ProjectionEvaluatorLinkPose>(this, link_name);
         else
             ROS_ERROR_NAMED(LOGNAME,
                             "Attempted to set projection evaluator with respect to position of link '%s', "
@@ -216,7 +218,7 @@ ompl_interface::ModelBasedPlanningContext::getProjectionEvaluator(const std::str
         if (j.empty())
             ROS_ERROR_NAMED(LOGNAME, "%s: No valid joints specified for joint projection", name_.c_str());
         else
-            return ob::ProjectionEvaluatorPtr(new ProjectionEvaluatorJointValue(this, j));
+            return std::make_shared<ProjectionEvaluatorJointValue>(this, j);
     }
     else
         ROS_ERROR_NAMED(LOGNAME, "Unable to allocate projection evaluator based on description: '%s'", peval.c_str());
@@ -266,7 +268,7 @@ ompl_interface::ModelBasedPlanningContext::allocPathConstrainedSampler(const omp
         if (constraint_sampler)
         {
             ROS_INFO_NAMED(LOGNAME, "%s: Allocating specialized state sampler for state space", name_.c_str());
-            return ob::StateSamplerPtr(new ConstrainedSampler(this, constraint_sampler));
+            return std::make_shared<ConstrainedSampler>(this, constraint_sampler);
         }
     }
     ROS_DEBUG_NAMED(LOGNAME, "%s: Allocating default state sampler for state space", name_.c_str());
@@ -495,13 +497,13 @@ ompl::base::GoalPtr ompl_interface::ModelBasedPlanningContext::constructGoal()
                                                                                   goal_constraint->getAllConstraints());
         if (constraint_sampler)
         {
-            ob::GoalPtr goal = ob::GoalPtr(new ConstrainedGoalSampler(this, goal_constraint, constraint_sampler));
+            ob::GoalPtr goal = std::make_shared<ConstrainedGoalSampler>(this, goal_constraint, constraint_sampler);
             goals.push_back(goal);
         }
     }
 
     if (!goals.empty())
-        return goals.size() == 1 ? goals[0] : ompl::base::GoalPtr(new GoalSampleableRegionMux(goals));
+        return goals.size() == 1 ? goals[0] : std::make_shared<GoalSampleableRegionMux>(goals);
     else
         ROS_ERROR_NAMED(LOGNAME, "Unable to construct goal representation");
 
@@ -620,8 +622,8 @@ bool ompl_interface::ModelBasedPlanningContext::setGoalConstraints(
     for (const moveit_msgs::Constraints& goal_constraint : goal_constraints)
     {
         moveit_msgs::Constraints constr = kinematic_constraints::mergeConstraints(goal_constraint, path_constraints);
-        kinematic_constraints::KinematicConstraintSetPtr kset(
-                new kinematic_constraints::KinematicConstraintSet(getRobotModel()));
+        kinematic_constraints::KinematicConstraintSetPtr kset =
+                std::make_shared<kinematic_constraints::KinematicConstraintSet>(getRobotModel());
         kset->add(constr, getPlanningScene()->getTransforms());
         if (!kset->empty())
             goal_constraints_.push_back(kset);
