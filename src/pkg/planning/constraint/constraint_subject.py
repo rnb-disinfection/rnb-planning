@@ -297,7 +297,7 @@ class SweepLineTask(AbstractTask):
         self.state_param = np.zeros(len(self.action_points_order), dtype=np.bool)
         self.binding = (self.oname, None, None, None)
         self.tol = tol
-        self.fix_direction = False
+        self.fix_direction = True
         if geometry_vertical is not None:
             self.geometry_vertical = geometry_vertical
             self.Rot_vertical = np.matmul(geometry.orientation_mat.transpose(), geometry_vertical.orientation_mat)
