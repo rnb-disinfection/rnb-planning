@@ -75,7 +75,7 @@ def calc_cubic_coeffs_safe(dt_step, v0, q0, q1, q2, vel_lim, acc_lim, dt_init=No
 
 ##
 # @brief get safe cubic interpolated trajectories
-def get_safe_cubics(dt_step, trajectory, vel_lim, acc_lim):
+def get_safe_cubics(dt_step, trajectory, vel_lim, acc_lim, slow_start=False):
     T_list = []
     Q_list = []
     V_list = []
@@ -85,7 +85,12 @@ def get_safe_cubics(dt_step, trajectory, vel_lim, acc_lim):
         q0 = trajectory[i]
         q1 = trajectory[i + 1] if i + 1 < traj_len else trajectory[-1]
         q2 = trajectory[i + 2] if i + 2 < traj_len else trajectory[-1]
-        dt, a, b, c, d = calc_cubic_coeffs_safe(dt_step, v0, q0, q1, q2, vel_lim=vel_lim, acc_lim=acc_lim)
+        if slow_start:
+            dt, a, b, c, d = calc_cubic_coeffs_safe(dt_step, v0, q0, q1, q2, # first 1/4 is slow-start
+                                                    vel_lim=vel_lim*max(0.2, min(1, (float(i+1)/traj_len)**2*4)),
+                                                    acc_lim=acc_lim*max(0.2, min(1, (float(i+1)/traj_len)**2*4)))
+        else:
+            dt, a, b, c, d = calc_cubic_coeffs_safe(dt_step, v0, q0, q1, q2, vel_lim=vel_lim, acc_lim=acc_lim)
         v0 = calc_cubic_vel(dt, a, b, c)
         T_list.append(dt)
         Q_list.append(q0)
@@ -126,18 +131,18 @@ def get_traj_all(dt_step, T_list, Q_list):
 # @remark terminal deceleration considered
 def calc_safe_cubic_traj(dt_step, trajectory, vel_lim, acc_lim):
     # calculate trajectory in forward and backward direction to consider deceleration
-    T_list, Q_list, _ = get_safe_cubics(dt_step, trajectory, vel_lim=vel_lim, acc_lim=acc_lim)
+    T_list, Q_list, _ = get_safe_cubics(dt_step, trajectory, vel_lim=vel_lim, acc_lim=acc_lim, slow_start=True)
     Trev_list, Qrev_list, _ = get_safe_cubics(dt_step, np.array(list(reversed(trajectory))), vel_lim=vel_lim,
-                                              acc_lim=acc_lim)
+                                              acc_lim=acc_lim, slow_start=True)
 
     # weighting values to mix waypoint times, in S curves
     Tlen = len(T_list)-1
     alphaT = (np.arange(Tlen).astype(np.float) / (Tlen - 1))
-    alphaT = (np.cos((alphaT + 1) * np.pi) + 1) / 2     # forward weights
-    betaT = 1 - alphaT                                  # backward weights
+    alphaT = (np.cos((alphaT + 1) * np.pi) + 1) / 2     # backward weights
+    betaT = 1 - alphaT                                  # forward weights
     # mix waypoint times with weights
-    T_list = list(((alphaT*np.array(T_list[:-1])
-                    + betaT*np.array(list(reversed(Trev_list[:-1]))))
+    T_list = list(((betaT*np.array(T_list[:-1])
+                    + alphaT*np.array(list(reversed(Trev_list[:-1]))))
                    / dt_step).astype(np.int)*dt_step) # make sure each T is integer multiplication of dt_step
     T_list, Trev_list = T_list + [0], list(reversed(T_list)) + [0]
     # T_accum = [np.sum(T_list[:i]) for i in range(len(T_list))]

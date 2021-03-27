@@ -45,6 +45,7 @@ class PlanningPipeline:
         self.manager.start()
         self.counter_lock = self.manager.Lock()
         self.gtimer = GlobalTimer.instance()
+        self.constrained_motion_scale = 0.3
 
     ##
     # @param mplan subclass instance of rnb-planning.src.pkg.planning.motion.interface.MotionInterface
@@ -355,17 +356,26 @@ class PlanningPipeline:
         self.execute_grip(state_0)
         self.pscene.set_object_state(state_0)
 
+        snode_pre = None
         for snode in snode_schedule:
             if snode.traj is not None:
                 time.sleep(1)
-                print("go")
-                self.pscene.combined_robot.move_joint_wp(snode.traj, vel_scale, acc_scale)
+                scale_tmp = 1
+                if snode_pre is not None:
+                    binding_list, success = self.pscene.get_slack_bindings(snode_pre.state, snode.state)
+                    for binding in binding_list:
+                        obj_name, ap_name, binder_name, binder_geometry_name = binding
+                        binder_geometry_prev = snode_pre.state.binding_state[self.pscene.subject_name_list.index(obj_name)][-1]
+                        if binder_geometry_prev == binder_geometry_name and \
+                                self.pscene.subject_dict[obj_name].constrained:
+                            scale_tmp = self.constrained_motion_scale
+                snode_pre = snode
+                self.pscene.combined_robot.move_joint_wp(snode.traj, vel_scale*scale_tmp, acc_scale*scale_tmp)
 
             self.pscene.set_object_state(snode.state)
             self.execute_grip(snode.state)
         for robot in self.pscene.combined_robot.robot_dict.values():
-            if hasattr(robot, "stop_tracking"):
-                robot.stop_tracking()
+            robot.stop_tracking()
 
     ##
     # @brief execute schedule

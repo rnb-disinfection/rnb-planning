@@ -137,7 +137,7 @@ class CombinedRobot:
     ##
     # @brief move joint with waypoints, one-by-one
     # @param trajectory numpy array (trajectory length, joint num)
-    def move_joint_wp(self, trajectory, vel_scale=None, acc_scale=None):
+    def move_joint_wp(self, trajectory, vel_scale=None, acc_scale=None, auto_stop=True):
         trajectory = np.array(trajectory)
         vel_scale = vel_scale or self.vel_scale
         acc_scale = acc_scale or self.acc_scale
@@ -149,7 +149,7 @@ class CombinedRobot:
             if np.max(diff_abs_arr) > 1e-3:
                 vel_limits = np.multiply(RobotSpecs.get_vel_limits(_type), vel_scale)
                 acc_limits = np.multiply(RobotSpecs.get_acc_limits(_type), acc_scale)
-                robot.move_joint_wp(traj_cur_rbt, vel_limits, acc_limits)
+                robot.move_joint_wp(traj_cur_rbt, vel_limits, acc_limits, auto_stop=auto_stop)
 
     ##
     # @brief execute grasping action
