@@ -129,11 +129,11 @@ def get_traj_all(dt_step, T_list, Q_list):
 ##
 # @brief get full cubic trajectory for given waypoint trajectory
 # @remark terminal deceleration considered
-def calc_safe_cubic_traj(dt_step, trajectory, vel_lim, acc_lim):
+def calc_safe_cubic_traj(dt_step, trajectory, vel_lim, acc_lim, slow_start=True):
     # calculate trajectory in forward and backward direction to consider deceleration
-    T_list, Q_list, _ = get_safe_cubics(dt_step, trajectory, vel_lim=vel_lim, acc_lim=acc_lim, slow_start=True)
+    T_list, Q_list, _ = get_safe_cubics(dt_step, trajectory, vel_lim=vel_lim, acc_lim=acc_lim, slow_start=slow_start)
     Trev_list, Qrev_list, _ = get_safe_cubics(dt_step, np.array(list(reversed(trajectory))), vel_lim=vel_lim,
-                                              acc_lim=acc_lim, slow_start=True)
+                                              acc_lim=acc_lim, slow_start=slow_start)
 
     # weighting values to mix waypoint times, in S curves
     Tlen = len(T_list)-1
