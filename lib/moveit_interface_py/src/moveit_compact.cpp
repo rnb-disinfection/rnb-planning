@@ -395,6 +395,9 @@ PlanResult& Planner::plan_with_constraints(string group_name, string tool_link,
     cout << (plan_result.trajectory.end()-1)->transpose() << endl;
     printf(LOG_FRAME_LINE "\n");
     plan_result.success = true;
+    for(auto itor=plan_result.trajectory.begin(); itor!=plan_result.trajectory.end(); itor++){
+        manifold_intersection->project(*itor);
+    }
     return plan_result;
 }
 
