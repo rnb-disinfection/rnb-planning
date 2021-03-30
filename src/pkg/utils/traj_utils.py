@@ -1,5 +1,6 @@
 import numpy as np
 from .utils import sign_positive_bias
+from copy import deepcopy
 
 ##
 # @brief calculate cubic interpolation coefficients (x_t = a*t^3+b*t^2+c*t+d)
@@ -41,7 +42,7 @@ def calc_cubic_coeffs_safe(dt_step, v0, q0, q1, q2, vel_lim, acc_lim, dt_init=No
     all_pass = False
     dt_cur = np.max(np.abs(q1 - q0) / vel_lim) if dt_init is None else dt_init
     if dt_cur < dt_step:
-        return 0, 0, 0, v0, q0
+        dt_cur = dt_step
 
     while not all_pass:
         a, b, c, d = calc_cubic_coeffs(dt_cur, v0, q0, q1, q2)
@@ -130,6 +131,7 @@ def get_traj_all(dt_step, T_list, Q_list):
 # @brief get full cubic trajectory for given waypoint trajectory
 # @remark terminal deceleration considered
 def calc_safe_cubic_traj(dt_step, trajectory, vel_lim, acc_lim, slow_start=True):
+    print("WARNING: This function is deprecated. USE calc_safe_trajectory")
     # calculate trajectory in forward and backward direction to consider deceleration
     T_list, Q_list, _ = get_safe_cubics(dt_step, trajectory, vel_lim=vel_lim, acc_lim=acc_lim, slow_start=slow_start)
     Trev_list, Qrev_list, _ = get_safe_cubics(dt_step, np.array(list(reversed(trajectory))), vel_lim=vel_lim,
@@ -161,3 +163,112 @@ def calc_safe_cubic_traj(dt_step, trajectory, vel_lim, acc_lim, slow_start=True)
     # mix forward and backward trajectory with S curve weights
     traj_tot = beta * traj_all + alpha * trajrev_all
     return traj_tot
+
+
+##
+# @brief calculate safe waypoint-time list for a list of waypoints, by simply iterating velocity & acceleration limits
+# @param trajectory list of waypoints
+# @param vel_lims   velocity limits, either in vector or scalar
+# @param acc_lims   acceleration limits, either in vector or scalar
+def calc_T_list_simple(trajectory, vel_lims, acc_lims,
+                        vel_margin_ratio=0.1, acc_margin_ratio=0.1,
+                        upper_bound_ratio=1.2, low_bound_ratio=0.5):
+    dq_list = np.subtract(trajectory[1:], trajectory[:-1])
+    idx_skip = np.where(np.linalg.norm(dq_list, axis=-1)<1e-3)[0]
+    idx_valid = np.where(np.linalg.norm(dq_list, axis=-1)>=1e-3)[0]
+    dq_list = dq_list[idx_valid]
+    dT_list = np.max(np.abs(dq_list)/vel_lims, axis=-1)
+    dT_list_mid_pre = None
+    alpha = 0.5
+    for _ in range(1000):
+        dT_list_pre = dT_list # between q, N-1
+        vel_list = dq_list/dT_list[:,np.newaxis] # between q, N-1
+        vel_list = np.pad(vel_list, ((1,1),(0,0)), 'constant', constant_values=0) # between q and expand, N+1
+        dT_list = np.pad(dT_list, (1,1), 'constant', constant_values=0) # between q and expand, N+1
+        dv_list = vel_list[1:]- vel_list[:-1] # on q, N
+        vel_mid_list = np.abs((vel_list[1:] + vel_list[:-1])/2) # on q, N
+        vel_ratio_mid = np.max(vel_mid_list/(vel_lims*(1+vel_margin_ratio)), axis=-1) # on q, N
+        dT_list_mid = (dT_list[:-1]+dT_list[1:])/2 # on q, N
+        acc_list = np.abs(dv_list) / dT_list_mid[:,np.newaxis] # on q, N
+        acc_ratio = np.max(acc_list/(acc_lims*(1+acc_margin_ratio)), axis=-1) # on q, N
+        vel_pass = vel_ratio_mid < upper_bound_ratio
+        acc_pass = acc_ratio < upper_bound_ratio
+        low_bound_pass = np.logical_or(vel_ratio_mid > low_bound_ratio, acc_ratio > low_bound_ratio)
+        # calc_T_list_simple.pass_list= [vel_pass, acc_pass, low_bound_pass]
+        # calc_T_list_simple.ratio_list= [vel_ratio_mid, acc_ratio]
+        if  np.all(vel_pass) and np.all(acc_pass) and np.all(low_bound_pass):
+            dT_list = dT_list[1:-1]
+            break
+        adjust_ratio = np.max([
+                                acc_ratio*np.logical_not(acc_pass),
+                                vel_ratio_mid*np.logical_not(vel_pass),
+                                np.maximum(acc_ratio, vel_ratio_mid)*np.logical_not(low_bound_pass)], axis=0) \
+                                +np.all([acc_pass, vel_pass, low_bound_pass], axis=0) # on q, N
+        if dT_list_mid_pre is None:
+            dT_list_mid_new = dT_list_mid*adjust_ratio # on q, N
+        else:
+            dT_list_mid_new = alpha*dT_list_mid*adjust_ratio + (1-alpha)*dT_list_mid_pre # on q, N
+        dT_list_mid_pre = deepcopy(dT_list_mid_new)
+        dT_list_mid_new[0] *= 2   # double first and last acc time as they are half-step
+        dT_list_mid_new[-1] *= 2   # double first and last acc time as they are half-step
+        dT_list = (dT_list_mid_new[:-1]+dT_list_mid_new[1:])/2 # between q, N-1
+    T_list = np.pad(dT_list, (0,1), 'constant', constant_values=0)
+    T_list = np.insert(T_list, idx_skip, 0)
+    # calc_T_list_simple.T_list = T_list
+    return T_list
+
+
+##
+# @brief get full cubic trajectory for given waypoint trajectory
+# @remark terminal deceleration considered
+def calc_safe_trajectory(dt_step, trajectory, vel_lims, acc_lims):
+    # calculate waypoint times
+    T_list = calc_T_list_simple(trajectory, vel_lims, acc_lims)
+
+    # round waypoint times with dt_step
+    T_list_new = []
+    Q_list = []
+    T_stack = 0
+    for Q, T in zip(trajectory, T_list):
+        T_stack += T
+        if T_stack > dt_step:
+            T_list_new.append(np.ceil(T_stack / dt_step) * dt_step)
+            Q_list.append(Q)
+            T_stack = 0
+    if np.all(Q != Q_list[-1]):
+        T_list_new.append(np.ceil(T_stack / dt_step) * dt_step)
+        Q_list.append(Q)
+    T_list = np.array(T_list_new)
+    Q_list = np.array(Q_list)
+
+    #     # round waypoint times with dt_step
+    #     Q_list = trajectory
+    #     T_list_accum = np.cumsum(T_list)
+    #     T_list_accum_round = np.pad(np.round(T_list_accum / dt_step) * dt_step, (1, 0), 'constant', constant_values=0)
+    #     T_list_round = T_list_accum_round[1:] - T_list_accum_round[:-1]
+    #     idx_move = np.where(T_list_accum_round[1:] - T_list_accum_round[:-1] > dt_step / 2)[0]
+    #     T_list = np.pad(T_list_round[idx_move], (0, 1), 'constant', constant_values=0)
+    #     idx_move = np.pad(idx_move + 1, (1, 0), 'constant', constant_values=0)
+    #     Q_list = Q_list[idx_move]
+    #
+    # calc_safe_trajectory.T_list = T_list
+    # calc_safe_trajectory.Q_list = Q_list
+
+    # prepare backward waypoints and times
+    Qrev_list = np.array(list(reversed(Q_list)))
+    Trev_list = list(reversed(T_list[:-1])) + [0]
+
+    # re-calculate trajectory with mixed waypoint times
+    t_all, traj_all = get_traj_all(dt_step, T_list, Q_list)
+    trev_all, trajrev_all = get_traj_all(dt_step, Trev_list, Qrev_list)
+    traj_all, trajrev_all = np.array(traj_all), np.array(list(reversed(trajrev_all)))
+
+    # weighting values to mix waypoint times, in S curves
+    traj_len = len(traj_all)
+    alpha = (np.arange(traj_len).astype(np.float) / (traj_len - 1))[:, np.newaxis]
+    alpha = (np.cos((alpha + 1) * np.pi) + 1) / 2
+    beta = 1 - alpha
+
+    # mix forward and backward trajectory with S curve weights
+    traj_tot = beta * traj_all + alpha * trajrev_all
+    return t_all, traj_tot

@@ -120,10 +120,9 @@ class TrajectoryClient(object):
     # @param trajectory radian
     # @param vel_lims radian/s, scalar or vector
     # @param acc_lims radian/s2, scalar or vector
-    def move_joint_wp(self, trajectory, vel_lims, acc_lims, slow_start=True, auto_stop=True):
+    def move_joint_wp(self, trajectory, vel_lims, acc_lims, auto_stop=True):
         trajectory = np.concatenate([[self.get_qcur()], trajectory])
-        traj_tot = calc_safe_cubic_traj(1.0/self.traj_freq, trajectory, vel_lim=vel_lims, acc_lim=acc_lims, 
-                                        slow_start=slow_start)
+        t_all, traj_tot = calc_safe_trajectory(1.0/self.traj_freq, trajectory, vel_lims=vel_lims, acc_lims=acc_lims)
         for Q in traj_tot:
             self.push_Q(Q)
         self.start_tracking()

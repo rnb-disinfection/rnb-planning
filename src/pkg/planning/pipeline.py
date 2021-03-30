@@ -359,7 +359,7 @@ class PlanningPipeline:
         snode_pre = None
         for snode in snode_schedule:
             if snode.traj is not None:
-                time.sleep(1)
+                time.sleep(0.5)
                 scale_tmp = 1
                 if snode_pre is not None:
                     binding_list, success = self.pscene.get_slack_bindings(snode_pre.state, snode.state)
@@ -370,12 +370,14 @@ class PlanningPipeline:
                                 self.pscene.subject_dict[obj_name].constrained:
                             scale_tmp = self.constrained_motion_scale
                 snode_pre = snode
-                self.pscene.combined_robot.move_joint_wp(snode.traj, vel_scale*scale_tmp, acc_scale*scale_tmp)
+                self.pscene.combined_robot.move_joint_wp(snode.traj,
+                                                         vel_scale=vel_scale*scale_tmp, acc_scale=acc_scale*scale_tmp)
 
             self.pscene.set_object_state(snode.state)
             self.execute_grip(snode.state)
         for robot in self.pscene.combined_robot.robot_dict.values():
-            robot.stop_tracking()
+            if robot is not None:
+                robot.stop_tracking()
 
     ##
     # @brief execute schedule
