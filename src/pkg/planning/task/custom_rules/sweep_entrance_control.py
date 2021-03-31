@@ -87,12 +87,14 @@ class SweepEntranceControlRule(CustomRuleInterface):
             if isinstance(diff_subject, SweepLineTask):
                 #                 print("Rule for SweepLineTask")
                 with tplan.snode_dict_lock:
-                    if node_src[diff_sidx] not in tplan.unstoppable_terminals[
-                        diff_sidx]:  # from intermediate wp -> remove access to them
+                    if node_src[diff_sidx] not in tplan.unstoppable_terminals[diff_sidx]:
+                        # from intermediate wp -> remove access to them
                         snode_list = tplan.node_snode_dict[node_src]
                         if snode_src.idx in snode_list:
-                            #                             print("Removing {} from {}: {} not in {}".format(snode_src.idx, snode_list, node_src[diff_sidx], tplan.unstoppable_terminals[diff_sidx]))
-                            #                             print(snode_list)
+                            # print("Removing {} from {}: {} not in {}".format(
+                            #     snode_src.idx, snode_list,
+                            #     node_src[diff_sidx], tplan.unstoppable_terminals[diff_sidx]))
+                            # print(snode_list)
                             snode_list.remove(snode_src.idx)
                             tplan.node_snode_dict[node_src] = snode_list
                             print(tplan.node_snode_dict[node_src])
@@ -100,7 +102,8 @@ class SweepEntranceControlRule(CustomRuleInterface):
                             del tplan.neighbor_nodes[node_new]
                     if connection_result:
                         if node_new[diff_sidx] in tplan.unstoppable_terminals[diff_sidx]:  ## in terminal condition
-                            #                             print("Check home: {} in {}".format(node_new[diff_sidx], tplan.unstoppable_terminals[diff_sidx]))
+                            # print("Check home: {} in {}".format(
+                            #     node_new[diff_sidx], tplan.unstoppable_terminals[diff_sidx]))
                             link_name = self.pscene.gscene.NAME_DICT[
                                 snode_new.state.binding_state[diff_sidx][-1]].link_name
                             rname_candis = [rname for rname, chain_vals in self.chain_dict.items() if
@@ -114,10 +117,10 @@ class SweepEntranceControlRule(CustomRuleInterface):
                                 newstate.Q[jidxes] = self.pscene.combined_robot.home_pose[jidxes]
                                 return True, [newstate] + stack_items
                         else:  ## not in terminal condition
-                            #                             print("Reserve next wp from {}".format(snode_new.idx))
+                            # print("Reserve next wp from {}".format(snode_new.idx))
                             snode_list = tplan.node_snode_dict[node_new]
                             if snode_new.idx in snode_list:
-                                #                                 print("Removing {} from {} as next wp is reserved".format(snode_new.idx, snode_list))
+                                # print("Removing {} from {} as next wp is reserved".format(snode_new.idx, snode_list))
                                 snode_list.remove(snode_new.idx)
                                 tplan.node_snode_dict[node_new] = snode_list
                             next_node_candis = list(self.node_dict[node_new])

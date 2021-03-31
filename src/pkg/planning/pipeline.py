@@ -353,8 +353,8 @@ class PlanningPipeline:
         #     snode_home.set_traj(trajectory, 0)
         #     snode_schedule.append(snode_home)
 
-        self.pscene.combined_robot.joint_move_make_sure(snode_schedule[0].state.Q)
-        self.execute_grip(state_0)
+        # self.pscene.combined_robot.joint_move_make_sure(snode_schedule[0].state.Q)
+        # self.execute_grip(state_0)
         self.pscene.set_object_state(state_0)
 
         snode_pre = None

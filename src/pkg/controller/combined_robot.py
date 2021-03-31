@@ -132,7 +132,8 @@ class CombinedRobot:
         for name, rconfig in zip(self.robot_names, self.robots_on_scene):
             _type = rconfig.type
             robot = self.robot_dict[name]
-            robot.joint_move_make_sure(Q[self.idx_dict[name]])
+            if robot is not None:
+                robot.joint_move_make_sure(Q[self.idx_dict[name]])
 
     ##
     # @brief move joint with waypoints, one-by-one
@@ -144,7 +145,7 @@ class CombinedRobot:
         for name, rconfig in zip(self.robot_names, self.robots_on_scene):
             _type = rconfig.type
             robot = self.robot_dict[name]
-            if robot is not None:
+            if robot is None:
                 print("WARNING: {} is not connected - skip motion".format(name))
                 continue
             traj_cur_rbt = trajectory[:,self.idx_dict[name]]
