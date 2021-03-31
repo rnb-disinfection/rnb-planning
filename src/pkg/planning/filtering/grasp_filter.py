@@ -12,9 +12,11 @@ from ...utils.utils import GlobalTimer
 class GraspChecker(MotionFilterInterface):
     ##
     # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
-    def __init__(self, pscene, POS_STEP=0.05, ROT_STEP=np.pi/8):
+    # @param put_banned GeometryItem list to indicate area where not to put object
+    def __init__(self, pscene, put_banned=[], POS_STEP=0.05, ROT_STEP=np.pi/8):
         self.pscene = pscene
         self.gscene = pscene.gscene
+        self.put_banned = put_banned
         self.chain_dict = pscene.robot_chain_dict
         self.POS_STEP = POS_STEP
         self.ROT_STEP = ROT_STEP
@@ -47,7 +49,7 @@ class GraspChecker(MotionFilterInterface):
     # @param redundancy_values calculated redundancy values in dictionary format {(object name, point name): (xyz, rpy)}
     # @param Q_dict joint configuration in dictionary format {joint name: radian value}
     # @param interpolate    interpolate path and check intermediate poses
-    def check(self, actor, obj, handle, redundancy_values, Q_dict, interpolate, obj_only=False):
+    def check(self, actor, obj, handle, redundancy_values, Q_dict, interpolate=False, obj_only=False):
         # gtimer = GlobalTimer.instance()
         # gtimer.tic("get_grasping_vert_infos")
         actor_vertinfo_list, object_vertinfo_list, _, _, _ = self.get_grasping_vert_infos(
@@ -116,10 +118,10 @@ class GraspChecker(MotionFilterInterface):
         point_add_actor, rpy_add_actor = redundancy_values[(obj.oname, actor.name)]
         actor_link = actor.geometry.link_name
         object_link = obj.geometry.link_name
-        if actor_link in self.link_robot_dict:
+        if actor_link in self.link_robot_dict:      # actor is on the robot (pick)
             actor_link_names = self.end_link_couple_dict[actor_link]
             object_link_names = self.robot_ex_link_dict[self.link_robot_dict[actor_link]]
-        elif object_link in self.link_robot_dict:
+        elif object_link in self.link_robot_dict:   # object is held by a robot (put)
             actor_link_names = self.robot_ex_link_dict[self.link_robot_dict[object_link]]
             object_link_names = self.end_link_couple_dict[object_link]
         else:
@@ -127,6 +129,10 @@ class GraspChecker(MotionFilterInterface):
             object_link_names = self.end_link_couple_dict[object_link]
         actor_geo_list = self.gscene.get_items_on_links(actor_link_names)
         object_geo_list = self.gscene.get_items_on_links(object_link_names)
+
+        if object_link in self.link_robot_dict:   # object is held by a robot (put, actor is kind of PlacePlane)
+            actor_geo_list += self.put_banned
+
         if obj_only:
             obj_family = obj.geometry.get_family()
             object_geo_list = [gtem for gtem in object_geo_list if gtem.name in obj_family]
@@ -159,21 +165,19 @@ class GraspChecker(MotionFilterInterface):
         actor_vertinfo_list = []
         object_vertinfo_list = []
         for ac_geo in actor_geo_list:
-            if ac_geo.collision:
-                for T_lhal in T_lhal_list:
-                    # gtimer.tic("ac_geo_calc_verts")
-                    T = actor_Tinv_dict[ac_geo.link_name]
-                    verts, radius = ac_geo.get_vertice_radius()
-                    Tac = np.matmul(T_lhal, np.matmul(T, ac_geo.Toff))
-                    actor_vertinfo_list.append((ac_geo.name, Tac, verts, radius, ac_geo.dims))
-                    # gtimer.toc("ac_geo_calc_verts")
+            for T_lhal in T_lhal_list:
+                # gtimer.tic("ac_geo_calc_verts")
+                T = actor_Tinv_dict[ac_geo.link_name]
+                verts, radius = ac_geo.get_vertice_radius()
+                Tac = np.matmul(T_lhal, np.matmul(T, ac_geo.Toff))
+                actor_vertinfo_list.append((ac_geo.name, Tac, verts, radius, ac_geo.dims))
+                # gtimer.toc("ac_geo_calc_verts")
 
         for obj_geo in object_geo_list:
-            if obj_geo.collision:
-                # gtimer.tic("obj_geo_calc_verts")
-                T = object_Tinv_dict[obj_geo.link_name]
-                verts, radius = obj_geo.get_vertice_radius()
-                Tobj = np.matmul(T, obj_geo.Toff)
-                object_vertinfo_list.append((obj_geo.name, Tobj, verts, radius, obj_geo.dims))
-                # gtimer.toc("obj_geo_calc_verts")
+            # gtimer.tic("obj_geo_calc_verts")
+            T = object_Tinv_dict[obj_geo.link_name]
+            verts, radius = obj_geo.get_vertice_radius()
+            Tobj = np.matmul(T, obj_geo.Toff)
+            object_vertinfo_list.append((obj_geo.name, Tobj, verts, radius, obj_geo.dims))
+            # gtimer.toc("obj_geo_calc_verts")
         return actor_vertinfo_list, object_vertinfo_list, T_link_handle_actor_link, actor_Tinv_dict, object_Tinv_dict

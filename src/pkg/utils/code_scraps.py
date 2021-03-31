@@ -1,5 +1,6 @@
 from ..geometry.geometry import *
 from ..utils.utils import list2dict
+from ..planning.constraint.constraint_subject import *
 
 
 ##
@@ -32,6 +33,19 @@ def add_indy_gripper_asm2(gscene, robot_name, link_name):
     gscene.create_safe(GEOTYPE.CYLINDER, "{}_finger4".format(robot_name), link_name=link_name,
                        dims=(0.03,0.03,0.095), center=(-0.006,-0.045,0.1), rpy=(0,0,0),
                        color=(0.0,0.8,0.0,0.5), display=True, fixed=True, collision=True)
+
+##
+# @brief remove place points except for the current one
+def use_current_place_point_only(pscene, current_state):
+    for oname, aname, bname, bgname in current_state.binding_state:
+        obj = pscene.subject_dict[oname]
+        if isinstance(obj, AbstractObject):
+            pp_list = [ap for ap in obj.action_points_dict.values() if isinstance(ap, PlacePoint)]
+            for pp in pp_list:
+                if pp.name != aname:
+                    del obj.action_points_dict[pp.name]
+    pscene.update_subjects()
+
 
 ### resized image plot
 # ratio = 1.0/3

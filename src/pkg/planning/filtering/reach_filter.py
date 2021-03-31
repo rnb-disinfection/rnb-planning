@@ -37,7 +37,7 @@ class ReachChecker(MotionFilterInterface):
     # @param redundancy_values calculated redundancy values in dictionary format {(object name, point name): (xyz, rpy)}
     # @param Q_dict joint configuration in dictionary format {joint name: radian value}
     # @param interpolate    interpolate path and check intermediate poses
-    def check(self, actor, obj, handle, redundancy_values, Q_dict, interpolate):
+    def check(self, actor, obj, handle, redundancy_values, Q_dict, interpolate=False):
         actor_link = actor.geometry.link_name
         object_link = obj.geometry.link_name
 

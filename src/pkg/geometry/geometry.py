@@ -260,8 +260,8 @@ class GeometryScene(list):
     ##
     # @brief get geometries attched to specific links
     # @param links list of link names
-    def get_items_on_links(self, links):
-        return [gtem for gtem in self if gtem.link_name in links]
+    def get_items_on_links(self, links, colliding_only=True):
+        return [gtem for gtem in self if gtem.link_name in links if gtem.collision or not colliding_only]
 
     ##
     # @brief set workspace boundary

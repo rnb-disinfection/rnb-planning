@@ -17,5 +17,5 @@ class MotionFilterInterface:
     # @param interpolate    interpolate path and check intermediate poses
     # @return True if feasible, else False
     @abstractmethod
-    def check(self, actor, obj, handle, redundancy_values, Q_dict, interpolate):
+    def check(self, actor, obj, handle, redundancy_values, Q_dict, interpolate=False):
         pass

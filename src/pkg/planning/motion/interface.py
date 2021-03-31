@@ -75,7 +75,6 @@ class MotionInterface:
         if success:
             for binding in binding_list:
                 obj_name, ap_name, binder_name, binder_geometry_name = binding
-                binder_geometry_prev = from_state.binding_state[self.pscene.subject_name_list.index(obj_name)][-1]
                 actor, obj = self.pscene.actor_dict[binder_name], self.pscene.subject_dict[obj_name]
                 handle = obj.action_points_dict[ap_name]
                 if obj_name not in redundancy_dict:
@@ -89,9 +88,7 @@ class MotionInterface:
                 for mfilter in self.motion_filters:
                     if self.flag_log:
                         self.gtimer.tic(mfilter.__class__.__name__)
-                    success = mfilter.check(actor, obj, handle, redundancy_values, Q_dict,
-                                            binder_geometry_prev==binder_geometry_name
-                                            and self.pscene.subject_dict[obj_name].constrained)
+                    success = mfilter.check(actor, obj, handle, redundancy_values, Q_dict)
                     if self.flag_log:
                         self.gtimer.toc(mfilter.__class__.__name__)
                         self.result_log[mfilter.__class__.__name__].append(success)
