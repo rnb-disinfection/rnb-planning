@@ -88,6 +88,10 @@
 * **None (First release)**  
   
   
+## Dropped features
+* **None (First release)**  
+  
+  
 ## Preparing features
 * **4-A.3 LatticedChecker**  
   - pick, place
@@ -105,7 +109,8 @@
   
   
 ## Known issues
-* **TBD** 
+* **WebUI **
+  * 양쪽 창에 같은 탭을 띄울 경우 마지막에 띄운 탭의 버튼만 동작함.
   
   
 ## Requirements
