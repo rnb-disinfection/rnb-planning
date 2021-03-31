@@ -200,6 +200,7 @@ class Subject:
 class AbstractTask(Subject):
     stype = SubjectType.TASK
     def __init__(self):
+        clearance = []
         raise(NotImplementedError("AbstractTask is abstract class"))
 
     ##
@@ -358,7 +359,7 @@ class SweepLineTask(AbstractTask):
     # @param oname object's name
     # @param geometry parent geometry
     # @param action_points_dict pre-defined action points as dictionary
-    def __init__(self, oname, geometry, action_points_dict, geometry_vertical=None, tol=1e-3):
+    def __init__(self, oname, geometry, action_points_dict, geometry_vertical=None, tol=1e-3, clearance=None):
         self.oname = oname
         self.geometry = geometry
         self.action_points_dict = action_points_dict
@@ -368,6 +369,7 @@ class SweepLineTask(AbstractTask):
         self.binding = (self.oname, None, None, None)
         self.tol = tol
         self.fix_direction = True
+        self.clearance = clearance
         if geometry_vertical is not None:
             self.geometry_vertical = geometry_vertical
             self.Rot_vertical = np.matmul(geometry.orientation_mat.transpose(), geometry_vertical.orientation_mat)
