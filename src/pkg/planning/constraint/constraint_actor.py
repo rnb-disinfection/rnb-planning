@@ -47,6 +47,7 @@ class PointerActor(Actor):
             dims =self.geometry.dims
             return {"x":(-dims[0]/2,dims[0]/2),
                     "y":(-dims[1]/2,dims[1]/2),
+                    "z":(dims[2]/2,dims[2]/2),
                     "w":(-np.pi,np.pi)}
 
 

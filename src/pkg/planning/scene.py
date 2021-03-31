@@ -1,6 +1,6 @@
 from collections import defaultdict
 from ..utils.utils import list2dict
-from .constraint.constraint_common import combine_redundancy, sample_redundancy
+from .constraint.constraint_common import combine_redundancy, sample_redundancy, get_binding_margins
 from .constraint.constraint_subject import SubjectType
 from ..geometry.geotype import *
 from itertools import product
@@ -209,17 +209,12 @@ class PlanningScene:
                 obj.set_state(bd, state_param)
                 continue
             binder = self.actor_dict[bd[2]]
-            if binder.geometry in [self.subject_dict[bd_tmp[0]].geometry for bd_tmp in bd_list]:
-                bd_list += [bd] # prevent using previous info ( move back to end )
+            binder_family = set(binder.geometry.get_family())
+            remaining_subjects = [self.subject_dict[bd_tmp[0]].geometry.name for bd_tmp in bd_list]
+            if binder_family.intersection(remaining_subjects):
+                # If binder is a family of remaining subjects, move it to end to change it after the subject is updated
+                bd_list += [bd]
             else:
-                # binder.bind(obj, bd[1], list2dict(state.Q, self.combined_robot.joint_names))
-                if obj.stype == SubjectType.OBJECT:
-                    binder_link_name = state_param[0]
-                    frame = state_param[1]
-                    assert binder.geometry.link_name == binder_link_name, \
-                        "binder link name wrong {} / {} / {}".format(
-                            binder.geometry.name, binder.geometry.link_name, binder_link_name) # sync link name with parent
-                    state_param = (binder_link_name, frame)
                 obj.set_state(bd, state_param)
                 bd_list_done += [bd]
         for actor in self.actor_dict.values():
@@ -332,9 +327,12 @@ class PlanningScene:
     # @param binding    binding tuple (object name, binding point, binder)
     # @param joint_dict joint pose in radian as dictionary
     def rebind(self, binding, joint_dict):
-        binder = self.actor_dict[binding[2]]
         object_tar = self.subject_dict[binding[0]]
-        binder.bind(action_obj=object_tar, bind_point=binding[1], joint_dict_last=joint_dict) # bind given binding
+        if binding[2] is None:
+            object_tar.set_state(binding, None)
+        else:
+            binder = self.actor_dict[binding[2]]
+            binder.bind(action_obj=object_tar, bind_point=binding[1], joint_dict_last=joint_dict)   # bind given binding
         for binder_sub in [k for k,v in self.actor_dict.items()
                            if v.geometry == object_tar.geometry]: # find bound object's sub-binder
             for binding_sub in [v.binding for v in self.subject_dict.values()
@@ -385,59 +383,17 @@ class PlanningScene:
 
     ##
     # @brief get current scene state
-    def update_state(self, Q):
+    def initialize_state(self, Q):
         ## calculate binder transformations
         Q_dict = list2dict(Q, self.gscene.joint_names)
-        binder_T_dict = {}
-        binder_scale_dict = {}
-        for k, binder in self.actor_dict.items():
-            binder_T = binder.get_tf_handle(Q_dict)
-            binder_scale_dict[k] = binder.geometry.dims
-            if binder.point is not None:
-                binder_scale_dict[k] = 0
-            binder_T_dict[k] = binder_T
 
         ## get current binding state
         binding_state = []
-        state_param = {}
         for kobj in self.subject_name_list:
-            obj = self.subject_dict[kobj]
-            if obj.stype == SubjectType.OBJECT:
-                Tobj = obj.geometry.get_tf(Q_dict)
+            binding = self.subject_dict[kobj].get_initial_binding(self.actor_dict, Q_dict)
+            binding_state.append(binding)
 
-                min_val = 1e10
-                min_point = ""
-                min_binder = ""
-                ## find best binding between object and binders
-                for kpt, bd in self.subject_dict[kobj].action_points_dict.items():
-                    handle_T = bd.get_tf_handle(Q_dict)
-                    point_cur = handle_T[:3, 3]
-                    direction_cur = handle_T[:3, 2]
-
-                    for kbd, Tbd in binder_T_dict.items():
-                        if kobj == kbd or kobj == self.actor_dict[kbd].geometry.name \
-                                or not self.actor_dict[kbd].check_type(bd):
-                            continue
-                        point_diff = Tbd[:3, 3] - point_cur
-                        point_diff_norm = np.linalg.norm(np.maximum(np.abs(point_diff) - binder_scale_dict[kbd], 0))
-                        dif_diff_norm = np.linalg.norm(direction_cur - Tbd[:3, 2])
-                        bd_val_norm = point_diff_norm  # + dif_diff_norm
-                        if bd_val_norm < min_val:
-                            min_val = bd_val_norm
-                            min_point = bd.name
-                            min_binder = kbd
-                binding = (kobj, min_point, min_binder, self.actor_dict[min_binder].geometry.name)
-                binding_state.append(binding)
-                binder = self.actor_dict[min_binder]
-                binder.bind(obj, min_point, Q_dict)
-                state_param[kobj] = obj.get_state_param()
-            if obj.stype == SubjectType.TASK:
-                binding = (kobj, None, None, None)
-                binding_state.append(binding)
-                state_param[kobj] = np.zeros_like(obj.state_param, dtype=np.bool)
-        binding_state = tuple(binding_state)
-
-        return State(binding_state, state_param, Q, self)
+        return self.rebind_all(binding_list=binding_state, Q=Q)
 
     ##
     # @brief get goal nodes that link object to target binder
@@ -491,49 +447,6 @@ class PlanningScene:
         return available_actor_dict
 
     ##
-    # @brief get available bindings between object and binder geometry
-    # @param oname name of object with action points
-    # @param node node
-    # @param ap_exclude action point name to exclude (typically the currently bound one)
-    # @param bd_exclude binding point name to exclude (typically the currently bound one)
-    # @param Q_dict current joint configuration in dictionary format
-    # @return list of binding (point name, binder name)
-    def get_available_bindings(self, oname, node, ap_exclude, bd_exclude, Q_dict):
-        obj = self.subject_dict[oname]
-        ap_dict = obj.action_points_dict
-        apk_exclude = obj.get_conflicting_points(ap_exclude)
-        if obj.stype == SubjectType.TASK:
-            apk = obj.action_points_order[node - 1]
-            ap_list = [ap_dict[apk]] if apk not in apk_exclude else []
-            ctypes = [ap.ctype for ap in ap_list]
-            bd_list = [actor for actor in self.actor_dict.values() if actor.ctype in ctypes] # bd_exclude is ignored as previous binding is re-used in sweep
-            for bd in bd_list:
-                self.gscene.link_control_map[bd.geometry.link_name]
-        elif obj.stype == SubjectType.OBJECT:
-            bgname = node
-            apk_list = ap_dict.keys()
-            ap_list = [ap_dict[apk] for apk in apk_list if apk not in apk_exclude]
-            bd_list = [self.actor_dict[bname] for bname in self.geometry_actor_dict[bgname]
-                       if self.actor_dict[bname].check_available(Q_dict) and bname != bd_exclude]
-
-        available_bindings = []
-        for bd in bd_list:
-            for ap in ap_list:
-                if bd.check_type(ap):
-                    available_bindings.append((ap.name, bd.name, bd.geometry.name))
-        if not available_bindings:
-            print("=================================")
-            print("=================================")
-            print("=================================")
-            print("Not available:{}-{}".format(oname,node))
-            print("np_exclude:{}".format(ap_exclude))
-            print("bd_exclude:{}".format(bd_exclude))
-            print("=================================")
-            print("=================================")
-            print("=================================")
-        return available_bindings
-
-    ##
     # @brief get dictionary of available bindings for given transition
     # @param state current state
     # @param to_node target object-level node
@@ -543,17 +456,15 @@ class PlanningScene:
         if Q_dict is None:
             Q_dict = list2dict(state.Q, self.gscene.joint_names)
         available_binding_dict = {}
-        for oname, to_node_item, from_node_item, from_binding_state in zip(
+        for oname, to_node_item, from_node_item, from_binding in zip(
                 self.subject_name_list, to_node, state.node, state.binding_state):
             # bgname: binder geometry name
             # sbgname: state
-            sbgname = from_node_item
-            bgname = to_node_item
-            if sbgname != bgname:
-                available_binding_dict[oname] = self.get_available_bindings(oname, bgname, from_binding_state[1], from_binding_state[2],
-                                                                            Q_dict=Q_dict)
+            if from_node_item != to_node_item:
+                available_binding_dict[oname] = self.subject_dict[oname].get_available_bindings(
+                    from_binding, to_node_item, actor_dict=self.actor_dict, Q_dict=Q_dict)
             else:
-                available_binding_dict[oname] = [from_binding_state[1:]]
+                available_binding_dict[oname] = [from_binding[1:]]
         return available_binding_dict
 
     ##

@@ -19,6 +19,7 @@ class DirectedPoint(ActionPoint):
             dims =self.geometry.dims
             return {"x":(-dims[0]/2,dims[0]/2),
                     "y":(-dims[1]/2,dims[1]/2),
+                    "z":(dims[2]/2,dims[2]/2),
                     "w":(-np.pi,np.pi)}
 
 
@@ -32,7 +33,8 @@ class FramedPoint(ActionPoint):
         else:
             dims =self.geometry.dims
             return {"x":(-dims[0]/2,dims[0]/2),
-                    "y":(-dims[1]/2,dims[1]/2)}
+                    "y":(-dims[1]/2,dims[1]/2),
+                    "z":(dims[2]/2,dims[2]/2)}
 
 
 ################################# USABLE CLASS #########################################
@@ -130,6 +132,13 @@ class Subject:
         return [hname]
 
     ##
+    # @brief get conflicting handles to build efficient search tree
+    # @param handle name
+    @abstractmethod
+    def get_conflicting_points(self, hname):
+        return [hname]
+
+    ##
     # @brief (prototype) set state param
     # @param binding (handle name, binder name)
     # @param state_param
@@ -145,11 +154,25 @@ class Subject:
         pass
 
     ##
-    # @brief get object-level state_param component
+    # @brief (prototype) get initial binding with given joint configuration
+    # @param actor_dict dictionary of binder {binder_name: rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor}
+    # @param Q_dict dictionary of joint values {joint_name: value}
+    # @return binding (subject name, handle name, binder name, binder geometry name)
     @abstractmethod
-    def get_state_param_update(self, binding, state_param):
+    def get_initial_binding(self, actor_dict, Q_dict):
         pass
 
+    ##
+    # @brief (prototype) get available bindings from current binding state
+    # @param from_binding current binding (subject name, handle name, binder name, binder geometry name)
+    # @param to_node_item desired node item
+    # @param actor_dict
+    #           dictionary of binder {binder_name: rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor}
+    # @param Q_dict dictionary of joint values {joint_name: value}
+    # @return list of available bindings [(handle name, binder name, binder geometry name), ...]
+    @abstractmethod
+    def get_available_bindings(self, from_binding, to_node_item, actor_dict, Q_dict):
+        pass
 
     ##
     # @brief (prototype) get object-level node component
@@ -184,6 +207,14 @@ class AbstractTask(Subject):
     @abstractmethod
     def get_corresponding_params(self, node_item):
         raise(NotImplementedError("AbstractTask is abstract class"))
+
+    ##
+    # @brief get initial binding - for task, usually no binding is initial state
+    # @param actor_dict dictionary of binder {binder_name: rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor}
+    # @param Q_dict dictionary of joint values {joint_name: value}
+    # @return binding (subject name, handle name, binder name, binder geometry name)
+    def get_initial_binding(self, actor_dict, Q_dict):
+        return (self.oname, None, None, None)
 
 
 ##
@@ -224,7 +255,9 @@ class SweepTask(AbstractTask):
     # @param state_param list of done-mask
     def set_state(self, binding, state_param=None):
         self.binding = binding
-        if state_param is not None:
+        if state_param is None:
+            self.state_param = np.zeros(len(self.action_points_order), dtype=np.bool)
+        else:
             self.state_param = state_param.copy()
         for ap in self.action_points_dict.values():     # you should update action points here
             ap.update_handle()
@@ -241,6 +274,43 @@ class SweepTask(AbstractTask):
         if binding[1] is not None:
             state_param[self.action_points_order.index(binding[1])] = True
         return state_param
+
+    ##
+    # @brief get available bindings from current binding state
+    # @param from_binding current binding (subject name, handle name, binder name, binder geometry name)
+    # @param to_node_item desired node item
+    # @param actor_dict
+    #           dictionary of binder {binder_name: rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor}
+    # @param Q_dict dictionary of joint values {joint_name: value}
+    # @return list of available bindings [(handle name, binder name, binder geometry name), ...]
+    def get_available_bindings(self, from_binding, to_node_item, actor_dict, Q_dict):
+        ap_dict = self.action_points_dict
+        apk_exclude = self.get_conflicting_points(from_binding[1])
+        bd_exclude = from_binding[-2]
+
+        apk = self.action_points_order[to_node_item - 1]
+        ap_list = [ap_dict[apk]] if apk not in apk_exclude else []
+        ctypes = [ap.ctype for ap in ap_list]
+        bd_list = [actor for actor in actor_dict.values() if actor.ctype in ctypes] # bd_exclude is ignored as previous binding is re-used in sweep
+        for bd in bd_list:
+            self.geometry.gscene.link_control_map[bd.geometry.link_name]
+
+        available_bindings = []
+        for bd in bd_list:
+            for ap in ap_list:
+                if bd.check_type(ap):
+                    available_bindings.append((ap.name, bd.name, bd.geometry.name))
+        if not available_bindings:
+            print("=================================")
+            print("=================================")
+            print("=================================")
+            print("Not available:{}-{}".format(self.oname, to_node_item))
+            print("np_exclude:{}".format(apk_exclude))
+            print("bd_exclude:{}".format(bd_exclude))
+            print("=================================")
+            print("=================================")
+            print("=================================")
+        return available_bindings
 
     ##
     # @brief get object-level node component (finished waypoint count)
@@ -345,7 +415,9 @@ class SweepLineTask(AbstractTask):
     # @param state_param list of done-mask
     def set_state(self, binding, state_param=None):
         self.binding = binding
-        if state_param is not None:
+        if state_param is None:
+            self.state_param = np.zeros(len(self.action_points_order), dtype=np.bool)
+        else:
             self.state_param = state_param.copy()
         for ap in self.action_points_dict.values():     # you should update action points here
             ap.update_handle()
@@ -362,6 +434,43 @@ class SweepLineTask(AbstractTask):
         if binding[1] is not None:
             state_param[self.action_points_order.index(binding[1])] = True
         return state_param
+
+    ##
+    # @brief get available bindings from current binding state
+    # @param from_binding current binding (subject name, handle name, binder name, binder geometry name)
+    # @param to_node_item desired node item
+    # @param actor_dict
+    #           dictionary of binder {binder_name: rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor}
+    # @param Q_dict dictionary of joint values {joint_name: value}
+    # @return list of available bindings [(handle name, binder name, binder geometry name), ...]
+    def get_available_bindings(self, from_binding, to_node_item, actor_dict, Q_dict):
+        ap_dict = self.action_points_dict
+        apk_exclude = self.get_conflicting_points(from_binding[1])
+        bd_exclude = from_binding[-2]
+
+        apk = self.action_points_order[to_node_item - 1]
+        ap_list = [ap_dict[apk]] if apk not in apk_exclude else []
+        ctypes = [ap.ctype for ap in ap_list]
+        bd_list = [actor for actor in actor_dict.values() if actor.ctype in ctypes] # bd_exclude is ignored as previous binding is re-used in sweep
+        for bd in bd_list:
+            self.geometry.gscene.link_control_map[bd.geometry.link_name]
+
+        available_bindings = []
+        for bd in bd_list:
+            for ap in ap_list:
+                if bd.check_type(ap):
+                    available_bindings.append((ap.name, bd.name, bd.geometry.name))
+        if not available_bindings:
+            print("=================================")
+            print("=================================")
+            print("=================================")
+            print("Not available:{}-{}".format(self.oname, to_node_item))
+            print("np_exclude:{}".format(apk_exclude))
+            print("bd_exclude:{}".format(bd_exclude))
+            print("=================================")
+            print("=================================")
+            print("=================================")
+        return available_bindings
 
     ##
     # @brief get object-level node component (finished waypoint count)
@@ -403,6 +512,71 @@ class SweepLineTask(AbstractTask):
 # @remark get_conflicting_points and register_binders should be implemented with child classes
 class AbstractObject(Subject):
     stype = SubjectType.OBJECT
+
+    ##
+    # @brief get initial binding - for object, usually no binding is initial state
+    # @param actor_dict dictionary of binder {binder_name: rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor}
+    # @param Q_dict dictionary of joint values {joint_name: value}
+    # @return binding (subject name, handle name, binder name, binder geometry name)
+    def get_initial_binding(self, actor_dict, Q_dict):
+        margin_max = -1e10
+        max_point = ""
+        max_binder = ""
+        binder_T_dict = {bname: binder.get_tf_handle(Q_dict) for bname, binder in actor_dict.items()}
+        self_family = self.geometry.get_family()
+        ## find best binding between object and binders
+        for kpt, handle in self.action_points_dict.items():
+            handle_T = handle.get_tf_handle(Q_dict)
+
+            for bname, binder in actor_dict.items():
+                binder_T = binder_T_dict[bname]
+                if binder.geometry.name in self_family or not binder.check_type(handle):
+                    continue
+                binder_redundancy = binder.get_redundancy()
+                handle_redundancy = handle.get_redundancy()
+                margins = get_binding_margins(handle_T, binder_T, handle_redundancy, binder_redundancy)
+                margin_min = np.min(margins)
+                if margin_min > margin_max:
+                    margin_max = margin_min
+                    max_point = handle.name
+                    max_binder = bname
+        return (self.oname, max_point, max_binder, actor_dict[max_binder].geometry.name)
+
+    ##
+    # @brief get available bindings from current binding state
+    # @param from_binding current binding (subject name, handle name, binder name, binder geometry name)
+    # @param to_node_item desired node item
+    # @param actor_dict
+    #           dictionary of binder {binder_name: rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor}
+    # @param Q_dict dictionary of joint values {joint_name: value}
+    # @return list of available bindings [(handle name, binder name, binder geometry name), ...]
+    def get_available_bindings(self, from_binding, to_node_item, actor_dict, Q_dict):
+        ap_dict = self.action_points_dict
+        apk_exclude = self.get_conflicting_points(from_binding[1])
+        bd_exclude = from_binding[2]
+        apk_list = ap_dict.keys()
+        ap_list = [ap_dict[apk] for apk in apk_list if apk not in apk_exclude]
+        bd_list = [binder for bname, binder in actor_dict.items()
+                   if (binder.geometry.name == to_node_item
+                       and binder.check_available(Q_dict)
+                       and bname != bd_exclude)]
+
+        available_bindings = []
+        for bd in bd_list:
+            for ap in ap_list:
+                if bd.check_type(ap):
+                    available_bindings.append((ap.name, bd.name, bd.geometry.name))
+        if not available_bindings:
+            print("=================================")
+            print("=================================")
+            print("=================================")
+            print("Not available:{}-{}".format(self.oname,to_node_item))
+            print("ap_exclude:{}".format(apk_exclude))
+            print("bd_exclude:{}".format(bd_exclude))
+            print("=================================")
+            print("=================================")
+            print("=================================")
+        return available_bindings
     ##
     # @brief set object binding state and update location
     # @param binding (object name, handle name, binder name, binder geometry name)

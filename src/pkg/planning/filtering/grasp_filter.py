@@ -128,9 +128,8 @@ class GraspChecker(MotionFilterInterface):
         actor_geo_list = self.gscene.get_items_on_links(actor_link_names)
         object_geo_list = self.gscene.get_items_on_links(object_link_names)
         if obj_only:
-            object_geo_list = [gtem for gtem in object_geo_list if (gtem.name == obj.geometry.name
-                                                                    or gtem.parent == obj.geometry.name
-                                                                    or obj.geometry.name in gtem.children)]
+            obj_family = obj.geometry.get_family()
+            object_geo_list = [gtem for gtem in object_geo_list if gtem.name in obj_family]
 
         #     with gtimer.block("link_offset"):
         T_handle_lh = np.matmul(handle.Toff_lh, SE3(Rot_rpy(rpy_add_handle), point_add_handle))

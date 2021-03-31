@@ -27,7 +27,7 @@ class PlanningPipeline:
     ##
     # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
     def __init__(self, pscene):
-        pscene.set_object_state(pscene.update_state(pscene.combined_robot.home_pose))
+        pscene.set_object_state(pscene.initialize_state(pscene.combined_robot.home_pose))
         ## @brief rnb-planning.src.pkg.planning.scene.PlanningScene
         self.pscene = pscene
         ## @brief rnb-planning.src.pkg.planning.motion.interface.MotionInterface

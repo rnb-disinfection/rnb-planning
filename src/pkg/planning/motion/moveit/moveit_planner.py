@@ -275,6 +275,10 @@ class MoveitPlanner(MotionInterface):
             else:
                 if self.need_mapping:
                     trajectory = trajectory[:,self.idx_mpc_to_pscene]
+                for rname in self.combined_robot.robot_names:
+                    if rname != group_name: # fix non-manipulating arm - projection in constrained motion sometimes generates motion in non-using arm
+                        trajectory[:, self.combined_robot.idx_dict[rname]] = \
+                            from_state.Q[self.combined_robot.idx_dict[rname]]
             Q_last = trajectory[-1]
             Q_last_dict = list2dict(Q_last, self.joint_names)
             if motion_type == MoveitPlanner.JOINT_MOTION:

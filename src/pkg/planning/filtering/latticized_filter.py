@@ -103,6 +103,7 @@ class LatticedChecker(MotionFilterInterface):
         T_link_handle_actor_link, actor_Tinv_dict, object_Tinv_dict = \
             self.gcheck.get_grasping_vert_infos(actor, obj, handle, redundancy_values, Q_dict)
 
+        obj_names = obj.geometry.get_family()
         group_name_handle = self.binder_link_robot_dict[
             handle.geometry.link_name] if handle.geometry.link_name in self.binder_link_robot_dict else None
         group_name_actor = self.binder_link_robot_dict[
@@ -128,7 +129,7 @@ class LatticedChecker(MotionFilterInterface):
         verts_to_move = []
         for vertinfo in tool_vertinfo_list:
             gname = vertinfo[0]
-            if gname == obj.geometry.name or gname in obj.geometry.children:
+            if gname in obj_names:
                 verts_to_move.append(vertinfo)
         target_vertinfo_list = target_vertinfo_list + verts_to_move
         for vertinfo in verts_to_move:
@@ -143,7 +144,6 @@ class LatticedChecker(MotionFilterInterface):
 
         r, th, h = cart2cyl(*T_end_effector[:3, 3])
         Tref = SE3(Rot_axis(3, th), T_end_effector[:3, 3])
-        obj_names = [obj.geometry.name] + obj.geometry.children
         target_names = [item[0] for item in target_vertinfo_list if item[0] not in obj_names]
         tool_names = [item[0] for item in tool_vertinfo_list]
 

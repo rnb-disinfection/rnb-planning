@@ -3,7 +3,12 @@ from copy import deepcopy
 import random
 from ...geometry.geometry import *
 from abc import *
+from ...utils.rotation_utils import SE3_inv
+from scipy.spatial.transform import Rotation
+
 __metaclass__ = type
+
+
 ##
 # @class    ConstraintType
 # @brief    Constraint type
@@ -15,7 +20,8 @@ class ConstraintType(Enum):
     Fixture = 4
     Sweep = 5
 
-OPPOSITE_DICT={
+
+OPPOSITE_DICT = {
     "top": "bottom",
     "bottom": "top",
     "right": "left",
@@ -24,12 +30,14 @@ OPPOSITE_DICT={
     "back": "front"
 }
 
+
 ##
 # @class    ActionPoint
 # @brief    Base class for all constraint action points
 # @remark   get_redundancy should be implemented in chlid classes.
 class ActionPoint:
-    ctype=None
+    ctype = None
+
     ##
     # @param    name        action point name
     # @param    geometry    geometry of the action point (rnb-planning.src.pkg.geometry.geometry.GeometryItem)
@@ -51,7 +59,7 @@ class ActionPoint:
         self.point = point
         self.rpy_point = rpy
         self.R_point = Rot_rpy(self.rpy_point)
-        self.Toff_oh = SE3(self.R_point,self.point or (0,0,0))
+        self.Toff_oh = SE3(self.R_point, self.point or (0, 0, 0))
         self.update_handle()
 
     ##
@@ -78,17 +86,15 @@ class ActionPoint:
 # @param redundancy   redundancy dictionary {direction: value}
 # @param action_point action point to which redundancy will be added
 def calc_redundancy(redundancy, action_point):
-    point_add = [0,0,0]
-    rpy_add = [0,0,0]
+    point_add = [0, 0, 0]
+    rpy_add = [0, 0, 0]
     if redundancy:
         for k, v in redundancy.items():
-            ax ="xyzuvw".index(k)
-            if ax<3:
+            ax = "xyzuvw".index(k)
+            if ax < 3:
                 point_add[ax] += redundancy[k]
             else:
-                rpy_add[ax-3] += redundancy[k]
-        if action_point.point is None: # WARNING: CURRENTLY ASSUME UPPER PLANE
-            point_add[2] += action_point.geometry.dims[2]/2
+                rpy_add[ax - 3] += redundancy[k]
     return point_add, rpy_add
 
 
@@ -110,7 +116,63 @@ def combine_redundancy(to_ap, to_binder):
 # @param sampler            sampling function to be applied to redundancy param (default=random.uniform)
 # @return {point name: {direction: sampled value}}
 def sample_redundancy(redundancy_tot, sampler=random.uniform):
-    return {point: {dir: sampler(*red) for dir, red in redundancy.items()} for point, redundancy in redundancy_tot.items()}
+    return {point: {dir: sampler(*red) for dir, red in redundancy.items()} for point, redundancy in
+            redundancy_tot.items()}
+
+
+##
+# @brief    calculate margins for binding between two ActionPoints
+# @param handle_T   transformation matrix (4x4) to global coordinate for handle
+# @param binder_T   transformation matrix (4x4) to global coordinate for binder
+# @param handle_redundancy  redundancy for handle {axis: (min, max)}, where axis in "xyzuvw"
+# @param binder_redundancy  redundancy for binder {axis: (min, max)}, where axis in "xyzuvw"
+def get_binding_margins(handle_T, binder_T, handle_redundancy, binder_redundancy):
+    T_rel = np.matmul(SE3_inv(binder_T), handle_T)
+
+    # get min/max offset in the handle coordinate
+    min_handle_vec = np.zeros(3)
+    max_handle_vec = np.zeros(3)
+    for i_ax, k_ax in enumerate("xyz"):
+        if k_ax in handle_redundancy:
+            min_val, max_val = handle_redundancy[k_ax]
+        else:
+            min_val, max_val = 0, 0
+        min_handle_vec[i_ax] = min_val
+        max_handle_vec[i_ax] = max_val
+
+    pos_vec = T_rel[:3, 3]
+    margin_vec = np.zeros(3)
+    for i_ax, k_ax in enumerate("xyz"):
+        # get min/max offset in the binder coordinate
+        if k_ax in binder_redundancy:
+            min_val, max_val = binder_redundancy[k_ax]
+        else:
+            min_val, max_val = 0, 0
+
+        # transform handle coordinate min/max to binder coordinate - this regulates object's margin to rectangular area in binder coordinate: not accurate
+        min_vec, max_vec = T_rel[i_ax, :3] * min_handle_vec, T_rel[i_ax, :3] * max_handle_vec
+        max_off = np.sum(np.maximum(min_vec, max_vec))
+        min_off = np.sum(np.minimum(min_vec, max_vec))
+        margin_vec[i_ax] = np.min([(max_val + max_off) - pos_vec[i_ax], pos_vec[i_ax] - (min_val + min_off)])
+
+    # get min/max offset in the handle coordinate
+    handle_rot_range = np.zeros((3, 2))
+    binder_rot_range = np.zeros((3, 2))
+    for i_ax, k_ax in enumerate("uvw"):
+        if k_ax in handle_redundancy:
+            handle_rot_range[i_ax] = handle_redundancy[k_ax]
+        if k_ax in binder_redundancy:
+            binder_rot_range[i_ax] = binder_redundancy[k_ax]
+    handle_rot_axes = np.where(np.linalg.norm(handle_rot_range, axis=-1) > 0)[0]
+    binder_rot_axes = np.where(np.linalg.norm(binder_rot_range, axis=-1) > 0)[0]
+    assert len(set(handle_rot_axes).union(
+        binder_rot_axes)) <= 1, "Rotation redundancy is allowed for only single axis, in same axis in both binder and handle"
+
+    rot_range = handle_rot_range + binder_rot_range
+    rot_vec = Rotation.from_dcm(T_rel[:3, :3]).as_rotvec()
+    margin_rot = np.maximum(rot_vec - rot_range[:, 0], rot_range[:, 1] - rot_vec)
+
+    return np.concatenate([margin_vec, margin_rot])
 
 
 ##
@@ -120,5 +182,3 @@ class MotionConstraint:
     def __init__(self, geometry_list, fix_surface, fix_normal, T_tool_offset=np.identity(4), tol=1e-3):
         self.geometry_list, self.fix_surface, self.fix_normal, self.T_tool_offset, self.tol = \
             geometry_list, fix_surface, fix_normal, T_tool_offset, tol
-
-

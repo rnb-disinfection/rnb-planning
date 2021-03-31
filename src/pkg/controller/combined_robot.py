@@ -144,6 +144,9 @@ class CombinedRobot:
         for name, rconfig in zip(self.robot_names, self.robots_on_scene):
             _type = rconfig.type
             robot = self.robot_dict[name]
+            if robot is not None:
+                print("WARNING: {} is not connected - skip motion".format(name))
+                continue
             traj_cur_rbt = trajectory[:,self.idx_dict[name]]
             diff_abs_arr = np.abs(traj_cur_rbt - traj_cur_rbt[0:1, :])
             if np.max(diff_abs_arr) > 1e-3:

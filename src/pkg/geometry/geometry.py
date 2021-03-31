@@ -447,3 +447,17 @@ class GeometryItem(object):
             T_q_list.append(T_q)
         return T_q_list
 
+    ##
+    # @brief get all geometry names that share same parent-children tree
+    def get_family(self):
+        gtem = self
+        while gtem.parent is not None:
+            gtem = self.gscene.NAME_DICT[gtem.parent]
+        to_add = gtem.children
+        family = [gtem.name]
+        while len(to_add)>0:
+            gtem = self.gscene.NAME_DICT[to_add.pop(0)]
+            family.append(gtem.name)
+            to_add += gtem.children
+        return family
+
