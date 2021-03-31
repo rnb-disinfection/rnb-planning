@@ -88,31 +88,35 @@ class PlanningPipeline:
         self.t0 = time.time()
         self.DOF = len(initial_state.Q)
         self.initial_state = initial_state
-        if multiprocess:
-            if display:
-                print("Cannot display motion in multiprocess")
-                display = False
-            if N_agents is None:
-                N_agents = cpu_count()
-            self.N_agents = N_agents
-            print("Use {}/{} agents".format(N_agents, cpu_count()))
-            self.search_counter = self.manager.Value('i', 0)
-            self.stop_now = self.manager.Value('i', 0)
-            self.tplan.initialize_memory(self.manager)
-        else:
-            self.N_agents = 1
-            self.search_counter = SingleValue('i', 0)
-            self.stop_now =  SingleValue('i', 0)
-            self.tplan.initialize_memory(None)
+        with self.gtimer.block("initialize_memory"):
+            if multiprocess:
+                if display:
+                    print("Cannot display motion in multiprocess")
+                    display = False
+                if N_agents is None:
+                    N_agents = cpu_count()
+                self.N_agents = N_agents
+                print("Use {}/{} agents".format(N_agents, cpu_count()))
+                self.search_counter = self.manager.Value('i', 0)
+                self.stop_now = self.manager.Value('i', 0)
+                self.tplan.initialize_memory(self.manager)
+            else:
+                self.N_agents = 1
+                self.search_counter = SingleValue('i', 0)
+                self.stop_now =  SingleValue('i', 0)
+                self.tplan.initialize_memory(None)
 
-        self.tplan.init_search(initial_state, goal_nodes)
+        with self.gtimer.block("init_search"):
+            self.tplan.init_search(initial_state, goal_nodes)
+
         if multiprocess:
-            self.proc_list = [Process(
-                target=self.__search_loop,
-                args=(id_agent, terminate_on_first, N_search, False, dt_vis, verbose, timeout_loop),
-                kwargs=kwargs) for id_agent in range(N_agents)]
-            for proc in self.proc_list:
-                proc.start()
+            with self.gtimer.block("start_process"):
+                self.proc_list = [Process(
+                    target=self.__search_loop,
+                    args=(id_agent, terminate_on_first, N_search, False, dt_vis, verbose, timeout_loop),
+                    kwargs=kwargs) for id_agent in range(N_agents)]
+                for proc in self.proc_list:
+                    proc.start()
 
             if wait_proc:
                 self.wait_procs()
