@@ -47,9 +47,43 @@ class SweepEntranceControlRule(CustomRuleInterface):
         self.node_parent_dict = {}
         for node, parents in tplan.node_parent_dict.items():
             self.node_parent_dict[node] = deepcopy(parents)
-            tplan.node_parent_dict[node] = parents = set(
+            tplan.node_parent_dict[node] = set(
                 [parent for parent in parents  ## unstoppable node change will be reserved by this custom rule
                  if all([parent[k] in terms for k, terms in tplan.unstoppable_terminals.items()])])
+
+    ##
+    # @brief    re-foliate for some defined cases
+    # @remark   case 1: meaningless homing - stayed on same node for two turns and do action of same kind \n
+    #           case 2: already-moved object
+    def refoliate(self, tplan, new_node, parent_sidx):
+        reject = False
+        parent_snode = tplan.snode_dict[parent_sidx]
+        parent_node = parent_snode.state.node
+        anc_nodes = [tplan.snode_dict[pidx].state.node for pidx in parent_snode.parents]
+        if new_node != parent_node:  # this is not homing motion
+            if len(anc_nodes) > 1 and anc_nodes[-1] == parent_node:  # previous motion was homing
+                if ([a for a, b in zip(anc_nodes[-2], parent_node) if a != b][0]
+                        == [b for a, b in zip(parent_node, new_node) if a != b][0]):  # use same binder after homing
+                    parent_sidx = parent_snode.parents[-1]
+                    parent_snode = tplan.snode_dict[parent_sidx]
+                    parent_node = parent_snode.state.node
+                    anc_nodes = anc_nodes[:-1]
+            if len(anc_nodes) > 0 and new_node in anc_nodes:  # already-moved object
+                active_binder_geo = [b for a, b in zip(parent_node, new_node) if a != b][0]
+                if ((active_binder_geo not in self.pscene.geometry_actor_dict)  # active binder is doing Task
+                        or
+                        (self.pscene.actor_robot_dict[self.pscene.geometry_actor_dict[active_binder_geo][0]]
+                         is not None)  # active binder is controllable actor
+                ):
+                    first_access_idx = anc_nodes.index(new_node)
+                    if first_access_idx == 0:  # this is returning to initial state
+                        reject = True
+                    else:  # foliate from before first move of this object
+                        parent_sidx = parent_snode.parents[first_access_idx - 1]
+                        parent_snode = tplan.snode_dict[parent_sidx]
+                        parent_node = parent_snode.state.node
+                        anc_nodes = anc_nodes[:first_access_idx - 1]
+        return new_node, parent_sidx, reject
 
     def __call__(self, tplan, snode_src, snode_new, connection_result):
         #         print("CustomRule call")

@@ -364,7 +364,6 @@ class PlanningPipeline:
         snode_pre = None
         for snode in snode_schedule:
             if snode.traj is not None:
-                time.sleep(0.5)
                 scale_tmp = 1
                 if snode_pre is not None:
                     binding_list, success = self.pscene.get_slack_bindings(snode_pre.state, snode.state)

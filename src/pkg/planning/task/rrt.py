@@ -133,6 +133,11 @@ class TaskRRT(TaskInterface):
                     parent_nodes = self.node_parent_dict[new_node]
                     parent_node = self.parent_node_sampler(list(parent_nodes.intersection(self.node_snode_dict.keys())))
                     parent_sidx = self.parent_snode_sampler(self.node_snode_dict[parent_node])
+                    if hasattr(self.custom_rule, "refoliate"):
+                        new_node, parent_sidx, reject = self.custom_rule.refoliate(self, new_node, parent_sidx)
+                        if reject:
+                            sample_fail = True
+                            continue
                     # print("sampled one from {}".format(parent_sidx))
                 except Exception as e:  ## currently occurs when terminating search in multiprocess
                     try:
