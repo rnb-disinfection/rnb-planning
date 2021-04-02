@@ -24,6 +24,7 @@ class SearchNode:
                  redundancy_dict=None):
         self.idx, self.state, self.parents, self.leafs, self.depth, self.redundancy_dict = \
             idx, state, parents, leafs, depth, redundancy_dict
+        self.mix_ratio = None
         self.set_traj(None, 0)
 
     ##

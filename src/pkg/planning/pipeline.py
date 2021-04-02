@@ -315,13 +315,32 @@ class PlanningPipeline:
     # @param snode_schedule list of SearchNode
     # @param period play period
     def play_schedule(self, snode_schedule, period=0.01):
-        self.pscene.set_object_state(snode_schedule[0].state)
-        for snode in snode_schedule:
-            if snode.traj is not None:
-                self.pscene.gscene.show_motion(snode.traj, period=period)
-                time.sleep(period)
-                self.pscene.gscene.show_pose(snode.traj[-1])
-            self.pscene.set_object_state(snode.state)
+        snode_pre = snode_schedule[0]
+        for snode, snode_next in zip(snode_schedule, snode_schedule[1:] + [None]):
+            if snode.traj is None or len(snode.traj) == 0:
+                snode_pre = snode
+                continue
+            self.pscene.set_object_state(snode_pre.state)
+            self.pscene.gscene.update_markers_all()
+            if snode_next is not None and snode_next.mix_ratio is not None:
+                snode_pre = snode
+                continue
+            if snode.mix_ratio is None:
+                traj_show = snode.traj
+            else:       # mix current motion with previous one
+                len_pre, len_cur = len(snode_pre.traj), len(snode.traj)
+                mix_idx = max(0, int(len_pre - len_cur * snode.mix_ratio))
+                mix_len = max(mix_idx + len_cur, len_pre)
+                traj_mix = np.zeros((mix_len, self.pscene.gscene.joint_num))
+                traj_mix[:len_pre] = snode_pre.traj
+                traj_mix[len_pre:] = snode_pre.traj[-1:]
+                move_jidx_cur = np.where(snode.traj[0] != snode.traj[-1])[0]
+                traj_mix[mix_idx:, move_jidx_cur] = snode.traj[:, move_jidx_cur]
+                traj_show = traj_mix
+            snode_pre = snode
+            self.pscene.gscene.show_motion(traj_show)
+            time.sleep(period)
+            self.pscene.gscene.show_pose(traj_show[-1])
 
     ##
     # @brief execute grasping as described in the given state
@@ -346,39 +365,47 @@ class PlanningPipeline:
     # @param vel_scale velocity scale to max. robot velocity defined in RobotConfig
     # @param acc_scale acceleration scale to max. robot velocity defined in RobotConfig
     def execute_schedule(self, snode_schedule, vel_scale=None, acc_scale=None):
-        snode_schedule = [snode for snode in snode_schedule]    # re-wrap not to modify outer list
-        state_0 = snode_schedule[0].state
-        # state_fin = snode_schedule[-1].state
-        # state_home = state_fin.copy(self.pscene)
-        # state_home.Q = np.array(self.pscene.combined_robot.home_pose)
-        # trajectory, Q_last, error, success, binding_list = self.mplan.plan_transition(state_fin, state_home)
-        # if success:
-        #     snode_home = SearchNode(0, state_home, [], [], depth=0, redundancy_dict=None)
-        #     snode_home.set_traj(trajectory, 0)
-        #     snode_schedule.append(snode_home)
-
-        # self.pscene.combined_robot.joint_move_make_sure(snode_schedule[0].state.Q)
-        # self.execute_grip(state_0)
-        self.pscene.set_object_state(state_0)
-
-        snode_pre = None
-        for snode in snode_schedule:
-            if snode.traj is not None:
-                scale_tmp = 1
-                if snode_pre is not None:
-                    binding_list, success = self.pscene.get_slack_bindings(snode_pre.state, snode.state)
-                    for binding in binding_list:
-                        obj_name, ap_name, binder_name, binder_geometry_name = binding
-                        binder_geometry_prev = snode_pre.state.binding_state[self.pscene.subject_name_list.index(obj_name)][-1]
-                        if binder_geometry_prev == binder_geometry_name and \
-                                self.pscene.subject_dict[obj_name].constrained:
-                            scale_tmp = self.constrained_motion_scale
+        snode_schedule = [snode for snode in snode_schedule]  # re-wrap not to modify outer list
+        snode_pre = snode_schedule[0]
+        time_last = time.time()
+        wait_motion = True
+        for snode, snode_next in zip(snode_schedule, snode_schedule[1:] + [None]):
+            if snode.traj is None or len(snode.traj) == 0:
                 snode_pre = snode
-                self.pscene.combined_robot.move_joint_wp(snode.traj,
-                                                         vel_scale=vel_scale*scale_tmp, acc_scale=acc_scale*scale_tmp)
+                continue
+            self.pscene.set_object_state(snode_pre.state)
+            # if snode_next is not None and snode_next.mix_ratio is not None and wait_motion:
+            #     wait_motion = False
+            # else:
+            #     wait_motion = True
 
-            self.pscene.set_object_state(snode.state)
-            self.execute_grip(snode.state)
+            # slow down if constrained motion
+            scale_tmp = 1
+            binding_list, success = self.pscene.get_slack_bindings(snode_pre.state, snode.state)
+            for binding in binding_list:
+                obj_name, ap_name, binder_name, binder_geometry_name = binding
+                binder_geometry_prev = snode_pre.state.binding_state[self.pscene.subject_name_list.index(obj_name)][
+                    -1]
+                if binder_geometry_prev == binder_geometry_name and \
+                        self.pscene.subject_dict[obj_name].constrained:
+                    scale_tmp = self.constrained_motion_scale
+                    break
+
+            # if snode.mix_ratio is not None:  # mix current motion with previous one
+            #     duration_mix = duration_last * (1.0 - snode.mix_ratio)
+            #     time.sleep(max(0, time_last + duration_mix - time.time()))
+
+            duration_last = self.pscene.combined_robot.move_joint_wp(snode.traj,
+                                                                     vel_scale=vel_scale * scale_tmp,
+                                                                     acc_scale=acc_scale * scale_tmp,
+                                                                     wait_motion=wait_motion
+                                                                     )
+            time_last = time.time()
+            if wait_motion:
+                self.execute_grip(snode.state)
+                duration_last = 0
+            snode_pre = snode
+
         for robot in self.pscene.combined_robot.robot_dict.values():
             if robot is not None:
                 robot.stop_tracking()

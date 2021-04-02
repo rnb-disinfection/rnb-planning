@@ -431,6 +431,26 @@ void Planner::test_jacobian(JointState init_state){
     std::cout<<"satisfied: "<< satisfied <<std::endl<<std::endl;
 }
 
+bool Planner::validate_trajectory(Trajectory trajectory){
+    bool _valid = true;
+    robot_state::RobotState robot_state = planning_scene_->getCurrentState();
+    for(auto titor=trajectory.begin(); titor!=trajectory.end(); titor++){
+        robot_state.setVariablePositions(titor->data());
+        planning_scene_->setCurrentState(robot_state);
+        collision_detection::CollisionResult res;
+        collision_detection::CollisionRequest collision_req;
+        planning_scene_->checkSelfCollision(collision_req, res, robot_state);
+        _valid = !res.collision;
+        if (!_valid)
+            break;
+        planning_scene_->checkCollision(collision_req, res, robot_state);
+        _valid = !res.collision;
+        if (!_valid)
+            break;
+    }
+    return _valid;
+}
+
 bool Planner::process_object(string name, const ObjectType type, CartPose pose, Vec3 dims,
                     string link_name, NameList touch_links, bool attach, const int action){
     bool res = false;

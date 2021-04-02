@@ -34,6 +34,7 @@ def add_indy_gripper_asm2(gscene, robot_name, link_name):
                        dims=(0.03,0.03,0.095), center=(-0.006,-0.045,0.1), rpy=(0,0,0),
                        color=(0.0,0.8,0.0,0.5), display=True, fixed=True, collision=True)
 
+
 ##
 # @brief remove place points except for the current one
 def use_current_place_point_only(pscene, current_state):
@@ -46,6 +47,7 @@ def use_current_place_point_only(pscene, current_state):
                     del obj.action_points_dict[pp.name]
     pscene.update_subjects()
 
+
 ##
 # @brief remove attached binders on objects except for the current one
 def use_current_sub_binders_only(pscene, current_state):
@@ -55,6 +57,46 @@ def use_current_sub_binders_only(pscene, current_state):
         for bname, binder in pscene.actor_dict.items():
             if binder.geometry == obj.geometry and bname not in active_binders:
                 pscene.remove_binder(bname)
+
+
+##
+# @brief   define mix_ratio of motion schedule
+# @param    mplan           rnb-planning.src.pkg.planning.motion.moveit.moveit_planner.MoveitPlanner
+# @param    snode_schedule  list of SearchNode
+def mix_schedule(mplan, snode_schedule):
+    schedule_len = len(snode_schedule)
+    for i_s in range(1, schedule_len):
+        snode_pre = snode_schedule[i_s - 1]
+        snode_cur = snode_schedule[i_s]
+        mplan.pscene.set_object_state(snode_pre.state)
+        if snode_pre.traj is None or len(snode_pre.traj) == 0 \
+                or snode_cur.traj is None or len(snode_cur.traj) == 0:
+            snode_cur.mix_ratio = None
+            continue
+        else:
+            traj_pre = snode_pre.traj
+            traj_cur = snode_cur.traj
+            stay_jidx_pre = np.where(traj_pre[0] == traj_pre[-1])[0]
+            move_jidx_cur = np.where(traj_cur[0] != traj_cur[-1])[0]
+            if all([ji in stay_jidx_pre for ji in move_jidx_cur]) \
+                    and all([ji in move_jidx_cur for ji in stay_jidx_pre]):
+                len_pre, len_cur = len(traj_pre), len(traj_cur)
+                mix_ratio_list = [1., 3. / 4, 2. / 4, 1. / 4]
+                for mix_ratio in mix_ratio_list:
+                    mix_idx = max(0, int(len_pre - len_cur * mix_ratio))
+                    mix_len = max(mix_idx + len_cur, len_pre)
+                    traj_mix = np.zeros((mix_len, mplan.joint_num))
+                    traj_mix[:len_pre] = traj_pre
+                    traj_mix[len_pre:] = traj_pre[-1:]
+                    traj_mix[mix_idx:, move_jidx_cur] = traj_cur[:, move_jidx_cur]
+                    res = mplan.validate_trajectory(traj_mix)
+                    if res:
+                        snode_cur.mix_ratio = mix_ratio
+                        break
+                    else:
+                        snode_cur.mix_ratio = None
+            else:
+                snode_cur.mix_ratio = None
 
 
 ### resized image plot

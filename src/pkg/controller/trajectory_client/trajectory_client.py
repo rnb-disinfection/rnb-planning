@@ -120,6 +120,7 @@ class TrajectoryClient(object):
     # @param trajectory radian
     # @param vel_lims radian/s, scalar or vector
     # @param acc_lims radian/s2, scalar or vector
+    # @return interpolated trajecotry, expected motion time
     def move_joint_wp(self, trajectory, vel_lims, acc_lims, auto_stop=True):
         trajectory = np.concatenate([[self.get_qcur()], trajectory])
         t_all, traj_tot = calc_safe_trajectory(1.0/self.traj_freq, trajectory, vel_lims=vel_lims, acc_lims=acc_lims)
@@ -129,6 +130,7 @@ class TrajectoryClient(object):
         self.wait_queue_empty()
         if auto_stop:
             self.stop_tracking()
+        return traj_tot, float(len(traj_tot))/self.traj_freq
 
     ##
     # @brief Move joints to Q using the most guaranteed method for each robot.

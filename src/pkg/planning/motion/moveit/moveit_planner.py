@@ -1,4 +1,5 @@
-from moveit_py import MoveitCompactPlanner_BP, ObjectType, ObjectMPC, Geometry, GeometryList, CartPose, Vec3, make_assign_arr
+from moveit_py import MoveitCompactPlanner_BP, ObjectType, ObjectMPC, \
+    Geometry, GeometryList, CartPose, Vec3, make_assign_arr, JointState, Trajectory
 from ..interface import MotionInterface
 from ....utils.utils import list2dict
 from ....utils.rotation_utils import SE3, SE3_inv, Rot_rpy, T2xyzquat
@@ -319,7 +320,21 @@ class MoveitPlanner(MotionInterface):
         xyzquat = T2xyzquat(np.matmul(tool_offset_T, motion_constraint.T_tool_offset))
         self.planner.add_union_manifold_py(group_name=group_name, tool_link=tool_link, tool_offset=xyzquat[0]+xyzquat[1],
                                            geometry_list=make_constraint_list(motion_constraint.geometry_list),
-                                           fix_surface=motion_constraint.fix_surface, fix_normal=motion_constraint.fix_normal, tol=motion_constraint.tol)
+                                           fix_surface=motion_constraint.fix_surface,
+                                           fix_normal=motion_constraint.fix_normal, tol=motion_constraint.tol)
+
+    ##
+    # @brief check collision in a given trajectory
+    def validate_trajectory(self, trajectory):
+        self.planner.clear_context_cache()
+        self.planner.clear_manifolds()
+        self.update_gscene()
+        if self.need_mapping:
+            trajectory = trajectory[:, self.idx_pscene_to_mpc]
+        traj_c = Trajectory()
+        for Q in trajectory:
+            traj_c.append(JointState(self.joint_num, *Q))
+        return self.planner.validate_trajectory(traj_c)
 
 
 from itertools import permutations

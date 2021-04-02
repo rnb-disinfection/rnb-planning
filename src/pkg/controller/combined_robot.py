@@ -138,10 +138,15 @@ class CombinedRobot:
     ##
     # @brief move joint with waypoints, one-by-one
     # @param trajectory numpy array (trajectory length, joint num)
-    def move_joint_wp(self, trajectory, vel_scale=None, acc_scale=None, auto_stop=True):
+    def move_joint_wp(self, trajectory, vel_scale=None, acc_scale=None, auto_stop=True, wait_motion=True):
         trajectory = np.array(trajectory)
         vel_scale = vel_scale or self.vel_scale
         acc_scale = acc_scale or self.acc_scale
+        robots_in_act = []
+        traj_act_all = []
+        vel_lims_all = []
+        acc_lims_all = []
+        traj_freqs = []
         for name, rconfig in zip(self.robot_names, self.robots_on_scene):
             _type = rconfig.type
             robot = self.robot_dict[name]
@@ -151,9 +156,43 @@ class CombinedRobot:
             traj_cur_rbt = trajectory[:,self.idx_dict[name]]
             diff_abs_arr = np.abs(traj_cur_rbt - traj_cur_rbt[0:1, :])
             if np.max(diff_abs_arr) > 1e-3:
+                traj_cur_rbt = np.concatenate([[robot.get_qcur()], traj_cur_rbt])
                 vel_limits = np.multiply(RobotSpecs.get_vel_limits(_type), vel_scale)
                 acc_limits = np.multiply(RobotSpecs.get_acc_limits(_type), acc_scale)
-                robot.move_joint_wp(traj_cur_rbt, vel_limits, acc_limits, auto_stop=auto_stop)
+                traj_act_all.append(traj_cur_rbt)
+                vel_lims_all.append(vel_limits)
+                acc_lims_all.append(acc_limits)
+                traj_freqs.append(robot.traj_freq)
+                robots_in_act.append((name, robot))
+        if len(robots_in_act) == 0:
+            return 0
+
+        traj_act_all = np.concatenate(traj_act_all, axis=-1)
+        vel_lims_all = np.concatenate(vel_lims_all, axis=-1)
+        acc_lims_all = np.concatenate(acc_lims_all, axis=-1)
+        assert np.all(np.array(traj_freqs) == traj_freqs[0]), "trajectory frequency should be same for all robots"
+        traj_freq = np.min(traj_freqs)
+        t_all, traj_tot = calc_safe_trajectory(1.0/traj_freq, traj_act_all,
+                                               vel_lims=vel_lims_all, acc_lims=acc_lims_all)
+        for Q in traj_tot:
+            jidx_rbt = 0
+            for rname, robot in robots_in_act:
+                jnum_rbt = len(self.idx_dict[rname])
+                robot.push_Q(Q[jidx_rbt:jidx_rbt+jnum_rbt])
+                jidx_rbt = jidx_rbt + jnum_rbt
+
+        for rname, robot in robots_in_act:
+            robot.start_tracking()
+
+        if wait_motion:
+            for rname, robot in robots_in_act:
+                robot.wait_queue_empty()
+
+            if auto_stop:
+                for rname, robot in robots_in_act:
+                    robot.stop_tracking()
+
+        return t_all[-1]
 
     ##
     # @brief execute grasping action

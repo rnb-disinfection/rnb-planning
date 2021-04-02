@@ -122,6 +122,12 @@ namespace RNB {
             void test_jacobian(JointState init_state);
 
             /**
+             * @brief validate joint moition trajectory
+             * @author Junsu Kang
+             */
+            bool validate_trajectory(Trajectory trajectory);
+
+            /**
              * @brief generate and process ros object message
              * @author Junsu Kang
              */

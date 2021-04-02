@@ -10,6 +10,7 @@ Geometry = mpc.Geometry
 GeometryList = mpc.GeometryList
 ObjectType = mpc.ObjectType
 ConstrainedSpaceType = mpc.ConstrainedSpaceType
+Trajectory = mpc.Trajectory
 
 class ObjectOperation(Enum):
     ADD = 0
