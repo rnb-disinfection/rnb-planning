@@ -33,7 +33,7 @@ RNB-Planning Framework is an integrated framework for combined planning of task 
   * From the downloaded directory,  
 ```bash
   chmod +x ./install-ompl-ubuntu.sh
-  ./install-ompl-ubuntu.sh
+  ./install-ompl-ubuntu.sh --python
   ```
   
 ## 1.5 hardware setup
