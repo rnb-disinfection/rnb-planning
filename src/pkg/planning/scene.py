@@ -1,6 +1,6 @@
 from collections import defaultdict
 from ..utils.utils import list2dict
-from .constraint.constraint_common import combine_redundancy, sample_redundancy, get_binding_margins
+from .constraint.constraint_common import combine_redundancy, sample_redundancy, fit_binding
 from .constraint.constraint_subject import SubjectType
 from ..geometry.geotype import *
 from itertools import product
@@ -102,6 +102,9 @@ class PlanningScene:
             del self.actor_robot_dict[bname]
             if rname is not None:
                 del self.robot_actor_dict[rname]
+            for subject in self.subject_dict.values():
+                if bname in subject.sub_binders_dict:
+                    del subject.sub_binders_dict[bname]
 
     ##
     # @param bname binder name
@@ -186,7 +189,7 @@ class PlanningScene:
     ##
     # @param oname object name
     # @param gname name of parent object
-    # @param _type type of object, subclass of rnb-planning.src.pkg.planning.constraint.constraint_subject.AbstractObject
+    # @param _type type of object, subclass of rnb-planning.src.pkg.planning.constraint.constraint_subject.Subject
     # @param binding point offset from object (m)
     def create_subject(self, oname, gname, _type, binding=None, **kwargs):
         self.remove_subject(oname)
@@ -383,7 +386,8 @@ class PlanningScene:
 
     ##
     # @brief get current scene state
-    def initialize_state(self, Q):
+    # @force_fit_binding    force each bindings to be perfectly matched geometrically
+    def initialize_state(self, Q, force_fit_binding=False):
         ## calculate binder transformations
         Q_dict = list2dict(Q, self.gscene.joint_names)
 
@@ -392,6 +396,16 @@ class PlanningScene:
         for kobj in self.subject_name_list:
             binding = self.subject_dict[kobj].get_initial_binding(self.actor_dict, Q_dict)
             binding_state.append(binding)
+
+        if force_fit_binding:
+            objects_to_update = [obj for obj in self.subject_dict.values() if obj.stype == SubjectType.OBJECT]
+            while objects_to_update:
+                obj = objects_to_update.pop(0)
+                oname, hname, bname, bgname = obj.get_initial_binding(self.actor_dict, self.combined_robot.home_dict)
+                if bgname in [box_tmp.geometry.name for box_tmp in objects_to_update]:  # binder will be updated
+                    objects_to_update.append(obj)  # move to end to use updated binder info
+                    continue
+                fit_binding(obj, obj.action_points_dict[hname], self.actor_dict[bname], self.combined_robot.home_dict)
 
         return self.rebind_all(binding_list=binding_state, Q=Q)
 

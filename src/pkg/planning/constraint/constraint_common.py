@@ -120,12 +120,14 @@ def sample_redundancy(redundancy_tot, sampler=random.uniform):
             redundancy_tot.items()}
 
 
+
 ##
 # @brief    calculate margins for binding between two ActionPoints
 # @param handle_T   transformation matrix (4x4) to global coordinate for handle
 # @param binder_T   transformation matrix (4x4) to global coordinate for binder
 # @param handle_redundancy  redundancy for handle {axis: (min, max)}, where axis in "xyzuvw"
 # @param binder_redundancy  redundancy for binder {axis: (min, max)}, where axis in "xyzuvw"
+# @return 6x2 matrix that contains margin on the mininum/maximum side, in "xyz+rotationvector" order
 def get_binding_margins(handle_T, binder_T, handle_redundancy, binder_redundancy):
     T_rel = np.matmul(SE3_inv(binder_T), handle_T)
 
@@ -141,7 +143,7 @@ def get_binding_margins(handle_T, binder_T, handle_redundancy, binder_redundancy
         max_handle_vec[i_ax] = max_val
 
     pos_vec = T_rel[:3, 3]
-    margin_vec = np.zeros(3)
+    margin_vec = np.zeros((3, 2))
     for i_ax, k_ax in enumerate("xyz"):
         # get min/max offset in the binder coordinate
         if k_ax in binder_redundancy:
@@ -149,11 +151,12 @@ def get_binding_margins(handle_T, binder_T, handle_redundancy, binder_redundancy
         else:
             min_val, max_val = 0, 0
 
-        # transform handle coordinate min/max to binder coordinate - this regulates object's margin to rectangular area in binder coordinate: not accurate
+        # transform handle coordinate min/max to binder coordinate
+        # - this reshapes object's margin to rectangular area in binder coordinate: not accurate
         min_vec, max_vec = T_rel[i_ax, :3] * min_handle_vec, T_rel[i_ax, :3] * max_handle_vec
         max_off = np.sum(np.maximum(min_vec, max_vec))
         min_off = np.sum(np.minimum(min_vec, max_vec))
-        margin_vec[i_ax] = np.min([(max_val + max_off) - pos_vec[i_ax], pos_vec[i_ax] - (min_val + min_off)])
+        margin_vec[i_ax] = [pos_vec[i_ax] - (min_val + min_off), (max_val + max_off) - pos_vec[i_ax]]
 
     # get min/max offset in the handle coordinate
     handle_rot_range = np.zeros((3, 2))
@@ -170,9 +173,43 @@ def get_binding_margins(handle_T, binder_T, handle_redundancy, binder_redundancy
 
     rot_range = handle_rot_range + binder_rot_range
     rot_vec = Rotation.from_dcm(T_rel[:3, :3]).as_rotvec()
-    margin_rot = np.maximum(rot_vec - rot_range[:, 0], rot_range[:, 1] - rot_vec)
+    margin_rot = np.stack([rot_vec - rot_range[:, 0], rot_range[:, 1] - rot_vec], axis=-1)
 
     return np.concatenate([margin_vec, margin_rot])
+
+##
+# @brief fit binding
+# @param    obj     AbstractObject to update location to fit binding
+# @param    handle  handle to match with binder
+# @param    binder  binder to match with handle
+# @param    Q_dict  current joint configuration in dictionary
+# @return
+def fit_binding(obj, handle, binder, Q_dict):
+    handle_T = handle.get_tf_handle(Q_dict)
+    binder_T = binder.get_tf_handle(Q_dict)
+    handle_redundancy = handle.get_redundancy()
+    binder_redundancy = binder.get_redundancy()
+    margin_mat = get_binding_margins(handle_T, binder_T, handle_redundancy, binder_redundancy)
+
+    offset_loc = np.maximum(-margin_mat[:, 0], 0) + np.minimum(margin_mat[:, 1], 0)
+    obj_geo = obj.geometry
+    T_glink = get_tf(obj_geo.link_name, Q_dict, obj_geo.gscene.urdf_content)
+
+    R_lgb = np.matmul(T_glink[:3, :3].transpose(), binder_T[:3, :3])    # orienation of binder from geometry link
+    pos_off = np.matmul(R_lgb, offset_loc[:3])
+
+    if np.linalg.norm(offset_loc[3:]) > 1e-2:
+        R_bh = np.matmul(binder_T[:3, :3].transpose(), handle_T[:3, :3])
+        rvec_bh = Rotation.from_dcm(R_bh).as_rotvec()
+        R_bh_new = Rotation.from_rotvec(rvec_bh + offset_loc[3:]).as_dcm()
+        R_bo = np.matmul(R_bh_new, handle.Toff_oh[:3, :3].transpose())
+        R_lo = np.matmul(R_lgb, R_bo)
+        orientation_new = R_lo
+    else:
+        orientation_new = obj_geo.orientation_mat
+    obj_geo.set_offset_tf(center=np.add(obj_geo.center, pos_off), orientation_mat=orientation_new)
+    obj.update_sub_points()
+    return offset_loc
 
 
 ##

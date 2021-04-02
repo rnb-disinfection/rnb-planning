@@ -46,6 +46,16 @@ def use_current_place_point_only(pscene, current_state):
                     del obj.action_points_dict[pp.name]
     pscene.update_subjects()
 
+##
+# @brief remove attached binders on objects except for the current one
+def use_current_sub_binders_only(pscene, current_state):
+    active_binders  = [binding[2] for binding in current_state.binding_state if binding[2] is not None]
+
+    for obj in pscene.subject_dict.values():
+        for bname, binder in pscene.actor_dict.items():
+            if binder.geometry == obj.geometry and bname not in active_binders:
+                pscene.remove_binder(bname)
+
 
 ### resized image plot
 # ratio = 1.0/3

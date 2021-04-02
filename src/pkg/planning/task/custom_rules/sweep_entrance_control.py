@@ -1,6 +1,6 @@
 from copy import deepcopy
 from ....utils.utils import *
-from ...constraint.constraint_subject import AbstractObject, SweepLineTask
+from ...constraint.constraint_subject import AbstractObject, SweepLineTask, SubjectType
 from interface import CustomRuleInterface
 
 
@@ -61,6 +61,13 @@ class SweepEntranceControlRule(CustomRuleInterface):
         parent_node = parent_snode.state.node
         anc_nodes = [tplan.snode_dict[pidx].state.node for pidx in parent_snode.parents]
         if new_node != parent_node:  # this is not homing motion
+            subject_gname_list = [obj.geometry.name for obj in self.pscene.subject_dict.values()
+                                  if obj.stype == SubjectType.OBJECT]
+            active_binder_geo = [b for a, b in zip(parent_node, new_node) if a != b][0]
+            if active_binder_geo in subject_gname_list:     # don't put on other object
+                reject = True
+                return new_node, parent_sidx, reject
+
             if len(anc_nodes) > 1 and anc_nodes[-1] == parent_node:  # previous motion was homing
                 if ([a for a, b in zip(anc_nodes[-2], parent_node) if a != b][0]
                         == [b for a, b in zip(parent_node, new_node) if a != b][0]):  # use same binder after homing

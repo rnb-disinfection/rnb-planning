@@ -113,9 +113,17 @@ class Subject:
         self.geometry = None
         ## @brief dictionary of action points {point name: rnb-planning.src.pkg.planning.constraint.constraint_common.ActionPoint}
         self.action_points_dict = {}
+        ## @brief dictionary of sub-binder points {point name: rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor}
+        self.sub_binders_dict = {}
         ## @brief object's binding state tuple (object name, point, actor, actor-geometry)
         self.binding = (None, None, None, None)
         raise(NotImplementedError("AbstractObject is abstract class"))
+
+    def update_sub_points(self):
+        for ap in self.action_points_dict.values():     # you should update action points here
+            ap.update_handle()
+        for bp in self.sub_binders_dict.values():     # you should update action points here
+            bp.update_handle()
 
     ##
     # @brief make constraints. by default, empty list.
@@ -235,6 +243,7 @@ class SweepTask(AbstractTask):
         self.action_points_dict = action_points_dict
         self.action_points_order = sorted(self.action_points_dict.keys())
         self.action_point_len = len(self.action_points_order)
+        self.sub_binders_dict = {}
         self.state_param = np.zeros(len(self.action_points_order), dtype=np.bool)
         self.binding = (self.oname, None, None, None)
         self.tol = tol
@@ -260,8 +269,7 @@ class SweepTask(AbstractTask):
             self.state_param = np.zeros(len(self.action_points_order), dtype=np.bool)
         else:
             self.state_param = state_param.copy()
-        for ap in self.action_points_dict.values():     # you should update action points here
-            ap.update_handle()
+        self.update_sub_points()
 
     ##
     # @brief (prototype) get state param
@@ -365,6 +373,7 @@ class SweepLineTask(AbstractTask):
         self.action_points_dict = action_points_dict
         self.action_points_order = sorted(self.action_points_dict.keys())
         self.action_point_len = len(self.action_points_order)
+        self.sub_binders_dict = {}
         self.state_param = np.zeros(len(self.action_points_order), dtype=np.bool)
         self.binding = (self.oname, None, None, None)
         self.tol = tol
@@ -421,8 +430,7 @@ class SweepLineTask(AbstractTask):
             self.state_param = np.zeros(len(self.action_points_order), dtype=np.bool)
         else:
             self.state_param = state_param.copy()
-        for ap in self.action_points_dict.values():     # you should update action points here
-            ap.update_handle()
+        self.update_sub_points()
 
     ##
     # @brief (prototype) get state param
@@ -531,17 +539,18 @@ class AbstractObject(Subject):
             handle_T = handle.get_tf_handle(Q_dict)
 
             for bname, binder in actor_dict.items():
-                binder_T = binder_T_dict[bname]
-                if binder.geometry.name in self_family or not binder.check_type(handle):
-                    continue
-                binder_redundancy = binder.get_redundancy()
-                handle_redundancy = handle.get_redundancy()
-                margins = get_binding_margins(handle_T, binder_T, handle_redundancy, binder_redundancy)
-                margin_min = np.min(margins)
-                if margin_min > margin_max:
-                    margin_max = margin_min
-                    max_point = handle.name
-                    max_binder = bname
+                if binder.check_available(Q_dict):
+                    binder_T = binder_T_dict[bname]
+                    if binder.geometry.name in self_family or not binder.check_type(handle):
+                        continue
+                    binder_redundancy = binder.get_redundancy()
+                    handle_redundancy = handle.get_redundancy()
+                    margins = get_binding_margins(handle_T, binder_T, handle_redundancy, binder_redundancy)
+                    margin_min = np.min(margins)
+                    if margin_min > margin_max:
+                        margin_max = margin_min
+                        max_point = handle.name
+                        max_binder = bname
         return (self.oname, max_point, max_binder, actor_dict[max_binder].geometry.name)
 
     ##
@@ -588,8 +597,7 @@ class AbstractObject(Subject):
         frame = state_param[1]
         self.geometry.set_offset_tf(frame[:3, 3], frame[:3,:3])
         self.geometry.set_link(link_name)
-        for ap in self.action_points_dict.values():     # you should update action points here
-            ap.update_handle()
+        self.update_sub_points()
         assert binding[0] == self.oname, "wrong binding given {} <- {}".format(self.oname, binding[0])
         self.binding = binding
 
@@ -652,6 +660,7 @@ class CustomObject(AbstractObject):
         self.oname = oname
         self.geometry = geometry
         self.action_points_dict = action_points_dict
+        self.sub_binders_dict = {}
         self.binding = (self.oname, None, None, None)
 
     ##
@@ -672,6 +681,7 @@ class SingleHandleObject(AbstractObject):
         self.oname = oname
         self.geometry = geometry
         self.action_points_dict = {action_point.name: action_point}
+        self.sub_binders_dict = {}
         self.binding = (self.oname, None, None, None)
 
     ##
@@ -703,6 +713,7 @@ class BoxObject(AbstractObject):
             "top_f": FramePoint("top_f", geometry, [0,0,Zhalf], [np.pi,0,0]),
             "bottom_f": FramePoint("bottom_f", geometry, [0,0,-Zhalf], [0,0,0])
         }
+        self.sub_binders_dict = {}
         self.hexahedral = hexahedral
         if hexahedral:
             self.action_points_dict.update({
@@ -745,12 +756,13 @@ class BoxObject(AbstractObject):
         gname = self.geometry.name
         dims = self.geometry.dims
         for k in DIR_RPY_DICT.keys():
-            if not self.hexahedral and k not in ["top", "bottome"]:
+            if not self.hexahedral and k not in ["top", "bottom"]:
                 continue
             rpy = DIR_RPY_DICT[k]
             point = tuple(-np.multiply(DIR_VEC_DICT[k], dims)/2)
-            planning_scene.create_binder(bname="{}_{}".format(gname, k), gname=gname, _type=_type,
-                                         point=point, rpy=rpy)
+            bname = "{}_{}".format(gname, k)
+            self.sub_binders_dict[bname] = planning_scene.create_binder(bname=bname, gname=gname, _type=_type,
+                                                                        point=point, rpy=rpy)
 
 
 ##

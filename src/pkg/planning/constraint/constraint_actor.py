@@ -29,7 +29,7 @@ class Actor(ActionPoint):
     ##
     # @brief function prototype to check quick availability of action point when building search tree
     @abstractmethod
-    def check_available(self):
+    def check_available(self, joint_dict):
         pass
 
 
