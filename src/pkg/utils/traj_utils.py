@@ -219,10 +219,28 @@ def calc_T_list_simple(trajectory, vel_lims, acc_lims,
 
 
 ##
+# @brief simplify trajectory - divide each constant velocity section into 5 waypoints
+def simplify_traj(trajectory):
+    dq_pre = np.zeros(trajectory.shape[-1])
+    q_wp_s = None
+    traj_new = []
+    for q, q_nxt in zip(trajectory, np.pad(trajectory[1:], ((0,1),(0,0)), 'edge')):
+        dq = (q_nxt-q)
+        if np.max(np.abs(dq-dq_pre))>1e-5:
+            if q_wp_s is not None:
+                wp_step = q - q_wp_s
+                traj_new.append(q_wp_s + wp_step*np.array(STEPS)[:, np.newaxis])
+            q_wp_s = q
+        dq_pre = dq
+    return np.concatenate(traj_new)
+
+
+##
 # @brief get full cubic trajectory for given waypoint trajectory
 # @remark terminal deceleration considered
 def calc_safe_trajectory(dt_step, trajectory, vel_lims, acc_lims):
     # calculate waypoint times
+    trajectory = simplify_traj(trajectory)
     T_list = calc_T_list_simple(trajectory, vel_lims, acc_lims)
 
     # round waypoint times with dt_step
