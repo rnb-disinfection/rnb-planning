@@ -194,6 +194,16 @@ class CombinedRobot:
 
         return t_all[-1]
 
+    def start_tracking(self):
+        for robot in self.robot_dict.values():
+            if robot is not None:
+                robot.start_tracking()
+
+    def stop_tracking(self):
+        for robot in self.robot_dict.values():
+            if robot is not None:
+                robot.stop_tracking()
+
     ##
     # @brief move joint with waypoints, one-by-one
     # @param trajectory numpy array (trajectory length, joint num)

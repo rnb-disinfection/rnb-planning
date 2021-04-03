@@ -347,7 +347,7 @@ class PlanningPipeline:
 
     ##
     # @brief execute schedule
-    def execute_schedule(self, snode_schedule):
+    def execute_schedule(self, snode_schedule, auto_stop=True):
         snode_pre = snode_schedule[0]
         for snode in snode_schedule:
             if snode.traj is None or len(snode.traj) == 0:
@@ -358,9 +358,8 @@ class PlanningPipeline:
             self.execute_grip(snode.state)
             snode_pre = snode
 
-        for robot in self.pscene.combined_robot.robot_dict.values():
-            if robot is not None:
-                robot.stop_tracking()
+        if auto_stop:
+            self.pscene.combined_robot.stop_tracking()
 
     ##
     # @brief execute schedule
