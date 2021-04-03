@@ -113,7 +113,8 @@ namespace RNB {
                                              double allowed_planning_time=0.1,
                                              ompl_interface::ConstrainedSpaceType cs_type=
                                                      ompl_interface::ConstrainedSpaceType::ATLAS,
-                                             bool allow_approximation=false);
+                                             bool allow_approximation=false,
+                                             bool post_projection=false);
 
             /**
              * @brief test jacobian

@@ -309,7 +309,8 @@ void Planner::clear_context_cache(){
 PlanResult& Planner::plan_with_constraints(string group_name, string tool_link,
                          CartPose goal_pose, string goal_link,
                          JointState init_state, string planner_id, double allowed_planning_time,
-                         ompl_interface::ConstrainedSpaceType cs_type, bool allow_approximation){
+                         ompl_interface::ConstrainedSpaceType cs_type, bool allow_approximation,
+                         bool post_projection){
     PRINT_FRAMED_LOG("set goal", true);
     geometry_msgs::PoseStamped _goal_pose;
     _goal_pose.header.frame_id = goal_link;
@@ -395,8 +396,10 @@ PlanResult& Planner::plan_with_constraints(string group_name, string tool_link,
     cout << (plan_result.trajectory.end()-1)->transpose() << endl;
     printf(LOG_FRAME_LINE "\n");
     plan_result.success = true;
-    for(auto itor=plan_result.trajectory.begin(); itor!=plan_result.trajectory.end(); itor++){
-        manifold_intersection->project(*itor);
+    if(post_projection){
+        for(auto itor=plan_result.trajectory.begin(); itor!=plan_result.trajectory.end(); itor++){
+            manifold_intersection->project(*itor);
+        }
     }
     return plan_result;
 }

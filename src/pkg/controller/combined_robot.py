@@ -195,6 +195,40 @@ class CombinedRobot:
         return t_all[-1]
 
     ##
+    # @brief move joint with waypoints, one-by-one
+    # @param trajectory numpy array (trajectory length, joint num)
+    def move_joint_traj(self, trajectory, auto_stop=True, wait_motion=True):
+        robots_in_act = []
+        Q_init = trajectory[0]
+        Q_last = trajectory[-1]
+        for rname in self.robot_names:
+            robot = self.robot_dict[rname]
+            if robot is None:
+                print("WARNING: {} is not connected - skip motion".format(rname))
+                continue
+            diff_abs_arr = np.abs(Q_last[self.idx_dict[rname]] - Q_init[self.idx_dict[rname]])
+            if np.max(diff_abs_arr) > 1e-3:
+                robots_in_act.append((rname, robot))
+
+        if len(robots_in_act) == 0:
+            return
+
+        for Q in trajectory:
+            for rname, robot in robots_in_act:
+                robot.push_Q(Q[self.idx_dict[rname]])
+
+        for rname, robot in robots_in_act:
+            robot.start_tracking()
+
+        if wait_motion:
+            for rname, robot in robots_in_act:
+                robot.wait_queue_empty()
+
+            if auto_stop:
+                for rname, robot in robots_in_act:
+                    robot.stop_tracking()
+
+    ##
     # @brief execute grasping action
     # @param args boolean grasp commands for each robot
     # @param kwargs boolean grasp commands for each robot, robot_name=grasp_bool

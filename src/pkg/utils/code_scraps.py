@@ -7,33 +7,71 @@ from ..planning.constraint.constraint_subject import *
 # @brief add indy_gripper_asm2 mesh and collision boundary for the gripper
 # @param gscene     rnb-planning.src.pkg.geometry.geometry.GeometryScene
 # @param robot_name full indexed name of the robot
-# @param link_name  full name of the link that the gripper will be attached
-def add_indy_gripper_asm2(gscene, robot_name, link_name):
-    gscene.create_safe(GEOTYPE.MESH, "{}_gripper_vis".format(robot_name), link_name=link_name,
+def add_indy_gripper_asm2(gscene, robot_name):
+    gscene.create_safe(GEOTYPE.MESH, "{}_gripper_vis".format(robot_name),
+                       link_name="{}_tcp".format(robot_name),
                        dims=(0.1,0.1,0.1), center=(0,0,0), rpy=(0,0,np.pi/2),
                        color=(0.1,0.1,0.1,1), display=True, fixed=True, collision=False,
                        uri="package://my_mesh/meshes/stl/indy_gripper_asm2_res.STL", scale=(1,1,1))
 
-    gscene.create_safe(GEOTYPE.BOX, "{}_gripper".format(robot_name), link_name=link_name,
+    gscene.create_safe(GEOTYPE.BOX, "{}_gripper".format(robot_name),
+                       link_name="{}_tcp".format(robot_name),
                        dims=(0.06,0.08,0.06), center=(0,0,0.04), rpy=(0,0,0),
                        color=(0.0,0.8,0.0,0.5), display=True, fixed=True, collision=True)
 
-    gscene.create_safe(GEOTYPE.CYLINDER, "{}_finger1".format(robot_name), link_name=link_name,
+    gscene.create_safe(GEOTYPE.CYLINDER, "{}_finger1".format(robot_name),
+                       link_name="{}_tcp".format(robot_name),
                        dims=(0.03,0.03,0.095), center=(0.006,0.045,0.1), rpy=(0,0,0),
                        color=(0.0,0.8,0.0,0.5), display=True, fixed=True, collision=True)
 
-    gscene.create_safe(GEOTYPE.CYLINDER, "{}_finger2".format(robot_name), link_name=link_name,
+    gscene.create_safe(GEOTYPE.CYLINDER, "{}_finger2".format(robot_name),
+                       link_name="{}_tcp".format(robot_name),
                        dims=(0.03,0.03,0.095), center=(-0.006,0.045,0.1), rpy=(0,0,0),
                        color=(0.0,0.8,0.0,0.5), display=True, fixed=True, collision=True)
 
-    gscene.create_safe(GEOTYPE.CYLINDER, "{}_finger3".format(robot_name), link_name=link_name,
+    gscene.create_safe(GEOTYPE.CYLINDER, "{}_finger3".format(robot_name),
+                       link_name="{}_tcp".format(robot_name),
                        dims=(0.03,0.03,0.095), center=(0.006,-0.045,0.1), rpy=(0,0,0),
                        color=(0.0,0.8,0.0,0.5), display=True, fixed=True, collision=True)
 
-    gscene.create_safe(GEOTYPE.CYLINDER, "{}_finger4".format(robot_name), link_name=link_name,
+    gscene.create_safe(GEOTYPE.CYLINDER, "{}_finger4".format(robot_name),
+                       link_name="{}_tcp".format(robot_name),
                        dims=(0.03,0.03,0.095), center=(-0.006,-0.045,0.1), rpy=(0,0,0),
                        color=(0.0,0.8,0.0,0.5), display=True, fixed=True, collision=True)
 
+
+##
+# @brief add add_sweep_tool to indy
+# @param gscene     rnb-planning.src.pkg.geometry.geometry.GeometryScene
+# @param robot_name full indexed name of the robot
+def add_indy_sweep_tool(gscene, robot_name, face_name="brush_face"):
+    gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="{}_fts".format(robot_name),
+                       link_name="{}_tcp".format(robot_name),
+                       center=(0, 0, 0.02), dims=(0.07, 0.07, 0.04), rpy=(0, 0, 0), color=(0.8, 0.8, 0.8, 1),
+                       collision=False, fixed=True)
+    gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="{}_fts_col".format(robot_name),
+                       link_name="{}_tcp".format(robot_name),
+                       center=(0, 0, 0.02), dims=(0.11, 0.11, 0.04), rpy=(0, 0, 0), color=(0.0, 0.8, 0.0, 0.5),
+                       collision=True, fixed=True)
+    gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="{}_pole".format(robot_name),
+                       link_name="{}_tcp".format(robot_name),
+                       center=(0, 0, 0.055), dims=(0.03, 0.03, 0.030), rpy=(0, 0, 0), color=(0.8, 0.8, 0.8, 1),
+                       collision=False, fixed=True)
+    gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="{}_pole_col".format(robot_name),
+                       link_name="{}_tcp".format(robot_name),
+                       center=(0, 0, 0.055), dims=(0.07, 0.07, 0.030), rpy=(0, 0, 0), color=(0.0, 0.8, 0.0, 0.2),
+                       collision=True, fixed=True)
+
+    gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_brushbase".format(robot_name),
+                       link_name="{}_tcp".format(robot_name),
+                       center=(0, 0, 0.0775), dims=(0.06, 0.14, 0.015), rpy=(0, 0, 0), color=(0.8, 0.8, 0.8, 1),
+                       collision=False, fixed=True)
+    gscene.create_safe(gtype=GEOTYPE.BOX, name=face_name, link_name="{}_tcp".format(robot_name),
+                       center=(0, 0, 0.095), dims=(0.05, 0.13, 0.015), rpy=(0, 0, 0), color=(1.0, 1.0, 0.94, 1),
+                       collision=False, fixed=True)
+    gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_col".format(face_name), link_name="{}_tcp".format(robot_name),
+                       center=(0, 0, 0.080), dims=(0.08, 0.15, 0.02), rpy=(0, 0, 0), color=(0.0, 0.8, 0.0, 0.5),
+                       collision=True, fixed=True)
 
 ##
 # @brief remove place points except for the current one
@@ -58,45 +96,6 @@ def use_current_sub_binders_only(pscene, current_state):
             if binder.geometry == obj.geometry and bname not in active_binders:
                 pscene.remove_binder(bname)
 
-
-##
-# @brief   define mix_ratio of motion schedule
-# @param    mplan           rnb-planning.src.pkg.planning.motion.moveit.moveit_planner.MoveitPlanner
-# @param    snode_schedule  list of SearchNode
-def mix_schedule(mplan, snode_schedule):
-    schedule_len = len(snode_schedule)
-    for i_s in range(1, schedule_len):
-        snode_pre = snode_schedule[i_s - 1]
-        snode_cur = snode_schedule[i_s]
-        mplan.pscene.set_object_state(snode_pre.state)
-        if snode_pre.traj is None or len(snode_pre.traj) == 0 \
-                or snode_cur.traj is None or len(snode_cur.traj) == 0:
-            snode_cur.mix_ratio = None
-            continue
-        else:
-            traj_pre = snode_pre.traj
-            traj_cur = snode_cur.traj
-            stay_jidx_pre = np.where(traj_pre[0] == traj_pre[-1])[0]
-            move_jidx_cur = np.where(traj_cur[0] != traj_cur[-1])[0]
-            if all([ji in stay_jidx_pre for ji in move_jidx_cur]) \
-                    and all([ji in move_jidx_cur for ji in stay_jidx_pre]):
-                len_pre, len_cur = len(traj_pre), len(traj_cur)
-                mix_ratio_list = [1., 3. / 4, 2. / 4, 1. / 4]
-                for mix_ratio in mix_ratio_list:
-                    mix_idx = max(0, int(len_pre - len_cur * mix_ratio))
-                    mix_len = max(mix_idx + len_cur, len_pre)
-                    traj_mix = np.zeros((mix_len, mplan.joint_num))
-                    traj_mix[:len_pre] = traj_pre
-                    traj_mix[len_pre:] = traj_pre[-1:]
-                    traj_mix[mix_idx:, move_jidx_cur] = traj_cur[:, move_jidx_cur]
-                    res = mplan.validate_trajectory(traj_mix)
-                    if res:
-                        snode_cur.mix_ratio = mix_ratio
-                        break
-                    else:
-                        snode_cur.mix_ratio = None
-            else:
-                snode_cur.mix_ratio = None
 
 
 ### resized image plot

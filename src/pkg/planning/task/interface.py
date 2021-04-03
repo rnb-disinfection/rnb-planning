@@ -21,11 +21,10 @@ class SearchNode:
     # @param depth      depth of current node = number of parent
     # @param redundancy_dict defined redundancy of transition in dictionary form, {object name: {axis: value}}
     def __init__(self, idx, state, parents, leafs, depth=None,
-                 redundancy_dict=None):
+                 redundancy_dict=None, traj=None, traj_tot_parent=0):
         self.idx, self.state, self.parents, self.leafs, self.depth, self.redundancy_dict = \
             idx, state, parents, leafs, depth, redundancy_dict
-        self.mix_ratio = None
-        self.set_traj(None, 0)
+        self.set_traj(traj, traj_tot_parent)
 
     ##
     # @brief    set current transition's trajectory + update trajectory length
@@ -50,7 +49,8 @@ class SearchNode:
     # @param    pscene  rnb-planning.src.pkg.planning.scene.PlanningScene
     def copy(self, pscene):
         return SearchNode(self.idx, State(self.state.binding_state, self.state.state_param, self.state.Q, pscene),
-                          self.parents, self.leafs, self.depth, self.redundancy_dict)
+                          self.parents, self.leafs, self.depth, self.redundancy_dict,
+                          self.traj, self.traj_tot-self.traj_length)
 
 
 ##

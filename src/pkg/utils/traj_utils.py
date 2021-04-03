@@ -213,26 +213,9 @@ def calc_T_list_simple(trajectory, vel_lims, acc_lims,
         dT_list_mid_new[-1] *= 2   # double first and last acc time as they are half-step
         dT_list = (dT_list_mid_new[:-1]+dT_list_mid_new[1:])/2 # between q, N-1
     T_list = np.pad(dT_list, (0,1), 'constant', constant_values=0)
-    T_list = np.insert(T_list, idx_skip, 0)
-    # calc_T_list_simple.T_list = T_list
+    for idx in idx_skip:
+        T_list = np.insert(T_list, idx, 0)
     return T_list
-
-
-##
-# @brief simplify trajectory - divide each constant velocity section into 5 waypoints
-def simplify_traj(trajectory):
-    dq_pre = np.zeros(trajectory.shape[-1])
-    q_wp_s = None
-    traj_new = []
-    for q, q_nxt in zip(trajectory, np.pad(trajectory[1:], ((0,1),(0,0)), 'edge')):
-        dq = (q_nxt-q)
-        if np.max(np.abs(dq-dq_pre))>1e-5:
-            if q_wp_s is not None:
-                wp_step = q - q_wp_s
-                traj_new.append(q_wp_s + wp_step*np.array(STEPS)[:, np.newaxis])
-            q_wp_s = q
-        dq_pre = dq
-    return np.concatenate(traj_new)
 
 
 ##
@@ -240,7 +223,6 @@ def simplify_traj(trajectory):
 # @remark terminal deceleration considered
 def calc_safe_trajectory(dt_step, trajectory, vel_lims, acc_lims):
     # calculate waypoint times
-    trajectory = simplify_traj(trajectory)
     T_list = calc_T_list_simple(trajectory, vel_lims, acc_lims)
 
     # round waypoint times with dt_step
@@ -253,24 +235,11 @@ def calc_safe_trajectory(dt_step, trajectory, vel_lims, acc_lims):
             T_list_new.append(np.ceil(T_stack / dt_step) * dt_step)
             Q_list.append(Q)
             T_stack = 0
-    if np.all(Q != Q_list[-1]):
+    if np.any(Q != Q_list[-1]):
         T_list_new.append(np.ceil(T_stack / dt_step) * dt_step)
         Q_list.append(Q)
     T_list = np.array(T_list_new)
     Q_list = np.array(Q_list)
-
-    #     # round waypoint times with dt_step
-    #     Q_list = trajectory
-    #     T_list_accum = np.cumsum(T_list)
-    #     T_list_accum_round = np.pad(np.round(T_list_accum / dt_step) * dt_step, (1, 0), 'constant', constant_values=0)
-    #     T_list_round = T_list_accum_round[1:] - T_list_accum_round[:-1]
-    #     idx_move = np.where(T_list_accum_round[1:] - T_list_accum_round[:-1] > dt_step / 2)[0]
-    #     T_list = np.pad(T_list_round[idx_move], (0, 1), 'constant', constant_values=0)
-    #     idx_move = np.pad(idx_move + 1, (1, 0), 'constant', constant_values=0)
-    #     Q_list = Q_list[idx_move]
-    #
-    # calc_safe_trajectory.T_list = T_list
-    # calc_safe_trajectory.Q_list = Q_list
 
     # prepare backward waypoints and times
     Qrev_list = np.array(list(reversed(Q_list)))
@@ -290,3 +259,105 @@ def calc_safe_trajectory(dt_step, trajectory, vel_lims, acc_lims):
     # mix forward and backward trajectory with S curve weights
     traj_tot = beta * traj_all + alpha * trajrev_all
     return t_all, traj_tot
+
+
+##
+# @brief calculate safe trajectory for all SearchNode in schedule
+def calculate_safe_schedule(pscene, snode_schedule, vel_lims, acc_lims):
+    snode_schedule_safe = []
+    for snode in snode_schedule:
+        snode_cp = snode.copy(pscene)
+        snode_schedule_safe.append(snode_cp)
+        if snode_cp.traj is not None:
+            _, snode_cp.traj = calc_safe_trajectory(2e-2, snode_cp.traj, vel_lims=vel_lims, acc_lims=acc_lims)
+    return snode_schedule_safe
+
+
+def copy_schedule(pscene, snode_schedule):
+    copied = []
+    for snode in snode_schedule:
+        copied.append(snode.copy(pscene))
+    return copied
+
+##
+# @brief simplify trajectory - divide each constant velocity section into 5 waypoints
+def simplify_traj(trajectory, step_fractions=[0, 0.1, 0.5, 0.9, 1]):
+    dq_pre = np.zeros(trajectory.shape[-1])
+    traj_new = []
+    traj_stack = []
+    step_len = len(step_fractions)
+    for q, q_nxt in zip(trajectory, np.pad(trajectory[1:], ((0, 1), (0, 0)), 'edge')):
+        dq = (q_nxt-q)
+        traj_stack.append(q)
+        if np.max(np.abs(dq-dq_pre)) > 1e-5:
+            if len(traj_stack) > 1:
+                if len(traj_stack) > step_len:
+                    traj_stack = traj_stack[0] \
+                                 + (traj_stack[-1] - traj_stack[0]) * np.array(step_fractions)[:, np.newaxis]
+                traj_new.append(traj_stack[:-1])
+            traj_stack = [q]
+        dq_pre = dq
+    traj_new.append(traj_stack[:1])
+    return np.concatenate(traj_new)
+
+
+##
+# @brief simplify_schedule
+def simplify_schedule(pscene, snode_schedule, step_fractions=[0, 0.1, 0.5, 0.9, 1]):
+    snode_schedule_cp = copy_schedule(pscene, snode_schedule)
+    traj_tot = 0
+    for snode in snode_schedule_cp:
+        if snode.traj is not None:
+            snode.set_traj(simplify_traj(snode.traj, step_fractions=step_fractions), traj_tot)
+    return snode_schedule_cp
+
+
+##
+# @brief   generate new schedule with mixed dual arm motion
+# @param    mplan           rnb-planning.src.pkg.planning.motion.moveit.moveit_planner.MoveitPlanner
+# @param    snode_schedule  list of SearchNode
+def mix_schedule(mplan, snode_schedule):
+    schedule_len = len(snode_schedule)
+    mixed_prev = False
+    snode_schedule_mixed = []
+    snode_pre = snode_schedule[0]
+    for i_s in range(schedule_len):
+        snode_cur = snode_schedule[i_s]
+        mplan.pscene.set_object_state(snode_pre.state)
+
+        snode_new = snode_cur.copy(mplan.pscene)
+        if mixed_prev or \
+                snode_pre.traj is None or len(snode_pre.traj) == 0 \
+                or snode_cur.traj is None or len(snode_cur.traj) == 0:
+            mixed_prev = False
+        else:
+            traj_pre = snode_pre.traj
+            traj_cur = snode_cur.traj
+            stay_jidx_pre = np.where(traj_pre[0] == traj_pre[-1])[0]
+            move_jidx_cur = np.where(traj_cur[0] != traj_cur[-1])[0]
+            if all([ji in stay_jidx_pre for ji in move_jidx_cur]) \
+                    and all([ji in move_jidx_cur for ji in stay_jidx_pre]):
+                len_pre, len_cur = len(traj_pre), len(traj_cur)
+                mix_ratio_list = [1., 3. / 4, 2. / 4, 1. / 4]
+                for mix_ratio in mix_ratio_list:
+                    mix_idx = max(0, int(len_pre - len_cur * mix_ratio))
+                    mix_len = max(mix_idx + len_cur, len_pre)
+                    traj_mix = np.zeros((mix_len, mplan.joint_num))
+                    traj_mix[:len_pre] = traj_pre
+                    traj_mix[len_pre:] = traj_pre[-1:]
+                    traj_mix[mix_idx:, move_jidx_cur] = traj_cur[:, move_jidx_cur]
+                    res = mplan.validate_trajectory(traj_mix)
+                    if res:
+                        snode_new.traj = traj_mix
+                        snode_new.parents = snode_pre.parents
+                        snode_schedule_mixed.pop(-1)
+                        mixed_prev = True
+                        break
+                    else:
+                        mixed_prev = False
+            else:
+                mixed_prev = False
+        snode_schedule_mixed.append(snode_new)
+        snode_pre = snode_cur
+
+    return snode_schedule_mixed
