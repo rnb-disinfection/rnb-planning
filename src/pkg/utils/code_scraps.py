@@ -67,10 +67,10 @@ def add_indy_sweep_tool(gscene, robot_name, face_name="brush_face"):
                        center=(0, 0, 0.0775), dims=(0.06, 0.14, 0.015), rpy=(0, 0, 0), color=(0.8, 0.8, 0.8, 1),
                        collision=False, fixed=True)
     gscene.create_safe(gtype=GEOTYPE.BOX, name=face_name, link_name="{}_tcp".format(robot_name),
-                       center=(0, 0, 0.095), dims=(0.05, 0.13, 0.015), rpy=(0, 0, 0), color=(1.0, 1.0, 0.94, 1),
+                       center=(0, 0, 0.09), dims=(0.05, 0.13, 0.02), rpy=(0, 0, 0), color=(1.0, 1.0, 0.94, 1),
                        collision=False, fixed=True)
     gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_col".format(face_name), link_name="{}_tcp".format(robot_name),
-                       center=(0, 0, 0.080), dims=(0.08, 0.15, 0.02), rpy=(0, 0, 0), color=(0.0, 0.8, 0.0, 0.5),
+                       center=(0, 0, 0.08), dims=(0.08, 0.15, 0.03), rpy=(0, 0, 0), color=(0.0, 0.8, 0.0, 0.5),
                        collision=True, fixed=True)
 
 ##

@@ -322,7 +322,7 @@ class PlanningPipeline:
             if snode.traj is None or len(snode.traj) == 0:
                 snode_pre = snode
                 continue
-            self.pscene.gscene.show_motion(snode.traj)
+            self.pscene.gscene.show_motion(snode.traj, period=period)
             time.sleep(period)
             self.pscene.gscene.show_pose(snode.traj[-1])
             snode_pre = snode
