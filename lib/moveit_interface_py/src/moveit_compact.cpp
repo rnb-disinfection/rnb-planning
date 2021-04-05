@@ -396,9 +396,11 @@ PlanResult& Planner::plan_with_constraints(string group_name, string tool_link,
     cout << (plan_result.trajectory.end()-1)->transpose() << endl;
     printf(LOG_FRAME_LINE "\n");
     plan_result.success = true;
-    if(post_projection){
-        for(auto itor=plan_result.trajectory.begin(); itor!=plan_result.trajectory.end(); itor++){
-            manifold_intersection->project(*itor);
+    if(cs_type==ompl_interface::ConstrainedSpaceType::TANGENTBUNDLE){
+        if(post_projection){
+            for(auto itor=plan_result.trajectory.begin(); itor!=plan_result.trajectory.end(); itor++){
+                manifold_intersection->project(*itor);
+            }
         }
     }
     return plan_result;
@@ -437,15 +439,10 @@ void Planner::test_jacobian(JointState init_state){
 bool Planner::validate_trajectory(Trajectory trajectory){
     bool _valid = true;
     robot_state::RobotState robot_state = planning_scene_->getCurrentState();
+    collision_detection::CollisionResult res;
+    collision_detection::CollisionRequest collision_req;
     for(auto titor=trajectory.begin(); titor!=trajectory.end(); titor++){
         robot_state.setVariablePositions(titor->data());
-        planning_scene_->setCurrentState(robot_state);
-        collision_detection::CollisionResult res;
-        collision_detection::CollisionRequest collision_req;
-        planning_scene_->checkSelfCollision(collision_req, res, robot_state);
-        _valid = !res.collision;
-        if (!_valid)
-            break;
         planning_scene_->checkCollision(collision_req, res, robot_state);
         _valid = !res.collision;
         if (!_valid)
@@ -585,12 +582,12 @@ JointState Planner::solve_ik(string group_name, CartPose goal_pose,
             }
             state_cur.setJointGroupPositions(joint_model_group, result.data());
             planning_scene_->setCurrentState(state_cur);
-            if(self_collision){
-                planning_scene_->checkSelfCollision(collision_request, collision_result);
+            if(fulll_collision){
+                planning_scene_->checkCollision(collision_request, collision_result);
                 collision_ok = !collision_result.collision;
             }
-            if(fulll_collision && collision_ok){
-                planning_scene_->checkCollision(collision_request, collision_result);
+            else if(self_collision){
+                planning_scene_->checkSelfCollision(collision_request, collision_result);
                 collision_ok = !collision_result.collision;
             }
         }
