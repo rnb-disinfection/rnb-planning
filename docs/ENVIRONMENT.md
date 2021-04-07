@@ -43,8 +43,13 @@
   ```
 
 * Install NVIDIA driver
-```bash
+  * Graphic card version <= RTX2080
+  ```bash
   sudo apt-get install --no-install-recommends nvidia-driver-450
+  ```
+  * Graphic card version <= RTX3090
+  ```bash
+  sudo apt-get install --no-install-recommends nvidia-driver-460
   ```
 * ***[IMPORTANT]*** Reboot!!!  
   Check that GPUs are visible using the command: nvidia-smi
