@@ -57,6 +57,7 @@
 
 * Install development and runtime libraries (~4GB)
   * If error raises because specific version is not found, use tab key to find available versions and install closest version.
+  * Available on 2021.4.7: libcudnn8, libcudnn8-dev = 8.0.5.39-1+cuda11.0
   ```bash
   cd ~/NVIDIA_TMP \
   && wget https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64/libnvinfer7_7.1.3-1+cuda11.0_amd64.deb \
