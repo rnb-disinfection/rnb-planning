@@ -26,7 +26,8 @@
   ```
 
 ## Setup NVIDIA cuda 11.0 and cudnn 8.0 for tf 2.4.0 (below is official guide from homepage)
-
+* Below is for RTX2080 and nvidia graphic driver version 450.
+* Check driver version compatibility with your graphic card and follow the latest official guide (https://www.tensorflow.org/install/gpu)
 * Update repositories
 ```bash
   # Add NVIDIA package repositories
