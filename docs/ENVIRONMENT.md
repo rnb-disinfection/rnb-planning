@@ -82,7 +82,7 @@
 
 * ***[IMPORTANT]*** Restart terminal!!!
 
-* Install TensorRT. Requires that libcudnn8 is installed above.
+* Install TensorRT. Requires that libcudnn8 is installed above. (OPTIONAL)
   ```bash
   sudo apt-get install -y --no-install-recommends libnvinfer7=7.1.3-1+cuda11.0 \
     libnvinfer-dev=7.1.3-1+cuda11.0 \
