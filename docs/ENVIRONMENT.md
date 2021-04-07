@@ -56,7 +56,8 @@
 
 
 * Install development and runtime libraries (~4GB)
-```bash
+  * If error raises because specific version is not found, use tab key to find available versions and install closest version.
+  ```bash
   cd ~/NVIDIA_TMP \
   && wget https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64/libnvinfer7_7.1.3-1+cuda11.0_amd64.deb \
   && sudo apt install ./libnvinfer7_7.1.3-1+cuda11.0_amd64.deb \
