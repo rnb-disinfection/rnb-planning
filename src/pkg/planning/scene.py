@@ -402,7 +402,7 @@ class PlanningScene:
             while objects_to_update:
                 obj = objects_to_update.pop(0)
                 oname, hname, bname, bgname = obj.get_initial_binding(self.actor_dict, self.combined_robot.home_dict)
-                if bgname in [box_tmp.geometry.name for box_tmp in objects_to_update]:  # binder will be updated
+                if any([bgname in box_tmp.geometry.get_family() for box_tmp in objects_to_update]):  # binder will be updated
                     objects_to_update.append(obj)  # move to end to use updated binder info
                     continue
                 fit_binding(obj, obj.action_points_dict[hname], self.actor_dict[bname], self.combined_robot.home_dict)

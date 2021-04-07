@@ -73,6 +73,18 @@ def add_indy_sweep_tool(gscene, robot_name, face_name="brush_face"):
                        center=(0, 0, 0.08), dims=(0.08, 0.15, 0.03), rpy=(0, 0, 0), color=(0.0, 0.8, 0.0, 0.5),
                        collision=True, fixed=True)
 
+
+def finish_L_shape(gscene, gtem_dict):
+    if "l_shape" in gtem_dict:
+        l_center = gtem_dict["l_shape"]
+        gscene.create_safe(gtype=GEOTYPE.BOX, name="l_shape_x", link_name=l_center.link_name,
+                           center=(l_center.dims[0], 0.0, 0.0), dims=l_center.dims, rpy=(0, 0, 0), color=l_center.color,
+                           collision=l_center.collision, fixed=l_center.fixed, parent="l_shape")
+        gscene.create_safe(gtype=GEOTYPE.BOX, name="l_shape_z", link_name=l_center.link_name,
+                           center=(0.0, 0.0, l_center.dims[2]), dims=l_center.dims, rpy=(0, 0, 0), color=l_center.color,
+                           collision=l_center.collision, fixed=l_center.fixed, parent="l_shape")
+
+
 ##
 # @brief remove place points except for the current one
 def use_current_place_point_only(pscene, current_state):
@@ -93,7 +105,7 @@ def use_current_sub_binders_only(pscene, current_state):
 
     for obj in pscene.subject_dict.values():
         for bname, binder in pscene.actor_dict.items():
-            if binder.geometry == obj.geometry and bname not in active_binders:
+            if binder.geometry.name in obj.geometry.get_family() and bname not in active_binders:
                 pscene.remove_binder(bname)
 
 

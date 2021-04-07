@@ -753,6 +753,7 @@ class BoxObject(AbstractObject):
     # @param planning_scene rnb-planning.src.pkg.planning.scene.PlanningScene
     # @param _type          subclass of rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
     def register_binders(self, planning_scene, _type):
+        gscene = planning_scene.gscene
         gname = self.geometry.name
         dims = self.geometry.dims
         for k in DIR_RPY_DICT.keys():
@@ -761,8 +762,14 @@ class BoxObject(AbstractObject):
             rpy = DIR_RPY_DICT[k]
             point = tuple(-np.multiply(DIR_VEC_DICT[k], dims)/2)
             bname = "{}_{}".format(gname, k)
-            self.sub_binders_dict[bname] = planning_scene.create_binder(bname=bname, gname=gname, _type=_type,
-                                                                        point=point, rpy=rpy)
+            R = Rot_rpy(rpy)
+            dims_new = np.abs(np.matmul(R.transpose(), dims))
+            dims_new[2] = 1e-6
+            gscene.create_safe(GEOTYPE.BOX, bname,
+                               link_name=self.geometry.link_name,
+                               dims=dims_new, center=point, rpy=rpy,
+                               display=False, collision=False, fixed=self.geometry.fixed, parent=gname)
+            self.sub_binders_dict[bname] = planning_scene.create_binder(bname=bname, gname=bname, _type=_type)
 
 
 ##

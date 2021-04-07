@@ -453,7 +453,7 @@ class GeometryItem(object):
         gtem = self
         while gtem.parent is not None:
             gtem = self.gscene.NAME_DICT[gtem.parent]
-        to_add = gtem.children
+        to_add = list(gtem.children)
         family = [gtem.name]
         while len(to_add)>0:
             gtem = self.gscene.NAME_DICT[to_add.pop(0)]
