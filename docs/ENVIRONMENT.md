@@ -2,23 +2,23 @@
 * Turn off "Fast boot" & "Secure boot" on Bios
 * Ubuntu 18.04  
 * install gcc7 & gcc5
-```bash
+  ```bash
   sudo add-apt-repository ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install gcc-7 g++-7 gcc-7-multilib g++-7-multilib \
   && sudo add-apt-repository ppa:ubuntu-toolchain-r/test && sudo apt-get update && sudo apt-get install gcc-5 g++-5 gcc-5-multilib g++-5-multilib  
   ```
 * set gcc alternative versions:  
-```bash
+  ```bash
   sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-5 20 \
   && sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 40 \
   && sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-5 20 \
   && sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-7 40  
   ```
 * check gcc/g++ alternative version  
-```bash
+  ```bash
   sudo update-alternatives --display gcc && sudo update-alternatives --display g++  
   ```
 * pip
-```bash
+  ```bash
   sudo apt-get install python3-pip && pip3 install --upgrade pip \
   && sudo apt-get install python-pip && pip install --upgrade pip \
   && pip3 install setuptools==41.0.0 \
@@ -29,7 +29,7 @@
 * Below is for RTX2080 and nvidia graphic driver version 450.
 * Check driver version compatibility with your graphic card and follow the latest official guide (https://www.tensorflow.org/install/gpu, English version is most reliable)
 * Update repositories
-```bash
+  ```bash
   # Add NVIDIA package repositories
   mkdir ~/NVIDIA_TMP && cd ~/NVIDIA_TMP \
   && wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-ubuntu1804.pin \
@@ -70,7 +70,7 @@
   ```
 
 * Add PATH variables to environment
-```bash
+  ```bash
   echo 'export PATH=$PATH:/usr/local/cuda-11.0/bin' >> ~/.bashrc \
   && echo 'export CUDADIR=/usr/local/cuda-11.0' >> ~/.bashrc \
   && echo 'if [ -z $LD_LIBRARY_PATH ]; then' >> ~/.bashrc \
@@ -83,7 +83,7 @@
 * ***[IMPORTANT]*** Restart terminal!!!
 
 * Install TensorRT. Requires that libcudnn8 is installed above.
-```bash
+  ```bash
   sudo apt-get install -y --no-install-recommends libnvinfer7=7.1.3-1+cuda11.0 \
     libnvinfer-dev=7.1.3-1+cuda11.0 \
     libnvinfer-plugin7=7.1.3-1+cuda11.0
@@ -91,7 +91,7 @@
 
   
 * Install tensorflow
-```bash
+  ```bash
   pip3 install tensorflow-gpu==2.4.0
   ```
 
