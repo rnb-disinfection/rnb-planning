@@ -78,47 +78,43 @@ def get_aruco_map():
                              ObjectMarker('box3', 135, 0.04, [0.025,0,0], (0,-np.pi/2,0)),
                              ObjectMarker('box3', 136, 0.04, [-0.025,0,0], (0,np.pi/2,0))
                          ]),
-        'box_long':MarkerSet('box_long',
+        'long_1':MarkerSet('long_1',
                          dlevel=DetectionLevel.MOVABLE, gtype=GEOTYPE.BOX, dims=(0.05,0.05,0.10), color=(0.8,0.8,0.8,1),
                          _list=[
-                             ObjectMarker('box_long', 140, 0.04, [0,0,0.05], (np.pi,0,0)),
+                             ObjectMarker('long_1', 140, 0.04, [0,0,0.05], (np.pi,0,0)),
 
-                             ObjectMarker('box_long', 141, 0.04, [0,0.025,-0.025], (np.pi/2,0,0)),
-                             ObjectMarker('box_long', 142, 0.04, [0,0.025,+0.025], (np.pi/2,0,0)),
+                             ObjectMarker('long_1', 141, 0.04, [0,0.025,-0.025], (np.pi/2,0,0)),
+                             ObjectMarker('long_1', 142, 0.04, [0,0.025,+0.025], (np.pi/2,0,0)),
 
-                             ObjectMarker('box_long', 143, 0.04, [0,0,-0.05], (0,0,0)),
+                             ObjectMarker('long_1', 143, 0.04, [0,0,-0.05], (0,0,0)),
 
-                             ObjectMarker('box_long', 144, 0.04, [0,-0.025,+0.025], (-np.pi/2,0,0)),
-                             ObjectMarker('box_long', 145, 0.04, [0,-0.025,-0.025], (-np.pi/2,0,0)),
+                             ObjectMarker('long_1', 144, 0.04, [0,-0.025,+0.025], (-np.pi/2,0,0)),
+                             ObjectMarker('long_1', 145, 0.04, [0,-0.025,-0.025], (-np.pi/2,0,0)),
 
-                             ObjectMarker('box_long', 146, 0.04, [0.025,0,-0.025], (0,-np.pi/2,0)),
-                             ObjectMarker('box_long', 147, 0.04, [0.025,0,+0.025], (0,-np.pi/2,0)),
+                             ObjectMarker('long_1', 146, 0.04, [0.025,0,-0.025], (0,-np.pi/2,0)),
+                             ObjectMarker('long_1', 147, 0.04, [0.025,0,+0.025], (0,-np.pi/2,0)),
 
-                             ObjectMarker('box_long', 148, 0.04, [-0.025,0,+0.025], (0,np.pi/2,0)),
-                             ObjectMarker('box_long', 149, 0.04, [-0.025,0,-0.025], (0,np.pi/2,0))
+                             ObjectMarker('long_1', 148, 0.04, [-0.025,0,+0.025], (0,np.pi/2,0)),
+                             ObjectMarker('long_1', 149, 0.04, [-0.025,0,-0.025], (0,np.pi/2,0))
                          ]),
-        'l_shape':MarkerSet('l_shape',
-                         dlevel=DetectionLevel.MOVABLE, gtype=GEOTYPE.BOX, dims=(0.05,0.05,0.05), color=(0.8,0.8,0.8,1),
+        'long_2':MarkerSet('long_2',
+                         dlevel=DetectionLevel.MOVABLE, gtype=GEOTYPE.BOX, dims=(0.05,0.05,0.10), color=(0.8,0.8,0.8,1),
                          _list=[
-                             ObjectMarker('l_shape', 150, 0.04, [0,0,0.075], (np.pi,0,0)),
-                             ObjectMarker('l_shape', 151, 0.04, [0.05,0,0.025], (np.pi,0,0)),
+                             ObjectMarker('long_2', 150, 0.04, [0,0,0.05], (np.pi,0,0)),
 
-                             ObjectMarker('l_shape', 152, 0.04, [0,0.025,0.050], (np.pi/2,0,0)),
-                             ObjectMarker('l_shape', 153, 0.04, [0,0.025,0.000], (np.pi/2,0,0)),
-                             ObjectMarker('l_shape', 154, 0.04, [0.05,0.025, 0.000], (np.pi/2,0,0)),
+                             ObjectMarker('long_2', 152, 0.04, [0,0.025,+0.025], (np.pi/2,0,0)),
+                             ObjectMarker('long_2', 153, 0.04, [0,0.025,-0.025], (np.pi/2,0,0)),
 
-                             ObjectMarker('l_shape', 155, 0.04, [0,0,-0.025], (0,0,0)),
-                             ObjectMarker('l_shape', 156, 0.04, [0.05,0,-0.025], (0,0,0)),
+                             ObjectMarker('long_2', 155, 0.04, [0,0,-0.05], (0,0,0)),
 
-                             ObjectMarker('l_shape', 157, 0.04, [0,-0.025, 0.050], (-np.pi/2,0,0)),
-                             ObjectMarker('l_shape', 158, 0.04, [0,-0.025,-0.000], (-np.pi/2,0,0)),
-                             ObjectMarker('l_shape', 159, 0.04, [0.05,-0.025, 0.000], (-np.pi/2,0,0)),
+                             ObjectMarker('long_2', 157, 0.04, [0,-0.025, 0.025], (-np.pi/2,0,0)),
+                             ObjectMarker('long_2', 158, 0.04, [0,-0.025,-0.025], (-np.pi/2,0,0)),
 
-                             ObjectMarker('l_shape', 160, 0.04, [0.075,0,-0.000], (0,-np.pi/2,0)),
-                             ObjectMarker('l_shape', 161, 0.04, [0.025,0, 0.050], (0,-np.pi/2,0)),
+                             ObjectMarker('long_2', 156, 0.04, [0.025,0,-0.025], (0,-np.pi/2,0)),
+                             ObjectMarker('long_2', 161, 0.04, [0.025,0, 0.025], (0,-np.pi/2,0)),
 
-                             ObjectMarker('l_shape', 162, 0.04, [-0.025,0, 0.050], (0,np.pi/2,0)),
-                             ObjectMarker('l_shape', 163, 0.04, [-0.025,0,-0.000], (0,np.pi/2,0))
+                             ObjectMarker('long_2', 162, 0.04, [-0.025,0, 0.025], (0,np.pi/2,0)),
+                             ObjectMarker('long_2', 163, 0.04, [-0.025,0,-0.025], (0,np.pi/2,0))
                          ]),
         'goal':MarkerSet('goal',
                          dlevel=DetectionLevel.MOVABLE, gtype=GEOTYPE.BOX, dims=(0.1, 0.1,0.01), color=(0.8,0.0,0.0,1),
