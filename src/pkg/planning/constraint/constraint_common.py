@@ -59,7 +59,7 @@ class ActionPoint:
         self.point = point
         self.rpy_point = rpy
         self.R_point = Rot_rpy(self.rpy_point)
-        self.Toff_oh = SE3(self.R_point, self.point or (0, 0, 0))
+        self.Toff_oh = SE3(self.R_point, self.point if self.point is not None else (0, 0, 0))
         self.update_handle()
 
     ##

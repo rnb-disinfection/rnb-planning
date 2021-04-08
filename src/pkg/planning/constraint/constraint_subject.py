@@ -66,6 +66,15 @@ class VacuumPoint(DirectedPoint):
 # @brief ActionPoint for rnb-planning.src.pkg.planning.constraint.constraint_actor.Gripper2Tool
 class Grasp2Point(DirectedPoint):
     ctype=ConstraintType.Grasp2
+    def get_redundancy(self):
+        if self.point is not None:
+            return {"w":(-np.pi/4,np.pi/4)}
+        else:
+            dims =self.geometry.dims
+            return {"x":(-dims[0]/2,dims[0]/2),
+                    "y":(-dims[1]/2,dims[1]/2),
+                    "z":(dims[2]/2,dims[2]/2),
+                    "w":(-np.pi/4,np.pi/4)}
 
 
 ##
@@ -136,13 +145,6 @@ class Subject:
     ##
     # @brief get conflicting handles to build efficient search tree
     # @param handle name
-    def get_conflicting_points(self, hname):
-        return [hname]
-
-    ##
-    # @brief get conflicting handles to build efficient search tree
-    # @param handle name
-    @abstractmethod
     def get_conflicting_points(self, hname):
         return [hname]
 
@@ -698,54 +700,91 @@ class BoxObject(AbstractObject):
     # @param oname object's name
     # @param geometry parent geometry
     # @param hexahedral If True, all hexahedral points are defined. Otherwise, only top and bottom points are defined
-    def __init__(self, oname, geometry, hexahedral=True, CLEARANCE=1e-3):
+    def __init__(self, oname, geometry, hexahedral=True, CLEARANCE=1e-3,
+                 GRASP_WIDTH_MIN=0.04, GRASP_WIDTH_MAX=0.06, GRASP_DEPTH_MIN=0.025, GRASP_DEPTH_MAX=0.025):
         self.oname = oname
         self.geometry = geometry
         self.CLEARANCE = CLEARANCE
-        Xhalf, Yhalf, Zhalf = np.divide(geometry.dims,2)+CLEARANCE
-        self.action_points_dict = {
-            "top_p": PlacePoint("top_p", geometry, [0,0,Zhalf], [np.pi,0,0]),
-            "bottom_p": PlacePoint("bottom_p", geometry, [0,0,-Zhalf], [0,0,0]),
-            # "top_v": VacuumPoint("top_v", geometry, [0,0,Zhalf], [0,0,-1]),
-            # "bottom_v": VacuumPoint("bottom_v", geometry, [0,0,-Zhalf], [0,0,1]),
-            "top_g": Grasp2Point("top_g", geometry, [0,0,0], [np.pi,0,0]),
-            "bottom_g": Grasp2Point("bottom_g", geometry, [0,0,0], [0,0,0]),
-            "top_f": FramePoint("top_f", geometry, [0,0,Zhalf], [np.pi,0,0]),
-            "bottom_f": FramePoint("bottom_f", geometry, [0,0,-Zhalf], [0,0,0])
-        }
+        self.GRASP_WIDTH_MIN = GRASP_WIDTH_MIN
+        self.GRASP_WIDTH_MAX = GRASP_WIDTH_MAX
+        self.GRASP_DEPTH_MIN = GRASP_DEPTH_MIN
+        self.GRASP_DEPTH_MAX = GRASP_DEPTH_MAX
+        self.action_points_dict = {}
+        self.conflict_dict = {}
         self.sub_binders_dict = {}
         self.hexahedral = hexahedral
-        if hexahedral:
-            self.action_points_dict.update({
-                "right_p": PlacePoint("right_p", geometry, [Xhalf,0,0], [0,-np.pi/2,0]),
-                "left_p": PlacePoint("left_p", geometry, [-Xhalf,0,0], [0,np.pi/2,0]),
-                "front_p": PlacePoint("front_p", geometry, [0,-Yhalf,0], [-np.pi/2,0,0]),
-                "back_p": PlacePoint("back_p", geometry, [0,Yhalf,0], [np.pi/2,0,0]),
-                # "right_v": VacuumPoint("right_v", geometry, [Xhalf,0,0], [-1,0,0]),
-                # "left_v": VacuumPoint("left_v", geometry, [-Xhalf,0,0], [1,0,0]),
-                # "front_v": VacuumPoint("front_v", geometry, [0,-Yhalf,0], [0,1,0]),
-                # "back_v": VacuumPoint("back_v", geometry, [0,Yhalf,0], [0,-1,0]),
-                "right_g": Grasp2Point("right_g", geometry, [0,0,0], [0,-np.pi/2,0]),
-                "left_g": Grasp2Point("left_g", geometry, [0,0,0], [0,np.pi/2,0]),
-                "front_g": Grasp2Point("front_g", geometry, [0,0,0], [-np.pi/2,0,0]),
-                "back_g": Grasp2Point("back_g", geometry, [0,0,0], [np.pi/2,0,0]),
-                "right_f": FramePoint("right_f", geometry, [Xhalf,0,0], [0,-np.pi/2,0]),
-                "left_f": FramePoint("left_f", geometry, [-Xhalf,0,0], [0,np.pi/2,0]),
-                "front_f": FramePoint("front_f", geometry, [0,-Yhalf,0], [-np.pi/2,0,0]),
-                "back_f": FramePoint("back_f", geometry, [0,Yhalf,0], [np.pi/2,0,0])
-            })
-            self.conflict_dict = {
-                hname: [hname[:-1]+postfix for postfix in "pgf"] +
-                       ([OPPOSITE_DICT[hname[:-2]]+"_"+postfix for postfix in "pgf"] \
-                            if hname[-1] == "g" else [OPPOSITE_DICT[hname[:-2]]+"_g"])
-                for hname in self.action_points_dict.keys()
-            }
+        self.__add_place_points(self.geometry, CLEARANCE=CLEARANCE)
+        self.__add_grip_points(GRASP_WIDTH_MIN=GRASP_WIDTH_MIN, GRASP_WIDTH_MAX=GRASP_WIDTH_MAX,
+                               GRASP_DEPTH_MIN=GRASP_DEPTH_MIN, GRASP_DEPTH_MAX=GRASP_DEPTH_MAX)
+        self.__set_conflict_dict()
         self.binding = (self.oname, None, None, None)
+
+    ##
+    # @brief add action points to given box geometry
+    def __add_place_points(self, gbox, CLEARANCE=1e-3):
+        Xhalf, Yhalf, Zhalf = np.divide(gbox.dims,2)+CLEARANCE
+        self.action_points_dict.update({
+            "top_p": PlacePoint("top_p", gbox, [0,0,Zhalf], [np.pi,0,0]),
+            "bottom_p": PlacePoint("bottom_p", gbox, [0,0,-Zhalf], [0,0,0])
+        })
+        if self.hexahedral:
+            self.action_points_dict.update({
+                "right_p": PlacePoint("right_p", gbox, [Xhalf,0,0], [0,-np.pi/2,0]),
+                "left_p": PlacePoint("left_p", gbox, [-Xhalf,0,0], [0,np.pi/2,0]),
+                "front_p": PlacePoint("front_p", gbox, [0,-Yhalf,0], [-np.pi/2,0,0]),
+                "back_p": PlacePoint("back_p", gbox, [0,Yhalf,0], [np.pi/2,0,0])
+            })
+
+    def __add_grip_points(self,
+                          GRASP_WIDTH_MIN=0.04, GRASP_WIDTH_MAX=0.06,
+                          GRASP_DEPTH_MIN=0.025, GRASP_DEPTH_MAX=0.025):
+        gbox = self.geometry
+        dims = gbox.dims
+        dims_hf = np.divide(gbox.dims, 2)
+        for k_dir, rpy in DIR_RPY_DICT.items():
+            R = Rot_rpy(rpy)
+            for i_r in range(4):
+                ggname = "{}_{}_{}_g".format(gbox.name, k_dir, i_r)
+                Rapproach = np.matmul(R, Rot_axis(3,
+                                                  i_r * np.pi / 2))  # z: approaching vector forward, y: pinching axis
+                Rgrip = np.matmul(Rapproach,
+                                  Rot_axis(1, -np.pi / 2))  # y: approaching vector backward, z: pinching axis
+                rpy_grip = Rot2rpy(Rgrip)
+                redundant_axis, approach_vec, pinch_axis = Rgrip[:, 0], Rgrip[:, 1], Rgrip[:, 2]
+                grasp_width = np.abs(np.dot(pinch_axis, dims))
+                if not (GRASP_WIDTH_MIN < grasp_width < GRASP_WIDTH_MAX):
+                    continue
+                offset_ref = np.abs(np.dot(approach_vec, dims_hf))
+                offset_max = max(offset_ref - GRASP_DEPTH_MIN, 0)
+                offset_min = max(offset_ref - GRASP_DEPTH_MAX, 0)
+                offset_range = offset_max - offset_min
+                redundant_len = max(np.abs(np.dot(redundant_axis, dims)) - GRASP_DEPTH_MIN * 2, 0)
+                gcenter = np.matmul(Rgrip, [[0], [(offset_max + offset_min) / 2], [0]])[:, 0]
+                if offset_range < 1e-3 and redundant_len < 1e-3:
+                    gpoint = Grasp2Point(ggname, gbox, gcenter, rpy_grip)
+                else:
+                    ggtem = gbox.gscene.create_safe(GEOTYPE.BOX, ggname, link_name=gbox.link_name,
+                                                    dims=(redundant_len, offset_range, 0), center=gcenter, rpy=rpy_grip,
+                                                    color=(0.0, 0.8, 0.0, 0.5), display=gbox.display, fixed=gbox.fixed,
+                                                    collision=False, parent=gbox.name)
+                    gpoint = Grasp2Point(ggname, ggtem, None, (0, 0, 0))
+                self.action_points_dict.update({ggname: gpoint})
+
+    def __set_conflict_dict(self):
+        ap_names = sorted(self.action_points_dict.keys())
+        dir_keys = sorted(OPPOSITE_DICT.keys())
+        self.conflict_dict = {}
+        for hname in ap_names:
+            hnames_conflict = []
+            for dkey in dir_keys:
+                if dkey in hname:
+                    hnames_conflict += [hname_ for hname_ in ap_names if dkey in hname_]
+            self.conflict_dict[hname] = hnames_conflict
 
     ##
     # @brief get conflicting handles in hexahedral geometry
     # @param handle name
-    def get_conflicting_handles(self, hname):
+    def get_conflicting_points(self, hname):
         return self.conflict_dict[hname]
 
     ##

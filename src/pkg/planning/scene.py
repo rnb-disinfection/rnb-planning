@@ -1,7 +1,8 @@
 from collections import defaultdict
 from ..utils.utils import list2dict
-from .constraint.constraint_common import combine_redundancy, sample_redundancy, fit_binding
+from .constraint.constraint_common import combine_redundancy, sample_redundancy, calc_redundancy, fit_binding
 from .constraint.constraint_subject import SubjectType
+from ..utils.rotation_utils import SE3, Rot_rpy
 from ..geometry.geotype import *
 from itertools import product
 import numpy as np
@@ -319,9 +320,9 @@ class PlanningScene:
         for k in self.subject_name_list:
             v = self.subject_dict[k]
             self.subject_type_list.append(v.__class__)
-            ap_list = v.action_points_dict
+            ap_dict = v.action_points_dict
             self.handle_dict[k] = []
-            for ap in ap_list.keys():
+            for ap in ap_dict.keys():
                 self.handle_dict[k].append(ap)
                 self.handle_list += [(k, ap)]
 
@@ -526,8 +527,32 @@ class PlanningScene:
 
     ##
     # @brief    add axis marker to handle
-    def add_handle_axis(self, hl_key, handle, color=None):
+    def add_handle_axis(self, hl_key, handle, Toff=None, color=None):
         hobj = handle.geometry
         Toff_lh = handle.Toff_lh
+        if Toff is not None:
+            Toff_lh = np.matmul(Toff_lh, Toff)
         axis = "xyz"
         self.gscene.add_highlight_axis(hl_key, hobj.name, hobj.link_name, Toff_lh[:3,3], Toff_lh[:3,:3], color=color, axis=axis)
+
+    ##
+    # @brief    add axis marker to handle
+    # @param binding tuple (subject name, handle name, binder name, binder geometry name)
+    # @param redundancy_dict defined redundancy of transition in dictionary form, {object name: {axis: value}}
+    def show_binding(self, binding, redundancy_dict):
+        sname, hname, bname, bgname = binding
+        redundancy = redundancy_dict[sname] if sname in redundancy_dict else {}
+        if hname is not None:
+            handle = self.subject_dict[sname].action_points_dict[hname]
+            Toff = None
+            if hname in redundancy:
+                point_add_handle, rpy_add_handle = calc_redundancy(redundancy[hname], handle)
+                Toff = SE3(Rot_rpy(rpy_add_handle), point_add_handle)
+            self.add_handle_axis("{}_{}".format(sname, hname), handle, Toff=Toff)
+        if bname is not None:
+            binder = self.actor_dict[bname]
+            Toff = None
+            if bname in redundancy:
+                point_add_binder, rpy_add_binder = calc_redundancy(redundancy[bname], binder)
+                Toff = SE3(Rot_rpy(rpy_add_binder), point_add_binder)
+            self.add_handle_axis("{}".format(bname), binder, Toff=Toff)

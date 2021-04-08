@@ -319,9 +319,14 @@ class PlanningPipeline:
         for snode in snode_schedule:
             self.pscene.set_object_state(snode_pre.state)
             self.pscene.gscene.update_markers_all()
+            print("{}->{}".format(snode_pre.state.node, snode.state.node))
             if snode.traj is None or len(snode.traj) == 0:
                 snode_pre = snode
                 continue
+            self.pscene.gscene.clear_highlight()
+            for binding_pre, binding in zip(snode_pre.state.binding_state, snode.state.binding_state):
+                if not binding_pre == binding:
+                    self.pscene.show_binding(binding, redundancy_dict=snode.redundancy_dict)
             self.pscene.gscene.show_motion(snode.traj, period=period)
             time.sleep(period)
             self.pscene.gscene.show_pose(snode.traj[-1])
