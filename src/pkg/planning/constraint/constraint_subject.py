@@ -713,15 +713,16 @@ class BoxObject(AbstractObject):
         self.conflict_dict = {}
         self.sub_binders_dict = {}
         self.hexahedral = hexahedral
-        self.__add_place_points(self.geometry, CLEARANCE=CLEARANCE)
-        self.__add_grip_points(GRASP_WIDTH_MIN=GRASP_WIDTH_MIN, GRASP_WIDTH_MAX=GRASP_WIDTH_MAX,
+        self.add_place_points(self.geometry, CLEARANCE=CLEARANCE)
+        self.add_grip_points(self.geometry, GRASP_WIDTH_MIN=GRASP_WIDTH_MIN, GRASP_WIDTH_MAX=GRASP_WIDTH_MAX,
                                GRASP_DEPTH_MIN=GRASP_DEPTH_MIN, GRASP_DEPTH_MAX=GRASP_DEPTH_MAX)
-        self.__set_conflict_dict()
+
+        self.set_conflict_dict()
         self.binding = (self.oname, None, None, None)
 
     ##
     # @brief add action points to given box geometry
-    def __add_place_points(self, gbox, CLEARANCE=1e-3):
+    def add_place_points(self, gbox, CLEARANCE=1e-3):
         Xhalf, Yhalf, Zhalf = np.divide(gbox.dims,2)+CLEARANCE
         self.action_points_dict.update({
             "top_p": PlacePoint("top_p", gbox, [0,0,Zhalf], [np.pi,0,0]),
@@ -735,10 +736,11 @@ class BoxObject(AbstractObject):
                 "back_p": PlacePoint("back_p", gbox, [0,Yhalf,0], [np.pi/2,0,0])
             })
 
-    def __add_grip_points(self,
+    ##
+    # @brief add 2-finger grasping points to given box geometry
+    def add_grip_points(self, gbox,
                           GRASP_WIDTH_MIN=0.04, GRASP_WIDTH_MAX=0.06,
                           GRASP_DEPTH_MIN=0.025, GRASP_DEPTH_MAX=0.025):
-        gbox = self.geometry
         dims = gbox.dims
         dims_hf = np.divide(gbox.dims, 2)
         for k_dir, rpy in DIR_RPY_DICT.items():
@@ -770,7 +772,9 @@ class BoxObject(AbstractObject):
                     gpoint = Grasp2Point(ggname, ggtem, None, (0, 0, 0))
                 self.action_points_dict.update({ggname: gpoint})
 
-    def __set_conflict_dict(self):
+    ##
+    # @brief reset conflicting handle dictionary
+    def set_conflict_dict(self):
         ap_names = sorted(self.action_points_dict.keys())
         dir_keys = sorted(OPPOSITE_DICT.keys())
         self.conflict_dict = {}
@@ -791,10 +795,12 @@ class BoxObject(AbstractObject):
     # @brief register hexahedral binders
     # @param planning_scene rnb-planning.src.pkg.planning.scene.PlanningScene
     # @param _type          subclass of rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
-    def register_binders(self, planning_scene, _type):
+    def register_binders(self, planning_scene, _type, geometry=None):
         gscene = planning_scene.gscene
-        gname = self.geometry.name
-        dims = self.geometry.dims
+        if geometry is None:
+            geometry = self.geometry
+        gname = geometry.name
+        dims = geometry.dims
         for k in DIR_RPY_DICT.keys():
             if not self.hexahedral and k not in ["top", "bottom"]:
                 continue
@@ -805,9 +811,9 @@ class BoxObject(AbstractObject):
             dims_new = np.abs(np.matmul(R.transpose(), dims))
             dims_new[2] = 1e-6
             gscene.create_safe(GEOTYPE.BOX, bname,
-                               link_name=self.geometry.link_name,
+                               link_name=geometry.link_name,
                                dims=dims_new, center=point, rpy=rpy,
-                               display=False, collision=False, fixed=self.geometry.fixed, parent=gname)
+                               display=False, collision=False, fixed=geometry.fixed, parent=gname)
             self.sub_binders_dict[bname] = planning_scene.create_binder(bname=bname, gname=bname, _type=_type)
 
 

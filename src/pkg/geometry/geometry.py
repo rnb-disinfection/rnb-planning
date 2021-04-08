@@ -137,6 +137,16 @@ class GeometryScene(list):
                                 color=color, display=display, collision=collision, fixed=gtem.fixed)
 
     ##
+    # @brief clear all non-fixed items
+    def clear_non_fixed(self):
+        gnames = sorted(self.NAME_DICT.keys())
+        for gname in gnames :
+            if gname in self.NAME_DICT:
+                gtem = self.NAME_DICT[gname]
+                if gtem.parent is None and gtem.fixed == False:
+                    self.remove(gtem)
+
+    ##
     # @brief initialize rviz
     def set_rviz(self, joint_pose=None):
         # prepare ros

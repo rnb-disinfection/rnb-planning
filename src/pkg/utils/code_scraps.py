@@ -1,6 +1,7 @@
 from ..geometry.geometry import *
 from ..utils.utils import list2dict
 from ..planning.constraint.constraint_subject import *
+from ..planning.constraint.constraint_actor import PlacePlane
 
 
 ##
@@ -108,6 +109,19 @@ def use_current_sub_binders_only(pscene, current_state):
             if binder.geometry.name in obj.geometry.get_family() and bname not in active_binders:
                 pscene.remove_binder(bname)
 
+##
+# @brief set action points for l_shape object
+def set_l_shape_object(pscene):
+    if "l_shape" in pscene.subject_dict:
+        l_sub = pscene.subject_dict["l_shape"]
+        l_sub.action_points_dict = {}
+        l_sub.add_place_points(l_sub.geometry)
+        for gname in l_sub.geometry.children:
+            child = pscene.gscene.NAME_DICT[gname]
+            if child.collision and child.display:
+                l_sub.add_grip_points(child, GRASP_DEPTH_MIN=0.015)
+                l_sub.register_binders(pscene, PlacePlane, geometry=child)
+        l_sub.set_conflict_dict()
 
 
 ### resized image plot
