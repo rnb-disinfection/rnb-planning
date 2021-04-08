@@ -26,6 +26,7 @@ RNB-Planning Framework is an integrated framework for combined planning of task 
   pip install dash==1.17.0 visdcc dash_split_pane
   pip install matplotlib trimesh pathlib protobuf grpcio numpy-stl sklearn filterpy paramiko SharedArray  
   pip3 install dill matplotlib sklearn opencv-python SharedArray  
+  pip install requests beautifulsoup4
   ```
   
 * Install OMPL (takes >30min)

@@ -123,6 +123,48 @@ def set_l_shape_object(pscene):
                 l_sub.register_binders(pscene, PlacePlane, geometry=child)
         l_sub.set_conflict_dict()
 
+import requests
+from bs4 import BeautifulSoup
+from time import sleep
+
+def switch_command(ip_addr, on_off, UI_PORT=9990):
+    uri = "http://{ip_addr}:{UI_PORT}/param_setting?control_force0={on_off}".format(ip_addr=ip_addr, UI_PORT=UI_PORT, on_off=int(on_off))
+    print(uri)
+    requests.get(uri)
+
+class ModeSwitcher:
+    def __init__(self, pscene):
+        self.pscene = pscene
+        self.crob = pscene.combined_robot
+        self.switch_delay = 0.5
+
+    def switch_in(self, snode_pre, snode_new):
+        indy = self.crob.robot_dict['indy0']
+        switch_state = False
+        for n1, n2 in zip(snode_pre.state.node, snode_new.state.node):
+            if n1 == 1 and n2 == 2:
+                switch_state = True
+                break
+        if switch_state:
+            sleep(self.switch_delay)
+            with indy:
+                indy.stop_tracking()
+            sleep(self.switch_delay)
+            switch_command(indy.server_ip, True)
+            sleep(self.switch_delay)
+        return switch_state
+
+    def switch_out(self, switch_state, snode_new):
+        indy = self.crob.robot_dict['indy0']
+        if switch_state:
+            sleep(self.switch_delay)
+            with indy:
+                indy.stop_tracking()
+            sleep(self.switch_delay)
+            switch_command(indy.server_ip, False)
+            sleep(self.switch_delay)
+            indy.joint_move_make_sure(snode_new.traj[-1][self.crob.idx_dict["indy0"]])
+
 
 ### resized image plot
 # ratio = 1.0/3

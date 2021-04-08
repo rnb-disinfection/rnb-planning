@@ -352,14 +352,19 @@ class PlanningPipeline:
 
     ##
     # @brief execute schedule
-    def execute_schedule(self, snode_schedule, auto_stop=True):
+    # @param mode_switcher ModeSwitcher class instance
+    def execute_schedule(self, snode_schedule, auto_stop=True, mode_switcher=None):
         snode_pre = snode_schedule[0]
         for snode in snode_schedule:
             if snode.traj is None or len(snode.traj) == 0:
                 snode_pre = snode
                 continue
+            switch_state = mode_switcher.switch_in(snode_pre, snode)
+
             self.pscene.set_object_state(snode_pre.state)
             self.pscene.combined_robot.move_joint_traj(snode.traj, auto_stop=False)
+
+            mode_switcher.switch_out(switch_state, snode)
             self.execute_grip(snode.state)
             snode_pre = snode
 

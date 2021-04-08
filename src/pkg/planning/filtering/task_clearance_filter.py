@@ -57,6 +57,8 @@ class TaskClearanceChecker(MotionFilterInterface):
         for clear_vertice, clear_radius in clearance_vertice_list:
             for object_vertice, object_radius in object_vertice_list:
                 dist_list.append(get_gjk_distance(clear_vertice, object_vertice) - clear_radius - object_radius)
-
-        res = np.min(dist_list) > + 1e-4
+        if len(dist_list)>0:
+            res = np.min(dist_list) > + 1e-4
+        else:
+            res = True
         return res
