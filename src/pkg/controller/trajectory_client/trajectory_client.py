@@ -148,6 +148,27 @@ class TrajectoryClient(object):
     def grasp(self, grasp):
         raise(NotImplementedError("Robot-specific implementation is required for grasp function"))
 
+    ##
+    # @brief move joint with waypoints, one-by-one
+    # @param trajectory numpy array (trajectory length, joint num)
+    def move_joint_traj(self, trajectory, auto_stop=True, wait_motion=True):
+        Q_init = trajectory[0]
+        Q_last = trajectory[-1]
+        Q_cur = self.get_qcur()
+        assert np.max(np.abs((np.subtract(Q_init, Q_cur)))) < 5e-2, \
+            "MOVE robot to trajectory initial: current robot pose does not match with trajectory initial state"
+
+        for Q in trajectory:
+            self.push_Q(Q)
+
+        self.start_tracking()
+
+        if wait_motion:
+            self.wait_queue_empty()
+
+            if auto_stop:
+                self.stop_tracking()
+
 
 class MultiTracker:
     def __init__(self, robots, idx_list, Q0, on_rviz=False):

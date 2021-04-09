@@ -132,6 +132,23 @@ def switch_command(ip_addr, on_off, UI_PORT=9990):
     print(uri)
     requests.get(uri)
 
+def start_force_mode(indy, switch_delay=0.5):
+    sleep(switch_delay)
+    with indy:
+        indy.stop_tracking()
+    sleep(switch_delay)
+    switch_command(indy.server_ip, True)
+    sleep(switch_delay)
+
+def stop_force_mode(indy, switch_delay=0.5):
+    sleep(switch_delay)
+    with indy:
+        indy.stop_tracking()
+    sleep(switch_delay)
+    switch_command(indy.server_ip, False)
+    sleep(switch_delay)
+
+
 class ModeSwitcher:
     def __init__(self, pscene):
         self.pscene = pscene
@@ -139,30 +156,20 @@ class ModeSwitcher:
         self.switch_delay = 0.5
 
     def switch_in(self, snode_pre, snode_new):
-        indy = self.crob.robot_dict['indy0']
         switch_state = False
         for n1, n2 in zip(snode_pre.state.node, snode_new.state.node):
             if n1 == 1 and n2 == 2:
                 switch_state = True
                 break
         if switch_state:
-            sleep(self.switch_delay)
-            with indy:
-                indy.stop_tracking()
-            sleep(self.switch_delay)
-            switch_command(indy.server_ip, True)
-            sleep(self.switch_delay)
+            indy = self.crob.robot_dict['indy0']
+            start_force_mode(indy, switch_delay=self.switch_delay)
         return switch_state
 
     def switch_out(self, switch_state, snode_new):
-        indy = self.crob.robot_dict['indy0']
         if switch_state:
-            sleep(self.switch_delay)
-            with indy:
-                indy.stop_tracking()
-            sleep(self.switch_delay)
-            switch_command(indy.server_ip, False)
-            sleep(self.switch_delay)
+            indy = self.crob.robot_dict['indy0']
+            stop_force_mode(indy, switch_delay=self.switch_delay)
             indy.joint_move_make_sure(snode_new.traj[-1][self.crob.idx_dict["indy0"]])
 
 
