@@ -134,19 +134,15 @@ def switch_command(ip_addr, on_off, UI_PORT=9990):
 
 def start_force_mode(indy, switch_delay=0.5):
     sleep(switch_delay)
-    with indy:
-        indy.stop_tracking()
-    sleep(switch_delay)
     switch_command(indy.server_ip, True)
     sleep(switch_delay)
 
-def stop_force_mode(indy, switch_delay=0.5):
+def stop_force_mode(indy, Qref, switch_delay=0.5):
     sleep(switch_delay)
-    with indy:
-        indy.stop_tracking()
-    sleep(switch_delay)
+    indy.send_qval(indy.get_qcur())
+    indy.start_tracking()
     switch_command(indy.server_ip, False)
-    sleep(switch_delay)
+    indy.move_joint_s_curve(Qref, N_div=20, start_tracking=False, auto_stop=False)
 
 
 class ModeSwitcher:
@@ -169,8 +165,8 @@ class ModeSwitcher:
     def switch_out(self, switch_state, snode_new):
         if switch_state:
             indy = self.crob.robot_dict['indy0']
-            stop_force_mode(indy, switch_delay=self.switch_delay)
-            indy.joint_move_make_sure(snode_new.traj[-1][self.crob.idx_dict["indy0"]])
+            stop_force_mode(indy, Qref=snode_new.traj[-1][self.crob.idx_dict['indy0']],
+                                                          switch_delay=self.switch_delay)
 
 
 ### resized image plot
