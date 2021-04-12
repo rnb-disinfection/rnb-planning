@@ -117,7 +117,10 @@ class TaskRRT(TaskInterface):
     # @param lock lock instance to multiprocess
     def sample(self):
         sample_fail = True
-        while sample_fail:
+        fail_count = 0
+        parent_snode, from_state, to_state, redundancy_dict = None, None, None, None
+        while sample_fail and fail_count<3:
+            fail_count += 1
             self.reserved_attempt = False
             with self.reserve_lock:
                 if not self.attempts_reseved.empty():
@@ -144,6 +147,7 @@ class TaskRRT(TaskInterface):
                         print("ERROR sampling parent from : {} / parent nodes: {}".format(new_node, parent_nodes))
                     except:
                         print("ERROR sampling parent - NO SAMPLE REMAINED!")
+                        time.sleep(0.5)
                         # snode_root = self.make_search_node(None, self.initial_state, None, None)
                         # self.connect(None, snode_root)
                         # self.update(None, snode_root, True)

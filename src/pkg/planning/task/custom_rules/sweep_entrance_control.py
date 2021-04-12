@@ -15,12 +15,6 @@ class SweepEntranceControlRule(CustomRuleInterface):
 
     def init(self, tplan, multiprocess_manager):
         self.multiprocess_manager = multiprocess_manager
-        if multiprocess_manager is not None:
-            self.call_count_dict = multiprocess_manager.dict()
-            self.count_lock = multiprocess_manager.Lock()
-        else:
-            self.call_count_dict = dict()
-            self.count_lock = DummyBlock()
 
         no_enter_sidxes = [stype == SweepLineTask for stype in enumerate(self.pscene.subject_type_list)]
         no_enter_initials = [tplan.initial_state.node[sidx] for sidx in no_enter_sidxes]
@@ -56,6 +50,7 @@ class SweepEntranceControlRule(CustomRuleInterface):
     # @remark   case 1: meaningless homing - stayed on same node for two turns and do action of same kind \n
     #           case 2: already-moved object
     def refoliate(self, tplan, new_node, parent_sidx):
+        # return new_node, parent_sidx, False
         reject = False
         parent_snode = tplan.snode_dict[parent_sidx]
         parent_node = parent_snode.state.node
@@ -110,11 +105,6 @@ class SweepEntranceControlRule(CustomRuleInterface):
             stack_res, stack_items = True, list(self.enter_dict[snode_new.state.node])
 
         if snode_src is not None:
-            with self.count_lock:
-                if snode_src.idx in self.call_count_dict:
-                    self.call_count_dict[snode_src.idx] = self.call_count_dict[snode_src.idx] + [snode_new.state.node]
-                else:
-                    self.call_count_dict[snode_src.idx] = [snode_new.state.node]
 
             node_src = snode_src.state.node
             node_new = snode_new.state.node
@@ -126,7 +116,7 @@ class SweepEntranceControlRule(CustomRuleInterface):
             diff_sname = self.pscene.subject_name_list[diff_sidx]
             diff_subject = self.pscene.subject_dict[diff_sname]
 
-            if isinstance(diff_subject, SweepLineTask):
+            if isinstance(diff_subject, SweepLineTask): # Sweep entrance control rule
                 #                 print("Rule for SweepLineTask")
                 with tplan.snode_dict_lock:
                     if node_src[diff_sidx] not in tplan.unstoppable_terminals[diff_sidx]:

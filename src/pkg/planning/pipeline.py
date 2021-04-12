@@ -133,7 +133,7 @@ class PlanningPipeline:
                       display=False, dt_vis=None, verbose=False, timeout_loop=600, **kwargs):
         loop_counter = 0
         sample_fail_counter = 0
-        sample_fail_max = 100
+        sample_fail_max = 10
         no_queue_stop = False
         ret = False
         while (N_search is None or self.tplan.snode_counter.value < N_search) and (time.time() - self.t0) < timeout_loop and not self.stop_now.value:
@@ -327,7 +327,10 @@ class PlanningPipeline:
             for binding_pre, binding in zip(snode_pre.state.binding_state, snode.state.binding_state):
                 if not binding_pre == binding:
                     self.pscene.show_binding(binding, redundancy_dict=snode.redundancy_dict)
-            self.pscene.gscene.show_motion(snode.traj, period=period)
+            if period<0.01:
+                self.pscene.gscene.show_motion(snode.traj[::int(0.01/period)], period=0.01)
+            else:
+                self.pscene.gscene.show_motion(snode.traj, period=period)
             time.sleep(period)
             self.pscene.gscene.show_pose(snode.traj[-1])
             snode_pre = snode

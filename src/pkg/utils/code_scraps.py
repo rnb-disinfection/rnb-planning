@@ -56,22 +56,22 @@ def add_indy_sweep_tool(gscene, robot_name, face_name="brush_face"):
                        collision=True, fixed=True)
     gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="{}_pole".format(robot_name),
                        link_name="{}_tcp".format(robot_name),
-                       center=(0, 0, 0.055), dims=(0.03, 0.03, 0.030), rpy=(0, 0, 0), color=(0.8, 0.8, 0.8, 1),
+                       center=(0, 0, 0.070), dims=(0.03, 0.03, 0.060), rpy=(0, 0, 0), color=(0.8, 0.8, 0.8, 1),
                        collision=False, fixed=True)
     gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="{}_pole_col".format(robot_name),
                        link_name="{}_tcp".format(robot_name),
-                       center=(0, 0, 0.055), dims=(0.07, 0.07, 0.030), rpy=(0, 0, 0), color=(0.0, 0.8, 0.0, 0.2),
+                       center=(0, 0, 0.070), dims=(0.07, 0.07, 0.060), rpy=(0, 0, 0), color=(0.0, 0.8, 0.0, 0.2),
                        collision=True, fixed=True)
 
     gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_brushbase".format(robot_name),
                        link_name="{}_tcp".format(robot_name),
-                       center=(0, 0, 0.0775), dims=(0.06, 0.14, 0.015), rpy=(0, 0, 0), color=(0.8, 0.8, 0.8, 1),
+                       center=(0, 0, 0.10), dims=(0.06, 0.14, 0.02), rpy=(0, 0, 0), color=(0.8, 0.8, 0.8, 1),
                        collision=False, fixed=True)
     gscene.create_safe(gtype=GEOTYPE.BOX, name=face_name, link_name="{}_tcp".format(robot_name),
-                       center=(0, 0, 0.09), dims=(0.05, 0.13, 0.02), rpy=(0, 0, 0), color=(1.0, 1.0, 0.94, 1),
+                       center=(0, 0, 0.12), dims=(0.05, 0.13, 0.02), rpy=(0, 0, 0), color=(1.0, 1.0, 0.94, 1),
                        collision=False, fixed=True)
     gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_col".format(face_name), link_name="{}_tcp".format(robot_name),
-                       center=(0, 0, 0.08), dims=(0.08, 0.15, 0.03), rpy=(0, 0, 0), color=(0.0, 0.8, 0.0, 0.5),
+                       center=(0, 0, 0.11), dims=(0.08, 0.15, 0.03), rpy=(0, 0, 0), color=(0.0, 0.8, 0.0, 0.5),
                        collision=True, fixed=True)
 
 
@@ -167,6 +167,57 @@ class ModeSwitcher:
             indy = self.crob.robot_dict['indy0']
             stop_force_mode(indy, Qref=snode_new.traj[-1][self.crob.idx_dict['indy0']],
                                                           switch_delay=self.switch_delay)
+
+def play_schedule_clearance_highlight(ppline, snode_schedule, tcheck, period, actor_name='brush_face',
+                                      color_on=(0,1,0,0.3), color_off=(0.8,0.2,0.2,0.2)):
+    snode_pre = snode_schedule[0]
+
+    tcheck_res = False
+    for snode in snode_schedule:
+        ppline.pscene.set_object_state(snode_pre.state)
+        ppline.pscene.gscene.update_markers_all()
+        if snode.traj is None or len(snode.traj) == 0:
+            snode_pre = snode
+            continue
+        ppline.pscene.gscene.clear_highlight()
+
+        for binding_pre, binding in zip(snode_pre.state.binding_state, snode.state.binding_state):
+            if not binding_pre == binding:
+                ppline.pscene.show_binding(binding, redundancy_dict=snode.redundancy_dict)
+        if period < 0.01:
+            ppline.pscene.gscene.show_motion(snode.traj[::int(0.01 / period)], period=0.01)
+        else:
+            ppline.pscene.gscene.show_motion(snode.traj, period=period)
+        sleep(period)
+        ppline.pscene.gscene.show_pose(snode.traj[-1])
+        snode_pre = snode
+        for obj_name in ppline.pscene.subject_name_list:
+            if isinstance(ppline.pscene.subject_dict[obj_name], AbstractTask):
+                actor, obj = ppline.pscene.actor_dict[actor_name], ppline.pscene.subject_dict[obj_name]
+                tcheck_res = tcheck.check(actor, obj, None, None,
+                                          list2dict(snode.state.Q, ppline.pscene.gscene.joint_names))
+                for gtem in obj.clearance:
+                    if tcheck_res:
+                        gtem.color = color_on
+                    else:
+                        gtem.color = color_off
+                    ppline.pscene.gscene.update_marker(gtem)
+
+def play_schedule_clearance_highlight_full(ppline, snode_schedule_all, tcheck):
+    actor_name='brush_face'
+    color_off=(0.8,0.2,0.2,0.2)
+    for obj_name in ppline.pscene.subject_name_list:
+        if isinstance(ppline.pscene.subject_dict[obj_name], AbstractTask):
+            actor, obj = ppline.pscene.actor_dict[actor_name], ppline.pscene.subject_dict[obj_name]
+            for gtem in obj.clearance:
+                gtem.color = color_off
+                ppline.pscene.gscene.update_marker(gtem)
+                ppline.pscene.set_object_state(snode_schedule_all[0][0].state)
+    ppline.pscene.gscene.update_markers_all()
+    sleep(1)
+    for snode_schedule in snode_schedule_all:
+    #     ppline.play_schedule(snode_schedule, period=0.001)
+        play_schedule_clearance_highlight(ppline, snode_schedule, tcheck=tcheck, period=0.001)
 
 
 ### resized image plot
