@@ -56,22 +56,22 @@ def add_indy_sweep_tool(gscene, robot_name, face_name="brush_face"):
                        collision=True, fixed=True)
     gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="{}_pole".format(robot_name),
                        link_name="{}_tcp".format(robot_name),
-                       center=(0, 0, 0.070), dims=(0.03, 0.03, 0.060), rpy=(0, 0, 0), color=(0.8, 0.8, 0.8, 1),
+                       center=(0, 0, 0.0775), dims=(0.03, 0.03, 0.075), rpy=(0, 0, 0), color=(0.8, 0.8, 0.8, 1),
                        collision=False, fixed=True)
     gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="{}_pole_col".format(robot_name),
                        link_name="{}_tcp".format(robot_name),
-                       center=(0, 0, 0.070), dims=(0.07, 0.07, 0.060), rpy=(0, 0, 0), color=(0.0, 0.8, 0.0, 0.2),
+                       center=(0, 0, 0.0775), dims=(0.07, 0.07, 0.075), rpy=(0, 0, 0), color=(0.0, 0.8, 0.0, 0.2),
                        collision=True, fixed=True)
 
     gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_brushbase".format(robot_name),
                        link_name="{}_tcp".format(robot_name),
-                       center=(0, 0, 0.10), dims=(0.06, 0.14, 0.02), rpy=(0, 0, 0), color=(0.8, 0.8, 0.8, 1),
+                       center=(0, 0, 0.115), dims=(0.06, 0.14, 0.02), rpy=(0, 0, 0), color=(0.8, 0.8, 0.8, 1),
                        collision=False, fixed=True)
     gscene.create_safe(gtype=GEOTYPE.BOX, name=face_name, link_name="{}_tcp".format(robot_name),
-                       center=(0, 0, 0.12), dims=(0.05, 0.13, 0.02), rpy=(0, 0, 0), color=(1.0, 1.0, 0.94, 1),
+                       center=(0, 0, 0.135), dims=(0.05, 0.13, 0.02), rpy=(0, 0, 0), color=(1.0, 1.0, 0.94, 1),
                        collision=False, fixed=True)
     gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_col".format(face_name), link_name="{}_tcp".format(robot_name),
-                       center=(0, 0, 0.11), dims=(0.08, 0.15, 0.03), rpy=(0, 0, 0), color=(0.0, 0.8, 0.0, 0.5),
+                       center=(0, 0, 0.125), dims=(0.08, 0.15, 0.03), rpy=(0, 0, 0), color=(0.0, 0.8, 0.0, 0.5),
                        collision=True, fixed=True)
 
 
