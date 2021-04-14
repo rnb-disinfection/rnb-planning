@@ -127,12 +127,18 @@ class TaskRRT(TaskInterface):
                     try:
                         parent_sidx, new_node = self.attempts_reseved.get(timeout=0.1)
                         self.reserved_attempt = True
-                        # print("got reserved one from {}".format(parent_sidx))
-                    except:
+                        # print("gettting reserved one from {}: {}".format(parent_sidx, new_node))
+                    except Exception as e:
+                        print("error in gettting reserved one from {}".format(parent_sidx))
+                        print(e)
                         pass
             if not self.reserved_attempt:
                 try:
-                    new_node = self.new_node_sampler(self.neighbor_nodes.keys())
+                    if len(self.neighbor_nodes.keys())>0:
+                        new_node = self.new_node_sampler(self.neighbor_nodes.keys())
+                    else:
+                        print("ERROR sampling parent - NO SAMPLE REMAINED! Re-Start with initial state")
+                        new_node = self.new_node_sampler(list(self.node_dict[self.initial_state.node]))
                     parent_nodes = self.node_parent_dict[new_node]
                     parent_node = self.parent_node_sampler(list(parent_nodes.intersection(self.node_snode_dict.keys())))
                     parent_sidx = self.parent_snode_sampler(self.node_snode_dict[parent_node])
@@ -146,11 +152,11 @@ class TaskRRT(TaskInterface):
                     try:
                         print("ERROR sampling parent from : {} / parent nodes: {}".format(new_node, parent_nodes))
                     except:
-                        print("ERROR sampling parent - NO SAMPLE REMAINED!")
-                        time.sleep(0.5)
+                        print("ERROR sampling parent - Failed to get new_node or parent_nodes")
                         # snode_root = self.make_search_node(None, self.initial_state, None, None)
                         # self.connect(None, snode_root)
                         # self.update(None, snode_root, True)
+                        time.sleep(0.5)
                     print(e)
                     sample_fail = True
                     continue
@@ -161,7 +167,7 @@ class TaskRRT(TaskInterface):
                 redundancy_dict = deepcopy(parent_snode.redundancy_dict)
             else:
                 available_binding_dict = self.pscene.get_available_binding_dict(from_state, new_node,
-                                                                                                  list2dict(from_state.Q, self.pscene.gscene.joint_names))
+                                                                                list2dict(from_state.Q, self.pscene.gscene.joint_names))
                 if not all([len(abds)>0 for abds in available_binding_dict.values()]):
                     print("============== Non-available transition: sample again =====================")
                     sample_fail = True
@@ -201,9 +207,10 @@ class TaskRRT(TaskInterface):
         if self.custom_rule is not None:
             cres, next_items = self.custom_rule(self, snode_src, snode_new, connection_result)
             if cres:
-                # print("make custom reservation: {}".format(next_items))
+                # print("make custom reservation: {} -> {}".format(snode_new.idx, next_items))
                 for next_item in next_items:
-                    self.attempts_reseved.put((snode_new.idx, next_item))
+                    from_idx = snode_new.idx if connection_result else snode_src.idx
+                    self.attempts_reseved.put((from_idx, next_item))
 
         if not cres:
             if connection_result:

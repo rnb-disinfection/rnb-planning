@@ -160,6 +160,9 @@ class SweepEntranceControlRule(CustomRuleInterface):
                                 next_node_candis) == 1, "non-terminal sweep task should have only 1 leaf ({}) {}-{}".format(
                                 diff_sidx, node_new, next_node_candis)
                             return True, next_node_candis * self.NUM_WP_TRIALS + stack_items
+                    elif len(tplan.neighbor_nodes)==0 and not stack_res: # connection failed but no other new node
+                        print("connection failed but no other new node - retry previous one")
+                        return True, [snode_new.state.node]
                 return stack_res, stack_items
 
             if isinstance(diff_subject, AbstractObject):

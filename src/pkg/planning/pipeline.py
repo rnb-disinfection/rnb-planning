@@ -175,15 +175,18 @@ class PlanningPipeline:
             term_reason = "node queue empty"
         elif N_search is not None and self.tplan.snode_counter.value >= N_search:
             term_reason = "max search node count reached ({}/{})".format(self.tplan.snode_counter.value, N_search)
+            self.stop_now.value = 1
         elif (time.time() - self.t0) >= timeout_loop:
             term_reason = "max iteration time reached ({}/{} s)".format(int(time.time()), self.t0)
+            self.stop_now.value = 1
         elif ret:
             print("++ adding return motion to acquired answer ++")
             self.add_return_motion(snode_new)
             term_reason = "first answer acquired"
+            self.stop_now.value = 1
         else:
             term_reason = "first answer acquired from other agent"
-        self.stop_now.value = 1
+            self.stop_now.value = 1
 
         print("=========================================================================================================")
         print("======================= terminated {}: {} ===============================".format(ID, term_reason))
