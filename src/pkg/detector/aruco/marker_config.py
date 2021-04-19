@@ -127,7 +127,32 @@ def get_aruco_map():
         'goal':MarkerSet('goal',
                          dlevel=DetectionLevel.MOVABLE, gtype=GEOTYPE.BOX, dims=(0.1, 0.1,0.01), color=(0.8,0.0,0.0,1),
                          _list=[
-                             ObjectMarker('goal', 201, 0.1, [0,0,0.000], (np.pi,0,0))
+                             ObjectMarker('goal', 201, 0.1, [0,0,0.005], (np.pi,0,0))
+                         ]),
+        'target1':MarkerSet('target1',
+                         dlevel=DetectionLevel.MOVABLE, gtype=GEOTYPE.BOX, dims=(0.1, 0.1,0.01), color=(0.8,0.0,0.0,1),
+                         _list=[
+                             ObjectMarker('target1', 211, 0.1, [0.1,0,0.005], (np.pi,0,0))
+                         ]),
+        'target2':MarkerSet('target2',
+                         dlevel=DetectionLevel.MOVABLE, gtype=GEOTYPE.BOX, dims=(0.1, 0.1,0.01), color=(0.8,0.0,0.0,1),
+                         _list=[
+                             ObjectMarker('target2', 212, 0.1, [0.1,0,0.005], (np.pi,0,0))
+                         ]),
+        'target3':MarkerSet('target3',
+                         dlevel=DetectionLevel.MOVABLE, gtype=GEOTYPE.BOX, dims=(0.1, 0.1,0.01), color=(0.8,0.0,0.0,1),
+                         _list=[
+                             ObjectMarker('target3', 213, 0.1, [0.1,0,0.005], (np.pi,0,0))
+                         ]),
+        'target4':MarkerSet('target4',
+                         dlevel=DetectionLevel.MOVABLE, gtype=GEOTYPE.BOX, dims=(0.1, 0.1,0.01), color=(0.8,0.0,0.0,1),
+                         _list=[
+                             ObjectMarker('target4', 214, 0.1, [0.1,0,0.005], (np.pi,0,0))
+                         ]),
+        'target5':MarkerSet('target5',
+                         dlevel=DetectionLevel.MOVABLE, gtype=GEOTYPE.BOX, dims=(0.1, 0.1,0.01), color=(0.8,0.0,0.0,1),
+                         _list=[
+                             ObjectMarker('target5', 215, 0.1, [0.1,0,0.005], (np.pi,0,0))
                          ])
     })
     return aruco_map
