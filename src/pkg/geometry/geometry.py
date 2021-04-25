@@ -295,6 +295,25 @@ class GeometryScene(list):
                          ((XMAX + XMIN) / 2, YMAX, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
                          color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
 
+    ##
+    # @brief set workspace boundary
+    def add_virtual_guardrail(self, plane_gtem, HEIGHT=0.05):
+        gname = plane_gtem.name
+        dims = plane_gtem.dims
+        XMIN, XMAX, YMIN, YMAX, ZMIN, ZMAX = -dims[0]/2, dims[0]/2, -dims[1]/2, dims[1]/2, 0, HEIGHT
+        self.create_safe(GEOTYPE.BOX, "{}_front_gr".format(gname), "base_link", (0.01, YMAX - YMIN, ZMAX - ZMIN),
+                         (XMAX, (YMAX + YMIN) / 2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
+                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent=gname)
+        self.create_safe(GEOTYPE.BOX, "{}_back_gr".format(gname), "base_link", (0.01, YMAX - YMIN, ZMAX - ZMIN),
+                         (XMIN, (YMAX + YMIN) / 2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
+                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent=gname)
+        self.create_safe(GEOTYPE.BOX, "{}_left_gr".format(gname), "base_link", (XMAX - XMIN, 0.01, ZMAX - ZMIN),
+                         ((XMAX + XMIN) / 2, YMIN, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
+                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent=gname)
+        self.create_safe(GEOTYPE.BOX, "{}_right_gr".format(gname), "base_link", (XMAX - XMIN, 0.01, ZMAX - ZMIN),
+                         ((XMAX + XMIN) / 2, YMAX, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
+                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent=gname)
+
 ##
 # @class GeometryItem
 # @brief Instance of geometry item

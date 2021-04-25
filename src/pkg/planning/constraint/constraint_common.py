@@ -184,7 +184,7 @@ def get_binding_margins(handle_T, binder_T, handle_redundancy, binder_redundancy
 # @param    binder  binder to match with handle
 # @param    Q_dict  current joint configuration in dictionary
 # @return
-def fit_binding(obj, handle, binder, Q_dict):
+def fit_binding(obj, handle, binder, Q_dict, Poffset=None):
     handle_T = handle.get_tf_handle(Q_dict)
     binder_T = binder.get_tf_handle(Q_dict)
     handle_redundancy = handle.get_redundancy()
@@ -197,6 +197,8 @@ def fit_binding(obj, handle, binder, Q_dict):
 
     R_lgb = np.matmul(T_glink[:3, :3].transpose(), binder_T[:3, :3])    # orienation of binder from geometry link
     pos_off = np.matmul(R_lgb, offset_loc[:3])
+    if Poffset is not None:
+        pos_off = np.add(pos_off, Poffset)
 
     if np.linalg.norm(offset_loc[3:]) > 1e-2:
         R_bh = np.matmul(binder_T[:3, :3].transpose(), handle_T[:3, :3])

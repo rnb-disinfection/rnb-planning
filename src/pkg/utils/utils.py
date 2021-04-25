@@ -176,8 +176,8 @@ class GlobalTimer(Singleton):
         names = self.name_list
         for name in names:
             strout += "{name}: \t{tot_T} {timeunit}/{tot_C} = {per_T} {timeunit} ({minT}/{maxT})\n".format(
-                name=name, tot_T=np.round(np.sum(self.time_dict[name])), tot_C=self.count_dict[name], 
-                per_T= np.round(np.sum(self.time_dict[name])/self.count_dict[name], 3),
+                name=name, tot_T=np.round(np.sum(self.time_dict[name]),1), tot_C=self.count_dict[name],
+                per_T= np.round(np.sum(self.time_dict[name])/self.count_dict[name], 1),
                 timeunit=self.timeunit, minT=round(self.min_time_dict[name],3), maxT=round(self.max_time_dict[name],3)
             )
         return strout

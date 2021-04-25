@@ -65,14 +65,17 @@ def add_indy_sweep_tool(gscene, robot_name, face_name="brush_face"):
 
     gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_brushbase".format(robot_name),
                        link_name="{}_tcp".format(robot_name),
-                       center=(0, 0, 0.096), dims=(0.06, 0.14, 0.02), rpy=(0, 0, 0), color=(0.8, 0.8, 0.8, 1),
+                       center=(0, 0, 0.089), dims=(0.06, 0.14, 0.02), rpy=(0, 0, 0), color=(0.8, 0.8, 0.8, 1),
                        collision=False, fixed=True)
     gscene.create_safe(gtype=GEOTYPE.BOX, name=face_name, link_name="{}_tcp".format(robot_name),
-                       center=(0, 0, 0.116), dims=(0.05, 0.13, 0.02), rpy=(0, 0, 0), color=(1.0, 1.0, 0.94, 1),
+                       center=(0, 0, 0.109), dims=(0.05, 0.13, 0.02), rpy=(0, 0, 0), color=(1.0, 1.0, 0.94, 1),
                        collision=False, fixed=True)
     gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_col".format(face_name), link_name="{}_tcp".format(robot_name),
-                       center=(0, 0, 0.106), dims=(0.08, 0.15, 0.03), rpy=(0, 0, 0), color=(0.0, 0.8, 0.0, 0.5),
+                       center=(0, 0, 0.099), dims=(0.08, 0.15, 0.03), rpy=(0, 0, 0), color=(0.0, 0.8, 0.0, 0.5),
                        collision=True, fixed=True)
+
+
+
 
 
 def finish_L_shape(gscene, gtem_dict):
@@ -159,14 +162,16 @@ class ModeSwitcher:
                 break
         if switch_state:
             indy = self.crob.robot_dict['indy0']
-            start_force_mode(indy, switch_delay=self.switch_delay)
+            if indy is not None:
+                start_force_mode(indy, switch_delay=self.switch_delay)
         return switch_state
 
     def switch_out(self, switch_state, snode_new):
         if switch_state:
             indy = self.crob.robot_dict['indy0']
-            stop_force_mode(indy, Qref=snode_new.traj[-1][self.crob.idx_dict['indy0']],
-                                                          switch_delay=self.switch_delay)
+            if indy is not None:
+                stop_force_mode(indy, Qref=snode_new.traj[-1][self.crob.idx_dict['indy0']],
+                                                              switch_delay=self.switch_delay)
 
 def play_schedule_clearance_highlight(ppline, snode_schedule, tcheck, period, actor_name='brush_face',
                                       color_on=(0,1,0,0.3), color_off=(0.8,0.2,0.2,0.2)):
@@ -230,6 +235,90 @@ def double_sweep_motions(snode_schedule):
                 traj_list = list(snode.traj)
                 snode.traj = np.array(traj_list + list(reversed(traj_list))+traj_list)
         snode_pre = snode
+
+from .joint_utils import *
+from .gjk import get_point_list, get_gjk_distance
+
+##
+# @brief check collision with other geometries in a specific link
+# @param gcheck GraspChecker
+# @param geomtry GeometryItem
+# @param Q_dict current joint configuration
+# @param link_name name of link of interest, if not specified, the geometry's link is used
+def check_geometry_collision(gcheck, geometry, Q_dict, link_name=None):
+    if link_name is None:
+        link_name = geometry.link_name
+    geo_family = geometry.get_family()
+    gscene = gcheck.gscene
+    object_geo_list = [geometry]
+    T_dict = get_T_dict_foward(link_name, [link_name], Q_dict, gscene.urdf_content)
+
+    object_vertice_list = []
+    for obj_geo in object_geo_list:
+        T = np.matmul(T_dict[obj_geo.link_name], obj_geo.Toff)
+        verts, radius = obj_geo.get_vertice_radius()
+        verts = np.matmul(verts, T[:3 ,:3].transpose() ) +T[:3 ,3]
+        vert_point_list = get_point_list(verts)
+        object_vertice_list.append((vert_point_list, radius))
+
+    clearance_geo_list = [gtem for gtem in gscene
+                          if gtem.link_name == link_name
+                          and gtem.collision
+                          and gtem.name not in geo_family]
+
+    clearance_vertice_list = []
+    for gtem_clr in clearance_geo_list:
+        T = np.matmul(T_dict[gtem_clr.link_name], gtem_clr.Toff)
+        verts, radius = gtem_clr.get_vertice_radius()
+        verts = np.matmul(verts, T[:3 ,:3].transpose() ) +T[:3 ,3]
+        vert_point_list = get_point_list(verts)
+        clearance_vertice_list.append((vert_point_list, radius))
+
+    dist_list = []
+    for clear_vertice, clear_radius in clearance_vertice_list:
+        for object_vertice, object_radius in object_vertice_list:
+            dist_list.append(get_gjk_distance(clear_vertice, object_vertice) - clear_radius - object_radius)
+
+    if len(dist_list)>0:
+        res = np.min(dist_list) > + 1e-4
+    else:
+        res = True
+    return res
+
+
+def move_objects_down_until_collision(obj_list, gcheck, Q_dict):
+    for obj in obj_list:
+        if isinstance(obj, AbstractObject):
+            geometry = obj.geometry
+        else:
+            geometry = obj
+            while geometry.parent is not None:
+                geometry = geometry.gscene.NAME_DICT[geometry.parent]
+
+        while(check_geometry_collision(gcheck, geometry, Q_dict=Q_dict)):
+            if isinstance(obj, AbstractObject):
+                state_param = obj.get_state_param()
+                obj.set_state(obj.binding, (state_param[0], np.matmul(SE3(np.identity(3), [0,0,-1e-3]), state_param[1])))
+            else:
+                Toff = np.matmul(SE3(np.identity(3), [0, 0, -1e-3]), geometry.Toff)
+                geometry.set_offset_tf(center=Toff[:3,3], orientation_mat=Toff[:3,:3])
+
+def move_objects_up_until_no_collision(obj_list, gcheck, Q_dict):
+    for obj in obj_list:
+        if isinstance(obj, AbstractObject):
+            geometry = obj.geometry
+        else:
+            geometry = obj
+            while geometry.parent is not None:
+                geometry = geometry.gscene.NAME_DICT[geometry.parent]
+
+        while(not check_geometry_collision(gcheck, geometry, Q_dict=Q_dict)):
+            if isinstance(obj, AbstractObject):
+                state_param = obj.get_state_param()
+                obj.set_state(obj.binding, (state_param[0], np.matmul(SE3(np.identity(3), [0,0,1e-3]), state_param[1])))
+            else:
+                Toff = np.matmul(SE3(np.identity(3), [0, 0, 1e-3]), geometry.Toff)
+                geometry.set_offset_tf(center=Toff[:3,3], orientation_mat=Toff[:3,:3])
 
 ### resized image plot
 # ratio = 1.0/3

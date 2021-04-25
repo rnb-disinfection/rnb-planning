@@ -391,7 +391,11 @@ class SweepLineTask(AbstractTask):
                           for sp in self.action_points_dict.values()]
             assert len(wp_centers) == 2, "We only consider 2-waypoint line sweep"
             center_dist = np.linalg.norm(wp_centers[1]-wp_centers[0])
-            self.center_dir = (wp_centers[1]-wp_centers[0])/center_dist
+            if center_dist==0:
+                center_dist = 1
+                self.center_dir = np.array([1,0,0])
+            else:
+                self.center_dir = (wp_centers[1]-wp_centers[0])/center_dist
             self.Rot_vertical = Rotation.from_rotvec(self.center_dir * np.pi / 2).as_dcm()
             self.geometry_vertical = geometry.gscene.create_safe(GEOTYPE.BOX,
                                                                  "_".join([oname]+self.action_points_order),

@@ -23,7 +23,9 @@ def get_aruco_map():
                               ObjectMarker('floor', 101, 0.05, [0.66-0.25-0.1,-0.29+0.17+0.07,0.005], (np.pi,0,0)),
                               ObjectMarker('floor', 102, 0.05, [0.66-0.25+0.1,-0.29+0.17+0.07,0.005], (np.pi,0,0)),
                               ObjectMarker('floor', 103, 0.05, [0.66-0.25+0.1,-0.29+0.17-0.07,0.005], (np.pi,0,0)),
-                              ObjectMarker('floor', 104, 0.05, [0.66-0.25+-0.1,-0.29+0.17-0.07,0.005], (np.pi,0,0))
+                              ObjectMarker('floor', 104, 0.05, [0.66-0.25+-0.1,-0.29+0.17-0.07,0.005], (np.pi,0,0)),
+                              ObjectMarker('floor', 105, 0.05, [-0.11619042,  0.30448973,0.005], (np.pi,0,1.54217994)),
+                              ObjectMarker('floor', 106, 0.05, [-0.34293798, -0.1753922,0.005], (np.pi,0,1.55579808))
                           ]),
         'wall':MarkerSet('wall', dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX, dims=(3,3,0.10),
                          _list=[
@@ -132,27 +134,27 @@ def get_aruco_map():
         'target1':MarkerSet('target1',
                          dlevel=DetectionLevel.MOVABLE, gtype=GEOTYPE.BOX, dims=(0.1, 0.1,0.01), color=(0.8,0.0,0.0,1),
                          _list=[
-                             ObjectMarker('target1', 211, 0.1, [0.1,0,0.005], (np.pi,0,0))
+                             ObjectMarker('target1', 211, 0.1, [0,-0.11,0.005], (np.pi,0,0))
                          ]),
         'target2':MarkerSet('target2',
                          dlevel=DetectionLevel.MOVABLE, gtype=GEOTYPE.BOX, dims=(0.1, 0.1,0.01), color=(0.8,0.0,0.0,1),
                          _list=[
-                             ObjectMarker('target2', 212, 0.1, [0.1,0,0.005], (np.pi,0,0))
+                             ObjectMarker('target2', 212, 0.1, [0,-0.11,0.005], (np.pi,0,0))
                          ]),
         'target3':MarkerSet('target3',
                          dlevel=DetectionLevel.MOVABLE, gtype=GEOTYPE.BOX, dims=(0.1, 0.1,0.01), color=(0.8,0.0,0.0,1),
                          _list=[
-                             ObjectMarker('target3', 213, 0.1, [0.1,0,0.005], (np.pi,0,0))
+                             ObjectMarker('target3', 213, 0.1, [0,-0.11,0.005], (np.pi,0,0))
                          ]),
         'target4':MarkerSet('target4',
                          dlevel=DetectionLevel.MOVABLE, gtype=GEOTYPE.BOX, dims=(0.1, 0.1,0.01), color=(0.8,0.0,0.0,1),
                          _list=[
-                             ObjectMarker('target4', 214, 0.1, [0.1,0,0.005], (np.pi,0,0))
+                             ObjectMarker('target4', 214, 0.1, [0,-0.11,0.005], (np.pi,0,0))
                          ]),
         'target5':MarkerSet('target5',
                          dlevel=DetectionLevel.MOVABLE, gtype=GEOTYPE.BOX, dims=(0.1, 0.1,0.01), color=(0.8,0.0,0.0,1),
                          _list=[
-                             ObjectMarker('target5', 215, 0.1, [0.1,0,0.005], (np.pi,0,0))
+                             ObjectMarker('target5', 215, 0.1, [0,-0.11,0.005], (np.pi,0,0))
                          ])
     })
     return aruco_map

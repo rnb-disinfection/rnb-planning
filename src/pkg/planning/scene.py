@@ -388,7 +388,7 @@ class PlanningScene:
     ##
     # @brief get current scene state
     # @force_fit_binding    force each bindings to be perfectly matched geometrically
-    def initialize_state(self, Q, force_fit_binding=False):
+    def initialize_state(self, Q, force_fit_binding=False, Poffset=None):
         ## calculate binder transformations
         Q_dict = list2dict(Q, self.gscene.joint_names)
 
@@ -406,7 +406,8 @@ class PlanningScene:
                 if any([bgname in box_tmp.geometry.get_family() for box_tmp in objects_to_update]):  # binder will be updated
                     objects_to_update.append(obj)  # move to end to use updated binder info
                     continue
-                fit_binding(obj, obj.action_points_dict[hname], self.actor_dict[bname], self.combined_robot.home_dict)
+                fit_binding(obj, obj.action_points_dict[hname], self.actor_dict[bname], self.combined_robot.home_dict,
+                            Poffset=Poffset)
 
         return self.rebind_all(binding_list=binding_state, Q=Q)
 

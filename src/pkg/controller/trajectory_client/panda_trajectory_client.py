@@ -36,7 +36,7 @@ class PandaTrajectoryClient(TrajectoryClient):
             self.finger_cmd.header.seq += 1
             self.finger_cmd.goal_id.stamp = self.finger_cmd.header.stamp = rospy.Time.now()
             self.finger_pub.publish(self.finger_cmd)
-            time.sleep(0.5)
+            time.sleep(1)
         self.close_bool = close_bool
         return self.close_bool
 

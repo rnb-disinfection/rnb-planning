@@ -157,7 +157,7 @@ class SweepEntranceControlRule(CustomRuleInterface):
                                 tplan.node_snode_dict[node_new] = snode_list
                             next_node_candis = list(self.node_dict[node_new])
                             assert len(
-                                next_node_candis) == 1, "non-terminal sweep task should have only 1 leaf ({}) {}-{}".format(
+                                next_node_candis) == 1, "non-terminal sweep task should have 1 leaf ({}) {}-{}".format(
                                 diff_sidx, node_new, next_node_candis)
                             return True, next_node_candis * self.NUM_WP_TRIALS + stack_items
                     elif len(tplan.neighbor_nodes)==0 and not stack_res: # connection failed but no other new node
