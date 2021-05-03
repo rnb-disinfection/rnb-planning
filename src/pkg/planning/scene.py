@@ -15,7 +15,7 @@ from copy import deepcopy
 # @brief    planning scene state
 class State:
     ##
-    # @param binding_state           tuple of binding state ((object name, binding point, binder), ..)
+    # @param binding_state           tuple of binding state ((object name, binding point, binder, binder_geo), ..)
     # @param state_param    object pose dictionary {object name: 4x4 offset relative to attached link}
     # @param Q              robot joint configuration
     # @param pscene         PlanningScene instance
@@ -226,7 +226,7 @@ class PlanningScene:
 
     ##
     # @brief get object states
-    # @return binding_state tuple of binding state ((object name, binding point, binder), ..)
+    # @return binding_state tuple of binding state ((object name, binding point, binder, binder_geo), ..)
     # @return pose_dict object pose relative to attached links {name: 4x4 transformation}
     def get_object_state(self):
         binding_state = ()

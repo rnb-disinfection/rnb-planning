@@ -397,10 +397,10 @@ class SweepLineTask(AbstractTask):
             else:
                 self.center_dir = (wp_centers[1]-wp_centers[0])/center_dist
             self.Rot_vertical = Rotation.from_rotvec(self.center_dir * np.pi / 2).as_dcm()
-            self.geometry_vertical = geometry.gscene.create_safe(GEOTYPE.BOX,
+            self.geometry_vertical = geometry.gscene.create_safe(GEOTYPE.PLANE,
                                                                  "_".join([oname]+self.action_points_order),
                                                                  link_name=self.geometry.link_name,
-                                                                 dims=(center_dist*1.5,center_dist*1,1e-6),
+                                                                 dims=(center_dist*1.5,center_dist*1.5,1e-6),
                                                                  center=np.mean(wp_centers, axis=0),
                                                                  rpy=Rot2rpy(self.Rot_vertical),
                                                                  color=(0.8,0.2,0.2,0.2), display=False,

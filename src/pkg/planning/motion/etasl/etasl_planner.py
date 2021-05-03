@@ -57,9 +57,14 @@ class EtaslPlanner(MotionInterface):
     # @return error     planning error
     # @return success   success/failure of planning result
     def plan_algorithm(self, from_state, to_state, binding_list, redundancy_values=None,
-                       vel_conv=1e-2, err_conv=1e-3, collision=True, N=1000, dt=1e-2,
+                       vel_conv=1e-2, err_conv=1e-3, collision=True, N=None, dt=1e-2,
                        print_expression=False, cut_dot=False, traj_count=DEFAULT_TRAJ_COUNT,
                        timeout=None, **kwargs):
+        if N is None:
+            if timeout is None:
+                N = 1000
+            else:
+                N = timeout*2500
         if len(binding_list)>1:
             print("===================== plan simultaneous manipulation =====================")
         if len(binding_list)==0:
@@ -198,11 +203,18 @@ class EtaslPlanner(MotionInterface):
         else:
             col_text = ""
 
-        additional_constraints = '\nconstraint_activation = ctx:createInputChannelScalar("constraint_activation",0.0) \n' if activation else ""
+        additional_constraints = ""
+        if activation:
+            additional_constraints = '\nconstraint_activation = ctx:createInputChannelScalar("constraint_activation",0.0) \n'
+
         for bd1 in binding_list:
-            additional_constraints += make_action_constraints(self.pscene.subject_dict[bd1[0]],
-                self.pscene.subject_dict[bd1[0]].action_points_dict[bd1[1]], self.pscene.actor_dict[bd1[2]],
+            sidx = self.pscene.subject_name_list.index(bd1[0])
+            additional_constraints += make_action_constraints(
+                self.pscene.subject_dict[bd1[0]], self.pscene.subject_dict[bd1[0]].action_points_dict[bd1[1]],
+                self.pscene.actor_dict[bd1[2]],
+                binding_from=from_state.binding_state[sidx], binding_to=to_state.binding_state[sidx],
                 redundancy_values=redundancy_values, activation=activation)
+
 
         if additional_constraints=="" and to_state.Q is not None:# and np.sum(np.abs(np.subtract(to_state.Q,from_state.Q)))>1e-2:
             additional_constraints=make_joint_constraints(joint_names=self.joint_names)

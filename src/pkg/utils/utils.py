@@ -42,9 +42,15 @@ def interpolate_double(X):
 def matmul_md(A, B):
     return np.sum((np.expand_dims(A, axis=-1) * np.expand_dims(B, axis=-3)), axis=-2)
 
+
 def get_mean_std(X, outlier_count=2):
     X_ex = [x[0] for x in sorted(zip(X,np.linalg.norm(X-np.mean(X, axis=0), axis=1)), key=lambda x: x[1])][:-outlier_count]
     return np.mean(X_ex, axis=0), np.std(X_ex, axis=0)
+
+
+class DummyObject:
+    def __init__(self):
+        pass
 
 
 ##
