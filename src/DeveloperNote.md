@@ -6,3 +6,7 @@
 
 ### Movable Binder Held by Robot
 * error due to actor_robot_dict
+
+
+### Note Info
+* registering planner implementations: registerDefaultPlanners

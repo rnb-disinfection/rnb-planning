@@ -11,23 +11,31 @@ planner_configs:
     range: 0.0  # Max motion added to tree. ==> maxDistance_ default: 0.0, if 0.0, set on setup()
     border_fraction: 0.9  # Fraction of time focused on boarder default: 0.9
     min_valid_path_fraction: 0.5  # Accept partially valid moves above fraction. default: 0.5
+    longest_valid_segment_fraction: 0.005 # collision checking step size (ratio to full state space)
+#    maximum_waypoint_distance: 0.001 # collision checking step size (absolute distance)
   BKPIECEkConfigDefault:
     type: geometric::BKPIECE
     range: 0.0  # Max motion added to tree. ==> maxDistance_ default: 0.0, if 0.0, set on setup()
     border_fraction: 0.9  # Fraction of time focused on boarder default: 0.9
     failed_expansion_score_factor: 0.5  # When extending motion fails, scale score by factor. default: 0.5
     min_valid_path_fraction: 0.5  # Accept partially valid moves above fraction. default: 0.5
+    longest_valid_segment_fraction: 0.005 # collision checking step size (ratio to full state space)
+#    maximum_waypoint_distance: 0.001 # collision checking step size (absolute distance)
   KPIECEkConfigDefault:
     type: geometric::KPIECE
     range: 0.0  # Max motion added to tree. ==> maxDistance_ default: 0.0, if 0.0, set on setup()
     goal_bias: 0.05  # When close to goal select goal, with this probability. default: 0.05
     border_fraction: 0.9  # Fraction of time focused on boarder default: 0.9 (0.0,1.]
-    failed_expansion_score_factor: 0.5  # When extending motion fails, scale score by factor. default: 0.5
+    failed_expansion_score_factor: 0.5  # When extending motion fails, scale score by factor.
+    longest_valid_segment_fraction: 0.005 # collision checking step size (ratio to full state space)
+#    maximum_waypoint_distance: 0.001 # collision checking step size (absolute distance) default: 0.5
     min_valid_path_fraction: 0.5  # Accept partially valid moves above fraction. default: 0.5
   RRTkConfigDefault:
     type: geometric::RRT
     range: 0.0  # Max motion added to tree. ==> maxDistance_ default: 0.0, if 0.0, set on setup()
     goal_bias: 0.05  # When close to goal select goal, with this probability? default: 0.05
+    longest_valid_segment_fraction: 0.005 # collision checking step size (ratio to full state space)
+#    maximum_waypoint_distance: 0.001 # collision checking step size (absolute distance)
   RRTConnectkConfigDefault:
     type: geometric::RRTConnect
     range: 0  # Max motion added to tree. ==> maxDistance_ default: 0.0, if 0.0, set on setup()
@@ -35,7 +43,7 @@ planner_configs:
 #    maximum_waypoint_distance: 0.001 # collision checking step size (absolute distance)
   RRTstarkConfigDefault:
     type: geometric::RRTstar
-    range: 0.0  # Max motion added to tree. ==> maxDistance_ default: 0.0, if 0.0, set on setup()
+    range: 0.5  # Max motion added to tree. ==> maxDistance_ default: 0.0, if 0.0, set on setup()
     goal_bias: 0.05  # When close to goal select goal, with this probability? default: 0.05
     longest_valid_segment_fraction: 0.005 # collision checking step size (ratio to full state space)
 #    maximum_waypoint_distance: 0.001 # collision checking step size (absolute distance)
@@ -48,14 +56,20 @@ planner_configs:
     temp_change_factor: 2.0  # how much to increase or decrease temp. default: 2.0
     min_temperature: 10e-10  # lower limit of temp change. default: 10e-10
     init_temperature: 10e-6  # initial temperature. default: 10e-6
-    frountier_threshold: 0.0  # dist new state to nearest neighbor to disqualify as frontier. default: 0.0 set in setup()
+    frountier_threshold: 0.0  # dist new state to nearest neighbor to disqualify as frontier.
+    longest_valid_segment_fraction: 0.005 # collision checking step size (ratio to full state space)
+#    maximum_waypoint_distance: 0.001 # collision checking step size (absolute distance) default: 0.0 set in setup()
     frountierNodeRatio: 0.1  # 1/10, or 1 nonfrontier for every 10 frontier. default: 0.1
     k_constant: 0.0  # value used to normalize expresssion. default: 0.0 set in setup()
   PRMkConfigDefault:
     type: geometric::PRM
     max_nearest_neighbors: 10  # use k nearest neighbors. default: 10
+    longest_valid_segment_fraction: 0.005 # collision checking step size (ratio to full state space)
+#    maximum_waypoint_distance: 0.001 # collision checking step size (absolute distance) default: 0.0 set in setup()
   PRMstarkConfigDefault:
     type: geometric::PRMstar
+    longest_valid_segment_fraction: 0.005 # collision checking step size (ratio to full state space)
+#    maximum_waypoint_distance: 0.001 # collision checking step size (absolute distance) default: 0.0 set in setup()
   FMTkConfigDefault:
     type: geometric::FMT
     num_samples: 1000  # number of states that the planner should sample. default: 1000
@@ -64,6 +78,8 @@ planner_configs:
     cache_cc: 1  # use collision checking cache. default: 1
     heuristics: 0  # activate cost to go heuristics. default: 0
     extended_fmt: 1  # activate the extended FMT*: adding new samples if planner does not finish successfully. default: 1
+    longest_valid_segment_fraction: 0.005 # collision checking step size (ratio to full state space)
+#    maximum_waypoint_distance: 0.001 # collision checking step size (absolute distance) default: 0.0 set in setup()
   BFMTkConfigDefault:
     type: geometric::BFMT
     num_samples: 1000  # number of states that the planner should sample. default: 1000
@@ -74,6 +90,8 @@ planner_configs:
     heuristics: 1  # activates cost to go heuristics. default: 1
     cache_cc: 1  # use the collision checking cache. default: 1
     extended_fmt: 1  # Activates the extended FMT*: adding new samples if planner does not finish successfully. default: 1
+    longest_valid_segment_fraction: 0.005 # collision checking step size (ratio to full state space)
+#    maximum_waypoint_distance: 0.001 # collision checking step size (absolute distance) default: 0.0 set in setup()
   PDSTkConfigDefault:
     type: geometric::PDST
   STRIDEkConfigDefault:
@@ -87,6 +105,8 @@ planner_configs:
     max_pts_per_leaf: 6  # max points per leaf in the GNAT. default: 6
     estimated_dimension: 0.0  # estimated dimension of the free space. default: 0.0
     min_valid_path_fraction: 0.2  # Accept partially valid moves above fraction. default: 0.2
+    longest_valid_segment_fraction: 0.005 # collision checking step size (ratio to full state space)
+#    maximum_waypoint_distance: 0.001 # collision checking step size (absolute distance) default: 0.0 set in setup()
   BiTRRTkConfigDefault:
     type: geometric::BiTRRT
     range: 0.0  # Max motion added to tree. ==> maxDistance_ default: 0.0, if 0.0, set on setup()
@@ -153,6 +173,7 @@ indy0:
     - SPARSkConfigDefault
     - SPARStwokConfigDefault
     - TrajOptDefault
+  projection_evaluator: link(indy0_tcp)
 indy1:
   planner_configs:
     - SBLkConfigDefault
@@ -179,6 +200,7 @@ indy1:
     - SPARSkConfigDefault
     - SPARStwokConfigDefault
     - TrajOptDefault
+  projection_evaluator: link(indy1_tcp)
 panda0:
   planner_configs:
     - SBLkConfigDefault
@@ -205,6 +227,7 @@ panda0:
     - SPARSkConfigDefault
     - SPARStwokConfigDefault
     - TrajOptDefault
+  projection_evaluator: link(panda0_hand)
 panda1:
   planner_configs:
     - SBLkConfigDefault
@@ -231,6 +254,7 @@ panda1:
     - SPARSkConfigDefault
     - SPARStwokConfigDefault
     - TrajOptDefault
+  projection_evaluator: link(panda1_hand)
 panda1_indy0:
   planner_configs:
     - SBLkConfigDefault
@@ -257,6 +281,7 @@ panda1_indy0:
     - SPARSkConfigDefault
     - SPARStwokConfigDefault
     - TrajOptDefault
+  projection_evaluator: link(panda1_indy0_tcp)
 indy0_panda1:
   planner_configs:
     - SBLkConfigDefault
@@ -283,3 +308,4 @@ indy0_panda1:
     - SPARSkConfigDefault
     - SPARStwokConfigDefault
     - TrajOptDefault
+  projection_evaluator: link(indy0_panda1_hand)

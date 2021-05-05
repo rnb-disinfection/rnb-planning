@@ -70,7 +70,7 @@ int main(int argc, char** argv) {
     Eigen::Vector3d _vec(end_effector_tf.translation());
     Eigen::Quaterniond _rot(end_effector_tf.linear());
 
-    auto goal_tf = end_effector_tf*Eigen::Translation3d(0,0.1,0);
+    auto goal_tf = end_effector_tf*Eigen::Translation3d(0,0.05,0);
 
     Eigen::Vector3d _vec_g(goal_tf.translation());
     Eigen::Quaterniond _rot_g(goal_tf.linear());
@@ -93,16 +93,16 @@ int main(int argc, char** argv) {
     plane_pose << _vec.x(),_vec.y(),_vec.z(), _rot.x(), _rot.y(), _rot.z(), _rot.w();
 //    plane_pose << _vec.x(),_vec.y(),_vec.z(),0.70710678,0,0,0.70710678;
 //    plane_pose << _vec.x(),_vec.y(),_vec.z(),0.38268343, 0.0, 0.0, 0.92387953;
-    geometry_list.push_back(Geometry(ObjectType::BOX, plane_pose, Vec3(0.5,0.5,0.000001)));
+    geometry_list.push_back(Geometry(ObjectType::PLANE, plane_pose, Vec3(0.5,0.5,0.000001)));
     planner.clear_manifolds();
     planner.add_union_manifold(group_name, tool_link, tool_offset, geometry_list,
-                               true, true, 2e-3);
+                               true, false, 2e-3);
 
     PlanResult res = planner.plan_with_constraints(group_name, tool_link,
                                                    goal_pose, "base_link", init_state,
-                                                   "RRTConnectkConfigDefault",
+                                                   "LBKPIECEkConfigDefault",
                                                    10,
-                                                   ompl_interface::ConstrainedSpaceType::PROJECTED,
+                                                   ompl_interface::ConstrainedSpaceType::TANGENTBUNDLE,
                                                    false);
 
     std::cout<<std::endl;

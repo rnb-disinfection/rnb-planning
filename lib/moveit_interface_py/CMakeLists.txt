@@ -63,7 +63,7 @@ add_library(${PROJECT_NAME} SHARED
         src/ompl_interface/detail/constraints_library.cpp
         src/ompl_interface/detail/constrained_sampler.cpp
         src/ompl_interface/detail/constrained_valid_state_sampler.cpp
-        src/ompl_interface/detail/constrained_goal_sampler.cpp src/logger.cpp src/typedef.cpp include/constants.h include/planning_objective.h)
+        src/ompl_interface/detail/constrained_goal_sampler.cpp src/logger.cpp src/typedef.cpp include/constants.h include/ompl_interface/planning_objective.h include/ompl_interface/planner/KPIECE_CUSTOM.h src/ompl_interface/planner/KPIECE_CUSTOM.cpp)
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${OMPL_LIBRARIES} yaml-cpp)
 ##############################  BUILD LIBRARY ##############################
 ############################################################################

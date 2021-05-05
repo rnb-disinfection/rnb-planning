@@ -24,6 +24,13 @@ planner_configs:
     border_fraction: 0.9  # Fraction of time focused on boarder default: 0.9 (0.0,1.]
     failed_expansion_score_factor: 0.5  # When extending motion fails, scale score by factor. default: 0.5
     min_valid_path_fraction: 0.5  # Accept partially valid moves above fraction. default: 0.5
+  KPIECE_CUSTOMkConfigDefault:
+    type: geometric::KPIECE_CUSTOM
+    range: 0.0  # Max motion added to tree. ==> maxDistance_ default: 0.0, if 0.0, set on setup()
+    goal_bias: 0.05  # When close to goal select goal, with this probability. default: 0.05
+    border_fraction: 0.9  # Fraction of time focused on boarder default: 0.9 (0.0,1.]
+    failed_expansion_score_factor: 0.5  # When extending motion fails, scale score by factor. default: 0.5
+    min_valid_path_fraction: 0.5  # Accept partially valid moves above fraction. default: 0.5
   RRTkConfigDefault:
     type: geometric::RRT
     range: 0.0  # Max motion added to tree. ==> maxDistance_ default: 0.0, if 0.0, set on setup()
@@ -130,6 +137,7 @@ indy0:
     - LBKPIECEkConfigDefault
     - BKPIECEkConfigDefault
     - KPIECEkConfigDefault
+    - KPIECE_CUSTOMkConfigDefault
     - RRTkConfigDefault
     - RRTConnectkConfigDefault
     - RRTstarkConfigDefault
@@ -149,6 +157,7 @@ indy0:
     - SPARSkConfigDefault
     - SPARStwokConfigDefault
     - TrajOptDefault
+  projection_evaluator: link(indy0_tcp)
 panda1:
   planner_configs:
     - SBLkConfigDefault
@@ -156,6 +165,7 @@ panda1:
     - LBKPIECEkConfigDefault
     - BKPIECEkConfigDefault
     - KPIECEkConfigDefault
+    - KPIECE_CUSTOMkConfigDefault
     - RRTkConfigDefault
     - RRTConnectkConfigDefault
     - RRTstarkConfigDefault
@@ -175,3 +185,4 @@ panda1:
     - SPARSkConfigDefault
     - SPARStwokConfigDefault
     - TrajOptDefault
+  projection_evaluator: link(panda1_hand)

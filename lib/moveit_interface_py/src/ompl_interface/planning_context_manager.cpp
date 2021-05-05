@@ -49,6 +49,7 @@
 #include <ompl/geometric/planners/sbl/SBL.h>
 #include <ompl/geometric/planners/sbl/pSBL.h>
 #include <ompl/geometric/planners/kpiece/KPIECE1.h>
+#include <ompl_interface/planner/KPIECE_CUSTOM.h>
 #include <ompl/geometric/planners/kpiece/BKPIECE1.h>
 #include <ompl/geometric/planners/kpiece/LBKPIECE1.h>
 #include <ompl/geometric/planners/rrt/RRTstar.h>
@@ -75,7 +76,7 @@
 #include "ompl_interface/parameterization/joint_space/joint_model_state_space.h"
 #include "ompl_interface/parameterization/work_space/pose_model_state_space_factory.h"
 
-#include "planning_objective.h"
+#include "ompl_interface/planning_objective.h"
 
 using namespace std::placeholders;
 
@@ -279,6 +280,7 @@ void ompl_interface::PlanningContextManager::registerDefaultPlanners()
     registerPlannerAllocatorHelper<og::EST>("geometric::EST");
     registerPlannerAllocatorHelper<og::FMT>("geometric::FMT");
     registerPlannerAllocatorHelper<og::KPIECE1>("geometric::KPIECE");
+    registerPlannerAllocatorHelper<og::KPIECE_CUSTOM>("geometric::KPIECE_CUSTOM");
     registerPlannerAllocatorHelper<og::LazyPRM>("geometric::LazyPRM");
     registerPlannerAllocatorHelper<og::LazyPRMstar>("geometric::LazyPRMstar");
     registerPlannerAllocatorHelper<og::LazyRRT>("geometric::LazyRRT");
@@ -353,14 +355,12 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
         context_spec.constraint_sampler_manager_ = constraint_sampler_manager_;
         context_spec.state_space_ = factory->getNewStateSpace(space_spec);
 
-        // Define the constrained space information for this constrained state space.
-        ob::SpaceInformationPtr si_ = std::make_shared<ob::SpaceInformation>(context_spec.state_space_);
-
         // Choose the correct simple setup type to load
         context_spec.ompl_simple_setup_.reset(new ompl::geometric::SimpleSetup(context_spec.state_space_));
 
-//        context_spec.ompl_simple_setup_->getProblemDefinition()->setOptimizationObjective(
-//                RNB::getLengthObjective(si_, 3.14*6));
+        // Define the constrained space information for this constrained state space.
+        context_spec.ompl_simple_setup_->getProblemDefinition()->setOptimizationObjective(
+                RNB::getBalancedObjective(context_spec.ompl_simple_setup_->getSpaceInformation()));
 
         ROS_DEBUG_NAMED(LOGNAME, "Creating new planning context");
         context.reset(new ModelBasedPlanningContext(config.name, context_spec));
@@ -448,8 +448,8 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
 
         // Choose the correct simple setup type to load
         context_spec.ompl_simple_setup_.reset(new ompl::geometric::SimpleSetup(context_spec.csi_));
-//        context_spec.ompl_simple_setup_->getProblemDefinition()->setOptimizationObjective(
-//                RNB::getLengthObjective(context_spec.csi_, 3.14*2));
+        context_spec.ompl_simple_setup_->getProblemDefinition()->setOptimizationObjective(
+                RNB::getBalancedObjective(context_spec.csi_));
 
 
         ROS_DEBUG_NAMED(LOGNAME, "Creating new planning context");
