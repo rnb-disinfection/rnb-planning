@@ -132,8 +132,8 @@ class MoveitCompactPlanner_BP(mpc.Planner):
     # @brief search for plan that bring tool_link to goal_pose in coordinate of goal_link, with constraints
     # @param goal_pose xyzquat(xyzw) style pose of goal transformation in goal_link.
     def plan_constrained_py(self, robot_name, tool_link, goal_pose, goal_link, Q_init,
-                            plannerconfig="RRTConnectkConfigDefault", timeout=1,
-                            cs_type=ConstrainedSpaceType.ATLAS, allow_approximate=False, post_projection=False):
+                            plannerconfig="BKPIECEkConfigDefault", timeout=1,
+                            cs_type=ConstrainedSpaceType.PROJECTED, allow_approximate=False, post_projection=False):
         assert goal_link=="base_link", "Constrained planning is only available in base_link currently!"
         self.clear_context_cache()
         plan = self.plan_with_constraints(robot_name, tool_link,

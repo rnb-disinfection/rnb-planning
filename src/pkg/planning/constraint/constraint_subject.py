@@ -419,7 +419,7 @@ class SweepLineTask(AbstractTask):
                 return [MotionConstraint([self.geometry], True, True, tol=tol),
                         MotionConstraint([self.geometry_vertical], True, False, tol=tol),
                         MotionConstraint([self.geometry_vertical], True, False,
-                                         T_tool_offset=SE3(np.identity(3), self.center_dir*tol), tol=tol)]
+                                         T_tool_offset=SE3(np.identity(3), self.center_dir*tol*10), tol=tol)]
             else:
                 return [MotionConstraint([self.geometry], True, True, tol=tol),
                         MotionConstraint([self.geometry_vertical], True, False, tol=tol)]
