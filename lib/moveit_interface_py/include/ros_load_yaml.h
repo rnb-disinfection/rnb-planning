@@ -40,41 +40,31 @@ namespace RNB{
 #endif
     }
 
-    void set_rosparam_from_yaml_node(ros::NodeHandlePtr _node_handle, string key, YAML::Node node){
-        if (node.IsSequence()){
-            try{
-                set_rosparam_array_as<int>(_node_handle, key, node);
-            } catch (...) {
-                try{
-                    set_rosparam_array_as<double>(_node_handle, key, node);
-                } catch (...) {
-                    try{
-                        set_rosparam_array_as<string>(_node_handle, key, node);
-                    } catch (...) {
-                        PRINT_ERROR("CANNOT CONVERT YAML ARRAY NODE TO ROSPARAM ("+key+")");
-                        exit(0);
-                    }
-
-                }
-
+    XmlRpc::XmlRpcValue get_rosparam_from_yaml_node(YAML::Node node){
+        if (node.IsSequence()) {
+            XmlRpc::XmlRpcValue seq;
+            seq.setSize(node.size());
+            int idx=0;
+            for(auto it=node.begin(); it!=node.end(); it++){
+                seq[idx] = get_rosparam_from_yaml_node(*it);
+                idx++;
             }
+            return seq;
         }
         else{
-            try{
-                set_rosparam_as<int>(_node_handle, key, node);
+            try {
+                return XmlRpc::XmlRpcValue(node.as<int>());
             } catch (...) {
-                try{
-                    set_rosparam_as<double>(_node_handle, key, node);
+                try {
+                    return XmlRpc::XmlRpcValue(node.as<double>());
                 } catch (...) {
-                    try{
-                        set_rosparam_as<string>(_node_handle, key, node);
+                    try {
+                        return XmlRpc::XmlRpcValue(node.as<string>());
                     } catch (...) {
-                        PRINT_ERROR("CANNOT CONVERT YAML NODE TO ROSPARAM ("+key+")");
+                        PRINT_ERROR("CANNOT CONVERT YAML NODE TO ROSPARAM");
                         exit(0);
                     }
-
                 }
-
             }
         }
     }
@@ -95,7 +85,8 @@ namespace RNB{
             recurse_set_param(_node_handle, current_key, it_doc->second.begin(), it_doc->second.end());
         }
         else if(it_doc->second.IsDefined()){
-            set_rosparam_from_yaml_node(_node_handle, current_key, it_doc->second);
+            XmlRpc::XmlRpcValue nodeval = get_rosparam_from_yaml_node(it_doc->second);
+            _node_handle->setParam(current_key, nodeval);
         }
         else{
             PRINT_ERROR("ERROR::NON_DEFINED NODE" + current_key);

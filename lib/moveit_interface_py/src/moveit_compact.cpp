@@ -68,6 +68,7 @@ bool Planner::init_planner(string& urdf_txt, string& srdf_txt, NameList& group_n
 
     //------------------------parsing with Iterator
     rosparam_load_yaml(__node_handle, "", config_path+"kinematics.yaml");
+    rosparam_load_yaml(__node_handle, "", config_path+"stomp_planning.yaml");
     rosparam_load_yaml(__node_handle, "", config_path+"ompl_planning.yaml");
     rosparam_load_yaml(__node_handle, "", config_path+"planning_plugin.yaml");
 

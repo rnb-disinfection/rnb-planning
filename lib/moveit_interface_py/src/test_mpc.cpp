@@ -98,12 +98,10 @@ int main(int argc, char** argv) {
     planner.add_union_manifold(group_name, tool_link, tool_offset, geometry_list,
                                true, false, 2e-3);
 
-    PlanResult res = planner.plan_with_constraints(group_name, tool_link,
+    PlanResult res = planner.plan(group_name, tool_link,
                                                    goal_pose, "base_link", init_state,
-                                                   "KPIECE_CUSTOMkConfigDefault",
-                                                   10,
-                                                   ompl_interface::ConstrainedSpaceType::TANGENTBUNDLE,
-                                                   false);
+                                                   "RRTConnectkConfigDefault",
+                                                   10);
 
     std::cout<<std::endl;
 

@@ -1,0 +1,184 @@
+stomp/indy0:
+  group_name: indy0
+  optimization:
+    num_timesteps: 100
+    num_iterations: 100
+    num_iterations_after_valid: 5
+    num_rollouts: 20
+    max_rollouts: 100
+    initialization_method: 4 #[1 : LINEAR_INTERPOLATION, 2 : CUBIC_POLYNOMIAL, 3 : MININUM_CONTROL_COST, 4 : FILL_TRACJECTORY]
+    control_cost_weight: 1.0
+  task:
+    noise_generator:
+      - class: stomp_moveit/NormalDistributionSampling
+      - stddev: [ 0.05, 0.8, 1.0, 0.8, 0.4, 0.4, 0.4 ]
+    cost_functions:
+      - class: stomp_moveit/cost_functions/CollisionCheck
+      - collision_penalty: 1.0
+      - cost_weight: 1.0
+      - kernel_window_percentage: 0.4
+    noisy_filters:
+      - class: stomp_moveit/noisy_filters/JointLimits
+      - lock_start: True
+      - lock_goal: True
+#stomp/indy1:
+#  group_name: indy1
+#  optimization:
+#    num_timesteps: 100
+#    num_iterations: 100
+#    num_iterations_after_valid: 5
+#    num_rollouts: 20
+#    max_rollouts: 100
+#    initialization_method: 4 #[1 : LINEAR_INTERPOLATION, 2 : CUBIC_POLYNOMIAL, 3 : MININUM_CONTROL_COST, 4 : FILL_TRACJECTORY]
+#    control_cost_weight: 1.0
+#  task:
+#    noise_generator:
+#      class: stomp_moveit/NormalDistributionSampling
+#      stddev: [0.05, 0.8, 1.0, 0.8, 0.4, 0.4, 0.4]
+#    cost_functions:
+#      class: stomp_moveit/CollisionCheck
+#      collision_penalty: 1.0
+#      cost_weight: 1.0
+#      kernel_window_percentage: 0.4
+#    noisy_filters:
+#      class: stomp_moveit/JointLimits
+#      lock_start: True
+#      lock_goal: True
+#stomp/panda0:
+#  group_name: panda0
+#  optimization:
+#    num_timesteps: 100
+#    num_iterations: 100
+#    num_iterations_after_valid: 5
+#    num_rollouts: 20
+#    max_rollouts: 100
+#    initialization_method: 4 #[1 : LINEAR_INTERPOLATION, 2 : CUBIC_POLYNOMIAL, 3 : MININUM_CONTROL_COST, 4 : FILL_TRACJECTORY]
+#    control_cost_weight: 1.0
+#  task:
+#    noise_generator:
+#      class: stomp_moveit/NormalDistributionSampling
+#      stddev: [0.05, 0.8, 1.0, 0.8, 0.4, 0.4, 0.4]
+#    cost_functions:
+#      class: stomp_moveit/CollisionCheck
+#      collision_penalty: 1.0
+#      cost_weight: 1.0
+#      kernel_window_percentage: 0.4
+#    noisy_filters:
+#      class: stomp_moveit/JointLimits
+#      lock_start: True
+#      lock_goal: True
+#stomp/panda1:
+#  group_name: panda1
+#  optimization:
+#    num_timesteps: 100
+#    num_iterations: 100
+#    num_iterations_after_valid: 5
+#    num_rollouts: 20
+#    max_rollouts: 100
+#    initialization_method: 4 #[1 : LINEAR_INTERPOLATION, 2 : CUBIC_POLYNOMIAL, 3 : MININUM_CONTROL_COST, 4 : FILL_TRACJECTORY]
+#    control_cost_weight: 1.0
+#  task:
+#    noise_generator:
+#      class: stomp_moveit/NormalDistributionSampling
+#      stddev: [0.05, 0.8, 1.0, 0.8, 0.4, 0.4, 0.4]
+#    cost_functions:
+#      class: stomp_moveit/CollisionCheck
+#      collision_penalty: 1.0
+#      cost_weight: 1.0
+#      kernel_window_percentage: 0.4
+#    noisy_filters:
+#      class: stomp_moveit/JointLimits
+#      lock_start: True
+#      lock_goal: True
+#stomp/indy0_panda1:
+#  group_name: indy0_panda1
+#  optimization:
+#    num_timesteps: 100
+#    num_iterations: 100
+#    num_iterations_after_valid: 5
+#    num_rollouts: 20
+#    max_rollouts: 100
+#    initialization_method: 4 #[1 : LINEAR_INTERPOLATION, 2 : CUBIC_POLYNOMIAL, 3 : MININUM_CONTROL_COST, 4 : FILL_TRACJECTORY]
+#    control_cost_weight: 1.0
+#  task:
+#    noise_generator:
+#      class: stomp_moveit/NormalDistributionSampling
+#      stddev: [0.05, 0.8, 1.0, 0.8, 0.4, 0.4, 0.4]
+#    cost_functions:
+#      class: stomp_moveit/CollisionCheck
+#      collision_penalty: 1.0
+#      cost_weight: 1.0
+#      kernel_window_percentage: 0.4
+#    noisy_filters:
+#      class: stomp_moveit/JointLimits
+#      lock_start: True
+#      lock_goal: True
+#stomp/panda1_indy0:
+#  group_name: panda1_indy0
+#  optimization:
+#    num_timesteps: 100
+#    num_iterations: 100
+#    num_iterations_after_valid: 5
+#    num_rollouts: 20
+#    max_rollouts: 100
+#    initialization_method: 4 #[1 : LINEAR_INTERPOLATION, 2 : CUBIC_POLYNOMIAL, 3 : MININUM_CONTROL_COST, 4 : FILL_TRACJECTORY]
+#    control_cost_weight: 1.0
+#  task:
+#    noise_generator:
+#      class: stomp_moveit/NormalDistributionSampling
+#      stddev: [0.05, 0.8, 1.0, 0.8, 0.4, 0.4, 0.4]
+#    cost_functions:
+#      class: stomp_moveit/CollisionCheck
+#      collision_penalty: 1.0
+#      cost_weight: 1.0
+#      kernel_window_percentage: 0.4
+#    noisy_filters:
+#      class: stomp_moveit/JointLimits
+#      lock_start: True
+#      lock_goal: True
+#stomp/panda0_indy1:
+#  group_name: panda0_indy1
+#  optimization:
+#    num_timesteps: 100
+#    num_iterations: 100
+#    num_iterations_after_valid: 5
+#    num_rollouts: 20
+#    max_rollouts: 100
+#    initialization_method: 4 #[1 : LINEAR_INTERPOLATION, 2 : CUBIC_POLYNOMIAL, 3 : MININUM_CONTROL_COST, 4 : FILL_TRACJECTORY]
+#    control_cost_weight: 1.0
+#  task:
+#    noise_generator:
+#      class: stomp_moveit/NormalDistributionSampling
+#      stddev: [0.05, 0.8, 1.0, 0.8, 0.4, 0.4, 0.4]
+#    cost_functions:
+#      class: stomp_moveit/CollisionCheck
+#      collision_penalty: 1.0
+#      cost_weight: 1.0
+#      kernel_window_percentage: 0.4
+#    noisy_filters:
+#      class: stomp_moveit/JointLimits
+#      lock_start: True
+#      lock_goal: True
+#stomp/indy1_panda0:
+#  group_name: indy1_panda0
+#  optimization:
+#    num_timesteps: 100
+#    num_iterations: 100
+#    num_iterations_after_valid: 5
+#    num_rollouts: 20
+#    max_rollouts: 100
+#    initialization_method: 4 #[1 : LINEAR_INTERPOLATION, 2 : CUBIC_POLYNOMIAL, 3 : MININUM_CONTROL_COST, 4 : FILL_TRACJECTORY]
+#    control_cost_weight: 1.0
+#  task:
+#    noise_generator:
+#      class: stomp_moveit/NormalDistributionSampling
+#      stddev: [0.05, 0.8, 1.0, 0.8, 0.4, 0.4, 0.4]
+#    cost_functions:
+#      class: stomp_moveit/CollisionCheck
+#      collision_penalty: 1.0
+#      cost_weight: 1.0
+#      kernel_window_percentage: 0.4
+#    noisy_filters:
+#      class: stomp_moveit/JointLimits
+#      lock_start: True
+#      lock_goal: True

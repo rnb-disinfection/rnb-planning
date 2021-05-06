@@ -551,7 +551,8 @@ class AbstractObject(Subject):
                         continue
                     binder_redundancy = binder.get_redundancy()
                     handle_redundancy = handle.get_redundancy()
-                    margins = get_binding_margins(handle_T, binder_T, handle_redundancy, binder_redundancy)
+                    margins = get_binding_margins(handle_T, binder_T, handle_redundancy, binder_redundancy,
+                                                  rot_scale=1e-2)
                     margin_min = np.min(margins)
                     if margin_min > margin_max:
                         margin_max = margin_min

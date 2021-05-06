@@ -9,7 +9,6 @@ SET(OMPL_LIBRARIES /usr/local/lib/libompl.so)
 MESSAGE("ompl version - ${OMPL_VERSION}")
 MESSAGE("ompl include dir - ${OMPL_INCLUDE_DIRS}")
 MESSAGE("ompl libs - ${OMPL_LIBRARIES}")
-
 find_package(catkin REQUIRED
         COMPONENTS
         interactive_markers
@@ -25,10 +24,20 @@ find_package(catkin REQUIRED
         tf2_ros
         tf2_eigen
         tf2_geometry_msgs
+        stomp_core
+        stomp_moveit
         )
+SET(STOMP_PLUGIN_INCLUDE_DIRS
+        "$ENV{HOME}/catkin_ws/src/stomp_ros/stomp_plugins/include")
+SET(STOMP_PLUGIN_LIBRARIES
+        "$ENV{HOME}/catkin_ws/devel/lib/libstomp_plugins_cost_functions.so"
+        "$ENV{HOME}/catkin_ws/devel/lib/libstomp_plugins_noise_generators.so"
+        "$ENV{HOME}/catkin_ws/devel/lib/libstomp_plugins_update_filters.so")
+MESSAGE("${STOMP_PLUGIN_LIBRARIES}")
 
-
+MESSAGE("=====================================================================================================================================================================")
 MESSAGE("catkin libs - ${catkin_LIBRARIES}")
+MESSAGE("=====================================================================================================================================================================")
 
 find_package(Eigen3 REQUIRED)
 find_package(Boost REQUIRED system filesystem date_time thread python)
@@ -38,6 +47,7 @@ MESSAGE("boost libs - ${Boost_LIBRARIES}")
 include_directories(include)
 include_directories(${OMPL_INCLUDE_DIRS})
 include_directories(${catkin_INCLUDE_DIRS})
+include_directories(${STOMP_PLUGIN_INCLUDE_DIRS})
 
 
 set(CMAKE_SHARED_LIBRARY_PREFIX "") # output file name should match with BOOST_PYTHON_MODULE name
@@ -63,8 +73,11 @@ add_library(${PROJECT_NAME} SHARED
         src/ompl_interface/detail/constraints_library.cpp
         src/ompl_interface/detail/constrained_sampler.cpp
         src/ompl_interface/detail/constrained_valid_state_sampler.cpp
-        src/ompl_interface/detail/constrained_goal_sampler.cpp src/logger.cpp src/typedef.cpp include/constants.h include/ompl_interface/planning_objective.h include/ompl_interface/planner/KPIECE_CUSTOM.h src/ompl_interface/planner/KPIECE_CUSTOM.cpp)
-target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${OMPL_LIBRARIES} yaml-cpp)
+        src/ompl_interface/detail/constrained_goal_sampler.cpp
+        src/logger.cpp src/typedef.cpp include/constants.h
+        src/ompl_interface/planner/KPIECE_CUSTOM.cpp)
+target_link_libraries(${PROJECT_NAME}
+        ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${OMPL_LIBRARIES} ${STOMP_PLUGIN_LIBRARIES} yaml-cpp)
 ##############################  BUILD LIBRARY ##############################
 ############################################################################
 
@@ -72,6 +85,7 @@ target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${O
 #############################  TEST EXECUTION ##############################
 add_executable(${PROJECT_NAME}-test
         src/test_mpc.cpp)
-target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME} ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${OMPL_LIBRARIES} yaml-cpp)
+target_link_libraries(${PROJECT_NAME}-test
+        ${PROJECT_NAME} ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${OMPL_LIBRARIES} ${STOMP_PLUGIN_LIBRARIES} yaml-cpp)
 #############################  TEST EXECUTION ##############################
 ############################################################################

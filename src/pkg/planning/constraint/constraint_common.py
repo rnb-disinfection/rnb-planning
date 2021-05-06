@@ -127,8 +127,9 @@ def sample_redundancy(redundancy_tot, sampler=random.uniform):
 # @param binder_T   transformation matrix (4x4) to global coordinate for binder
 # @param handle_redundancy  redundancy for handle {axis: (min, max)}, where axis in "xyzuvw"
 # @param binder_redundancy  redundancy for binder {axis: (min, max)}, where axis in "xyzuvw"
+# @param rot_scale scaling factor applied to rotation margin
 # @return 6x2 matrix that contains margin on the mininum/maximum side, in "xyz+rotationvector" order
-def get_binding_margins(handle_T, binder_T, handle_redundancy, binder_redundancy):
+def get_binding_margins(handle_T, binder_T, handle_redundancy, binder_redundancy, rot_scale=1.0):
     T_rel = np.matmul(SE3_inv(binder_T), handle_T)
 
     # get min/max offset in the handle coordinate
@@ -175,7 +176,7 @@ def get_binding_margins(handle_T, binder_T, handle_redundancy, binder_redundancy
     rot_vec = Rotation.from_dcm(T_rel[:3, :3]).as_rotvec()
     margin_rot = np.stack([rot_vec - rot_range[:, 0], rot_range[:, 1] - rot_vec], axis=-1)
 
-    return np.concatenate([margin_vec, margin_rot])
+    return np.concatenate([margin_vec, margin_rot*rot_scale])
 
 ##
 # @brief fit binding
