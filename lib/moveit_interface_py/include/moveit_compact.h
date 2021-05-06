@@ -37,12 +37,16 @@ namespace RNB {
         public:
             std::shared_ptr<pluginlib::ClassLoader<planning_interface::PlannerManager> > planner_plugin_loader_;
             std::string planner_plugin_name_;
+            std::vector<std::string> adapter_plugin_names_;
             ompl_interface::OMPLPlannerManagerCustomPtr planner_instance_;
+            std::shared_ptr<pluginlib::ClassLoader<planning_request_adapter::PlanningRequestAdapter> > adapter_plugin_loader_;
+            std::shared_ptr<planning_request_adapter::PlanningRequestAdapterChain> adapter_chain_;
             robot_model_loader::RobotModelLoaderPtr robot_model_loader_;
             robot_model::RobotModelPtr robot_model_;
             planning_scene::PlanningScenePtr planning_scene_;
             std::vector<ompl::base::ConstraintPtr> manifolds;
 
+            bool check_solution_paths_;
             PlanResult plan_result;
             NameList joint_names;
             int joint_num;
@@ -85,6 +89,12 @@ namespace RNB {
              * @author Junsu Kang
              */
             bool clear_manifolds();
+
+            /**
+             * @brief set flag for post-checking solution paths
+             * @author Junsu Kang
+             */
+            void checkSolutionPaths(bool flag);
 
             /**
              * @brief search for plan.

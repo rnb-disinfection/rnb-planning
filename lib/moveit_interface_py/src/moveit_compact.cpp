@@ -5,6 +5,8 @@
 #include <logger.h>
 #include <ros_load_yaml.h>
 #include "constants.h"
+#include <moveit/collision_detection/collision_tools.h>
+#include <moveit/trajectory_processing/trajectory_tools.h>
 
 using namespace RNB::MoveitCompact;
 
@@ -103,9 +105,20 @@ bool Planner::init_planner(string& urdf_txt, string& srdf_txt, NameList& group_n
 
 void Planner::configure()
 {
+    check_solution_paths_ = false;  // this is set to true below
+
     std::string planner;
     if (__node_handle->getParam("planning_plugin", planner))
         planner_plugin_name_ = planner;
+
+    std::string adapters;
+    if (__node_handle->getParam("request_adapters", adapters))
+    {
+        boost::char_separator<char> sep(" ");
+        boost::tokenizer<boost::char_separator<char> > tok(adapters, sep);
+        for (boost::tokenizer<boost::char_separator<char> >::iterator beg = tok.begin(); beg != tok.end(); ++beg)
+            adapter_plugin_names_.push_back(*beg);
+    }
 
     // load the planning plugin
     try
@@ -151,26 +164,62 @@ void Planner::configure()
     }
     else
     {
-        ROS_ERROR_STREAM("Exception while loading planner: Only ompl_interface/OMPLPlannerCustom is available now");
-//        try
-//        {
-//            planner_instance_ = planner_plugin_loader_->createUniqueInstance(planner_plugin_name_);
-//            if (!planner_instance_->initialize(robot_model_, __node_handle->getNamespace()))
-//                throw std::runtime_error("Unable to initialize planning plugin");
-//            ROS_INFO_STREAM("Using planning interface '" << planner_instance_->getDescription() << "'");
-//        }
-//        catch (pluginlib::PluginlibException& ex)
-//        {
-//            ROS_ERROR_STREAM("Exception while loading planner '"
-//                                     << planner_plugin_name_ << "': " << ex.what() << std::endl
-//                                     << "Available plugins: " << boost::algorithm::join(classes, ", "));
-//        }
+        ROS_ERROR_STREAM("Exception while loading planner: No available plugin");
     }
+    // load the planner request adapters
+    if (!adapter_plugin_names_.empty())
+    {
+        std::vector<planning_request_adapter::PlanningRequestAdapterPtr> ads;
+        try
+        {
+            adapter_plugin_loader_.reset(new pluginlib::ClassLoader<planning_request_adapter::PlanningRequestAdapter>(
+                    "moveit_core", "planning_request_adapter::PlanningRequestAdapter"));
+        }
+        catch (pluginlib::PluginlibException& ex)
+        {
+            ROS_ERROR_STREAM("Exception while creating planning plugin loader " << ex.what());
+        }
+
+        if (adapter_plugin_loader_)
+            for (const std::string& adapter_plugin_name : adapter_plugin_names_)
+            {
+                planning_request_adapter::PlanningRequestAdapterPtr ad;
+                try
+                {
+                    ad = adapter_plugin_loader_->createUniqueInstance(adapter_plugin_name);
+                }
+                catch (pluginlib::PluginlibException& ex)
+                {
+                    ROS_ERROR_STREAM("Exception while loading planning adapter plugin '" << adapter_plugin_name
+                                                                                         << "': " << ex.what());
+                }
+                if (ad)
+                {
+                    ads.push_back(std::move(ad));
+                }
+            }
+        if (!ads.empty())
+        {
+            adapter_chain_.reset(new planning_request_adapter::PlanningRequestAdapterChain());
+            for (planning_request_adapter::PlanningRequestAdapterPtr& ad : ads)
+            {
+                ROS_INFO_STREAM("Using planning request adapter '" << ad->getDescription() << "'");
+                adapter_chain_->addAdapter(ad);
+            }
+        }
+    }
+    checkSolutionPaths(true);
 }
 
-PlanResult& Planner::plan(string group_name, string tool_link,
-                          CartPose goal_pose, string goal_link,
-                          JointState init_state, string planner_id, double allowed_planning_time){
+void Planner::checkSolutionPaths(bool flag)
+{
+    check_solution_paths_ = flag;
+}
+
+PlanResult &Planner::plan(string group_name, string tool_link,
+                 CartPose goal_pose, string goal_link,
+                 JointState init_state, string planner_id,
+                 double allowed_planning_time){
     PRINT_FRAMED_LOG("set goal", true);
     geometry_msgs::PoseStamped _goal_pose;
     _goal_pose.header.frame_id = goal_link;
@@ -209,18 +258,121 @@ PlanResult& Planner::plan(string group_name, string tool_link,
 
     plan_result.trajectory.clear();
 
-    planning_interface::PlanningContextPtr context =
-            planner_instance_->getPlanningContext(planning_scene_, _req, _res.error_code_);
+    bool solved;
+    std::vector<std::size_t> adapter_added_state_index;
+    try
+    {
+        if (adapter_chain_)
+        {
+            solved = adapter_chain_->adaptAndPlan(planner_instance_, planning_scene_, _req, _res, adapter_added_state_index);
+            if (!adapter_added_state_index.empty())
+            {
+                std::stringstream ss;
+                for (std::size_t added_index : adapter_added_state_index)
+                    ss << added_index << " ";
+                ROS_INFO("Planning adapters have added states at index positions: [ %s]", ss.str().c_str());
+            }
+        }
+        else
+        {
 
-    context->solve(_res);
+            planning_interface::PlanningContextPtr context =
+                    planner_instance_->getPlanningContext(planning_scene_, _req, _res.error_code_);
+    solved = context->solve(_res);
+        }
+    }
+    catch (std::exception& ex)
+    {
+        ROS_ERROR("Exception caught: '%s'", ex.what());
+        solved = false;
+    }
 
 #ifdef PRINT_DEBUG
     std::cout <<"init_state: "<<init_state.transpose()<<std::endl;
     std::cout <<"goal_pose: "<<goal_pose.transpose()<<std::endl;
 #endif
 
+    bool valid = true;
+
+    if (solved && _res.trajectory_)
+    {
+        std::size_t state_count = _res.trajectory_->getWayPointCount();
+        ROS_DEBUG_STREAM("Motion planner reported a solution path with " << state_count << " states");
+        if (check_solution_paths_)
+        {
+            std::vector<std::size_t> index;
+            if (!planning_scene_->isPathValid(*_res.trajectory_, _req.path_constraints, _req.group_name, false, &index))
+            {
+                // check to see if there is any problem with the states that are found to be invalid
+                // they are considered ok if they were added by a planning request adapter
+                bool problem = false;
+                for (std::size_t i = 0; i < index.size() && !problem; ++i)
+                {
+                    bool found = false;
+                    for (std::size_t added_index : adapter_added_state_index)
+                        if (index[i] == added_index)
+                        {
+                            found = true;
+                            break;
+                        }
+                    if (!found)
+                        problem = true;
+                }
+                if (problem)
+                {
+                    if (index.size() == 1 && index[0] == 0)  // ignore cases when the robot starts at invalid location
+                        ROS_DEBUG("It appears the robot is starting at an invalid state, but that is ok.");
+                    else
+                    {
+                        valid = false;
+                        _res.error_code_.val = moveit_msgs::MoveItErrorCodes::INVALID_MOTION_PLAN;
+
+                        // display error messages
+                        std::stringstream ss;
+                        for (std::size_t it : index)
+                            ss << it << " ";
+                        ROS_ERROR_STREAM("Computed path is not valid. Invalid states at index locations: [ "
+                                                 << ss.str() << "] out of " << state_count
+                                                 << ". Explanations follow in command line.");
+
+                        // call validity checks in verbose mode for the problematic states
+                        visualization_msgs::MarkerArray arr;
+                        for (std::size_t it : index)
+                        {
+                            // check validity with verbose on
+                            const moveit::core::RobotState& robot_state = _res.trajectory_->getWayPoint(it);
+                            planning_scene_->isStateValid(robot_state, _req.path_constraints, _req.group_name, true);
+
+                            // compute the contacts if any
+                            collision_detection::CollisionRequest c_req;
+                            collision_detection::CollisionResult c_res;
+                            c_req.contacts = true;
+                            c_req.max_contacts = 10;
+                            c_req.max_contacts_per_pair = 3;
+                            c_req.verbose = false;
+                            planning_scene_->checkCollision(c_req, c_res, robot_state);
+                            if (c_res.contact_count > 0)
+                            {
+                                visualization_msgs::MarkerArray arr_i;
+                                collision_detection::getCollisionMarkersFromContacts(arr_i, planning_scene_->getPlanningFrame(),
+                                                                                     c_res.contacts);
+                                arr.markers.insert(arr.markers.end(), arr_i.markers.begin(), arr_i.markers.end());
+                            }
+                        }
+                        ROS_ERROR_STREAM("Completed listing of explanations for invalid states.");
+                    }
+                }
+                else
+                    ROS_DEBUG("Planned path was found to be valid, except for states that were added by planning request "
+                              "adapters, but that is ok.");
+            }
+            else
+                ROS_DEBUG("Planned path was found to be valid when rechecked");
+        }
+    }
+
     /* Check that the planning was successful */
-    if (_res.error_code_.val != _res.error_code_.SUCCESS)
+    if ((!(solved&&valid)) || (_res.error_code_.val != _res.error_code_.SUCCESS))
     {
         plan_result.success = false;
         PRINT_ERROR(("failed to generatePlan ("+std::to_string(_res.error_code_.val)+")").c_str());
@@ -267,18 +419,122 @@ PlanResult& Planner::plan_joint_motion(string group_name, JointState goal_state,
 
     plan_result.trajectory.clear();
 
-    planning_interface::PlanningContextPtr context =
-            planner_instance_->getPlanningContext(planning_scene_, _req, _res.error_code_);
+    bool solved;
+    std::vector<std::size_t> adapter_added_state_index;
+    try
+    {
+        if (adapter_chain_)
+        {
+            solved = adapter_chain_->adaptAndPlan(planner_instance_, planning_scene_, _req, _res, adapter_added_state_index);
+            if (!adapter_added_state_index.empty())
+            {
+                std::stringstream ss;
+                for (std::size_t added_index : adapter_added_state_index)
+                    ss << added_index << " ";
+                ROS_INFO("Planning adapters have added states at index positions: [ %s]", ss.str().c_str());
+            }
+        }
+        else
+        {
 
-    context->solve(_res);
+            planning_interface::PlanningContextPtr context =
+                    planner_instance_->getPlanningContext(planning_scene_, _req, _res.error_code_);
+            solved = context->solve(_res);
+        }
+    }
+    catch (std::exception& ex)
+    {
+        ROS_ERROR("Exception caught: '%s'", ex.what());
+        solved = false;
+    }
 
 #ifdef PRINT_DEBUG
     std::cout <<"init_state: "<<init_state.transpose()<<std::endl;
     std::cout <<"goal_pose: "<<goal_pose.transpose()<<std::endl;
 #endif
 
+    bool valid = true;
+
+    if (solved && _res.trajectory_)
+    {
+        std::vector<std::size_t> adapter_added_state_index;
+        std::size_t state_count = _res.trajectory_->getWayPointCount();
+        ROS_DEBUG_STREAM("Motion planner reported a solution path with " << state_count << " states");
+        if (check_solution_paths_)
+        {
+            std::vector<std::size_t> index;
+            if (!planning_scene_->isPathValid(*_res.trajectory_, _req.path_constraints, _req.group_name, false, &index))
+            {
+                // check to see if there is any problem with the states that are found to be invalid
+                // they are considered ok if they were added by a planning request adapter
+                bool problem = false;
+                for (std::size_t i = 0; i < index.size() && !problem; ++i)
+                {
+                    bool found = false;
+                    for (std::size_t added_index : adapter_added_state_index)
+                        if (index[i] == added_index)
+                        {
+                            found = true;
+                            break;
+                        }
+                    if (!found)
+                        problem = true;
+                }
+                if (problem)
+                {
+                    if (index.size() == 1 && index[0] == 0)  // ignore cases when the robot starts at invalid location
+                        ROS_DEBUG("It appears the robot is starting at an invalid state, but that is ok.");
+                    else
+                    {
+                        valid = false;
+                        _res.error_code_.val = moveit_msgs::MoveItErrorCodes::INVALID_MOTION_PLAN;
+
+                        // display error messages
+                        std::stringstream ss;
+                        for (std::size_t it : index)
+                            ss << it << " ";
+                        ROS_ERROR_STREAM("Computed path is not valid. Invalid states at index locations: [ "
+                                                 << ss.str() << "] out of " << state_count
+                                                 << ". Explanations follow in command line.");
+
+                        // call validity checks in verbose mode for the problematic states
+                        visualization_msgs::MarkerArray arr;
+                        for (std::size_t it : index)
+                        {
+                            // check validity with verbose on
+                            const moveit::core::RobotState& robot_state = _res.trajectory_->getWayPoint(it);
+                            planning_scene_->isStateValid(robot_state, _req.path_constraints, _req.group_name, true);
+
+                            // compute the contacts if any
+                            collision_detection::CollisionRequest c_req;
+                            collision_detection::CollisionResult c_res;
+                            c_req.contacts = true;
+                            c_req.max_contacts = 10;
+                            c_req.max_contacts_per_pair = 3;
+                            c_req.verbose = false;
+                            planning_scene_->checkCollision(c_req, c_res, robot_state);
+                            if (c_res.contact_count > 0)
+                            {
+                                visualization_msgs::MarkerArray arr_i;
+                                collision_detection::getCollisionMarkersFromContacts(arr_i, planning_scene_->getPlanningFrame(),
+                                                                                     c_res.contacts);
+                                arr.markers.insert(arr.markers.end(), arr_i.markers.begin(), arr_i.markers.end());
+                            }
+                        }
+                        ROS_ERROR_STREAM("Completed listing of explanations for invalid states.");
+                    }
+                }
+                else
+                    ROS_DEBUG("Planned path was found to be valid, except for states that were added by planning request "
+                              "adapters, but that is ok.");
+            }
+            else
+                ROS_DEBUG("Planned path was found to be valid when rechecked");
+        }
+    }
+
     /* Check that the planning was successful */
-    if (_res.error_code_.val != _res.error_code_.SUCCESS)
+    if ((!(solved&&valid)) || (_res.error_code_.val != _res.error_code_.SUCCESS))
     {
         plan_result.success = false;
         PRINT_ERROR(("failed to generatePlan ("+std::to_string(_res.error_code_.val)+")").c_str());
@@ -311,6 +567,7 @@ PlanResult& Planner::plan_with_constraints(string group_name, string tool_link,
                          JointState init_state, string planner_id, double allowed_planning_time,
                          ompl_interface::ConstrainedSpaceType cs_type, bool allow_approximation,
                          bool post_projection){
+
     PRINT_FRAMED_LOG("set goal", true);
     geometry_msgs::PoseStamped _goal_pose;
     _goal_pose.header.frame_id = goal_link;
@@ -363,19 +620,123 @@ PlanResult& Planner::plan_with_constraints(string group_name, string tool_link,
     tol = sqrt(tol);
     manifold_intersection->setTolerance(tol);
 
-    planning_interface::PlanningContextPtr context =
-            planner_instance_->getPlanningContextConstrained(planning_scene_, _req, _res.error_code_,
-                                                             manifold_intersection, cs_type,allow_approximation);
-
-    context->solve(_res);
+    bool solved;
+    std::vector<std::size_t> adapter_added_state_index;
+    try
+    {
+//        // No path-adaptation, as constrained motion is directly generated from OMPL, not available from ROS
+//        if (adapter_chain_)
+//        {
+//            solved = adapter_chain_->adaptAndPlan(planner_instance_, planning_scene_, _req, _res, adapter_added_state_index);
+//            if (!adapter_added_state_index.empty())
+//            {
+//                std::stringstream ss;
+//                for (std::size_t added_index : adapter_added_state_index)
+//                    ss << added_index << " ";
+//                ROS_INFO("Planning adapters have added states at index positions: [ %s]", ss.str().c_str());
+//            }
+//        }
+//        else
+//        {
+            planning_interface::PlanningContextPtr context =
+                planner_instance_->getPlanningContextConstrained(planning_scene_, _req, _res.error_code_,
+                                                                 manifold_intersection, cs_type,allow_approximation);
+            solved = context->solve(_res);
+//        }
+    }
+    catch (std::exception& ex)
+    {
+        ROS_ERROR("Exception caught: '%s'", ex.what());
+        solved = false;
+    }
 
 #ifdef PRINT_DEBUG
     std::cout <<"init_state: "<<init_state.transpose()<<std::endl;
     std::cout <<"goal_pose: "<<goal_pose.transpose()<<std::endl;
 #endif
 
+    bool valid = true;
+
+    if (solved && _res.trajectory_)
+    {
+        std::vector<std::size_t> adapter_added_state_index;
+        std::size_t state_count = _res.trajectory_->getWayPointCount();
+        ROS_DEBUG_STREAM("Motion planner reported a solution path with " << state_count << " states");
+        if (check_solution_paths_)
+        {
+            std::vector<std::size_t> index;
+            if (!planning_scene_->isPathValid(*_res.trajectory_, _req.path_constraints, _req.group_name, false, &index))
+            {
+                // check to see if there is any problem with the states that are found to be invalid
+                // they are considered ok if they were added by a planning request adapter
+                bool problem = false;
+                for (std::size_t i = 0; i < index.size() && !problem; ++i)
+                {
+                    bool found = false;
+                    for (std::size_t added_index : adapter_added_state_index)
+                        if (index[i] == added_index)
+                        {
+                            found = true;
+                            break;
+                        }
+                    if (!found)
+                        problem = true;
+                }
+                if (problem)
+                {
+                    if (index.size() == 1 && index[0] == 0)  // ignore cases when the robot starts at invalid location
+                        ROS_DEBUG("It appears the robot is starting at an invalid state, but that is ok.");
+                    else
+                    {
+                        valid = false;
+                        _res.error_code_.val = moveit_msgs::MoveItErrorCodes::INVALID_MOTION_PLAN;
+
+                        // display error messages
+                        std::stringstream ss;
+                        for (std::size_t it : index)
+                            ss << it << " ";
+                        ROS_ERROR_STREAM("Computed path is not valid. Invalid states at index locations: [ "
+                                                 << ss.str() << "] out of " << state_count
+                                                 << ". Explanations follow in command line.");
+
+                        // call validity checks in verbose mode for the problematic states
+                        visualization_msgs::MarkerArray arr;
+                        for (std::size_t it : index)
+                        {
+                            // check validity with verbose on
+                            const moveit::core::RobotState& robot_state = _res.trajectory_->getWayPoint(it);
+                            planning_scene_->isStateValid(robot_state, _req.path_constraints, _req.group_name, true);
+
+                            // compute the contacts if any
+                            collision_detection::CollisionRequest c_req;
+                            collision_detection::CollisionResult c_res;
+                            c_req.contacts = true;
+                            c_req.max_contacts = 10;
+                            c_req.max_contacts_per_pair = 3;
+                            c_req.verbose = false;
+                            planning_scene_->checkCollision(c_req, c_res, robot_state);
+                            if (c_res.contact_count > 0)
+                            {
+                                visualization_msgs::MarkerArray arr_i;
+                                collision_detection::getCollisionMarkersFromContacts(arr_i, planning_scene_->getPlanningFrame(),
+                                                                                     c_res.contacts);
+                                arr.markers.insert(arr.markers.end(), arr_i.markers.begin(), arr_i.markers.end());
+                            }
+                        }
+                        ROS_ERROR_STREAM("Completed listing of explanations for invalid states.");
+                    }
+                }
+                else
+                    ROS_DEBUG("Planned path was found to be valid, except for states that were added by planning request "
+                              "adapters, but that is ok.");
+            }
+            else
+                ROS_DEBUG("Planned path was found to be valid when rechecked");
+        }
+    }
+
     /* Check that the planning was successful */
-    if (_res.error_code_.val != _res.error_code_.SUCCESS)
+    if ((!(solved&&valid)) || (_res.error_code_.val != _res.error_code_.SUCCESS))
     {
         plan_result.success = false;
         PRINT_ERROR(("failed to generatePlan ("+std::to_string(_res.error_code_.val)+")").c_str());
