@@ -13,35 +13,15 @@
 
 namespace RNB{
     using namespace std;
-
-    template<typename T>
-    void set_rosparam_array_as(ros::NodeHandlePtr _node_handle, string key, YAML::Node node){
-        vector<T> seq;
-        for(auto it=node.begin(); it!=node.end(); it++){
-            auto node_T = it->as<T>();
-            seq.push_back(node_T);
-        }
-        _node_handle->setParam(key, seq);
-#ifdef PRINT_DEBUG
-        cout<<"rosparam set: "<< key << ": " << endl;
-        for(auto it=seq.begin(); it!=seq.end(); it++){
-            cout<< *it << ", ";
-        }
-        cout<< endl;
-#endif
-    }
-
-    template<typename T>
-    void set_rosparam_as(ros::NodeHandlePtr _node_handle, string key, YAML::Node node){
-        auto node_T = node.as<T>();
-        _node_handle->setParam(key, node_T);
-#ifdef PRINT_DEBUG
-        cout<<"rosparam set: "<< key << ": " << node_T << endl;
-#endif
-    }
-
     XmlRpc::XmlRpcValue get_rosparam_from_yaml_node(YAML::Node node){
-        if (node.IsSequence()) {
+        if (node.IsMap()){
+            XmlRpc::XmlRpcValue map;
+            for(auto it=node.begin(); it!=node.end(); it++){
+                map[it->first.as<string>()] = get_rosparam_from_yaml_node(it->second);
+            }
+            return map;
+        }
+        else if (node.IsSequence()) {
             XmlRpc::XmlRpcValue seq;
             seq.setSize(node.size());
             int idx=0;
@@ -59,40 +39,31 @@ namespace RNB{
                     return XmlRpc::XmlRpcValue(node.as<double>());
                 } catch (...) {
                     try {
-                        return XmlRpc::XmlRpcValue(node.as<string>());
+                        return XmlRpc::XmlRpcValue(node.as<bool>());
                     } catch (...) {
-                        PRINT_ERROR("CANNOT CONVERT YAML NODE TO ROSPARAM");
-                        exit(0);
+                        try {
+                            return XmlRpc::XmlRpcValue(node.as<string>());
+                        } catch (...) {
+                            PRINT_ERROR("CANNOT CONVERT YAML NODE TO ROSPARAM");
+                            exit(0);
+                        }
                     }
                 }
             }
         }
     }
 
-    void recurse_set_param(ros::NodeHandlePtr _node_handle, string key_prev, YAML::Node::iterator it_doc, YAML::Node::iterator it_end){
-        if (it_doc==it_end){
-            return;
-        }
-        stringstream stream1;
-        if (key_prev.size()==0) {
-            stream1<< it_doc->first;
-        }
-        else{
-            stream1<<key_prev<<"/"<< it_doc->first;
-        }
-        string current_key = stream1.str();
-        if(it_doc->second.IsMap()) {
-            recurse_set_param(_node_handle, current_key, it_doc->second.begin(), it_doc->second.end());
-        }
-        else if(it_doc->second.IsDefined()){
-            XmlRpc::XmlRpcValue nodeval = get_rosparam_from_yaml_node(it_doc->second);
-            _node_handle->setParam(current_key, nodeval);
+    void set_ros_pram_recurse(ros::NodeHandlePtr _node_handle, string _key, XmlRpc::XmlRpcValue _node){
+        if(_node.getType()==XmlRpc::XmlRpcValue::TypeStruct){
+            for(auto it=_node.begin(); it!=_node.end(); it++){
+                auto sub_key = it->first;
+                auto sub_node = it->second;
+                set_ros_pram_recurse(_node_handle, _key+"/"+sub_key, sub_node);
+            }
         }
         else{
-            PRINT_ERROR("ERROR::NON_DEFINED NODE" + current_key);
-            exit(0);
+            _node_handle->setParam(_key, _node);
         }
-        recurse_set_param(_node_handle, key_prev, ++it_doc, it_end);
     }
 
     void rosparam_load_yaml(ros::NodeHandlePtr _node_handle, string _node_name, string filname){
@@ -101,7 +72,9 @@ namespace RNB{
             PRINT_ERROR(("Put config file - " + filname).c_str());
         }
         YAML::Node doc = YAML::Load(file_in);
-        recurse_set_param(_node_handle, _node_name, doc.begin(), doc.end());
+
+        XmlRpc::XmlRpcValue nodeval = get_rosparam_from_yaml_node(doc);
+        set_ros_pram_recurse(_node_handle, _node_name, nodeval);
     }
 }
 

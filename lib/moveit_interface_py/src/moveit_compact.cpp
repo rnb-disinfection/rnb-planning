@@ -67,10 +67,10 @@ bool Planner::init_planner(string& urdf_txt, string& srdf_txt, NameList& group_n
     }
 
     //------------------------parsing with Iterator
-    rosparam_load_yaml(__node_handle, "", config_path+"kinematics.yaml");
-    rosparam_load_yaml(__node_handle, "", config_path+"stomp_planning.yaml");
-    rosparam_load_yaml(__node_handle, "", config_path+"ompl_planning.yaml");
-    rosparam_load_yaml(__node_handle, "", config_path+"planning_plugin.yaml");
+    rosparam_load_yaml(__node_handle, "/"+__node_name, config_path+"kinematics.yaml");
+    rosparam_load_yaml(__node_handle, "/"+__node_name, config_path+"stomp_planning.yaml");
+    rosparam_load_yaml(__node_handle, "/"+__node_name, config_path+"ompl_planning.yaml");
+    rosparam_load_yaml(__node_handle, "/"+__node_name, config_path+"planning_plugin.yaml");
 
     PRINT_FRAMED_LOG("load robot model");
     robot_model_loader_ = std::make_shared<robot_model_loader::RobotModelLoader>(
