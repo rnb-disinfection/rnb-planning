@@ -10,17 +10,21 @@ stomp/indy0:
     control_cost_weight: 1.0
   task:
     noise_generator:
-      class: stomp_moveit/NormalDistributionSampling
-      stddev: [0.05, 0.8, 1.0, 0.8, 0.4, 0.4, 0.4]
+      - class: stomp_moveit/NormalDistributionSampling
+        stddev: [ 0.05, 0.8, 1.0, 0.8, 0.4, 0.4]
     cost_functions:
-      class: stomp_moveit/CollisionCheck
-      collision_penalty: 1.0
-      cost_weight: 1.0
-      kernel_window_percentage: 0.4
+      - class: stomp_moveit/CollisionCheck
+        collision_penalty: 1.0
+        cost_weight: 1.0
+        kernel_window_percentage: 0.2
+        longest_valid_joint_move: 0.005
     noisy_filters:
-      class: stomp_moveit/JointLimits
-      lock_start: True
-      lock_goal: True
+      - class: stomp_moveit/JointLimits
+        lock_start: True
+        lock_goal: True
+    update_filters:
+        - class: stomp_moveit/PolynomialSmoother
+          poly_order: 6
 stomp/indy1:
   group_name: indy1
   optimization:
@@ -33,17 +37,21 @@ stomp/indy1:
     control_cost_weight: 1.0
   task:
     noise_generator:
-      class: stomp_moveit/NormalDistributionSampling
-      stddev: [0.05, 0.8, 1.0, 0.8, 0.4, 0.4, 0.4]
+      - class: stomp_moveit/NormalDistributionSampling
+        stddev: [ 0.05, 0.8, 1.0, 0.8, 0.4, 0.4 ]
     cost_functions:
-      class: stomp_moveit/CollisionCheck
-      collision_penalty: 1.0
-      cost_weight: 1.0
-      kernel_window_percentage: 0.4
+      - class: stomp_moveit/CollisionCheck
+        collision_penalty: 1.0
+        cost_weight: 1.0
+        kernel_window_percentage: 0.2
+        longest_valid_joint_move: 0.005
     noisy_filters:
-      class: stomp_moveit/JointLimits
-      lock_start: True
-      lock_goal: True
+      - class: stomp_moveit/JointLimits
+        lock_start: True
+        lock_goal: True
+    update_filters:
+      - class: stomp_moveit/PolynomialSmoother
+        poly_order: 6
 stomp/panda0:
   group_name: panda0
   optimization:
@@ -56,17 +64,21 @@ stomp/panda0:
     control_cost_weight: 1.0
   task:
     noise_generator:
-      class: stomp_moveit/NormalDistributionSampling
-      stddev: [0.05, 0.8, 1.0, 0.8, 0.4, 0.4, 0.4]
+      - class: stomp_moveit/NormalDistributionSampling
+        stddev: [ 0.05, 0.8, 1.0, 0.8, 0.4, 0.4, 0.4]
     cost_functions:
-      class: stomp_moveit/CollisionCheck
-      collision_penalty: 1.0
-      cost_weight: 1.0
-      kernel_window_percentage: 0.4
+      - class: stomp_moveit/CollisionCheck
+        collision_penalty: 1.0
+        cost_weight: 1.0
+        kernel_window_percentage: 0.2
+        longest_valid_joint_move: 0.005
     noisy_filters:
-      class: stomp_moveit/JointLimits
-      lock_start: True
-      lock_goal: True
+      - class: stomp_moveit/JointLimits
+        lock_start: True
+        lock_goal: True
+    update_filters:
+        - class: stomp_moveit/PolynomialSmoother
+          poly_order: 6
 stomp/panda1:
   group_name: panda1
   optimization:
@@ -79,19 +91,23 @@ stomp/panda1:
     control_cost_weight: 1.0
   task:
     noise_generator:
-      class: stomp_moveit/NormalDistributionSampling
-      stddev: [0.05, 0.8, 1.0, 0.8, 0.4, 0.4, 0.4]
+      - class: stomp_moveit/NormalDistributionSampling
+        stddev: [ 0.05, 0.8, 1.0, 0.8, 0.4, 0.4, 0.4]
     cost_functions:
-      class: stomp_moveit/CollisionCheck
-      collision_penalty: 1.0
-      cost_weight: 1.0
-      kernel_window_percentage: 0.4
+      - class: stomp_moveit/CollisionCheck
+        collision_penalty: 1.0
+        cost_weight: 1.0
+        kernel_window_percentage: 0.2
+        longest_valid_joint_move: 0.005
     noisy_filters:
-      class: stomp_moveit/JointLimits
-      lock_start: True
-      lock_goal: True
+      - class: stomp_moveit/JointLimits
+        lock_start: True
+        lock_goal: True
+    update_filters:
+        - class: stomp_moveit/PolynomialSmoother
+          poly_order: 6
 stomp/indy0_panda1:
-  group_name: indy0_panda1
+  group_name: indy0_panda0
   optimization:
     num_timesteps: 100
     num_iterations: 100
@@ -102,63 +118,21 @@ stomp/indy0_panda1:
     control_cost_weight: 1.0
   task:
     noise_generator:
-      class: stomp_moveit/NormalDistributionSampling
-      stddev: [0.05, 0.8, 1.0, 0.8, 0.4, 0.4, 0.4]
+      - class: stomp_moveit/NormalDistributionSampling
+        stddev: [0.4, 0.4, 0.8, 1.0, 0.8, 0.05, 0.05, 0.8, 1.0, 0.8, 0.4, 0.4, 0.4]
     cost_functions:
-      class: stomp_moveit/CollisionCheck
-      collision_penalty: 1.0
-      cost_weight: 1.0
-      kernel_window_percentage: 0.4
+      - class: stomp_moveit/CollisionCheck
+        collision_penalty: 1.0
+        cost_weight: 1.0
+        kernel_window_percentage: 0.2
+        longest_valid_joint_move: 0.005
     noisy_filters:
-      class: stomp_moveit/JointLimits
-      lock_start: True
-      lock_goal: True
-stomp/panda1_indy0:
-  group_name: panda1_indy0
-  optimization:
-    num_timesteps: 100
-    num_iterations: 100
-    num_iterations_after_valid: 5
-    num_rollouts: 20
-    max_rollouts: 100
-    initialization_method: 4 #[1 : LINEAR_INTERPOLATION, 2 : CUBIC_POLYNOMIAL, 3 : MININUM_CONTROL_COST, 4 : FILL_TRACJECTORY]
-    control_cost_weight: 1.0
-  task:
-    noise_generator:
-      class: stomp_moveit/NormalDistributionSampling
-      stddev: [0.05, 0.8, 1.0, 0.8, 0.4, 0.4, 0.4]
-    cost_functions:
-      class: stomp_moveit/CollisionCheck
-      collision_penalty: 1.0
-      cost_weight: 1.0
-      kernel_window_percentage: 0.4
-    noisy_filters:
-      class: stomp_moveit/JointLimits
-      lock_start: True
-      lock_goal: True
-stomp/panda0_indy1:
-  group_name: panda0_indy1
-  optimization:
-    num_timesteps: 100
-    num_iterations: 100
-    num_iterations_after_valid: 5
-    num_rollouts: 20
-    max_rollouts: 100
-    initialization_method: 4 #[1 : LINEAR_INTERPOLATION, 2 : CUBIC_POLYNOMIAL, 3 : MININUM_CONTROL_COST, 4 : FILL_TRACJECTORY]
-    control_cost_weight: 1.0
-  task:
-    noise_generator:
-      class: stomp_moveit/NormalDistributionSampling
-      stddev: [0.05, 0.8, 1.0, 0.8, 0.4, 0.4, 0.4]
-    cost_functions:
-      class: stomp_moveit/CollisionCheck
-      collision_penalty: 1.0
-      cost_weight: 1.0
-      kernel_window_percentage: 0.4
-    noisy_filters:
-      class: stomp_moveit/JointLimits
-      lock_start: True
-      lock_goal: True
+      - class: stomp_moveit/JointLimits
+        lock_start: True
+        lock_goal: True
+    update_filters:
+        - class: stomp_moveit/PolynomialSmoother
+          poly_order: 6
 stomp/indy1_panda0:
   group_name: indy1_panda0
   optimization:
@@ -171,14 +145,72 @@ stomp/indy1_panda0:
     control_cost_weight: 1.0
   task:
     noise_generator:
-      class: stomp_moveit/NormalDistributionSampling
-      stddev: [0.05, 0.8, 1.0, 0.8, 0.4, 0.4, 0.4]
+      - class: stomp_moveit/NormalDistributionSampling
+        stddev: [0.4, 0.4, 0.8, 1.0, 0.8, 0.05, 0.05, 0.8, 1.0, 0.8, 0.4, 0.4, 0.4]
     cost_functions:
-      class: stomp_moveit/CollisionCheck
-      collision_penalty: 1.0
-      cost_weight: 1.0
-      kernel_window_percentage: 0.4
+      - class: stomp_moveit/CollisionCheck
+        collision_penalty: 1.0
+        cost_weight: 1.0
+        kernel_window_percentage: 0.2
+        longest_valid_joint_move: 0.005
     noisy_filters:
-      class: stomp_moveit/JointLimits
-      lock_start: True
-      lock_goal: True
+      - class: stomp_moveit/JointLimits
+        lock_start: True
+        lock_goal: True
+    update_filters:
+        - class: stomp_moveit/PolynomialSmoother
+          poly_order: 6
+stomp/panda1_indy0:
+  group_name: panda1_indy0
+  optimization:
+    num_timesteps: 100
+    num_iterations: 100
+    num_iterations_after_valid: 5
+    num_rollouts: 20
+    max_rollouts: 100
+    initialization_method: 4 #[1 : LINEAR_INTERPOLATION, 2 : CUBIC_POLYNOMIAL, 3 : MININUM_CONTROL_COST, 4 : FILL_TRACJECTORY]
+    control_cost_weight: 1.0
+  task:
+    noise_generator:
+      - class: stomp_moveit/NormalDistributionSampling
+        stddev: [0.4, 0.4, 0.4, 0.8, 1.0, 0.8, 0.05, 0.05, 0.8, 1.0, 0.8, 0.4, 0.4]
+    cost_functions:
+      - class: stomp_moveit/CollisionCheck
+        collision_penalty: 1.0
+        cost_weight: 1.0
+        kernel_window_percentage: 0.2
+        longest_valid_joint_move: 0.005
+    noisy_filters:
+      - class: stomp_moveit/JointLimits
+        lock_start: True
+        lock_goal: True
+    update_filters:
+        - class: stomp_moveit/PolynomialSmoother
+          poly_order: 6
+stomp/panda0_indy1:
+  group_name: panda1_indy0
+  optimization:
+    num_timesteps: 100
+    num_iterations: 100
+    num_iterations_after_valid: 5
+    num_rollouts: 20
+    max_rollouts: 100
+    initialization_method: 4 #[1 : LINEAR_INTERPOLATION, 2 : CUBIC_POLYNOMIAL, 3 : MININUM_CONTROL_COST, 4 : FILL_TRACJECTORY]
+    control_cost_weight: 1.0
+  task:
+    noise_generator:
+      - class: stomp_moveit/NormalDistributionSampling
+        stddev: [0.4, 0.4, 0.4, 0.8, 1.0, 0.8, 0.05, 0.05, 0.8, 1.0, 0.8, 0.4, 0.4]
+    cost_functions:
+      - class: stomp_moveit/CollisionCheck
+        collision_penalty: 1.0
+        cost_weight: 1.0
+        kernel_window_percentage: 0.2
+        longest_valid_joint_move: 0.005
+    noisy_filters:
+      - class: stomp_moveit/JointLimits
+        lock_start: True
+        lock_goal: True
+    update_filters:
+        - class: stomp_moveit/PolynomialSmoother
+          poly_order: 6

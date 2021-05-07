@@ -55,5 +55,5 @@
 ## (Expert) Adding a new hardware to the framework
 * You need a xacro model file in src/robots to use a robot model in this framework.
     * To make xacro file compatible with this framework, read **How to make xacro for multi-robot** section in [docs/SUPPLEMENT_README.md](../docs/SUPPLEMENT_README.md)
-* You also need to set planning parameters for your robot in [src/robots/kinematics.yaml](../src/robots/kinematics.yaml])m [src/robots/stomp_planning.yaml](../src/robots/stomp_planning.yaml])  and [src/robots/ompl_planning.yaml](../src/robots/ompl_planning.yaml)
+* You also need to set planning parameters for your robot in [src/robots/kinematics.yaml](../src/robots/kinematics.yaml]), [src/robots/ompl_planning.yaml](../src/robots/ompl_planning.yaml) and [src/robots/stomp_planning.yaml](../src/robots/stomp_planning.yaml])
     * Check the contents of the file, mostly you can just copy the contents and change the name of the robot to get ready.

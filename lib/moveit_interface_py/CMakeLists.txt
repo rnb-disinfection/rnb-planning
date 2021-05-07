@@ -27,13 +27,6 @@ find_package(catkin REQUIRED
         stomp_core
         stomp_moveit
         )
-SET(STOMP_PLUGIN_INCLUDE_DIRS
-        "$ENV{HOME}/catkin_ws/src/stomp_ros/stomp_plugins/include")
-SET(STOMP_PLUGIN_LIBRARIES
-        "$ENV{HOME}/catkin_ws/devel/lib/libstomp_plugins_cost_functions.so"
-        "$ENV{HOME}/catkin_ws/devel/lib/libstomp_plugins_noise_generators.so"
-        "$ENV{HOME}/catkin_ws/devel/lib/libstomp_plugins_update_filters.so")
-MESSAGE("${STOMP_PLUGIN_LIBRARIES}")
 
 MESSAGE("=====================================================================================================================================================================")
 MESSAGE("catkin libs - ${catkin_LIBRARIES}")
@@ -47,7 +40,6 @@ MESSAGE("boost libs - ${Boost_LIBRARIES}")
 include_directories(include)
 include_directories(${OMPL_INCLUDE_DIRS})
 include_directories(${catkin_INCLUDE_DIRS})
-include_directories(${STOMP_PLUGIN_INCLUDE_DIRS})
 
 
 set(CMAKE_SHARED_LIBRARY_PREFIX "") # output file name should match with BOOST_PYTHON_MODULE name
@@ -77,7 +69,7 @@ add_library(${PROJECT_NAME} SHARED
         src/logger.cpp src/typedef.cpp include/constants.h
         src/ompl_interface/planner/KPIECE_CUSTOM.cpp)
 target_link_libraries(${PROJECT_NAME}
-        ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${OMPL_LIBRARIES} ${STOMP_PLUGIN_LIBRARIES} yaml-cpp)
+        ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${OMPL_LIBRARIES} yaml-cpp)
 ##############################  BUILD LIBRARY ##############################
 ############################################################################
 

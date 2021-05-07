@@ -68,9 +68,10 @@ bool Planner::init_planner(string& urdf_txt, string& srdf_txt, NameList& group_n
 
     //------------------------parsing with Iterator
     rosparam_load_yaml(__node_handle, "/"+__node_name, config_path+"kinematics.yaml");
-    rosparam_load_yaml(__node_handle, "/"+__node_name, config_path+"stomp_planning.yaml");
     rosparam_load_yaml(__node_handle, "/"+__node_name, config_path+"ompl_planning.yaml");
     rosparam_load_yaml(__node_handle, "/"+__node_name, config_path+"planning_plugin.yaml");
+    rosparam_load_yaml(__node_handle, "/"+__node_name, config_path+"stomp_planning.yaml");
+    rosparam_load_yaml(__node_handle, "/"+__node_name, config_path+"chomp_planning.yaml");
 
     PRINT_FRAMED_LOG("load robot model");
     robot_model_loader_ = std::make_shared<robot_model_loader::RobotModelLoader>(
@@ -237,6 +238,10 @@ PlanResult &Planner::plan(string group_name, string tool_link,
     std::vector<double> tolerance_pose(3, 0.001);
     std::vector<double> tolerance_angle(3, 0.001);
 
+    auto state_cur = planning_scene_->getCurrentState();
+    state_cur.setVariablePositions(init_state.data());
+    planning_scene_->setCurrentState(state_cur);
+
 //    PRINT_FRAMED_LOG("constructGoalConstraints", true);
     // Pose Goal
     // ^^^^^^^^^
@@ -252,10 +257,9 @@ PlanResult &Planner::plan(string group_name, string tool_link,
     _constrinat_pose_goal = kinematic_constraints::constructGoalConstraints(tool_link, _goal_pose, tolerance_pose, tolerance_angle);
     _req.goal_constraints.clear();
     _req.goal_constraints.push_back(_constrinat_pose_goal);
-
-    auto state_cur = planning_scene_->getCurrentState();
-    state_cur.setVariablePositions(init_state.data());
-    planning_scene_->setCurrentState(state_cur);
+    moveit::core::robotStateToRobotStateMsg(state_cur, _req.start_state);
+    _req.max_acceleration_scaling_factor = 0.5;
+    _req.max_velocity_scaling_factor = 0.5;
 
     plan_result.trajectory.clear();
 
@@ -406,6 +410,10 @@ PlanResult& Planner::plan_joint_motion(string group_name, JointState goal_state,
     goal_state_moveit.setJointGroupPositions(joint_model_group, goal_state);
     moveit_msgs::Constraints joint_goal = kinematic_constraints::constructGoalConstraints(goal_state_moveit, joint_model_group);
 
+    auto state_cur = planning_scene_->getCurrentState();
+    state_cur.setVariablePositions(init_state.data());
+    planning_scene_->setCurrentState(state_cur);
+
     planning_interface::MotionPlanRequest _req;
     planning_interface::MotionPlanResponse _res;
     _req.group_name = group_name; //"indy0"; // "indy0_tcp"
@@ -413,10 +421,9 @@ PlanResult& Planner::plan_joint_motion(string group_name, JointState goal_state,
     _req.allowed_planning_time = allowed_planning_time;
     _req.goal_constraints.clear();
     _req.goal_constraints.push_back(joint_goal);
-
-    auto state_cur = planning_scene_->getCurrentState();
-    state_cur.setVariablePositions(init_state.data());
-    planning_scene_->setCurrentState(state_cur);
+    moveit::core::robotStateToRobotStateMsg(state_cur, _req.start_state);
+    _req.max_acceleration_scaling_factor = 0.5;
+    _req.max_velocity_scaling_factor = 0.5;
 
     plan_result.trajectory.clear();
 
@@ -585,6 +592,10 @@ PlanResult& Planner::plan_with_constraints(string group_name, string tool_link,
     std::vector<double> tolerance_pose(3, 0.001);
     std::vector<double> tolerance_angle(3, 0.001);
 
+    auto state_cur = planning_scene_->getCurrentState();
+    state_cur.setVariablePositions(init_state.data());
+    planning_scene_->setCurrentState(state_cur);
+
 //    PRINT_FRAMED_LOG("constructGoalConstraints", true);
     // Pose Goal
     // ^^^^^^^^^
@@ -600,10 +611,9 @@ PlanResult& Planner::plan_with_constraints(string group_name, string tool_link,
     _constrinat_pose_goal = kinematic_constraints::constructGoalConstraints(tool_link, _goal_pose, tolerance_pose, tolerance_angle);
     _req.goal_constraints.clear();
     _req.goal_constraints.push_back(_constrinat_pose_goal);
-
-    auto state_cur = planning_scene_->getCurrentState();
-    state_cur.setVariablePositions(init_state.data());
-    planning_scene_->setCurrentState(state_cur);
+    moveit::core::robotStateToRobotStateMsg(state_cur, _req.start_state);
+    _req.max_acceleration_scaling_factor = 0.5;
+    _req.max_velocity_scaling_factor = 0.5;
 
     plan_result.trajectory.clear();
 
