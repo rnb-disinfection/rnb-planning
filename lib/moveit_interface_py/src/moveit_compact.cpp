@@ -221,7 +221,8 @@ void Planner::checkSolutionPaths(bool flag)
 PlanResult &Planner::plan(string group_name, string tool_link,
                  CartPose goal_pose, string goal_link,
                  JointState init_state, string planner_id,
-                 double allowed_planning_time){
+                 double allowed_planning_time,
+                 double vel_scale, double acc_scale, bool post_opt){
     PRINT_FRAMED_LOG("set goal", true);
     geometry_msgs::PoseStamped _goal_pose;
     _goal_pose.header.frame_id = goal_link;
@@ -258,8 +259,8 @@ PlanResult &Planner::plan(string group_name, string tool_link,
     _req.goal_constraints.clear();
     _req.goal_constraints.push_back(_constrinat_pose_goal);
     moveit::core::robotStateToRobotStateMsg(state_cur, _req.start_state);
-    _req.max_acceleration_scaling_factor = 0.5;
-    _req.max_velocity_scaling_factor = 0.5;
+    _req.max_acceleration_scaling_factor = acc_scale;
+    _req.max_velocity_scaling_factor = vel_scale;
 
     plan_result.trajectory.clear();
 
@@ -267,7 +268,7 @@ PlanResult &Planner::plan(string group_name, string tool_link,
     std::vector<std::size_t> adapter_added_state_index;
     try
     {
-        if (adapter_chain_)
+        if (post_opt && adapter_chain_)
         {
             solved = adapter_chain_->adaptAndPlan(planner_instance_, planning_scene_, _req, _res, adapter_added_state_index);
             if (!adapter_added_state_index.empty())
@@ -403,7 +404,8 @@ PlanResult &Planner::plan(string group_name, string tool_link,
 
 
 PlanResult& Planner::plan_joint_motion(string group_name, JointState goal_state, JointState init_state,
-                                       string planner_id, double allowed_planning_time){
+                                       string planner_id, double allowed_planning_time,
+                                       double vel_scale, double acc_scale, bool post_opt){
     PRINT_FRAMED_LOG("set goal", true);
     robot_state::JointModelGroup* joint_model_group = robot_model_->getJointModelGroup(group_name);
     robot_state::RobotState goal_state_moveit(robot_model_);
@@ -422,8 +424,8 @@ PlanResult& Planner::plan_joint_motion(string group_name, JointState goal_state,
     _req.goal_constraints.clear();
     _req.goal_constraints.push_back(joint_goal);
     moveit::core::robotStateToRobotStateMsg(state_cur, _req.start_state);
-    _req.max_acceleration_scaling_factor = 0.5;
-    _req.max_velocity_scaling_factor = 0.5;
+    _req.max_acceleration_scaling_factor = acc_scale;
+    _req.max_velocity_scaling_factor = vel_scale;
 
     plan_result.trajectory.clear();
 
@@ -431,7 +433,7 @@ PlanResult& Planner::plan_joint_motion(string group_name, JointState goal_state,
     std::vector<std::size_t> adapter_added_state_index;
     try
     {
-        if (adapter_chain_)
+        if (post_opt && adapter_chain_)
         {
             solved = adapter_chain_->adaptAndPlan(planner_instance_, planning_scene_, _req, _res, adapter_added_state_index);
             if (!adapter_added_state_index.empty())
@@ -573,6 +575,7 @@ void Planner::clear_context_cache(){
 PlanResult& Planner::plan_with_constraints(string group_name, string tool_link,
                          CartPose goal_pose, string goal_link,
                          JointState init_state, string planner_id, double allowed_planning_time,
+                         double vel_scale, double acc_scale, bool post_opt,
                          ompl_interface::ConstrainedSpaceType cs_type, bool allow_approximation,
                          bool post_projection){
 
@@ -612,8 +615,8 @@ PlanResult& Planner::plan_with_constraints(string group_name, string tool_link,
     _req.goal_constraints.clear();
     _req.goal_constraints.push_back(_constrinat_pose_goal);
     moveit::core::robotStateToRobotStateMsg(state_cur, _req.start_state);
-    _req.max_acceleration_scaling_factor = 0.5;
-    _req.max_velocity_scaling_factor = 0.5;
+    _req.max_acceleration_scaling_factor = acc_scale;
+    _req.max_velocity_scaling_factor = vel_scale;
 
     plan_result.trajectory.clear();
 
@@ -635,25 +638,29 @@ PlanResult& Planner::plan_with_constraints(string group_name, string tool_link,
     std::vector<std::size_t> adapter_added_state_index;
     try
     {
-//        // No path-adaptation, as constrained motion is directly generated from OMPL, not available from ROS
-//        if (adapter_chain_)
-//        {
-//            solved = adapter_chain_->adaptAndPlan(planner_instance_, planning_scene_, _req, _res, adapter_added_state_index);
-//            if (!adapter_added_state_index.empty())
-//            {
-//                std::stringstream ss;
-//                for (std::size_t added_index : adapter_added_state_index)
-//                    ss << added_index << " ";
-//                ROS_INFO("Planning adapters have added states at index positions: [ %s]", ss.str().c_str());
-//            }
-//        }
-//        else
-//        {
+        // No path-adaptation, as constrained motion is directly generated from OMPL, not available from ROS
+        if(post_opt){
+            ROS_WARN("Path optimization not available with constrained motion");
+            post_opt = false;
+        }
+        if (post_opt && adapter_chain_)
+        {
+            solved = adapter_chain_->adaptAndPlan(planner_instance_, planning_scene_, _req, _res, adapter_added_state_index);
+            if (!adapter_added_state_index.empty())
+            {
+                std::stringstream ss;
+                for (std::size_t added_index : adapter_added_state_index)
+                    ss << added_index << " ";
+                ROS_INFO("Planning adapters have added states at index positions: [ %s]", ss.str().c_str());
+            }
+        }
+        else
+        {
             planning_interface::PlanningContextPtr context =
                 planner_instance_->getPlanningContextConstrained(planning_scene_, _req, _res.error_code_,
                                                                  manifold_intersection, cs_type,allow_approximation);
             solved = context->solve(_res);
-//        }
+        }
     }
     catch (std::exception& ex)
     {

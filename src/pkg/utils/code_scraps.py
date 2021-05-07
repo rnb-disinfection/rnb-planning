@@ -320,6 +320,7 @@ def move_objects_up_until_no_collision(obj_list, gcheck, Q_dict):
                 Toff = np.matmul(SE3(np.identity(3), [0, 0, 1e-3]), geometry.Toff)
                 geometry.set_offset_tf(center=Toff[:3,3], orientation_mat=Toff[:3,:3])
 
+
 ### resized image plot
 # ratio = 1.0/3
 # color_image_tmp = cv2.resize(color_image, dsize=None, fx=ratio, fy=ratio)

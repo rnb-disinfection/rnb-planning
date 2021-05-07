@@ -103,14 +103,16 @@ namespace RNB {
             PlanResult &plan(string group_name, string tool_link,
                              CartPose goal_pose, string goal_link,
                              JointState init_state, string planner_id="RRTConnectkConfigDefault",
-                             double allowed_planning_time=0.1);
+                             double allowed_planning_time=0.1,
+                             double vel_scale=0.1, double acc_scale=0.1, bool post_opt=false);
 
             /**
              * @brief search for joint motion plan.
              * @author Junsu Kang
              */
             PlanResult &plan_joint_motion(string group_name, JointState goal_state, JointState init_state,
-                             string planner_id="RRTConnectkConfigDefault", double allowed_planning_time=0.1);
+                             string planner_id="RRTConnectkConfigDefault", double allowed_planning_time=0.1,
+                                          double vel_scale=0.1, double acc_scale=0.1, bool post_opt=false);
 
             /**
              * @brief search for plan with constraints.
@@ -121,6 +123,7 @@ namespace RNB {
                                              JointState init_state,
                                              string planner_id="RRTConnectkConfigDefault",
                                              double allowed_planning_time=0.1,
+                                             double vel_scale=0.1, double acc_scale=0.1, bool post_opt=false,
                                              ompl_interface::ConstrainedSpaceType cs_type=
                                                      ompl_interface::ConstrainedSpaceType::ATLAS,
                                              bool allow_approximation=false,

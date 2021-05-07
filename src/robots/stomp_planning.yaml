@@ -1,9 +1,9 @@
 stomp/indy0:
   group_name: indy0
   optimization:
-    num_timesteps: 100
-    num_iterations: 100
-    num_iterations_after_valid: 5
+    num_timesteps: 5
+    num_iterations: 5
+    num_iterations_after_valid: 1
     num_rollouts: 20
     max_rollouts: 100
     initialization_method: 4 #[1 : LINEAR_INTERPOLATION, 2 : CUBIC_POLYNOMIAL, 3 : MININUM_CONTROL_COST, 4 : FILL_TRACJECTORY]
@@ -11,7 +11,7 @@ stomp/indy0:
   task:
     noise_generator:
       - class: stomp_moveit/NormalDistributionSampling
-        stddev: [ 0.05, 0.8, 1.0, 0.8, 0.4, 0.4]
+        stddev: [ 0.3, 1.0, 0.5, 0.4, 0.3, 0.3 ]
     cost_functions:
       - class: stomp_moveit/CollisionCheck
         collision_penalty: 1.0
@@ -28,9 +28,9 @@ stomp/indy0:
 stomp/indy1:
   group_name: indy1
   optimization:
-    num_timesteps: 100
-    num_iterations: 100
-    num_iterations_after_valid: 5
+    num_timesteps: 5
+    num_iterations: 5
+    num_iterations_after_valid: 1
     num_rollouts: 20
     max_rollouts: 100
     initialization_method: 4 #[1 : LINEAR_INTERPOLATION, 2 : CUBIC_POLYNOMIAL, 3 : MININUM_CONTROL_COST, 4 : FILL_TRACJECTORY]
@@ -38,7 +38,7 @@ stomp/indy1:
   task:
     noise_generator:
       - class: stomp_moveit/NormalDistributionSampling
-        stddev: [ 0.05, 0.8, 1.0, 0.8, 0.4, 0.4 ]
+        stddev: [ 0.3, 1.0, 0.5, 0.4, 0.3, 0.3]
     cost_functions:
       - class: stomp_moveit/CollisionCheck
         collision_penalty: 1.0
@@ -55,9 +55,9 @@ stomp/indy1:
 stomp/panda0:
   group_name: panda0
   optimization:
-    num_timesteps: 100
-    num_iterations: 100
-    num_iterations_after_valid: 5
+    num_timesteps: 5
+    num_iterations: 5
+    num_iterations_after_valid: 1
     num_rollouts: 20
     max_rollouts: 100
     initialization_method: 4 #[1 : LINEAR_INTERPOLATION, 2 : CUBIC_POLYNOMIAL, 3 : MININUM_CONTROL_COST, 4 : FILL_TRACJECTORY]
@@ -65,7 +65,7 @@ stomp/panda0:
   task:
     noise_generator:
       - class: stomp_moveit/NormalDistributionSampling
-        stddev: [ 0.05, 0.8, 1.0, 0.8, 0.4, 0.4, 0.4]
+        stddev: [ 0.3, 1.0, 0.5, 0.4, 0.3, 0.3, 0.3 ]
     cost_functions:
       - class: stomp_moveit/CollisionCheck
         collision_penalty: 1.0
@@ -82,9 +82,9 @@ stomp/panda0:
 stomp/panda1:
   group_name: panda1
   optimization:
-    num_timesteps: 100
-    num_iterations: 100
-    num_iterations_after_valid: 5
+    num_timesteps: 5
+    num_iterations: 5
+    num_iterations_after_valid: 1
     num_rollouts: 20
     max_rollouts: 100
     initialization_method: 4 #[1 : LINEAR_INTERPOLATION, 2 : CUBIC_POLYNOMIAL, 3 : MININUM_CONTROL_COST, 4 : FILL_TRACJECTORY]
@@ -92,7 +92,7 @@ stomp/panda1:
   task:
     noise_generator:
       - class: stomp_moveit/NormalDistributionSampling
-        stddev: [ 0.05, 0.8, 1.0, 0.8, 0.4, 0.4, 0.4]
+        stddev: [ 0.3, 1.0, 0.5, 0.4, 0.3, 0.3, 0.3 ]
     cost_functions:
       - class: stomp_moveit/CollisionCheck
         collision_penalty: 1.0
@@ -109,9 +109,9 @@ stomp/panda1:
 stomp/indy0_panda1:
   group_name: indy0_panda0
   optimization:
-    num_timesteps: 100
-    num_iterations: 100
-    num_iterations_after_valid: 5
+    num_timesteps: 5
+    num_iterations: 5
+    num_iterations_after_valid: 1
     num_rollouts: 20
     max_rollouts: 100
     initialization_method: 4 #[1 : LINEAR_INTERPOLATION, 2 : CUBIC_POLYNOMIAL, 3 : MININUM_CONTROL_COST, 4 : FILL_TRACJECTORY]
@@ -119,7 +119,7 @@ stomp/indy0_panda1:
   task:
     noise_generator:
       - class: stomp_moveit/NormalDistributionSampling
-        stddev: [0.4, 0.4, 0.8, 1.0, 0.8, 0.05, 0.05, 0.8, 1.0, 0.8, 0.4, 0.4, 0.4]
+        stddev: [0.3, 0.3, 0.4, 0.5, 1.0, 0.3, 0.3, 1.0, 0.5, 0.4, 0.3, 0.3, 0.3 ]
     cost_functions:
       - class: stomp_moveit/CollisionCheck
         collision_penalty: 1.0
@@ -136,9 +136,9 @@ stomp/indy0_panda1:
 stomp/indy1_panda0:
   group_name: indy1_panda0
   optimization:
-    num_timesteps: 100
-    num_iterations: 100
-    num_iterations_after_valid: 5
+    num_timesteps: 5
+    num_iterations: 5
+    num_iterations_after_valid: 1
     num_rollouts: 20
     max_rollouts: 100
     initialization_method: 4 #[1 : LINEAR_INTERPOLATION, 2 : CUBIC_POLYNOMIAL, 3 : MININUM_CONTROL_COST, 4 : FILL_TRACJECTORY]
@@ -146,7 +146,7 @@ stomp/indy1_panda0:
   task:
     noise_generator:
       - class: stomp_moveit/NormalDistributionSampling
-        stddev: [0.4, 0.4, 0.8, 1.0, 0.8, 0.05, 0.05, 0.8, 1.0, 0.8, 0.4, 0.4, 0.4]
+        stddev: [0.3, 0.3, 0.4, 0.5, 1.0, 0.3, 0.3, 1.0, 0.5, 0.4, 0.3, 0.3, 0.3 ]
     cost_functions:
       - class: stomp_moveit/CollisionCheck
         collision_penalty: 1.0
@@ -163,9 +163,9 @@ stomp/indy1_panda0:
 stomp/panda1_indy0:
   group_name: panda1_indy0
   optimization:
-    num_timesteps: 100
-    num_iterations: 100
-    num_iterations_after_valid: 5
+    num_timesteps: 5
+    num_iterations: 5
+    num_iterations_after_valid: 1
     num_rollouts: 20
     max_rollouts: 100
     initialization_method: 4 #[1 : LINEAR_INTERPOLATION, 2 : CUBIC_POLYNOMIAL, 3 : MININUM_CONTROL_COST, 4 : FILL_TRACJECTORY]
@@ -173,7 +173,7 @@ stomp/panda1_indy0:
   task:
     noise_generator:
       - class: stomp_moveit/NormalDistributionSampling
-        stddev: [0.4, 0.4, 0.4, 0.8, 1.0, 0.8, 0.05, 0.05, 0.8, 1.0, 0.8, 0.4, 0.4]
+        stddev: [ 0.3, 0.3, 0.3, 0.4, 0.5, 1.0, 0.3, 0.3, 1.0, 0.5, 0.4, 0.3, 0.3 ]
     cost_functions:
       - class: stomp_moveit/CollisionCheck
         collision_penalty: 1.0
@@ -190,9 +190,9 @@ stomp/panda1_indy0:
 stomp/panda0_indy1:
   group_name: panda1_indy0
   optimization:
-    num_timesteps: 100
-    num_iterations: 100
-    num_iterations_after_valid: 5
+    num_timesteps: 5
+    num_iterations: 5
+    num_iterations_after_valid: 1
     num_rollouts: 20
     max_rollouts: 100
     initialization_method: 4 #[1 : LINEAR_INTERPOLATION, 2 : CUBIC_POLYNOMIAL, 3 : MININUM_CONTROL_COST, 4 : FILL_TRACJECTORY]
@@ -200,7 +200,7 @@ stomp/panda0_indy1:
   task:
     noise_generator:
       - class: stomp_moveit/NormalDistributionSampling
-        stddev: [0.4, 0.4, 0.4, 0.8, 1.0, 0.8, 0.05, 0.05, 0.8, 1.0, 0.8, 0.4, 0.4]
+        stddev: [ 0.3, 0.3, 0.3, 0.4, 0.5, 1.0, 0.3, 0.3, 1.0, 0.5, 0.4, 0.3, 0.3 ]
     cost_functions:
       - class: stomp_moveit/CollisionCheck
         collision_penalty: 1.0

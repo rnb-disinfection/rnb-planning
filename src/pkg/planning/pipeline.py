@@ -130,7 +130,8 @@ class PlanningPipeline:
                 proc.join(timeout=0.1)
 
     def __search_loop(self, ID, terminate_on_first, N_search,
-                      display=False, dt_vis=None, verbose=False, timeout_loop=600, **kwargs):
+                      display=False, dt_vis=None, verbose=False, timeout_loop=600,
+                      add_homing=False, post_optimize=False, **kwargs):
         loop_counter = 0
         sample_fail_counter = 0
         sample_fail_max = 10
@@ -180,9 +181,13 @@ class PlanningPipeline:
             term_reason = "max iteration time reached ({}/{} s)".format(int(time.time()), self.t0)
             self.stop_now.value = 1
         elif ret:
-            print("++ adding return motion to acquired answer ++")
-            self.add_return_motion(snode_new)
             term_reason = "first answer acquired"
+            if add_homing:
+                print("++ adding return motion to acquired answer ++")
+                self.add_return_motion(snode_new)
+            if post_optimize:
+                print("++ post-optimizing acquired answer ++")
+                self.post_optimize_schedule(snode_new)
             self.stop_now.value = 1
         else:
             term_reason = "first answer acquired from other agent"
@@ -312,6 +317,39 @@ class PlanningPipeline:
                 else:
                     break
                 time.sleep(0.2)
+
+    ##
+    # @brief    optimize a SearchNode schedule
+    # @remark   MoveitPlanner should be set as the motion planner by set_motion_planner
+    def post_optimize_schedule(self, snode_last, timeout=5, vel_scale=0.1, acc_scale=0.1):
+        snode_pre = None
+        state_pre = None
+        snode_schedule = self.tplan.idxSchedule2SnodeScedule(snode_last.parents + [snode_last.idx])
+        for snode in snode_schedule:
+            if snode.traj is not None:
+                state_new = state_pre.copy(self.pscene)
+                state_new.Q = snode.traj[-1]
+                diffs = np.where([bs1 != bs2
+                                  for bs1, bs2 in zip(state_pre.binding_state, snode.state.binding_state)])[0]
+                post_opt = True
+                for i_stem in diffs:
+                    obj_name = self.pscene.subject_name_list[i_stem]
+                    binding_from = state_pre.binding_state[i_stem]
+                    binding_to = snode.state.binding_state[i_stem]
+                    constraints = self.pscene.subject_dict[obj_name].make_constraints(binding_from, binding_to)
+                    post_opt = post_opt and len(constraints) == 0  # no optimization for constrained motion
+
+                if post_opt:
+                    Traj, LastQ, error, success, binding_list = self.mplan.plan_transition(state_pre, state_new,
+                                                                                      timeout=timeout,
+                                                                                      vel_scale=vel_scale,
+                                                                                      acc_scale=acc_scale,
+                                                                                      post_opt=True)
+                    if success:
+                        snode.set_traj(Traj, snode_pre.traj_tot)
+                        snode.state.Q = Traj[-1]
+            snode_pre = snode
+            state_pre = snode.state
 
     ##
     # @brief play schedule on rviz
