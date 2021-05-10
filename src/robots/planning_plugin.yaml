@@ -6,7 +6,7 @@ request_adapters: "
   default_planner_request_adapters/FixStartStateBounds
   default_planner_request_adapters/FixStartStateCollision
   default_planner_request_adapters/FixStartStatePathConstraints
-  stomp_moveit/StompSmoothingAdapter"
+  chomp/OptimizerAdapter"
 # chomp/OptimizerAdapter
 # stomp_moveit/StompSmoothingAdapter
 # planning_plugin: default_planner_request_adapters/CHOMPOptimizationAdapter

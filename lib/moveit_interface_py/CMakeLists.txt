@@ -15,8 +15,10 @@ find_package(catkin REQUIRED
         moveit_core
         moveit_ros_planning
         moveit_ros_planning_interface
-        moveit_visual_tools
+        chomp_motion_planner
+        moveit_chomp_optimizer_adapter
         pluginlib
+        moveit_visual_tools
         geometric_shapes
         pcl_ros
         pcl_conversions
@@ -66,7 +68,8 @@ add_library(${PROJECT_NAME} SHARED
         src/ompl_interface/detail/constrained_sampler.cpp
         src/ompl_interface/detail/constrained_valid_state_sampler.cpp
         src/ompl_interface/detail/constrained_goal_sampler.cpp
-        src/logger.cpp src/typedef.cpp include/constants.h
+        src/logger.cpp
+        src/typedef.cpp
         src/ompl_interface/planner/KPIECE_CUSTOM.cpp)
 target_link_libraries(${PROJECT_NAME}
         ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${OMPL_LIBRARIES} yaml-cpp)

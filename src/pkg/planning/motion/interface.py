@@ -47,7 +47,6 @@ class MotionInterface:
         self.flag_log = flag_log
         self.result_log = {mfilter.__class__.__name__: [] for mfilter in self.motion_filters}
         self.result_log["planning"] = []
-        self.gtimer.reset()
 
     ##
     # @brief (prototype) update changes in geometric scene

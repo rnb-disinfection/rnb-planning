@@ -20,6 +20,10 @@
   ```bash
   sudo apt-get install -y ros-melodic-moveit ros-melodic-industrial-core ros-melodic-moveit-visual-tools ros-melodic-joint-state-publisher-gui
   ```  
+* CHOMP-Moveit-plugin
+  ```bash
+  sudo apt-get install ros-melodic-moveit-chomp-optimizer-adapter
+  ```
 * STOMP-ROS  
   ```bash
   cd $HOME/catkin_ws/src \

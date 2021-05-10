@@ -17,6 +17,7 @@ class TaskClearanceChecker(MotionFilterInterface):
         self.pscene = pscene
         self.gcheck = gcheck
         self.gscene = pscene.gscene
+        self.dist = -1
 
     ##
     # @brief check end-effector collision in grasping
@@ -58,7 +59,9 @@ class TaskClearanceChecker(MotionFilterInterface):
             for object_vertice, object_radius in object_vertice_list:
                 dist_list.append(get_gjk_distance(clear_vertice, object_vertice) - clear_radius - object_radius)
         if len(dist_list)>0:
+            self.dist = np.min(dist_list)
             res = np.min(dist_list) > + 1e-4
         else:
+            self.dist = 0
             res = True
         return res

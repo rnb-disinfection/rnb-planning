@@ -321,7 +321,7 @@ class PlanningPipeline:
     ##
     # @brief    optimize a SearchNode schedule
     # @remark   MoveitPlanner should be set as the motion planner by set_motion_planner
-    def post_optimize_schedule(self, snode_last, timeout=5, vel_scale=0.1, acc_scale=0.1):
+    def post_optimize_schedule(self, snode_last, timeout=5, **kwargs):
         snode_pre = None
         state_pre = None
         snode_schedule = self.tplan.idxSchedule2SnodeScedule(snode_last.parents + [snode_last.idx])
@@ -341,10 +341,9 @@ class PlanningPipeline:
 
                 if post_opt:
                     Traj, LastQ, error, success, binding_list = self.mplan.plan_transition(state_pre, state_new,
-                                                                                      timeout=timeout,
-                                                                                      vel_scale=vel_scale,
-                                                                                      acc_scale=acc_scale,
-                                                                                      post_opt=True)
+                                                                                           timeout=timeout,
+                                                                                           post_opt=True,
+                                                                                           **kwargs)
                     if success:
                         snode.set_traj(Traj, snode_pre.traj_tot)
                         snode.state.Q = Traj[-1]
