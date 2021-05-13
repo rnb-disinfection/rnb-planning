@@ -288,6 +288,7 @@ def simplify_traj(trajectory, step_fractions=[0, 0.1, 0.5, 0.9, 1]):
     step_len = len(step_fractions)
     for q, q_nxt in zip(trajectory, np.pad(trajectory[1:], ((0, 1), (0, 0)), 'edge')):
         dq = (q_nxt-q)
+        dq = dq / (np.linalg.norm(dq)+1e-16)
         traj_stack.append(q)
         if np.max(np.abs(dq-dq_pre)) > 1e-5:
             if len(traj_stack) > 1:
