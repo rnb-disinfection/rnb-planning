@@ -15,7 +15,6 @@ find_package(catkin REQUIRED
         moveit_core
         moveit_ros_planning
         moveit_ros_planning_interface
-        chomp_motion_planner
         moveit_chomp_optimizer_adapter
         pluginlib
         moveit_visual_tools
