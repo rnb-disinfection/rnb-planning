@@ -236,7 +236,7 @@ PlanResult &Planner::plan(string group_name, string tool_link,
 
     // A tolerance of 0.01 m is specified in position
     // and 0.01 radians in orientation
-    std::vector<double> tolerance_pose(3, 0.001);
+    std::vector<double> tolerance_pose(3, 0.0002);
     std::vector<double> tolerance_angle(3, 0.001);
 
     auto state_cur = planning_scene_->getCurrentState();

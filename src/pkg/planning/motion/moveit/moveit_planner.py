@@ -44,35 +44,6 @@ def make_constraint_list(gtem_list):
     return make_assign_arr(GeometryList, [make_constraint_item(gtem) for gtem in gtem_list])
 
 ##
-# @class PlannerConfig
-# @brief define available planner configs
-class PlannerConfig:
-    SBLkConfigDefault = 'SBLkConfigDefault'
-    ESTkConfigDefault = 'ESTkConfigDefault'
-    LBKPIECEkConfigDefault = 'LBKPIECEkConfigDefault'
-    BKPIECEkConfigDefault = 'BKPIECEkConfigDefault'
-    KPIECEkConfigDefault = 'KPIECEkConfigDefault'
-    RRTkConfigDefault = 'RRTkConfigDefault'
-    RRTConnectkConfigDefault = 'RRTConnectkConfigDefault'
-    RRTstarkConfigDefault = 'RRTstarkConfigDefault'
-    TRRTkConfigDefault = 'TRRTkConfigDefault'
-    PRMkConfigDefault = 'PRMkConfigDefault'
-    PRMstarkConfigDefault = 'PRMstarkConfigDefault'
-    FMTkConfigDefault = 'FMTkConfigDefault'
-    BFMTkConfigDefault = 'BFMTkConfigDefault'
-    PDSTkConfigDefault = 'PDSTkConfigDefault'
-    STRIDEkConfigDefault = 'STRIDEkConfigDefault'
-    BiTRRTkConfigDefault = 'BiTRRTkConfigDefault'
-    LBTRRTkConfigDefault = 'LBTRRTkConfigDefault'
-    BiESTkConfigDefault = 'BiESTkConfigDefault'
-    ProjESTkConfigDefault = 'ProjESTkConfigDefault'
-    LazyPRMkConfigDefault = 'LazyPRMkConfigDefault'
-    LazyPRMstarkConfigDefault = 'LazyPRMstarkConfigDefault'
-    SPARSkConfigDefault = 'SPARSkConfigDefault'
-    SPARStwokConfigDefault = 'SPARStwokConfigDefault'
-    TrajOptDefault = 'TrajOptDefault'
-
-##
 # @class MoveitPlanner
 # @brief Moveit motion planner
 # @remark online planning is not supported
