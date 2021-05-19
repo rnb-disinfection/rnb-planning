@@ -64,7 +64,7 @@ class MotionInterface:
     # @return error     planning error
     # @return success   success/failure of planning result
     # @return binding_list  list of binding
-    def plan_transition(self, from_state, to_state, redundancy_dict=None, **kwargs):
+    def plan_transition(self, from_state, to_state, redundancy_dict=None, verbose=False, **kwargs):
         if from_state is not None:
             self.pscene.set_object_state(from_state)
         binding_list, success = self.pscene.get_slack_bindings(from_state, to_state)
@@ -98,7 +98,8 @@ class MotionInterface:
             if self.flag_log:
                 self.gtimer.tic('planning')
             Traj, LastQ, error, success = self.plan_algorithm(from_state, to_state, binding_list,
-                                                              redundancy_values=redundancy_values, **kwargs)
+                                                              redundancy_values=redundancy_values,
+                                                              verbose=verbose, **kwargs)
             if self.flag_log:
                 self.gtimer.toc('planning')
                 self.result_log['planning'].append(success)
@@ -117,7 +118,7 @@ class MotionInterface:
     # @return error     planning error
     # @return success   success/failure of planning result
     @abstractmethod
-    def plan_algorithm(self, from_state, to_state, binding_list, redundancy_values=None, **kwargs):
+    def plan_algorithm(self, from_state, to_state, binding_list, redundancy_values=None, verbose=False, **kwargs):
         return [], [], 1e10, False
 
     ##

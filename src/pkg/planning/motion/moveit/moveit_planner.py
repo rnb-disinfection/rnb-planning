@@ -122,7 +122,7 @@ class MoveitPlanner(MotionInterface):
     # @return error     planning error
     # @return success   success/failure of planning result
     def plan_algorithm(self, from_state, to_state, binding_list, redundancy_values=None, timeout=1,
-                       timeout_joint=None, timeout_constrained=None, **kwargs):
+                       timeout_joint=None, timeout_constrained=None, verbose=False, **kwargs):
         timeout_joint = timeout_joint if timeout_joint is not None else timeout
         timeout_constrained = timeout_constrained if timeout_constrained is not None else timeout
         self.planner.clear_context_cache()
@@ -163,10 +163,12 @@ class MoveitPlanner(MotionInterface):
                     to_Q =  to_state.Q[idx_rbt]
             else:
                 raise(RuntimeError("multi-robot joint motion not implemented!"))
-            print("try joint motion") ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
+            if verbose:
+                print("try joint motion") ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
             trajectory, success = planner.plan_joint_motion_py(
                 group_name, tuple(to_Q), tuple(from_Q), timeout=timeout_joint, **kwargs)
-            print("joint motion tried: {}".format(success)) ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
+            if verbose or not success:
+                print("joint motion tried: {}".format(success)) ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
 
         else: # task motion case
             motion_type = MoveitPlanner.TASK_MOTION
@@ -229,17 +231,22 @@ class MoveitPlanner(MotionInterface):
             if constraints:
                 for motion_constraint in constraints:
                     self.add_constraint(group_name, tool.geometry.link_name, tool.Toff_lh, motion_constraint=motion_constraint)
-                print("try constrained motion") ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
+                if verbose:
+                    print("try constrained motion") ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
                 trajectory, success = planner.plan_constrained_py(
                     group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q),
                     timeout=timeout_constrained, **kwargs)
-                print("constrained motion tried: {}".format(success)) ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
+                if verbose or not success:
+                    print("constrained motion tried: {}".format(success)) ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
             else:
-                print("try transition motion") ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
+                if verbose:
+                    print("try transition motion") ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
                 trajectory, success = planner.plan_py(
                     group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q),
                     timeout=timeout, **kwargs)
-                print("transition motion tried: {}".format(success)) ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
+
+                if verbose or not success:
+                    print("transition motion tried: {}".format(success)) ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
 
         if success:
             if dual:

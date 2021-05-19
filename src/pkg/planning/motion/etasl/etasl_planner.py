@@ -59,7 +59,7 @@ class EtaslPlanner(MotionInterface):
     def plan_algorithm(self, from_state, to_state, binding_list, redundancy_values=None,
                        vel_conv=1e-2, err_conv=1e-3, collision=True, N=None, dt=1e-2,
                        print_expression=False, cut_dot=False, traj_count=DEFAULT_TRAJ_COUNT,
-                       timeout=None, **kwargs):
+                       timeout=None, verbose=False, **kwargs):
         if N is None:
             if timeout is None:
                 N = 1000

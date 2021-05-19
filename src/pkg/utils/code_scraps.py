@@ -320,6 +320,33 @@ def move_objects_up_until_no_collision(obj_list, gcheck, Q_dict):
                 Toff = np.matmul(SE3(np.identity(3), [0, 0, 1e-3]), geometry.Toff)
                 geometry.set_offset_tf(center=Toff[:3,3], orientation_mat=Toff[:3,:3])
 
+##
+# @brief for one-by-one single-line-define-and-sweep task
+def clear_tasks(pscene):
+    for k, v in pscene.subject_dict.items():
+        if isinstance(v, AbstractTask):
+            pscene.remove_subject(k)
+
+##
+# @brief for one-by-one single-line-define-and-sweep task
+def set_single_sweep_line(pscene, idx, wp1, wp2, face, track_name="track_face"):
+    clear_tasks(pscene)
+    sweep_ = pscene.create_subject(oname="sweep{}".format(idx + 1), gname=track_name, _type=SweepLineTask,
+                                   action_points_dict={
+                                       wp1.name: SweepFrame(wp1.name, wp1, [0, 0, wp1.dims[2] / 2], [0, 0, 0]),
+                                       wp2.name: SweepFrame(wp2.name, wp2, [0, 0, wp2.dims[2] / 2], [0, 0, 0])},
+                                   clearance=[face])
+    return sweep_
+
+
+##
+# @brief get full schedule time
+def calc_schedule_time(dt_step, snode_schedule):
+    traz_size_all = 0
+    for snode in snode_schedule:
+        traz_size_all += snode.traj_size
+    return traz_size_all * dt_step
+
 
 ### resized image plot
 # ratio = 1.0/3

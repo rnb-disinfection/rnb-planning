@@ -305,7 +305,7 @@ class TaskBiRRT(TaskInterface):
                     if (len(snode_new.parents) > 0 and snode_new.parents[0] == 0):
                         for gnode in self.goal_nodes:
                             if snode_new.state.node in self.node_parent_dict[gnode]:
-                                print("=============== try reaching goal =================")
+                                # print("=============== try reaching goal =================")
                                 self.attempt_reseved.put((snode_new.idx, gnode,
                                                           (self.visited_snodes_cur, self.neighbor_nodes_cur,
                                                            self.node_snode_dict_cur),

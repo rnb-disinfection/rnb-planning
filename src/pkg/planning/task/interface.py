@@ -22,14 +22,17 @@ class SearchNode:
     # @param redundancy_dict defined redundancy of transition in dictionary form, {object name: {axis: value}}
     def __init__(self, idx, state, parents, leafs, depth=None,
                  redundancy_dict=None, traj=None, traj_tot_parent=0):
+        self.traj_tot, self.traj_length = 0, 0
         self.idx, self.state, self.parents, self.leafs, self.depth, self.redundancy_dict = \
             idx, state, parents, leafs, depth, redundancy_dict
         self.set_traj(traj, traj_tot_parent)
 
     ##
     # @brief    set current transition's trajectory + update trajectory length
-    def set_traj(self, traj_full, traj_tot_parent):
+    def set_traj(self, traj_full, traj_tot_parent=None):
         if traj_full is not None:
+            if traj_tot_parent is None:
+                traj_tot_parent = self.traj_tot - self.traj_length
             self.traj_size = len(traj_full)
             self.traj_length = np.sum(np.abs(differentiate(traj_full, 1)[:-1])) if self.traj_size > 1 else 0
             self.traj_tot = traj_tot_parent + self.traj_length

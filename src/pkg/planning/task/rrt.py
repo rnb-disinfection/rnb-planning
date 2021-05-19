@@ -31,13 +31,14 @@ class TaskRRT(TaskInterface):
 
     ##
     # @brief build object-level node graph
-    def prepare(self):
+    # @param random_homing set this True to enable random homing motion
+    def prepare(self, random_homing=False):
         pscene = self.pscene
 
         # make all node connections
         self.node_list = pscene.get_all_nodes()
-        self.node_dict_full = {k: [] for k in self.node_list}
-        self.node_parent_dict_full = {k: [] for k in self.node_list}
+        self.node_dict_full = {k: [k] if random_homing else [] for k in self.node_list}
+        self.node_parent_dict_full = {k: [k] if random_homing else [] for k in self.node_list}
         for node in self.node_list:
             for leaf in pscene.get_node_neighbor(node):
                 if leaf in self.node_list:
@@ -83,10 +84,12 @@ class TaskRRT(TaskInterface):
 
         self.node_dict = {}
         for node, leafs in self.node_dict_full.items():
-            self.node_dict[node] = set(
-                [leaf for leaf in leafs ## unstoppable node should change or at terminal
-                 if all([node[k] in terms or node[k]!=leaf[k]
-                         for k, terms in self.unstoppable_terminals.items()])])
+            ## unstoppable node should change or at terminal
+            leaf_list = [leaf
+                         for leaf in leafs
+                         if all([node[k] in terms or node[k] != leaf[k]
+                                 for k, terms in self.unstoppable_terminals.items()])]
+            self.node_dict[node] = set(leaf_list)
 
         self.node_parent_dict = {}
         for node, parents in self.node_parent_dict_full.items():
@@ -217,7 +220,7 @@ class TaskRRT(TaskInterface):
                 for gnode in self.goal_nodes:
                     if snode_new.state.node in self.node_parent_dict[gnode]:
                         self.attempts_reseved.put((snode_new.idx, gnode))
-                        print("=============== try reaching goal from {} =================".format(node_new))
+                        # print("=============== try reaching goal from {} =================".format(node_new))
                     elif not self.reserved_attempt:
                         nodes_near = list(self.node_dict[node_new])
                         ## goal-matching item indexes

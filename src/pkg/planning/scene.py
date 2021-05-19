@@ -506,7 +506,7 @@ class PlanningScene:
                 to_state.Q[self.combined_robot.idx_dict[rname]] = \
                     self.combined_robot.home_pose[self.combined_robot.idx_dict[rname]]
                 redundancy_dict = {}
-                print("============= try go home ({}) ===================".format(rname))
+                # print("============= try go home ({}) ===================".format(rname))
                 return to_state, redundancy_dict
         to_binding_state = tuple([(((oname,)+\
                            binding_sampler(available_binding_dict[oname]))

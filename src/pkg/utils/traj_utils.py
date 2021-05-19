@@ -263,13 +263,14 @@ def calc_safe_trajectory(dt_step, trajectory, vel_lims, acc_lims):
 
 ##
 # @brief calculate safe trajectory for all SearchNode in schedule
-def calculate_safe_schedule(pscene, snode_schedule, vel_lims, acc_lims):
+def calculate_safe_schedule(pscene, snode_schedule, vel_lims, acc_lims, dt_step=2e-2):
     snode_schedule_safe = []
     for snode in snode_schedule:
         snode_cp = snode.copy(pscene)
         snode_schedule_safe.append(snode_cp)
         if snode_cp.traj is not None:
-            _, snode_cp.traj = calc_safe_trajectory(2e-2, snode_cp.traj, vel_lims=vel_lims, acc_lims=acc_lims)
+            _, traj_new = calc_safe_trajectory(dt_step, snode_cp.traj, vel_lims=vel_lims, acc_lims=acc_lims)
+            snode_cp.set_traj(traj_new)
     return snode_schedule_safe
 
 
@@ -306,10 +307,9 @@ def simplify_traj(trajectory, step_fractions=[0, 0.1, 0.5, 0.9, 1]):
 # @brief simplify_schedule
 def simplify_schedule(pscene, snode_schedule, step_fractions=[0, 0.1, 0.5, 0.9, 1]):
     snode_schedule_cp = copy_schedule(pscene, snode_schedule)
-    traj_tot = 0
     for snode in snode_schedule_cp:
         if snode.traj is not None:
-            snode.set_traj(simplify_traj(snode.traj, step_fractions=step_fractions), traj_tot)
+            snode.set_traj(simplify_traj(snode.traj, step_fractions=step_fractions))
     return snode_schedule_cp
 
 
@@ -349,7 +349,7 @@ def mix_schedule(mplan, snode_schedule):
                     traj_mix[mix_idx:, move_jidx_cur] = traj_cur[:, move_jidx_cur]
                     res = mplan.validate_trajectory(traj_mix)
                     if res:
-                        snode_new.traj = traj_mix
+                        snode_new.set_traj(traj_mix)
                         snode_new.parents = snode_pre.parents
                         snode_schedule_mixed.pop(-1)
                         mixed_prev = True

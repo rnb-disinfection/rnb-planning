@@ -381,6 +381,11 @@ class SweepLineTask(AbstractTask):
         self.tol = tol
         self.fix_direction = True
         self.clearance = clearance
+        for gtem in clearance:
+            if gtem.collision:
+                print("[WARNING] clearance geometries for SWeepLineTask should be set collision-free by default"
+                      " - setting it False")
+                gtem.collision = False
         if geometry_vertical is not None:
             self.geometry_vertical = geometry_vertical
             self.Rot_vertical = np.matmul(geometry.orientation_mat.transpose(), geometry_vertical.orientation_mat)

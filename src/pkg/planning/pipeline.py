@@ -155,7 +155,8 @@ class PlanningPipeline:
                 print('try: {} - {}->{}'.format(snode.idx, from_state.node, to_state.node))
             self.gtimer.tic("test_connection")
             traj, new_state, error, succ = self.test_connection(from_state, to_state, redundancy_dict=redundancy_dict,
-                                                                  display=display, dt_vis=dt_vis, **kwargs)
+                                                                display=display, dt_vis=dt_vis, verbose=verbose,
+                                                                **kwargs)
             simtime = self.gtimer.toc("test_connection")
             snode_new = self.tplan.make_search_node(snode, new_state, traj,  redundancy_dict)
             if succ:
@@ -184,15 +185,18 @@ class PlanningPipeline:
             term_reason = "first answer acquired"
             if add_homing:
                 print("++ adding return motion to acquired answer ++")
-                self.add_return_motion(snode_new)
+                if add_homing>1:
+                    self.add_return_motion(snode_new, try_count=add_homing)
+                else:
+                    self.add_return_motion(snode_new)
             if post_optimize:
                 print("++ post-optimizing acquired answer ++")
                 self.post_optimize_schedule(snode_new)
             self.stop_now.value = 1
-        else:
+        elif self.stop_now.value:
             term_reason = "first answer acquired from other agent"
-            self.stop_now.value = 1
-
+        else:
+            term_reason = "Unknown issue"
         print("=========================================================================================================")
         print("======================= terminated {}: {} ===============================".format(ID, term_reason))
         print("=========================================================================================================")
@@ -207,9 +211,9 @@ class PlanningPipeline:
     # @return error     planning error
     # @return success   success/failure of planning result
     def test_connection(self, from_state=None, to_state=None, redundancy_dict=None, display=False, dt_vis=1e-2,
-                          error_skip=0, **kwargs):
+                          error_skip=0, verbose=False, **kwargs):
         Traj, LastQ, error, success, binding_list = \
-            self.mplan.plan_transition(from_state, to_state, redundancy_dict=redundancy_dict, **kwargs)
+            self.mplan.plan_transition(from_state, to_state, redundancy_dict=redundancy_dict, verbose=verbose, **kwargs)
 
         if success:
             if display:
@@ -292,7 +296,7 @@ class PlanningPipeline:
 
     ##
     # @brief add return motion to a SearchNode schedule
-    def add_return_motion(self, snode_last, initial_state=None, timeout=5):
+    def add_return_motion(self, snode_last, initial_state=None, timeout=5, try_count=5):
         if initial_state is None:
             initial_state = self.initial_state
         state_last = snode_last.state
@@ -306,8 +310,11 @@ class PlanningPipeline:
                 rbt_idx = self.pscene.combined_robot.idx_dict[rname]
                 state_new = state_pre.copy(self.pscene)
                 state_new.Q[rbt_idx] = initial_state.Q[rbt_idx]
-                traj, state_next, error, succ = self.test_connection(state_pre, state_new, redundancy_dict=None,
-                                                                      display=False, timeout=timeout)
+                for _ in range(try_count):
+                    traj, state_next, error, succ = self.test_connection(state_pre, state_new, redundancy_dict=None,
+                                                                          display=False, timeout=timeout)
+                    if succ:
+                        break
                 snode_next = self.tplan.make_search_node(snode_pre, state_next, traj, None)
                 if succ:
                     snode_next = self.tplan.connect(snode_pre, snode_next)
