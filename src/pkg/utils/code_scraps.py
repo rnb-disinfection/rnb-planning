@@ -54,24 +54,25 @@ def add_indy_sweep_tool(gscene, robot_name, face_name="brush_face"):
                        link_name="{}_tcp".format(robot_name),
                        center=(0, 0, 0.02), dims=(0.11, 0.11, 0.04), rpy=(0, 0, 0), color=(0.0, 0.8, 0.0, 0.5),
                        collision=True, fixed=True)
+
     gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="{}_pole".format(robot_name),
                        link_name="{}_tcp".format(robot_name),
-                       center=(0, 0, 0.068), dims=(0.03, 0.03, 0.056), rpy=(0, 0, 0), color=(0.8, 0.8, 0.8, 1),
+                       center=(0, 0, 0.071), dims=(0.03, 0.03, 0.062), rpy=(0, 0, 0), color=(0.8, 0.8, 0.8, 1),
                        collision=False, fixed=True)
     gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="{}_pole_col".format(robot_name),
                        link_name="{}_tcp".format(robot_name),
-                       center=(0, 0, 0.068), dims=(0.07, 0.07, 0.056), rpy=(0, 0, 0), color=(0.0, 0.8, 0.0, 0.2),
+                       center=(0, 0, 0.071), dims=(0.07, 0.07, 0.062), rpy=(0, 0, 0), color=(0.0, 0.8, 0.0, 0.2),
                        collision=True, fixed=True)
 
     gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_brushbase".format(robot_name),
                        link_name="{}_tcp".format(robot_name),
-                       center=(0, 0, 0.089), dims=(0.06, 0.14, 0.02), rpy=(0, 0, 0), color=(0.8, 0.8, 0.8, 1),
+                       center=(0, 0, 0.095), dims=(0.06, 0.14, 0.02), rpy=(0, 0, 0), color=(0.8, 0.8, 0.8, 1),
                        collision=False, fixed=True)
     gscene.create_safe(gtype=GEOTYPE.BOX, name=face_name, link_name="{}_tcp".format(robot_name),
-                       center=(0, 0, 0.109), dims=(0.05, 0.13, 0.02), rpy=(0, 0, 0), color=(1.0, 1.0, 0.94, 1),
+                       center=(0, 0, 0.115), dims=(0.05, 0.13, 0.02), rpy=(0, 0, 0), color=(1.0, 1.0, 0.94, 1),
                        collision=False, fixed=True)
     gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_col".format(face_name), link_name="{}_tcp".format(robot_name),
-                       center=(0, 0, 0.099), dims=(0.08, 0.15, 0.03), rpy=(0, 0, 0), color=(0.0, 0.8, 0.0, 0.5),
+                       center=(0, 0, 0.105), dims=(0.08, 0.15, 0.03), rpy=(0, 0, 0), color=(0.0, 0.8, 0.0, 0.5),
                        collision=True, fixed=True)
 
 
@@ -173,6 +174,70 @@ class ModeSwitcher:
                 stop_force_mode(indy, Qref=snode_new.traj[-1][self.crob.idx_dict['indy0']],
                                                               switch_delay=self.switch_delay)
 
+
+import matplotlib.pyplot as plt
+
+def down_force_log(ip_addr, JOINT_DOF, UI_PORT=9990, DT=1.0 / 2e3):
+    uri = "http://{ip_addr}:{UI_PORT}/download_log".format(ip_addr=ip_addr, UI_PORT=UI_PORT)
+    print(uri)
+    log_dat = requests.get(uri)
+    dat = log_dat.text
+    lines = dat.split("\n")
+    heads = lines[0].split(",")[:-1]
+    data_mat = []
+    for line in lines[1:]:
+        data_line = list(map(float, line.split(",")[:-1]))
+        if len(data_line) > 0:
+            data_mat.append(data_line)
+    data_mat = np.array(data_mat)
+    Fext = data_mat[:, JOINT_DOF * 5:JOINT_DOF * 6]
+    Fext = Fext[-int(15.0 / DT):]
+    # idx_peak = np.argmax(Fext[:, 2])
+    # print("peak: {}".format(np.round(Fext[idx_peak, 2], 1)))
+    # Fext = Fext[idx_peak + int(1.0 / DT):idx_peak + int(4.0 / DT), 2]
+    # print("force min/max: {} / {} in {}".format(np.round(np.min(Fext), 1), np.round(np.max(Fext), 1), len(Fext)))
+    return Fext
+
+
+class ModeSwitcherForceLog:
+    def __init__(self, pscene, log_force=True, DT=1.0 / 2e3):
+        self.pscene = pscene
+        self.crob = pscene.combined_robot
+        self.switch_delay = 0.5
+        self.DT = DT
+        self.log_force = log_force
+        self.force_log = []
+
+    def reset_log(self):
+        self.force_log = []
+
+    def get_log(self):
+        return self.force_log
+    def switch_in(self, snode_pre, snode_new):
+        switch_state = False
+        for n1, n2 in zip(snode_pre.state.node, snode_new.state.node):
+            if n1 == 1 and n2 == 2:
+                switch_state = True
+                break
+        if switch_state:
+            indy = self.crob.robot_dict['indy0']
+            if indy is not None:
+                start_force_mode(indy, switch_delay=self.switch_delay)
+        return switch_state
+
+    def switch_out(self, switch_state, snode_new):
+        if switch_state:
+            indy = self.crob.robot_dict['indy0']
+            if indy is not None:
+                if self.log_force:
+                    sleep(1)
+                stop_force_mode(indy, Qref=snode_new.traj[-1][self.crob.idx_dict['indy0']],
+                                switch_delay=self.switch_delay)
+                if self.log_force:
+                    sleep(self.switch_delay)
+                    Fext = down_force_log(indy.server_ip, len(self.crob.idx_dict["indy0"]), DT=self.DT)
+                    self.force_log.append(Fext)
+
 def play_schedule_clearance_highlight(ppline, snode_schedule, tcheck, period, actor_name='brush_face',
                                       color_on=(0,1,0,0.3), color_off=(0.8,0.2,0.2,0.2)):
     snode_pre = snode_schedule[0]
@@ -245,7 +310,8 @@ from .gjk import get_point_list, get_gjk_distance
 # @param geomtry GeometryItem
 # @param Q_dict current joint configuration
 # @param link_name name of link of interest, if not specified, the geometry's link is used
-def check_geometry_collision(gcheck, geometry, Q_dict, link_name=None):
+# @param margin minimum margin to be collision-free
+def check_geometry_collision(gcheck, geometry, Q_dict, link_name=None, margin=1e-4):
     if link_name is None:
         link_name = geometry.link_name
     geo_family = geometry.get_family()
@@ -280,7 +346,7 @@ def check_geometry_collision(gcheck, geometry, Q_dict, link_name=None):
             dist_list.append(get_gjk_distance(clear_vertice, object_vertice) - clear_radius - object_radius)
 
     if len(dist_list)>0:
-        res = np.min(dist_list) > + 1e-4
+        res = np.min(dist_list) > + margin
     else:
         res = True
     return res
@@ -347,6 +413,34 @@ def calc_schedule_time(dt_step, snode_schedule):
         traz_size_all += snode.traj_size
     return traz_size_all * dt_step
 
+
+##
+# @brief disperse_on a surface geometry
+# @param pscene PlanningScene
+# @param gcheck GraspChecker
+# @param surface GeometryItem to be the surface
+# @item_names    GeometryItem name that is already in the pscene.gscene
+def disperse_on(pscene, gcheck, surface, item_names):
+    gscene = pscene.gscene
+    T_ref = surface.get_tf(pscene.combined_robot.home_dict)
+    CLEARANCE = 1e-3
+    halfXY = np.divide(surface.dims[:2], 2)
+
+    gtem_dict = {}
+    for gname in item_names:
+        gtem = gscene.NAME_DICT[gname]
+        offZ = surface.dims[2] / 2 + gtem.dims[2] / 2 + CLEARANCE
+        col_ok = False
+        while not col_ok:
+            newcenter = np.matmul(T_ref, np.array(list(np.random.uniform(-1, 1, size=2) * halfXY) + [offZ] + [1])[:,
+                                         np.newaxis])[:3, 0]
+            newRot = np.matmul(T_ref[:3, :3], Rot_rpy((0, 0, np.random.uniform(2 * np.pi))))
+            gtem.set_offset_tf(center=newcenter, orientation_mat=newRot)
+            col_ok = check_geometry_collision(gcheck, gtem, pscene.combined_robot.home_dict,
+                                              link_name=surface.link_name)
+        gtem_dict[gname] = gtem
+    gscene.update_markers_all()
+    return gtem_dict
 
 ### resized image plot
 # ratio = 1.0/3
