@@ -440,3 +440,20 @@ class DummyBlock:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
+
+##
+# @brief copy file and replace substring
+# @param line_callback function to be called when a line with string_from appeared
+def copyfile_replace(file_from, file_to, string_from, string_to, line_callback=None):
+    fin = open(file_from, "rt")
+    #output file to write the result to
+    fout = open(file_to, "wt")
+    #for each line in the input file
+    for line in fin:
+        #read replace the string and write to output file
+        if line_callback is not None and string_from in line:
+            line_callback(line, string_from, string_to)
+        fout.write(line.replace(string_from, string_to))
+    #close input and output files
+    fin.close()
+    fout.close()

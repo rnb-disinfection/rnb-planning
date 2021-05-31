@@ -491,3 +491,11 @@ class GeometryItem(object):
             to_add += gtem.children
         return family
 
+    ##
+    # @brief get root geometry item
+    def get_root(self):
+        gtem = self
+        while gtem.parent is not None:
+            gtem = self.gscene.NAME_DICT[gtem.parent]
+        return gtem.name
+

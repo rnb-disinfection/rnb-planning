@@ -7,6 +7,7 @@ from enum import Enum
 class RobotType(Enum):
     indy7=0
     panda=1
+    indy7gripper=2
 
 
 ##
@@ -25,6 +26,12 @@ class RobotTemplate:
 class RobotSpecs:
     SPEC_DICT = {
         RobotType.indy7: RobotTemplate(robot_name='indy', base_name="link0", tip_name="tcp",
+                                       joint_names=["joint{}".format(idx) for idx in range(6)],
+                                       home_pose=[0, 0, -np.pi / 2, 0, -np.pi / 2, 0],
+                                       joint_limits=[(-3.05432619099, 3.05432619099)]*5+[(-3.75245789179, 3.75245789179)],
+                                       vel_limits=np.deg2rad([150, 150, 150, 180, 180, 180])/2,
+                                       acc_limits=np.deg2rad([180]*6)/2),
+        RobotType.indy7gripper: RobotTemplate(robot_name='indy', base_name="link0", tip_name="tcp",
                                        joint_names=["joint{}".format(idx) for idx in range(6)],
                                        home_pose=[0, 0, -np.pi / 2, 0, -np.pi / 2, 0],
                                        joint_limits=[(-3.05432619099, 3.05432619099)]*5+[(-3.75245789179, 3.75245789179)],

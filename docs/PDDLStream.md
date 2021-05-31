@@ -12,6 +12,12 @@ cd ~/Projects \
 && ./FastDownward/build.py release64
 ```
 
+## Add path to environment 
+```bash
+export PDDL_STREAM_DIR=$HOME/Projects/pddlstream/ \
+&& echo 'export PDDL_STREAM_DIR=$HOME/Projects/pddlstream/' >> ~/.bashrc
+```
+
 ## Install Pybullet
 ```bash
 pip install pybullet numpy scipy \
@@ -19,12 +25,12 @@ pip install pybullet numpy scipy \
 ```
 
 ## Examples
-* PR2 TAMP: `pddlstream$ python -m examples.pybullet.tamp.run`
-* PR2 Cleaning and Cooking: `pddlstream$ python -m examples.pybullet.pr2.run`
-* Turtlebot Rovers: `pddlstream$ python -m examples.pybullet.turtlebot_rovers.run`
-* PR2 Rovers: `pddlstream$ python -m examples.pybullet.pr2_rovers.run`
-* PR2 Planning and Execution: `pddlstream$ python -m examples.pybullet.pr2_belief.run`
-* Kuka Cleaning and Cooking: `pddlstream$ python -m examples.pybullet.kuka.run`
+* PR2 TAMP: `python3 -m examples.pybullet.tamp.run -viewer`
+* PR2 Cleaning and Cooking: `python3 -m examples.pybullet.pr2.run -viewer`
+* Turtlebot Rovers: `python3 -m examples.pybullet.turtlebot_rovers.run -viewer`
+* PR2 Rovers: `python3 -m examples.pybullet.pr2_rovers.run -viewer`
+* PR2 Planning and Execution: `python3 -m examples.pybullet.pr2_belief.run -viewer`
+* Kuka Cleaning and Cooking: `python3 -m examples.pybullet.kuka.run -viewer`
 
 #### lru_cache error
 * **functools.lru_cache** is added in **Python3.3**, and usage has been changed in **Python3.8**

@@ -380,8 +380,11 @@ class SweepLineTask(AbstractTask):
         self.binding = (self.oname, None, None, None)
         self.tol = tol
         self.fix_direction = True
-        self.clearance = clearance
-        for gtem in clearance:
+        if clearance is None:
+            self.clearance = []
+        else:
+            self.clearance = clearance
+        for gtem in self.clearance:
             if gtem.collision:
                 print("[WARNING] clearance geometries for SWeepLineTask should be set collision-free by default"
                       " - setting it False")
