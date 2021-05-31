@@ -4,23 +4,74 @@ from __future__ import print_function
 
 import os
 import sys
-RNB_PLANNING_DIR = os.environ['PDDL_STREAM_DIR']
 sys.path.insert(1, os.environ["PDDL_STREAM_DIR"])
 
 from pddlstream.algorithms.meta import solve, create_parser
 from primitives_pybullet import BodyPose, BodyConf, Command, get_grasp_gen, \
     get_stable_gen, get_ik_fn, get_free_motion_gen, \
-    get_holding_motion_gen, get_movable_collision_test, get_tool_link
+    get_holding_motion_gen, get_movable_collision_test
 from examples.pybullet.utils.pybullet_tools.utils import WorldSaver, connect, get_pose, set_pose, Pose, \
-    Point, set_default_camera, stable_z, \
+    Point, stable_z, \
     BLOCK_URDF, SMALL_BLOCK_URDF, get_configuration, SINK_URDF, STOVE_URDF, load_model, is_placement, get_body_name, \
-    disconnect, DRAKE_IIWA_URDF, get_bodies, HideOutput, wait_for_user, KUKA_IIWA_URDF, add_data_path, load_pybullet, \
-    LockRenderer, has_gui, draw_pose, draw_global_system
+    disconnect, DRAKE_IIWA_URDF, get_bodies, HideOutput, wait_for_user, KUKA_IIWA_URDF, \
+    LockRenderer, has_gui, draw_pose, is_darwin, disable_preview, CLIENTS,CLIENT, p
 from pddlstream.language.generator import from_gen_fn, from_fn, empty_gen, from_test, universe_test
 from pddlstream.utils import read, INF, get_file_path, find_unique, Profiler, str_from_object, negate_test
 from pddlstream.language.constants import print_solution, PDDLProblem
 from examples.pybullet.tamp.streams import get_cfree_approach_pose_test, get_cfree_pose_pose_test, get_cfree_traj_pose_test, \
     move_cost_fn, get_cfree_obj_approach_pose_test
+
+
+def connect_notebook(use_gui=True, shadows=True, color=None, width=None, height=None):
+    # Shared Memory: execute the physics simulation and rendering in a separate process
+    # https://github.com/bulletphysics/bullet3/blob/master/examples/pybullet/examples/vrminitaur.py#L7
+    # make sure to compile pybullet with PYBULLET_USE_NUMPY enabled
+    if use_gui and not is_darwin() and ('DISPLAY' not in os.environ):
+        use_gui = False
+        print('No display detected!')
+    method = p.GUI if use_gui else p.DIRECT
+#     with HideOutput():
+    #  --window_backend=2 --render_device=0'
+    # options="--mp4=\"test.mp4\' --mp4fps=240"
+    options = ''
+    if color is not None:
+        options += '--background_color_red={} --background_color_green={} --background_color_blue={}'.format(*color)
+    if width is not None:
+        options += '--width={}'.format(width)
+    if height is not None:
+        options += '--height={}'.format(height)
+    sim_id = p.connect(method, options=options) # key=None,
+    #sim_id = p.connect(p.GUI, options='--opengl2') if use_gui else p.connect(p.DIRECT)
+
+    assert 0 <= sim_id
+    #sim_id2 = p.connect(p.SHARED_MEMORY)
+    #print(sim_id, sim_id2)
+    CLIENTS[sim_id] = True if use_gui else None
+    if use_gui:
+        # p.COV_ENABLE_PLANAR_REFLECTION
+        # p.COV_ENABLE_SINGLE_STEP_RENDERING
+        disable_preview()
+        p.configureDebugVisualizer(p.COV_ENABLE_TINY_RENDERER, False, physicsClientId=sim_id) # TODO: does this matter?
+        p.configureDebugVisualizer(p.COV_ENABLE_SHADOWS, shadows, physicsClientId=sim_id)
+        p.configureDebugVisualizer(p.COV_ENABLE_MOUSE_PICKING, False, physicsClientId=sim_id) # mouse moves meshes
+        p.configureDebugVisualizer(p.COV_ENABLE_KEYBOARD_SHORTCUTS, False, physicsClientId=sim_id)
+
+    # you can also use GUI mode, for faster OpenGL rendering (instead of TinyRender CPU)
+    #visualizer_options = {
+    #    p.COV_ENABLE_WIREFRAME: 1,
+    #    p.COV_ENABLE_SHADOWS: 0,
+    #    p.COV_ENABLE_RENDERING: 0,
+    #    p.COV_ENABLE_TINY_RENDERER: 1,
+    #    p.COV_ENABLE_RGB_BUFFER_PREVIEW: 0,
+    #    p.COV_ENABLE_DEPTH_BUFFER_PREVIEW: 0,
+    #    p.COV_ENABLE_SEGMENTATION_MARK_PREVIEW: 0,
+    #    p.COV_ENABLE_VR_RENDER_CONTROLLERS: 0,
+    #    p.COV_ENABLE_VR_PICKING: 0,
+    #    p.COV_ENABLE_VR_TELEPORTING: 0,
+    #}
+    #for pair in visualizer_options.items():
+    #    p.configureDebugVisualizer(*pair)
+    return sim_id
 
 def get_fixed(robot, movable):
     rigid = [body for body in get_bodies() if body != robot]
@@ -84,6 +135,7 @@ def pddlstream_from_problem(robot, movable=[], teleport=False, grasp_name='top')
                  ('AtPose', body, pose)]
         for surface in fixed:
             init += [('Stackable', body, surface)]
+            print("body {} - surface {}".format(body, surface))
             if is_placement(body, surface):
                 init += [('Supported', body, pose, surface)]
 
@@ -98,15 +150,15 @@ def pddlstream_from_problem(robot, movable=[], teleport=False, grasp_name='top')
     goal = ('and',
             ('AtConf', conf),
             #('Holding', body),
-            #('On', body, fixed[1]),
+            ('On', body, fixed[0]),
             #('On', body, fixed[2]),
             #('Cleaned', body),
-            ('Cooked', body),
+#             ('Cooked', body),
     )
 
     stream_map = {
         'sample-pose': from_gen_fn(get_stable_gen(fixed)),
-        'sample-grasp': from_gen_fn(get_grasp_gen(robot, grasp_name)),
+        'sample-grasp': from_gen_fn(get_grasp_gen(robot, tool_link_name='indy0_tcp', grasp_name=grasp_name)),
         'inverse-kinematics': from_fn(get_ik_fn(robot, fixed, teleport)),
         'plan-free-motion': from_fn(get_free_motion_gen(robot, fixed, teleport)),
         'plan-holding-motion': from_fn(get_holding_motion_gen(robot, fixed, teleport)),
@@ -121,40 +173,6 @@ def pddlstream_from_problem(robot, movable=[], teleport=False, grasp_name='top')
     return PDDLProblem(domain_pddl, constant_map, stream_pddl, stream_map, init, goal)
 
 
-#######################################################
-
-def load_world():
-    # TODO: store internal world info here to be reloaded
-    set_default_camera()
-    draw_global_system()
-    with HideOutput():
-        #add_data_path()
-        robot = load_model(DRAKE_IIWA_URDF, fixed_base=True) # DRAKE_IIWA_URDF | KUKA_IIWA_URDF
-        floor = load_model('models/short_floor.urdf')
-        sink = load_model(SINK_URDF, pose=Pose(Point(x=-0.5)))
-        stove = load_model(STOVE_URDF, pose=Pose(Point(x=+0.5)))
-        celery = load_model(BLOCK_URDF, fixed_base=False)
-        radish = load_model(SMALL_BLOCK_URDF, fixed_base=False)
-        #cup = load_model('models/dinnerware/cup/cup_small.urdf',
-        # Pose(Point(x=+0.5, y=+0.5, z=0.5)), fixed_base=False)
-
-    draw_pose(Pose(), parent=robot, parent_link=get_tool_link(robot)) # TODO: not working
-    # dump_body(robot)
-    # wait_for_user()
-
-    body_names = {
-        sink: 'sink',
-        stove: 'stove',
-        celery: 'celery',
-        radish: 'radish',
-    }
-    movable_bodies = [celery, radish]
-
-    set_pose(celery, Pose(Point(y=0.5, z=stable_z(celery, floor))))
-    set_pose(radish, Pose(Point(y=-0.5, z=stable_z(radish, floor))))
-
-    return robot, body_names, movable_bodies
-
 def postprocess_plan(plan):
     paths = []
     for name, args in plan:
@@ -164,48 +182,4 @@ def postprocess_plan(plan):
             paths += args[-1].body_paths
     return Command(paths)
 
-#######################################################
 
-def main():
-    parser = create_parser()
-    parser.add_argument('-enable', action='store_true', help='Enables rendering during planning')
-    parser.add_argument('-teleport', action='store_true', help='Teleports between configurations')
-    parser.add_argument('-simulate', action='store_true', help='Simulates the system')
-    parser.add_argument('-viewer', action='store_true', help='Enable the viewer and visualizes the plan')
-    args = parser.parse_args()
-    print('Arguments:', args)
-
-    connect(use_gui=args.viewer)
-    robot, names, movable = load_world()
-    print('Objects:', names)
-    saver = WorldSaver()
-
-    problem = pddlstream_from_problem(robot, movable=movable, teleport=args.teleport)
-    _, _, _, stream_map, init, goal = problem
-    print('Init:', init)
-    print('Goal:', goal)
-    print('Streams:', str_from_object(set(stream_map)))
-
-    with Profiler():
-        with LockRenderer(lock=not args.enable):
-            solution = solve(problem, algorithm=args.algorithm, unit_costs=args.unit, success_cost=INF)
-            saver.restore()
-    print_solution(solution)
-    plan, cost, evaluations = solution
-    if (plan is None) or not has_gui():
-        disconnect()
-        return
-
-    command = postprocess_plan(plan)
-    if args.simulate:
-        wait_for_user('Simulate?')
-        command.control()
-    else:
-        wait_for_user('Execute?')
-        #command.step()
-        command.refine(num_steps=10).execute(time_step=0.001)
-    wait_for_user('Finish?')
-    disconnect()
-
-if __name__ == '__main__':
-    main()

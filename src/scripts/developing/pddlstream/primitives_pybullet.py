@@ -6,20 +6,24 @@ from examples.pybullet.utils.pybullet_tools.pr2_utils import get_top_grasps
 from examples.pybullet.utils.pybullet_tools.utils import get_pose, set_pose, get_movable_joints, \
     set_joint_positions, add_fixed_constraint, enable_real_time, disable_real_time, joint_controller, \
     enable_gravity, get_refine_fn, wait_for_duration, link_from_name, get_body_name, sample_placement, \
-    end_effector_from_body, approach_from_grasp, plan_joint_motion, GraspInfo, Pose, INF, Point, \
+    end_effector_from_body, approach_from_grasp, plan_joint_motion, GraspInfo, Pose, INF, Point, Euler, \
     inverse_kinematics, pairwise_collision, remove_fixed_constraint, Attachment, get_sample_fn, \
     step_simulation, refine_path, plan_direct_joint_motion, get_joint_positions, dump_world, wait_if_gui, flatten
+
 
 # TODO: deprecate
 
 GRASP_INFO = {
-    'top': GraspInfo(lambda body: get_top_grasps(body, under=True, tool_pose=Pose(), max_width=INF,  grasp_length=0),
+    'top': GraspInfo(lambda body: get_top_grasps(body, under=True,
+                                                 tool_pose=Pose(point=Point(0,0,0.14), euler=Euler(0,0,0)),
+                                                 max_width=INF,  grasp_length=0),
                      approach_pose=Pose(0.1*Point(z=1))),
 }
 
-TOOL_FRAMES = {
-    'iiwa14': 'iiwa_link_ee_kuka', # iiwa_link_ee | iiwa_link_ee_kuka
-}
+
+def update_grasp_info(grasp_info):
+    GRASP_INFO.update(grasp_info)
+
 
 DEBUG_FAILURE = False
 
@@ -200,13 +204,10 @@ class Command(object):
 
 #######################################################
 
-def get_tool_link(robot):
-    return link_from_name(robot, TOOL_FRAMES[get_body_name(robot)])
 
-
-def get_grasp_gen(robot, grasp_name='top'):
+def get_grasp_gen(robot, tool_link_name, grasp_name='top'):
     grasp_info = GRASP_INFO[grasp_name]
-    tool_link = get_tool_link(robot)
+    tool_link = link_from_name(robot, tool_link_name)
     def gen(body):
         grasp_poses = grasp_info.get_grasps(body)
         # TODO: continuous set of grasps
@@ -234,14 +235,20 @@ def get_ik_fn(robot, fixed=[], teleport=False, num_attempts=10):
         obstacles = [body] + fixed
         gripper_pose = end_effector_from_body(pose.pose, grasp.grasp_pose)
         approach_pose = approach_from_grasp(grasp.approach_pose, gripper_pose)
+        print("gripper_pose: {}".format(gripper_pose))
+        print("approach_pose: {}".format(approach_pose))
         for _ in range(num_attempts):
             set_joint_positions(robot, movable_joints, sample_fn()) # Random seed
             # TODO: multiple attempts?
             q_approach = inverse_kinematics(robot, grasp.link, approach_pose)
+            print("q_approach: {}".format(q_approach))
             if (q_approach is None) or any(pairwise_collision(robot, b) for b in obstacles):
+                print("obstacles: {}".format(obstacles))
                 continue
+            print("go on")
             conf = BodyConf(robot, q_approach)
             q_grasp = inverse_kinematics(robot, grasp.link, gripper_pose)
+            print("q_grasp: {}".format(q_grasp))
             if (q_grasp is None) or any(pairwise_collision(robot, b) for b in obstacles):
                 continue
             if teleport:
