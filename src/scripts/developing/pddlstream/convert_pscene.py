@@ -146,6 +146,14 @@ def add_gtem_fam_to_pybullet(root_name, gtem_list, fixed_base=False, robot_body=
     set_pose(bid, pose_base)
     return bid
 
+body_subject_map = {}
+
+def set_body_subject_map(pscene, body_names):
+    gname_subject_map = {subj.geometry.get_root(): subj for subj in pscene.subject_dict.values()}
+    body_subject_map.clear()
+    body_subject_map.update({bid: gname_subject_map[gname] for bid, gname in body_names.items() if
+                             gname in gname_subject_map})
+
 
 def pscene_to_pybullet(pscene, urdf_pybullet_path, tool_name = None, name_exclude_list=[]):
     assert tool_name is not None, "tool_name should be passed to pscene_to_pybullet"
@@ -182,9 +190,7 @@ def pscene_to_pybullet(pscene, urdf_pybullet_path, tool_name = None, name_exclud
         else:
             print("[WARING] non-object subject not implemented for now")
 
-    gname_subject_map = {subj.geometry.get_root(): subj for subj in pscene.subject_dict.values()}
-    body_subject_map = {bid: gname_subject_map[gname] for bid, gname in body_names.items() if
-                        gname in gname_subject_map}
+    set_body_subject_map(pscene, body_names)
     actor = pscene.actor_dict[tool_name]
     update_grasp_info({tool_name: GraspInfo(
         lambda body: sample_grasps(body_subject_map=body_subject_map, body=body, actor=actor),
