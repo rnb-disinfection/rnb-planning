@@ -21,6 +21,30 @@ from shutil import copyfile
 import rospkg
 rospack = rospkg.RosPack()
 
+from pkg.planning.constraint.constraint_common import combine_redundancy, sample_redundancy, calc_redundancy
+from primitives_pybullet import update_grasp_info, GraspInfo
+import random
+
+SAMPLE_GRASP_COUNT_DEFAULT = 10
+
+def sample_grasps(body_subject_map, body, actor, sample_count=SAMPLE_GRASP_COUNT_DEFAULT, binding_sampler=random.choice, redundancy_sampler=random.uniform):
+    subject = body_subject_map[body]
+    grasps = []
+    for _ in range(sample_count):
+        handle = binding_sampler([ap for ap in subject.action_points_dict.values() if actor.check_type(ap)])
+        redundancy_tot = combine_redundancy(handle, actor)
+        redundancy = sample_redundancy(redundancy_tot, sampler=redundancy_sampler)
+        point_add_handle, rpy_add_handle = calc_redundancy(redundancy[handle.name], handle)
+        point_add_actor, rpy_add_actor = calc_redundancy(redundancy[actor.name], actor)
+        T_handle_oh = np.matmul(handle.Toff_oh,
+                                SE3(Rot_rpy(rpy_add_handle), point_add_handle))
+        T_actor_lh = np.matmul(actor.Toff_lh,
+                               SE3(Rot_rpy(rpy_add_actor), point_add_actor))
+        T_lo = np.matmul(T_actor_lh, SE3_inv(T_handle_oh))
+        point, euler = T2xyzrpy(T_lo)
+        grasps.append(Pose(point=point, euler=euler))
+    return grasps
+
 
 def copy_meshes(gscene):
     upath_ext_split = gscene.urdf_path.split(".")
@@ -123,7 +147,8 @@ def add_gtem_fam_to_pybullet(root_name, gtem_list, fixed_base=False, robot_body=
     return bid
 
 
-def pscene_to_pybullet(pscene, urdf_pybullet_path, name_exclude_list=[]):
+def pscene_to_pybullet(pscene, urdf_pybullet_path, tool_name = None, name_exclude_list=[]):
+    assert tool_name is not None, "tool_name should be passed to pscene_to_pybullet"
     set_default_camera()
     draw_global_system()
     robot_body = load_model_abs(urdf_pybullet_path, fixed_base=True)
@@ -156,5 +181,13 @@ def pscene_to_pybullet(pscene, urdf_pybullet_path, name_exclude_list=[]):
             movable_bodies.append(body_i)
         else:
             print("[WARING] non-object subject not implemented for now")
+
+    gname_subject_map = {subj.geometry.get_root(): subj for subj in pscene.subject_dict.values()}
+    body_subject_map = {bid: gname_subject_map[gname] for bid, gname in body_names.items() if
+                        gname in gname_subject_map}
+    actor = pscene.actor_dict[tool_name]
+    update_grasp_info({tool_name: GraspInfo(
+        lambda body: sample_grasps(body_subject_map=body_subject_map, body=body, actor=actor),
+        approach_pose=Pose(0.1 * Point(z=1)))})
 
     return robot_body, body_names, movable_bodies

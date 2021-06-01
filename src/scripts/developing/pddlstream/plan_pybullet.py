@@ -22,6 +22,8 @@ from examples.pybullet.tamp.streams import get_cfree_approach_pose_test, get_cfr
     move_cost_fn, get_cfree_obj_approach_pose_test
 
 
+
+
 def connect_notebook(use_gui=True, shadows=True, color=None, width=None, height=None):
     # Shared Memory: execute the physics simulation and rendering in a separate process
     # https://github.com/bulletphysics/bullet3/blob/master/examples/pybullet/examples/vrminitaur.py#L7
@@ -111,8 +113,10 @@ def get_holding_motion_synth(robot, movable=[], teleport=False):
 
 #######################################################
 
-def pddlstream_from_problem(robot, movable=[], teleport=False, grasp_name='top'):
+def pddlstream_from_problem(robot, movable=[], tool_name=None, tool_link_name=None, teleport=False):
     #assert (not are_colliding(tree, kin_cache))
+    assert tool_link_name is not None, "tool_link_name should be passed to pddlstream_from_problem"
+    assert tool_name is not None, "tool_name should be passed to pddlstream_from_problem"
 
     domain_pddl = read(get_file_path(__file__, 'domain.pddl'))
     stream_pddl = read(get_file_path(__file__, 'stream.pddl'))
@@ -158,7 +162,7 @@ def pddlstream_from_problem(robot, movable=[], teleport=False, grasp_name='top')
 
     stream_map = {
         'sample-pose': from_gen_fn(get_stable_gen(fixed)),
-        'sample-grasp': from_gen_fn(get_grasp_gen(robot, tool_link_name='indy0_tcp', grasp_name=grasp_name)),
+        'sample-grasp': from_gen_fn(get_grasp_gen(robot, tool_link_name=tool_link_name, grasp_name=tool_name)),
         'inverse-kinematics': from_fn(get_ik_fn(robot, fixed, teleport)),
         'plan-free-motion': from_fn(get_free_motion_gen(robot, fixed, teleport)),
         'plan-holding-motion': from_fn(get_holding_motion_gen(robot, fixed, teleport)),

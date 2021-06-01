@@ -235,20 +235,20 @@ def get_ik_fn(robot, fixed=[], teleport=False, num_attempts=10):
         obstacles = [body] + fixed
         gripper_pose = end_effector_from_body(pose.pose, grasp.grasp_pose)
         approach_pose = approach_from_grasp(grasp.approach_pose, gripper_pose)
-        print("gripper_pose: {}".format(gripper_pose))
-        print("approach_pose: {}".format(approach_pose))
+        # print("gripper_pose: {}".format(gripper_pose))
+        # print("approach_pose: {}".format(approach_pose))
         for _ in range(num_attempts):
             set_joint_positions(robot, movable_joints, sample_fn()) # Random seed
             # TODO: multiple attempts?
             q_approach = inverse_kinematics(robot, grasp.link, approach_pose)
-            print("q_approach: {}".format(q_approach))
+            # print("q_approach: {}".format(q_approach))
             if (q_approach is None) or any(pairwise_collision(robot, b) for b in obstacles):
-                print("obstacles: {}".format(obstacles))
+                # print("obstacles: {}".format(obstacles))
                 continue
-            print("go on")
+            # print("go on")
             conf = BodyConf(robot, q_approach)
             q_grasp = inverse_kinematics(robot, grasp.link, gripper_pose)
-            print("q_grasp: {}".format(q_grasp))
+            # print("q_grasp: {}".format(q_grasp))
             if (q_grasp is None) or any(pairwise_collision(robot, b) for b in obstacles):
                 continue
             if teleport:
