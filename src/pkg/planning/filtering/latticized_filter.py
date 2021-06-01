@@ -99,9 +99,14 @@ class LatticedChecker(MotionFilterInterface):
     # @param Q_dict joint configuration in dictionary format {joint name: radian value}
     # @param interpolate    interpolate path and check intermediate poses
     def check(self, actor, obj, handle, redundancy_values, Q_dict, interpolate=False):
-        actor_vertinfo_list, object_vertinfo_list, \
-        T_link_handle_actor_link, actor_Tinv_dict, object_Tinv_dict = \
-            self.gcheck.get_grasping_vert_infos(actor, obj, handle, redundancy_values, Q_dict)
+        point_add_handle, rpy_add_handle = redundancy_values[(obj.oname, handle.name)]
+        point_add_actor, rpy_add_actor = redundancy_values[(obj.oname, actor.name)]
+        T_handle_lh = np.matmul(handle.Toff_lh, SE3(Rot_rpy(rpy_add_handle), point_add_handle))
+        T_actor_lh = np.matmul(actor.Toff_lh, SE3(Rot_rpy(rpy_add_actor), point_add_actor))
+        T_loal = np.matmul(T_handle_lh, SE3_inv(T_actor_lh))
+
+        actor_vertinfo_list, object_vertinfo_list, actor_Tinv_dict, object_Tinv_dict = \
+            self.gcheck.get_grasping_vert_infos(actor, obj, T_loal, Q_dict)
 
         obj_names = obj.geometry.get_family()
         group_name_handle = self.binder_link_robot_dict[

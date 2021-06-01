@@ -26,7 +26,8 @@ from examples.pybullet.tamp.streams import get_cfree_approach_pose_test, get_cfr
 
 #######################################################
 
-def pddlstream_from_problem_rnb(robot, movable=[], tool_name=None, tool_link_name=None, mplan=None, teleport=False):
+def pddlstream_from_problem_rnb(pscene, robot, movable=[], checkers=[],
+                                tool_name=None, tool_link_name=None, mplan=None, teleport=False):
     #assert (not are_colliding(tree, kin_cache))
     assert tool_link_name is not None, "tool_link_name should be passed to pddlstream_from_problem"
     assert tool_name is not None, "tool_name should be passed to pddlstream_from_problem"
@@ -79,7 +80,9 @@ def pddlstream_from_problem_rnb(robot, movable=[], tool_name=None, tool_link_nam
     stream_map = {
         'sample-pose': from_gen_fn(get_stable_gen(fixed)),
         'sample-grasp': from_gen_fn(get_grasp_gen(robot, tool_link_name=tool_link_name, grasp_name=tool_name)),
-        'inverse-kinematics': from_fn(get_ik_fn(robot, fixed, teleport)),
+        'inverse-kinematics': from_fn(get_ik_fn_rnb(
+            pscene, body_subject_map, pscene.actor_dict[tool_name], checkers, pscene.combined_robot.home_dict,
+            robot=robot, fixed=fixed, teleport=teleport)),
         'plan-free-motion': from_fn(get_free_motion_gen_rnb(mplan, body_subject_map, robot, tool_link=tool_link_name)),
         'plan-holding-motion': from_fn(
             get_holding_motion_gen_rnb(mplan, body_subject_map, robot, tool_link=tool_link_name)),

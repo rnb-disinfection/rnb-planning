@@ -23,7 +23,7 @@ class ReachChecker(MotionFilterInterface):
         for rconfig in self.combined_robot.robots_on_scene:
             self.model_dict[rconfig.get_indexed_name()] = ReachTrainer(None).load_model(rconfig.type)
         self.base_dict = self.combined_robot.get_robot_base_dict()
-        self.shoulder_link_dict = {rname: pscene.gscene.urdf_content.joint_map[rchain['joint_names'][1]].child 
+        self.shoulder_link_dict = {rname: pscene.gscene.urdf_content.joint_map[rchain['joint_names'][1]].child
                                    for rname, rchain in chain_dict.items()}
         self.shoulder_height_dict = {rname: get_tf(shoulder_link, self.combined_robot.home_dict,
                                                    pscene.gscene.urdf_content, from_link=self.base_dict[rname])[2,3]
@@ -37,32 +37,41 @@ class ReachChecker(MotionFilterInterface):
     # @param redundancy_values calculated redundancy values in dictionary format {(object name, point name): (xyz, rpy)}
     # @param Q_dict joint configuration in dictionary format {joint name: radian value}
     # @param interpolate    interpolate path and check intermediate poses
-    def check(self, actor, obj, handle, redundancy_values, Q_dict, interpolate=False):
-        actor_link = actor.geometry.link_name
-        object_link = obj.geometry.link_name
+    def check(self, actor, obj, handle, redundancy_values, Q_dict, interpolate=False, **kwargs):
 
         point_add_handle, rpy_add_handle = redundancy_values[(obj.oname, handle.name)]
         point_add_actor, rpy_add_actor = redundancy_values[(obj.oname, actor.name)]
-
         T_handle_lh = np.matmul(handle.Toff_lh, SE3(Rot_rpy(rpy_add_handle), point_add_handle))
         T_actor_lh = np.matmul(actor.Toff_lh, SE3(Rot_rpy(rpy_add_actor), point_add_actor))
+        T_link_handle_actor_link = np.matmul(T_handle_lh, SE3_inv(T_actor_lh))
+        return self.check_T_loal(group_name, Ttar)
 
+    ##
+    # @param actor  rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
+    # @param obj    rnb-planning.src.pkg.planning.constraint.constraint_subject.Subject
+    # @param T_loal     transformation matrix from object-side link to actor-side link
+    # @param Q_dict joint configuration in dictionary format {joint name: radian value}
+    # @param interpolate    interpolate path and check intermediate poses
+    # @param ignore         GeometryItems to ignore
+    def check_T_loal(self, actor, obj, T_loal, Q_dict, interpolate=False, obj_only=False, ignore=[],
+              **kwargs):
 
-        group_name_handle = self.binder_link_robot_dict[handle.geometry.link_name] if handle.geometry.link_name in self.binder_link_robot_dict else None
-        group_name_actor = self.binder_link_robot_dict[actor.geometry.link_name] if actor.geometry.link_name in self.binder_link_robot_dict else None
+        actor_link = actor.geometry.link_name
+        object_link = obj.geometry.link_name
+
+        group_name_handle = self.binder_link_robot_dict[object_link] if object_link in self.binder_link_robot_dict else None
+        group_name_actor = self.binder_link_robot_dict[actor_link] if actor_link in self.binder_link_robot_dict else None
 
         if group_name_actor and not group_name_handle:
             group_name = group_name_actor
             T_handle_link = get_tf(object_link, Q_dict, self.pscene.gscene.urdf_content,
                                    from_link=self.base_dict[group_name])
-            T_link_handle_actor_link = np.matmul(T_handle_lh, SE3_inv(T_actor_lh))
-            T_tar = np.matmul(T_handle_link, T_link_handle_actor_link)
+            T_tar = np.matmul(T_handle_link, T_loal)
         elif group_name_handle and not group_name_actor:
             group_name = group_name_handle
             T_actor_link = get_tf(actor_link, Q_dict, self.pscene.gscene.urdf_content,
                                   from_link=self.base_dict[group_name])
-            T_link_actor_handle_link = np.matmul(T_actor_lh, SE3_inv(T_handle_lh))
-            T_tar = np.matmul(T_actor_link, T_link_actor_handle_link)
+            T_tar = np.matmul(T_actor_link, SE3_inv(T_loal))
         else:
             # dual motion not predictable
             return True
@@ -71,8 +80,7 @@ class ReachChecker(MotionFilterInterface):
         shoulder_height = self.shoulder_height_dict[group_name]
         ee_dist = np.linalg.norm([radius, height-shoulder_height])
         featurevec = (radius, theta, height, azimuth_loc, zenith, radius**2, ee_dist, ee_dist**2)
-        res = self.model_dict[group_name].predict([featurevec])[0]
-        return res
+        return self.model_dict[group_name].predict([featurevec])[0]
 
 
 from ...utils.utils import *
@@ -252,7 +260,7 @@ class ReachTrainer:
         trajectory, success = self.planner.planner.plan_py(
             robot_name, tool_link, goal_pose, base_link, tuple(home_pose), timeout=timeout)
         self.time_plan.append(GlobalTimer.instance().toc("plan_py"))
-        
+
         ee_dist = np.linalg.norm([radius, height-self.shoulder_height])
         return (radius, theta, height, azimuth_loc, zenith, radius**2, ee_dist, ee_dist**2), success, trajectory
 
@@ -270,7 +278,7 @@ class ReachTrainer:
         self.scene_builder.add_robot_geometries(color=(0, 1, 0, 0.5), display=True, collision=True)
         print("added robot collision boundaries")
         pscene = PlanningScene(gscene, combined_robot=crob)
-        
+
         self.shoulder_link = gscene.urdf_content.joint_map[gscene.joint_names[1]].child
         self.shoulder_height = get_tf(self.shoulder_link, crob.home_dict, gscene.urdf_content)[2,3]
 

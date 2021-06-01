@@ -49,12 +49,34 @@ class GraspChecker(MotionFilterInterface):
     # @param redundancy_values calculated redundancy values in dictionary format {(object name, point name): (xyz, rpy)}
     # @param Q_dict joint configuration in dictionary format {joint name: radian value}
     # @param interpolate    interpolate path and check intermediate poses
-    def check(self, actor, obj, handle, redundancy_values, Q_dict, interpolate=False, obj_only=False):
+    # @param ignore         GeometryItems to ignore
+    def check(self, actor, obj, handle, redundancy_values, Q_dict, interpolate=False, obj_only=False, ignore=[],
+              **kwargs):
         # gtimer = GlobalTimer.instance()
         # gtimer.tic("get_grasping_vert_infos")
-        actor_vertinfo_list, object_vertinfo_list, _, _, _ = self.get_grasping_vert_infos(
-            actor, obj, handle, redundancy_values, Q_dict, obj_only=obj_only,
-            interpolate=interpolate)
+        point_add_handle, rpy_add_handle = redundancy_values[(obj.oname, handle.name)]
+        point_add_actor, rpy_add_actor = redundancy_values[(obj.oname, actor.name)]
+        T_handle_lh = np.matmul(handle.Toff_lh, SE3(Rot_rpy(rpy_add_handle), point_add_handle))
+        T_actor_lh = np.matmul(actor.Toff_lh, SE3(Rot_rpy(rpy_add_actor), point_add_actor))
+        T_loal = np.matmul(T_handle_lh, SE3_inv(T_actor_lh))
+
+        return self.check_T_loal(actor, obj, T_loal, Q_dict, interpolate=interpolate, obj_only=obj_only, ignore=ignore,
+                          **kwargs)
+
+    ##
+    # @brief check end-effector collision in grasping
+    # @param actor  rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
+    # @param obj    rnb-planning.src.pkg.planning.constraint.constraint_subject.Subject
+    # @param T_loal     transformation matrix from object-side link to actor-side link
+    # @param Q_dict joint configuration in dictionary format {joint name: radian value}
+    # @param interpolate    interpolate path and check intermediate poses
+    # @param ignore         GeometryItems to ignore
+    def check_T_loal(self, actor, obj, T_loal, Q_dict, interpolate=False, obj_only=False, ignore=[],
+              **kwargs):
+
+        actor_vertinfo_list, object_vertinfo_list, _, _ = self.get_grasping_vert_infos(
+            actor, obj, T_loal, Q_dict, obj_only=obj_only,
+            interpolate=interpolate, ignore=ignore)
         # gtimer.toc("get_grasping_vert_infos")
         actor_vertice_list = []
         for geo_name, T, verts, radius, geo_dims in actor_vertinfo_list:
@@ -102,20 +124,19 @@ class GraspChecker(MotionFilterInterface):
     # @brief transfer actor to binding position and get vertices' information
     # @param actor      rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
     # @param obj        rnb-planning.src.pkg.planning.constraint.constraint_subject.Subject
-    # @param handle     rnb-planning.src.pkg.planning.constraint.constraint_common.ActionPoint
-    # @param redundancy_values calculated redundancy values in dictionary format {(object name, point name): (xyz, rpy)}
+    # @param T_loal     transformation matrix from object-side link to actor-side link
     # @param Q_dict     joint configuration in dictionary format {joint name: radian value}
     # @param obj_only   only use object and its family's geometry from the object side
     # @param interpolate    interpolate path and check intermediate poses
+    # @param ignore         GeometryItems to ignore
     # @return   information for objects attached to the actor in actor_vertinfo_list and
     #           information for objects attached to the object in object_vertinfo_list.
     #           each list item consist of (geometry name, T(4x4), vertices, radius, geometry dimensions)
-    def get_grasping_vert_infos(self, actor, obj, handle, redundancy_values, Q_dict, obj_only=False,
-                                interpolate=False):
+    def get_grasping_vert_infos(self, actor, obj, T_loal, Q_dict, obj_only=False,
+                                interpolate=False, ignore=[]):
         # gtimer = GlobalTimer.instance()
         # gtimer.tic("preprocess")
-        point_add_handle, rpy_add_handle = redundancy_values[(obj.oname, handle.name)]
-        point_add_actor, rpy_add_actor = redundancy_values[(obj.oname, actor.name)]
+
         actor_link = actor.geometry.link_name
         object_link = obj.geometry.link_name
         if actor_link in self.link_robot_dict:      # actor is on the robot (pick)
@@ -137,17 +158,20 @@ class GraspChecker(MotionFilterInterface):
             obj_family = obj.geometry.get_family()
             object_geo_list = [gtem for gtem in object_geo_list if gtem.name in obj_family]
 
+        for gtem_ig in ignore:
+            if gtem_ig in actor_geo_list:
+                actor_geo_list.remove(gtem_ig)
+            elif gtem_ig in object_geo_list:
+                object_geo_list.remove(gtem_ig)
+
         #     with gtimer.block("link_offset"):
-        T_handle_lh = np.matmul(handle.Toff_lh, SE3(Rot_rpy(rpy_add_handle), point_add_handle))
-        T_actor_lh = np.matmul(actor.Toff_lh, SE3(Rot_rpy(rpy_add_actor), point_add_actor))
-        T_link_handle_actor_link = np.matmul(T_handle_lh, SE3_inv(T_actor_lh))
 
         if interpolate:
-            T_link_handle_actor_link_cur = get_tf(actor_link, Q_dict, self.gscene.urdf_content, from_link=object_link)
-            T_lhal_list = interpolate_T(T_link_handle_actor_link_cur, T_link_handle_actor_link,
+            T_loal_cur = get_tf(actor_link, Q_dict, self.gscene.urdf_content, from_link=object_link)
+            T_loal_list = interpolate_T(T_loal_cur, T_loal,
                                         POS_STEP=self.POS_STEP, ROT_STEP=self.ROT_STEP)
         else:
-            T_lhal_list = [T_link_handle_actor_link]
+            T_loal_list = [T_loal]
         # gtimer.toc("preprocess")
 
         #     with gtimer.block('extract_vertices'):
@@ -165,11 +189,11 @@ class GraspChecker(MotionFilterInterface):
         actor_vertinfo_list = []
         object_vertinfo_list = []
         for ac_geo in actor_geo_list:
-            for T_lhal in T_lhal_list:
+            for T_loal_ in T_loal_list:
                 # gtimer.tic("ac_geo_calc_verts")
                 T = actor_Tinv_dict[ac_geo.link_name]
                 verts, radius = ac_geo.get_vertice_radius()
-                Tac = np.matmul(T_lhal, np.matmul(T, ac_geo.Toff))
+                Tac = np.matmul(T_loal_, np.matmul(T, ac_geo.Toff))
                 actor_vertinfo_list.append((ac_geo.name, Tac, verts, radius, ac_geo.dims))
                 # gtimer.toc("ac_geo_calc_verts")
 
@@ -180,4 +204,4 @@ class GraspChecker(MotionFilterInterface):
             Tobj = np.matmul(T, obj_geo.Toff)
             object_vertinfo_list.append((obj_geo.name, Tobj, verts, radius, obj_geo.dims))
             # gtimer.toc("obj_geo_calc_verts")
-        return actor_vertinfo_list, object_vertinfo_list, T_link_handle_actor_link, actor_Tinv_dict, object_Tinv_dict
+        return actor_vertinfo_list, object_vertinfo_list, actor_Tinv_dict, object_Tinv_dict
