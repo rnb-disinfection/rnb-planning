@@ -22,28 +22,62 @@ import rospkg
 rospack = rospkg.RosPack()
 
 from pkg.planning.constraint.constraint_common import combine_redundancy, sample_redundancy, calc_redundancy
-from primitives_pybullet import update_grasp_info, GraspInfo
+from primitives_pybullet import update_grasp_info, GraspInfo, pairwise_collision, BodyPose, sample_placement
 import random
 
-SAMPLE_GRASP_COUNT_DEFAULT = 10
+SAMPLE_GRASP_COUNT_DEFAULT = 30
 
-def sample_grasps(body_subject_map, body, actor, sample_count=SAMPLE_GRASP_COUNT_DEFAULT, binding_sampler=random.choice, redundancy_sampler=random.uniform):
-    subject = body_subject_map[body]
-    grasps = []
-    for _ in range(sample_count):
-        handle = binding_sampler([ap for ap in subject.action_points_dict.values() if actor.check_type(ap)])
-        redundancy_tot = combine_redundancy(handle, actor)
-        redundancy = sample_redundancy(redundancy_tot, sampler=redundancy_sampler)
-        point_add_handle, rpy_add_handle = calc_redundancy(redundancy[handle.name], handle)
-        point_add_actor, rpy_add_actor = calc_redundancy(redundancy[actor.name], actor)
-        T_handle_oh = np.matmul(handle.Toff_oh,
-                                SE3(Rot_rpy(rpy_add_handle), point_add_handle))
-        T_actor_lh = np.matmul(actor.Toff_lh,
-                               SE3(Rot_rpy(rpy_add_actor), point_add_actor))
-        T_lo = np.matmul(T_actor_lh, SE3_inv(T_handle_oh))
-        point, euler = T2xyzrpy(T_lo)
-        grasps.append(Pose(point=point, euler=euler))
-    return grasps
+
+def sample_redundancy_offset(subject, actor,
+                             binding_sampler=random.choice, redundancy_sampler=random.uniform):
+    handle = binding_sampler([ap for ap in subject.action_points_dict.values() if actor.check_type(ap)])
+    redundancy_tot = combine_redundancy(handle, actor)
+    redundancy = sample_redundancy(redundancy_tot, sampler=redundancy_sampler)
+    point_add_handle, rpy_add_handle = calc_redundancy(redundancy[handle.name], handle)
+    point_add_actor, rpy_add_actor = calc_redundancy(redundancy[actor.name], actor)
+    T_handle_oh = np.matmul(handle.Toff_oh,
+                            SE3(Rot_rpy(rpy_add_handle), point_add_handle))
+    T_ah = T_xyzrpy((point_add_actor, rpy_add_actor))
+    T_ao = np.matmul(T_ah, SE3_inv(T_handle_oh))
+    return T_ao
+
+
+def get_stable_gen_rnb(body_subject_map, body_actor_map, home_dict, fixed=[],
+                       binding_sampler=random.choice, redundancy_sampler=random.uniform):
+    def gen(body, surface):
+        rnb_style = False
+        if body in body_subject_map and surface in body_actor_map:
+            rnb_style = True
+            subject = body_subject_map[body]
+            actor = body_actor_map[surface]
+        while True:
+            with GlobalTimer.instance().block("get_stable_{}_{}".format(body, surface)):
+                if rnb_style:
+                    T_ao = sample_redundancy_offset(subject, actor, binding_sampler, redundancy_sampler)
+                    T_pose = np.matmul(actor.get_tf_handle(home_dict), T_ao)
+                    pose = T2xyzquat(T_pose)
+                else:
+                    pose = None
+                    break
+
+                if (pose is None) or any(pairwise_collision(body, b) for b in fixed):
+                    continue
+                body_pose = BodyPose(body, pose)
+            yield (body_pose,)
+    return gen
+
+
+def sample_grasps(body_subject_map, body, actor, sample_count=SAMPLE_GRASP_COUNT_DEFAULT,
+                  binding_sampler=random.choice, redundancy_sampler=random.uniform):
+    with GlobalTimer.instance().block("sample_grasps_{}".format(body)):
+        subject = body_subject_map[body]
+        grasps = []
+        for _ in range(sample_count):
+            T_ao = sample_redundancy_offset(subject, actor, binding_sampler, redundancy_sampler)
+            T_lo = np.matmul(actor.Toff_lh, T_ao)
+            point, euler = T2xyzrpy(T_lo)
+            grasps.append(Pose(point=point, euler=euler))
+        return grasps
 
 
 def copy_meshes(gscene):
@@ -146,13 +180,21 @@ def add_gtem_fam_to_pybullet(root_name, gtem_list, fixed_base=False, robot_body=
     set_pose(bid, pose_base)
     return bid
 
-body_subject_map = {}
 
-def set_body_subject_map(pscene, body_names):
+def make_body_subject_map(pscene, body_names):
     gname_subject_map = {subj.geometry.get_root(): subj for subj in pscene.subject_dict.values()}
-    body_subject_map.clear()
+    body_subject_map = {}
     body_subject_map.update({bid: gname_subject_map[gname] for bid, gname in body_names.items() if
                              gname in gname_subject_map})
+    return body_subject_map
+
+
+def make_body_actor_map(pscene, body_names):
+    gname_actor_map = {subj.geometry.get_root(): subj for subj in pscene.actor_dict.values()}
+    body_actor_map = {}
+    body_actor_map.update({bid: gname_actor_map[gname] for bid, gname in body_names.items() if
+                             gname in gname_actor_map})
+    return body_actor_map
 
 
 def pscene_to_pybullet(pscene, urdf_pybullet_path, tool_name = None, name_exclude_list=[]):
@@ -189,11 +231,5 @@ def pscene_to_pybullet(pscene, urdf_pybullet_path, tool_name = None, name_exclud
             movable_bodies.append(body_i)
         else:
             print("[WARING] non-object subject not implemented for now")
-
-    set_body_subject_map(pscene, body_names)
-    actor = pscene.actor_dict[tool_name]
-    update_grasp_info({tool_name: GraspInfo(
-        lambda body: sample_grasps(body_subject_map=body_subject_map, body=body, actor=actor),
-        approach_pose=Pose(0.1 * Point(z=1)))})
 
     return robot_body, body_names, movable_bodies

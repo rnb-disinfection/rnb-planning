@@ -468,7 +468,9 @@ class GeometryItem(object):
     # @brief draw trajectory coordinates
     # @param Q_list list of joint configurations
     # @param traj_name name id for the trajectory
-    def draw_traj_coords(self, Q_list, traj_name):
+    def draw_traj_coords(self, Q_list, traj_name=None):
+        if traj_name is None:
+            traj_name = self.name
         T_q_list = []
         for i_q, q in enumerate(Q_list):
             T_q = self.get_tf(list2dict(q, self.gscene.joint_names))

@@ -6,6 +6,8 @@ from pkg.utils.rotation_utils import *
 from pkg.utils.utils import *
 from primitives_pybullet import *
 
+TIMEOUT_MOTION = 1
+
 def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool_link, base_link="base_link"):
     pscene = mplan.pscene
     for fluent in fluents:
@@ -22,9 +24,8 @@ def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool_link
     from_state = pscene.initialize_state(np.array(Qcur))
     to_state = from_state.copy(pscene)
     to_state.Q = np.array(Qto)
-    Traj, LastQ, error, success, binding_list = mplan.plan_transition(from_state, to_state, {}, timeout=3)
+    Traj, LastQ, error, success, binding_list = mplan.plan_transition(from_state, to_state, {}, timeout=TIMEOUT_MOTION)
     return Traj, success
-
 
 def get_free_motion_gen_rnb(mplan, body_subject_map, robot, tool_link, base_link="base_link"):
     def fn(conf1, conf2, fluents=[]):
@@ -56,17 +57,57 @@ def get_holding_motion_gen_rnb(mplan, body_subject_map, robot, tool_link, base_l
     return fn
 
 
+def get_free_motion_gen_ori(robot, fixed=[], teleport=False, self_collisions=True):
+    def fn(conf1, conf2, fluents=[]):
+        with GlobalTimer.instance().block("free_motion_gen_ori"):
+            assert ((conf1.body == conf2.body) and (conf1.joints == conf2.joints))
+            if teleport:
+                path = [conf1.configuration, conf2.configuration]
+            else:
+                conf1.assign()
+                obstacles = fixed + assign_fluent_state(fluents)
+                path = plan_joint_motion(robot, conf2.joints, conf2.configuration, obstacles=obstacles, self_collisions=self_collisions)
+                if path is None:
+                    if DEBUG_FAILURE: wait_if_gui('Free motion failed')
+                    return None
+            command = Command([BodyPath(robot, path, joints=conf2.joints)])
+            return (command,)
+    return fn
+
+
+def get_holding_motion_gen_ori(robot, fixed=[], teleport=False, self_collisions=True):
+    def fn(conf1, conf2, body, grasp, fluents=[]):
+        with GlobalTimer.instance().block("holding_motion_gen_ori"):
+            assert ((conf1.body == conf2.body) and (conf1.joints == conf2.joints))
+            if teleport:
+                path = [conf1.configuration, conf2.configuration]
+            else:
+                conf1.assign()
+                obstacles = fixed + assign_fluent_state(fluents)
+                path = plan_joint_motion(robot, conf2.joints, conf2.configuration,
+                                         obstacles=obstacles, attachments=[grasp.attachment()], self_collisions=self_collisions)
+                if path is None:
+                    if DEBUG_FAILURE: wait_if_gui('Holding motion failed')
+                    return None
+            command = Command([BodyPath(robot, path, joints=conf2.joints, attachments=[grasp])])
+            return (command,)
+    return fn
+
+
 def check_feas(pscene, body_subject_map, actor, checkers, home_dict, body, pose, grasp, base_link="base_link"):
     assert body == grasp.body
     gtimer = GlobalTimer.instance()
     with gtimer.block('check_feas'):
         subject = body_subject_map[body]
-        Tlo = T_xyzquat(pose.value)
+        Tbo = T_xyzquat(pose.value)
         subject.geometry.set_link(base_link)
-        subject.geometry.set_offset_tf(center=Tlo[:3,3], orientation_mat=Tlo[:3,:3])
+        subject.geometry.set_offset_tf(center=Tbo[:3,3], orientation_mat=Tbo[:3,:3])
 
         Tlao = T_xyzquat(grasp.grasp_pose)
-        Tloal = np.matmul(Tlo, SE3_inv(Tlao))
+        Tboal = np.matmul(Tbo, SE3_inv(Tlao))
+        Tboal_ap = np.matmul(Tboal, T_xyzquat(grasp.approach_pose))
+        # print("check_feas Tboal: {}".format(T2xyzquat(Tboal)))
+        # print("check_feas Tboal: {}".format(T2xyzquat(Tboal_ap)))
 
         ignore = []
         for k,v in body_subject_map.items():
@@ -75,7 +116,9 @@ def check_feas(pscene, body_subject_map, actor, checkers, home_dict, body, pose,
 
         for checker in checkers:
             with gtimer.block(checker.__class__.__name__):
-                if not checker.check_T_loal(actor, subject, Tloal, home_dict, ignore=ignore):
+                if not checker.check_T_loal(actor, subject, Tboal, home_dict, ignore=ignore):
+                    return False
+                if not checker.check_T_loal(actor, subject, Tboal_ap, home_dict, ignore=ignore):
                     return False
     return True
 
@@ -85,13 +128,12 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
     sample_fn = get_sample_fn(robot, movable_joints)
     def fn(body, pose, grasp):
         with GlobalTimer.instance().block("ik_fn"):
-            get_ik_fn_rnb.args_log = (robot, fixed, body, pose, grasp)
             if not check_feas(pscene, body_subject_map, actor, checkers,
                               home_dict, body, pose, grasp, base_link=base_link):
                 return None
             obstacles = [body] + fixed
             gripper_pose = end_effector_from_body(pose.pose, grasp.grasp_pose)
-            approach_pose = approach_from_grasp(grasp.approach_pose, gripper_pose)
+            approach_pose = approach_from_grasp_tool_side(grasp.approach_pose, gripper_pose)
             # print("gripper_pose: {}".format(gripper_pose))
             # print("approach_pose: {}".format(approach_pose))
             for _ in range(num_attempts):

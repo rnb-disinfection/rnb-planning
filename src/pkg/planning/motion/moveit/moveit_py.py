@@ -183,3 +183,9 @@ class MoveitCompactPlanner_BP(mpc.Planner):
         return self.process_object(
             str(obj.name), obj.type, CartPose(*obj.pose), Vec3(*obj.dims), str(obj.link_name),
             NameList(*obj.touch_links), obj.attach, action)
+
+    def solve_ik_py(self, robot_name, goal_pose, timeout_single=0.01, timeout_sampling=0.01,
+                    self_collision=False, fulll_collision=False):
+        Q = self.solve_ik(robot_name, CartPose(*goal_pose), timeout_single, timeout_sampling,
+                             self_collision, fulll_collision)
+        return np.array(spread(Q, self.joint_num))

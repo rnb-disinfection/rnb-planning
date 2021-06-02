@@ -21,6 +21,7 @@ from pddlstream.language.constants import print_solution, PDDLProblem
 from examples.pybullet.tamp.streams import get_cfree_approach_pose_test, get_cfree_pose_pose_test, get_cfree_traj_pose_test, \
     move_cost_fn, get_cfree_obj_approach_pose_test
 
+from convert_pscene import *
 
 
 
@@ -113,7 +114,8 @@ def get_holding_motion_synth(robot, movable=[], teleport=False):
 
 #######################################################
 
-def pddlstream_from_problem(robot, movable=[], tool_name=None, tool_link_name=None, teleport=False):
+def pddlstream_from_problem(robot, body_names, movable=[], tool_name=None, tool_link_name=None, teleport=False,
+                            grasp_sample=SAMPLE_GRASP_COUNT_DEFAULT):
     #assert (not are_colliding(tree, kin_cache))
     assert tool_link_name is not None, "tool_link_name should be passed to pddlstream_from_problem"
     assert tool_name is not None, "tool_name should be passed to pddlstream_from_problem"
@@ -159,6 +161,13 @@ def pddlstream_from_problem(robot, movable=[], tool_name=None, tool_link_name=No
             #('Cleaned', body),
 #             ('Cooked', body),
     )
+
+    body_subject_map = make_body_subject_map(pscene, body_names)
+    actor = pscene.actor_dict[tool_name]
+    update_grasp_info({tool_name: GraspInfo(
+        lambda body: sample_grasps(body_subject_map=body_subject_map, body=body, actor=actor,
+                                   sample_count=grasp_sample),
+        approach_pose=Pose(0.1 * Point(z=1)))})
 
     stream_map = {
         'sample-pose': from_gen_fn(get_stable_gen(fixed)),

@@ -12,12 +12,13 @@ from primitives_pybullet import BodyPose, BodyConf, Command, get_grasp_gen, \
     get_holding_motion_gen, get_movable_collision_test
 from plan_pybullet import *
 from primitives_rnb import *
+from convert_pscene import *
 
 from examples.pybullet.utils.pybullet_tools.utils import WorldSaver, connect, get_pose, set_pose, Pose, \
     Point, stable_z, \
     BLOCK_URDF, SMALL_BLOCK_URDF, get_configuration, SINK_URDF, STOVE_URDF, load_model, is_placement, get_body_name, \
     disconnect, DRAKE_IIWA_URDF, get_bodies, HideOutput, wait_for_user, KUKA_IIWA_URDF, \
-    LockRenderer, has_gui, draw_pose, is_darwin, disable_preview, CLIENTS,CLIENT, p
+    LockRenderer, has_gui, draw_pose, is_darwin, disable_preview, CLIENTS,CLIENT, p, set_configuration
 from pddlstream.language.generator import from_gen_fn, from_fn, empty_gen, from_test, universe_test
 from pddlstream.utils import read, INF, get_file_path, find_unique, Profiler, str_from_object, negate_test
 from pddlstream.language.constants import print_solution, PDDLProblem
@@ -26,8 +27,9 @@ from examples.pybullet.tamp.streams import get_cfree_approach_pose_test, get_cfr
 
 #######################################################
 
-def pddlstream_from_problem_rnb(pscene, robot, movable=[], checkers=[],
-                                tool_name=None, tool_link_name=None, mplan=None, teleport=False):
+def pddlstream_from_problem_rnb(pscene, robot, body_names, movable=[], checkers=[],
+                                tool_name=None, tool_link_name=None, mplan=None, teleport=False,
+                                grasp_sample=SAMPLE_GRASP_COUNT_DEFAULT):
     #assert (not are_colliding(tree, kin_cache))
     assert tool_link_name is not None, "tool_link_name should be passed to pddlstream_from_problem"
     assert tool_name is not None, "tool_name should be passed to pddlstream_from_problem"
@@ -38,6 +40,7 @@ def pddlstream_from_problem_rnb(pscene, robot, movable=[], checkers=[],
     constant_map = {}
 
     print('Robot:', robot)
+    set_configuration(robot, pscene.combined_robot.home_pose)
     conf = BodyConf(robot, get_configuration(robot))
     init = [('CanMove',),
             ('Conf', conf),
@@ -75,14 +78,23 @@ def pddlstream_from_problem_rnb(pscene, robot, movable=[], checkers=[],
             #             ('Cooked', body),
             )
 
-    from convert_pscene import body_subject_map
+    body_subject_map = make_body_subject_map(pscene, body_names)
+    body_actor_map = make_body_actor_map(pscene, body_names)
+    actor = pscene.actor_dict[tool_name]
+    update_grasp_info({tool_name: GraspInfo(
+        lambda body: sample_grasps(body_subject_map=body_subject_map, body=body, actor=actor,
+                                   sample_count=grasp_sample),
+        approach_pose=Pose(0.05 * Point(z=-1)))})
 
     stream_map = {
-        'sample-pose': from_gen_fn(get_stable_gen(fixed)),
+        'sample-pose': from_gen_fn(get_stable_gen_rnb(body_subject_map, body_actor_map,
+                                                      pscene.combined_robot.home_dict, fixed)),
         'sample-grasp': from_gen_fn(get_grasp_gen(robot, tool_link_name=tool_link_name, grasp_name=tool_name)),
         'inverse-kinematics': from_fn(get_ik_fn_rnb(
             pscene, body_subject_map, pscene.actor_dict[tool_name], checkers, pscene.combined_robot.home_dict,
             robot=robot, fixed=fixed, teleport=teleport)),
+        # 'plan-free-motion': from_fn(get_free_motion_gen_ori(robot, fixed, teleport)),
+        # 'plan-holding-motion': from_fn(get_holding_motion_gen_ori(robot, fixed, teleport)),
         'plan-free-motion': from_fn(get_free_motion_gen_rnb(mplan, body_subject_map, robot, tool_link=tool_link_name)),
         'plan-holding-motion': from_fn(
             get_holding_motion_gen_rnb(mplan, body_subject_map, robot, tool_link=tool_link_name)),

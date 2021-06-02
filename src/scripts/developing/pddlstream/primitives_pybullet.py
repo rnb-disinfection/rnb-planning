@@ -6,9 +6,13 @@ from examples.pybullet.utils.pybullet_tools.pr2_utils import get_top_grasps
 from examples.pybullet.utils.pybullet_tools.utils import get_pose, set_pose, get_movable_joints, \
     set_joint_positions, add_fixed_constraint, enable_real_time, disable_real_time, joint_controller, \
     enable_gravity, get_refine_fn, wait_for_duration, link_from_name, get_body_name, sample_placement, \
-    end_effector_from_body, approach_from_grasp, plan_joint_motion, GraspInfo, Pose, INF, Point, Euler, \
+    end_effector_from_body, plan_joint_motion, GraspInfo, Pose, INF, Point, Euler, \
     inverse_kinematics, pairwise_collision, remove_fixed_constraint, Attachment, get_sample_fn, \
-    step_simulation, refine_path, plan_direct_joint_motion, get_joint_positions, dump_world, wait_if_gui, flatten
+    step_simulation, refine_path, plan_direct_joint_motion, get_joint_positions, dump_world, wait_if_gui, \
+    flatten, multiply, approach_from_grasp
+
+def approach_from_grasp_tool_side(approach_pose, end_effector_pose):
+    return multiply(end_effector_pose, approach_pose)
 
 
 # TODO: deprecate
