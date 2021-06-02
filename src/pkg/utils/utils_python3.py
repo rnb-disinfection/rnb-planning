@@ -118,8 +118,8 @@ class GlobalTimer(Singleton):
 
     ##
     # @brief use "with timer:" to easily record duration of a code block
-    def block(self, key):
-        return BlockTimer(self, key)
+    def block(self, key, stack=None):
+        return BlockTimer(self, key,stack=stack)
 
     def __enter__(self):
         self.tic("block")
@@ -132,15 +132,15 @@ class GlobalTimer(Singleton):
 # @class    BlockTimer
 # @brief    Wrapper class to record timing of a code block.
 class BlockTimer:
-    def __init__(self, gtimer, key):
-        self.gtimer, self.key = gtimer, key
+    def __init__(self, gtimer, key, stack=None):
+        self.gtimer, self.key, self.stack = gtimer, key, stack
 
     def __enter__(self):
         self.gtimer.tic(self.key)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.gtimer.toc(self.key)
+        self.gtimer.toc(self.key, stack=self.stack)
 
 
 import json

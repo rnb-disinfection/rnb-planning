@@ -25,7 +25,7 @@ from pkg.planning.constraint.constraint_common import combine_redundancy, sample
 from primitives_pybullet import update_grasp_info, GraspInfo, pairwise_collision, BodyPose, sample_placement
 import random
 
-SAMPLE_GRASP_COUNT_DEFAULT = 30
+SAMPLE_GRASP_COUNT_DEFAULT = 10
 
 
 def sample_redundancy_offset(subject, actor,

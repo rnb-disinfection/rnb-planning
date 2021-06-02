@@ -196,7 +196,7 @@ class GlobalTimer(Singleton):
 
     ##
     # @brief use "with timer:" to easily record duration of a code block
-    def block(self, key, stack=False):
+    def block(self, key, stack=None):
         return BlockTimer(self, key, stack=stack)
 
     def __enter__(self):
@@ -210,7 +210,7 @@ class GlobalTimer(Singleton):
 # @class    BlockTimer
 # @brief    Wrapper class to record timing of a code block.
 class BlockTimer:
-    def __init__(self, gtimer, key, stack=False):
+    def __init__(self, gtimer, key, stack=None):
         self.gtimer, self.key, self.stack = gtimer, key, stack
 
     def __enter__(self):
