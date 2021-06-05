@@ -501,3 +501,28 @@ class GeometryItem(object):
             gtem = self.gscene.NAME_DICT[gtem.parent]
         return gtem.name
 
+    ##
+    # @brief permute geometry axis to match z direction with link
+    def permute_axis_match_z_link(self):
+        gtem = self
+        if gtem.gtype in [GEOTYPE.ARROW, GEOTYPE.MESH]:  # none-permutable types
+            return
+        Rbo = gtem.orientation_mat
+        xbo, ybo, zbo = Rbo
+        zmax = np.argmax(np.abs(zbo))
+        Roff = np.identity(3)
+        if gtem.gtype in [GEOTYPE.CAPSULE, GEOTYPE.CYLINDER, GEOTYPE.PLANE]: # only 180-degree flippable types
+            if zbo[2]<0:
+                Roff = Rot_axis(1, np.pi)
+        elif gtem.gtype in [GEOTYPE.BOX, GEOTYPE.SPHERE]: # 90-degree permutable types
+            if zmax == 2:  # if already aligned with z axis
+                if zbo[2]<0:  # if flipped
+                    Roff = Rot_axis(1, np.pi)
+            else:  # if aligned with x or y
+                rot_dir = (zmax*2-1) * (int(zbo[zmax]<0)*2-1)
+                Roff = Rot_axis((zmax + 1) % 2 + 1, rot_dir*np.pi/2)
+        else:
+            raise(NotImplementedError("Permutation for {} is not implemented.".format(gtem.gtype)))
+
+        gtem.set_offset_tf(orientation_mat=np.matmul(gtem.orientation_mat, Roff))
+        gtem.dims = tuple(np.abs(np.matmul(Roff.transpose(), gtem.dims)))

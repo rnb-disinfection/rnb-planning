@@ -59,20 +59,20 @@ class ActionPoint:
         self.point = point
         self.rpy_point = rpy
         self.R_point = Rot_rpy(self.rpy_point)
-        self.Toff_oh = SE3(self.R_point, self.point if self.point is not None else (0, 0, 0))
+        self.Toff_gh = SE3(self.R_point, self.point if self.point is not None else (0, 0, 0))
         self.update_handle()
 
     ##
     # @brief    update Transformation from link (Toff_lf), when parent geometry has moved
     def update_handle(self):
-        self.Toff_lh = np.matmul(self.geometry.Toff, self.Toff_oh)
+        self.Toff_lh = np.matmul(self.geometry.Toff, self.Toff_gh)
 
     ##
     # @brief    get handle transformation
     # @param    joint_dict  current joint values as dictionary
     # @param    from_link   refernce link
     def get_tf_handle(self, joint_dict, from_link='base_link'):
-        return np.matmul(self.geometry.get_tf(joint_dict, from_link=from_link), self.Toff_oh)
+        return np.matmul(self.geometry.get_tf(joint_dict, from_link=from_link), self.Toff_gh)
 
     ##
     # @brief    function prototype to define redundancy of action point
@@ -205,9 +205,9 @@ def fit_binding(obj, handle, binder, Q_dict, Poffset=None):
         R_bh = np.matmul(binder_T[:3, :3].transpose(), handle_T[:3, :3])
         rvec_bh = Rotation.from_dcm(R_bh).as_rotvec()
         R_bh_new = Rotation.from_rotvec(rvec_bh + offset_loc[3:]).as_dcm()
-        R_bo = np.matmul(R_bh_new, handle.Toff_oh[:3, :3].transpose())
-        R_lo = np.matmul(R_lgb, R_bo)
-        orientation_new = R_lo
+        R_bg = np.matmul(R_bh_new, handle.Toff_gh[:3, :3].transpose())
+        R_lg = np.matmul(R_lgb, R_bg)
+        orientation_new = R_lg
     else:
         orientation_new = obj_geo.orientation_mat
     obj_geo.set_offset_tf(center=np.add(obj_geo.center, pos_off), orientation_mat=orientation_new)

@@ -32,6 +32,8 @@ def div_r(r):
 def div_h(h):
     return int(floor(sigmoid((h + 0.6) / 0.2 - 4.5) * 8))
 
+## CHANGED 2021.06.06
+# T_ej not exact, get r, h from T_ee
 
 ##
 # @class    LatticedChecker
@@ -170,8 +172,8 @@ class LatticedChecker(MotionFilterInterface):
         T_ee, T_ej = T_end_effector, T_end_joint
 
         r, th, h = cart2cyl(*T_ee[:3, 3])
-        r_ej, th, h_ej = cart2cyl(*T_ej[:3, 3])
-        rh_vals = np.array(r_ej, h_ej)
+#         r_ej, th, h_ej = cart2cyl(*T_ej[:3, 3])
+        rh_vals = np.array(r, h)
         grasp_tool_img = np.zeros(GRASP_SHAPE)
         grasp_tar_img = np.zeros(GRASP_SHAPE)
         grasp_obj_img = np.zeros(GRASP_SHAPE)

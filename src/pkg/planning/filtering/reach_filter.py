@@ -4,6 +4,8 @@ from ..constraint.constraint_common import calc_redundancy
 from ...utils.joint_utils import *
 from ...utils.gjk import get_point_list, get_gjk_distance
 
+C_SVM_DEFAULT = 1000
+GAMMA_SVM_DEFAULT = 'scale'
 
 ##
 # @class    ReachChecker
@@ -15,11 +17,12 @@ class ReachChecker(MotionFilterInterface):
     def __init__(self, pscene):
         self.pscene = pscene
         self.combined_robot = pscene.combined_robot
-        self.model_dict = {}
         self.robot_names = pscene.combined_robot.robot_names
         chain_dict = pscene.robot_chain_dict
         binder_links = [chain_dict[rname]['tip_link'] for rname in self.robot_names]
         self.binder_link_robot_dict = {blink: rname for blink, rname in zip(binder_links, self.robot_names)}
+
+        self.model_dict = {}
         for rconfig in self.combined_robot.robots_on_scene:
             self.model_dict[rconfig.get_indexed_name()] = ReachTrainer(None).load_model(rconfig.type)
         self.base_dict = self.combined_robot.get_robot_base_dict()
@@ -43,8 +46,8 @@ class ReachChecker(MotionFilterInterface):
         point_add_actor, rpy_add_actor = redundancy_values[(obj.oname, actor.name)]
         T_handle_lh = np.matmul(handle.Toff_lh, SE3(Rot_rpy(rpy_add_handle), point_add_handle))
         T_actor_lh = np.matmul(actor.Toff_lh, SE3(Rot_rpy(rpy_add_actor), point_add_actor))
-        T_link_handle_actor_link = np.matmul(T_handle_lh, SE3_inv(T_actor_lh))
-        return self.check_T_loal(group_name, Ttar)
+        T_loal = np.matmul(T_handle_lh, SE3_inv(T_actor_lh))
+        return self.check_T_loal(actor, obj, T_loal, Q_dict, interpolate=interpolate, **kwargs)
 
     ##
     # @param actor  rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
@@ -53,8 +56,7 @@ class ReachChecker(MotionFilterInterface):
     # @param Q_dict joint configuration in dictionary format {joint name: radian value}
     # @param interpolate    interpolate path and check intermediate poses
     # @param ignore         GeometryItems to ignore
-    def check_T_loal(self, actor, obj, T_loal, Q_dict, interpolate=False, obj_only=False, ignore=[],
-              **kwargs):
+    def check_T_loal(self, actor, obj, T_loal, Q_dict, interpolate=False, **kwargs):
 
         actor_link = actor.geometry.link_name
         object_link = obj.geometry.link_name
@@ -121,7 +123,8 @@ class ReachTrainer:
     ##
     # @brief collect and learn
     def collect_and_learn(self, ROBOT_TYPE, END_LINK, TRAIN_COUNT=10000, TEST_COUNT=10000,
-                          save_data=True, save_model=True, C_svm=500, timeout=1):
+                          save_data=True, save_model=True, C_svm=C_SVM_DEFAULT, 
+                          gamma=GAMMA_SVM_DEFAULT, timeout=1):
         self.featurevec_list_train, self.success_list_train = self.collect_reaching_data(ROBOT_TYPE, END_LINK, TRAIN_COUNT, timeout=timeout)
 
         self.featurevec_list_test, self.success_list_test = self.collect_reaching_data(ROBOT_TYPE, END_LINK, TEST_COUNT, timeout=timeout)
@@ -130,7 +133,7 @@ class ReachTrainer:
             self.save_data("test", self.featurevec_list_test, self.success_list_test)
 
         feature_mat_train = np.array(self.featurevec_list_train)
-        self.clf = svm.SVC(kernel='rbf', C=C_svm)
+        self.clf = svm.SVC(kernel='rbf', C=C_svm, gamma=gamma)
         self.clf.fit(feature_mat_train, self.success_list_train)
         if save_model:
             self.save_model()
@@ -164,14 +167,14 @@ class ReachTrainer:
 
     ##
     # @brief load and learn
-    def load_and_learn(self, ROBOT_TYPE, C_svm=500, save_model=True):
+    def load_and_learn(self, ROBOT_TYPE, C_svm=C_SVM_DEFAULT, gamma=GAMMA_SVM_DEFAULT, save_model=True):
         self.featurevec_list_train, self.success_list_train = self.load_data(ROBOT_TYPE, "train")
         self.featurevec_list_test, self.success_list_test = self.load_data(ROBOT_TYPE, "test")
 
         feature_mat_train = np.array(self.featurevec_list_train)
         feature_mat_test = np.array(self.featurevec_list_test)
 
-        self.clf = svm.SVC(kernel='rbf', C=C_svm)
+        self.clf = svm.SVC(kernel='rbf', C=C_svm, gamma=gamma)
         self.clf.fit(feature_mat_train, self.success_list_train)
         if save_model:
             self.save_model()
@@ -198,6 +201,7 @@ class ReachTrainer:
         print("test failure accuracy = {} %".format(
             round(np.mean(test_res[np.where(np.logical_not(self.success_list_test))]) * 100, 2)))
         print("=" * 80)
+        return round(np.mean(test_res) * 100, 2)
 
     ##
     # @brief load and test
@@ -239,6 +243,7 @@ class ReachTrainer:
         )
         )
         print("=" * 80)
+        return round(np.mean(test_res) * 100, 2)
 
     ##
     # @brief sample reaching plan results
@@ -302,7 +307,7 @@ class ReachTrainer:
             featurevec, success, trajectory = self.sample_reaching(ROBOT_NAME, TIP_LINK, home_pose=crob.home_pose, timeout=timeout)
             self.time_list.append(gtimer.toc("sample_reaching"))
             xyz = cyl2cart(*featurevec[:3])
-            orientation_mat = hori2mat(featurevec[1], *featurevec[-2:])
+            # orientation_mat = hori2mat(featurevec[1], *featurevec[-2:])
     #         gscene.add_highlight_axis("hl", "toolvec", "base_link", xyz, orientation_mat)
             featurevec_list.append(featurevec)
             success_list.append(success)

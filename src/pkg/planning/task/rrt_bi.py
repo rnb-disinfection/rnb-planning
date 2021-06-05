@@ -247,11 +247,16 @@ class TaskBiRRT(TaskInterface):
                                         point_add_actor, rpy_add_actor = calc_redundancy(redundancy[to_binder.name],
                                                                                          to_binder)
 
-                                        T_handle_oh = np.matmul(to_ap.Toff_oh,
+                                        T_handle_gh = np.matmul(to_ap.Toff_gh,
                                                                 SE3(Rot_rpy(rpy_add_handle), point_add_handle))
                                         T_actor_lh = np.matmul(to_binder.Toff_lh,
                                                                SE3(Rot_rpy(rpy_add_actor), point_add_actor))
-                                        T_lo = np.matmul(T_actor_lh, SE3_inv(T_handle_oh))
+                                        T_lhg = np.matmul(T_actor_lh, SE3_inv(T_handle_gh))
+                                        if subject.geometry == to_ap.geometry:
+                                            T_lo = T_lhg
+                                        else:
+                                            T_hgo = np.matmul(SE3_inv(to_ap.geometry.Toff), subject.geometry.Toff)
+                                            T_lo = np.matmul(T_lhg, T_hgo)
 
                                         to_state.state_param[_oname] = (
                                         self.pscene.gscene.NAME_DICT[_bgname].link_name, T_lo)

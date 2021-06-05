@@ -82,8 +82,10 @@ class MoveitPlanner(MotionInterface):
     ##
     # @brief update changes in geometric scene and load collision boundaries to moveit planner
     # @param dual_key key of target dual planner: root_robot_name_end_robot_name
-    def update_gscene(self, dual_key=None):
+    def update_gscene(self, dual_key=None, only_self_collision=False):
         self.gscene.update()
+        if only_self_collision:
+            return
         if dual_key is None:
             obj_list = []
             for gtem in self.gscene:
@@ -122,7 +124,7 @@ class MoveitPlanner(MotionInterface):
     # @return error     planning error
     # @return success   success/failure of planning result
     def plan_algorithm(self, from_state, to_state, binding_list, redundancy_values=None, timeout=1,
-                       timeout_joint=None, timeout_constrained=None, verbose=False, **kwargs):
+                       timeout_joint=None, timeout_constrained=None, verbose=False, only_self_collision=False, **kwargs):
         timeout_joint = timeout_joint if timeout_joint is not None else timeout
         timeout_constrained = timeout_constrained if timeout_constrained is not None else timeout
         self.planner.clear_context_cache()
@@ -135,7 +137,7 @@ class MoveitPlanner(MotionInterface):
         if len(binding_list)>1:
             raise(RuntimeError("Only single manipulator operation is implemented with moveit!"))
 
-        self.update_gscene()
+        self.update_gscene(only_self_collision=only_self_collision)
 
         motion_type = 0
         if len(binding_list) == 0: # joint motion case
@@ -167,7 +169,7 @@ class MoveitPlanner(MotionInterface):
                 print("try joint motion") ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
             trajectory, success = planner.plan_joint_motion_py(
                 group_name, tuple(to_Q), tuple(from_Q), timeout=timeout_joint, **kwargs)
-            if verbose or not success:
+            if verbose:
                 print("joint motion tried: {}".format(success)) ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
 
         else: # task motion case
@@ -203,7 +205,7 @@ class MoveitPlanner(MotionInterface):
                     raise(RuntimeError("dual arm motion is not enabled"))
                 dual = True
                 group_name = "{}_{}".format(group_name_binder, group_name_handle)
-                self.update_gscene(group_name)
+                self.update_gscene(group_name, only_self_collision=only_self_collision)
                 tool, T_tool = handle, T_handle
                 target, T_tar = binder, T_binder
                 point_add_tool, rpy_add_tool = point_add_handle, rpy_add_handle
@@ -236,7 +238,7 @@ class MoveitPlanner(MotionInterface):
                 trajectory, success = planner.plan_constrained_py(
                     group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q),
                     timeout=timeout_constrained, **kwargs)
-                if verbose or not success:
+                if verbose:
                     print("constrained motion tried: {}".format(success)) ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
             else:
                 if verbose:
@@ -245,7 +247,7 @@ class MoveitPlanner(MotionInterface):
                     group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q),
                     timeout=timeout, **kwargs)
 
-                if verbose or not success:
+                if verbose:
                     print("transition motion tried: {}".format(success)) ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
 
         if success:

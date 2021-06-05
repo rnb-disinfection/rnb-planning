@@ -64,7 +64,7 @@ class MotionInterface:
     # @return error     planning error
     # @return success   success/failure of planning result
     # @return binding_list  list of binding
-    def plan_transition(self, from_state, to_state, redundancy_dict=None, verbose=False, **kwargs):
+    def plan_transition(self, from_state, to_state, redundancy_dict=None, verbose=False, test_filters_only=False, **kwargs):
         if from_state is not None:
             self.pscene.set_object_state(from_state)
         binding_list, success = self.pscene.get_slack_bindings(from_state, to_state)
@@ -93,6 +93,8 @@ class MotionInterface:
                         self.result_log[mfilter.__class__.__name__].append(success)
                     if not success:
                         break
+            if test_filters_only:
+                return success
 
         if success:
             if self.flag_log:

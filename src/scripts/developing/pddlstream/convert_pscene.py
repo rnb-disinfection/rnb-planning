@@ -12,6 +12,7 @@ from examples.pybullet.utils.pybullet_tools.utils import WorldSaver, connect, ge
     BLOCK_URDF, SMALL_BLOCK_URDF, get_configuration, SINK_URDF, STOVE_URDF, load_model, is_placement, get_body_name, \
     disconnect, DRAKE_IIWA_URDF, get_bodies, HideOutput, wait_for_user, KUKA_IIWA_URDF, \
     LockRenderer, has_gui, draw_pose, is_darwin, disable_preview, CLIENTS,CLIENT, p
+from examples.pybullet.utils.pybullet_tools.utils import get_moving_links, get_links, are_links_adjacent, get_moving_pairs, get_link_names
 
 from pkg.geometry.geotype import *
 from pkg.planning.constraint.constraint_subject import AbstractObject
@@ -27,18 +28,33 @@ import random
 
 SAMPLE_GRASP_COUNT_DEFAULT = 10
 
-
-def sample_redundancy_offset(subject, actor,
+##
+# @brief return offset from actor coordinate to object coordinate
+def sample_redundancy_offset(subject, actor, drop_downward_dir=[0,1,0],
                              binding_sampler=random.choice, redundancy_sampler=random.uniform):
-    handle = binding_sampler([ap for ap in subject.action_points_dict.values() if actor.check_type(ap)])
-    redundancy_tot = combine_redundancy(handle, actor)
-    redundancy = sample_redundancy(redundancy_tot, sampler=redundancy_sampler)
-    point_add_handle, rpy_add_handle = calc_redundancy(redundancy[handle.name], handle)
-    point_add_actor, rpy_add_actor = calc_redundancy(redundancy[actor.name], actor)
-    T_handle_oh = np.matmul(handle.Toff_oh,
-                            SE3(Rot_rpy(rpy_add_handle), point_add_handle))
-    T_ah = T_xyzrpy((point_add_actor, rpy_add_actor))
-    T_ao = np.matmul(T_ah, SE3_inv(T_handle_oh))
+    
+    for i_s in range(100):
+        assert i_s < 100, "Set drop_downward_dir to the direction you want to keep upward on the actor coordinate, default is y-axis"
+            
+        handle = binding_sampler([ap for ap in subject.action_points_dict.values() if actor.check_type(ap)])
+        redundancy_tot = combine_redundancy(handle, actor)
+        redundancy = sample_redundancy(redundancy_tot, sampler=redundancy_sampler)
+        point_add_handle, rpy_add_handle = calc_redundancy(redundancy[handle.name], handle)
+        point_add_actor, rpy_add_actor = calc_redundancy(redundancy[actor.name], actor)
+        T_handle_gh = np.matmul(handle.Toff_gh,
+                                SE3(Rot_rpy(rpy_add_handle), point_add_handle))
+        T_ah = T_xyzrpy((point_add_actor, rpy_add_actor))
+        T_ahg = np.matmul(T_ah, SE3_inv(T_handle_gh))
+        if drop_downward_dir is not None:
+            dropvec = np.matmul(T_ao[:3,:3].transpose(), drop_downward_dir)
+            if dropvec[2] < 0:
+                continue
+        break
+        if subject.geometry == handle.geometry:
+            T_ao = T_ahg
+        else:
+            T_hgo = np.matmul(SE3_inv(handle.geometry.Toff), subject.geometry.Toff)
+            T_ao = np.matmul(T_ahg, T_hgo)
     return T_ao
 
 
@@ -53,7 +69,9 @@ def get_stable_gen_rnb(body_subject_map, body_actor_map, home_dict, fixed=[],
         while True:
             with GlobalTimer.instance().block("get_stable_{}_{}".format(body, surface)):
                 if rnb_style:
-                    T_ao = sample_redundancy_offset(subject, actor, binding_sampler, redundancy_sampler)
+                    T_ao = sample_redundancy_offset(subject, actor,
+                                                    binding_sampler=binding_sampler, 
+                                                    redundancy_sampler=redundancy_sampler)
                     T_pose = np.matmul(actor.get_tf_handle(home_dict), T_ao)
                     pose = T2xyzquat(T_pose)
                 else:
@@ -73,11 +91,28 @@ def sample_grasps(body_subject_map, body, actor, sample_count=SAMPLE_GRASP_COUNT
         subject = body_subject_map[body]
         grasps = []
         for _ in range(sample_count):
-            T_ao = sample_redundancy_offset(subject, actor, binding_sampler, redundancy_sampler)
+            T_ao = sample_redundancy_offset(subject, actor, 
+                                            binding_sampler=binding_sampler, 
+                                            redundancy_sampler=redundancy_sampler)
             T_lo = np.matmul(actor.Toff_lh, T_ao)
             point, euler = T2xyzrpy(T_lo)
             grasps.append(Pose(point=point, euler=euler))
         return grasps
+
+
+def get_disabled_collisions(gscene, body):
+    all_links = get_links(body)
+    link_names = get_link_names(body, all_links)
+    link_name_map = {lname:l_no for l_no, lname in zip(all_links, link_names)}
+    disabled_collsions = []
+    for lname, adjacents in gscene.link_adjacency_map.items():
+        if lname in link_name_map:
+            lno = link_name_map[lname]
+            disabled_collsions += [
+                (lno, link_name_map[x])
+                for x in adjacents
+                if x in link_name_map and x != lname]
+    return disabled_collsions
 
 
 def copy_meshes(gscene):

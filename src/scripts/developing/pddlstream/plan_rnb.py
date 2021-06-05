@@ -92,6 +92,7 @@ def pddlstream_from_problem_rnb(pscene, robot, body_names, movable=[], checkers=
         'sample-grasp': from_gen_fn(get_grasp_gen(robot, tool_link_name=tool_link_name, grasp_name=tool_name)),
         'inverse-kinematics': from_fn(get_ik_fn_rnb(
             pscene, body_subject_map, pscene.actor_dict[tool_name], checkers, pscene.combined_robot.home_dict,
+            disabled_collisions = get_disabled_collisions(pscene.gscene, robot),
             robot=robot, fixed=fixed, teleport=teleport)),
         # 'plan-free-motion': from_fn(get_free_motion_gen_ori(robot, fixed, teleport)),
         # 'plan-holding-motion': from_fn(get_holding_motion_gen_ori(robot, fixed, teleport)),

@@ -123,7 +123,7 @@ def check_feas(pscene, body_subject_map, actor, checkers, home_dict, body, pose,
     return True
 
 def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_link="base_link",
-                  robot=0L, fixed=[], teleport=False, num_attempts=10):
+                  disabled_collisions=set(), robot=0L, fixed=[], teleport=False, num_attempts=10):
     movable_joints = get_movable_joints(robot)
     sample_fn = get_sample_fn(robot, movable_joints)
     def fn(body, pose, grasp):
@@ -140,15 +140,16 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                 set_joint_positions(robot, movable_joints, sample_fn()) # Random seed
                 # TODO: multiple attempts?
                 q_approach = inverse_kinematics(robot, grasp.link, approach_pose)
-                # print("q_approach: {}".format(q_approach))
+                print("q_approach: {}".format(q_approach))
                 if (q_approach is None) or any(pairwise_collision(robot, b) for b in obstacles):
-                    # print("obstacles: {}".format(obstacles))
+                    print("obstacles: {}".format(obstacles))
                     continue
-                # print("go on")
+                print("go on")
                 conf = BodyConf(robot, q_approach)
                 q_grasp = inverse_kinematics(robot, grasp.link, gripper_pose)
-                # print("q_grasp: {}".format(q_grasp))
+                print("q_grasp: {}".format(q_grasp))
                 if (q_grasp is None) or any(pairwise_collision(robot, b) for b in obstacles):
+                    print("obstacles: {}".format(obstacles))
                     continue
                 if teleport:
                     path = [q_approach, q_grasp]
@@ -157,8 +158,10 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                     #direction, _ = grasp.approach_pose
                     #path = workspace_trajectory(robot, grasp.link, point_from_pose(approach_pose), -direction,
                     #                                   quat_from_pose(approach_pose))
-                    path = plan_direct_joint_motion(robot, conf.joints, q_grasp, obstacles=obstacles)
+                    path = plan_direct_joint_motion(robot, conf.joints, q_grasp, obstacles=obstacles,
+                                                    disabled_collisions=disabled_collisions)
                     if path is None:
+                        print("Approach motion failed")
                         if DEBUG_FAILURE: wait_if_gui('Approach motion failed')
                         continue
                 command = Command([BodyPath(robot, path),
