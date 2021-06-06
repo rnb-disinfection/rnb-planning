@@ -23,9 +23,9 @@
 			<material name="${indy_material}"/>
 		</visual>
 		<collision>
-			<origin xyz="-0.1   0.  0.05" rpy="0.  0.  0."/>
+			<origin xyz="-0.1   0.    0.03" rpy="-0.          1.57079633  0."/>
 			<geometry>
-				<box size="0.14 0.1 0.08"/>
+				<cylinder length="0.2" radius="0.05"/>
 			</geometry>
 		</collision>
 		<inertial>
@@ -44,7 +44,7 @@
 			<material name="${indy_material}"/>
 		</visual>
 		<collision>
-			<origin xyz="0 0 0.0825" rpy="0 0 0"/>
+			<origin xyz="0 0 0.072" rpy="0 0 0"/>
 			<geometry>
 				<cylinder length="0.3" radius="0.1"/>
 			</geometry>
@@ -167,43 +167,43 @@
 		</inertial>
 	</link>
 	<link name="indy${robot_id}_tcp">
-<!--		<visual>-->
-<!--			<origin xyz="0 0 0" rpy="0 0 1.570796"/>-->
-<!--			<geometry>-->
-<!--				<mesh filename="package://my_mesh/meshes/stl/indy_gripper_asm2_res.STL"/>-->
-<!--			</geometry>-->
-<!--			<material name="${indy_material}"/>-->
-<!--		</visual>-->
-<!--		<collision>-->
-<!--			<origin xyz="0 0 0.04" rpy="0 0 0"/>-->
-<!--			<geometry>-->
-<!--				<box size="0.06 0.08 0.06"/>-->
-<!--			</geometry>-->
-<!--		</collision>-->
-<!--		<collision>-->
-<!--			<origin xyz="0.006 0.045 0.1" rpy="0 0 0"/>-->
-<!--			<geometry>-->
-<!--				<cylinder length="0.095" radius="0.015"/>-->
-<!--			</geometry>-->
-<!--		</collision>-->
-<!--		<collision>-->
-<!--			<origin xyz="-0.006  0.045  0.1" rpy="0 0 0"/>-->
-<!--			<geometry>-->
-<!--				<cylinder length="0.095" radius="0.015"/>-->
-<!--			</geometry>-->
-<!--		</collision>-->
-<!--		<collision>-->
-<!--			<origin xyz="0.006 -0.045  0.1" rpy="0 0 0"/>-->
-<!--			<geometry>-->
-<!--				<cylinder length="0.095" radius="0.015"/>-->
-<!--			</geometry>-->
-<!--		</collision>-->
-<!--		<collision>-->
-<!--			<origin xyz="-0.006 -0.045  0.1" rpy="0 0 0"/>-->
-<!--			<geometry>-->
-<!--				<cylinder length="0.095" radius="0.015"/>-->
-<!--			</geometry>-->
-<!--		</collision>-->
+		<visual>
+			<origin xyz="0 0 0" rpy="0 0 1.570796"/>
+			<geometry>
+				<mesh filename="package://my_mesh/meshes/stl/indy_gripper_asm2_res.STL"/>
+			</geometry>
+			<material name="${indy_material}"/>
+		</visual>
+		<collision>
+			<origin xyz="0 0 0.04" rpy="0 0 0"/>
+			<geometry>
+				<box size="0.06 0.08 0.06"/>
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="0.006 0.045 0.1" rpy="0 0 0"/>
+			<geometry>
+				<cylinder length="0.095" radius="0.015"/>
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="-0.006  0.045  0.1" rpy="0 0 0"/>
+			<geometry>
+				<cylinder length="0.095" radius="0.015"/>
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="0.006 -0.045  0.1" rpy="0 0 0"/>
+			<geometry>
+				<cylinder length="0.095" radius="0.015"/>
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="-0.006 -0.045  0.1" rpy="0 0 0"/>
+			<geometry>
+				<cylinder length="0.095" radius="0.015"/>
+			</geometry>
+		</collision>
 	</link>
 
 	<joint name="indy${robot_id}_joint0" type="revolute">
