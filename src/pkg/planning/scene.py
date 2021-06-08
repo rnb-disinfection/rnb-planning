@@ -111,9 +111,9 @@ class PlanningScene:
     # @param bname binder name
     # @param gname name of parent object
     # @param _type type of binder, subclass of rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
-    # @param point binding point offset from object (m)
+    # @param point binding point offset from object (m). Put None to disable single point constraint and enable surface constraint.
     # @param rpy   orientation of binding point (rad)
-    def create_binder(self, bname, gname, _type, point=None, rpy=(0, 0, 0)):
+    def create_binder(self, bname, gname, _type, point, rpy=(0, 0, 0)):
         self.remove_binder(bname)
         geometry = self.gscene.NAME_DICT[gname]
         binder = _type(bname, geometry=geometry, point=point, rpy=rpy)

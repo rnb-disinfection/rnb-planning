@@ -290,7 +290,7 @@ class ReachTrainer:
         # make dummy binders
         gscene.create_safe(gtype=GEOTYPE.SPHERE, name="grip0", link_name=TIP_LINK,
                            dims=(0.01,)*3, center=(0,0,0.0), rpy=(-np.pi/2,0,0), color=(1,0,0,1), display=True, collision=False, fixed=True)
-        pscene.create_binder(bname="grip0", gname="grip0", rname=ROBOT_NAME, _type=Gripper2Tool, point=(0,0,0), rpy=(0,0,0))
+        pscene.create_binder(bname="grip0", gname="grip0", _type=Gripper2Tool, point=(0,0,0), rpy=(0,0,0))
 
         self.planner = MoveitPlanner(pscene)
         self.planner.update_gscene()
@@ -317,6 +317,59 @@ class ReachTrainer:
                     i_s, N_s, int(t_cur/1000), int(float(N_s)/float(i_s+1e-3)*t_cur/1000), np.mean(success_list)))
 
         return featurevec_list, success_list
+
+    def update_label(self, robot_type, tip_link, data_div, update_labels, timeout=1):
+        self.robot_type = robot_type
+        # set robot
+        crob = CombinedRobot(robots_on_scene=[
+            RobotConfig(0, robot_type, None,"")], connection_list=[False])
+        ROBOT_NAME = crob.robot_names[0]
+        xyz_rpy_robots = {ROBOT_NAME: ((0,0,0), (0,0,0))}
+        crob.update_robot_pos_dict(xyz_rpy_robots=xyz_rpy_robots)
+
+        # create scene
+        gscene = self.scene_builder.create_gscene(crob, start_rviz=False)
+        self.scene_builder.add_robot_geometries(color=(0, 1, 0, 0.5), display=True, collision=True)
+        print("added robot collision boundaries")
+        pscene = PlanningScene(gscene, combined_robot=crob)
+
+        self.shoulder_link = gscene.urdf_content.joint_map[gscene.joint_names[1]].child
+        self.shoulder_height = get_tf(self.shoulder_link, crob.home_dict, gscene.urdf_content)[2,3]
+
+        # make dummy binders
+        gscene.create_safe(gtype=GEOTYPE.SPHERE, name="grip0", link_name=tip_link,
+                           dims=(0.01,)*3, center=(0,0,0.0), rpy=(-np.pi/2,0,0), color=(1,0,0,1), display=True, collision=False, fixed=True)
+        pscene.create_binder(bname="grip0", gname="grip0", _type=Gripper2Tool, point=(0,0,0), rpy=(0,0,0))
+
+        self.planner = MoveitPlanner(pscene)
+        self.planner.update_gscene()
+
+        featurevec_list, success_list = self.load_data(robot_type, data_div)
+        N_s = len(featurevec_list)
+
+        self.time_plan = []
+        gtimer = GlobalTimer.instance()
+        gtimer.reset()
+        gtimer.tic("full_loop")
+        self.time_list = []
+        for i_s, (featurevec, succ) in enumerate(zip(featurevec_list, success_list)):
+            if succ not in update_labels:
+                continue
+            radius, theta, height, azimuth_loc, zenith, _, _, _ = featurevec
+            gtimer.tic("sample_reaching")
+            featurevec, success, trajectory = self.sample_reaching(ROBOT_NAME, tip_link, home_pose=crob.home_pose, timeout=timeout,
+                                                                   radius_min=radius, radius_max=radius, theta_min=theta, theta_max=theta,
+                                                                   height_min=height, height_max=height, zenith_min=zenith, zenith_max=zenith,
+                                                                   azimuth_min=azimuth_loc, azimuth_max=azimuth_loc)
+            if success:
+                self.time_list.append(gtimer.toc("sample_reaching"))
+            assert np.linalg.norm(np.subtract(featurevec_list[i_s], featurevec))<1e-5, "featurevec changed"
+            success_list[i_s] = success
+            if i_s % 100 == 0 :
+                t_cur = gtimer.toc("full_loop")
+                print("{} / {} ({} / {} s): current success ratio = {}".format(
+                    i_s, N_s, int(t_cur/1000), int(float(N_s)/float(i_s+1e-3)*t_cur/1000), np.mean(success_list)))
+        self.save_data(data_div, featurevec_list, success_list)
 
     def save_data(self, div, featurevec_list, success_list):
         robot_path = os.path.join(self.data_path, self.robot_type.name)

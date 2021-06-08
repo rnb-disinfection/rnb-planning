@@ -808,7 +808,7 @@ class BoxObject(AbstractObject):
     # @brief register hexahedral binders
     # @param planning_scene rnb-planning.src.pkg.planning.scene.PlanningScene
     # @param _type          subclass of rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
-    def register_binders(self, planning_scene, _type, geometry=None):
+    def register_binders(self, planning_scene, _type, point, geometry=None):
         gscene = planning_scene.gscene
         if geometry is None:
             geometry = self.geometry
@@ -827,7 +827,8 @@ class BoxObject(AbstractObject):
                                link_name=geometry.link_name,
                                dims=dims_new, center=point, rpy=rpy,
                                display=False, collision=False, fixed=geometry.fixed, parent=gname)
-            self.sub_binders_dict[bname] = planning_scene.create_binder(bname=bname, gname=bname, _type=_type)
+            self.sub_binders_dict[bname] = planning_scene.create_binder(bname=bname, gname=bname, _type=_type,
+                                                                        point=point)
 
 
 ##
