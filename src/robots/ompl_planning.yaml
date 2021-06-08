@@ -39,7 +39,7 @@ planner_configs:
   RRTConnectkConfigDefault:
     type: geometric::RRTConnect
     range: 0  # Max motion added to tree. ==> maxDistance_ default: 0.0, if 0.0, set on setup()
-    longest_valid_segment_fraction: 0.005 # collision checking step size (ratio to full state space)
+#     longest_valid_segment_fraction: 0.005 # collision checking step size (ratio to full state space)
 #    maximum_waypoint_distance: 0.001 # collision checking step size (absolute distance)
   RRTstarkConfigDefault:
     type: geometric::RRTstar
