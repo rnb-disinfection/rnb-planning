@@ -25,7 +25,7 @@ if __name__ == "__main__":
             try:
                 sa.delete("shm://{}.grasp_img".format(robot_type_name))
                 sa.delete("shm://{}.arm_img".format(robot_type_name))
-                sa.delete("shm://{}.rh_mask".format(robot_type_name))
+                sa.delete("shm://{}.rh_vals".format(robot_type_name))
                 sa.delete("shm://{}.result".format(robot_type_name))
                 sa.delete("shm://{}.query_in".format(robot_type_name))
                 sa.delete("shm://{}.response_out".format(robot_type_name))
