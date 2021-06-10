@@ -345,3 +345,18 @@ def cart2cyl(x, y, z):
 
 def sigmoid(x):
     return 1 / (1 +np.exp(-x))
+
+##
+# @brief    print confusion matrix
+# @remark   rows: ground truth, cols: prediction
+def print_confusion_mat(GT, Res):
+    TP = np.sum(np.logical_and(GT, Res))
+    FN = np.sum(np.logical_and(GT, np.logical_not(Res)))
+    FP = np.sum(np.logical_and(np.logical_not(GT), Res))
+    TN = np.sum(np.logical_and(np.logical_not(GT), np.logical_not(Res)))
+    N = TP + FN + FP + TN
+    print("\t PP \t \t PN \t \t {}".format(N))
+    print("GP \t {} \t \t {} \t \t {:.2%}".format(TP, FN, float(TP) / (TP + FN)))
+    print("GN \t {} \t \t {} \t {:.2%}".format(FP, TN, float(TN) / (FP + TN)))
+    print(
+        "AL \t {:.2%} \t {:.2%} \t {:.2%}".format(float(TP) / (TP + FP), float(TN) / (TN + FN), float(TP + TN) / N))
