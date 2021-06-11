@@ -109,14 +109,26 @@ class LatticedChecker(MotionFilterInterface):
         T_actor_lh = np.matmul(actor.Toff_lh, SE3(Rot_rpy(rpy_add_actor), point_add_actor))
         T_loal = np.matmul(T_handle_lh, SE3_inv(T_actor_lh))
 
+        return self.check_T_loal(actor, obj, T_loal, Q_dict, interpolate=interpolate,
+                                 **kwargs)
+
+    ##
+    # @brief check end-effector collision in grasping
+    # @param actor  rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
+    # @param obj    rnb-planning.src.pkg.planning.constraint.constraint_subject.Subject
+    # @param T_loal     transformation matrix from object-side link to actor-side link
+    # @param Q_dict joint configuration in dictionary format {joint name: radian value}
+    # @param interpolate    interpolate path and check intermediate poses
+    def check_T_loal(self, actor, obj, T_loal, Q_dict, interpolate=False,**kwargs):
+        actor_link = actor.geometry.link_name
+        object_link = obj.geometry.link_name
+
         actor_vertinfo_list, object_vertinfo_list, actor_Tinv_dict, object_Tinv_dict = \
             self.gcheck.get_grasping_vert_infos(actor, obj, T_loal, Q_dict)
 
         obj_names = obj.geometry.get_family()
-        group_name_handle = self.binder_link_robot_dict[
-            handle.geometry.link_name] if handle.geometry.link_name in self.binder_link_robot_dict else None
-        group_name_actor = self.binder_link_robot_dict[
-            actor.geometry.link_name] if actor.geometry.link_name in self.binder_link_robot_dict else None
+        group_name_handle = self.binder_link_robot_dict[object_link] if object_link in self.binder_link_robot_dict else None
+        group_name_actor = self.binder_link_robot_dict[actor_link] if actor_link in self.binder_link_robot_dict else None
 
         if group_name_actor and not group_name_handle:
             group_name = group_name_actor

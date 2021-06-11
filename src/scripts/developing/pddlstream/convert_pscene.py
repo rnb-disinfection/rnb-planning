@@ -45,16 +45,16 @@ def sample_redundancy_offset(subject, actor, drop_downward_dir=[0,1,0],
                                 SE3(Rot_rpy(rpy_add_handle), point_add_handle))
         T_ah = T_xyzrpy((point_add_actor, rpy_add_actor))
         T_ahg = np.matmul(T_ah, SE3_inv(T_handle_gh))
-        if drop_downward_dir is not None:
-            dropvec = np.matmul(T_ao[:3,:3].transpose(), drop_downward_dir)
-            if dropvec[2] < 0:
-                continue
-        break
         if subject.geometry == handle.geometry:
             T_ao = T_ahg
         else:
             T_hgo = np.matmul(SE3_inv(handle.geometry.Toff), subject.geometry.Toff)
             T_ao = np.matmul(T_ahg, T_hgo)
+        if drop_downward_dir is not None:
+            dropvec = np.matmul(T_ao[:3,:3].transpose(), drop_downward_dir)
+            if dropvec[2] < 0:
+                continue
+        break
     return T_ao
 
 
