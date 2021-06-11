@@ -91,6 +91,16 @@ class GlobalTimer(Singleton):
             return dt
 
     ##
+    # @brief    get current time and estimated time arrival
+    # @param    name    name of the section to record time
+    # @param    current current index recommanded to start from 1
+    # @param    end     last index
+    # @return   (current time, eta)
+    def eta(self, name, current, end):
+        dt = self.toc(name, stack=False)
+        return dt, (dt / current * end if current != 0 else 0)
+
+    ##
     # @brief you can just print the timer instance to see the record
     def __str__(self):
         strout = "" 

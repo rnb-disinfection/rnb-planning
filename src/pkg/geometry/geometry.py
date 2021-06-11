@@ -526,3 +526,12 @@ class GeometryItem(object):
 
         gtem.set_offset_tf(orientation_mat=np.matmul(gtem.orientation_mat, Roff))
         gtem.dims = tuple(np.abs(np.matmul(Roff.transpose(), gtem.dims)))
+        
+    def get_args(self):
+        center = self.center if self.parent is None else self.center_child
+        rpy = Rot2rpy(self.orientation_mat) if self.parent is None else Rot2rpy(self.orientation_mat_child)
+        return {'gtype': self.gtype, 'name': self.name, 'link_name': self.link_name, 
+                'dims': self.dims, 'center': center, 'rpy': rpy, 'color': self.color, 
+                'display': self.display, 'collision': self.collision, 'fixed': self.fixed, 
+                'parent': self.parent}
+        

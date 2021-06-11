@@ -1,5 +1,9 @@
 from ....utils.gjk import get_point_list, get_gjk_distance
 from ...constraint.constraint_subject import CustomObject, Grasp2Point, PlacePoint, SweepPoint, SweepTask
+import numpy as np
+from ....utils.utils import *
+from ....utils.rotation_utils import *
+from ....geometry.geometry import *
 
 ##
 # @class ObstacleBase
@@ -32,12 +36,23 @@ class ObstacleBase:
         self.subgeo_list = []
         
     def is_overlapped_with(self, gtem):
-        verts, radii = gtem.get_vertice_radius()
-        verts_global = np.add(np.matmul(verts, gtem.orientation_mat.transpose()), gtem.center)
-        verts_me, raddii_me = self.geometry.get_vertice_radius()
-        verts_me_global = np.add(np.matmul(verts_me, self.geometry.orientation_mat.transpose()), 
-                                 self.geometry.center)
-        return get_gjk_distance(get_point_list(verts_global), get_point_list(verts_me_global))-radii-raddii_me < 1e-4
+        gscene = gtem.gscene
+        res = False
+        for gname in gtem.get_family():
+            gchild = gscene.NAME_DICT[gname]
+            verts, radii = gchild.get_vertice_radius()
+            verts_global = np.add(np.matmul(verts, gchild.orientation_mat.transpose()), gchild.center)
+            for gname_me in self.geometry.get_family():
+                gchild_me = gscene.NAME_DICT[gname_me]
+                verts_me, raddii_me = gchild_me.get_vertice_radius()
+                verts_me_global = np.add(np.matmul(verts_me, gchild_me.orientation_mat.transpose()), 
+                                         gchild_me.center)
+                res = get_gjk_distance(get_point_list(verts_global), get_point_list(verts_me_global))-radii-raddii_me < 1e-4
+                if res:
+                    break
+            if res:
+                break
+        return res
         
 ##
 # @class WorkPlane
@@ -208,11 +223,12 @@ class PlaneObject(ObstacleBase):
     RTH_MAX = (0.8, +np.pi/2, +0.5)
     RPY_MIN = (0, 0, -np.pi)
     RPY_MAX = (0, 0, +np.pi)
-    DIM_MIN = (0.02, GRIP_DEPTH, GRIP_DEPTH)
     DIM_MAX = (0.06, 0.3, 0.3)
     GTYPE = GEOTYPE.BOX
     COLOR =  (0.2,0.2,0.8,0.5)
-    def __init__(self, gscene, name, workplane, XYZ_LOC=None, **kwargs):
+    def __init__(self, gscene, name, workplane, GRIP_DEPTH, CLEARANCE, XYZ_LOC=None, **kwargs):
+        self.GRIP_DEPTH = GRIP_DEPTH
+        self.DIM_MIN = (0.02, GRIP_DEPTH, GRIP_DEPTH)
         ObstacleBase.__init__(self, gscene=gscene, name=name, **kwargs)
         verts, radii = self.geometry.get_vertice_radius()
         verts_rot = np.matmul(self.geometry.orientation_mat, verts.transpose()) ## verices with global orientaion
@@ -249,12 +265,12 @@ def redistribute_class(gscene, obstacle_class, key, Nmax, workplane_avoid=None):
     return obs_list
 
             
-def disperse_objects(gscene, object_class, key, Nmax, workplane_on):
+def disperse_objects(gscene, object_class, key, Nmax, workplane_on, GRIP_DEPTH, CLEARANCE=1e-3):
     clear_class(gscene, key, Nmax)
         
     obs_list = []
     for iw in range(np.random.choice(Nmax)+1):
-        obs = object_class(gscene, "{}_{}".format(key, iw), workplane_on)
+        obs = object_class(gscene, "{}_{}".format(key, iw), workplane_on, GRIP_DEPTH=GRIP_DEPTH, CLEARANCE=CLEARANCE)
         remove_this = False
         for obs_pre in obs_list:
             if obs_pre.is_overlapped_with(obs.geometry):
@@ -269,6 +285,7 @@ def disperse_objects(gscene, object_class, key, Nmax, workplane_on):
 
 def add_object(pscene, obj, HANDLE_THICKNESS=1e-6, HANDLE_COLOR = (1,0,0,0.3)):
     gscene = pscene.gscene
+    GRIP_DEPTH = obj.GRIP_DEPTH
     handles = []
     handles.append(
         gscene.create_safe(gtype=GEOTYPE.BOX, name="hdl_tp_a", link_name="base_link", 
