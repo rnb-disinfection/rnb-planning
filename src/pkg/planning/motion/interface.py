@@ -2,6 +2,7 @@ from abc import *
 import numpy as np
 from ...utils.utils import list2dict, GlobalTimer
 from ..constraint.constraint_common import calc_redundancy
+import time
 
 __metaclass__ = type
 
@@ -59,12 +60,14 @@ class MotionInterface:
     # @param from_state         starting state (rnb-planning.src.pkg.planning.scene.State)
     # @param to_state           goal state (rnb-planning.src.pkg.planning.scene.State)
     # @param redundancy_dict    redundancy in dictionary format {object name: {axis: value}}
+    # @param show_state         show intermediate state on RVIZ
     # @return Traj      Full trajectory as array of Q
     # @return LastQ     Last joint configuration as array
     # @return error     planning error
     # @return success   success/failure of planning result
     # @return binding_list  list of binding
-    def plan_transition(self, from_state, to_state, redundancy_dict=None, verbose=False, test_filters_only=False, **kwargs):
+    def plan_transition(self, from_state, to_state, redundancy_dict=None, verbose=False, test_filters_only=False,
+                        show_state=False, **kwargs):
         if from_state is not None:
             self.pscene.set_object_state(from_state)
         binding_list, success = self.pscene.get_slack_bindings(from_state, to_state)
@@ -84,14 +87,23 @@ class MotionInterface:
                 redundancy_values[(obj_name, handle.name)] = calc_redundancy(redundancy[handle.name], handle)
                 redundancy_values[(obj_name, actor.name)] = calc_redundancy(redundancy[actor.name], actor)
 
-                for mfilter in self.motion_filters:
+                for i_f, mfilter in enumerate(self.motion_filters):
+                    fname = mfilter.__class__.__name__
                     if self.flag_log:
-                        self.gtimer.tic(mfilter.__class__.__name__)
+                        self.gtimer.tic(fname)
                     success = mfilter.check(actor, obj, handle, redundancy_values, Q_dict)
                     if self.flag_log:
-                        self.gtimer.toc(mfilter.__class__.__name__)
-                        self.result_log[mfilter.__class__.__name__].append(success)
+                        self.gtimer.toc(fname)
+                        self.result_log[fname].append(success)
                     if not success:
+                        if verbose or show_state:
+                            print("Motion Filer Failure: {}".format(fname))
+                        if show_state:
+                            if from_state.Q is not None:
+                                self.gscene.show_pose(from_state.Q)
+                            vis_bak = self.gscene.highlight_robot(self.gscene.COLOR_LIST[i_f])
+                            time.sleep(0.5)
+                            self.gscene.recover_robot(vis_bak)
                         break
             if test_filters_only:
                 return success
@@ -105,6 +117,15 @@ class MotionInterface:
             if self.flag_log:
                 self.gtimer.toc('planning')
                 self.result_log['planning'].append(success)
+            if not success:
+                if verbose or show_state:
+                    print("Motion Plan Failure: {}".format(fname))
+                if show_state:
+                    if from_state.Q is not None:
+                        self.gscene.show_pose(from_state.Q)
+                    vis_bak = self.gscene.highlight_robot(self.gscene.COLOR_LIST[-1])
+                    time.sleep(0.5)
+                    self.gscene.recover_robot(vis_bak)
         else:
             Traj, LastQ, error, success = [from_state.Q], from_state.Q, 1e10, False
         return Traj, LastQ, error, success, binding_list

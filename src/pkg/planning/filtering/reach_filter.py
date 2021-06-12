@@ -12,6 +12,8 @@ GAMMA_SVM_DEFAULT = 'scale'
 # @brief    check reach regarding kinematic chain
 # @remark   You need to train ReachTrainer tu use ReachChecker. See src/scripts/training/ReachSVM.ipynb
 class ReachChecker(MotionFilterInterface):
+    BEFORE_IK = True
+
     ##
     # @param pscene rnb-planning.src.pkg.planning.scene
     def __init__(self, pscene):

@@ -24,11 +24,12 @@ DEFAULT_VERT_DICT = {
     GEOTYPE.PLANE: PLANE_DEFAULT
 }
 
-
 ##
 # @class GeometryScene
 # @brief Geometric scene & visualization handle. Also a list of GeometryItem.
 class GeometryScene(list):
+    COLOR_LIST = [(1,0,0,0.5), (1,0,1,0.5), (1,1,0,0.5), (0,1,0,0.5), (0,1,1,0.5), (0,0,1,0.5), (0,0,0,0.5)]
+
     def __init__(self, urdf_content, urdf_path, joint_names, link_names, rviz=True):
         self.NAME_DICT = {}
         self.joint_names, self.link_names = joint_names, link_names
@@ -166,12 +167,19 @@ class GeometryScene(list):
 
     ##
     # @brief republish markers with last published position
+    # @remark TODO: make [mk for mk in self.marker_list if mk.geometry == gtem] efficient
     def update_marker(self, gtem):
         if self.rviz:
             joint_dict = {self.joints.name[i]: self.joints.position[i] for i in range(len(self.joint_names))}
             marks = [mk for mk in self.marker_list if mk.geometry == gtem]
-            for mk in marks:
-                mk.set_marker(joint_dict, create=False)
+            if gtem.display and len(marks)==0:
+                self.__add_marker(gtem)
+            else:
+                for mk in marks:
+                    if gtem.display:
+                        mk.set_marker(joint_dict, create=False)
+                    else:
+                        self.__remove_marker(gtem)
             return marks
 
     ##
@@ -314,6 +322,23 @@ class GeometryScene(list):
         self.create_safe(GEOTYPE.BOX, "{}_right_gr".format(gname), "base_link", (XMAX - XMIN, 0.01, ZMAX - ZMIN),
                          ((XMAX + XMIN) / 2, YMAX, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
                          color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent=gname)
+
+    def highlight_robot(self, color=(1,0,0,0.5)):
+        vis_bak = {}
+        for gtem in self:
+            if gtem.link_name != "base_link":
+                vis_bak[gtem.name] = (gtem.display, gtem.color)
+                gtem.display = True
+                gtem.color = color
+                self.update_marker(gtem)
+        return vis_bak
+
+    def recover_robot(self, vis_bak):
+        for gname, (display, color) in vis_bak.items():
+            gtem = self.NAME_DICT[gname]
+            gtem.display = display
+            gtem.color = color
+            self.update_marker(gtem)
 
 ##
 # @class GeometryItem

@@ -48,6 +48,7 @@ def get_step_dirYZ(Tbg):
 # @brief    feature-based pair-wise feasibility checker, following A. M. Wells paper:
 #           (Wells, Andrew M., et al. "Learning feasibility for task and motion planning in tabletop environments." IEEE robotics and automation letters 4.2 (2019): 1255-1262.)
 class PairSVM(MotionFilterInterface):
+
     ##
     # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
     # @param put_banned GeometryItem list to indicate area where not to put object

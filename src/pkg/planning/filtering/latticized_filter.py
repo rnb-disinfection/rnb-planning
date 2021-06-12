@@ -65,6 +65,7 @@ class LatticedChecker(MotionFilterInterface):
             self.query_in_dict, self.response_out_dict, self.query_quit_dict, = {}, {}, {}, {}, {}, {}, {}
 
         self.subp_list=[]
+        self.server_on_me = []
         for rconfig in self.combined_robot.robots_on_scene:
             robot_type_name = rconfig.type.name
             try:
@@ -73,6 +74,7 @@ class LatticedChecker(MotionFilterInterface):
                 self.subp_list.append(subprocess.Popen(['python3',
                                                         '{}src/pkg/planning/filtering/lattice_model/shared_lattice_predictor.py'.format(RNB_PLANNING_DIR),
                                                         '--rtype', robot_type_name]))
+                self.server_on_me.append(robot_type_name)
                 time.sleep(0.5)
                 self.prepared_p_dict[robot_type_name] = sa.attach("shm://{}.prepared".format(robot_type_name))
                 while not self.prepared_p_dict[robot_type_name][0]:
@@ -218,5 +220,5 @@ class LatticedChecker(MotionFilterInterface):
         self.query_quit_dict[robot_type_name][0] = True
 
     def __del__(self):
-        for rconfig in self.combined_robot.robots_on_scene:
-            self.quit_shared_server(rconfig.type.name)
+        for rname in self.server_on_me:
+            self.quit_shared_server(rname)
