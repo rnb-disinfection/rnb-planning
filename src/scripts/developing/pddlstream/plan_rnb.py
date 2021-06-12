@@ -85,12 +85,12 @@ def pddlstream_from_problem_rnb(pscene, robot, body_names, Q_init, goal_pairs=[]
             # ('On', body, fixed[2]),
             # ('Cleaned', body),
             #             ('Cooked', body),
-
+    APPROACH_VEC = 0.05 * Point(z=-1)
     actor = pscene.actor_dict[tool_name]
     update_grasp_info({tool_name: GraspInfo(
         lambda body: sample_grasps(body_subject_map=body_subject_map, body=body, actor=actor,
                                    sample_count=grasp_sample, show_state=show_state),
-        approach_pose=Pose(0.05 * Point(z=-1)))})
+        approach_pose=Pose(APPROACH_VEC))})
 
     stream_map = {
         'sample-pose': from_gen_fn(get_stable_gen_rnb(body_subject_map, body_actor_map,
@@ -103,11 +103,14 @@ def pddlstream_from_problem_rnb(pscene, robot, body_names, Q_init, goal_pairs=[]
         # 'plan-free-motion': from_fn(get_free_motion_gen_ori(robot, fixed, teleport)),
         # 'plan-holding-motion': from_fn(get_holding_motion_gen_ori(robot, fixed, teleport)),
         'plan-free-motion': from_fn(get_free_motion_gen_rnb(mplan, body_subject_map, robot,
+                                                            tool=pscene.actor_dict[tool_name],
                                                             tool_link=tool_link_name, timeout=timeout,
-                                                            show_state=show_state)),
+                                                            show_state=show_state,
+                                                            approach_vec=APPROACH_VEC)),
         'plan-holding-motion': from_fn(
-            get_holding_motion_gen_rnb(mplan, body_subject_map, robot,
-                                       tool_link=tool_link_name, timeout=timeout, show_state=show_state)),
+            get_holding_motion_gen_rnb(mplan, body_subject_map, robot, tool=pscene.actor_dict[tool_name],
+                                       tool_link=tool_link_name, timeout=timeout, show_state=show_state,
+                                       approach_vec=APPROACH_VEC)),
         'test-cfree-pose-pose': from_test(get_cfree_pose_pose_test()),
         'test-cfree-approach-pose': from_test(get_cfree_obj_approach_pose_test()),
         'test-cfree-traj-pose': from_test(negate_test(get_movable_collision_test())),  # get_cfree_traj_pose_test()),

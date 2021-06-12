@@ -119,7 +119,7 @@ class MotionInterface:
                 self.result_log['planning'].append(success)
             if not success:
                 if verbose or show_state:
-                    print("Motion Plan Failure: {}".format(fname))
+                    print("Motion Plan Failure")
                 if show_state:
                     if from_state.Q is not None:
                         self.gscene.show_pose(from_state.Q)

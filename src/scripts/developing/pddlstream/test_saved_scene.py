@@ -395,6 +395,7 @@ pscene.set_object_state(initial_state)
 from_state = initial_state.copy(pscene)
 
 mplan.motion_filters = checkers
+checkers_ik=[checker for checker in checkers if checker.BEFORE_IK]
 pscene.set_object_state(initial_state)
 gscene.update()
 
@@ -408,7 +409,7 @@ problem = pddlstream_from_problem_rnb(pscene, robot_body, body_names=body_names,
                                       Q_init=HOME_POSE,
                                       goal_pairs=[(obj_pscene.oname, 'gp')],
                                       movable=movable_bodies,
-                                      checkers=[checker for checker in checkers if checker.BEFORE_IK],
+                                      checkers=checkers_ik,
                                       tool_name=TOOL_NAME, tool_link_name=TOOL_LINK,
                                       mplan=mplan, timeout=TIMEOUT_MOTION, grasp_sample=GRASP_SAMPLE,
                                       show_state=SHOW_STATE)
