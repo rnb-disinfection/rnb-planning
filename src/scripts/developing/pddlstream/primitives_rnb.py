@@ -150,14 +150,14 @@ def check_feas(pscene, body_subject_map, actor, checkers, home_dict, body, pose,
         color_axis = None if res else (1,0,0,0.5)
         if not res:
             print("Check Feas Fail: {}".format(checker.__class__.__name__))
-            vis_bak = gscene.highlight_robot(color=gscene.COLOR_LIST[i_c])
+            vis_bak = pscene.gscene.highlight_robot(color=pscene.gscene.COLOR_LIST[i_c])
         pscene.gscene.add_highlight_axis("feas", "obj", "base_link",
                                          center=Tbo[:3,3], orientation_mat=Tbo[:3,:3],color=color_axis)
         pscene.gscene.add_highlight_axis("feas", "tlink", "base_link",
                                          center=Tboal[:3,3], orientation_mat=Tboal[:3,:3],color=color_axis)
         time.sleep(0.5)
         if not res:
-            gscene.recover_robot(vis_bak)
+            pscene.gscene.recover_robot(vis_bak)
         for ig_tem, disp in zip(ignore, display_bak):
             ig_tem.display = disp
             pscene.gscene.update_marker(ig_tem)
@@ -180,6 +180,8 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
             # print("gripper_pose: {}".format(gripper_pose))
             # print("approach_pose: {}".format(approach_pose))
             for i_ in range(num_attempts):
+                if show_state:
+                    pscene.gscene.show_pose(dict2list(home_dict, pscene.gscene.joint_names))
                 set_joint_positions(robot, movable_joints, sample_fn()) # Random seed
                 # TODO: multiple attempts?
                 q_approach = inverse_kinematics(robot, grasp.link, approach_pose)
@@ -190,7 +192,8 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                     # print("obstacles: {}".format(obstacles))
                     if show_state:
                         print("IK approach fail")
-                        vis_bak = pscene.gscene.highlight_robot(pscene.gscene.COLOR_LIST[2])
+                        color = pscene.gscene.COLOR_LIST[2] if q_approach is None else pscene.gscene.COLOR_LIST[0]
+                        vis_bak = pscene.gscene.highlight_robot(color)
                         time.sleep(0.5)
                         pscene.gscene.recover_robot(vis_bak)
                     continue
@@ -204,7 +207,8 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                     # print("obstacles: {}".format(obstacles))
                     if show_state:
                         print("IK grasp fail")
-                        vis_bak = pscene.gscene.highlight_robot(pscene.gscene.COLOR_LIST[0])
+                        color = pscene.gscene.COLOR_LIST[2] if q_grasp is None else pscene.gscene.COLOR_LIST[0]
+                        vis_bak = pscene.gscene.highlight_robot(color)
                         time.sleep(0.5)
                         pscene.gscene.recover_robot(vis_bak)
                     continue
