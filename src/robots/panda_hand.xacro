@@ -15,27 +15,27 @@
         </geometry>
       </visual>
       <collision>
-        <origin xyz="0.0 0.0 -0.01" rpy="0.  0.  0."/>
+        <origin xyz="0.0 0.0 -0.09" rpy="0.  0.  0."/>
         <geometry>
-          <cylinder length="0.04" radius="0.05"/>
+          <cylinder length="0.20" radius="0.05"/>
         </geometry>
       </collision>
       <collision>
-        <origin xyz="0 0 0.03" rpy="0 0 1.57079633"/>
+        <origin xyz="0 0 0.03" rpy="0 0 0"/>
         <geometry>
-          <box size="0.22 0.06 0.075"/>
+          <box size="0.06 0.22 0.085"/>
         </geometry>
       </collision>
       <collision>
-        <origin xyz="0 0.07 -0.02" rpy="0 1.57079633 0"/>
+        <origin xyz="0 0.06 -0.03" rpy="0 0 0"/>
         <geometry>
-          <cylinder length="0.07" radius="0.02"/>
+          <box size="0.08 0.07 0.04"/>
         </geometry>
       </collision>
       <collision>
-        <origin xyz="0 -0.08 -0.02" rpy="1.57079633 0 0"/>
+        <origin xyz="0 -0.075 -0.022" rpy="0 0 0"/>
         <geometry>
-          <cylinder length="0.03" radius="0.01"/>
+          <box size="0.02 0.06 0.02"/>
         </geometry>
       </collision>
 
@@ -47,9 +47,9 @@
         </geometry>
       </visual>
       <collision>
-        <origin xyz="0 0.0535 0.0934" rpy="0 0 0"/>
+        <origin xyz="0 0.05 0.098" rpy="0 0 0"/>
         <geometry>
-          <cylinder length="0.045" radius="0.018"/>
+          <box size="0.045 0.04 0.052"/>
         </geometry>
       </collision>
     <!-- right finger -->
@@ -60,9 +60,9 @@
         </geometry>
       </visual>
       <collision>
-        <origin xyz="0 -0.0535 0.0934" rpy="0 0 -3.14159265"/>
+        <origin xyz="0 -0.05 0.098" rpy="0 0 0"/>
         <geometry>
-          <cylinder length="0.045" radius="0.018"/>
+          <box size="0.045 0.04 0.052"/>
         </geometry>
       </collision>
     </link>
