@@ -382,6 +382,7 @@ for obj_name in sorted(obj_args.keys()):
     obj.GRIP_DEPTH = obj_arg["GRIP_DEPTH"]
     obj.DIM = obj_arg["DIM"]
     obj.geometry = gscene.NAME_DICT[obj_arg["gname"]]
+    obj.CLEARANCE = obj_arg["CLEARANCE"]
     obj_pscene, handles = add_object(pscene, obj)
     obj_set_list.append((obj, obj_pscene, handles))
 

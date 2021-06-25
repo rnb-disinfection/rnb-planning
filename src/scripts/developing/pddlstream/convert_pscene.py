@@ -109,9 +109,9 @@ def get_stable_gen_rnb(body_subject_map, body_actor_map, home_dict, fixed=[], sh
 
                 set_pose(body, pose)
                 if (pose is None) or any(pairwise_collision(body, b) for b in fixed):
-                    fail_count += 1
-                    if fail_count>10:
-                        yield None
+                    # fail_count += 1
+                    # if fail_count>10:
+                    #     yield None
                     continue
                 fail_count=0
                 body_pose = BodyPose(body, pose)

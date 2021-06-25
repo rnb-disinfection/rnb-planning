@@ -41,7 +41,37 @@ def get_matching_object(pscene, binder, Q_dict, approach_vec):
                     margin_max = margin_min
                     max_point = handle.name
                     max_subject = subject
+    if margin_max < -1e-2:
+        return None
     return subject
+
+def get_matching_binder(pscene, subject, Q_dict, excludes=[]):
+    margin_max = -1e10
+    max_point = ""
+    max_binder = ""
+    actor_dict = {bname: binder for bname, binder in pscene.actor_dict.items()
+                   if bname not in excludes and binder not in excludes}
+    binder_T_dict = {bname: binder.get_tf_handle(Q_dict) for bname, binder in actor_dict.items()}
+    self_family = subject.geometry.get_family()
+    ## find best binding between object and binders
+    for kpt, handle in subject.action_points_dict.items():
+        handle_T = handle.get_tf_handle(Q_dict)
+
+        for bname, binder in actor_dict.items():
+            if binder.check_available(Q_dict):
+                binder_T = binder_T_dict[bname]
+                if binder.geometry.name in self_family or not binder.check_type(handle):
+                    continue
+                binder_redundancy = binder.get_redundancy()
+                handle_redundancy = handle.get_redundancy()
+                margins = get_binding_margins(handle_T, binder_T, handle_redundancy, binder_redundancy,
+                                              rot_scale=1e-2)
+                margin_min = np.min(margins)
+                if margin_min > margin_max:
+                    margin_max = margin_min
+                    max_point = handle.name
+                    max_binder = binder
+    return binder
 
 
 def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, tool_link, approach_vec=None,
@@ -73,13 +103,14 @@ def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, too
         actor = tool
     else: # holding motion, go to release - actor:plane
         subject = graspped
-        actor = pscene.actor_dict[subject.get_initial_binding(pscene.actor_dict, Qto_dict)[-2]]
-
-    Tloal_list = [
-        get_tf(to_link=actor.geometry.link_name, from_link=subject.geometry.link_name,
-               joint_dict=Qto_dict, urdf_content=pscene.gscene.urdf_content)]
-    res = run_checkers(mplan.motion_filters, actor, subject, Tloal_list,
-                 Q_dict=list2dict(Qcur, pscene.gscene.joint_names), show_state=show_state)
+        actor = get_matching_binder(pscene, subject, Qto_dict, excludes=[tool])
+    res = True
+    if subject is not None:
+        Tloal_list = [
+            get_tf(to_link=actor.geometry.link_name, from_link=subject.geometry.link_name,
+                   joint_dict=Qto_dict, urdf_content=pscene.gscene.urdf_content)]
+        res = run_checkers(mplan.motion_filters, actor, subject, Tloal_list,
+                     Q_dict=list2dict(Qcur, pscene.gscene.joint_names), show_state=show_state)
     if res:
         Traj, LastQ, error, success, binding_list = mplan.plan_transition(
             from_state, to_state, {}, timeout=timeout, show_state=show_state)
@@ -270,7 +301,7 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                         if q_approach is None:
                             color = pscene.gscene.COLOR_LIST[2]
                         else:
-                            pscene.gscene.COLOR_LIST[0]
+                            color = pscene.gscene.COLOR_LIST[0]
                         vis_bak = pscene.gscene.highlight_robot(color)
                         time.sleep(0.5)
                         pscene.gscene.recover_robot(vis_bak)
@@ -288,7 +319,7 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                         if q_grasp is None:
                             color = pscene.gscene.COLOR_LIST[2]
                         else:
-                            pscene.gscene.COLOR_LIST[0]
+                            color = pscene.gscene.COLOR_LIST[0]
                         vis_bak = pscene.gscene.highlight_robot(color)
                         time.sleep(0.5)
                         pscene.gscene.recover_robot(vis_bak)
