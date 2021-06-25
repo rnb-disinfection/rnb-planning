@@ -131,7 +131,7 @@ class PlanningPipeline:
 
     def __search_loop(self, ID, terminate_on_first, N_search,
                       display=False, dt_vis=None, verbose=False, timeout_loop=600,
-                      add_homing=False, post_optimize=False, **kwargs):
+                      add_homing=True, post_optimize=False, **kwargs):
         loop_counter = 0
         sample_fail_counter = 0
         sample_fail_max = 10
