@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <robot name="indy7" xmlns:xacro="http://ros.org/wiki/xacro">
-  <xacro:macro name="indy7" params="robot_id:='indy7' description_pkg:='indy7_description' connected_to:='' xyz:='0 0 0' rpy:='0 0 0'">
+  <xacro:macro name="indy7" params="robot_id:='0' description_pkg:='indy7_description' connected_to:='' xyz:='0 0 0' rpy:='0 0 0'">
     <xacro:unless value="${not connected_to}">
       <joint name="indy${robot_id}_joint_${connected_to}" type="fixed">
         <parent link="${connected_to}"/>
