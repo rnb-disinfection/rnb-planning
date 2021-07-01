@@ -7,6 +7,8 @@ __metaclass__ = type
 # @brief    Base class for motion planning filters
 class MotionFilterInterface:
 
+    BEFORE_IK = False
+
     ##
     # @brief (prototype) check feasibility
     # @param actor  rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor

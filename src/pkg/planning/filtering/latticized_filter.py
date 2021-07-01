@@ -49,8 +49,8 @@ class LatticedChecker(MotionFilterInterface):
         self.combined_robot = pscene.combined_robot
         self.model_dict = {}
         self.robot_names = pscene.combined_robot.robot_names
-        chain_dict = pscene.robot_chain_dict
-        binder_links = [chain_dict[rname]['tip_link'] for rname in self.robot_names]
+        self.robot_chain_dict = pscene.robot_chain_dict
+        binder_links = [self.robot_chain_dict[rname]['tip_link'] for rname in self.robot_names]
         self.binder_link_robot_dict = {blink: rname for blink, rname in zip(binder_links, self.robot_names)}
         self.rconfig_dict = self.combined_robot.get_robot_config_dict()
 
@@ -65,6 +65,7 @@ class LatticedChecker(MotionFilterInterface):
             self.query_in_dict, self.response_out_dict, self.query_quit_dict, = {}, {}, {}, {}, {}, {}, {}
 
         self.subp_list=[]
+        self.server_on_me = []
         for rconfig in self.combined_robot.robots_on_scene:
             robot_type_name = rconfig.type.name
             try:
@@ -73,6 +74,7 @@ class LatticedChecker(MotionFilterInterface):
                 self.subp_list.append(subprocess.Popen(['python3',
                                                         '{}src/pkg/planning/filtering/lattice_model/shared_lattice_predictor.py'.format(RNB_PLANNING_DIR),
                                                         '--rtype', robot_type_name]))
+                self.server_on_me.append(robot_type_name)
                 time.sleep(0.5)
                 self.prepared_p_dict[robot_type_name] = sa.attach("shm://{}.prepared".format(robot_type_name))
                 while not self.prepared_p_dict[robot_type_name][0]:
@@ -86,8 +88,10 @@ class LatticedChecker(MotionFilterInterface):
             self.response_out_dict[robot_type_name] = sa.attach("shm://{}.response_out".format(robot_type_name))
             self.query_quit_dict[robot_type_name] = sa.attach("shm://{}.query_quit".format(robot_type_name))
 
+        self.base_dict = self.combined_robot.get_robot_base_dict()
+
         self.shoulder_link_dict = {rname: pscene.gscene.urdf_content.joint_map[rchain['joint_names'][1]].child
-                                   for rname, rchain in chain_dict.items()}
+                                   for rname, rchain in self.robot_chain_dict.items()}
         self.shoulder_height_dict = {
             rname: get_tf(shoulder_link, self.combined_robot.home_dict, pscene.gscene.urdf_content)[2, 3]
             for rname, shoulder_link in self.shoulder_link_dict.items()}
@@ -107,29 +111,41 @@ class LatticedChecker(MotionFilterInterface):
         T_actor_lh = np.matmul(actor.Toff_lh, SE3(Rot_rpy(rpy_add_actor), point_add_actor))
         T_loal = np.matmul(T_handle_lh, SE3_inv(T_actor_lh))
 
+        return self.check_T_loal(actor, obj, T_loal, Q_dict, interpolate=interpolate,
+                                 **kwargs)
+
+    ##
+    # @brief check end-effector collision in grasping
+    # @param actor  rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
+    # @param obj    rnb-planning.src.pkg.planning.constraint.constraint_subject.Subject
+    # @param T_loal     transformation matrix from object-side link to actor-side link
+    # @param Q_dict joint configuration in dictionary format {joint name: radian value}
+    # @param interpolate    interpolate path and check intermediate poses
+    def check_T_loal(self, actor, obj, T_loal, Q_dict, interpolate=False,**kwargs):
+        actor_link = actor.geometry.link_name
+        object_link = obj.geometry.link_name
+
         actor_vertinfo_list, object_vertinfo_list, actor_Tinv_dict, object_Tinv_dict = \
             self.gcheck.get_grasping_vert_infos(actor, obj, T_loal, Q_dict)
 
         obj_names = obj.geometry.get_family()
-        group_name_handle = self.binder_link_robot_dict[
-            handle.geometry.link_name] if handle.geometry.link_name in self.binder_link_robot_dict else None
-        group_name_actor = self.binder_link_robot_dict[
-            actor.geometry.link_name] if actor.geometry.link_name in self.binder_link_robot_dict else None
+        group_name_handle = self.binder_link_robot_dict[object_link] if object_link in self.binder_link_robot_dict else None
+        group_name_actor = self.binder_link_robot_dict[actor_link] if actor_link in self.binder_link_robot_dict else None
 
         if group_name_actor and not group_name_handle:
             group_name = group_name_actor
-            tool_Tinv_dict = actor_Tinv_dict
-            T_end_effector = T_link_handle_actor_link
-            tool_vertinfo_list = actor_vertinfo_list
-            target_vertinfo_list = object_vertinfo_list
-            TOOL_LINK_BUNDLE = self.end_link_couple_dict[actor.geometry.link_name]
+            T_robot_base = get_tf(self.base_dict[group_name], joint_dict=Q_dict,
+                                  urdf_content=self.gscene.urdf_content, from_link=obj.geometry.link_name)
+            T_end_effector = np.matmul(SE3_inv(T_robot_base), T_loal)
+            tool_vertinfo_list = [(name, np.matmul(SE3_inv(T_robot_base), T), verts, radius, dims) for name, T, verts, radius, dims in actor_vertinfo_list]
+            target_vertinfo_list = [(name, np.matmul(SE3_inv(T_robot_base), T), verts, radius, dims) for name, T, verts, radius, dims in object_vertinfo_list]
         elif group_name_handle and not group_name_actor:
             group_name = group_name_handle
-            tool_Tinv_dict = object_Tinv_dict
-            T_end_effector = SE3_inv(T_link_handle_actor_link)
+            T_robot_base = get_tf(self.base_dict[group_name], joint_dict=Q_dict,
+                                  urdf_content=self.gscene.urdf_content, from_link=actor.geometry.link_name)
+            T_end_effector = np.matmul(SE3_inv(T_robot_base), SE3_inv(T_loal))
             tool_vertinfo_list = [(name, np.matmul(T_end_effector, T), verts, radius, dims) for name, T, verts, radius, dims in object_vertinfo_list]
             target_vertinfo_list = [(name, np.matmul(T_end_effector, T), verts, radius, dims) for name, T, verts, radius, dims in actor_vertinfo_list]
-            TOOL_LINK_BUNDLE = self.end_link_couple_dict[handle.geometry.link_name]
         else:
             raise ("Invaild robot")
 
@@ -146,20 +162,22 @@ class LatticedChecker(MotionFilterInterface):
         self.ltc_arm_10.clear()
 
         T_end_joint = T_end_effector
-        for lname in TOOL_LINK_BUNDLE:
-            T_end_joint = np.matmul(T_end_joint, tool_Tinv_dict[lname])
 
         r, th, h = cart2cyl(*T_end_effector[:3, 3])
-        Tref = SE3(Rot_axis(3, th), T_end_effector[:3, 3])
+        Tref = SE3(Rot_axis(3, th), T_end_effector[:3, 3]) # in robot base link coordinate
         target_names = [item[0] for item in target_vertinfo_list if item[0] not in obj_names]
         tool_names = [item[0] for item in tool_vertinfo_list]
 
-        self.ltc_effector.convert_vertices(tool_vertinfo_list, self.combined_robot.home_dict, Tref=Tref)
-        self.ltc_effector.convert_vertices(target_vertinfo_list, self.combined_robot.home_dict, Tref=Tref)
+        self.ltc_effector.convert_vertices(tool_vertinfo_list, Tref=Tref)
+        self.ltc_effector.convert_vertices(target_vertinfo_list, Tref=Tref)
 
-        Tref_base = SE3(Tref[:3, :3], (0, 0, self.shoulder_height_dict[group_name]))
-        self.ltc_arm_10.convert([gtem for gtem in self.gscene if gtem.collision and gtem.link_name=="base_link"], self.combined_robot.home_dict,
-                           Tref=Tref_base)
+        Tref_base = SE3(Tref[:3, :3], (0, 0, self.shoulder_height_dict[group_name])) # in robot base link coordinate
+
+        self.ltc_arm_10.convert([gtem for gtem in self.gscene
+                                 if gtem.collision
+                                 and gtem.link_name not in self.robot_chain_dict[group_name]["link_names"]],
+                                self.combined_robot.home_dict,
+                                Tref=np.matmul(T_robot_base, Tref_base))
 
         grasp_tar_idx = sorted(set(itertools.chain(*[self.ltc_effector.coll_idx_dict[tname] for tname in target_names if
                                                      tname in self.ltc_effector.coll_idx_dict])))
@@ -202,5 +220,5 @@ class LatticedChecker(MotionFilterInterface):
         self.query_quit_dict[robot_type_name][0] = True
 
     def __del__(self):
-        for rconfig in self.combined_robot.robots_on_scene:
-            self.quit_shared_server(rconfig.type.name)
+        for rname in self.server_on_me:
+            self.quit_shared_server(rname)

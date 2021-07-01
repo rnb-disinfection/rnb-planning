@@ -827,7 +827,8 @@ class BoxObject(AbstractObject):
                                link_name=geometry.link_name,
                                dims=dims_new, center=point, rpy=rpy,
                                display=False, collision=False, fixed=geometry.fixed, parent=gname)
-            self.sub_binders_dict[bname] = planning_scene.create_binder(bname=bname, gname=bname, _type=_type)
+            self.sub_binders_dict[bname] = planning_scene.create_binder(bname=bname, gname=bname, _type=_type,
+                                                                        point=point)
 
 
 ##

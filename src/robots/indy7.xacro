@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <robot name="indy7" xmlns:xacro="http://ros.org/wiki/xacro">
-  <xacro:macro name="indy7" params="robot_id:='indy7' description_pkg:='indy7_description' connected_to:='' xyz:='0 0 0' rpy:='0 0 0'">
+  <xacro:macro name="indy7" params="robot_id:='0' description_pkg:='indy7_description' connected_to:='' xyz:='0 0 0' rpy:='0 0 0'">
     <xacro:unless value="${not connected_to}">
       <joint name="indy${robot_id}_joint_${connected_to}" type="fixed">
         <parent link="${connected_to}"/>
@@ -259,71 +259,5 @@
 		<child link="indy${robot_id}_tcp"/>
 		<origin xyz="0 0 0.06" rpy="0 0 0"/>
 	</joint>
-
-	<transmission name="indy${robot_id}_tran0">
-		<type>transmission_interface/SimpleTransmission</type>
-		<joint name="indy${robot_id}_joint0">
-			<hardwareInterface>PositionJointInterface</hardwareInterface>
-		</joint>
-		<actuator name="indy${robot_id}_motor0">
-			<hardwareInterface>PositionJointInterface</hardwareInterface>
-			<mechanicalReduction>1</mechanicalReduction>
-		</actuator>
-	</transmission>
-
-	<transmission name="indy${robot_id}_tran1">
-		<type>transmission_interface/SimpleTransmission</type>
-		<joint name="indy${robot_id}_joint1">
-			<hardwareInterface>PositionJointInterface</hardwareInterface>
-		</joint>
-		<actuator name="indy${robot_id}_motor1">
-			<hardwareInterface>PositionJointInterface</hardwareInterface>
-			<mechanicalReduction>1</mechanicalReduction>
-		</actuator>
-	</transmission>
-
-	<transmission name="indy${robot_id}_tran2">
-		<type>transmission_interface/SimpleTransmission</type>
-		<joint name="indy${robot_id}_joint2">
-			<hardwareInterface>PositionJointInterface</hardwareInterface>
-		</joint>
-		<actuator name="indy${robot_id}_motor2">
-			<hardwareInterface>PositionJointInterface</hardwareInterface>
-			<mechanicalReduction>1</mechanicalReduction>
-		</actuator>
-	</transmission>
-
-	<transmission name="indy${robot_id}_tran3">
-		<type>transmission_interface/SimpleTransmission</type>
-		<joint name="indy${robot_id}_joint3">
-			<hardwareInterface>PositionJointInterface</hardwareInterface>
-		</joint>
-		<actuator name="indy${robot_id}_motor3">
-			<hardwareInterface>PositionJointInterface</hardwareInterface>
-			<mechanicalReduction>1</mechanicalReduction>
-		</actuator>
-	</transmission>
-
-	<transmission name="indy${robot_id}_tran4">
-		<type>transmission_interface/SimpleTransmission</type>
-		<joint name="indy${robot_id}_joint4">
-			<hardwareInterface>PositionJointInterface</hardwareInterface>
-		</joint>
-		<actuator name="indy${robot_id}_motor4">
-			<hardwareInterface>PositionJointInterface</hardwareInterface>
-			<mechanicalReduction>1</mechanicalReduction>
-		</actuator>
-	</transmission>
-
-	<transmission name="indy${robot_id}_tran5">
-		<type>transmission_interface/SimpleTransmission</type>
-		<joint name="indy${robot_id}_joint5">
-			<hardwareInterface>PositionJointInterface</hardwareInterface>
-		</joint>
-		<actuator name="indy${robot_id}_motor5">
-			<hardwareInterface>PositionJointInterface</hardwareInterface>
-			<mechanicalReduction>1</mechanicalReduction>
-		</actuator>
-	</transmission>
   </xacro:macro>
 </robot>

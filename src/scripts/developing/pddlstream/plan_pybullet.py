@@ -24,6 +24,15 @@ from examples.pybullet.tamp.streams import get_cfree_approach_pose_test, get_cfr
 from convert_pscene import *
 
 
+def reset_pybullet():
+    return p.resetSimulation(physicsClientId=CLIENT)
+
+def disconnect_notebook():
+    # TODO: change CLIENT?
+    if CLIENT in CLIENTS:
+        del CLIENTS[CLIENT]
+    # with HideOutput():
+    return p.disconnect(physicsClientId=CLIENT)
 
 def connect_notebook(use_gui=True, shadows=True, color=None, width=None, height=None):
     # Shared Memory: execute the physics simulation and rendering in a separate process

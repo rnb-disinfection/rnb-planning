@@ -25,7 +25,7 @@ if __name__ == "__main__":
             try:
                 sa.delete("shm://{}.grasp_img".format(robot_type_name))
                 sa.delete("shm://{}.arm_img".format(robot_type_name))
-                sa.delete("shm://{}.rh_mask".format(robot_type_name))
+                sa.delete("shm://{}.rh_vals".format(robot_type_name))
                 sa.delete("shm://{}.result".format(robot_type_name))
                 sa.delete("shm://{}.query_in".format(robot_type_name))
                 sa.delete("shm://{}.response_out".format(robot_type_name))
@@ -52,6 +52,7 @@ sys.path.append(os.path.join(PROJ_DIR, "src"))
 
 from pkg.utils.utils_python3 import *
 from pkg.controller.robot_config import RobotType
+from pkg.planning.filtering.lattice_model.data_utils import *
 import numpy as np
 int2rtypename = {v.value:v.name for v in RobotType}
 DATA_PATH = os.path.join(PROJ_DIR, "data")
@@ -72,15 +73,6 @@ RH_MASK_STEP = 64
 
 BATCH_SIZE = 1
 SERVER_PERIOD = 1e-3
-
-def gaussian(x, mu, sig):
-    return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
-
-def div_r_gaussian(r_val):
-    return gaussian(r_val, np.arange(0.1,1.2, 0.05),0.1)
-
-def div_h_gaussian(h_val):
-    return gaussian(h_val, np.arange(-0.5,1.1, 0.05),0.1)
 
 ##
 # @class SharedLatticePredictor

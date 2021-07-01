@@ -103,13 +103,13 @@
 * find xacro file in the description package for target robot  
 * copy the xacro file to "$RNB_PLANNING_DIR"/src/robots  
 * delete "world" and "base_link" links and joints connected to it  
-* add macro:  
+* add below macro on the top of the file, replace \<robotname\> and \<root_link\> to your robot name and the root link name.  
   ```xml
-  <xacro:macro name="robotname" params="robot_id:='0' description_pkg:='robot_description' connected_to:='' xyz:='0 0 0' rpy:='0 0 0'">  
+  <xacro:macro name="<robotname>" params="robot_id:='0' description_pkg:='robot_description' connected_to:='' xyz:='0 0 0' rpy:='0 0 0'">  
   <xacro:unless value="${not connected_to}">  
-  <joint name="robotname${robot_id}_joint_${connected_to}" type="fixed">  
+  <joint name="<robotname>${robot_id}_joint_${connected_to}" type="fixed">  
   <parent link="${connected_to}"/>  
-  <child link="robotname${robot_id}_link0"/>  
+  <child link="<robotname>${robot_id}_<root_link>"/>  
   <origin rpy="${rpy}" xyz="${xyz}"/>  
   </joint>  
   </xacro:unless>  
@@ -118,11 +118,11 @@
   <!-- robot contents  -->  
   </xacro:macro>  
   ```
-* change all item names: selectively replace {name="} with {"name="robotname${robot_id}}  
-* include and call the xacro file in "custom_robots.urdf.xacro"  
+* change all link and joint names to have this form: "\<robotname\>${robot_id}\_\<itemname\>" 
+* include and call the xacro file in "custom_robots_src.urdf.xacro"  
 * test generating URDF file  
   ```bash
-  rosrun xacro xacro "$RNB_PLANNING_DIR"src/robots/custom_robots.urdf.xacro \> "$RNB_PLANNING_DIR"src/robots/custom_robots.urdf  
+  rosrun xacro xacro "$RNB_PLANNING_DIR"src/robots/custom_robots.urdf.xacro > "$RNB_PLANNING_DIR"src/robots/custom_robots.urdf  
   ```
 * run rviz  
   ```bash

@@ -17,6 +17,7 @@ from examples.pybullet.utils.pybullet_tools.utils import get_moving_links, get_l
 from pkg.geometry.geotype import *
 from pkg.planning.constraint.constraint_subject import AbstractObject
 from pkg.utils.rotation_utils import *
+from pkg.utils.joint_utils import *
 from pkg.utils.utils import *
 from shutil import copyfile
 import rospkg
@@ -28,11 +29,25 @@ import random
 
 SAMPLE_GRASP_COUNT_DEFAULT = 10
 
+
+##
+# @brief    add axis marker to handle
+def add_handle_axis(hl_key, handle, Toff=None, color=None, dims=(0.10, 0.01, 0.01)):
+    gscene = handle.geometry.gscene
+    hobj = handle.geometry
+    Toff_lh = handle.Toff_lh
+    if Toff is not None:
+        Toff_lh = np.matmul(Toff_lh, Toff)
+    axis = "xyz"
+    gscene.add_highlight_axis(hl_key, hobj.name, hobj.link_name, Toff_lh[:3, 3], Toff_lh[:3, :3], color=color,
+                                   axis=axis, dims=dims)
+
 ##
 # @brief return offset from actor coordinate to object coordinate
-def sample_redundancy_offset(subject, actor, drop_downward_dir=[0,1,0],
+def sample_redundancy_offset(subject, actor, drop_downward_dir=[0,1,0], show_state=False,
                              binding_sampler=random.choice, redundancy_sampler=random.uniform):
-    
+    if show_state:
+        subject.geometry.gscene.clear_highlight()
     for i_s in range(100):
         assert i_s < 100, "Set drop_downward_dir to the direction you want to keep upward on the actor coordinate, default is y-axis"
             
@@ -45,20 +60,33 @@ def sample_redundancy_offset(subject, actor, drop_downward_dir=[0,1,0],
                                 SE3(Rot_rpy(rpy_add_handle), point_add_handle))
         T_ah = T_xyzrpy((point_add_actor, rpy_add_actor))
         T_ahg = np.matmul(T_ah, SE3_inv(T_handle_gh))
-        if drop_downward_dir is not None:
-            dropvec = np.matmul(T_ao[:3,:3].transpose(), drop_downward_dir)
-            if dropvec[2] < 0:
-                continue
-        break
         if subject.geometry == handle.geometry:
             T_ao = T_ahg
         else:
             T_hgo = np.matmul(SE3_inv(handle.geometry.Toff), subject.geometry.Toff)
             T_ao = np.matmul(T_ahg, T_hgo)
+        if show_state:
+            T_ha = np.matmul(SE3(Rot_rpy(rpy_add_handle), point_add_handle), SE3_inv(T_ah))
+        if drop_downward_dir is not None:
+            if show_state:
+                if actor.geometry.link_name == "base_link":
+                    add_handle_axis("sro", actor, Toff=SE3_inv(T_ha), color=(1,0,0,0.5), dims=(0.07, 0.005, 0.005))
+                else:
+                    add_handle_axis("sro", handle, Toff=T_ha, color=(1,0,0,0.5), dims=(0.07, 0.005, 0.005))
+            dropvec = np.matmul(T_ao[:3,:3].transpose(), drop_downward_dir)
+            if dropvec[2] < 0:
+                continue
+        if show_state:
+            if actor.geometry.link_name == "base_link":
+                add_handle_axis("sro", actor, Toff=SE3_inv(T_ha))
+            else:
+                add_handle_axis("sro", handle, Toff=T_ha)
+            time.sleep(0.5)
+        break
     return T_ao
 
 
-def get_stable_gen_rnb(body_subject_map, body_actor_map, home_dict, fixed=[],
+def get_stable_gen_rnb(body_subject_map, body_actor_map, home_dict, fixed=[], show_state=False,
                        binding_sampler=random.choice, redundancy_sampler=random.uniform):
     def gen(body, surface):
         rnb_style = False
@@ -66,10 +94,11 @@ def get_stable_gen_rnb(body_subject_map, body_actor_map, home_dict, fixed=[],
             rnb_style = True
             subject = body_subject_map[body]
             actor = body_actor_map[surface]
+        fail_count = 0
         while True:
             with GlobalTimer.instance().block("get_stable_{}_{}".format(body, surface)):
                 if rnb_style:
-                    T_ao = sample_redundancy_offset(subject, actor,
+                    T_ao = sample_redundancy_offset(subject, actor, show_state=show_state,
                                                     binding_sampler=binding_sampler, 
                                                     redundancy_sampler=redundancy_sampler)
                     T_pose = np.matmul(actor.get_tf_handle(home_dict), T_ao)
@@ -78,20 +107,25 @@ def get_stable_gen_rnb(body_subject_map, body_actor_map, home_dict, fixed=[],
                     pose = None
                     break
 
+                set_pose(body, pose)
                 if (pose is None) or any(pairwise_collision(body, b) for b in fixed):
+                    # fail_count += 1
+                    # if fail_count>10:
+                    #     yield None
                     continue
+                fail_count=0
                 body_pose = BodyPose(body, pose)
             yield (body_pose,)
     return gen
 
 
-def sample_grasps(body_subject_map, body, actor, sample_count=SAMPLE_GRASP_COUNT_DEFAULT,
+def sample_grasps(body_subject_map, body, actor, sample_count=SAMPLE_GRASP_COUNT_DEFAULT, show_state=False,
                   binding_sampler=random.choice, redundancy_sampler=random.uniform):
     with GlobalTimer.instance().block("sample_grasps_{}".format(body)):
         subject = body_subject_map[body]
         grasps = []
         for _ in range(sample_count):
-            T_ao = sample_redundancy_offset(subject, actor, 
+            T_ao = sample_redundancy_offset(subject, actor, show_state=show_state,
                                             binding_sampler=binding_sampler, 
                                             redundancy_sampler=redundancy_sampler)
             T_lo = np.matmul(actor.Toff_lh, T_ao)
@@ -182,10 +216,13 @@ def add_gtem_fam_to_pybullet(root_name, gtem_list, fixed_base=False, robot_body=
             continue
         color = gtem.color
         geom = {}
-        T_child = gtem.get_tf(list2dict(get_configuration(robot_body), gtem.gscene.joint_names))
-        pose = (T_child[:3, 3], Rotation.from_dcm(T_child[:3, :3]).as_quat())
         if gtem.name == root_name:
-            pose_base = pose
+            T_base = gtem.get_tf(list2dict(get_configuration(robot_body), gtem.gscene.joint_names))
+            pose_base = (T_base[:3, 3], Rotation.from_dcm(T_base[:3, :3]).as_quat())
+            T_child = SE3(np.identity(3), (0,)*3)
+            pose = (T_child[:3, 3], Rotation.from_dcm(T_child[:3, :3]).as_quat())
+        else:
+            pose = (gtem.center_child, Rotation.from_dcm(gtem.orientation_mat_child).as_quat())
         if gtem.gtype == GEOTYPE.BOX:
             geom['shapeType'] = pybullet.GEOM_BOX
             geom['halfExtents'] = np.divide(gtem.dims, 2).tolist()
@@ -268,3 +305,54 @@ def pscene_to_pybullet(pscene, urdf_pybullet_path, tool_name = None, name_exclud
             print("[WARING] non-object subject not implemented for now")
 
     return robot_body, body_names, movable_bodies
+
+def bps2traj(body_paths):
+    traj = []
+    for bp in body_paths:
+        traj += list(bp.path)
+    return np.array(traj)
+
+def play_pddl_plan(pscene, gripper, initial_state, body_names, plan, SHOW_PERIOD=0.01):
+    gscene = pscene.gscene
+    pscene.set_object_state(initial_state)
+    gscene.update_markers_all()
+    gscene.show_pose(initial_state.Q)
+
+    for action in plan:
+        if action.name == "move_free":
+            traj = bps2traj(action.args[-1].body_paths)
+            gscene.show_motion(traj, period=SHOW_PERIOD)
+
+        if action.name == "pick":
+            bid = action.args[0]
+            tar_obj = body_names[bid]
+            traj = bps2traj(action.args[-1].body_paths[:1])
+            traj_rev = bps2traj(action.args[-1].body_paths[-1:])
+            gscene.show_motion(np.array(traj), period=SHOW_PERIOD)
+            T_obj = T_xyzquat(action.args[1].value)
+            q_e = np.array(traj[-1])
+            T_bgl = np.matmul(gripper.geometry.get_tf(list2dict(q_e, gscene.joint_names)), SE3_inv(gripper.geometry.Toff))
+            T_lgo = np.matmul(SE3_inv(T_bgl), T_obj)
+            obj_pscene = pscene.subject_dict[tar_obj]
+            obj_pscene.set_state(binding=(tar_obj, None, gripper.geometry.name, gripper.name),
+                             state_param=(gripper.geometry.link_name, T_lgo))
+            gscene.show_motion(np.array(traj_rev), period=SHOW_PERIOD)
+
+        if action.name == "move_holding":
+            traj = bps2traj(action.args[-1].body_paths)
+            gscene.show_motion(traj, period=SHOW_PERIOD)
+
+        if action.name == "place":
+            bid = action.args[0]
+            tar_obj = body_names[bid]
+            traj = bps2traj(action.args[-1].body_paths[:1])
+            traj_rev = bps2traj(action.args[-1].body_paths[-1:])
+            q_s = traj[0]
+            T_obj = T_xyzquat(action.args[1].value)
+            T_obj = np.matmul(SE3_inv(get_tf("base_link", list2dict(q_s, gscene.joint_names), gscene.urdf_content)), T_obj)
+            obj_pscene = pscene.subject_dict[tar_obj]
+            gscene.show_motion(np.array(traj), period=SHOW_PERIOD)
+            obj_pscene.set_state(binding=(tar_obj, None, None, None),
+                             state_param=("base_link", T_obj))
+            gscene.show_motion(np.array(traj_rev), period=SHOW_PERIOD)
+

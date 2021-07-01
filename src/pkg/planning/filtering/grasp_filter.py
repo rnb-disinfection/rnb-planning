@@ -10,6 +10,9 @@ from ...utils.utils import GlobalTimer
 # @class    GraspChecker
 # @brief    grasp checker
 class GraspChecker(MotionFilterInterface):
+
+    BEFORE_IK = True
+
     ##
     # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
     # @param put_banned GeometryItem list to indicate area where not to put object

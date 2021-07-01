@@ -107,7 +107,7 @@ class Latticizer_py:
     # @brief update colliding cell indexes with geomerty list
     # @param vertices_radius_list [(vertices, radius), ... ]
     # @param Tref reference coodinate
-    def convert_vertices(self, vertinfo_list, Qdict, Tref=None):
+    def convert_vertices(self, vertinfo_list, Tref=None):
         if Tref is not None:
             Tref_inv = SE3_inv(Tref)
         else:

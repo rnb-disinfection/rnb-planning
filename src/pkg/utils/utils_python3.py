@@ -97,6 +97,16 @@ class GlobalTimer(Singleton):
             return dt
 
     ##
+    # @brief    get current time and estimated time arrival
+    # @param    name    name of the section to record time
+    # @param    current current index recommanded to start from 1
+    # @param    end     last index
+    # @return   (current time, eta)
+    def eta(self, name, current, end):
+        dt = self.toc(name, stack=False)
+        return dt, (dt / current * end if current != 0 else 0)
+
+    ##
     # @brief    record and start next timer in a line.
     def toctic(self, name_toc, name_tic, stack=None):
         dt = self.toc(name_toc, stack=stack)
@@ -345,3 +355,18 @@ def cart2cyl(x, y, z):
 
 def sigmoid(x):
     return 1 / (1 +np.exp(-x))
+
+##
+# @brief    print confusion matrix
+# @remark   rows: ground truth, cols: prediction
+def print_confusion_mat(GT, Res):
+    TP = np.sum(np.logical_and(GT, Res))
+    FN = np.sum(np.logical_and(GT, np.logical_not(Res)))
+    FP = np.sum(np.logical_and(np.logical_not(GT), Res))
+    TN = np.sum(np.logical_and(np.logical_not(GT), np.logical_not(Res)))
+    N = TP + FN + FP + TN
+    print("\t PP \t \t PN \t \t {}".format(N))
+    print("GP \t {} \t \t {} \t \t {:.2%}".format(TP, FN, float(TP) / (TP + FN)))
+    print("GN \t {} \t \t {} \t {:.2%}".format(FP, TN, float(TN) / (FP + TN)))
+    print(
+        "AL \t {:.2%} \t {:.2%} \t {:.2%}".format(float(TP) / (TP + FP), float(TN) / (TN + FN), float(TP + TN) / N))
