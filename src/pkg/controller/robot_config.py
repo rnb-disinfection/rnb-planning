@@ -8,6 +8,7 @@ class RobotType(Enum):
     indy7=0
     panda=1
     indy7gripper=2
+    indy5dof=3
 
 
 ##
@@ -48,7 +49,17 @@ class RobotSpecs:
                                        joint_limits=[(-2.75, 2.75), (-1.70, 1.70), (-2.75, 2.75),
                                                      (-2.9, -0.1), (-2.75, 2.75), (0.1, 3.6), (-2.75, 2.75)],
                                        vel_limits=np.deg2rad([150, 150, 150, 150, 180, 180, 180])/2,
-                                       acc_limits=np.deg2rad([180]*7)/2)
+                                       acc_limits=np.deg2rad([180]*7)/2),
+        RobotType.indy5dof: RobotTemplate(robot_name='indy', base_name="link0", tip_name="tcp",
+                                       joint_names=["joint{}".format(idx) for idx in range(6)],
+                                       home_pose=[0, 0, -np.pi / 2, 0, -np.pi / 2, 0],
+                                       joint_limits=[(-np.pi*2/3, np.pi*2/3), (-np.pi/2, np.pi/2)] \
+                                       # joint_limits=[(-3.05432619099, 3.05432619099)]*2 \
+                                                    +[(-3.05432619099, 3.05432619099)] \
+                                                    +[(-0, 0)] \
+                                                    +[(-3.75245789179, 3.75245789179)]*3,
+                                       vel_limits=np.deg2rad([150, 150, 150, 180, 180, 180])/2,
+                                       acc_limits=np.deg2rad([180]*6)/2),
     }
 
     @classmethod
