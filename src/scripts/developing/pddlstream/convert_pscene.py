@@ -24,7 +24,7 @@ import rospkg
 rospack = rospkg.RosPack()
 
 from pkg.planning.constraint.constraint_common import combine_redundancy, sample_redundancy, calc_redundancy
-from primitives_pybullet import update_grasp_info, GraspInfo, pairwise_collision, BodyPose, sample_placement
+from primitives_pybullet import update_grasp_info, GraspInfo, pairwise_collision, BodyPose, sample_placement, BodyGrasp
 import random
 
 SAMPLE_GRASP_COUNT_DEFAULT = 10
@@ -44,7 +44,7 @@ def add_handle_axis(hl_key, handle, Toff=None, color=None, dims=(0.10, 0.01, 0.0
 
 ##
 # @brief return offset from actor coordinate to object coordinate
-def sample_redundancy_offset(subject, actor, drop_downward_dir=[0,1,0], show_state=False,
+def sample_redundancy_offset(subject, actor, drop_downward_dir=None, show_state=False,
                              binding_sampler=random.choice, redundancy_sampler=random.uniform):
     if show_state:
         subject.geometry.gscene.clear_highlight()
@@ -65,23 +65,24 @@ def sample_redundancy_offset(subject, actor, drop_downward_dir=[0,1,0], show_sta
         else:
             T_hgo = np.matmul(SE3_inv(handle.geometry.Toff), subject.geometry.Toff)
             T_ao = np.matmul(T_ahg, T_hgo)
-        if show_state:
-            T_ha = np.matmul(SE3(Rot_rpy(rpy_add_handle), point_add_handle), SE3_inv(T_ah))
+
+        kwargs = {}
+        pass_this = False
         if drop_downward_dir is not None:
-            if show_state:
-                if actor.geometry.link_name == "base_link":
-                    add_handle_axis("sro", actor, Toff=SE3_inv(T_ha), color=(1,0,0,0.5), dims=(0.07, 0.005, 0.005))
-                else:
-                    add_handle_axis("sro", handle, Toff=T_ha, color=(1,0,0,0.5), dims=(0.07, 0.005, 0.005))
             dropvec = np.matmul(T_ao[:3,:3].transpose(), drop_downward_dir)
             if dropvec[2] < 0:
-                continue
+                kwargs, pass_this = dict(color=(1,0,0,0.5), dims=(0.07, 0.005, 0.005)), True
+
         if show_state:
+            T_ha = np.matmul(SE3(Rot_rpy(rpy_add_handle), point_add_handle), SE3_inv(T_ah))
             if actor.geometry.link_name == "base_link":
-                add_handle_axis("sro", actor, Toff=SE3_inv(T_ha))
+                add_handle_axis("sro_{}".format(i_s), actor, Toff=SE3_inv(T_ha), **kwargs)
             else:
-                add_handle_axis("sro", handle, Toff=T_ha)
-            time.sleep(0.5)
+                add_handle_axis("sro_{}".format(i_s), handle, Toff=T_ha, **kwargs)
+            if not pass_this:
+                time.sleep(0.5)
+        if pass_this:
+            continue
         break
     return T_ao
 
@@ -99,7 +100,8 @@ def get_stable_gen_rnb(body_subject_map, body_actor_map, home_dict, fixed=[], sh
             with GlobalTimer.instance().block("get_stable_{}_{}".format(body, surface)):
                 if rnb_style:
                     T_ao = sample_redundancy_offset(subject, actor, show_state=show_state,
-                                                    binding_sampler=binding_sampler, 
+                                                    binding_sampler=binding_sampler,
+                                                    drop_downward_dir=[0, 1, 0],
                                                     redundancy_sampler=redundancy_sampler)
                     T_pose = np.matmul(actor.get_tf_handle(home_dict), T_ao)
                     pose = T2xyzquat(T_pose)
@@ -118,6 +120,29 @@ def get_stable_gen_rnb(body_subject_map, body_actor_map, home_dict, fixed=[], sh
             yield (body_pose,)
     return gen
 
+
+
+def get_grasp_gen_rnb(body_subject_map, robot, tool_link_name, actor,
+                      sample_count=SAMPLE_GRASP_COUNT_DEFAULT, show_state=False,
+                      binding_sampler=random.choice, redundancy_sampler=random.uniform,
+                      approach_pose=Pose(0.05 * Point(z=-1))):
+    tool_link = link_from_name(robot, tool_link_name)
+    def gen(body):
+        subject = body_subject_map[body]
+        for _ in range(sample_count):
+            with GlobalTimer.instance().block("sample_grasps_{}".format(body)):
+                T_ao = sample_redundancy_offset(subject, actor, show_state=show_state,
+                                                binding_sampler=binding_sampler,
+                                                drop_downward_dir=[0, 1, 0],
+                                                redundancy_sampler=redundancy_sampler)
+                T_lo = np.matmul(actor.Toff_lh, T_ao)
+                point, euler = T2xyzrpy(T_lo)
+                if np.linalg.norm(point) > 0.4:
+                    print("strange here")
+                body_grasp = BodyGrasp(body, Pose(point=point, euler=euler),
+                                       approach_pose, robot, tool_link)
+            yield (body_grasp,)
+    return gen
 
 def sample_grasps(body_subject_map, body, actor, sample_count=SAMPLE_GRASP_COUNT_DEFAULT, show_state=False,
                   binding_sampler=random.choice, redundancy_sampler=random.uniform):

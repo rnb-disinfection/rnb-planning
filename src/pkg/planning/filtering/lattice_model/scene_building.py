@@ -289,48 +289,48 @@ def add_object(pscene, obj, HANDLE_THICKNESS=1e-6, HANDLE_COLOR = (1,0,0,0.3)):
     GRIP_DEPTH = obj.GRIP_DEPTH
     handles = []
     handles.append(
-        gscene.create_safe(gtype=GEOTYPE.BOX, name="hdl_tp_a", link_name="base_link", 
+        gscene.create_safe(gtype=GEOTYPE.BOX, name=obj.name+"_hdl_tp_a", link_name="base_link",
                        dims=(obj.DIM[1], GRIP_DEPTH, HANDLE_THICKNESS), center=(0,0,obj.DIM[2]/2-GRIP_DEPTH/2), rpy=(np.pi/2,0,np.pi/2), 
                            color=HANDLE_COLOR, display=True, collision=False, fixed=False,
                        parent=obj.name)
     )
 
     handles.append(
-        gscene.create_safe(gtype=GEOTYPE.BOX, name="hdl_tp_b", link_name="base_link", 
+        gscene.create_safe(gtype=GEOTYPE.BOX, name=obj.name+"_hdl_tp_b", link_name="base_link",
                        dims=(obj.DIM[1], GRIP_DEPTH, HANDLE_THICKNESS), center=(0,0,obj.DIM[2]/2-GRIP_DEPTH/2), rpy=(np.pi/2,0,-np.pi/2), 
                            color=HANDLE_COLOR, display=True, collision=False, fixed=False,
                        parent=obj.name)
     )
 
     handles.append(
-        gscene.create_safe(gtype=GEOTYPE.BOX, name="hdl_ft_a", link_name="base_link", 
+        gscene.create_safe(gtype=GEOTYPE.BOX, name=obj.name+"_hdl_ft_a", link_name="base_link",
                        dims=(obj.DIM[2], GRIP_DEPTH,HANDLE_THICKNESS), center=(0,obj.DIM[1]/2-GRIP_DEPTH/2,0), rpy=(0,np.pi/2,0), 
                            color=HANDLE_COLOR, display=True, collision=False, fixed=False,
                        parent=obj.name)
     )
 
     handles.append(
-        gscene.create_safe(gtype=GEOTYPE.BOX, name="hdl_ft_b", link_name="base_link", 
+        gscene.create_safe(gtype=GEOTYPE.BOX, name=obj.name+"_hdl_ft_b", link_name="base_link",
                        dims=(obj.DIM[2], GRIP_DEPTH,HANDLE_THICKNESS), center=(0,obj.DIM[1]/2-GRIP_DEPTH/2,0), rpy=(0,-np.pi/2,0), 
                            color=HANDLE_COLOR, display=True, collision=False, fixed=False,
                        parent=obj.name)
     )
 
     handles.append(
-        gscene.create_safe(gtype=GEOTYPE.BOX, name="hdl_bk_a", link_name="base_link", 
+        gscene.create_safe(gtype=GEOTYPE.BOX, name=obj.name+"_hdl_bk_a", link_name="base_link",
                        dims=(obj.DIM[2], GRIP_DEPTH,HANDLE_THICKNESS), center=(0,-obj.DIM[1]/2+GRIP_DEPTH/2,0), rpy=(-np.pi,-np.pi/2,0), 
                        color=HANDLE_COLOR, display=True, collision=False, fixed=False,
                    parent=obj.name)
     )
 
     handles.append(
-        gscene.create_safe(gtype=GEOTYPE.BOX, name="hdl_bk_b", link_name="base_link", 
+        gscene.create_safe(gtype=GEOTYPE.BOX, name=obj.name+"_hdl_bk_b", link_name="base_link",
                        dims=(obj.DIM[2], GRIP_DEPTH,HANDLE_THICKNESS), center=(0,-obj.DIM[1]/2+GRIP_DEPTH/2,0), rpy=(-np.pi,+np.pi/2,0), 
                            color=HANDLE_COLOR, display=True, collision=False, fixed=False,
                        parent=obj.name)
     )
 
-    action_points_dict = {"placement": PlacePoint("placement", obj.geometry, [0,0,-obj.DIM[2]/2-obj.CLEARANCE], [0,0,0])}
+    action_points_dict = {"placement": PlacePoint(obj.name+"_placement", obj.geometry, [0,0,-obj.DIM[2]/2-obj.CLEARANCE], [0,0,0])}
     action_points_dict.update({handle.name: Grasp2Point(handle.name, handle, None, (0,0,0)) for handle in handles})
     obj_pscene = pscene.create_subject(oname=obj.name, gname=obj.name, _type=CustomObject, 
                                  action_points_dict=action_points_dict)

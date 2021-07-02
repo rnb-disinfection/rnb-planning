@@ -87,15 +87,17 @@ def pddlstream_from_problem_rnb(pscene, robot, body_names, Q_init, goal_pairs=[]
             #             ('Cooked', body),
     APPROACH_VEC = 0.05 * Point(z=-1)
     actor = pscene.actor_dict[tool_name]
-    update_grasp_info({tool_name: GraspInfo(
-        lambda body: sample_grasps(body_subject_map=body_subject_map, body=body, actor=actor,
-                                   sample_count=grasp_sample, show_state=show_state),
-        approach_pose=Pose(APPROACH_VEC))})
+    # update_grasp_info({tool_name: GraspInfo(
+    #     lambda body: sample_grasps(body_subject_map=body_subject_map, body=body, actor=actor,
+    #                                sample_count=grasp_sample, show_state=show_state),
+    #     approach_pose=Pose(APPROACH_VEC))})
 
     stream_map = {
         'sample-pose': from_gen_fn(get_stable_gen_rnb(body_subject_map, body_actor_map,
                                                       pscene.combined_robot.home_dict, fixed, show_state=show_state)),
-        'sample-grasp': from_gen_fn(get_grasp_gen(robot, tool_link_name=tool_link_name, grasp_name=tool_name)),
+        'sample-grasp': from_gen_fn(get_grasp_gen_rnb(body_subject_map, robot, tool_link_name, actor,
+                                                      sample_count=grasp_sample, show_state=show_state,
+                                                      approach_pose=Pose(APPROACH_VEC))),
         'inverse-kinematics': from_fn(get_ik_fn_rnb(
             pscene, body_subject_map, pscene.actor_dict[tool_name], checkers, pscene.combined_robot.home_dict,
             disabled_collisions = get_disabled_collisions(pscene.gscene, robot),

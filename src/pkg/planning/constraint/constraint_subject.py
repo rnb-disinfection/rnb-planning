@@ -128,10 +128,15 @@ class Subject:
         self.binding = (None, None, None, None)
         raise(NotImplementedError("AbstractObject is abstract class"))
 
+    ##
+    # @brief update geometries of sub-action points. You must call this after changing location of subject geometry
     def update_sub_points(self):
+        gfams = self.geometry.get_family()
         for ap in self.action_points_dict.values():     # you should update action points here
+            assert ap.geometry.name in gfams, "The geometries of action points should be in the family of subject geometry"
             ap.update_handle()
         for bp in self.sub_binders_dict.values():     # you should update action points here
+            assert bp.geometry.name in gfams, "The geometries of action points should be in the family of subject geometry"
             bp.update_handle()
 
     ##

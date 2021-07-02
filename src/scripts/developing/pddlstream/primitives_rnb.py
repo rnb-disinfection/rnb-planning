@@ -80,14 +80,14 @@ def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, too
     for fluent in fluents:
         subject = body_subject_map[fluent[1]]
         Tbase = T_xyzquat(fluent[2].value)
-        subject.geometry.set_link(base_link)
-        subject.geometry.set_offset_tf(center=Tbase[:3,3], orientation_mat=Tbase[:3,:3])
+        subject.set_state(binding=(subject.oname, None, None, None),
+                          state_param=(base_link, Tbase))
 
     if grasp is not None:
         graspped = body_subject_map[grasp.body]
         Tgrasp = T_xyzquat(grasp.grasp_pose)
-        graspped.geometry.set_link(tool_link)
-        graspped.geometry.set_offset_tf(center=Tgrasp[:3,3], orientation_mat=Tgrasp[:3,:3])
+        graspped.set_state(binding=(graspped.oname, None, tool.geometry.name, tool.name),
+                          state_param=(tool_link, Tgrasp))
     Qcur, Qto = conf1.values, conf2.values
     from_state = pscene.initialize_state(np.array(Qcur))
     if show_state:
@@ -204,8 +204,8 @@ def check_feas(pscene, body_subject_map, actor, checkers, home_dict, body, pose,
     with gtimer.block('check_feas'):
         subject = body_subject_map[body]
         Tbo = T_xyzquat(pose.value)
-        subject.geometry.set_link(base_link)
-        subject.geometry.set_offset_tf(center=Tbo[:3,3], orientation_mat=Tbo[:3,:3])
+        subject.set_state(binding=(subject.oname, None, None, None),
+                          state_param=(base_link, Tbo))
 
         Tlao = T_xyzquat(grasp.grasp_pose)
         Tboal = np.matmul(Tbo, SE3_inv(Tlao))
