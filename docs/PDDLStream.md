@@ -8,8 +8,9 @@ Original version link
 cd ~/Projects \
 && git clone --recursive https://github.com/caelan/pddlstream.git \
 && cd pddlstream \
+&& git checkout main \
 && git submodule update --init --recursive \
-&& ./FastDownward/build.py release64
+&& ./downward/build.py
 ```
 
 ## Add path to environment 
