@@ -19,6 +19,7 @@ parser.add_argument('--VISUALIZE', type=str2bool, default=False, help='to show i
 parser.add_argument('--PLAY_RESULT', type=str2bool, default=False, help='to play result')
 parser.add_argument('--TIMEOUT_MOTION', type=int, default=5, help='motion planning timeout')
 parser.add_argument('--MAX_TIME', type=int, default=100, help='TAMP timeout')
+parser.add_argument('--MAX_ITER', type=int, default=30, help='TAMP max iteration')
 parser.add_argument('--SHOW_STATE', type=str2bool, default=False, help='show intermediate states')
 
 args = parser.parse_args()
@@ -33,6 +34,7 @@ PLAY_RESULT = args.PLAY_RESULT
 TIMEOUT_MOTION = args.TIMEOUT_MOTION
 MAX_TIME = args.MAX_TIME
 SHOW_STATE = args.SHOW_STATE
+MAX_ITER = args.MAX_ITER
 
 DATA_PATH = os.path.join(os.environ['RNB_PLANNING_DIR'], "data")
 try_mkdir(DATA_PATH)
@@ -406,7 +408,7 @@ robot_body, body_names, movable_bodies = pscene_to_pybullet(
 print('Objects:', body_names)
 saver = WorldSaver()
 mplan.reset_log(True)
-problem = pddlstream_from_problem_rnb(pscene, robot_body, body_names=body_names,
+problem, ik_fun = pddlstream_from_problem_rnb(pscene, robot_body, body_names=body_names,
                                       Q_init=HOME_POSE,
                                       goal_pairs=[(obj_pscene.oname, 'gp')],
                                       movable=movable_bodies,
@@ -418,11 +420,14 @@ _, _, _, stream_map, init, goal = problem
 print('Init:', init)
 print('Goal:', goal)
 print('Streams:', str_from_object(set(stream_map)))
+ik_fun.checkout_count = 0
+ik_fun.fail_count = 0
+ik_fun.pass_count = 0
 with Profiler():
     with LockRenderer(lock=not True):
         gtimer.tic("plan")
         solution = solve(problem, algorithm='adaptive',
-                         unit_costs=False, success_cost=INF, max_time=MAX_TIME)
+                         unit_costs=False, success_cost=INF, max_time=MAX_TIME, max_iterations=MAX_ITER)
         elapsed = gtimer.toc("plan") / 1000
         saver.restore()
 print_solution(solution)
@@ -431,13 +436,16 @@ res = not any(plan is status for status in [None, False])
 move_num = len(plan) if res else 0
 plan_num = len(mplan.result_log["planning"])
 fail_num = np.sum(np.logical_not(mplan.result_log["planning"]))
-sample = {"plan_time": elapsed, "length": move_num, "MP_count": plan_num, "failed_MPs": fail_num, "success": res}
+sample = {"plan_time": elapsed, "length": move_num,
+          "IK_count": ik_fun.pass_count+ik_fun.fail_count, "failed_IKs": ik_fun.fail_count,
+          "MP_count": plan_num, "failed_MPs": fail_num,
+          "success": res}
 save_pickle(os.path.join(RESULTSET_PATH, "result_%s_%02d_%s.pkl" % (file_option, data_idx, cname)), sample)
 
 print("------- Result ({}): {} s -------".format(cname, elapsed))
 
 if VISUALIZE and PLAY_RESULT and res:
     play_pddl_plan(pscene, pscene.actor_dict["grip0"], initial_state=initial_state,
-                   body_names=body_names, plan=plan, SHOW_PERIOD=0.1)
+                   body_names=body_names, plan=plan, SHOW_PERIOD=0.01)
 
 s_builder.xcustom.clear()

@@ -278,6 +278,7 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                 pscene.gscene.show_pose(dict2list(home_dict, pscene.gscene.joint_names))
             if not check_feas(pscene, body_subject_map, actor, checkers,
                               home_dict, body, pose, grasp, base_link=base_link, show_state=show_state):
+                fn.checkout_count += 1
                 return None
             obstacles = [body] + fixed
             set_pose(body, pose.pose)
@@ -342,7 +343,9 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                 command = Command([BodyPath(robot, path),
                                    Attach(body, robot, grasp.link),
                                    BodyPath(robot, path[::-1], attachments=[grasp])])
+                fn.pass_count += 1
                 return (conf, command)
                 # TODO: holding collisions
+            fn.fail_count += 1
             return None
     return fn

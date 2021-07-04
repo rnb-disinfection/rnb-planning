@@ -92,16 +92,18 @@ def pddlstream_from_problem_rnb(pscene, robot, body_names, Q_init, goal_pairs=[]
     #                                sample_count=grasp_sample, show_state=show_state),
     #     approach_pose=Pose(APPROACH_VEC))})
 
+    ik_fun = get_ik_fn_rnb(
+        pscene, body_subject_map, pscene.actor_dict[tool_name], checkers, pscene.combined_robot.home_dict,
+        disabled_collisions=get_disabled_collisions(pscene.gscene, robot),
+        robot=robot, fixed=fixed, teleport=teleport, show_state=show_state)
+
     stream_map = {
         'sample-pose': from_gen_fn(get_stable_gen_rnb(body_subject_map, body_actor_map,
                                                       pscene.combined_robot.home_dict, fixed, show_state=show_state)),
         'sample-grasp': from_gen_fn(get_grasp_gen_rnb(body_subject_map, robot, tool_link_name, actor,
                                                       sample_count=grasp_sample, show_state=show_state,
                                                       approach_pose=Pose(APPROACH_VEC))),
-        'inverse-kinematics': from_fn(get_ik_fn_rnb(
-            pscene, body_subject_map, pscene.actor_dict[tool_name], checkers, pscene.combined_robot.home_dict,
-            disabled_collisions = get_disabled_collisions(pscene.gscene, robot),
-            robot=robot, fixed=fixed, teleport=teleport, show_state=show_state)),
+        'inverse-kinematics': from_fn(ik_fun),
         # 'plan-free-motion': from_fn(get_free_motion_gen_ori(robot, fixed, teleport)),
         # 'plan-holding-motion': from_fn(get_holding_motion_gen_ori(robot, fixed, teleport)),
         'plan-free-motion': from_fn(get_free_motion_gen_rnb(mplan, body_subject_map, robot,
@@ -120,7 +122,7 @@ def pddlstream_from_problem_rnb(pscene, robot, body_names, Q_init, goal_pairs=[]
         'TrajCollision': get_movable_collision_test(),
     }
 
-    return PDDLProblem(domain_pddl, constant_map, stream_pddl, stream_map, init, goal)
+    return PDDLProblem(domain_pddl, constant_map, stream_pddl, stream_map, init, goal), ik_fun
 
 
 def postprocess_plan(plan):

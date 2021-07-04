@@ -25,6 +25,22 @@ pip install pybullet numpy scipy \
 && pip3 install pybullet numpy scipy
 ```
 
+## Edit to strictly obey timeout
+* Go to *pddlstream/algorithms/focused.py*
+* Find the line that calls the function ***iterative_plan_streams*** (around line 177)
+* Add a new argument *time_remain=max_time-store.elapsed_time()*
+* Go to definition of ***iterative_plan_streams*** in pddlstream/algorithms/refinement.py
+* Add a new argument *time_remain=None*
+* Change the condition for failure return from
+```python
+if final_depth == 0:
+```
+to
+```python
+if final_depth == 0 or elapsed_time(start_time)>time_remain:
+```
+
+
 ## Examples
 * PR2 TAMP: `python3 -m examples.pybullet.tamp.run -viewer`
 * PR2 Cleaning and Cooking: `python3 -m examples.pybullet.pr2.run -viewer`
