@@ -103,8 +103,10 @@ class RobotConfig:
     # @param type type of robot, declared in robot_config.py
     # @param xyzrpy location of robot in tuple (xyz(m), rpy(rad))
     # @param address ip address of robot string
-    def __init__(self, idx, type, xyzrpy, address):
+    # @param specs  dictionary to describe additional characteristics
+    def __init__(self, idx, type, xyzrpy, address, specs=None):
         self.idx, self.type, self.xyzrpy, self.address = idx, type, xyzrpy, address
+        self.specs = {} if specs is None else specs
 
     ##
     # @brief get robot name + index (id for urdf)

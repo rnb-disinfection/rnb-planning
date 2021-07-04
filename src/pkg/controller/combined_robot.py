@@ -1,4 +1,5 @@
 from .trajectory_client.indy_trajectory_client import *
+from .trajectory_client.indy_trajectory_client_nosdk import *
 from .trajectory_client.panda_trajectory_client import *
 from .robot_config import *
 from collections import defaultdict
@@ -90,7 +91,11 @@ class CombinedRobot:
             if cnt:
                 if _type == RobotType.indy7:
                     if not self.robot_dict[name]:
-                        self.robot_dict[name] = IndyTrajectoryClient(server_ip=addr)
+                        if "no_sdk" in rbt.specs and rbt.specs["no_sdk"]:
+                            self.robot_dict[name] = IndyTrajectoryClientNoSDK(server_ip=addr)
+                        else:
+                            self.robot_dict[name] = IndyTrajectoryClient(server_ip=addr)
+
                 elif _type == RobotType.panda:
                     self.robot_dict[name] = PandaTrajectoryClient(*addr.split("/"))
             else:
@@ -207,7 +212,7 @@ class CombinedRobot:
     ##
     # @brief move joint with waypoints, one-by-one
     # @param trajectory numpy array (trajectory length, joint num)
-    def move_joint_traj(self, trajectory, auto_stop=True, wait_motion=True):
+    def move_joint_traj(self, trajectory, auto_stop=True, wait_motion=True, one_by_one=False):
         robots_in_act = []
         Q_init = trajectory[0]
         Q_last = trajectory[-1]
@@ -222,21 +227,24 @@ class CombinedRobot:
 
         if len(robots_in_act) == 0:
             return
-
-        for Q in trajectory:
+        if one_by_one:
             for rname, robot in robots_in_act:
-                robot.push_Q(Q[self.idx_dict[rname]])
-
-        for rname, robot in robots_in_act:
-            robot.start_tracking()
-
-        if wait_motion:
-            for rname, robot in robots_in_act:
-                robot.wait_queue_empty()
-
-            if auto_stop:
+                robot.move_joint_traj(trajectory[:, self.idx_dict[rname]], auto_stop=auto_stop, wait_motion=wait_motion)
+        else:
+            for Q in trajectory:
                 for rname, robot in robots_in_act:
-                    robot.stop_tracking()
+                    robot.push_Q(Q[self.idx_dict[rname]])
+
+            for rname, robot in robots_in_act:
+                robot.start_tracking()
+
+            if wait_motion:
+                for rname, robot in robots_in_act:
+                    robot.wait_queue_empty()
+
+                if auto_stop:
+                    for rname, robot in robots_in_act:
+                        robot.stop_tracking()
 
     ##
     # @brief execute grasping action

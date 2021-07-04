@@ -6,10 +6,10 @@ INDY_NAME = "NRMK-Indy7"
 
 
 ##
-# @class IndyTrajectoryClientNoTraj
+# @class IndyTrajectoryClientNoSDK
 # @brief    Trajectory and DCP client for Indy.
 # @remark   DCP client to use when IndySDK and Trajectory server is not available.
-class IndyTrajectoryClientNoTraj(IndyDCPClient, TrajectoryClient):
+class IndyTrajectoryClientNoSDK(IndyDCPClient, TrajectoryClient):
     def __init__(self, server_ip, *args, **kwargs):
         kwargs_indy, kwargs_otic = divide_kwargs(kwargs, IndyDCPClient.__init__, TrajectoryClient.__init__)
         if "robot_name" not in kwargs_indy:
@@ -120,7 +120,6 @@ class IndyTrajectoryClientNoTraj(IndyDCPClient, TrajectoryClient):
     # @brief Make sure the joints move to Q using the indy DCP joint_move_to function.
     # @param Q radian
     def joint_move_make_sure(self, Q, N_repeat=2):
-        self.stop_tracking()
         with self:
             for _ in range(N_repeat):
                 self.joint_move_to(np.rad2deg(Q))
