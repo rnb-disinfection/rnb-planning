@@ -1582,9 +1582,10 @@ class IndyDCPClient(object):
     def wait_for_move_finish(self):
         while self.get_robot_status()['busy']:
             pass
-        while self.get_robot_status()['movedone']:
-            print("Move finished!")
-            return True
+        while not self.get_robot_status()['movedone']:
+            pass
+        print("Move finished!")
+        return True
 
     def set_workspace(self, cmd_pos):
         if np.all(cmd_pos != 0):
