@@ -75,6 +75,7 @@ crob = CombinedRobot(robots_on_scene=[
 
 from pkg.geometry.builder.scene_builder import SceneBuilder
 
+# for data_idx in range(100):
 s_builder = SceneBuilder(None)
 
 # xyz_rpy_robots = s_builder.detect_items(level_mask=[DetectionLevel.ROBOT])
@@ -398,7 +399,8 @@ pscene.set_object_state(initial_state)
 from_state = initial_state.copy(pscene)
 
 mplan.motion_filters = checkers
-checkers_ik=[checker for checker in checkers if checker.BEFORE_IK]
+# checkers_ik=[checker for checker in checkers if checker.BEFORE_IK]
+checkers_ik=[checker for checker in checkers]
 pscene.set_object_state(initial_state)
 gscene.update()
 
@@ -434,11 +436,13 @@ print_solution(solution)
 plan, cost, evaluations = solution
 res = not any(plan is status for status in [None, False])
 move_num = len(plan) if res else 0
+plan_try = np.max([len(log_tmp) for log_tmp in mplan.result_log.values()])
 plan_num = len(mplan.result_log["planning"])
 fail_num = np.sum(np.logical_not(mplan.result_log["planning"]))
 sample = {"plan_time": elapsed, "length": move_num,
+          "IK_tot": ik_fun.checkout_count+ik_fun.pass_count+ik_fun.fail_count,
           "IK_count": ik_fun.pass_count+ik_fun.fail_count, "failed_IKs": ik_fun.fail_count,
-          "MP_count": plan_num, "failed_MPs": fail_num,
+          "MP_tot": plan_try, "MP_count": plan_num, "failed_MPs": fail_num,
           "success": res}
 save_pickle(os.path.join(RESULTSET_PATH, "result_%s_%02d_%s.pkl" % (file_option, data_idx, cname)), sample)
 
