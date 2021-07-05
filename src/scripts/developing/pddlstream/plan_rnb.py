@@ -28,11 +28,12 @@ from examples.pybullet.tamp.streams import get_cfree_approach_pose_test, get_cfr
 #######################################################
 
 def pddlstream_from_problem_rnb(pscene, robot, body_names, Q_init, goal_pairs=[], movable=[], checkers=[],
-                                tool_name=None, tool_link_name=None, mplan=None, timeout=TIMEOUT_MOTION, teleport=False,
+                                tool_name=None, tool_link_name=None, mplan=None, timeout=TIMEOUT_MOTION_DEFAULT, teleport=False,
                                 grasp_sample=SAMPLE_GRASP_COUNT_DEFAULT, show_state=False):
     print("================ MAKE PROBLEM ======================")
     print("IK checkers: {}".format([checker.__class__.__name__ for checker in checkers]))
     print("MP checkers: {}".format([checker.__class__.__name__ for checker in mplan.motion_filters]))
+    print("timeout motion : {}".format(timeout))
     print("====================================================")
     #assert (not are_colliding(tree, kin_cache))
     assert tool_link_name is not None, "tool_link_name should be passed to pddlstream_from_problem"

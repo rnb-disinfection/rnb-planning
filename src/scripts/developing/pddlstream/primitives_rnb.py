@@ -8,7 +8,7 @@ from pkg.utils.utils import *
 from pkg.planning.constraint.constraint_common import *
 from primitives_pybullet import *
 
-TIMEOUT_MOTION = 1
+TIMEOUT_MOTION_DEFAULT = 1
 
 gtimer= GlobalTimer.instance()
 
@@ -75,7 +75,7 @@ def get_matching_binder(pscene, subject, Q_dict, excludes=[]):
 
 
 def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, tool_link, approach_vec=None,
-                timeout=TIMEOUT_MOTION, base_link="base_link", show_state=False):
+                timeout=TIMEOUT_MOTION_DEFAULT, base_link="base_link", show_state=False):
     pscene = mplan.pscene
     for fluent in fluents:
         subject = body_subject_map[fluent[1]]
@@ -120,7 +120,7 @@ def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, too
         pscene.gscene.show_motion(Traj)
     return Traj, success
 
-def get_free_motion_gen_rnb(mplan, body_subject_map, robot, tool, tool_link, approach_vec, timeout=TIMEOUT_MOTION,
+def get_free_motion_gen_rnb(mplan, body_subject_map, robot, tool, tool_link, approach_vec, timeout=TIMEOUT_MOTION_DEFAULT,
                             base_link="base_link", show_state=False):
     def fn(conf1, conf2, fluents=[]):
         with GlobalTimer.instance().block("free_motion_gen"):
@@ -138,7 +138,7 @@ def get_free_motion_gen_rnb(mplan, body_subject_map, robot, tool, tool_link, app
     return fn
 
 
-def get_holding_motion_gen_rnb(mplan, body_subject_map, robot, tool, tool_link, approach_vec, timeout=TIMEOUT_MOTION,
+def get_holding_motion_gen_rnb(mplan, body_subject_map, robot, tool, tool_link, approach_vec, timeout=TIMEOUT_MOTION_DEFAULT,
                                base_link="base_link", show_state=False):
     def fn(conf1, conf2, body, grasp, fluents=[]):
         with GlobalTimer.instance().block("holding_motion_gen"):

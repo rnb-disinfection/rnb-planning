@@ -19,7 +19,7 @@ parser.add_argument('--VISUALIZE', type=str2bool, default=False, help='to show i
 parser.add_argument('--PLAY_RESULT', type=str2bool, default=False, help='to play result')
 parser.add_argument('--TIMEOUT_MOTION', type=int, default=5, help='motion planning timeout')
 parser.add_argument('--MAX_TIME', type=int, default=100, help='TAMP timeout')
-parser.add_argument('--MAX_ITER', type=int, default=30, help='TAMP max iteration')
+parser.add_argument('--MAX_ITER', type=int, default=100, help='TAMP max iteration')
 parser.add_argument('--SHOW_STATE', type=str2bool, default=False, help='show intermediate states')
 
 args = parser.parse_args()
