@@ -2,6 +2,7 @@ from abc import *
 import numpy as np
 from ...utils.utils import list2dict, GlobalTimer
 from ..constraint.constraint_common import calc_redundancy
+from collections import defaultdict
 import time
 
 __metaclass__ = type
@@ -38,7 +39,7 @@ class MotionInterface:
         self.joint_num = self.gscene.joint_num
         self.gtimer = GlobalTimer.instance()
         ## @brief log of plan results
-        self.result_log = {}
+        self.result_log = defaultdict(list)
         self.reset_log()
 
     ##
@@ -46,8 +47,7 @@ class MotionInterface:
     # @param flag_log set this value True to log filter results
     def reset_log(self, flag_log=False):
         self.flag_log = flag_log
-        self.result_log = {mfilter.__class__.__name__: [] for mfilter in self.motion_filters}
-        self.result_log["planning"] = []
+        self.result_log = defaultdict(list)
 
     ##
     # @brief (prototype) update changes in geometric scene

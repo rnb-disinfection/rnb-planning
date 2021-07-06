@@ -442,7 +442,7 @@ print_solution(solution)
 plan, cost, evaluations = solution
 res = not any(plan is status for status in [None, False])
 move_num = len(plan) if res else 0
-plan_try = np.max([len(log_tmp) for log_tmp in mplan.result_log.values()])
+plan_try = len(mplan.result_log["filter_fin"])
 plan_num = len(mplan.result_log["planning"])
 fail_num = np.sum(np.logical_not(mplan.result_log["planning"]))
 sample = {"plan_time": elapsed, "length": move_num,
