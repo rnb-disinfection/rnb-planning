@@ -399,8 +399,8 @@ pscene.set_object_state(initial_state)
 from_state = initial_state.copy(pscene)
 
 mplan.motion_filters = checkers
-# checkers_ik=[checker for checker in checkers if checker.BEFORE_IK]
-checkers_ik=[checker for checker in checkers]
+checkers_ik=[checker for checker in checkers if checker.BEFORE_IK]
+# checkers_ik=[checker for checker in checkers]
 pscene.set_object_state(initial_state)
 gscene.update()
 
