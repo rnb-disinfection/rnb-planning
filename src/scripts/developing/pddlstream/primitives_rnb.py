@@ -110,7 +110,7 @@ def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, too
             get_tf(to_link=actor.geometry.link_name, from_link=subject.geometry.link_name,
                    joint_dict=Qto_dict, urdf_content=pscene.gscene.urdf_content)]
         res = run_checkers(mplan.motion_filters, actor, subject, Tloal_list,
-                     Q_dict=list2dict(Qcur, pscene.gscene.joint_names), show_state=show_state)
+                     Q_dict=list2dict(Qcur, pscene.gscene.joint_names), show_state=show_state, mplan=mplan)
     if res:
         Traj, LastQ, error, success, binding_list = mplan.plan_transition(
             from_state, to_state, {}, timeout=timeout, show_state=show_state)
@@ -237,14 +237,20 @@ def check_feas(pscene, body_subject_map, actor, checkers, home_dict, body, pose,
                 pscene.gscene.update_marker(ig_tem)
     return res
 
-def run_checkers(checkers, actor, subject, Tloal_list, Q_dict, ignore=[], show_state=False):
+def run_checkers(checkers, actor, subject, Tloal_list, Q_dict, ignore=[], show_state=False, mplan=None):
     res = True
     for i_c, checker in enumerate(checkers):
-        with gtimer.block(checker.__class__.__name__):
-            for Tloal in Tloal_list:
-                if not checker.check_T_loal(actor, subject, Tloal, Q_dict, ignore=ignore):
-                    res = False
-                    break
+        fname = checker.__class__.__name__
+        flag_log = mplan is not None and mplan.flag_log
+        if flag_log:
+            mplan.gtimer.tic(fname)
+        for Tloal in Tloal_list:
+            if not checker.check_T_loal(actor, subject, Tloal, Q_dict, ignore=ignore):
+                res = False
+                break
+        if flag_log:
+            mplan.gtimer.toc(fname)
+            mplan.result_log[fname].append(res)
         if not res:
             break
     if show_state:
