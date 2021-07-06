@@ -21,6 +21,8 @@ parser.add_argument('--TIMEOUT_MOTION', type=int, default=5, help='motion planni
 parser.add_argument('--MAX_TIME', type=int, default=100, help='TAMP timeout')
 parser.add_argument('--MAX_ITER', type=int, default=100, help='TAMP max iteration')
 parser.add_argument('--SHOW_STATE', type=str2bool, default=False, help='show intermediate states')
+parser.add_argument('--MAX_SKELETONS', type=int, default=10, help='maximum number of skeletons to consider')
+parser.add_argument('--SEARCH_SAMPLE_RATIO', type=int, default=10, help='the desired ratio of sample time / search time when max_skeletons!=None')
 
 args = parser.parse_args()
 rtype = args.rtype
@@ -35,6 +37,9 @@ TIMEOUT_MOTION = args.TIMEOUT_MOTION
 MAX_TIME = args.MAX_TIME
 SHOW_STATE = args.SHOW_STATE
 MAX_ITER = args.MAX_ITER
+MAX_SKELETONS=args.MAX_SKELETONS
+SEARCH_SAMPLE_RATIO=args.SEARCH_SAMPLE_RATIO
+
 
 DATA_PATH = os.path.join(os.environ['RNB_PLANNING_DIR'], "data")
 try_mkdir(DATA_PATH)
@@ -429,7 +434,8 @@ with Profiler():
     with LockRenderer(lock=not True):
         gtimer.tic("plan")
         solution = solve(problem, algorithm='adaptive',
-                         unit_costs=False, success_cost=INF, max_time=MAX_TIME, max_iterations=MAX_ITER)
+                         unit_costs=False, success_cost=INF, max_time=MAX_TIME, max_iterations=MAX_ITER,
+                         max_skeletons=MAX_SKELETONS, search_sample_ratio=SEARCH_SAMPLE_RATIO)
         elapsed = gtimer.toc("plan") / 1000
         saver.restore()
 print_solution(solution)
