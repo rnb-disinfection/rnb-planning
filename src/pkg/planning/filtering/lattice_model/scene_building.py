@@ -330,7 +330,7 @@ def add_object(pscene, obj, HANDLE_THICKNESS=1e-6, HANDLE_COLOR = (1,0,0,0.3)):
                        parent=obj.name)
     )
 
-    action_points_dict = {"placement": PlacePoint(obj.name+"_placement", obj.geometry, [0,0,-obj.DIM[2]/2-obj.CLEARANCE], [0,0,0])}
+    action_points_dict = {obj.name+"_placement": PlacePoint(obj.name+"_placement", obj.geometry, [0,0,-obj.DIM[2]/2-obj.CLEARANCE], [0,0,0])}
     action_points_dict.update({handle.name: Grasp2Point(handle.name, handle, None, (0,0,0)) for handle in handles})
     obj_pscene = pscene.create_subject(oname=obj.name, gname=obj.name, _type=CustomObject, 
                                  action_points_dict=action_points_dict)
