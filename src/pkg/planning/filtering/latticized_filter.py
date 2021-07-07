@@ -104,7 +104,7 @@ class LatticedChecker(MotionFilterInterface):
     # @param redundancy_values calculated redundancy values in dictionary format {(object name, point name): (xyz, rpy)}
     # @param Q_dict joint configuration in dictionary format {joint name: radian value}
     # @param interpolate    interpolate path and check intermediate poses
-    def check(self, actor, obj, handle, redundancy_values, Q_dict, interpolate=False):
+    def check(self, actor, obj, handle, redundancy_values, Q_dict, interpolate=False, **kwargs):
         point_add_handle, rpy_add_handle = redundancy_values[(obj.oname, handle.name)]
         point_add_actor, rpy_add_actor = redundancy_values[(obj.oname, actor.name)]
         T_handle_lh = np.matmul(handle.Toff_lh, SE3(Rot_rpy(rpy_add_handle), point_add_handle))
