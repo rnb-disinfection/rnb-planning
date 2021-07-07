@@ -87,7 +87,7 @@ def pddlstream_from_problem_rnb(pscene, robot, body_names, Q_init, goal_pairs=[]
             # ('On', body, fixed[2]),
             # ('Cleaned', body),
             #             ('Cooked', body),
-    APPROACH_VEC = 0.05 * Point(z=-1)
+    APPROACH_VEC = 0.00 * Point(z=-1)
     actor = pscene.actor_dict[tool_name]
     # update_grasp_info({tool_name: GraspInfo(
     #     lambda body: sample_grasps(body_subject_map=body_subject_map, body=body, actor=actor,
