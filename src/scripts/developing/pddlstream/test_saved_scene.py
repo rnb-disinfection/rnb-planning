@@ -14,7 +14,8 @@ parser.add_argument('--dat_dir', type=str, help='data folder name')
 parser.add_argument('--file_option', type=str, help='data file name option')
 parser.add_argument('--data_idx', type=int, help='data file index')
 parser.add_argument('--cname', type=str, help='checker type')
-parser.add_argument('--GRASP_SAMPLE', type=int, default=10, help='number of grasp to sample at once')
+parser.add_argument('--GRASP_SAMPLE', type=int, default=100, help='max. number of grasp to sample for a grasping instacee')
+parser.add_argument('--STABLE_SAMPLE', type=int, default=100, help='max. number of stable point to sample for a placement instacee')
 parser.add_argument('--VISUALIZE', type=str2bool, default=False, help='to show in RVIZ')
 parser.add_argument('--PLAY_RESULT', type=str2bool, default=False, help='to play result')
 parser.add_argument('--TIMEOUT_MOTION', type=int, default=5, help='motion planning timeout')
@@ -31,6 +32,7 @@ file_option = args.file_option
 data_idx = args.data_idx
 cname = args.cname
 GRASP_SAMPLE = args.GRASP_SAMPLE
+STABLE_SAMPLE = args.STABLE_SAMPLE
 VISUALIZE = args.VISUALIZE
 PLAY_RESULT = args.PLAY_RESULT
 TIMEOUT_MOTION = args.TIMEOUT_MOTION
@@ -421,7 +423,8 @@ problem, ik_fun = pddlstream_from_problem_rnb(pscene, robot_body, body_names=bod
                                       movable=movable_bodies,
                                       checkers=checkers_ik,
                                       tool_name=TOOL_NAME, tool_link_name=TOOL_LINK,
-                                      mplan=mplan, timeout=TIMEOUT_MOTION, grasp_sample=GRASP_SAMPLE,
+                                      mplan=mplan, timeout=TIMEOUT_MOTION,
+                                      grasp_sample=GRASP_SAMPLE, stable_sample=STABLE_SAMPLE,
                                       show_state=SHOW_STATE)
 _, _, _, stream_map, init, goal = problem
 print('Init:', init)
@@ -453,6 +456,11 @@ sample = {"plan_time": elapsed, "length": move_num,
 save_pickle(os.path.join(RESULTSET_PATH, "result_%s_%02d_%s.pkl" % (file_option, data_idx, cname)), sample)
 
 print("------- Result ({}): {} s -------".format(cname, elapsed))
+print("==========================================================")
+print("==========================================================")
+print(gtimer)
+print("==========================================================")
+print("==========================================================")
 
 if VISUALIZE and PLAY_RESULT and res:
     play_pddl_plan(pscene, pscene.actor_dict["grip0"], initial_state=initial_state,
