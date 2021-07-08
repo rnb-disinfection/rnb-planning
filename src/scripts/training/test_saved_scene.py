@@ -426,7 +426,7 @@ plan_num = len(mplan.result_log["planning"])
 fail_num = np.sum(np.logical_not(mplan.result_log["planning"]))
 sample = {"plan_time": elapsed, "length": move_num, "MP_count": plan_num, "failed_MPs": fail_num, "success": res}
 save_pickle(os.path.join(DATASET_PATH, "result_%s_%02d_%s.pkl" % (
-    file_option, i_s, CHECKER_NAMES[checker_idx])), sample)
+    file_option, data_idx, cname)), sample)
 
 print("------- Result ({}): {} s -------".format(cname, elapsed))
 print("==========================================================")
