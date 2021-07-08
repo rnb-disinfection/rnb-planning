@@ -1,0 +1,5 @@
+*.pth
+configs/
+mmcv_custom/
+mmdet/
+*.zip
