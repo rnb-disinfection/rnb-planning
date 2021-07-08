@@ -440,3 +440,5 @@ if VISUALIZE and PLAY_RESULT and res:
     ppline.play_schedule(snode_schedule, period=0.001)
 
 s_builder.xcustom.clear()
+print("------------------------ Cleared ------------------------")
+print("==========================================================")
