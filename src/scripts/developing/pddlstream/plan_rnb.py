@@ -28,11 +28,13 @@ from examples.pybullet.tamp.streams import get_cfree_approach_pose_test, get_cfr
 #######################################################
 
 def pddlstream_from_problem_rnb(pscene, robot, body_names, Q_init, goal_pairs=[], movable=[], checkers=[],
-                                tool_name=None, tool_link_name=None, mplan=None, timeout=TIMEOUT_MOTION, teleport=False,
-                                grasp_sample=SAMPLE_GRASP_COUNT_DEFAULT, show_state=False):
+                                tool_name=None, tool_link_name=None, mplan=None, timeout=TIMEOUT_MOTION_DEFAULT, teleport=False,
+                                grasp_sample=SAMPLE_GRASP_COUNT_DEFAULT, stable_sample=SAMPLE_STABLE_COUNT_DEFAULT,
+                                show_state=False):
     print("================ MAKE PROBLEM ======================")
     print("IK checkers: {}".format([checker.__class__.__name__ for checker in checkers]))
     print("MP checkers: {}".format([checker.__class__.__name__ for checker in mplan.motion_filters]))
+    print("timeout motion : {}".format(timeout))
     print("====================================================")
     #assert (not are_colliding(tree, kin_cache))
     assert tool_link_name is not None, "tool_link_name should be passed to pddlstream_from_problem"
@@ -85,7 +87,7 @@ def pddlstream_from_problem_rnb(pscene, robot, body_names, Q_init, goal_pairs=[]
             # ('On', body, fixed[2]),
             # ('Cleaned', body),
             #             ('Cooked', body),
-    APPROACH_VEC = 0.05 * Point(z=-1)
+    APPROACH_VEC = 0.00 * Point(z=-1)
     actor = pscene.actor_dict[tool_name]
     # update_grasp_info({tool_name: GraspInfo(
     #     lambda body: sample_grasps(body_subject_map=body_subject_map, body=body, actor=actor,
@@ -99,7 +101,8 @@ def pddlstream_from_problem_rnb(pscene, robot, body_names, Q_init, goal_pairs=[]
 
     stream_map = {
         'sample-pose': from_gen_fn(get_stable_gen_rnb(body_subject_map, body_actor_map,
-                                                      pscene.combined_robot.home_dict, fixed, show_state=show_state)),
+                                                      pscene.combined_robot.home_dict, fixed, show_state=show_state,
+                                                      sample_count=stable_sample)),
         'sample-grasp': from_gen_fn(get_grasp_gen_rnb(body_subject_map, robot, tool_link_name, actor,
                                                       sample_count=grasp_sample, show_state=show_state,
                                                       approach_pose=Pose(APPROACH_VEC))),

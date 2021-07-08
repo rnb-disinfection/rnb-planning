@@ -28,6 +28,7 @@ from primitives_pybullet import update_grasp_info, GraspInfo, pairwise_collision
 import random
 
 SAMPLE_GRASP_COUNT_DEFAULT = 10
+SAMPLE_STABLE_COUNT_DEFAULT = 10
 
 
 ##
@@ -88,6 +89,7 @@ def sample_redundancy_offset(subject, actor, drop_downward_dir=None, show_state=
 
 
 def get_stable_gen_rnb(body_subject_map, body_actor_map, home_dict, fixed=[], show_state=False,
+                       sample_count=SAMPLE_STABLE_COUNT_DEFAULT,
                        binding_sampler=random.choice, redundancy_sampler=random.uniform):
     def gen(body, surface):
         rnb_style = False
@@ -96,7 +98,7 @@ def get_stable_gen_rnb(body_subject_map, body_actor_map, home_dict, fixed=[], sh
             subject = body_subject_map[body]
             actor = body_actor_map[surface]
         fail_count = 0
-        while True:
+        for _ in range(sample_count):
             with GlobalTimer.instance().block("get_stable_{}_{}".format(body, surface)):
                 if rnb_style:
                     T_ao = sample_redundancy_offset(subject, actor, show_state=show_state,

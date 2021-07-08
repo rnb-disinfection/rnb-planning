@@ -104,7 +104,7 @@ class LatticedChecker(MotionFilterInterface):
     # @param redundancy_values calculated redundancy values in dictionary format {(object name, point name): (xyz, rpy)}
     # @param Q_dict joint configuration in dictionary format {joint name: radian value}
     # @param interpolate    interpolate path and check intermediate poses
-    def check(self, actor, obj, handle, redundancy_values, Q_dict, interpolate=False):
+    def check(self, actor, obj, handle, redundancy_values, Q_dict, interpolate=False, **kwargs):
         point_add_handle, rpy_add_handle = redundancy_values[(obj.oname, handle.name)]
         point_add_actor, rpy_add_actor = redundancy_values[(obj.oname, actor.name)]
         T_handle_lh = np.matmul(handle.Toff_lh, SE3(Rot_rpy(rpy_add_handle), point_add_handle))
@@ -197,7 +197,28 @@ class LatticedChecker(MotionFilterInterface):
         grasp_obj_img = np.zeros(GRASP_SHAPE)
         grasp_tool_img[np.unravel_index(grasp_tool_idx, shape=GRASP_SHAPE)] = 1
         grasp_tar_img[np.unravel_index(grasp_tar_idx, shape=GRASP_SHAPE)] = 1
-        grasp_obj_img[np.unravel_index(grasp_obj_idx, shape=GRASP_SHAPE)] = 1
+        try:
+            grasp_obj_img[np.unravel_index(grasp_obj_idx, shape=GRASP_SHAPE)] = 1
+        except Exception as e:
+            print("===== THE ERROR OCCURED!!! =====")
+            print("===== THE ERROR OCCURED!!! =====")
+            print("===== THE ERROR OCCURED!!! =====")
+            print(e)
+            print("===== grasp_obj_idx =====")
+            print(grasp_obj_idx)
+            print("===== coll_idx_dict.keys() =====")
+            print(self.ltc_effector.coll_idx_dict.keys())
+            print("===== obj_names =====")
+            print(obj_names)
+            value = raw_input("Wait key input : ")
+        # if not hasattr(LatticedChecker, "test_count"):
+        #     LatticedChecker.test_count = 0
+        # LatticedChecker.test_count += 1
+        # try_mkdir("data")
+        # np.save("data/grasp_tool_img_%04d.npy"%(LatticedChecker.test_count),grasp_tool_img)
+        # np.save("data/grasp_tar_img%04d.npy"%(LatticedChecker.test_count),grasp_tar_img)
+        # np.save("data/grasp_obj_img%04d.npy"%(LatticedChecker.test_count),grasp_obj_img)
+
         arm_img = np.zeros(ARM_SHAPE + (1,))
         arm_img[np.unravel_index(arm_tar_idx, shape=ARM_SHAPE)] = 1
         grasp_img = np.stack([grasp_tool_img, grasp_obj_img, grasp_tar_img], axis=-1)
