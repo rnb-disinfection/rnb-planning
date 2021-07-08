@@ -21,3 +21,8 @@ class MotionFilterInterface:
     @abstractmethod
     def check(self, actor, obj, handle, redundancy_values, Q_dict, interpolate=False):
         pass
+
+    ##
+    # @brief define lock if it needs lock in multiprocess calls
+    def prepare_multiprocess_lock(self, manager):
+        pass

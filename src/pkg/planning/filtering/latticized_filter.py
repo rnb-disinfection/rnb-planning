@@ -95,6 +95,15 @@ class LatticedChecker(MotionFilterInterface):
         self.shoulder_height_dict = {
             rname: get_tf(shoulder_link, self.combined_robot.home_dict, pscene.gscene.urdf_content)[2, 3]
             for rname, shoulder_link in self.shoulder_link_dict.items()}
+        self.lock = DummyBlock()
+
+    ##
+    # @brief define lock if it needs lock in multiprocess calls
+    def prepare_multiprocess_lock(self, manager):
+        if manager is not None:
+            self.lock = manager.Lock()
+        else:
+            self.lock = DummyBlock()
 
     ##
     # @brief check end-effector collision in grasping
@@ -228,14 +237,16 @@ class LatticedChecker(MotionFilterInterface):
         return res[-1]>0.5
 
     def query_wait_response(self, robot_type_name, grasp_img_batch, arm_img_batch, rh_vals_batch):
-        self.grasp_img_p_dict[robot_type_name][:] = grasp_img_batch[:]
-        self.arm_img_p_dict[robot_type_name][:] = arm_img_batch[:]
-        self.rh_vals_p_dict[robot_type_name][:] = rh_vals_batch[:]
-        self.query_in_dict[robot_type_name][0] = True
-        while not self.response_out_dict[robot_type_name][0]:
-            time.sleep(SERVER_PERIOD)
-        self.response_out_dict[robot_type_name][0] = False
-        return np.copy(self.result_p_dict[robot_type_name])
+        with self.lock:
+            self.grasp_img_p_dict[robot_type_name][:] = grasp_img_batch[:]
+            self.arm_img_p_dict[robot_type_name][:] = arm_img_batch[:]
+            self.rh_vals_p_dict[robot_type_name][:] = rh_vals_batch[:]
+            self.query_in_dict[robot_type_name][0] = True
+            while not self.response_out_dict[robot_type_name][0]:
+                time.sleep(SERVER_PERIOD)
+            self.response_out_dict[robot_type_name][0] = False
+            result = np.copy(self.result_p_dict[robot_type_name])
+        return result
 
     def quit_shared_server(self, robot_type_name):
         self.query_quit_dict[robot_type_name][0] = True

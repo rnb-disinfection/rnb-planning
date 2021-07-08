@@ -18,6 +18,7 @@ parser.add_argument('--VISUALIZE', type=str2bool, default=False, help='to show i
 parser.add_argument('--PLAY_RESULT', type=str2bool, default=False, help='to play result')
 parser.add_argument('--TIMEOUT_MOTION', type=int, default=5, help='motion planning timeout')
 parser.add_argument('--MAX_TIME', type=int, default=100, help='TAMP timeout')
+parser.add_argument('--PROC_COUNT', type=int, default=5, help='multi process count')
 
 args = parser.parse_args()
 rtype = args.rtype
@@ -29,6 +30,7 @@ VISUALIZE = args.VISUALIZE
 PLAY_RESULT = args.PLAY_RESULT
 TIMEOUT_MOTION = args.TIMEOUT_MOTION
 MAX_TIME = args.MAX_TIME
+PROC_COUNT = args.PROC_COUNT
 
 
 DATA_PATH = os.path.join(os.environ['RNB_PLANNING_DIR'], "data")
@@ -411,10 +413,14 @@ goal_nodes = [("gp",)+deepcopy(from_state.node)[1:]]
 mplan.reset_log(True)
 gtimer.tic("plan")
 ppline.search(initial_state, goal_nodes, verbose=True, display=False, dt_vis=0.01,
-              timeout_loop=MAX_TIME, multiprocess=False, timeout=TIMEOUT_MOTION)
+              timeout_loop=MAX_TIME, multiprocess=not PROC_COUNT==1, timeout=TIMEOUT_MOTION,
+              N_agents=PROC_COUNT, add_homing=False)
 elapsed = gtimer.toc("plan") / 1000
 
-schedules = ppline.tplan.find_schedules()
+for proc in ppline.proc_list:
+    proc.join()
+
+schedules = ppline.tplan.find_schedules(at_home=False)
 res = len(schedules) > 0
 if res:
     schedule = ppline.tplan.sort_schedule(schedules)[0]
@@ -436,9 +442,12 @@ print("==========================================================")
 print("==========================================================")
 
 if VISUALIZE and PLAY_RESULT and res:
+    print("==========================================================")
+    print("------------------------ Play ----------------------------")
     snode_schedule = ppline.tplan.idxSchedule2SnodeScedule(schedule)
     ppline.play_schedule(snode_schedule, period=0.001)
 
 s_builder.xcustom.clear()
 print("------------------------ Cleared ------------------------")
 print("==========================================================")
+sys.exit()

@@ -1,6 +1,6 @@
 from abc import *
 import numpy as np
-from ...utils.utils import list2dict, GlobalTimer
+from ...utils.utils import list2dict, GlobalTimer, DummyBlock
 from ..constraint.constraint_common import calc_redundancy
 from collections import defaultdict
 import time
@@ -45,9 +45,18 @@ class MotionInterface:
     ##
     # @brief reset log data and set log flag
     # @param flag_log set this value True to log filter results
-    def reset_log(self, flag_log=False):
+    def reset_log(self, flag_log=False, manager=None):
         self.flag_log = flag_log
-        self.result_log = defaultdict(list)
+        if manager is None:
+            self.result_log = defaultdict(list)
+            self.log_lock = None
+        else:
+            self.result_log = manager.dict()
+            self.log_lock = manager.Lock()
+            for mfilter in self.motion_filters:
+                self.result_log[mfilter.__class__.__name__] = []
+            self.result_log["planning"] = []
+
 
     ##
     # @brief (prototype) update changes in geometric scene
@@ -94,7 +103,13 @@ class MotionInterface:
                     success = mfilter.check(actor, obj, handle, redundancy_values, Q_dict)
                     if self.flag_log:
                         self.gtimer.toc(fname)
-                        self.result_log[fname].append(success)
+                        if self.log_lock is not None:
+                            with self.log_lock:
+                                rlog = self.result_log[fname]
+                                rlog.append(success)
+                                self.result_log[fname] = rlog
+                        else:
+                            self.result_log[fname].append(success)
                     if not success:
                         if verbose or show_state:
                             print("Motion Filer Failure: {}".format(fname))
@@ -116,7 +131,13 @@ class MotionInterface:
                                                               verbose=verbose, **kwargs)
             if self.flag_log:
                 self.gtimer.toc('planning')
-                self.result_log['planning'].append(success)
+                if self.log_lock is not None:
+                    with self.log_lock:
+                        rlog = self.result_log['planning']
+                        rlog.append(success)
+                        self.result_log['planning'] = rlog
+                else:
+                    self.result_log['planning'].append(success)
             if not success:
                 if verbose or show_state:
                     print("Motion Plan Failure")

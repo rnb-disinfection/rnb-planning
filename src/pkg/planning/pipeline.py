@@ -100,11 +100,17 @@ class PlanningPipeline:
                 self.search_counter = self.manager.Value('i', 0)
                 self.stop_now = self.manager.Value('i', 0)
                 self.tplan.initialize_memory(self.manager)
+                if self.mplan.flag_log:
+                    self.mplan.reset_log(flag_log=self.mplan.flag_log, manager=self.manager)
+                for mfilter in self.mplan.motion_filters:
+                    mfilter.prepare_multiprocess_lock(self.manager)
             else:
                 self.N_agents = 1
                 self.search_counter = SingleValue('i', 0)
                 self.stop_now =  SingleValue('i', 0)
                 self.tplan.initialize_memory(None)
+                for mfilter in self.mplan.motion_filters:
+                    mfilter.prepare_multiprocess_lock(None)
 
         with self.gtimer.block("init_search"):
             self.tplan.init_search(initial_state, goal_nodes)
