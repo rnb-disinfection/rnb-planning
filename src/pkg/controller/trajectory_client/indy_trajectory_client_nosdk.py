@@ -85,13 +85,16 @@ class IndyTrajectoryClientNoSDK(IndyDCPClient, TrajectoryClient):
         traj_wps = simplify_traj(trajectory, step_fractions=[0, 1])
 
         with self:
-            self.joint_waypoint_clean()
+            #         self.joint_waypoint_clean()
             for Q in traj_wps:
-                self.joint_waypoint_append(np.rad2deg(Q))
-            self.joint_waypoint_execute()
+                time.sleep(0.5)
+                self.wait_for_move_finish()
+                self.joint_move_to(np.rad2deg(Q))
+                # self.joint_waypoint_append(np.rad2deg(Q))
+            #         self.joint_waypoint_execute()
             time.sleep(0.5)
             self.wait_for_move_finish()
-        return traj_tot, float(len(traj_tot))/self.traj_freq
+        return traj_wps, float(len(traj_wps)) / self.traj_freq
 
     ##
     # @brief move joint with waypoints, one-by-one
@@ -100,16 +103,20 @@ class IndyTrajectoryClientNoSDK(IndyDCPClient, TrajectoryClient):
         Q_init = trajectory[0]
         Q_last = trajectory[-1]
         Q_cur = self.get_qcur()
-        assert np.max(np.abs((np.subtract(Q_init, Q_cur)))) < 5e-2, \
-            "MOVE robot to trajectory initial: current robot pose does not match with trajectory initial state"
+        # assert np.max(np.abs((np.subtract(Q_init, Q_cur)))) < 5e-2, \
+        #     "MOVE robot to trajectory initial: current robot pose does not match with trajectory initial state"
 
         traj_wps = simplify_traj(trajectory, step_fractions=[0, 1])
-
         with self:
-            self.joint_waypoint_clean()
+            #         self.joint_waypoint_clean()
             for Q in traj_wps:
-                self.joint_waypoint_append(np.rad2deg(Q))
-            self.joint_waypoint_execute()
+                time.sleep(0.5)
+                self.wait_for_move_finish()
+                self.joint_move_to(np.rad2deg(Q))
+                # self.joint_waypoint_append(np.rad2deg(Q))
+            #         self.joint_waypoint_execute()
+            time.sleep(0.5)
+            self.wait_for_move_finish()
 
         if wait_motion:
             time.sleep(0.5)
