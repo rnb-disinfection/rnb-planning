@@ -409,51 +409,26 @@ ppline.set_task_planner(tplan)
 gtimer = GlobalTimer.instance()
 gtimer.reset()
 
-goal_nodes = [("gp",)+deepcopy(from_state.node)[1:]]
-mplan.reset_log(True)
-multiproc = not PROC_COUNT==1
-gtimer.tic("plan")
-ppline.search(initial_state, goal_nodes, verbose=True, display=False, dt_vis=0.01,
-              timeout_loop=MAX_TIME, multiprocess=multiproc, timeout=TIMEOUT_MOTION,
-              N_agents=PROC_COUNT, add_homing=False)
-elapsed = gtimer.toc("plan") / 1000
+sample = load_pickle(os.path.join(RESULTSET_PATH, "result_%s_%02d_%s.pkl" % (
+    file_option, data_idx, cname)))
+snode_schedule = sample["snode_schedule"]
+ppline.play_schedule(snode_schedule, period=0.1)
 
-if multiproc:
-    last_proc = len(ppline.proc_list) - 1
-    for i_p, proc in enumerate(ppline.proc_list):
-        proc.join(TIMEOUT_MOTION*2 if i_p==last_proc else 1)
-
-schedules = ppline.tplan.find_schedules(at_home=False)
-res = len(schedules) > 0
-if res:
-    schedule = ppline.tplan.sort_schedule(schedules)[0]
-    move_num = len(schedule) - 1
-else:
-    move_num = 0
-
-if res:
-    snode_schedule = ppline.tplan.idxSchedule2SnodeScedule(schedule)
-else:
-    snode_schedule = None
-
-plan_num = len(mplan.result_log["planning"])
-fail_num = np.sum(np.logical_not(mplan.result_log["planning"]))
-sample = {"plan_time": elapsed, "length": move_num, "MP_count": plan_num, "failed_MPs": fail_num, "success": res,
-          "snode_schedule": snode_schedule}
-save_pickle(os.path.join(RESULTSET_PATH, "result_%s_%02d_%s.pkl" % (
-    file_option, data_idx, cname)), sample)
-
-print("------- Result ({}): {} s -------".format(cname, elapsed))
 print("==========================================================")
+print("---------------------- Validity --------------------------")
+valid_all = True
+for i_s, snode in enumerate(snode_schedule[1:]):
+    pscene.set_object_state(snode.state)
+    mplan.update_gscene()
+    valid = all([mplan.validate_trajectory([Q]) for Q in snode.traj])
+    valid_all = valid and valid_all
+    print("{} - {}".format(i_s, valid))
+print("---------------------- {} --------------------------".format(valid_all))
 print("==========================================================")
-print(gtimer)
+print("")
 print("==========================================================")
+print("------------------------ Play ----------------------------")
 print("==========================================================")
-
-if VISUALIZE and PLAY_RESULT and res:
-    print("==========================================================")
-    print("------------------------ Play ----------------------------")
-    ppline.play_schedule(snode_schedule, period=0.001)
 
 s_builder.xcustom.clear()
 print("------------------------ Cleared ------------------------")
