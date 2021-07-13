@@ -99,3 +99,4 @@ def stream_capture_image(img_type, host):
             if img_type == ImageType.CloseView:
                 cv2.imwrite(SAVE_DIR + '/table.jpg', rdict['color'])
                 cv2.imwrite(SAVE_DIR + '/table.png', rdict['depth'])
+    return rdict
