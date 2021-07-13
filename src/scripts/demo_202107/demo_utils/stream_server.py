@@ -8,6 +8,8 @@ import json
 import socket
 
 PORT = 8580
+DEPTHMAP_SIZE = (480, 640)
+IMAGE_SIZE = (720, 1280)
 
 def get_ip_address():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -72,11 +74,11 @@ class CameraGenerator:
         self.config = rs.config()
 
         # Set stream resolution
-        # config.enable_stream(rs.stream.depth, DEPTHMAP_SIZE[1], DEPTHMAP_SIZE[0], rs.format.z16, 30)
-        self.config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
+        config.enable_stream(rs.stream.depth, DEPTHMAP_SIZE[1], DEPTHMAP_SIZE[0], rs.format.z16, 30)
+        # self.config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
         # config.enable_stream(rs.stream.depth, 1024, 768, rs.format.z16, 30)
-        # config.enable_stream(rs.stream.color, IMAGE_SIZE[1], IMAGE_SIZE[0], rs.format.bgr8, 30)
-        self.config.enable_stream(rs.stream.color, 1280, 720, rs.format.bgr8, 30)
+        config.enable_stream(rs.stream.color, IMAGE_SIZE[1], IMAGE_SIZE[0], rs.format.bgr8, 30)
+        # self.config.enable_stream(rs.stream.color, 1280, 720, rs.format.bgr8, 30)
         # config.enable_stream(rs.stream.color, 1920, 1080, rs.format.bgr8, 30)
 
         # Start streaming

@@ -69,3 +69,33 @@ def send_recv_demo_cam(sdict, host, port=PORT, buffer_len=1024):
     finally:
         client_socket.close()
     return rdict
+
+
+from enum import Enum
+
+
+class ImageType(Enum):
+    FirstView = 1
+    CloseView = 2
+
+
+##
+# @brief press s to save image
+def stream_capture_image(img_type, host):
+    print("== press s to save image ==")
+    while True:
+        rdict = send_recv_demo_cam({1: 1}, host=host, port=PORT, buffer_len=1024)
+        cv2.imshow('ColorImage', rdict['color'])
+        cv2.imshow('DepthImage', rdict['depth'])
+
+        key = cv2.waitKey(1)
+        if (key == 27):
+            cv2.destroyAllWindows()
+            break
+        elif key == 115:
+            if img_type == ImageType.FirstView:
+                cv2.imwrite(SAVE_DIR + '/color.jpg', rdict['color'])
+                cv2.imwrite(SAVE_DIR + '/color.png', rdict['depth'])
+            if img_type == ImageType.CloseView:
+                cv2.imwrite(SAVE_DIR + '/table.jpg', rdict['color'])
+                cv2.imwrite(SAVE_DIR + '/table.png', rdict['depth'])
