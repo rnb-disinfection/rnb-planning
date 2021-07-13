@@ -277,7 +277,7 @@ class NumpyEncoder(json.JSONEncoder):
             return obj.tolist()
         return json.JSONEncoder.default(self, obj)
 
-def send_recv(sdict, host, port):
+def send_recv(sdict, host, port, buffer_len=1024):
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     client_socket.connect((host, port))
@@ -288,7 +288,7 @@ def send_recv(sdict, host, port):
         sbuff = sjson.encode()
         client_socket.sendall(sbuff)
 
-        rjson = client_socket.recv(1024)
+        rjson = client_socket.recv(buffer_len)
         # rjson = "".join(map(chr, rjson))
         rdict = json.loads(rjson)
         if rdict is None:
