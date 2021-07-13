@@ -284,16 +284,19 @@ def send_recv(sdict, host, port, buffer_len=1024):
 
     rdict = {}
     try:
-        sjson = json.dumps(sdict, cls=NumpyEncoder)
+        sjson = json.dumps(sdict, cls=NumpyEncoder, ensure_ascii = False)
         sbuff = sjson.encode()
         client_socket.sendall(sbuff)
 
         rjson = client_socket.recv(buffer_len)
-        # rjson = "".join(map(chr, rjson))
+        send_recv.rjson = rjson
         rdict = json.loads(rjson)
+        send_recv.rdict = rdict
         if rdict is None:
             rdict = {}
         rdict = {str(k): v for k,v in rdict.items()}
+    except Exception as e:
+        print(e)
     finally:
         client_socket.close()
     return rdict
