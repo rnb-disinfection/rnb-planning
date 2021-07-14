@@ -1,5 +1,6 @@
 from .trajectory_client import *
 from .indy_utils.indydcp_client import IndyDCPClient
+from .indy_utils.indy_program_maker import JsonProgramComponent
 
 INDY_DOF = 6
 INDY_NAME = "NRMK-Indy7"
@@ -16,6 +17,8 @@ class IndyTrajectoryClientNoSDK(IndyDCPClient, TrajectoryClient):
             kwargs_indy["robot_name"]="NRMK-Indy7"
         IndyDCPClient.__init__(self, *args, server_ip=server_ip, **kwargs_indy)
         TrajectoryClient.__init__(self, server_ip=self.server_ip, **kwargs_otic)
+        self.traj_vel = 1
+        self.traj_blend = 5
         with self:
             self.set_collision_level(5)
             self.set_joint_vel_level(1)
@@ -107,16 +110,15 @@ class IndyTrajectoryClientNoSDK(IndyDCPClient, TrajectoryClient):
         #     "MOVE robot to trajectory initial: current robot pose does not match with trajectory initial state"
 
         traj_wps = simplify_traj(trajectory, step_fractions=[0, 1])
+
+        # Joint Move
         with self:
-            #         self.joint_waypoint_clean()
-            for Q in traj_wps:
-                time.sleep(0.5)
-                self.wait_for_move_finish()
-                self.joint_move_to(np.rad2deg(Q))
-                # self.joint_waypoint_append(np.rad2deg(Q))
-            #         self.joint_waypoint_execute()
-            time.sleep(0.5)
-            self.wait_for_move_finish()
+            prog = JsonProgramComponent(policy=0, resume_time=2)
+            for Q in traj:
+                prog.add_joint_move_to(np.rad2deg(Q).tolist(), vel=self.traj_vel, blend=self.traj_blend)
+
+            prog_json = prog.program_done()
+            indy.set_and_start_json_program(prog_json)
 
         if wait_motion:
             time.sleep(0.5)
