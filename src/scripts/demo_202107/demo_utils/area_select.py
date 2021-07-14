@@ -53,12 +53,13 @@ def select_area(TABLE_HEIGHT, TABLE_DEPTH, TABLE_WIDTH):
             print("==========================================================")
             print("=========== TOO DEEP TABLE! CAN'T FINISH WIPING TASK =============")
             print("==========================================================")
-            raise (RuntimeError("TOO DEEP TABLE! CAN'T FINISH WIPING TASK"))
+#             raise (RuntimeError("TOO DEEP TABLE! CAN'T FINISH WIPING TASK"))
+            area_depth_obj = max(opt_depth_sort)
         else:
             area_depth_obj = TABLE_DEPTH / 2
 
     # select optimal item for the area depth
-    idx_depth = np.min(np.where(np.subtract(opt_depth_sort, area_depth_obj) > 0)[0])
+    idx_depth = np.min(np.where(np.subtract(opt_depth_sort, area_depth_obj) >= 0)[0])
     area_depth = opt_depth_sort[idx_depth]
     area_corner1, area_corner2, area_width, _ = optimal_dict[area_depth]
 
@@ -67,6 +68,8 @@ def select_area(TABLE_HEIGHT, TABLE_DEPTH, TABLE_WIDTH):
         area_width = TABLE_WIDTH
 
     # get area parameters
+    print("area_corner1: {}".format(area_corner1))
+    print("area_corner2: {}".format(area_corner2))
     corner_center = [(area_corner1[0] + area_corner2[0]) / 2, (area_corner1[1] + area_corner2[1]) / 2]
     corner_center = np.round(corner_center, 5)
     area = area_depth * area_width

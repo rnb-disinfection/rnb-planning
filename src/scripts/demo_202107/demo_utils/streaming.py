@@ -95,7 +95,7 @@ def stream_capture_image(img_type, host):
         elif key == 115:
             if img_type == ImageType.FirstView:
                 cv2.imwrite(SAVE_DIR + '/color.jpg', rdict['color'])
-                cv2.imwrite(SAVE_DIR + '/color.png', rdict['depth'])
+                cv2.imwrite(SAVE_DIR + '/depth.png', rdict['depth'])
             if img_type == ImageType.CloseView:
                 cv2.imwrite(SAVE_DIR + '/table.jpg', rdict['color'])
                 cv2.imwrite(SAVE_DIR + '/table.png', rdict['depth'])

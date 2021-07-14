@@ -154,7 +154,7 @@ def compute_ICP(model_mesh, pcd, model_center_offset):
     draw_registration_result_original_color(source, target, trans_init)
 
     print("Apply point-to-point ICP")
-    threshold = 0.10
+    threshold = 0.50
     reg_p2p = o3d.registration.registration_icp(source, target, threshold, trans_init,
                                                 o3d.registration.TransformationEstimationPointToPoint(),
                                                 o3d.registration.ICPConvergenceCriteria(max_iteration=600000))
@@ -210,11 +210,14 @@ def point_proj(T_bc, p_inliers):
     return x_bo, y_bo
 
 
+
+
 def left_corner(x_bo, y_bo):
     # for left corner
     TABLE_DIMS = np.array((0.785, 1.80, 0.735))
     TABLE_DIMS[[0, 1, 2]]
     OFF_DIR = np.array([1, -1, 1])
+    idx_edge = np.argmax(np.subtract(y_bo, x_bo))
     idx_x_min = np.argmin(x_bo)
     idx_x_max = np.argmax(x_bo)
     idx_y_min = np.argmin(y_bo)
@@ -222,26 +225,27 @@ def left_corner(x_bo, y_bo):
 
     # First, find edge in view of case 1
     # case 1
-    edge_left = np.array((x_bo[idx_y_max], y_bo[idx_y_max], -0.439))
+    edge_left = np.array((x_bo[idx_edge], y_bo[idx_edge], -0.439))
     p = np.array((x_bo[idx_x_min], y_bo[idx_x_min], -0.439))
     case = 1
     num = edge_left[0] - p[0]
     den = edge_left[1] - p[1]
-    theta = np.arctan(num / den)
+    theta = np.arctan2(num, den)
     print(y_bo[idx_y_max])
-    print(edge_left[1])
+    print(edge_left)
+    print(p)
 
-    if (edge_left[1] != y_bo[idx_y_max]):
+    if (np.linalg.norm(edge_left - p) < 0.05):
         # actually, it is case 2
         edge_left = np.array((x_bo[idx_x_min], y_bo[idx_x_min], -0.439))
         p = np.array((x_bo[idx_y_max], y_bo[idx_y_max], -0.439))
         case = 2
         num = edge_left[1] - p[1]
         den = edge_left[0] - p[0]
-        theta = np.arctan(num / den)
-
-    print(y_bo[idx_y_max])
-    print(edge_left[1])
+        theta = np.arctan2(num, den)
+        print(y_bo[idx_y_max])
+        print(edge_left)
+        print(p)
 
     T_bo = np.identity(4)
     # orientation of table
@@ -258,6 +262,7 @@ def right_corner(x_bo, y_bo):
     TABLE_DIMS = np.array((0.785, 1.80, 0.735))
     TABLE_DIMS[[0, 1, 2]]
     OFF_DIR = np.array([1, 1, 1])
+    idx_edge = np.argmax(np.subtract(np.negative(y_bo), x_bo))
     idx_x_min = np.argmin(x_bo)
     idx_x_max = np.argmax(x_bo)
     idx_y_min = np.argmin(y_bo)
@@ -265,7 +270,7 @@ def right_corner(x_bo, y_bo):
 
     # First, find edge in view of case 1
     # case 1
-    edge_right = np.array((x_bo[idx_x_min], y_bo[idx_x_min], -0.439))
+    edge_right = np.array((x_bo[idx_edge], y_bo[idx_edge], -0.439))
     p = np.array((x_bo[idx_y_max], y_bo[idx_y_max], -0.439))
     case = 1
     num = p[0] - edge_right[0]
@@ -274,7 +279,7 @@ def right_corner(x_bo, y_bo):
     print(x_bo[idx_x_min])
     print(edge_right[0])
 
-    if (edge_right[0] != x_bo[idx_x_min]):
+    if (np.linalg.norm(edge_right - p) < 0.05):
         # actually, it is case 2
         # case 2
         edge_left = np.array((x_bo[idx_y_min], y_bo[idx_y_min], -0.439))

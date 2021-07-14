@@ -6,6 +6,7 @@ from _thread import *
 import pyrealsense2 as rs
 import json
 import socket
+import argparse
 
 PORT = 8580
 DEPTHMAP_SIZE = (480, 640)
@@ -74,12 +75,12 @@ class CameraGenerator:
         self.config = rs.config()
 
         # Set stream resolution
-        config.enable_stream(rs.stream.depth, DEPTHMAP_SIZE[1], DEPTHMAP_SIZE[0], rs.format.z16, 30)
+        self.config.enable_stream(rs.stream.depth, DEPTHMAP_SIZE[1], DEPTHMAP_SIZE[0], rs.format.z16, 30)
         # self.config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
-        # config.enable_stream(rs.stream.depth, 1024, 768, rs.format.z16, 30)
-        config.enable_stream(rs.stream.color, IMAGE_SIZE[1], IMAGE_SIZE[0], rs.format.bgr8, 30)
+        # self.config.enable_stream(rs.stream.depth, 1024, 768, rs.format.z16, 30)
+        self.config.enable_stream(rs.stream.color, IMAGE_SIZE[1], IMAGE_SIZE[0], rs.format.bgr8, 30)
         # self.config.enable_stream(rs.stream.color, 1280, 720, rs.format.bgr8, 30)
-        # config.enable_stream(rs.stream.color, 1920, 1080, rs.format.bgr8, 30)
+        # self.config.enable_stream(rs.stream.color, 1920, 1080, rs.format.bgr8, 30)
 
         # Start streaming
         self.profile = self.pipeline.start(self.config)
@@ -161,13 +162,14 @@ class CameraGenerator:
 
 
 def run_server(host=None, port=PORT):
-    if host is None:
+    if host is None or host == "None":
         host = get_ip_address()
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    print('Socket created')
+    print('Socket created on: {}'.format(host))
 
+    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server_socket.bind((host, port))
-    print('Socket bind complete')
+    print('Socket bind complete on - {}:{}'.format(host, port))
 
     server_socket.listen(10)
     print('Socket now listening')
@@ -195,4 +197,9 @@ def run_server(host=None, port=PORT):
             server_socket.close()
 
 if __name__ == "__main__":
-    run_server()
+    
+    parser = argparse.ArgumentParser(description='Realsense RGBD Stream server')
+    parser.add_argument('--ip', type=str, default="None",
+                        help='(Optional) explicit host ip')
+    args = parser.parse_args()
+    run_server(host=args.ip)

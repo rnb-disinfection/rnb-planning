@@ -1,5 +1,6 @@
 from demo_config import *
 from pkg.utils.rotation_utils import *
+from pkg.planning.constraint.constraint_subject import SweepLineTask
 
 def get_jacobian(gscene, gtem, Q):
     Q_dict = list2dict(Q, gscene.joint_names)
@@ -81,7 +82,7 @@ def simplify_sweep(pscene, mplan, snode_schedule, len_traj=None):
         for i_n, (ntem1, ntem2) in enumerate(zip(snode_pre.state.node, snode.state.node)):
             if ntem1 != ntem2 and pscene.subject_type_list[i_n] == SweepLineTask:
                 if ntem1 == 1:
-                    gtem = gscene.NAME_DICT[snode.state.binding_state[i_n][-1]]
+                    gtem = pscene.gscene.NAME_DICT[snode.state.binding_state[i_n][-1]]
                     step = int(len(snode.traj) / len_traj)
                     Qlast = snode.traj[-1]
                     snode.traj = snode.traj[::step]

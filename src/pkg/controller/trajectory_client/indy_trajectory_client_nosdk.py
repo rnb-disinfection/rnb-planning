@@ -114,11 +114,11 @@ class IndyTrajectoryClientNoSDK(IndyDCPClient, TrajectoryClient):
         # Joint Move
         with self:
             prog = JsonProgramComponent(policy=0, resume_time=2)
-            for Q in traj:
+            for Q in traj_wps:
                 prog.add_joint_move_to(np.rad2deg(Q).tolist(), vel=self.traj_vel, blend=self.traj_blend)
 
             prog_json = prog.program_done()
-            indy.set_and_start_json_program(prog_json)
+            self.set_and_start_json_program(prog_json)
 
         if wait_motion:
             time.sleep(0.5)

@@ -4,6 +4,7 @@ import struct
 import socket
 import struct
 import threading
+import time
 # from pynput import keyboard
 
 SEND_UDP_IP = "192.168.0.102" # Robot IP
@@ -129,7 +130,8 @@ def udp_server_thread_func(sock):
             cur_pose_heading_q_z = recive_udp_data[2]
             cur_pose_heading_q_w = recive_udp_data[3]
             gnGoalreached = recive_udp_data[4]
-            print("send_addr:{}, x:{}, y:{}, quaternion_z:{}, quaternion_w:{}, Goal reached:{}".format(addr, round(cur_pose_x,4), round(cur_pose_y,4), round(cur_pose_heading_q_z,4), round(cur_pose_heading_q_w,4), gnGoalreached))            
+            time.sleep(0.05)
+#             print("send_addr:{}, x:{}, y:{}, quaternion_z:{}, quaternion_w:{}, Goal reached:{}".format(addr, round(cur_pose_x,4), round(cur_pose_y,4), round(cur_pose_heading_q_z,4), round(cur_pose_heading_q_w,4), gnGoalreached))            
         except socket.timeout:            
             print("socket timeout")
             continue
@@ -139,6 +141,7 @@ def udp_server_thread_func(sock):
 # @remark usage: sock, server_thread = start_mobile_udp_thread(recv_ip=ip_cur)
 def start_mobile_udp_thread(recv_ip=RECV_UDP_IP):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind((recv_ip, UDP_PORT_RECV))
     udp_server_thread = threading.Thread(target=udp_server_thread_func,args=(sock,))
     udp_server_thread.daemon = True
@@ -157,7 +160,7 @@ def get_reach_state():
 # @brief send target pose and wait until motion ends
 # @remark usage: cur_xyzw = send_pose_wait(tar_xyzw, send_ip=MOBILE_IP)
 # @param tar_xyzw tuple of 4 numbers to represent 2D location (x,y/qz,qw in xyzquat)
-def send_pose_wait(tar_xyzw, send_ip=SEND_UDP_IP):
+def send_pose_wait(sock, tar_xyzw, send_ip=SEND_UDP_IP):
     assert len(tar_xyzw)==4, "tar_xyzw should be tuple of 4 floats"
     Packet_data=tuple(tar_xyzw)
     udp_send_data = struct.pack('>ffff',*Packet_data)
