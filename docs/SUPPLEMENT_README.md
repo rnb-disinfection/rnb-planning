@@ -78,6 +78,11 @@
   ```
   curl http://repo.ros2.org/repos.key | sudo apt-key add -
   ```
+* Killing zombie network process
+  ```bash
+  netstat -lntp
+  kill -9 <PID>
+  ```
 
 
 ## Panda simulator
