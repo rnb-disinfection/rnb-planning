@@ -119,15 +119,22 @@ class PlanningPipeline:
                     proc.start()
 
             if wait_proc:
-                self.wait_procs()
+                self.wait_procs(timeout_loop+3)
         else:
             self.proc_list = []
             self.__search_loop(0, terminate_on_first, N_search, display, dt_vis, verbose, timeout_loop, **kwargs)
 
-    def wait_procs(self):
+    def wait_procs(self, timeout):
+        self.gtimer.tic("wait_procs")
+        elapsed = self.gtimer.toc("wait_procs")/1000
         for proc in self.proc_list:
             while not self.stop_now.value:
-                proc.join(timeout=0.1)
+                proc.join(timeout=0.5)
+                elapsed = self.gtimer.toc("wait_procs")/1000
+                if elapsed > timeout:
+                    break
+            if elapsed > timeout:
+                break
 
     def __search_loop(self, ID, terminate_on_first, N_search,
                       display=False, dt_vis=None, verbose=False, timeout_loop=600,

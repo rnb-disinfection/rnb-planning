@@ -59,8 +59,8 @@ CornerRev = {v.value: v for i, v in enumerate(Corners)}
 
 corner_point_dirs = {Corners.FrontLeft: np.array([-1, 1, 1]),
                      Corners.FrontRight: np.array([-1, -1, 1]),
-                     Corners.BackLeft: np.array([1, -1, 1]),
-                     Corners.BackRight: np.array([1, 1, 1])}
+                     Corners.BackRight: np.array([1, 1, 1]),
+                     Corners.BackLeft: np.array([1,- 1, 1])}
 
 corner_orientations = {Corners.FrontLeft: np.identity(3),
                        Corners.FrontRight: np.identity(3),
