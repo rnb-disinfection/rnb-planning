@@ -6,4 +6,5 @@ save_img/
 crop_img/
 test_tcp/
 exp_datasets/
+210715_datasets/
 *.zip
