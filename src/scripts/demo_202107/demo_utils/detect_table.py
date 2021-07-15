@@ -47,6 +47,7 @@ def detect_from_server(image):
 
 CONFIG_DIR = os.path.join(DEMO_DIR, "configs")
 SAVE_DIR = os.path.join(DEMO_DIR, "save_img")
+DATASET_CAM_DIR = os.path.join(DEMO_DIR, "exp_datasets")
 CROP_DIR = os.path.join(DEMO_DIR, "crop_img")
 MODEL_DIR = os.path.join(DEMO_DIR, "model_CAD")
 
@@ -106,7 +107,7 @@ def preprocessing():
                                                                                                   cam_ppx, cam_ppy),
                                                                 depth_scale=1 / __d_scale, depth_trunc=depth_thres)
 
-    o3d.visualization.draw_geometries([depth_pcd])
+    # o3d.visualization.draw_geometries([depth_pcd])
 
     # Convert point clouds to numpy array
     xyz_points = np.array(depth_pcd.points)
@@ -149,7 +150,7 @@ def preprocessing():
     #             pcd2 = pcd1
     #             pcd1 = tmp
 
-    o3d.visualization.draw_geometries([pcd_out])
+    # o3d.visualization.draw_geometries([pcd_out])
     # Do ransac fitting
     plane_model, inliers = pcd_out.segment_plane(distance_threshold=0.04,
                                                        ransac_n=7,
@@ -161,7 +162,7 @@ def preprocessing():
 
     pcd_inliers = o3d.geometry.PointCloud()
     pcd_inliers.points = o3d.utility.Vector3dVector(p_inliers)
-    o3d.visualization.draw_geometries([pcd_inliers])
+    # o3d.visualization.draw_geometries([pcd_inliers])
 
     # new_pcd_out = o3d.geometry.PointCloud()
     # new_p_inliers = []
@@ -172,26 +173,6 @@ def preprocessing():
     # new_pcd_out.points = o3d.utility.Vector3dVector(new_p_inliers)
     # o3d.visualization.draw_geometries([new_pcd_out])
     return model_mesh, pcd_inliers
-
-
-# def ransac_plane_fitting(img_path):
-#     # Find plane through ransac plane fitting
-#     depth_raw = o3d.io.read_image(img_path)
-#     depth_pcd_raw = o3d.geometry.PointCloud.create_from_depth_image(depth_raw,
-#                                                                     o3d.camera.PinholeCameraIntrinsic(cam_width,
-#                                                                                                       cam_height,
-#                                                                                                       cam_fx, cam_fy,
-#                                                                                                       cam_ppx, cam_ppy),
-#                                                                     depth_scale=1 / __d_scale)
-#
-#     plane_model, inliers = depth_pcd_raw.segment_plane(distance_threshold=0.01,
-#                                                        ransac_n=8,
-#                                                        num_iterations=2000)
-#     [a, b, c, d] = plane_model
-#     print("Coeffs of eq of fitting plane are :")
-#     print(a, b, c, d)
-#     return plane_model
-#     # print(f"Plane equation: {a:.5f}x + {b:.5f}y + {c:.5f}z + {d:.5f} = 0")
 
 
 def draw_registration_result_original_color(source, target, transformation):
@@ -222,7 +203,7 @@ def compute_ICP(model_mesh, pcd, model_center_offset):
     trans_init[0:3, 3] = center.T
     source_cpy.transform(trans_init)
     trans_init[0:3, 3] = source_cpy.get_center().T
-    draw_registration_result_original_color(source, target, trans_init)
+    # draw_registration_result_original_color(source, target, trans_init)
 
     print("Apply point-to-point ICP")
     threshold = 0.15
@@ -239,7 +220,7 @@ def compute_ICP(model_mesh, pcd, model_center_offset):
     return ICP_result
 
 
-def get_inliers(img_path, gaze_dist):
+def get_inliers(img_path):
     gaze_dist = 0.5
     depth_raw = o3d.io.read_image(img_path)
     depth_pcd_raw = o3d.geometry.PointCloud.create_from_depth_image(depth_raw,

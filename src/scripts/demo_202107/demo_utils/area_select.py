@@ -48,6 +48,7 @@ def get_division_dict(match_range_dict, DEPTH_DIV, TABLE_DIMS, TOOL_DIM, DEPTH_M
                     division_dict[depths_test] = (sweep_width, area, range_new, divisions, div_num)
     return division_dict
 
+
 class Corners(Enum):
     FrontLeft = 0
     FrontRight = 1
@@ -59,13 +60,13 @@ CornerRev = {v.value: v for i, v in enumerate(Corners)}
 
 corner_point_dirs = {Corners.FrontLeft: np.array([-1, 1, 1]),
                      Corners.FrontRight: np.array([-1, -1, 1]),
-                     Corners.BackRight: np.array([1, 1, 1]),
-                     Corners.BackLeft: np.array([1,- 1, 1])}
+                     Corners.BackLeft: np.array([1, -1, 1]),
+                     Corners.BackRight: np.array([-1, -1, 1])}
 
 corner_orientations = {Corners.FrontLeft: np.identity(3),
                        Corners.FrontRight: np.identity(3),
                        Corners.BackLeft: Rot_axis(3, np.pi),
-                       Corners.BackRight: Rot_axis(3, np.pi)}
+                       Corners.BackRight: np.identity(3)}
 
 def select_area(TABLE_HEIGHT, TABLE_DEPTH, TABLE_WIDTH):
     TABLE_HEIGHT = np.round(TABLE_HEIGHT, 3)
