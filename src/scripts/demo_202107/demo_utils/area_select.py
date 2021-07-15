@@ -3,6 +3,7 @@ from enum import Enum
 from demo_config import *
 from pkg.utils.utils import *
 from pkg.utils.rotation_utils import *
+from collections import defaultdict
 
 DATASET_DIR = os.path.join(os.environ["RNB_PLANNING_DIR"], 'data/sweep_reach')
 try_mkdir(DATASET_DIR)
@@ -49,24 +50,98 @@ def get_division_dict(match_range_dict, DEPTH_DIV, TABLE_DIMS, TOOL_DIM, DEPTH_M
     return division_dict
 
 
+def select_task_area(robot_config, TABLE_DIMS, TOOL_DIM, EE_DEPTH_OFF, EE_HEIGHT, ROBOT_Z_ANGLE,
+                     TOOL_DEPTH_MIN=0.6, TOOL_DEPTH_MAX=1.0, MARGIN=0):
+    print("reference height: {}".format(EE_HEIGHT))
+    if ROBOT_Z_ANGLE == np.pi:
+        flipper = -1
+    elif ROBOT_Z_ANGLE == 0:
+        flipper = 1
+    else:
+        raise (NotImplementedError("Unexpected robot orientation"))
+
+    sweep_data = load_sweep_data(robot_config.type.name).reshape((1,))[0]
+    range_list_dict, best_range_dict = sweep_data['range_list_dict'], sweep_data['best_range_dict']
+    heights = sorted(set([key[2] for key in best_range_dict.keys()]))
+    i_high = np.where(np.subtract(heights, EE_HEIGHT) >= 0)[0][0]
+    i_low = i_high - 1
+    h_high = heights[i_high]
+    h_low = heights[i_low]
+
+    match_range_dict_high = defaultdict(lambda: (-1e5, 1e5))
+    match_range_dict_low = defaultdict(lambda: (-1e5, 1e5))
+    match_range_all = {}
+    for key, brange in best_range_dict.items():
+        hkey = round(key[2], 4)
+        key_new = round(flipper * key[0], 4)
+        if hkey == h_low:  # get minimum range from the upper and lower layers
+            brange_new = tuple(reversed(np.multiply(flipper, brange)))
+            range_old = -np.subtract(*match_range_dict_low[key_new])
+            range_new = -np.subtract(*brange_new)
+            if range_new < range_old:
+                match_range_dict_low[key_new] = brange_new
+                match_range_all[key_new] = range_list_dict[key]
+        if hkey == h_high:  # get minimum range from the upper and lower layers
+            brange_new = tuple(reversed(np.multiply(flipper, brange)))
+            range_old = -np.subtract(*match_range_dict_high[key_new])
+            range_new = -np.subtract(*brange_new)
+            if range_new < range_old:
+                match_range_dict_high[key_new] = brange_new
+                match_range_all[key_new] = range_list_dict[key]
+
+    match_range_dict = {}
+    best_keys = set(match_range_dict_high.keys()).intersection(match_range_dict_low.keys())
+    for key in best_keys:
+        range_high = match_range_dict_high[key]
+        range_low = match_range_dict_high[key]
+        match_range_dict[key] = range_high if -np.subtract(*range_high) < -np.subtract(*range_low) else range_low
+    #
+    # # plot available area
+    # plt.figure(figsize=(15, 5))
+    # plt.subplot(1, 2, 1)
+    # plt.title("best only")
+    # for k, v in match_range_dict.items():
+    #     plt.plot(v, [k, k], '-s')
+    # plt.axis([-1, 1, 0.2, 1.1])
+    # plt.grid()
+    # plt.subplot(1, 2, 2)
+    # for k, v in match_range_all.items():
+    #     for vv in v:
+    #         plt.plot(vv, [k, k], '-o')
+    # plt.title("all ranges")
+    # plt.axis([-1, 1, 0.2, 1.1])
+    # plt.grid()
+
+    DEPTH_MIN = TOOL_DEPTH_MIN + EE_DEPTH_OFF
+    DEPTH_MAX = TOOL_DEPTH_MAX + EE_DEPTH_OFF
+    division_dict_1 = get_division_dict(match_range_dict, 1, TABLE_DIMS, TOOL_DIM,
+                                        DEPTH_MIN=DEPTH_MIN, DEPTH_MAX=DEPTH_MAX, MARGIN=MARGIN)
+    division_dict_2 = get_division_dict(match_range_dict, 2, TABLE_DIMS, TOOL_DIM,
+                                        DEPTH_MIN=DEPTH_MIN, DEPTH_MAX=DEPTH_MAX, MARGIN=MARGIN)
+
+    divisions1_sorted = sorted(division_dict_1.items(), key=lambda item_: item_[1][-1])
+    divisions2_sorted = sorted(division_dict_2.items(), key=lambda item_: item_[1][-1])
+    divisions_sorted = sorted(division_dict_1.items() + division_dict_2.items(), key=lambda item_: item_[1][-1])
+    assert len(divisions_sorted) > 0, "no available table division solution"
+
+    division_sol = divisions_sorted[0]
+    depths = division_sol[0]
+    sweep_width, (area_width, area_depth), width_range, divisions, div_num = division_sol[1]
+    corner_center = ((max(*depths) + min(*depths)) / 2 - EE_DEPTH_OFF, np.mean(width_range))
+    print("sweep depths: {}".format(depths))
+    print("divisions: {}".format(divisions))
+    return sweep_width, (area_width, area_depth), width_range, divisions, div_num, corner_center
+
 class Corners(Enum):
-    FrontLeft = 0
-    FrontRight = 1
-    BackLeft = 2
-    BackRight = 3
+    Left = 0
+    Right = 1
 
 
-CornerRev = {v.value: v for i, v in enumerate(Corners)}
+CornerSequence = [Corners.Left, Corners.Right, Corners.Left, Corners.Right]
+RotationSequence = [np.identity(3), np.identity(3), Rot_axis(3, np.pi), np.identity(3)]
 
-corner_point_dirs = {Corners.FrontLeft: np.array([-1, 1, 1]),
-                     Corners.FrontRight: np.array([-1, -1, 1]),
-                     Corners.BackLeft: np.array([1, -1, 1]),
-                     Corners.BackRight: np.array([-1, -1, 1])}
-
-corner_orientations = {Corners.FrontLeft: np.identity(3),
-                       Corners.FrontRight: np.identity(3),
-                       Corners.BackLeft: Rot_axis(3, np.pi),
-                       Corners.BackRight: np.identity(3)}
+corner_point_dirs = {Corners.Left: np.array([-1, 1, 1]),
+                     Corners.Right: np.array([-1, -1, 1])}
 
 def select_area(TABLE_HEIGHT, TABLE_DEPTH, TABLE_WIDTH):
     TABLE_HEIGHT = np.round(TABLE_HEIGHT, 3)

@@ -8,11 +8,14 @@ import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from demo_config import *
 from pkg.utils.rotation_utils import *
+from streaming import *
 import SharedArray as sa
 import numpy as np
 import cv2
 import time
 import matplotlib.pyplot as plt
+import random
+from pkg.geometry.geotype import GEOTYPE
 
 IMG_URI = "shm://color_img"
 MASK_URI = "shm://mask_img"
@@ -351,3 +354,38 @@ def right_corner(x_bo, y_bo):
     elif (case == 2):
         T_bo[:3, :3] = Rot_axis(3, deg2rad(theta))
     return T_bo
+
+def refine_plane(gscene, track, viewpoint, T_ft, Qcur, TABLE_DIMS, cn_cur, CAM_HOST, CONNECT_CAM, CONNECT_INDY, ENABLE_DETECT):
+    if CONNECT_CAM:
+        rdict = stream_capture_image(ImageType.CloseView, host=CAM_HOST)
+        set_cam_params(rdict['intrins'], rdict['depth_scale'])
+        img_path = SAVE_DIR + '/table.png'
+    else:
+        img_path = DATASET_CAM_DIR + "/table_11.png"
+
+    if ENABLE_DETECT:
+        p_inliers = get_inliers(img_path)
+
+        T_bc = viewpoint.get_tf(list2dict(Qcur, gscene.joint_names))
+        viewpoint.draw_traj_coords([Qcur])
+        x_bo, y_bo = point_proj(T_bc, p_inliers)
+
+        if cn_cur == Corners.Left:
+            T_bo = left_corner(x_bo, y_bo)
+        elif cn_cur == Corners.Right:
+            T_bo = right_corner(x_bo, y_bo)
+
+        gscene.add_highlight_axis("table", "center", link_name="base_link", center=T_bo[:3, 3],
+                                  orientation_mat=T_bo[:3, :3])
+
+    else:
+        T_bo = np.matmul(np.matmul(track.Toff, T_ft),
+                         SE3(Rot_axis(3, random.uniform(-1, 1) * np.pi / 72),
+                             np.concatenate([np.random.uniform(-0.1, 0.1, 2), [0]])
+                             ))
+
+    # geometry
+    table_front = gscene.create_safe(gtype=GEOTYPE.BOX, name="table_front", link_name="base_link",
+                                     dims=TABLE_DIMS, center=T_bo[:3, 3], rpy=Rot2rpy(T_bo[:3, :3]),
+                                     color=(0.8, 0.8, 0.8, 0.5), display=True, fixed=True, collision=False)
+    return table_front
