@@ -1,10 +1,52 @@
 import numpy as np
 from enum import Enum
 from demo_config import *
+from pkg.utils.utils import *
 from pkg.utils.rotation_utils import *
 
-dataset = np.load('scripts/demo_202107/dataset.npy', allow_pickle=True)
+DATASET_DIR = os.path.join(os.environ["RNB_PLANNING_DIR"], 'data/sweep_reach')
+try_mkdir(DATASET_DIR)
+# dataset = np.load('scripts/demo_202107/dataset.npy', allow_pickle=True)
 
+
+def load_sweep_data(robot_type_name):
+    return np.load(os.path.join(DATASET_DIR, robot_type_name+".npy"), allow_pickle=True)
+
+
+##
+# @return {depth list: (sweep_width, area, divisions, div_num)}
+def get_division_dict(match_range_dict, DEPTH_DIV, TABLE_DIMS, TOOL_DIM, DEPTH_MIN, DEPTH_MAX, MARGIN=0):
+    TABLE_DEPTH, TABLE_WIDTH, TABLE_HEIGHT = TABLE_DIMS
+    TOOL_DEPTH = TOOL_DIM[0]
+    MOTION_DEPTH =TABLE_DEPTH - TOOL_DEPTH +MARGIN
+    print("== MOTION_DEPTH: {} ==".format(MOTION_DEPTH))
+    wipe_depth = MOTION_DEPTH/DEPTH_DIV
+    print("== WIIPE_DEPTH: {} ==".format(wipe_depth))
+    depths = sorted([depth for depth in match_range_dict.keys() if DEPTH_MIN<=depth<=DEPTH_MAX])
+    division_dict = {}
+    for depth1, depth2 in combinations(depths, 2):
+        depth1, depth2 = sorted([depth1, depth2])
+        wdepth = depth2 - depth1
+        if wdepth >= wipe_depth:
+            depths_cur = [dp for dp in depths if depth1<=dp<=depth2]
+            min_swp = int(ceil(wipe_depth / TOOL_DEPTH))
+            for n_swp in range(min_swp, min_swp+2):
+                for depths_test in combinations(depths_cur, n_swp):
+                    if depths_test[-1]-depths_test[0] < wipe_depth: # total depth too shallow
+                        continue
+                    sweep_intervals = np.subtract(depths_test[1:], depths_test[:-1])
+                    if any(sweep_intervals>TOOL_DEPTH) : # too big step
+                        continue
+                    ranges_test = np.array([match_range_dict[dp_] for dp_ in depths_test])
+                    range_new = np.max(ranges_test[:,0]), np.min(ranges_test[:,1])
+                    sweep_width = -np.subtract(*range_new)-MARGIN
+                    if sweep_width <= 0: # no available sweep width
+                        continue
+                    area = sweep_width, wdepth+TOOL_DEPTH
+                    divisions = (int(ceil(TABLE_WIDTH/sweep_width)), DEPTH_DIV)
+                    div_num = np.multiply(*divisions)
+                    division_dict[depths_test] = (sweep_width, area, range_new, divisions, div_num)
+    return division_dict
 
 class Corners(Enum):
     FrontLeft = 0

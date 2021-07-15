@@ -559,4 +559,29 @@ class GeometryItem(object):
                 'dims': self.dims, 'center': center, 'rpy': rpy, 'color': self.color, 
                 'display': self.display, 'collision': self.collision, 'fixed': self.fixed, 
                 'parent': self.parent}
-        
+    ##
+    # @brief calculate jacobian for a geometry movement
+    # @param gtem   GeometryItem
+    # @param Q      current joint pose as array
+    # @param ref_link reference link to calculate pose
+    def get_jacobian(self, Q, ref_link="base_link"):
+
+        Q_dict = list2dict(Q, self.gscene.joint_names)
+        Jac = []
+        chain = self.gscene.urdf_content.get_chain(root=ref_link, tip=self.link_name)
+        for ij, jname in enumerate(self.gscene.joint_names):
+            if jname not in chain:
+                Jac.append(np.zeros(6))
+                continue
+            joint = self.gscene.urdf_content.joint_map[jname]
+            Tj = T_xyzrpy((joint.origin.xyz, joint.origin.rpy))
+            T_link = get_tf(joint.parent, Q_dict, self.gscene.urdf_content, from_link=ref_link)
+            T_bj = np.matmul(T_link, Tj)
+            zi = np.matmul(T_bj[:3, :3], joint.axis)
+            T_p = self.get_tf(Q_dict)
+            dpi = T_p[:3, 3] - T_bj[:3, 3]
+            zp = np.cross(zi, dpi)
+            Ji = np.concatenate([zp, zi])
+            Jac.append(Ji)
+        Jac = np.array(Jac).transpose()
+        return Jac

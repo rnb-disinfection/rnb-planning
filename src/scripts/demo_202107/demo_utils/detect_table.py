@@ -8,7 +8,42 @@ import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from demo_config import *
 from pkg.utils.rotation_utils import *
+import SharedArray as sa
+import numpy as np
+import cv2
+import time
+import matplotlib.pyplot as plt
 
+IMG_URI = "shm://color_img"
+MASK_URI = "shm://mask_img"
+REQ_URI = "shm://request"
+RESP_URI = "shm://response"
+
+color_img_p = None
+return_img_p = None
+request_p = None
+resp_p = None
+
+def attacth_to_server():
+    global color_img_p, return_img_p, request_p, resp_p
+    try:
+        color_img_p = sa.attach(IMG_URI)
+        return_img_p = sa.attach(MASK_URI)
+        request_p = sa.attach(REQ_URI)
+        resp_p = sa.attach(RESP_URI)
+    except Exception as e:
+        print(e)
+
+def detect_from_server(image):
+    if color_img_p is not None:
+        color_img_p[:] = image[:]
+        request_p[:] = 1
+        while not resp_p[0]:
+            time.sleep(0.01)
+        resp_p[:] = 0
+        return np.copy(return_img_p.astype(np.bool))
+    else:
+        print("Detect server not attached - call attach_to_server")
 
 CONFIG_DIR = os.path.join(DEMO_DIR, "configs")
 SAVE_DIR = os.path.join(DEMO_DIR, "save_img")

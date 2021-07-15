@@ -305,6 +305,7 @@ class PlanningPipeline:
                      for rname, idx in self.pscene.combined_robot.idx_dict.items()}
         snode_pre = snode_last
         state_pre = state_last
+        added_list = []
         for rname, diff in diff_dict.items():   # add return motion to robots not at home
             if diff:
                 rbt_idx = self.pscene.combined_robot.idx_dict[rname]
@@ -319,11 +320,13 @@ class PlanningPipeline:
                 if succ:
                     snode_next = self.tplan.connect(snode_pre, snode_next)
                     self.tplan.update(snode_pre, snode_next, succ)
+                    added_list.append(snode_next)
                     snode_pre = snode_next
                     state_pre = state_next
                 else:
                     break
                 time.sleep(0.2)
+        return added_list
 
     ##
     # @brief    optimize a SearchNode schedule

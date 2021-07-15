@@ -231,10 +231,13 @@ class TaskRRT(TaskInterface):
                                            for node_n in nodes_near
                                            if all([node_n[match_i] == node_new[match_i]
                                                    for match_i  in match_self_idx])]
-                            node_extend = self.new_node_sampler(nodes_candi)
-                            self.attempts_reseved.put((snode_new.idx, node_extend))
-                            # print("=============== try extend to goal {} -> {} =================".format(
-                            #     node_new, node_extend))
+                            try:
+                                node_extend = self.new_node_sampler(nodes_candi)
+                                self.attempts_reseved.put((snode_new.idx, node_extend))
+                                # print("=============== try extend to goal {} -> {} =================".format(
+                                #     node_new, node_extend))
+                            except Exception as e:
+                                print(e)
 
         return False
 
