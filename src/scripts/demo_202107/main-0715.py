@@ -36,7 +36,7 @@ from demo_utils.area_select import *
 
 
 CONNECT_CAM = False
-ENABLE_DETECT = False
+ENABLE_DETECT = True
 CONNECT_INDY = False
 CONNECT_MOBILE = False
 

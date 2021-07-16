@@ -7,6 +7,7 @@ import sys
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from demo_config import *
+from pkg.utils.utils import *
 from pkg.utils.rotation_utils import *
 from streaming import *
 import SharedArray as sa
@@ -16,6 +17,7 @@ import time
 import matplotlib.pyplot as plt
 import random
 from pkg.geometry.geotype import GEOTYPE
+from demo_utils.environment import Corners
 
 IMG_URI = "shm://color_img"
 MASK_URI = "shm://mask_img"
@@ -248,7 +250,7 @@ def get_inliers(img_path):
 
     pcd_inliers = o3d.geometry.PointCloud()
     pcd_inliers.points = o3d.utility.Vector3dVector(p_inliers)
-    o3d.visualization.draw_geometries([depth_pcd_raw])
+    # o3d.visualization.draw_geometries([depth_pcd_raw])
     o3d.visualization.draw_geometries([pcd_inliers])
     return p_inliers
 
