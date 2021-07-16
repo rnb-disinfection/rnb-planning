@@ -1,19 +1,5 @@
 #!/usr/bin/env python
 # coding: utf-8
-
-# ## 문제 사항
-# * 가끔 인식 부정확 - save_img/*_difficult.* 참조 - 거리 threshold 늘려서 다소 개선, 해결은 안됨
-# * 가운데 구획 필요할 수 있음 - 대응 전략
-# 
-# * 오른 쪽 view 자꾸 겨드랑이로 - 자세 약간 수정함, 너무 돌지 않도록 수정 v
-# * 툴 형상 변경 - 깊이 5cm 정도만 줄이자 에 따라 데이터 다시 수집 필요 v
-# * 작업 너비 너무 좁음 - 더 확실한 영역 데이터셋 준비 필요 v
-# * 동작 비효율적 - 일단 sweep은 task space 경로로 v
-# * 반대편 이동 정상 동작 안됨 - 해결 v
-# * 이동 후 오프셋에 따라 동작 불가능해지는 상황 발생 - 미묘한 싱귤러리티 등이 원인 - 오프셋에 따른 보정 전략 도입 v
-# * 깊이 방향도 데이터 기반으로 실제 섹션 반영 / 랜덤노이즈 테스트 v
-# * 3 칸 이상 나누기 v
-# * multiprocess lock 문제 ?
 # 
 
 # In[1]:
@@ -35,10 +21,11 @@ from demo_utils.detect_table import *
 from demo_utils.area_select import *
 
 
-CONNECT_CAM = False
+CONNECT_CAM = True
 ENABLE_DETECT = True
-CONNECT_INDY = False
-CONNECT_MOBILE = False
+CONNECT_INDY = True
+CONNECT_MOBILE = True
+SHOW_MOTION_RVIZ = False
 
 ip_cur =  get_ip_address()
 MOBILE_IP = "192.168.0.102"
@@ -222,14 +209,14 @@ if ICP_result1 is None: # test
                             [ 0.        ,  0.        ,  0.        ,  1.        ]])
 
 
-# In[8]:
+# In[7]:
 
 
 gscene.show_pose(VIEW_POSE)
 _ =viewpoint.draw_traj_coords([VIEW_POSE])
 
 
-# In[9]:
+# In[8]:
 
 
 TABLE_DIMS = np.array((T_Depth,T_Width,T_Height))
@@ -260,14 +247,12 @@ T_bo[:3,:3] = np.matmul(Roff, T_bo[:3,:3])
 gscene.add_highlight_axis("table", "center", link_name="base_link", center=T_bo[:3,3], orientation_mat=T_bo[:3,:3])
 
 # geometry 추가
-table_prev = gscene.create_safe(gtype=GEOTYPE.BOX, name="table", link_name="base_link", 
-                   dims=TABLE_DIMS, center=T_bo[:3,3], rpy=Rot2rpy(T_bo[:3,:3]), 
-                   color=(0.8,0.8,0.8,0.5), display=True, fixed=True, collision=False)
+table_prev = add_table(gscene, "table", TABLE_DIMS, T_bo, collision=False)
 
 
 # ## select task area
 
-# In[10]:
+# In[9]:
 
 
 TABLE_HEIGHT = floor_height + TABLE_DIMS[2]
@@ -280,19 +265,29 @@ sweep_width, (area_width, area_depth), width_range, divisions, div_num, corner_c
     MARGIN=MARGIN, TOOL_DEPTH_MIN=0.6, TOOL_DEPTH_MAX=1.0)
 
 
+# ## Record initial pose
+
+# In[10]:
+
+
+xyzw_home = get_xyzw_cur()
+
+
 # # Main Loop
 
-# In[11]:
+# In[56]:
 
 
 for i_cn in range(4):
     cn_cur = CornerSequence[i_cn]
     if cn_cur == Corners.Right and divisions[0]<2:
         continue
-    # i_cn = 3
+# i_cn = 3
 
 
-    # In[38]:
+    # In[57]:
+
+
     cn_cur = CornerSequence[i_cn]
     print("== Current workspace section: {}".format(cn_cur.name))
     section_size = np.concatenate([np.divide(table_prev.dims[:2],  divisions), [TRACK_THICKNESS]])
@@ -305,7 +300,7 @@ for i_cn in range(4):
 
     # ## Add table on relative target location
 
-    # In[39]:
+    # In[58]:
 
 
     track, track_face = add_track(table_prev, TABLE_HEIGHT, area_depth, area_width, corner_center)
@@ -317,26 +312,21 @@ for i_cn in range(4):
 
     # ## move mobile robot
 
-    # In[40]:
+    # In[59]:
 
 
     cur_xyzw, tar_xyzw_rd, tar_xyzw = get_relative_mobile_command(T_mm2, CONNECT_MOBILE)
-    move_mobile_robot(cur_xyzw, tar_xyzw_rd, tar_xyzw, CONNECT_MOBILE,
+    move_mobile_robot(sock_mobile, cur_xyzw, tar_xyzw_rd, tar_xyzw, MOBILE_IP, CONNECT_MOBILE,
                       move_direct=cn_cur == Corners.Right)
 
 
     # ## update table location
 
-    # In[41]:
+    # In[60]:
 
 
     ## add moved table in front of robot
-    table_front = gscene.create_safe(GEOTYPE.BOX, "table_front", "base_link",
-                                     dims=table_prev.dims,
-                                     center=T_bt[:3,3],
-                                     rpy=Rot2rpy(T_bt[:3,:3]),
-                                     color=(0.8,0.8,0.8,0.8), display=True, fixed=True, collision=True)
-
+    table_front = add_table(gscene, "table_front", TABLE_DIMS, T_bt, collision=True)
     gscene.NAME_DICT["table"].color = (0.8,0.8,0.8,0.0)
     gscene.update_markers_all()
 
@@ -345,18 +335,19 @@ for i_cn in range(4):
 
     # ### calc gaze pose
 
-    # In[42]:
+    # In[61]:
 
 
-    gaze_traj, success = calc_gaze_pose(cn_cur, mplan, table_front, viewpoint, CONNECT_INDY, GAZE_DIST=0.5)
+    gaze_traj, success = calc_gaze_pose(cn_cur, mplan, table_front, viewpoint, indy, CONNECT_INDY, GAZE_DIST=0.5)
     if success:
-        gscene.show_motion(gaze_traj)
         gaze_pose = gaze_traj[-1]
+        if SHOW_MOTION_RVIZ:
+            gscene.show_motion(gaze_traj)
 
 
     # ## Move to gaze pose
 
-    # In[43]:
+    # In[62]:
 
 
     if CONNECT_INDY:
@@ -369,7 +360,7 @@ for i_cn in range(4):
 
     # ## Refine plane
 
-    # In[44]:
+    # In[63]:
 
 
     if CONNECT_INDY:
@@ -382,14 +373,15 @@ for i_cn in range(4):
             print(e)
 
     T_bo_bak = table_front.Toff
-    table_front = refine_plane(gscene, track, viewpoint, T_ft, Qcur, TABLE_DIMS, cn_cur, CAM_HOST, CONNECT_CAM, CONNECT_INDY, ENABLE_DETECT)
+    table_front = refine_plane(gscene, track, viewpoint, T_ft, Qcur, TABLE_DIMS,
+                               True, cn_cur, CAM_HOST, CONNECT_CAM, CONNECT_INDY, ENABLE_DETECT)
     table_prev = table_front
     T_bo = table_front.Toff
 
 
     # ## adjust track
 
-    # In[45]:
+    # In[ ]:
 
 
     track = gscene.create_safe(GEOTYPE.BOX, "track", "base_link", section_size,
@@ -414,7 +406,7 @@ for i_cn in range(4):
 
     # # init planning
 
-    # In[46]:
+    # In[ ]:
 
 
     from pkg.planning.constraint.constraint_common             import sample_redundancy, combine_redundancy
@@ -429,7 +421,7 @@ for i_cn in range(4):
 
     # ## search
 
-    # In[47]:
+    # In[ ]:
 
 
     from pkg.utils.traj_utils import simplify_schedule, mix_schedule
@@ -489,7 +481,7 @@ for i_cn in range(4):
 
     # ## Refine sweep motion
 
-    # In[48]:
+    # In[ ]:
 
 
     from demo_utils.refine_sweep import simplify_sweep
@@ -499,11 +491,11 @@ for i_cn in range(4):
 
     # ## Play plan
 
-    # In[49]:
+    # In[ ]:
 
-
-    for snode_schedule in snode_schedule_all:
-        ppline.play_schedule(snode_schedule, period=0.1)
+    if SHOW_MOTION_RVIZ:
+        for snode_schedule in snode_schedule_all:
+            ppline.play_schedule(snode_schedule, period=0.1)
 
 
     # In[ ]:
@@ -514,7 +506,7 @@ for i_cn in range(4):
 
     # ## Execute plan
 
-    # In[50]:
+    # In[ ]:
 
 
     def fn_move_indy():
@@ -532,7 +524,7 @@ for i_cn in range(4):
                 indy.wait_for_move_finish()
 
 
-    # In[51]:
+    # In[ ]:
 
 
     fn_move_indy()
@@ -542,7 +534,7 @@ for i_cn in range(4):
         delta_xyzw = np.subtract(tar_xyzw, ref_xyzw)
         for i_hori in range(1,divisions[0]-1):
             tar_xyzw = delta_xyzw*i_hori + ref_xyzw
-            cur_xyzw = move_mobile_robot(cur_xyzw, tar_xyzw, tar_xyzw, CONNECT_MOBILE, move_direct=True)
+            cur_xyzw = move_mobile_robot(sock_mobile, cur_xyzw, tar_xyzw, tar_xyzw, MOBILE_IP, CONNECT_MOBILE, move_direct=True)
             fn_move_indy()
 
 
@@ -558,9 +550,24 @@ for i_cn in range(4):
 
 
 
+# # Go home after loop
+
+# In[ ]:
+
+
+cur_xyzw = get_xyzw_cur()
+cur_xyzw = move_mobile_robot(sock_mobile, cur_xyzw, xyzw_home, xyzw_home, MOBILE_IP, CONNECT_MOBILE, move_direct=False)
+
+
+# In[ ]:
+
+
+
+
+
 # ## Re-adjust location
 
-# In[30]:
+# In[26]:
 
 
 # T_bb2 = np.matmul(T_bo, SE3_inv(T_bo_bak))
@@ -661,15 +668,15 @@ for i_cn in range(4):
 # Tcur = get_tf(mplan.sweep_params[0], mplan.sweep_params[1], mplan.sweep_params[2], mplan.sweep_params[3])
 # T_tar_tool = mplan.sweep_params[-1]
 
-# ee_point = gscene.create_safe(GEOTYPE.SPHERE, "end_point", TIP_LINK, (0.01,)*3,
-#                               center=(0,0,0), rpy=(0,0,0),
+# ee_point = gscene.create_safe(GEOTYPE.SPHERE, "end_point", TIP_LINK, (0.01,)*3, 
+#                               center=(0,0,0), rpy=(0,0,0), 
 #                               color=(0.8,0.2,0.2,0.8), display=True, fixed=True, collision=False)
 
 # from_Q_dict = mplan.sweep_params[1]
 # from_Q = dict2list(from_Q_dict, gscene.joint_names)
 
 # trajectory = get_sweep_traj(mplan, brush_face.geometry, np.subtract(T_tar_tool[:3,3], Tcur[:3, 3]),
-#                             from_Q, DP=0.01, ERROR_CUT=0.01, SINGULARITY_CUT = 0.01, VISUALIZE=True,
+#                             from_Q, DP=0.01, ERROR_CUT=0.01, SINGULARITY_CUT = 0.01, VISUALIZE=True, 
 #                             VERBOSE=True)
 
 # Tnew = get_tf(mplan.sweep_params[0], list2dict(trajectory[-1], gscene.joint_names), mplan.sweep_params[2], mplan.sweep_params[3])

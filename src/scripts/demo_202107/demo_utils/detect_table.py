@@ -218,7 +218,7 @@ def compute_ICP(model_mesh, pcd, model_center_offset):
     print(reg_p2p)
     print("Transformation is:")
     print(reg_p2p.transformation)
-    draw_registration_result_original_color(source, target, reg_p2p.transformation)
+    # draw_registration_result_original_color(source, target, reg_p2p.transformation)
     ICP_result = reg_p2p.transformation
 
     source.transform(ICP_result)
@@ -233,12 +233,12 @@ def get_inliers(img_path):
                                                                                                       cam_height,
                                                                                                       cam_fx, cam_fy,
                                                                                                       cam_ppx, cam_ppy),
-                                                                    depth_scale=1 / __d_scale, depth_trunc= gaze_dist * 1.66)
+                                                                    depth_scale=1 / __d_scale, depth_trunc= gaze_dist * 1.5)
 
-    depth_pcd_raw = depth_pcd_raw.uniform_down_sample(every_k_points=8)
+    depth_pcd_raw = depth_pcd_raw.uniform_down_sample(every_k_points=3)
     plane_model, inliers = depth_pcd_raw.segment_plane(distance_threshold=0.003,
                                                        ransac_n=7,
-                                                       num_iterations=1300)
+                                                       num_iterations=1400)
     [a, b, c, d] = plane_model
     print("Coeffs of eq of fitting plane are :")
     print(a, b, c, d)
@@ -250,8 +250,10 @@ def get_inliers(img_path):
 
     pcd_inliers = o3d.geometry.PointCloud()
     pcd_inliers.points = o3d.utility.Vector3dVector(p_inliers)
-    # o3d.visualization.draw_geometries([depth_pcd_raw])
+    o3d.visualization.draw_geometries([depth_pcd_raw])
     o3d.visualization.draw_geometries([pcd_inliers])
+    print(len(p_inliers))
+    print(p_inliers[0])
     return p_inliers
 
 
@@ -264,8 +266,15 @@ def point_proj(T_bc, p_inliers):
         # points_bo.append(xyz_point[0:2])
         x_bo.append(xyz_point[0])
         y_bo.append(xyz_point[1])
-    plt.plot(x_bo, y_bo)
-    return x_bo, y_bo
+    x_bo = np.array(x_bo)
+    y_bo = np.array(y_bo)
+    xc = np.mean(x_bo)
+    yc = np.mean(y_bo)
+    # plt.plot(x_bo, y_bo)
+    xp = x_bo[np.where(x_bo < xc)[0]]
+    yp = y_bo[np.where(x_bo < xc)[0]]
+    plt.plot(xp, yp)
+    return xp, yp
 
 
 
@@ -275,40 +284,54 @@ def left_corner(x_bo, y_bo):
     TABLE_DIMS[[0, 1, 2]]
     OFF_DIR = np.array([1, -1, 1])
     idx_edge = np.argmax(np.subtract(y_bo, x_bo))
-    idx_x_min = np.argmin(x_bo)
-    idx_x_max = np.argmax(x_bo)
-    idx_y_min = np.argmin(y_bo)
-    idx_y_max = np.argmax(y_bo)
+    idx_p2 = np.argmax(np.subtract(np.negative(y_bo), x_bo))
+    idx_p1 = np.argmin(np.subtract(np.negative(y_bo), x_bo))
+
+    # corner points
+    edge_left = np.array((x_bo[idx_edge], y_bo[idx_edge], -0.439))
+    p1 = np.array((x_bo[idx_p1], y_bo[idx_p1], -0.439))
+    p2 = np.array((x_bo[idx_p2], y_bo[idx_p2], -0.439))
 
     # First, find edge in view of case 1
     # case 1
-    edge_left = np.array((x_bo[idx_edge], y_bo[idx_edge], -0.439))
-    p = np.array((x_bo[idx_x_min], y_bo[idx_x_min], -0.439))
     case = 1
-    num = edge_left[0] - p[0]
-    den = edge_left[1] - p[1]
-    theta = np.arctan2(num, den)
-    print(y_bo[idx_y_max])
-    print(edge_left)
-    print(p)
 
-    if (np.linalg.norm(edge_left - p) < 0.05):
+    # rotation angle of table w.r.t z-axis
+    num1 = abs(edge_left[1] - p1[1])
+    den1 = abs(edge_left[0] - p1[0])
+    num2 = abs(edge_left[0] - p2[0])
+    den2 = abs(edge_left[1] - p2[1])
+    theta1 = np.arctan2(num1, den1)
+    theta2 = np.arctan2(num2, den2)
+    # print(edge_left)
+    # print(p1)
+    # print(p2)
+
+    # if (np.linalg.norm(edge_left - p) < 0.05):
+    if (edge_left[0] < p2[0]):
         # actually, it is case 2
-        edge_left = np.array((x_bo[idx_x_min], y_bo[idx_x_min], -0.439))
-        p = np.array((x_bo[idx_y_max], y_bo[idx_y_max], -0.439))
         case = 2
-        num = edge_left[1] - p[1]
-        den = edge_left[0] - p[0]
-        theta = np.arctan2(num, den)
-        print(y_bo[idx_y_max])
-        print(edge_left)
-        print(p)
+        num1 = abs(p1[1] - edge_left[1])
+        den1 = abs(p1[0] - edge_left[0])
+        num2 = abs(p2[0] - edge_left[0])
+        den2 = abs(p2[1] - edge_left[1])
+        theta1 = np.arctan2(num1, den1)
+        theta2 = np.arctan2(num2, den2)
+    print(edge_left)
+    print(p1)
+    print(p2)
+    print(theta1, theta2)
+    # print(abs(np.subtract(p1, edge_left)[1] / np.subtract(p1, edge_left)[0]))
+    # print(abs(np.subtract(edge_left, p2)[0] / np.subtract(edge_left, p2)[1]))
 
+    theta = (theta1 + theta2)/2
     T_bo = np.identity(4)
     # orientation of table
     if (case == 1):
+        print("Detect table case 1")
         T_bo[:3, :3] = Rot_axis(3, deg2rad(-theta))
     elif (case == 2):
+        print("Detect table case 2")
         T_bo[:3, :3] = Rot_axis(3, deg2rad(theta))
     T_bo[:3, 3] = (edge_left.T + np.divide(TABLE_DIMS[[0, 1, 2]] * OFF_DIR, 2).T)
     return T_bo
@@ -320,44 +343,60 @@ def right_corner(x_bo, y_bo):
     TABLE_DIMS[[0, 1, 2]]
     OFF_DIR = np.array([1, 1, 1])
     idx_edge = np.argmax(np.subtract(np.negative(y_bo), x_bo))
-    idx_x_min = np.argmin(x_bo)
-    idx_x_max = np.argmax(x_bo)
-    idx_y_min = np.argmin(y_bo)
-    idx_y_max = np.argmax(y_bo)
+    idx_p1 = np.argmax(np.subtract(y_bo, x_bo))
+    idx_p2 = np.argmin(np.subtract(y_bo, x_bo))
+
+    edge_right = np.array((x_bo[idx_edge], y_bo[idx_edge], -0.439))
+    p1 = np.array((x_bo[idx_p1], y_bo[idx_p1], -0.439))
+    p2 = np.array((x_bo[idx_p2], y_bo[idx_p2], -0.439))
 
     # First, find edge in view of case 1
     # case 1
-    edge_right = np.array((x_bo[idx_edge], y_bo[idx_edge], -0.439))
-    p = np.array((x_bo[idx_y_max], y_bo[idx_y_max], -0.439))
     case = 1
-    num = p[0] - edge_right[0]
-    den = p[1] - edge_right[1]
-    theta = np.arctan(num / den)
-    print(x_bo[idx_x_min])
-    print(edge_right[0])
+    num1 = abs(p1[0] - edge_right[0])
+    den1 = abs(p1[1] - edge_right[1])
+    num2 = abs(p2[1] - edge_right[1])
+    den2 = abs(p2[0] - edge_right[0])
+    theta1 = np.arctan2(num1, den1)
+    theta2 = np.arctan2(num2, den2)
+    # print(edge_right)
+    # print(p1)
+    # print(p2)
 
-    if (np.linalg.norm(edge_right - p) < 0.05):
+    # if (np.linalg.norm(edge_right - p) < 0.05):
+    if (edge_right[0] > p1[0]):
         # actually, it is case 2
         # case 2
-        edge_left = np.array((x_bo[idx_y_min], y_bo[idx_y_min], -0.439))
-        p = np.array((x_bo[idx_x_max], y_bo[idx_x_max], -0.439))
         case = 2
-        num = p[1] - edge_right[1]
-        den = p[0] - edge_right[0]
-        theta = np.arctan(num / den)
-    print(x_bo[idx_x_min])
-    print(edge_right[0])
+        num = abs(p1[0] - edge_right[0])
+        den = abs(p1[1] - edge_right[1])
+        num2 = abs(p2[1] - edge_right[1])
+        den2 = abs(p2[0] - edge_right[0])
+        theta1 = np.arctan2(num1, den1)
+        theta2 = np.arctan2(num2, den2)
+    print(edge_right)
+    print(p1)
+    print(p2)
+    print(theta1, theta2)
+    # print(np.subtract(p1, edge_right))
+    # print(np.subtract(edge_right, p2))
+    # print(abs(np.subtract(p1, edge_right)[0] / np.subtract(p1, edge_right)[1]))
+    # print(abs(np.subtract(edge_right, p2)[1] / np.subtract(edge_right, p2)[0]))
 
+    theta = (theta1 + theta2) / 2
     T_bo = np.identity(4)
     T_bo[:3, 3] = (edge_right.T + np.divide(TABLE_DIMS[[0, 1, 2]] * OFF_DIR, 2).T)
     # orientation of table
     if (case == 1):
+        print("Detect table case 1")
         T_bo[:3, :3] = Rot_axis(3, deg2rad(-theta))
     elif (case == 2):
+        print("Detect table case 2")
         T_bo[:3, :3] = Rot_axis(3, deg2rad(theta))
     return T_bo
 
-def refine_plane(gscene, track, viewpoint, T_ft, Qcur, TABLE_DIMS, cn_cur, CAM_HOST, CONNECT_CAM, CONNECT_INDY, ENABLE_DETECT):
+def refine_plane(gscene, track, viewpoint, T_ft, Qcur, TABLE_DIMS, collision,
+                 cn_cur, CAM_HOST, CONNECT_CAM, CONNECT_INDY, ENABLE_DETECT):
     if CONNECT_CAM:
         rdict = stream_capture_image(ImageType.CloseView, host=CAM_HOST)
         set_cam_params(rdict['intrins'], rdict['depth_scale'])
@@ -387,7 +426,31 @@ def refine_plane(gscene, track, viewpoint, T_ft, Qcur, TABLE_DIMS, cn_cur, CAM_H
                              ))
 
     # geometry
-    table_front = gscene.create_safe(gtype=GEOTYPE.BOX, name="table_front", link_name="base_link",
-                                     dims=TABLE_DIMS, center=T_bo[:3, 3], rpy=Rot2rpy(T_bo[:3, :3]),
-                                     color=(0.8, 0.8, 0.8, 0.5), display=True, fixed=True, collision=False)
+    table_front = add_table(gscene, "table_front", TABLE_DIMS, T_bo, collision=collision)
     return table_front
+
+
+def add_table(gscene, name, TABLE_DIMS, T_bo, collision):
+    # geometry
+    table = gscene.create_safe(gtype=GEOTYPE.BOX, name=name, link_name="base_link",
+                                     dims=TABLE_DIMS, center=T_bo[:3, 3], rpy=Rot2rpy(T_bo[:3, :3]),
+                                     color=(0.8, 0.8, 0.8, 0.5), display=True, fixed=True, collision=collision)
+    RAIL_LENGTH = TABLE_DIMS[0]
+    RAIL_THICKNESS = 0.02
+    RAIL_MARGIN = 0.05
+    RAIL_HEIGHT = 0.2
+    RAIL_DIMS = (RAIL_LENGTH, RAIL_THICKNESS, RAIL_HEIGHT)
+    RAIL_WIDTH_OFFSET = TABLE_DIMS[1]/2 + RAIL_MARGIN + RAIL_THICKNESS/2
+    RAIL_VERTICAL_OFFSET = TABLE_DIMS[2]/2 + RAIL_HEIGHT/2
+    gscene.create_safe(gtype=GEOTYPE.BOX, name=name+"_rail1", link_name="base_link",
+                       dims=RAIL_DIMS,
+                       center=(0, RAIL_WIDTH_OFFSET, RAIL_VERTICAL_OFFSET),
+                       rpy=(0,0,0), color=(0.8, 0.8, 0.8, 0.5), display=True, fixed=True,
+                       collision=collision, parent=name)
+    gscene.create_safe(gtype=GEOTYPE.BOX, name=name+"_rail2", link_name="base_link",
+                       dims=RAIL_DIMS,
+                       center=(0, - RAIL_WIDTH_OFFSET, RAIL_VERTICAL_OFFSET),
+                       rpy=(0,0,0), color=(0.8, 0.8, 0.8, 0.5), display=True, fixed=True,
+                       collision=collision, parent=name)
+    return table
+

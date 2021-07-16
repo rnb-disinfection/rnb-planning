@@ -8,6 +8,7 @@ from pkg.planning.constraint.constraint_subject import SweepFrame
 from pkg.utils.utils import *
 from pkg.utils.rotation_utils import *
 from area_select import *
+from kiro_udp_send import *
 
 def add_env(gscene):
     mobile_base = gscene.create_safe(gtype=GEOTYPE.BOX, name="mobile_base", link_name="base_link", 
@@ -187,7 +188,7 @@ def base_offet_to_mobile(T_bb2, CONNECT_MOBILE, OFFSET_MOBILE=[0.172, 0, 0.439])
     T_bm2 = np.matmul(T_bm, T_mm2)
     return T_mm2, T_bm2
 
-def get_relative_mobile_command(T_mm2, CONNECT_MOBILE):
+def get_relative_mobile_command(T_mm2, CONNECT_MOBILE, T_approach = SE3(np.identity(3), [-0.5, 0, 0])):
     xy_rel = T_mm2[:2, 3]
     quat_rel = Rotation.from_dcm(T_mm2[:3, :3]).as_quat()
     quat_zw_rel = quat_rel[-2:]
@@ -198,7 +199,6 @@ def get_relative_mobile_command(T_mm2, CONNECT_MOBILE):
     else:
         cur_xyzw = (0, 0, 0, 1)
 
-    T_approach = SE3(np.identity(3), [-0.4, 0, 0])
     T_am_cur = T_xyzquat((cur_xyzw[:2] + (0,), (0, 0) + cur_xyzw[2:]))
     T_am_to = np.matmul(T_am_cur, T_mm2)
     T_am_to_ready = np.matmul(T_am_to, T_approach)
@@ -217,7 +217,7 @@ def get_relative_mobile_command(T_mm2, CONNECT_MOBILE):
     print("target xyzw: {}".format(np.round(tar_xyzw, 2)))
     return cur_xyzw, tar_xyzw_rd, tar_xyzw
 
-def move_mobile_robot(cur_xyzw, tar_xyzw_rd, tar_xyzw, CONNECT_MOBILE, move_direct=False):
+def move_mobile_robot(sock_mobile, cur_xyzw, tar_xyzw_rd, tar_xyzw, MOBILE_IP, CONNECT_MOBILE, move_direct=False):
     delta_xyzw = np.subtract(tar_xyzw, cur_xyzw)
     if move_direct and np.linalg.norm(delta_xyzw) < 2.0:
         move_steps = int(ceil(np.linalg.norm(delta_xyzw) / 0.7))
@@ -244,7 +244,7 @@ def move_mobile_robot(cur_xyzw, tar_xyzw_rd, tar_xyzw, CONNECT_MOBILE, move_dire
 # cur_xyzw = send_pose_wait(sock_mobile, [2.77, 1.,   0.86, 0.51], send_ip=MOBILE_IP)
 
 
-def calc_gaze_pose(cn_cur, mplan, table_front, viewpoint, CONNECT_INDY, GAZE_DIST=0.5,
+def calc_gaze_pose(cn_cur, mplan, table_front, viewpoint, indy, CONNECT_INDY, GAZE_DIST=0.5,
                    VIEW_POSE=np.deg2rad([  0., -28.,  85.,  -0.,  57., -180])):
     if CONNECT_INDY:
         with indy:

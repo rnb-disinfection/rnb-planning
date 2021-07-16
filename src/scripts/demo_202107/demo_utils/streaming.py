@@ -88,7 +88,8 @@ def stream_capture_image(img_type, host):
         cv2.imshow('ColorImage', rdict['color'])
         cv2.imshow('DepthImage', rdict['depth'])
 
-        key = cv2.waitKey(1)
+        # key = cv2.waitKey(1)
+        key = 115
         if (key == 27):
             cv2.destroyAllWindows()
             break
@@ -99,4 +100,5 @@ def stream_capture_image(img_type, host):
             if img_type == ImageType.CloseView:
                 cv2.imwrite(SAVE_DIR + '/table.jpg', rdict['color'])
                 cv2.imwrite(SAVE_DIR + '/table.png', rdict['depth'])
+            break
     return rdict
