@@ -250,8 +250,8 @@ def get_inliers(img_path):
 
     pcd_inliers = o3d.geometry.PointCloud()
     pcd_inliers.points = o3d.utility.Vector3dVector(p_inliers)
-    o3d.visualization.draw_geometries([depth_pcd_raw])
-    o3d.visualization.draw_geometries([pcd_inliers])
+    #o3d.visualization.draw_geometries([depth_pcd_raw])
+    #o3d.visualization.draw_geometries([pcd_inliers])
     print(len(p_inliers))
     print(p_inliers[0])
     return p_inliers

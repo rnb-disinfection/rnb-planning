@@ -219,6 +219,8 @@ def get_relative_mobile_command(T_mm2, CONNECT_MOBILE, T_approach = SE3(np.ident
 
 def move_mobile_robot(sock_mobile, cur_xyzw, tar_xyzw_rd, tar_xyzw, MOBILE_IP, CONNECT_MOBILE, move_direct=False):
     delta_xyzw = np.subtract(tar_xyzw, cur_xyzw)
+    if move_direct:
+        delta_xyzw[-2:] = 0
     if move_direct and np.linalg.norm(delta_xyzw) < 2.0:
         move_steps = int(ceil(np.linalg.norm(delta_xyzw) / 0.7))
         xyzw_step = delta_xyzw / move_steps

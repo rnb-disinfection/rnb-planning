@@ -143,7 +143,7 @@ VIEW_POSE = np.deg2rad([  0., -28.,  85.,  -0.,  57., -180])
 if CONNECT_INDY:
     with indy:
         indy.joint_move_to(np.rad2deg(VIEW_POSE))
-        time.sleep(0.5)
+        time.sleep(1.0)
         indy.wait_for_move_finish()
         Qcur = np.deg2rad(indy.get_joint_pos())
 else:
@@ -316,7 +316,7 @@ for i_cn in range(4):
 
 
     cur_xyzw, tar_xyzw_rd, tar_xyzw = get_relative_mobile_command(T_mm2, CONNECT_MOBILE)
-    move_mobile_robot(sock_mobile, cur_xyzw, tar_xyzw_rd, tar_xyzw, MOBILE_IP, CONNECT_MOBILE,
+    cur_xyzw = move_mobile_robot(sock_mobile, cur_xyzw, tar_xyzw_rd, tar_xyzw, MOBILE_IP, CONNECT_MOBILE,
                       move_direct=cn_cur == Corners.Right)
 
 
@@ -431,52 +431,57 @@ for i_cn in range(4):
     mplan.update_gscene()
 
     print(initial_state.node)
+    while True:
+        try:
+            obj_num = 0
+            sweep_num = len(sweep_list)
+            from_state = initial_state.copy(pscene)
+            from_state.Q = np.array([0]*6)
+            # from_state.Q = np.array([ 0.        , -0.48869219,  1.48352986, -0.        ,  0.99483767,
+            #        3.14159265])
+            t_exe = None
+            snode_schedule_all = []
+            for sweep_idx in range(sweep_num):
+            #     gcheck.put_banned = [track_list[sweep_idx][2]]
+                sweep_goal = tuple([int(i_s<=sweep_idx)*2 for i_s in range(sweep_num)])
+            #     sweep_goal = tuple([int(i_s<=sweep_idx)*2 for i_s in range(2)])+(0,)
+                goal_nodes = [("track_face",)*obj_num+sweep_goal]
+                if sweep_idx < sweep_num-1:
+                    for i_s in range(obj_num):
+                        obj_goal = ["track_face"]*obj_num
+                        obj_goal[i_s] = "grip1"
+                        goal_nodes += [tuple(obj_goal)+sweep_goal]
+                gtimer.tic("plan{}".format(sweep_idx))
+                ppline.search(from_state, goal_nodes, verbose=True, display=False, dt_vis=0.01,
+                              timeout_loop=60, multiprocess=False, timeout=0.5, timeout_constrained=2,
+                              add_homing=False, post_optimize=False)
+                gtimer.toc("plan{}".format(sweep_idx))
+                schedules = ppline.tplan.find_schedules(False)
+                schedules_sorted = ppline.tplan.sort_schedule(schedules)
+                snode_schedule = ppline.tplan.idxSchedule2SnodeScedule(schedules_sorted[0])
+                if sweep_idx == 0:
+                    snode_start = snode_schedule[1]
+                    pscene.set_object_state(snode_schedule[0].state)
+                    trajectory, success = mplan.planner.plan_joint_motion_py(
+                        ROBOT_NAME, tuple(snode_start.traj[-1]), tuple(gaze_pose), timeout=1)
+                    if success:
+                        snode_start.traj = trajectory
+                if sweep_idx == sweep_num-1:
+                    added_list = ppline.add_return_motion(snode_schedule[-1], initial_state=initial_state, timeout=0.5, try_count=2)
+                    snode_schedule += added_list
+                snode_schedule_ori = snode_schedule
+                snode_schedule_simple = simplify_schedule(pscene, snode_schedule)
+            #     snode_schedule_safe = calculate_safe_schedule(pscene, snode_schedule_simple, 5, 1)
+            #     double_sweep_motions(snode_schedule_safe)
+            #     snode_schedule = snode_schedule_safe
+            #     snode_schedule = mix_schedule(mplan, snode_schedule_safe)
+                snode_schedule = snode_schedule_simple
+                from_state = snode_schedule[-1].state
+                snode_schedule_all.append(snode_schedule)
+            break
+        except Exception as e:
+            print(e)
 
-    obj_num = 0
-    sweep_num = len(sweep_list)
-    from_state = initial_state.copy(pscene)
-    from_state.Q = np.array([0]*6)
-    # from_state.Q = np.array([ 0.        , -0.48869219,  1.48352986, -0.        ,  0.99483767,
-    #        3.14159265])
-    t_exe = None
-    snode_schedule_all = []
-    for sweep_idx in range(sweep_num):
-    #     gcheck.put_banned = [track_list[sweep_idx][2]]
-        sweep_goal = tuple([int(i_s<=sweep_idx)*2 for i_s in range(sweep_num)])
-    #     sweep_goal = tuple([int(i_s<=sweep_idx)*2 for i_s in range(2)])+(0,)
-        goal_nodes = [("track_face",)*obj_num+sweep_goal]
-        if sweep_idx < sweep_num-1:
-            for i_s in range(obj_num):
-                obj_goal = ["track_face"]*obj_num
-                obj_goal[i_s] = "grip1"
-                goal_nodes += [tuple(obj_goal)+sweep_goal]
-        gtimer.tic("plan{}".format(sweep_idx))
-        ppline.search(from_state, goal_nodes, verbose=True, display=False, dt_vis=0.01,
-                      timeout_loop=20, multiprocess=False, timeout=0.5, timeout_constrained=2,
-                      add_homing=False, post_optimize=False)
-        gtimer.toc("plan{}".format(sweep_idx))
-        schedules = ppline.tplan.find_schedules(False)
-        schedules_sorted = ppline.tplan.sort_schedule(schedules)
-        snode_schedule = ppline.tplan.idxSchedule2SnodeScedule(schedules_sorted[0])
-        if sweep_idx == 0:
-            snode_start = snode_schedule[1]
-            pscene.set_object_state(snode_schedule[0].state)
-            trajectory, success = mplan.planner.plan_joint_motion_py(
-                ROBOT_NAME, tuple(snode_start.traj[-1]), tuple(gaze_pose), timeout=1)
-            if success:
-                snode_start.traj = trajectory
-        if sweep_idx == sweep_num-1:
-            added_list = ppline.add_return_motion(snode_schedule[-1], initial_state=initial_state, timeout=0.5, try_count=2)
-            snode_schedule += added_list
-        snode_schedule_ori = snode_schedule
-        snode_schedule_simple = simplify_schedule(pscene, snode_schedule)
-    #     snode_schedule_safe = calculate_safe_schedule(pscene, snode_schedule_simple, 5, 1)
-    #     double_sweep_motions(snode_schedule_safe)
-    #     snode_schedule = snode_schedule_safe
-    #     snode_schedule = mix_schedule(mplan, snode_schedule_safe)
-        snode_schedule = snode_schedule_simple
-        from_state = snode_schedule[-1].state
-        snode_schedule_all.append(snode_schedule)
 
 
     # ## Refine sweep motion
@@ -511,6 +516,7 @@ for i_cn in range(4):
 
     def fn_move_indy():
         print("execute one task")
+        indy.traj_vel = 3
         if CONNECT_INDY:
             for snode_schedule in snode_schedule_all:
                 ppline.execute_schedule(snode_schedule, one_by_one=True)

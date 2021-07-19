@@ -21,7 +21,7 @@ class IndyTrajectoryClientNoSDK(IndyDCPClient, TrajectoryClient):
         self.traj_blend = 5
         with self:
             self.set_collision_level(5)
-            self.set_joint_vel_level(1)
+            self.set_joint_vel_level(5)
             self.set_task_vel_level(1)
             self.set_joint_blend_radius(5)
             self.set_task_blend_radius(0.1)
