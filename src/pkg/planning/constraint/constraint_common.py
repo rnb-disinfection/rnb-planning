@@ -169,8 +169,8 @@ def get_binding_margins(handle_T, binder_T, handle_redundancy, binder_redundancy
             binder_rot_range[i_ax] = binder_redundancy[k_ax]
     handle_rot_axes = np.where(np.linalg.norm(handle_rot_range, axis=-1) > 0)[0]
     binder_rot_axes = np.where(np.linalg.norm(binder_rot_range, axis=-1) > 0)[0]
-    assert len(set(handle_rot_axes).union(
-        binder_rot_axes)) <= 1, "Rotation redundancy is allowed for only single axis, in same axis in both binder and handle"
+    # assert len(set(handle_rot_axes).union(
+    #     binder_rot_axes)) <= 1, "Rotation redundancy is allowed for only single axis, in same axis in both binder and handle"
 
     rot_range = handle_rot_range + binder_rot_range
     rot_vec = Rotation.from_dcm(T_rel[:3, :3]).as_rotvec()

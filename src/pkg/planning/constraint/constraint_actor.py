@@ -98,13 +98,13 @@ class Gripper2Tool(PointerActor):
 
     def get_redundancy(self):
         if self.point is not None:
-            return {"w":(0,0)}
+            return {"w":(-np.pi/4,np.pi/4)}
         else:
             dims =self.geometry.dims
             return {"x":(-dims[0]/2,dims[0]/2),
                     "y":(-dims[1]/2,dims[1]/2),
                     "z":(dims[2]/2,dims[2]/2),
-                    "w":(0,0)}
+                    "w":(-np.pi/4,np.pi/4)}
 
 
 ##

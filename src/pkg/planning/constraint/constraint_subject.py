@@ -22,6 +22,34 @@ class DirectedPoint(ActionPoint):
                     "z":(dims[2]/2,dims[2]/2),
                     "w":(-np.pi,np.pi)}
 
+##
+# @class PitchPoint
+# @brief ActionPoint with z-axis constraint
+class PitchPoint(ActionPoint):
+    def get_redundancy(self):
+        if self.point is not None:
+            return {"v":(-np.pi,np.pi)}
+        else:
+            dims =self.geometry.dims
+            return {"x":(-dims[0]/2,dims[0]/2),
+                    "y":(-dims[1]/2,dims[1]/2),
+                    "z":(dims[2]/2,dims[2]/2),
+                    "v":(-np.pi,np.pi)}
+
+##
+# @class RollPoint
+# @brief ActionPoint with z-axis constraint
+class RollPoint(ActionPoint):
+    def get_redundancy(self):
+        if self.point is not None:
+            return {"u":(-np.pi,np.pi)}
+        else:
+            dims =self.geometry.dims
+            return {"x":(-dims[0]/2,dims[0]/2),
+                    "y":(-dims[1]/2,dims[1]/2),
+                    "z":(dims[2]/2,dims[2]/2),
+                    "u":(-np.pi,np.pi)}
+
 
 ##
 # @class FramedPoint
@@ -68,13 +96,27 @@ class Grasp2Point(DirectedPoint):
     ctype=ConstraintType.Grasp2
     def get_redundancy(self):
         if self.point is not None:
-            return {"w":(-np.pi/4,np.pi/4)}
+            return {"w":(0.0,0.0)}
         else:
             dims =self.geometry.dims
             return {"x":(-dims[0]/2,dims[0]/2),
                     "y":(-dims[1]/2,dims[1]/2),
                     "z":(dims[2]/2,dims[2]/2),
-                    "w":(-np.pi/4,np.pi/4)}
+                    "w":(0.0,0.0)}
+
+##
+# @class RollGrasp2Point
+# @brief ActionPoint for rnb-planning.src.pkg.planning.constraint.constraint_actor.Gripper2Tool
+class RollGrasp2Point(RollPoint):
+    ctype=ConstraintType.Grasp2
+    def get_redundancy(self):
+        if self.point is not None:
+            return {"u":(-np.pi,np.pi)}
+        else:
+            dims =self.geometry.dims
+            return {"x":(-dims[0]/2,dims[0]/2),
+                    "y":(-dims[1]/2,dims[1]/2),
+                    "u":(-np.pi,np.pi)}
 
 
 ##
@@ -772,7 +814,7 @@ class BoxObject(AbstractObject):
                 rpy_grip = Rot2rpy(Rgrip)
                 redundant_axis, approach_vec, pinch_axis = Rgrip[:, 0], Rgrip[:, 1], Rgrip[:, 2]
                 grasp_width = np.abs(np.dot(pinch_axis, dims))
-                if not (GRASP_WIDTH_MIN < grasp_width < GRASP_WIDTH_MAX):
+                if not (GRASP_WIDTH_MIN <= grasp_width <= GRASP_WIDTH_MAX):
                     continue
                 offset_ref = np.abs(np.dot(approach_vec, dims_hf))
                 offset_max = max(offset_ref - GRASP_DEPTH_MIN, 0)
@@ -789,6 +831,131 @@ class BoxObject(AbstractObject):
                                                     collision=False, parent=gbox.name)
                     gpoint = Grasp2Point(ggname, ggtem, None, (0, 0, 0))
                 self.action_points_dict.update({ggname: gpoint})
+
+    ##
+    # @brief reset conflicting handle dictionary
+    def set_conflict_dict(self):
+        ap_names = sorted(self.action_points_dict.keys())
+        dir_keys = sorted(OPPOSITE_DICT.keys())
+        self.conflict_dict = {}
+        for hname in ap_names:
+            hnames_conflict = []
+            for dkey in dir_keys:
+                if dkey in hname:
+                    hnames_conflict += [hname_ for hname_ in ap_names if dkey in hname_]
+            self.conflict_dict[hname] = hnames_conflict
+
+    ##
+    # @brief get conflicting handles in hexahedral geometry
+    # @param handle name
+    def get_conflicting_points(self, hname):
+        return self.conflict_dict[hname]
+
+    ##
+    # @brief register hexahedral binders
+    # @param planning_scene rnb-planning.src.pkg.planning.scene.PlanningScene
+    # @param _type          subclass of rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
+    def register_binders(self, planning_scene, _type, geometry=None):
+        gscene = planning_scene.gscene
+        if geometry is None:
+            geometry = self.geometry
+        gname = geometry.name
+        dims = geometry.dims
+        for k in DIR_RPY_DICT.keys():
+            if not self.hexahedral and k not in ["top", "bottom"]:
+                continue
+            rpy = DIR_RPY_DICT[k]
+            point = tuple(-np.multiply(DIR_VEC_DICT[k], dims)/2)
+            bname = "{}_{}".format(gname, k)
+            R = Rot_rpy(rpy)
+            dims_new = np.abs(np.matmul(R.transpose(), dims))
+            dims_new[2] = 1e-6
+            gscene.create_safe(GEOTYPE.BOX, bname,
+                               link_name=geometry.link_name,
+                               dims=dims_new, center=point, rpy=rpy,
+                               display=False, collision=False, fixed=geometry.fixed, parent=gname)
+            self.sub_binders_dict[bname] = planning_scene.create_binder(bname=bname, gname=bname, _type=_type,
+                                                                        point=point)
+
+
+
+
+
+##
+# @class CylinderObject
+# @brief Cylinder object
+class CylinderObject(AbstractObject):
+    ##
+    # @param oname object's name
+    # @param geometry parent geometry
+    # @param hexahedral If True, all hexahedral points are defined. Otherwise, only top and bottom points are defined
+    def __init__(self, oname, geometry, CLEARANCE=1e-3,
+                 GRASP_WIDTH_MIN=0.04, GRASP_WIDTH_MAX=0.06, GRASP_DEPTH_MIN=0.025, GRASP_DEPTH_MAX=0.025):
+        self.oname = oname
+        self.geometry = geometry
+        self.CLEARANCE = CLEARANCE
+        self.GRASP_WIDTH_MIN = GRASP_WIDTH_MIN
+        self.GRASP_WIDTH_MAX = GRASP_WIDTH_MAX
+        self.GRASP_DEPTH_MIN = GRASP_DEPTH_MIN
+        self.GRASP_DEPTH_MAX = GRASP_DEPTH_MAX
+        self.action_points_dict = {}
+        self.conflict_dict = {}
+        self.sub_binders_dict = {}
+        self.add_place_points(self.geometry, CLEARANCE=CLEARANCE)
+        self.add_grip_points(self.geometry, GRASP_WIDTH_MIN=GRASP_WIDTH_MIN, GRASP_WIDTH_MAX=GRASP_WIDTH_MAX,
+                               GRASP_DEPTH_MIN=GRASP_DEPTH_MIN, GRASP_DEPTH_MAX=GRASP_DEPTH_MAX)
+
+        self.set_conflict_dict()
+        self.binding = (self.oname, None, None, None)
+
+    ##
+    # @brief add action points to given box geometry
+    def add_place_points(self, gbox, CLEARANCE=1e-3):
+        Xhalf, Yhalf, Zhalf = np.divide(gbox.dims,2)+CLEARANCE
+        self.action_points_dict.update({
+            "top_p": PlacePoint("top_p", gbox, [0,0,Zhalf], [np.pi,0,0]),
+            "bottom_p": PlacePoint("bottom_p", gbox, [0,0,-Zhalf], [0,0,0])
+        })
+
+    ##
+    # @brief add 2-finger grasping points to given box geometry
+    def add_grip_points(self, gbox,
+                          GRASP_WIDTH_MIN=0.04, GRASP_WIDTH_MAX=0.06,
+                          GRASP_DEPTH_MIN=0.025, GRASP_DEPTH_MAX=0.025):
+        dims = gbox.dims
+        dims_hf = np.divide(gbox.dims, 2)
+        ggname = "{}_{}_g".format(gbox.name, "side")
+        Rapproach = Rot_rpy([0,-np.pi/2,0])
+        print("Rapproach")
+        print(Rapproach)
+        Rgrip = np.matmul(Rapproach,
+                          Rot_axis(1, -np.pi / 2))  # y: approaching vector backward, z: pinching axis
+        print("Rgrip")
+        print(Rgrip)
+        rpy_grip = Rot2rpy(Rgrip)
+        redundant_axis, approach_vec, pinch_axis = Rgrip[:, 0], Rgrip[:, 1], Rgrip[:, 2]
+        grasp_width = np.abs(np.dot(pinch_axis, dims))
+        print("pinch_axis")
+        print(pinch_axis)
+        print("grasp_width")
+        print(grasp_width)
+        if GRASP_WIDTH_MAX <= grasp_width:
+            print("[WARNING] Cylinder too big for the gripper")
+            return
+        if grasp_width <= GRASP_WIDTH_MIN:
+            print("[WARNING] Cylinder too small for the gripper")
+            return
+        redundant_len = max(np.abs(np.dot(redundant_axis, dims)) - GRASP_DEPTH_MIN * 2, 0)
+        gcenter = np.matmul(Rgrip, [[0], [0], [0]])[:, 0]
+        if redundant_len < 1e-3:
+            gpoint = RollGrasp2Point(ggname, gbox, gcenter, rpy_grip)
+        else:
+            ggtem = gbox.gscene.create_safe(GEOTYPE.BOX, ggname, link_name=gbox.link_name,
+                                            dims=(redundant_len, 0, 0), center=gcenter, rpy=rpy_grip,
+                                            color=(0.0, 0.8, 0.0, 0.5), display=gbox.display, fixed=gbox.fixed,
+                                            collision=False, parent=gbox.name)
+            gpoint = RollGrasp2Point(ggname, ggtem, None, (0, 0, 0))
+        self.action_points_dict.update({ggname: gpoint})
 
     ##
     # @brief reset conflicting handle dictionary
