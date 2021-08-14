@@ -117,9 +117,10 @@ class SceneBuilder(Singleton):
     # @param item_names     List of string name for items
     # @param level_mask     List of rnb-planning.src.pkg.detector.detector_interface.DetectionLevel
     # @param gscene   rnb-planning.src.pkg.geometry.geometry.GeometryScene to add detected environment geometry
+    # @param xyz_rpy_dict pre-detected xyz rpy dict {"name": ((xyz), (rpy))}
     # @return gtem_dict dictionary of detected geometry items
     def detect_and_register(self, item_names=None, level_mask=None, color=(0.6,0.6,0.6,1), collision=True,
-                            gscene=None, visualize=False):
+                            gscene=None, visualize=False, xyz_rpy_dict = None):
         if gscene is None:
             gscene = self.gscene
         xyz_rpy_dict = self.detect_items(item_names=item_names, level_mask=level_mask, visualize=visualize)

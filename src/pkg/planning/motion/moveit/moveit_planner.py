@@ -238,18 +238,18 @@ class MoveitPlanner(MotionInterface):
                 if verbose:
                     print("try constrained motion") ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
 
-                ################################# Special planner ##############################
-                self.sweep_params = (tool.geometry.link_name, list2dict(from_Q, self.gscene.joint_names), self.gscene.urdf_content,
-                                     target.geometry.link_name, T_tar_tool)
-                Tcur = get_tf(tool.geometry.link_name, list2dict(from_Q, self.gscene.joint_names), self.gscene.urdf_content,
-                              from_link=target.geometry.link_name)
-                trajectory, success = get_sweep_traj(self, tool.geometry, np.subtract(T_tar_tool[:3,3], Tcur[:3, 3]),
-                                            from_Q, DP=0.01, ERROR_CUT=0.01, SINGULARITY_CUT = 0.01, VERBOSE=verbose)
-                ################################# Original planner ##############################
-                # trajectory, success = planner.plan_constrained_py(
-                #     group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q),
-                #     timeout=timeout_constrained, **kwargs)
-                #################################################################################
+                # ################################# Special planner ##############################
+                # self.sweep_params = (tool.geometry.link_name, list2dict(from_Q, self.gscene.joint_names), self.gscene.urdf_content,
+                #                      target.geometry.link_name, T_tar_tool)
+                # Tcur = get_tf(tool.geometry.link_name, list2dict(from_Q, self.gscene.joint_names), self.gscene.urdf_content,
+                #               from_link=target.geometry.link_name)
+                # trajectory, success = get_sweep_traj(self, tool.geometry, np.subtract(T_tar_tool[:3,3], Tcur[:3, 3]),
+                #                             from_Q, DP=0.01, ERROR_CUT=0.01, SINGULARITY_CUT = 0.01, VERBOSE=verbose)
+                ################################ Original planner ##############################
+                trajectory, success = planner.plan_constrained_py(
+                    group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q),
+                    timeout=timeout_constrained, **kwargs)
+                ################################################################################
                 if verbose:
                     print("constrained motion tried: {}".format(success)) ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
             else:
