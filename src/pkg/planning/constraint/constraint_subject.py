@@ -833,7 +833,7 @@ class BoxObject(AbstractObject):
                                dims=dims_new, center=point, rpy=rpy,
                                display=False, collision=False, fixed=geometry.fixed, parent=gname)
             self.sub_binders_dict[bname] = planning_scene.create_binder(bname=bname, gname=bname, _type=_type,
-                                                                        point=point)
+                                                                        point=None)
 
 
 ##

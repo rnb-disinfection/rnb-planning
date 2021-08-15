@@ -143,7 +143,8 @@ class CombinedRobot:
     ##
     # @brief move joint with waypoints, one-by-one
     # @param trajectory numpy array (trajectory length, joint num)
-    def move_joint_wp(self, trajectory, vel_scale=None, acc_scale=None, auto_stop=True, wait_motion=True):
+    # @error_stop   max. error from the trajectory to stop the robot and return False (degree)
+    def move_joint_wp(self, trajectory, vel_scale=None, acc_scale=None, auto_stop=True, wait_motion=True, error_stop=5):
         trajectory = np.array(trajectory)
         vel_scale = vel_scale or self.vel_scale
         acc_scale = acc_scale or self.acc_scale
@@ -190,12 +191,13 @@ class CombinedRobot:
             robot.start_tracking()
 
         if wait_motion:
-            for rname, robot in robots_in_act:
-                robot.wait_queue_empty()
+            done = self.wait_queue_empty(traj_tot, error_stop)
 
-            if auto_stop:
+            if auto_stop or not done:
                 for rname, robot in robots_in_act:
                     robot.stop_tracking()
+            if not done:
+                return self.get_real_robot_pose()
 
         return t_all[-1]
 
@@ -212,7 +214,8 @@ class CombinedRobot:
     ##
     # @brief move joint with waypoints, one-by-one
     # @param trajectory numpy array (trajectory length, joint num)
-    def move_joint_traj(self, trajectory, auto_stop=True, wait_motion=True, one_by_one=False):
+    # @error_stop   max. error from the trajectory to stop the robot and return False (degree)
+    def move_joint_traj(self, trajectory, auto_stop=True, wait_motion=True, one_by_one=False, error_stop=10):
         robots_in_act = []
         Q_init = trajectory[0]
         Q_last = trajectory[-1]
@@ -226,10 +229,14 @@ class CombinedRobot:
                 robots_in_act.append((rname, robot))
 
         if len(robots_in_act) == 0:
-            return
+            return True
         if one_by_one:
             for rname, robot in robots_in_act:
                 robot.move_joint_traj(trajectory[:, self.idx_dict[rname]], auto_stop=auto_stop, wait_motion=wait_motion)
+                if np.sum(np.abs(np.subtract(trajectory[-1, self.idx_dict[rname]], robot.get_qcur())))\
+                        >np.deg2rad(error_stop):
+                    print("not in sync in {} deg: {}".format(error_stop, np.rad2deg(self.get_real_robot_pose())))
+                    return False
         else:
             for Q in trajectory:
                 for rname, robot in robots_in_act:
@@ -239,12 +246,14 @@ class CombinedRobot:
                 robot.start_tracking()
 
             if wait_motion:
-                for rname, robot in robots_in_act:
-                    robot.wait_queue_empty()
+                done = self.wait_queue_empty(trajectory, error_stop)
 
-                if auto_stop:
+                if auto_stop or not done:
                     for rname, robot in robots_in_act:
                         robot.stop_tracking()
+                if not done:
+                    return False
+        return True
 
     ##
     # @brief execute grasping action
@@ -276,9 +285,29 @@ class CombinedRobot:
         return np.array(Q)
 
     ##
-    # @brief wait for the first robot's ROS control duration
-    def wait_step(self, rate_off):
-        if all(self.connection_list):
-            self.robot_dict[self.robot_names[0]].rate_x1.sleep()
-        else:
-            rate_off.sleep()
+    # @brief wait for duration (in seconds)
+    def wait_step(self, duration):
+        time.sleep(duration)
+
+    ##
+    # @brief    Wait until the queue on the robots are empty. This also means the trajectory motion is finished.\n
+    #           Stop and return False if the deviation from the trajectory gets larget than error_stop.\n
+    #           Return True if the loop is finished because the queue is empty.
+    # @trajectory   trajectory that the robot is currently following.
+    # @error_stop   max. error from the trajectory to stop the robot and return False (degree)
+    def wait_queue_empty(self, trajectory=None, error_stop=10):
+        rnames = self.get_connected_robot_names()
+        robots = [self.robot_dict[rname] for rname in rnames]
+        robots_mask = sorted(np.concatenate([self.idx_dict[rname] for rname in rnames]))
+        while np.sum([robot.get_qcount() for robot in robots]) > 0:
+            if trajectory is not None:
+                if (np.min(np.sum(np.abs(np.subtract(trajectory, self.get_real_robot_pose())[:, robots_mask]), axis=1))
+                        > np.deg2rad(error_stop)):
+                    print("not in sync in {} deg: {}".format(error_stop, np.rad2deg(self.get_real_robot_pose())))
+                    return False
+            self.wait_step(0.05)
+        return True
+
+
+    def get_connected_robot_names(self):
+        return [rname for rname, connection in zip(self.robot_names, self.connection_list) if connection]

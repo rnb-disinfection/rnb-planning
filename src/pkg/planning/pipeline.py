@@ -41,6 +41,7 @@ class PlanningPipeline:
         ## @brief flag to stop multiprocess search
         self.stop_now =  None
         ## @brief PriorityQueueManager
+        self.execute_res = True
         self.manager = PriorityQueueManager()
         self.manager.start()
         self.counter_lock = self.manager.Lock()
@@ -413,7 +414,9 @@ class PlanningPipeline:
     ##
     # @brief execute schedule
     # @param mode_switcher ModeSwitcher class instance
-    def execute_schedule(self, snode_schedule, auto_stop=True, mode_switcher=None, one_by_one=False, multiproc=False):
+    def execute_schedule(self, snode_schedule, auto_stop=True, mode_switcher=None, one_by_one=False, multiproc=False,
+                         error_stop_deg=10):
+        self.execute_res = False
         snode_pre = snode_schedule[0]
         for snode in snode_schedule:
             if snode.traj is None or len(snode.traj) == 0:
@@ -425,11 +428,19 @@ class PlanningPipeline:
             self.pscene.set_object_state(snode_pre.state)
             if multiproc:
                 t_exe = Process(target=self.pscene.combined_robot.move_joint_traj,
-                                args = (snode.traj,), kwargs=dict(auto_stop=False, one_by_one=one_by_one))
+                                args = (snode.traj,),
+                                kwargs=dict(auto_stop=False, one_by_one=one_by_one, error_stop=error_stop_deg))
                 t_exe.start()
                 t_exe.join()
             else:
                 self.pscene.combined_robot.move_joint_traj(snode.traj, auto_stop=False, one_by_one=one_by_one)
+
+            if not self.pscene.combined_robot.wait_queue_empty(trajectory=[snode.traj[-1]], error_stop=error_stop_deg):
+                self.pscene.combined_robot.stop_tracking()
+                self.execute_res = False
+                print("=================== ERROR ===================")
+                print("====== Robot configuration not in sync ======")
+                return False
 
             if mode_switcher is not None:
                 mode_switcher.switch_out(switch_state, snode)
@@ -438,6 +449,8 @@ class PlanningPipeline:
 
         if auto_stop:
             self.pscene.combined_robot.stop_tracking()
+        self.execute_res = True
+        return True
 
     ##
     # @brief execute schedule
@@ -513,7 +526,7 @@ class PlanningPipeline:
                         POS_CUR = trajectory[i_q]
                         self.gtimer.tic("move_wait")
                         if on_rviz:
-                            self.pscene.combined_robot.wait_step(self.pscene.gscene.rate)
+                            self.pscene.combined_robot.wait_step(self.pscene.gscene.rate.sleep_dur.to_sec())
                             all_sent = True
                         else:
                             all_sent = mt.move_possible_joints_x4(POS_CUR)
