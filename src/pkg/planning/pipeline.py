@@ -193,10 +193,12 @@ class PlanningPipeline:
             term_reason = "first answer acquired"
             if add_homing:
                 print("++ adding return motion to acquired answer ++")
+                home_state = self.tplan.snode_dict[0].copy(self.pscene)
+                home_state.Q = self.pscene.combined_robot.home_pose
                 if add_homing>1:
-                    self.add_return_motion(snode_new, try_count=add_homing)
+                    self.add_return_motion(snode_new, try_count=add_homing, initial_state=home_state)
                 else:
-                    self.add_return_motion(snode_new)
+                    self.add_return_motion(snode_new, initial_state=home_state)
             if post_optimize:
                 print("++ post-optimizing acquired answer ++")
                 self.post_optimize_schedule(snode_new)
