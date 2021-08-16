@@ -219,12 +219,14 @@ class CombinedRobot:
         robots_in_act = []
         Q_init = trajectory[0]
         Q_last = trajectory[-1]
+        diff_max_all = np.max(np.abs(np.array(trajectory) - trajectory[-1]), axis=0)
         for rname in self.robot_names:
             robot = self.robot_dict[rname]
             if robot is None:
                 print("WARNING: {} is not connected - skip motion".format(rname))
                 continue
-            diff_abs_arr = np.abs(Q_last[self.idx_dict[rname]] - Q_init[self.idx_dict[rname]])
+
+            diff_abs_arr = diff_max_all[self.idx_dict[rname]]
             if np.max(diff_abs_arr) > 1e-3:
                 robots_in_act.append((rname, robot))
 

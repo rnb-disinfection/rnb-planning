@@ -120,11 +120,11 @@ def get_traj_all(dt_step, T_list, Q_list):
         q1 = Q_list[i + 1] if i + 1 < traj_len else Q_list[-1]
         q2 = Q_list[i + 2] if i + 2 < traj_len else Q_list[-1]
         a, b, c, d = calc_cubic_coeffs(T, v0, q0, q1, q2)
+        v0 = calc_cubic_vel(T, a, b, c)
+        t0 += T
         for t in np.arange(0, T-dt_step/2, dt_step):
             t_all.append(t0 + t)
             traj_all.append(calc_cubic_traj(t, a, b, c, d))
-        v0 = calc_cubic_vel(T, a, b, c)
-        t0 += T
     return t_all, traj_all
 
 
@@ -417,4 +417,68 @@ def get_sweep_traj(mplan, gtem, dP_tar, Q0, DP=0.01, ERROR_CUT=0.01, SINGULARITY
     if VERBOSE:
         print(reason)
     return np.array(Traj), reason=="end"
+
+
+from scipy.interpolate import splprep, splev
+
+
+def bspline_wps(dt_step, trajectory_simp, vel_lims, acc_lims, radii_deg=1):
+    T_list = calc_T_list_simple(trajectory_simp, vel_lims=vel_lims, acc_lims=acc_lims)
+    T_list = np.round(np.divide(T_list, dt_step).astype(int) * dt_step, 5)
+    Qsteps_list = []
+    for Qpre, Q, Tcur in zip(trajectory_simp[:-1], trajectory_simp[1:], T_list[:-1]):
+        Tsteps = np.arange(0, Tcur, dt_step)
+        Qsteps = Tsteps[:, np.newaxis] * (Q - Qpre) / Tcur + Qpre
+        Qsteps_list.append(Qsteps)
+    Qsteps_list.append([Q])
+    traj_cat = np.concatenate(Qsteps_list, axis=0)
+    bspline_traj(traj_cat, radii_deg)
+    return traj_new
+
+
+def bspline_traj(trajectory, radii_deg=1):
+    bspline_traj.trajectory = trajectory
+    plist = trajectory
+    ctr = np.array(plist)
+    idx_dup = np.where(np.sum(np.abs(np.subtract(ctr[1:], ctr[:-1])), axis=-1) == 0)[0]
+    len_ctr = len(ctr)
+    append_last = False
+    for i_dp in idx_dup:
+        if i_dp + 2 < len_ctr:
+            ctr[i_dp+1] = (ctr[i_dp] + ctr[i_dp+2])/2
+        else:
+            append_last = True
+    # ctr = np.delete(ctr, idx_dup, axis=0)
+
+    traj_new = np.copy(ctr)
+    idx_move = np.where(np.max(np.abs(ctr - ctr[-1]), axis=0) > 1e-5)[0]
+    tck, u = splprep(ctr.transpose()[idx_move], s=np.deg2rad(radii_deg))
+    new_points = splev(u, tck)
+    traj_new[:, idx_move] = np.array(new_points).transpose()
+    if append_last:
+        np.pad(traj_new, ((0, 1),(0,0)), 'edge')
+    return traj_new
+
+
+def bspline_simple_schedule(pscene, snode_schedule_wps, vel_lims, acc_lims, dt_step=2e-2, radii_deg=1):
+    snode_schedule_safe = []
+    for snode in snode_schedule_wps:
+        snode_cp = snode.copy(pscene)
+        snode_schedule_safe.append(snode_cp)
+        if snode_cp.traj is not None:
+            traj_new = bspline_wps(dt_step=dt_step, trajectory_simp=snode_cp.traj,
+                                   vel_lims=vel_lims, acc_lims=acc_lims, radii_deg=radii_deg)
+            snode_cp.set_traj(traj_new)
+    return snode_schedule_safe
+
+
+def bspline_schedule(pscene, snode_schedule, radii_deg=1):
+    snode_schedule_safe = []
+    for snode in snode_schedule:
+        snode_cp = snode.copy(pscene)
+        snode_schedule_safe.append(snode_cp)
+        if snode_cp.traj is not None:
+            traj_new = bspline_traj(trajectory=snode_cp.traj, radii_deg=radii_deg)
+            snode_cp.set_traj(traj_new)
+    return snode_schedule_safe
 
