@@ -65,6 +65,7 @@ class PeriodicTimer:
         self.__tic = Event()
         self.__stop = Event()
         self.thread_periodic = Thread(target=self.__tic_loop)
+        self.thread_periodic.daemon = True
         self.thread_periodic.start()
 
     def __tic_loop(self):

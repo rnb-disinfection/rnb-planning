@@ -254,6 +254,7 @@ class DynamicDetector:
 
     def __enter__(self):
         self.t_det = Thread(target=self.detector_thread_fun)
+        self.t_det.daemon = True
         self.t_det.start()
         return self
 
@@ -290,6 +291,7 @@ class RvizPublisher:
 
     def __enter__(self):
         self.t_rviz = Thread(target=self.rviz_thread_fun)
+        self.t_rviz.daemon = True
         self.t_rviz.start()
         return self
 

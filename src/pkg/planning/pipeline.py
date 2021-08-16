@@ -117,6 +117,7 @@ class PlanningPipeline:
                     args=(id_agent, terminate_on_first, N_search, False, dt_vis, verbose, timeout_loop),
                     kwargs=kwargs) for id_agent in range(N_agents)]
                 for proc in self.proc_list:
+                    proc.daemon = True
                     proc.start()
 
             if wait_proc:
@@ -265,6 +266,7 @@ class PlanningPipeline:
                     for _ in range(N_try)] for skey in snode_keys}
                 for proc_list in self.refine_proc_dict.values():
                     for proc in proc_list:
+                        proc.daemon = True
                         proc.start()
                 time_start = time.time()
                 timeout_max = np.max([v for k, v in kwargs.items() if "timeout" in k])*1.2
@@ -432,6 +434,7 @@ class PlanningPipeline:
                 t_exe = Process(target=self.pscene.combined_robot.move_joint_traj,
                                 args = (snode.traj,),
                                 kwargs=dict(auto_stop=False, one_by_one=one_by_one, error_stop=error_stop_deg))
+                t_exe.daemon = True
                 t_exe.start()
                 t_exe.join()
             else:
