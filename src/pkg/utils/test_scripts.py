@@ -134,16 +134,11 @@ def parse_test_args():
 
     return parser.parse_args()
 
-
-
-def load_saved_scene(pscene, file_path, VISUALIZE=True):
-    gscene = pscene.gscene
-    saved_data = load_pickle(file_path)
-    gtem_args = saved_data['gtem_args']
-    obj_args = saved_data['obj_args']
+def load_gtem_args(gscene, gtem_args):
     gtem_remove = []
     for gtem in gscene:
-        if gtem.link_name == "base_link" and gtem.parent is None:
+        if ((gtem.link_name == "base_link" or not gtem.fixed)
+                and gtem.parent is None):
             gtem_remove.append(gtem)
     for gtem in gtem_remove:
         gscene.remove(gtem)
@@ -156,6 +151,15 @@ def load_saved_scene(pscene, file_path, VISUALIZE=True):
                 gid_list.append(gidx)
                 continue
         gscene.create_safe(**args)
+
+def load_saved_scene(pscene, file_path, VISUALIZE=True):
+    gscene = pscene.gscene
+    saved_data = load_pickle(file_path)
+    gtem_args = saved_data['gtem_args']
+    obj_args = saved_data['obj_args']
+
+    load_gtem_args(gscene, gtem_args)
+
     pscene.create_binder(bname="wp", gname="wp", _type=PlacePlane, point=None)
     pscene.create_binder(bname="gp", gname="gp", _type=PlacePlane, point=None)
 

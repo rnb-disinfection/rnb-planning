@@ -8,6 +8,7 @@ from pkg.utils.test_scripts import *
 from pkg.planning.pddlstream.plan_rnb import *
 
 args = parse_test_args()
+
 rtype = args.rtype
 dat_root = args.dat_root
 res_root = args.res_root
@@ -62,6 +63,7 @@ mplan.motion_filters = checkers
 #################### Solve problem  ####################
 obj_pscene = pscene.subject_dict[pscene.subject_name_list[0]]
 obj_pscene.geometry.color = (0.8, 0.2, 0.2, 1)
+gscene.update_markers_all()
 goal_pairs=[(obj_pscene.oname, 'gp')]
 
 gtimer = GlobalTimer.instance()
@@ -74,11 +76,10 @@ res, plan, log_dict = solve_in_pddlstream(pscene, mplan, ROBOT_NAME, TOOL_NAME, 
 
 save_pickle(os.path.join(RESULTSET_PATH, "result_%s_%02d_%s.pkl" % (file_option, data_idx, cname)), log_dict)
 
-print("------- Result {} ({}): {} s -------".format(fname, cname, log_dict["plan_time"]))
-print("==========================================================")
 print("==========================================================")
 print(gtimer)
 print("==========================================================")
+print("------- Result {} ({}): {} / {} s -------".format(fname, cname, res, log_dict["plan_time"]))
 print("==========================================================")
 
 if VISUALIZE and PLAY_RESULT and res:
