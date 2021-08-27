@@ -929,19 +929,12 @@ class CylinderObject(AbstractObject):
         dims_hf = np.divide(gbox.dims, 2)
         ggname = "{}_{}_g".format(gbox.name, "side")
         Rapproach = Rot_rpy([0,-np.pi/2,0])
-        print("Rapproach")
-        print(Rapproach)
         Rgrip = np.matmul(Rapproach,
                           Rot_axis(1, -np.pi / 2))  # y: approaching vector backward, z: pinching axis
-        print("Rgrip")
-        print(Rgrip)
         rpy_grip = Rot2rpy(Rgrip)
         redundant_axis, approach_vec, pinch_axis = Rgrip[:, 0], Rgrip[:, 1], Rgrip[:, 2]
         grasp_width = np.abs(np.dot(pinch_axis, dims))
-        print("pinch_axis")
-        print(pinch_axis)
-        print("grasp_width")
-        print(grasp_width)
+
         if GRASP_WIDTH_MAX <= grasp_width:
             print("[WARNING] Cylinder too big for the gripper")
             return
