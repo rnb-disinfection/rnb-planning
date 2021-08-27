@@ -910,12 +910,15 @@ class CylinderObject(AbstractObject):
 
     ##
     # @brief add action points to given box geometry
-    def add_place_points(self, gbox, CLEARANCE=1e-3):
+    def add_place_points(self, gbox, CLEARANCE=1e-3, bot_only=True):
         Xhalf, Yhalf, Zhalf = np.divide(gbox.dims,2)+CLEARANCE
         self.action_points_dict.update({
-            "top_p": PlacePoint("top_p", gbox, [0,0,Zhalf], [np.pi,0,0]),
             "bottom_p": PlacePoint("bottom_p", gbox, [0,0,-Zhalf], [0,0,0])
         })
+        if not bot_only:
+            self.action_points_dict.update({
+                "top_p": PlacePoint("top_p", gbox, [0,0,Zhalf], [np.pi,0,0])
+            })
 
     ##
     # @brief add 2-finger grasping points to given box geometry

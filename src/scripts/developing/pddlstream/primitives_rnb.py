@@ -280,6 +280,7 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                   disabled_collisions=set(), robot=0L, fixed=[], teleport=False, num_attempts=10):
     movable_joints = get_movable_joints(robot)
     sample_fn = get_sample_fn(robot, movable_joints)
+    eye4 = np.identity(4)
     def fn(body, pose, grasp):
         with GlobalTimer.instance().block("ik_fn"):
             if show_state:
@@ -301,12 +302,13 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                 # TODO: multiple attempts?
                 q_approach = inverse_kinematics(robot, grasp.link, approach_pose)
                 if show_state and q_approach is not None:
-                        pscene.gscene.show_pose(q_approach)
+                    print("inverse_kinematics fail to approach")
+                    pscene.gscene.show_pose(q_approach)
                 # print("q_approach: {}".format(q_approach))
                 if (q_approach is None) or any(pairwise_collision(robot, b) for b in obstacles):
                     # print("obstacles: {}".format(obstacles))
                     if show_state:
-                        print("IK approach fail")
+                        print("IK-col approach fail")
                         if q_approach is None:
                             color = pscene.gscene.COLOR_LIST[2]
                         else:
@@ -317,22 +319,25 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                     continue
                 # print("go on")
                 conf = BodyConf(robot, q_approach)
-                q_grasp = inverse_kinematics(robot, grasp.link, gripper_pose)
-                # print("q_grasp: {}".format(q_grasp))
-                if show_state and q_grasp is not None:
-                    pscene.gscene.show_pose(q_grasp)
-                if (q_grasp is None) or any(pairwise_collision(robot, b) for b in obstacles):
-                    # print("obstacles: {}".format(obstacles))
-                    if show_state:
-                        print("IK grasp fail")
-                        if q_grasp is None:
-                            color = pscene.gscene.COLOR_LIST[2]
-                        else:
-                            color = pscene.gscene.COLOR_LIST[0]
-                        vis_bak = pscene.gscene.highlight_robot(color)
-                        time.sleep(0.5)
-                        pscene.gscene.recover_robot(vis_bak)
-                    continue
+                if np.sum(np.abs(eye4 - T_xyzquat(grasp.approach_pose))) < 1e-6:
+                    q_grasp = deepcopy(q_approach)
+                else:
+                    q_grasp = inverse_kinematics(robot, grasp.link, gripper_pose)
+                    if show_state and q_grasp is not None:
+                        print("inverse_kinematics fail to grasp")
+                        pscene.gscene.show_pose(q_grasp)
+                    if (q_grasp is None) or any(pairwise_collision(robot, b) for b in obstacles):
+                        # print("obstacles: {}".format(obstacles))
+                        if show_state:
+                            print("IK-col grasp fail")
+                            if q_grasp is None:
+                                color = pscene.gscene.COLOR_LIST[2]
+                            else:
+                                color = pscene.gscene.COLOR_LIST[0]
+                            vis_bak = pscene.gscene.highlight_robot(color)
+                            time.sleep(0.5)
+                            pscene.gscene.recover_robot(vis_bak)
+                        continue
                 if show_state:
                     time.sleep(0.5)
                 if teleport:

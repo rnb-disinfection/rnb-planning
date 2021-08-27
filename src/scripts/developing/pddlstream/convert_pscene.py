@@ -217,13 +217,13 @@ def add_gtem_to_pybullet(gtem, robot_body=0L):
     if gtem.gtype == GEOTYPE.BOX:
         bid = create_box(*gtem.dims, color=gtem.color, collision=gtem.collision)
     if gtem.gtype == GEOTYPE.CYLINDER:
-        bid = create_cylinder(radius=np.mean(gtem.dims[0:1]), height=gtem.dims[2], color=gtem.color,
+        bid = create_cylinder(radius=np.mean(gtem.dims[0:1])/2, height=gtem.dims[2], color=gtem.color,
                               collision=gtem.collision)
     if gtem.gtype == GEOTYPE.CAPSULE:
-        bid = create_capsule(radius=np.mean(gtem.dims[0:1]), height=gtem.dims[2], color=gtem.color,
+        bid = create_capsule(radius=np.mean(gtem.dims[0:1])/2, height=gtem.dims[2], color=gtem.color,
                              collision=gtem.collision)
     if gtem.gtype == GEOTYPE.SPHERE:
-        bid = create_sphere(radius=np.mean(gtem.dims), color=gtem.color, collision=gtem.collision)
+        bid = create_sphere(radius=np.mean(gtem.dims)/2, color=gtem.color, collision=gtem.collision)
     if gtem.gtype == GEOTYPE.PLANE:
         bid = create_plane(color=gtem.color, collision=gtem.collision)
         print("[WARNING] plane geometry not supported yet")

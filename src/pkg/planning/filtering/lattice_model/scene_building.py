@@ -1,5 +1,5 @@
 from ....utils.gjk import get_point_list, get_gjk_distance
-from ...constraint.constraint_subject import CustomObject, Grasp2Point, PlacePoint, SweepPoint, SweepTask
+from ...constraint.constraint_subject import CustomObject, Grasp2Point, PlacePoint, SweepPoint, SweepTask, CylinderObject
 import numpy as np
 from ....utils.utils import *
 from ....utils.rotation_utils import *
@@ -287,53 +287,57 @@ def disperse_objects(gscene, object_class, key, Nmax, workplane_on, GRIP_DEPTH, 
 def add_object(pscene, obj, HANDLE_THICKNESS=1e-6, HANDLE_COLOR = (1,0,0,0.3)):
     gscene = pscene.gscene
     GRIP_DEPTH = obj.GRIP_DEPTH
-    handles = []
-    handles.append(
-        gscene.create_safe(gtype=GEOTYPE.BOX, name=obj.name+"_hdl_tp_a", link_name="base_link",
-                       dims=(obj.DIM[1], GRIP_DEPTH, HANDLE_THICKNESS), center=(0,0,obj.DIM[2]/2-GRIP_DEPTH/2), rpy=(np.pi/2,0,np.pi/2), 
+    if gscene.NAME_DICT[obj.name].gtype == GEOTYPE.BOX:
+        handles = []
+        handles.append(
+            gscene.create_safe(gtype=GEOTYPE.BOX, name=obj.name+"_hdl_tp_a", link_name="base_link",
+                           dims=(obj.DIM[1], GRIP_DEPTH, HANDLE_THICKNESS), center=(0,0,obj.DIM[2]/2-GRIP_DEPTH/2), rpy=(np.pi/2,0,np.pi/2),
+                               color=HANDLE_COLOR, display=True, collision=False, fixed=False,
+                           parent=obj.name)
+        )
+
+        handles.append(
+            gscene.create_safe(gtype=GEOTYPE.BOX, name=obj.name+"_hdl_tp_b", link_name="base_link",
+                           dims=(obj.DIM[1], GRIP_DEPTH, HANDLE_THICKNESS), center=(0,0,obj.DIM[2]/2-GRIP_DEPTH/2), rpy=(np.pi/2,0,-np.pi/2),
+                               color=HANDLE_COLOR, display=True, collision=False, fixed=False,
+                           parent=obj.name)
+        )
+
+        handles.append(
+            gscene.create_safe(gtype=GEOTYPE.BOX, name=obj.name+"_hdl_ft_a", link_name="base_link",
+                           dims=(obj.DIM[2], GRIP_DEPTH,HANDLE_THICKNESS), center=(0,obj.DIM[1]/2-GRIP_DEPTH/2,0), rpy=(0,np.pi/2,0),
+                               color=HANDLE_COLOR, display=True, collision=False, fixed=False,
+                           parent=obj.name)
+        )
+
+        handles.append(
+            gscene.create_safe(gtype=GEOTYPE.BOX, name=obj.name+"_hdl_ft_b", link_name="base_link",
+                           dims=(obj.DIM[2], GRIP_DEPTH,HANDLE_THICKNESS), center=(0,obj.DIM[1]/2-GRIP_DEPTH/2,0), rpy=(0,-np.pi/2,0),
+                               color=HANDLE_COLOR, display=True, collision=False, fixed=False,
+                           parent=obj.name)
+        )
+
+        handles.append(
+            gscene.create_safe(gtype=GEOTYPE.BOX, name=obj.name+"_hdl_bk_a", link_name="base_link",
+                           dims=(obj.DIM[2], GRIP_DEPTH,HANDLE_THICKNESS), center=(0,-obj.DIM[1]/2+GRIP_DEPTH/2,0), rpy=(-np.pi,-np.pi/2,0),
                            color=HANDLE_COLOR, display=True, collision=False, fixed=False,
                        parent=obj.name)
-    )
+        )
 
-    handles.append(
-        gscene.create_safe(gtype=GEOTYPE.BOX, name=obj.name+"_hdl_tp_b", link_name="base_link",
-                       dims=(obj.DIM[1], GRIP_DEPTH, HANDLE_THICKNESS), center=(0,0,obj.DIM[2]/2-GRIP_DEPTH/2), rpy=(np.pi/2,0,-np.pi/2), 
-                           color=HANDLE_COLOR, display=True, collision=False, fixed=False,
-                       parent=obj.name)
-    )
+        handles.append(
+            gscene.create_safe(gtype=GEOTYPE.BOX, name=obj.name+"_hdl_bk_b", link_name="base_link",
+                           dims=(obj.DIM[2], GRIP_DEPTH,HANDLE_THICKNESS), center=(0,-obj.DIM[1]/2+GRIP_DEPTH/2,0), rpy=(-np.pi,+np.pi/2,0),
+                               color=HANDLE_COLOR, display=True, collision=False, fixed=False,
+                           parent=obj.name)
+        )
 
-    handles.append(
-        gscene.create_safe(gtype=GEOTYPE.BOX, name=obj.name+"_hdl_ft_a", link_name="base_link",
-                       dims=(obj.DIM[2], GRIP_DEPTH,HANDLE_THICKNESS), center=(0,obj.DIM[1]/2-GRIP_DEPTH/2,0), rpy=(0,np.pi/2,0), 
-                           color=HANDLE_COLOR, display=True, collision=False, fixed=False,
-                       parent=obj.name)
-    )
-
-    handles.append(
-        gscene.create_safe(gtype=GEOTYPE.BOX, name=obj.name+"_hdl_ft_b", link_name="base_link",
-                       dims=(obj.DIM[2], GRIP_DEPTH,HANDLE_THICKNESS), center=(0,obj.DIM[1]/2-GRIP_DEPTH/2,0), rpy=(0,-np.pi/2,0), 
-                           color=HANDLE_COLOR, display=True, collision=False, fixed=False,
-                       parent=obj.name)
-    )
-
-    handles.append(
-        gscene.create_safe(gtype=GEOTYPE.BOX, name=obj.name+"_hdl_bk_a", link_name="base_link",
-                       dims=(obj.DIM[2], GRIP_DEPTH,HANDLE_THICKNESS), center=(0,-obj.DIM[1]/2+GRIP_DEPTH/2,0), rpy=(-np.pi,-np.pi/2,0), 
-                       color=HANDLE_COLOR, display=True, collision=False, fixed=False,
-                   parent=obj.name)
-    )
-
-    handles.append(
-        gscene.create_safe(gtype=GEOTYPE.BOX, name=obj.name+"_hdl_bk_b", link_name="base_link",
-                       dims=(obj.DIM[2], GRIP_DEPTH,HANDLE_THICKNESS), center=(0,-obj.DIM[1]/2+GRIP_DEPTH/2,0), rpy=(-np.pi,+np.pi/2,0), 
-                           color=HANDLE_COLOR, display=True, collision=False, fixed=False,
-                       parent=obj.name)
-    )
-
-    action_points_dict = {obj.name+"_placement": PlacePoint(obj.name+"_placement", obj.geometry, [0,0,-obj.DIM[2]/2-obj.CLEARANCE], [0,0,0])}
-    action_points_dict.update({handle.name: Grasp2Point(handle.name, handle, None, (0,0,0)) for handle in handles})
-    obj_pscene = pscene.create_subject(oname=obj.name, gname=obj.name, _type=CustomObject, 
-                                 action_points_dict=action_points_dict)
+        action_points_dict = {obj.name+"_placement": PlacePoint(obj.name+"_placement", obj.geometry, [0,0,-obj.DIM[2]/2-obj.CLEARANCE], [0,0,0])}
+        action_points_dict.update({handle.name: Grasp2Point(handle.name, handle, None, (0,0,0)) for handle in handles})
+        obj_pscene = pscene.create_subject(oname=obj.name, gname=obj.name, _type=CustomObject,
+                                     action_points_dict=action_points_dict)
+    elif gscene.NAME_DICT[obj.name].gtype == GEOTYPE.CYLINDER:
+            obj_pscene = pscene.create_subject(oname=obj.name, gname=obj.name, _type=CylinderObject)
+            handles = sorted([v for k, v in obj_pscene.action_points_dict.items() if k not in ["top_p", "bottom_p"]], key=lambda x: x.name)
     return obj_pscene, handles
 
 ## Done
