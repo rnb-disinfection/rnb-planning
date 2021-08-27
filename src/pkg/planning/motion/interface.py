@@ -125,6 +125,33 @@ class MotionInterface:
                         break
             if test_filters_only:
                 return success
+            ##########################################################
+            ################# Temporarytest code #####################
+            ##########################################################
+            try:
+                for _ in range(10):
+                    TextColors.RED.println("================================================")
+                    TextColors.RED.println("========= WARNING: Temporarytest code ==========")
+                    TextColors.RED.println("================================================")
+
+                motion_dat = {}
+                motion_dat['from_state'] = from_state
+                motion_dat['to_state'] = to_state
+                motion_dat['redundancy_dict'] = redundancy_dict
+                motion_dat['gtem_args'] = self.gscene.get_gtem_args()
+                motion_dat["filters"] = [mfilter.__class__.__name__ for  mfilter in enumerate(self.motion_filters)]
+                save_pickle(
+                    os.path.join(MOTION_PATH,
+                                 "{0:08d}-UNEXPECTED-FILTER-ENTRANCE.pkl".format(
+                                     len(os.listdir(MOTION_PATH)))), motion_dat)
+            except Exception as e:
+                save_pickle(
+                    os.path.join(MOTION_PATH,
+                                 "{0:08d}-FILTER-ENTRANCE-AND-EXCEPTION.pkl".format(
+                                     len(os.listdir(MOTION_PATH)))), str(e))
+            ##########################################################
+            ################# Temporarytest code #####################
+            ##########################################################
         else:
             try:
                 motion_dat = {}
