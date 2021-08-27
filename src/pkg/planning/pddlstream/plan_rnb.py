@@ -27,12 +27,12 @@ from examples.pybullet.tamp.streams import get_cfree_approach_pose_test, get_cfr
 
 #######################################################
 
-def pddlstream_from_problem_rnb(pscene, robot, body_names, Q_init, goal_pairs=[], movable=[], checkers=[],
+def pddlstream_from_problem_rnb(pscene, robot, body_names, Q_init, goal_pairs=[], movable=[], checkers_ik=[],
                                 tool_name=None, tool_link_name=None, mplan=None, timeout=TIMEOUT_MOTION_DEFAULT, teleport=False,
                                 grasp_sample=SAMPLE_GRASP_COUNT_DEFAULT, stable_sample=SAMPLE_STABLE_COUNT_DEFAULT,
                                 show_state=False):
     print("================ MAKE PROBLEM ======================")
-    print("IK checkers: {}".format([checker.__class__.__name__ for checker in checkers]))
+    print("IK checkers: {}".format([checker.__class__.__name__ for checker in checkers_ik]))
     print("MP checkers: {}".format([checker.__class__.__name__ for checker in mplan.motion_filters]))
     print("timeout motion : {}".format(timeout))
     print("====================================================")
@@ -95,7 +95,7 @@ def pddlstream_from_problem_rnb(pscene, robot, body_names, Q_init, goal_pairs=[]
     #     approach_pose=Pose(APPROACH_VEC))})
 
     ik_fun = get_ik_fn_rnb(
-        pscene, body_subject_map, pscene.actor_dict[tool_name], checkers, pscene.combined_robot.home_dict,
+        pscene, body_subject_map, pscene.actor_dict[tool_name], checkers_ik, pscene.combined_robot.home_dict,
         disabled_collisions=get_disabled_collisions(pscene.gscene, robot),
         robot=robot, fixed=fixed, teleport=teleport, show_state=show_state)
 
@@ -157,7 +157,7 @@ def solve_in_pddlstream(pscene, mplan, ROBOT_NAME, TOOL_NAME, HOME_POSE, goal_pa
                                                   Q_init=HOME_POSE,
                                                   goal_pairs=goal_pairs,
                                                   movable=movable_bodies,
-                                                  checkers=checkers_ik,
+                                                  checkers_ik=checkers_ik,
                                                   tool_name=TOOL_NAME,
                                                   tool_link_name=gscene.NAME_DICT[TOOL_NAME].link_name,
                                                   mplan=mplan, timeout=TIMEOUT_MOTION,
@@ -183,13 +183,16 @@ def solve_in_pddlstream(pscene, mplan, ROBOT_NAME, TOOL_NAME, HOME_POSE, goal_pa
     res = not any(plan is status for status in [None, False])
 
     move_num = len(plan) if res else 0
-    plan_try = len(mplan.result_log["filter_fin"])
-    plan_num = len(mplan.result_log["planning"])
+    pre_motion_checks = mplan.result_log["pre_motion_checks"]
+    plan_try = len(pre_motion_checks)
+    planning_log = mplan.result_log["planning"]
+    plan_num = len(planning_log)
     fail_num = np.sum(np.logical_not(mplan.result_log["planning"]))
 
     log_dict = {"plan_time": elapsed, "length": move_num,
                 "IK_tot": ik_fun.checkout_count + ik_fun.pass_count + ik_fun.fail_count,
                 "IK_count": ik_fun.pass_count + ik_fun.fail_count, "failed_IKs": ik_fun.fail_count,
                 "MP_tot": plan_try, "MP_count": plan_num, "failed_MPs": fail_num,
-                "success": res, "body_names": body_names, "plan": plan}
+                "success": res, "body_names": body_names, "plan": plan,
+                "pre_motion_checks": pre_motion_checks, "planning_log": planning_log}
     return res, plan, log_dict

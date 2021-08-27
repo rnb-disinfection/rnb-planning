@@ -283,10 +283,7 @@ SCENE_PATH = os.path.join(os.environ['RNB_PLANNING_DIR'], "data/lcheck_scenes")
 try_mkdir(SCENE_PATH)
 
 def save_scene(gscene, arm_tar_idx, grasp_tool_idx, grasp_tar_idx, grasp_obj_idx, rth, error_state):
-    gtem_args = []
-    for gtem in gscene:
-        if gtem.link_name == "base_link" or not gtem.fixed:
-            gtem_args.append(deepcopy(gtem.get_args()))
+    gtem_args = gscene.get_gtem_args()
 
     scene_data = {}
     scene_data["arm_tar_idx"] = arm_tar_idx

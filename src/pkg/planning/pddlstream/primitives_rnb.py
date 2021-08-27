@@ -104,6 +104,8 @@ def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, too
     else: # holding motion, go to release - actor:plane
         subject = graspped
         actor = get_matching_binder(pscene, subject, Qto_dict, excludes=[tool])
+
+    ## Check motion_filters outside, as plan_transition below will do joint motion - filters will be skipped
     res = True
     if subject is not None:
         Tloal_list = [
@@ -112,7 +114,7 @@ def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, too
         res = run_checkers(mplan.motion_filters, actor, subject, Tloal_list,
                      Q_dict=list2dict(Qcur, pscene.gscene.joint_names), show_state=show_state, mplan=mplan)
     if mplan.flag_log:
-        mplan.result_log["filter_fin"].append(res)
+        mplan.result_log["pre_motion_checks"].append(res)
     if res:
         Traj, LastQ, error, success, binding_list = mplan.plan_transition(
             from_state, to_state, {}, timeout=timeout, show_state=show_state)

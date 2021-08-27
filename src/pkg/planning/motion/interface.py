@@ -1,12 +1,15 @@
 from abc import *
 import numpy as np
-from ...utils.utils import list2dict, GlobalTimer, DummyBlock
+from ...utils.utils import list2dict, GlobalTimer, DummyBlock, save_pickle, try_mkdir
 from ..constraint.constraint_common import calc_redundancy
 from collections import defaultdict
 import time
+import os
 
 __metaclass__ = type
 
+MOTION_PATH = os.path.join(os.environ['RNB_PLANNING_DIR'], "data/motion_scenes")
+try_mkdir(MOTION_PATH)
 
 ##
 # @class MotionInterface
@@ -122,6 +125,23 @@ class MotionInterface:
                         break
             if test_filters_only:
                 return success
+        else:
+            try:
+                motion_dat = {}
+                motion_dat['from_state'] = from_state
+                motion_dat['to_state'] = to_state
+                motion_dat['redundancy_dict'] = redundancy_dict
+                motion_dat['gtem_args'] = self.gscene.get_gtem_args()
+                save_pickle(
+                    os.path.join(MOTION_PATH,
+                                 "{0:08d}.pkl".format(
+                                     len(os.listdir(MOTION_PATH)))), motion_dat)
+            except Exception as e:
+                save_pickle(
+                    os.path.join(MOTION_PATH,
+                                 "{0:08d}-EXCEPTION.pkl".format(
+                                     len(os.listdir(MOTION_PATH)))), str(e))
+
 
         if success:
             if self.flag_log:
