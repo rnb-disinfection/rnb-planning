@@ -122,7 +122,7 @@ def sample_redundancy(redundancy_tot, sampler=random.uniform):
 
 
 ##
-# @brief    calculate margins for binding between two ActionPoints
+# @brief    calculate margins for binding between two ActionPoints. Negative means deviation from the allowed range
 # @param handle_T   transformation matrix (4x4) to global coordinate for handle
 # @param binder_T   transformation matrix (4x4) to global coordinate for binder
 # @param handle_redundancy  redundancy for handle {axis: (min, max)}, where axis in "xyzuvw"

@@ -1,6 +1,6 @@
 from abc import *
 import numpy as np
-from ...utils.utils import list2dict, GlobalTimer, DummyBlock, save_pickle, try_mkdir
+from ...utils.utils import list2dict, GlobalTimer, DummyBlock, save_pickle, try_mkdir, TextColors
 from ..constraint.constraint_common import calc_redundancy
 from collections import defaultdict
 import time
@@ -129,21 +129,22 @@ class MotionInterface:
             ################# Temporarytest code #####################
             ##########################################################
             try:
-                for _ in range(10):
-                    TextColors.RED.println("================================================")
-                    TextColors.RED.println("========= WARNING: Temporarytest code ==========")
-                    TextColors.RED.println("================================================")
+                if len(binding_list) > 0:
+                    for _ in range(10):
+                        TextColors.RED.println("================================================")
+                        TextColors.RED.println("========= WARNING: Temporarytest code ==========")
+                        TextColors.RED.println("================================================")
 
-                motion_dat = {}
-                motion_dat['from_state'] = from_state
-                motion_dat['to_state'] = to_state
-                motion_dat['redundancy_dict'] = redundancy_dict
-                motion_dat['gtem_args'] = self.gscene.get_gtem_args()
-                motion_dat["filters"] = [mfilter.__class__.__name__ for  mfilter in enumerate(self.motion_filters)]
-                save_pickle(
-                    os.path.join(MOTION_PATH,
-                                 "{0:08d}-UNEXPECTED-FILTER-ENTRANCE.pkl".format(
-                                     len(os.listdir(MOTION_PATH)))), motion_dat)
+                    motion_dat = {}
+                    motion_dat['from_state'] = from_state
+                    motion_dat['to_state'] = to_state
+                    motion_dat['redundancy_dict'] = redundancy_dict
+                    motion_dat['gtem_args'] = self.gscene.get_gtem_args()
+                    motion_dat["filters"] = [mfilter.__class__.__name__ for  mfilter in enumerate(self.motion_filters)]
+                    save_pickle(
+                        os.path.join(MOTION_PATH,
+                                     "{0:08d}-UNEXPECTED-FILTER-ENTRANCE.pkl".format(
+                                         len(os.listdir(MOTION_PATH)))), motion_dat)
             except Exception as e:
                 save_pickle(
                     os.path.join(MOTION_PATH,

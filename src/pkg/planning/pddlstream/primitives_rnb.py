@@ -36,14 +36,14 @@ def get_matching_object(pscene, binder, Q_dict, approach_vec):
                 handle_redundancy = handle.get_redundancy()
                 margins = get_binding_margins(handle_T, binder_T, handle_redundancy, binder_redundancy,
                                               rot_scale=1e-2)
-                margin_min = np.min(margins)
-                if margin_min > margin_max:
+                margin_min = np.min(margins) # get max. deviation (negative)
+                if margin_min > margin_max: # pick smallest max. deviation (negative)
                     margin_max = margin_min
                     max_point = handle.name
                     max_subject = subject
     if margin_max < -1e-2:
         return None
-    return subject
+    return max_subject
 
 def get_matching_binder(pscene, subject, Q_dict, excludes=[]):
     margin_max = -1e10
@@ -71,7 +71,7 @@ def get_matching_binder(pscene, subject, Q_dict, excludes=[]):
                     margin_max = margin_min
                     max_point = handle.name
                     max_binder = binder
-    return binder
+    return max_binder
 
 
 def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, tool_link, approach_vec=None,
@@ -106,6 +106,10 @@ def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, too
         actor = get_matching_binder(pscene, subject, Qto_dict, excludes=[tool])
 
     ## Check motion_filters outside, as plan_transition below will do joint motion - filters will be skipped
+    GlobalLogger.instance().log_dict["from_state"] = from_state
+    GlobalLogger.instance().log_dict["to_state"] = to_state
+    GlobalLogger.instance().log_dict["subject"] = subject.oname if hasattr(subject, "oname") else subject
+    GlobalLogger.instance().log_dict["actor"] = actor.name if hasattr(actor, "name") else actor
     res = True
     if subject is not None:
         Tloal_list = [

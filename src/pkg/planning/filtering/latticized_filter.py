@@ -228,6 +228,12 @@ class LatticedChecker(MotionFilterInterface):
                            error_state=False)
         except Exception as e:
             if LOG_SCENES:
+                save_pickle(
+                    os.path.join(SCENE_PATH,
+                                 "{0:08d}-{1}.pkl".format(
+                                     len(os.listdir(SCENE_PATH)), 
+                                     "ERROR"
+                                 )), str(e))
                 save_scene(self.pscene.gscene, arm_tar_idx, grasp_tool_idx, grasp_tar_idx, grasp_obj_idx, [r, th, h],
                            error_state=True)
             print("===== THE ERROR OCCURED!!! =====")
@@ -293,6 +299,7 @@ def save_scene(gscene, arm_tar_idx, grasp_tool_idx, grasp_tar_idx, grasp_obj_idx
     scene_data["rth"] = rth
     scene_data["gtem_args"] = gtem_args
     scene_data["error_state"] = error_state
+    scene_data["global_log"] = GlobalLogger.instance().log_dict
     save_pickle(
         os.path.join(SCENE_PATH,
                      "{0:08d}-{1}.pkl".format(

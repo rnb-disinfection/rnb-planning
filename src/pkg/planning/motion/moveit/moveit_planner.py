@@ -151,7 +151,7 @@ class MoveitPlanner(MotionInterface):
                 if np.sum(diffs[idx_rbt])>1e-3:
                     joint_groups.append(rname)
             if len(joint_groups)==0:
-                return np.array([from_state.Q]), from_state.Q, 0, True
+                return np.array([from_state.Q, to_state.Q]), to_state.Q, 0, True
             dual = False
             if len(joint_groups)==1:
                 group_name = joint_groups[0]
