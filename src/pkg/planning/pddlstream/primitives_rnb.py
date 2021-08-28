@@ -105,11 +105,11 @@ def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, too
         subject = graspped
         actor = get_matching_binder(pscene, subject, Qto_dict, excludes=[tool])
 
+    # GlobalLogger.instance().log_dict["from_state"] = from_state
+    # GlobalLogger.instance().log_dict["to_state"] = to_state
+    # GlobalLogger.instance().log_dict["subject"] = subject.oname if hasattr(subject, "oname") else subject
+    # GlobalLogger.instance().log_dict["actor"] = actor.name if hasattr(actor, "name") else actor
     ## Check motion_filters outside, as plan_transition below will do joint motion - filters will be skipped
-    GlobalLogger.instance().log_dict["from_state"] = from_state
-    GlobalLogger.instance().log_dict["to_state"] = to_state
-    GlobalLogger.instance().log_dict["subject"] = subject.oname if hasattr(subject, "oname") else subject
-    GlobalLogger.instance().log_dict["actor"] = actor.name if hasattr(actor, "name") else actor
     res = True
     if subject is not None:
         Tloal_list = [

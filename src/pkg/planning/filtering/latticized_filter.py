@@ -28,8 +28,6 @@ OFFSET_ZERO_ARM = (0.5, 1.0, 1.0)
 RH_MASK_SIZE = 512
 RH_MASK_STEP = 64
 
-LOG_SCENES = True
-
 
 # def div_r(r):
 #     return floor(sigmoid((r)/0.1-8)*8)
@@ -105,12 +103,6 @@ class LatticedChecker(MotionFilterInterface):
             rname: get_tf(shoulder_link, self.combined_robot.home_dict, pscene.gscene.urdf_content)[2, 3]
             for rname, shoulder_link in self.shoulder_link_dict.items()}
         self.lock = DummyBlock()
-
-        if LOG_SCENES:
-            for _ in range(10):
-                TextColors.RED.println("==============================================================")
-                TextColors.RED.println("========= WARNING: LatticedChecker SCENE LOGGING ON ==========")
-                TextColors.RED.println("==============================================================")
 
     ##
     # @brief define lock if it needs lock in multiprocess calls
@@ -223,19 +215,9 @@ class LatticedChecker(MotionFilterInterface):
         grasp_tar_img[np.unravel_index(grasp_tar_idx, shape=GRASP_SHAPE)] = 1
         try:
             grasp_obj_img[np.unravel_index(grasp_obj_idx, shape=GRASP_SHAPE)] = 1
-            if LOG_SCENES:
-                save_scene(self.pscene.gscene, arm_tar_idx, grasp_tool_idx, grasp_tar_idx, grasp_obj_idx, [r, th, h],
-                           error_state=False)
         except Exception as e:
-            if LOG_SCENES:
-                save_pickle(
-                    os.path.join(SCENE_PATH,
-                                 "{0:08d}-{1}.pkl".format(
-                                     len(os.listdir(SCENE_PATH)), 
-                                     "ERROR"
-                                 )), str(e))
-                save_scene(self.pscene.gscene, arm_tar_idx, grasp_tool_idx, grasp_tar_idx, grasp_obj_idx, [r, th, h],
-                           error_state=True)
+            save_scene(self.pscene.gscene, arm_tar_idx, grasp_tool_idx, grasp_tar_idx, grasp_obj_idx, [r, th, h],
+                       error_state=True)
             print("===== THE ERROR OCCURED!!! =====")
             print("===== THE ERROR OCCURED!!! =====")
             print("===== THE ERROR OCCURED!!! =====")
@@ -299,7 +281,7 @@ def save_scene(gscene, arm_tar_idx, grasp_tool_idx, grasp_tar_idx, grasp_obj_idx
     scene_data["rth"] = rth
     scene_data["gtem_args"] = gtem_args
     scene_data["error_state"] = error_state
-    scene_data["global_log"] = GlobalLogger.instance().log_dict
+    # scene_data["global_log"] = GlobalLogger.instance().log_dict
     save_pickle(
         os.path.join(SCENE_PATH,
                      "{0:08d}-{1}.pkl".format(
