@@ -18,7 +18,7 @@ class ObstacleBase:
     GTYPE = None
     COLOR = (0.7,0.7,0.7,1)
     
-    def __init__(self, gscene, name, sampler=np.random.uniform, DIM=None, RTH=None, RPY=None):
+    def __init__(self, gscene, name, sampler=np.random.uniform, DIM=None, RTH=None, RPY=None, fixed=True):
         self.name = name
         self.DIM = sampler(self.DIM_MIN, self.DIM_MAX) if DIM is None else DIM
         self.RTH = sampler(self.RTH_MIN, self.RTH_MAX) if RTH is None else RTH
@@ -32,7 +32,7 @@ class ObstacleBase:
         self.RTH[0] -= np.min(verts_r_compo)
         self.geometry = gscene.create_safe(gtype=self.GTYPE, name=self.name, link_name="base_link", 
                                   dims=self.DIM, center=tuple(self.XYZ), rpy=self.RPY,
-                                  color=self.COLOR, display=True, collision=True, fixed=True)
+                                  color=self.COLOR, display=True, collision=True, fixed=fixed)
         self.subgeo_list = []
         
     def is_overlapped_with(self, gtem):
@@ -230,7 +230,7 @@ class PlaneObject(ObstacleBase):
         self.GRIP_DEPTH = GRIP_DEPTH
         self.DIM_MIN = (0.02, GRIP_DEPTH, GRIP_DEPTH)
         self.CLEARANCE = CLEARANCE
-        ObstacleBase.__init__(self, gscene=gscene, name=name, **kwargs)
+        ObstacleBase.__init__(self, gscene=gscene, name=name, fixed=False, **kwargs)
         verts, radii = self.geometry.get_vertice_radius()
         verts_rot = np.matmul(self.geometry.orientation_mat, verts.transpose()) ## verices with global orientaion
         verts_rot_loc = np.matmul(workplane.geometry.Toff[:3,:3].transpose(), verts_rot) ## verices with local orientaion
