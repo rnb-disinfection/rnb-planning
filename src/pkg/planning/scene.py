@@ -379,10 +379,10 @@ class PlanningScene:
                 if not self.actor_dict[binding[2]].check_available(
                         list2dict(from_state.Q, self.gscene.joint_names)):
                     success = False
-        else:
-            if from_state.Q is not None and to_state.Q is not None:
-                if np.sum(np.abs(from_state.Q - to_state.Q))<1e-3:
-                    success = False
+        # else: # commenting out this because there's no need to filter out no-motion transitions
+        #     if from_state.Q is not None and to_state.Q is not None:
+        #         if np.sum(np.abs(from_state.Q - to_state.Q))<1e-3:
+        #             success = False
         return binding_list, success
 
     ##

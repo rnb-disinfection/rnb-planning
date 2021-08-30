@@ -2,6 +2,7 @@ from ..geometry.geometry import *
 from ..utils.utils import list2dict
 from ..planning.constraint.constraint_subject import *
 from ..planning.constraint.constraint_actor import PlacePlane
+from ..planning.constraint.constraint_common import calc_redundancy
 
 
 ##
@@ -442,6 +443,21 @@ def disperse_on(pscene, gcheck, surface, item_names):
         gtem_dict[gname] = gtem
     gscene.update_markers_all()
     return gtem_dict
+
+##
+# @brief show redundancy-applied action point
+# @param redundancy  {action point name: {axis: value}}
+def show_action_point(gscene, handle, actor, Q_dict, redundancy):
+    point_add_handle, rpy_add_handle = calc_redundancy(redundancy[handle.name], handle)
+    point_add_binder, rpy_add_binder = calc_redundancy(redundancy[actor.name], actor)
+    T_add_handle = SE3(Rot_rpy(rpy_add_handle), point_add_handle)
+    T_add_binder = SE3(Rot_rpy(rpy_add_binder), point_add_binder)
+    T_handle = np.matmul(handle.Toff_lh, T_add_handle)
+    T_binder = np.matmul(actor.Toff_lh, T_add_binder)
+    T_grip = np.matmul(handle.get_tf_handle(Q_dict), np.matmul(T_add_handle, SE3_inv(T_add_binder)))
+    T_elink = np.matmul(T_handle, SE3_inv(T_binder))
+    gscene.add_highlight_axis("hl", "grip", link_name="base_link", center=T_grip[:3,3], orientation_mat=T_grip[:3,:3])
+    gscene.add_highlight_axis("hl", "elink", link_name="base_link", center=T_elink[:3,3], orientation_mat=T_elink[:3,:3])
 
 ### resized image plot
 # ratio = 1.0/3

@@ -19,8 +19,15 @@ BATCH_SIZE = 1
 SERVER_PERIOD = 1e-3
 GRASP_SHAPE = (20,20,20)
 ARM_SHAPE = (20,20,20)
+WDH_GRASP = (1, 1, 1)
+L_CELL_GRASP = 0.05
+OFFSET_ZERO_GRASP = (0.5, 0.5, 0.5)
+WDH_ARM = (2, 2, 2)
+L_CELL_ARM = 0.10
+OFFSET_ZERO_ARM = (0.5, 1.0, 1.0)
 RH_MASK_SIZE = 512
 RH_MASK_STEP = 64
+
 
 # def div_r(r):
 #     return floor(sigmoid((r)/0.1-8)*8)
@@ -57,8 +64,8 @@ class LatticedChecker(MotionFilterInterface):
         self.gscene = pscene.gscene
         self.gcheck = gcheck
         self.end_link_couple_dict = gcheck.end_link_couple_dict
-        self.ltc_effector = Latticizer_py(WDH=(1, 1, 1), L_CELL=0.05, OFFSET_ZERO=(0.5, 0.5, 0.5))
-        self.ltc_arm_10 = Latticizer_py(WDH=(2, 2, 2), L_CELL=0.10, OFFSET_ZERO=(0.5, 1.0, 1.0))
+        self.ltc_effector = Latticizer_py(WDH=WDH_GRASP, L_CELL=L_CELL_GRASP, OFFSET_ZERO=OFFSET_ZERO_GRASP)
+        self.ltc_arm_10 = Latticizer_py(WDH=WDH_ARM, L_CELL=L_CELL_ARM, OFFSET_ZERO=OFFSET_ZERO_ARM)
         # Create an array in shared memory.
         self.prepared_p_dict = {}
         self.grasp_img_p_dict, self.arm_img_p_dict, self.rh_vals_p_dict, self.result_p_dict,\
@@ -95,6 +102,15 @@ class LatticedChecker(MotionFilterInterface):
         self.shoulder_height_dict = {
             rname: get_tf(shoulder_link, self.combined_robot.home_dict, pscene.gscene.urdf_content)[2, 3]
             for rname, shoulder_link in self.shoulder_link_dict.items()}
+        self.lock = DummyBlock()
+
+    ##
+    # @brief define lock if it needs lock in multiprocess calls
+    def prepare_multiprocess_lock(self, manager):
+        if manager is not None:
+            self.lock = manager.Lock()
+        else:
+            self.lock = DummyBlock()
 
     ##
     # @brief check end-effector collision in grasping
@@ -200,6 +216,8 @@ class LatticedChecker(MotionFilterInterface):
         try:
             grasp_obj_img[np.unravel_index(grasp_obj_idx, shape=GRASP_SHAPE)] = 1
         except Exception as e:
+            save_scene(self.pscene.gscene, arm_tar_idx, grasp_tool_idx, grasp_tar_idx, grasp_obj_idx, [r, th, h],
+                       error_state=True)
             print("===== THE ERROR OCCURED!!! =====")
             print("===== THE ERROR OCCURED!!! =====")
             print("===== THE ERROR OCCURED!!! =====")
@@ -228,14 +246,16 @@ class LatticedChecker(MotionFilterInterface):
         return res[-1]>0.5
 
     def query_wait_response(self, robot_type_name, grasp_img_batch, arm_img_batch, rh_vals_batch):
-        self.grasp_img_p_dict[robot_type_name][:] = grasp_img_batch[:]
-        self.arm_img_p_dict[robot_type_name][:] = arm_img_batch[:]
-        self.rh_vals_p_dict[robot_type_name][:] = rh_vals_batch[:]
-        self.query_in_dict[robot_type_name][0] = True
-        while not self.response_out_dict[robot_type_name][0]:
-            time.sleep(SERVER_PERIOD)
-        self.response_out_dict[robot_type_name][0] = False
-        return np.copy(self.result_p_dict[robot_type_name])
+        with self.lock:
+            self.grasp_img_p_dict[robot_type_name][:] = grasp_img_batch[:]
+            self.arm_img_p_dict[robot_type_name][:] = arm_img_batch[:]
+            self.rh_vals_p_dict[robot_type_name][:] = rh_vals_batch[:]
+            self.query_in_dict[robot_type_name][0] = True
+            while not self.response_out_dict[robot_type_name][0]:
+                time.sleep(SERVER_PERIOD)
+            self.response_out_dict[robot_type_name][0] = False
+            result = np.copy(self.result_p_dict[robot_type_name])
+        return result
 
     def quit_shared_server(self, robot_type_name):
         self.query_quit_dict[robot_type_name][0] = True
@@ -243,3 +263,28 @@ class LatticedChecker(MotionFilterInterface):
     def __del__(self):
         for rname in self.server_on_me:
             self.quit_shared_server(rname)
+
+
+from copy import deepcopy
+
+SCENE_PATH = os.path.join(os.environ['RNB_PLANNING_DIR'], "data/lcheck_scenes")
+try_mkdir(SCENE_PATH)
+
+def save_scene(gscene, arm_tar_idx, grasp_tool_idx, grasp_tar_idx, grasp_obj_idx, rth, error_state):
+    gtem_args = gscene.get_gtem_args()
+
+    scene_data = {}
+    scene_data["arm_tar_idx"] = arm_tar_idx
+    scene_data["grasp_tool_idx"] = grasp_tool_idx
+    scene_data["grasp_tar_idx"] = grasp_tar_idx
+    scene_data["grasp_obj_idx"] = grasp_obj_idx
+    scene_data["rth"] = rth
+    scene_data["gtem_args"] = gtem_args
+    scene_data["error_state"] = error_state
+    # scene_data["global_log"] = GlobalLogger.instance().log_dict
+    save_pickle(
+        os.path.join(SCENE_PATH,
+                     "{0:08d}-{1}.pkl".format(
+                         len(os.listdir(SCENE_PATH)),
+                         "ERROR" if error_state else "OK"
+                     )), scene_data)

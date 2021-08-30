@@ -15,6 +15,17 @@ def get_point_list_ltc(point_rows_np):
         pl.append(ltc.Point3(*v))
     return pl
 
+def get_centers(Nwdh, L_CELL, OFFSET_ZERO):
+    Nw, Nd, Nh = Nwdh
+    centers = np.zeros(Nwdh + (3,))
+    for iw in range(Nw):
+        centers[iw, :, :, 0] = (iw + 0.5) * L_CELL
+    for id in range(Nd):
+        centers[:, id, :, 1] = (id + 0.5) * L_CELL
+    for ih in range(Nh):
+        centers[:, :, ih, 2] = (ih + 0.5) * L_CELL
+    return centers - OFFSET_ZERO
+
 ##
 # @class    Latticizer_py
 # @brief    Latticize a geometry scene
@@ -49,15 +60,7 @@ class Latticizer_py:
             del self.coll_idx_dict[name]
 
     def get_centers(self):
-        Nw, Nd, Nh = self.Nwdh
-        self.centers = np.zeros(self.Nwdh + (3,))
-        for iw in range(Nw):
-            self.centers[iw, :, :, 0] = (iw + 0.5) * self.L_CELL
-        for id in range(Nd):
-            self.centers[:, id, :, 1] = (id + 0.5) * self.L_CELL
-        for ih in range(Nh):
-            self.centers[:, :, ih, 2] = (ih + 0.5) * self.L_CELL
-        return self.centers - self.OFFSET_ZERO
+        return get_centers(self.Nwdh, self.L_CELL, self.OFFSET_ZERO)
 
     def get_cell_vertices(self):
         ZERO_BOX = DEFAULT_VERT_DICT[GEOTYPE.BOX] * self.L_CELL

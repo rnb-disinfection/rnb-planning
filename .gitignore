@@ -3,6 +3,8 @@
 *.pdf
 *.npy
 *.out
+src/statistics/
+src/temp/
 src/markers/
 src/data/
 src/logs/

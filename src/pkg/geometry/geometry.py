@@ -6,6 +6,7 @@ from ..utils.rotation_utils import *
 from ..utils.joint_utils import get_tf, get_link_adjacency_map, get_min_distance_map, get_link_control_dict
 from ..utils.utils import list2dict
 from collections import defaultdict
+from copy import deepcopy
 
 POINT_DEFAULT = np.array([[0,0,0]])
 SEG_DEFAULT = np.array([[0,0,1.0],[0,0,-1.0]])/2
@@ -339,6 +340,13 @@ class GeometryScene(list):
             gtem.display = display
             gtem.color = color
             self.update_marker(gtem)
+
+    def get_gtem_args(self, condition=lambda gtem:gtem.link_name == "base_link" or not gtem.fixed):
+        gtem_args = []
+        for gtem in self:
+            if condition(gtem):
+                gtem_args.append(deepcopy(gtem.get_args()))
+        return gtem_args
 
 ##
 # @class GeometryItem
