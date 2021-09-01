@@ -168,6 +168,10 @@ class TaskRRT(TaskInterface):
             if isinstance(new_node, State):
                 to_state = new_node
                 redundancy_dict = deepcopy(parent_snode.redundancy_dict)
+            elif isinstance(new_node, int): # for copy and extend existing SearchNode, especially for RRT* extension
+                snode_tar = self.snode_dict[new_node]
+                to_state = snode_tar.state
+                redundancy_dict = deepcopy(snode_tar.redundancy_dict)
             else:
                 available_binding_dict = self.pscene.get_available_binding_dict(from_state, new_node,
                                                                                 list2dict(from_state.Q, self.pscene.gscene.joint_names))
@@ -194,7 +198,8 @@ class TaskRRT(TaskInterface):
         if connection_result:
             node_new = snode_new.state.node
             for leaf in self.node_dict[node_new]:
-                self.neighbor_nodes[leaf] = None
+                if leaf not in self.goal_nodes: # goal nodes are manually reached below when possible. no need for random access
+                    self.neighbor_nodes[leaf] = None
 
             with self.snode_dict_lock:
                 if snode_new.state.node not in self.node_snode_dict:
