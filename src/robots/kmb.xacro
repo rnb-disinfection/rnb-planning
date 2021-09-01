@@ -1,0 +1,84 @@
+<?xml version="1.0" ?>
+<robot name="kmb" xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:macro name="kmb" params="robot_id:='0' connected_to:='' xyz:='0 0 0' rpy:='0 0 0'">
+    <xacro:unless value="${not connected_to}">
+      <joint name="kmb${robot_id}_joint_${connected_to}" type="fixed">
+        <parent link="${connected_to}"/>
+        <child link="kmb${robot_id}_link_0"/>
+        <origin rpy="${rpy}" xyz="${xyz}"/>
+      </joint>
+    </xacro:unless>
+	<xacro:property name="PI" value="3.1415926535897931"/>
+
+	<link name="kmb${robot_id}_link_0"/>
+	<link name="kmb${robot_id}_link_x"/>
+	<link name="kmb${robot_id}_link_y"/>
+	<link name="kmb${robot_id}_link_r">
+		<visual>
+			<origin xyz="0 0 0.220" rpy="0 0 0"/>
+			<geometry>
+				<box size="0.6 0.4 0.438"/>
+			</geometry>
+			<material name="metal_white"/>
+		</visual>
+		<visual>
+			<origin xyz="0.2 0.16 0.10" rpy="1.570796326795 0 0"/>
+			<geometry>
+				<cylinder length="0.1" radius="0.1"/>
+			</geometry>
+			<material name="metal"/>
+		</visual>
+		<visual>
+			<origin xyz="0.2 -0.16 0.10" rpy="1.570796326795 0 0"/>
+			<geometry>
+				<cylinder length="0.1" radius="0.1"/>
+			</geometry>
+			<material name="metal"/>
+		</visual>
+		<visual>
+			<origin xyz="-0.2 0.16 0.10" rpy="1.570796326795 0 0"/>
+			<geometry>
+				<cylinder length="0.1" radius="0.1"/>
+			</geometry>
+			<material name="metal"/>
+		</visual>
+		<visual>
+			<origin xyz="-0.2 -0.16 0.10" rpy="1.570796326795 0 0"/>
+			<geometry>
+				<cylinder length="0.1" radius="0.1"/>
+			</geometry>
+			<material name="metal"/>
+		</visual>
+		<collision>
+			<origin xyz="0   0  0.220" rpy="0.  0.  0."/>
+			<geometry>
+				<box size="0.7 0.5 0.438"/>
+			</geometry>
+		</collision>
+	</link>
+
+	<joint name="kmb${robot_id}_joint0" type="prismatic">
+		<parent link="kmb${robot_id}_link_0"/>
+		<child link="kmb${robot_id}_link_x"/>
+		<origin xyz="0 0 0" rpy="0 0 0"/>
+		<axis xyz="1 0 0"/>
+    	<limit effort="10000" lower="-5" upper="5" velocity="1.0"/>
+	</joint>
+
+	<joint name="kmb${robot_id}_joint1" type="prismatic">
+		<parent link="kmb${robot_id}_link_x"/>
+		<child link="kmb${robot_id}_link_y"/>
+		<origin xyz="0 0 0" rpy="0 0 0"/>
+		<axis xyz="0 1 0"/>
+    	<limit effort="10000" lower="-5" upper="5" velocity="1.0"/>
+	</joint>
+
+	<joint name="kmb${robot_id}_joint2" type="continuous">
+		<parent link="kmb${robot_id}_link_y"/>
+		<child link="kmb${robot_id}_link_r"/>
+		<origin xyz="0 0 0" rpy="0 0 0"/>
+		<axis xyz="0 0 1"/>
+    	<limit effort="10000" velocity="1.5708"/>
+	</joint>
+  </xacro:macro>
+</robot>

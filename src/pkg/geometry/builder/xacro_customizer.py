@@ -34,13 +34,13 @@ class XacroCustomizer(Singleton):
         if not hasattr(self, 'subp'): self.subp = None
         self.clear()
         for rbt in robots:
-            self.__add_robot(rbt.idx, rbt.type, rbt.xyzrpy[0], rbt.xyzrpy[1])
+            self.__add_robot(rbt.idx, rbt.type, rbt.xyzrpy[0], rbt.xyzrpy[1],root_on=rbt.root_on)
         self.__write_xacro()
 
-    def __add_robot(self, rid, rtype, xyz=[0,0,0], rpy=[0,0,0]):
+    def __add_robot(self, rid, rtype, xyz=[0,0,0], rpy=[0,0,0], root_on="base_link"):
         rexpression = \
-            '<xacro:{rtype} robot_id="{rid}" xyz="{xyz}" rpy="{rpy}" connected_to="base_link"/>'.format(
-                rtype=rtype.name, rid=rid, xyz='{} {} {}'.format(*xyz), rpy='{} {} {}'.format(*rpy)
+            '<xacro:{rtype} robot_id="{rid}" xyz="{xyz}" rpy="{rpy}" connected_to="{root_on}"/>'.format(
+                rtype=rtype.name, rid=rid, xyz='{} {} {}'.format(*xyz), rpy='{} {} {}'.format(*rpy), root_on=root_on
             )
         self.rexpression_list += [rexpression]
         

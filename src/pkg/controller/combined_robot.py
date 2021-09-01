@@ -43,8 +43,12 @@ class CombinedRobot:
             self.joint_names += joint_names_cur
             for jname, lim_pair, vellim, acclim in zip(joint_names_cur, RobotSpecs.get_joint_limits(_type),
                                                         RobotSpecs.get_vel_limits(_type), RobotSpecs.get_acc_limits(_type)):
-                self.custom_limits[jname].update({"lower":lim_pair[0], "upper":lim_pair[1],
-                                                  "velocity": vellim*self.vel_scale, "effort": acclim*self.acc_scale})
+                if lim_pair is not None:
+                    self.custom_limits[jname].update({"lower":lim_pair[0], "upper":lim_pair[1]})
+                if vellim is not None:
+                    self.custom_limits[jname].update({"velocity": vellim*self.vel_scale})
+                if acclim is not None:
+                    self.custom_limits[jname].update({"effort": acclim*self.acc_scale})
             self.home_pose += RobotSpecs.get_home_pose(_type)
             self.idx_dict[name] = range(i0, len(self.joint_names))
             self.robot_dict[name] = None

@@ -27,7 +27,6 @@
     (Cooked ?o)
 
     (On ?o ?r)
-    (Holding ?o)
 
     (UnsafePose ?o ?p)
     (UnsafeApproach ?o ?p ?g)
@@ -93,10 +92,6 @@
     (exists (?p) (and (Supported ?o ?p ?r)
                       (AtPose ?o ?p)))
   )
-  (:derived (Holding ?o)
-    (exists (?g) (and (Grasp ?o ?g)
-                      (AtGrasp ?o ?g)))
-  )
 
   (:derived (UnsafePose ?o ?p)
     (exists (?o2 ?p2) (and (Pose ?o ?p) (Pose ?o2 ?p2) (not (= ?o ?o2))
@@ -111,7 +106,6 @@
   (:derived (UnsafeTraj ?t)
     (exists (?o2 ?p2) (and (Traj ?t) (Pose ?o2 ?p2)
                            (not (CFreeTrajPose ?t ?o2 ?p2))
-                           ; (TrajCollision ?t ?o2 ?p2)
                            (AtPose ?o2 ?p2)))
   )
 )

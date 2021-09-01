@@ -9,6 +9,7 @@ class RobotType(Enum):
     panda=1
     indy7gripper=2
     indy5dof=3
+    kmb=4
 
 
 ##
@@ -62,6 +63,12 @@ class RobotSpecs:
                                                     +[(-3.75245789179, 3.75245789179)]*2,
                                        vel_limits=np.deg2rad([150, 150, 150,  180, 180])/2,
                                        acc_limits=np.deg2rad([180]*5)/2),
+        RobotType.kmb: RobotTemplate(robot_name='kmb', base_name="link_0", tip_name="link_r",
+                                       joint_names=["joint{}".format(idx) for idx in [0,1,2]],
+                                       home_pose=[0, 0, 0],
+                                       joint_limits=[None,None, None],
+                                       vel_limits=[None,None, None],
+                                       acc_limits=[None,None, None]),
     }
 
     @classmethod
@@ -106,8 +113,9 @@ class RobotConfig:
     # @param xyzrpy location of robot in tuple (xyz(m), rpy(rad))
     # @param address ip address of robot string
     # @param specs  dictionary to describe additional characteristics
-    def __init__(self, idx, type, xyzrpy, address, specs=None):
+    def __init__(self, idx, type, xyzrpy, address, root_on="base_link", specs=None):
         self.idx, self.type, self.xyzrpy, self.address = idx, type, xyzrpy, address
+        self.root_on = root_on
         self.specs = {} if specs is None else specs
 
     ##
