@@ -33,8 +33,8 @@ print("-"*50)
 
 ########################################################
 ########## Load scene and prepare planner  #############
-ROBOT_NAME, TOOL_LINK, TOOL_XYZ, HOME_POSE, GRIP_DEPTH = get_single_robot_params(ROBOT_TYPE)
-s_builder, pscene = prepare_single_robot_scene(ROBOT_TYPE, ROBOT_NAME, TOOL_LINK, TOOL_XYZ, VISUALIZE=VISUALIZE)
+ROBOT_NAME, TOOL_LINK, TOOL_XYZ, TOOL_RPY, HOME_POSE, GRIP_DEPTH = get_single_robot_params(ROBOT_TYPE)
+s_builder, pscene = prepare_single_robot_scene(ROBOT_TYPE, ROBOT_NAME, TOOL_LINK, TOOL_XYZ, TOOL_RPY, VISUALIZE=VISUALIZE)
 crob, gscene = pscene.combined_robot, pscene.gscene
 
 fname = "data_%s_%02d.pkl" % (file_option, data_idx)

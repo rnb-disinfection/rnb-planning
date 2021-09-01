@@ -14,6 +14,7 @@ def get_single_robot_params(ROBOT_TYPE):
         ROBOT_NAME = "indy0"
         TOOL_LINK = "indy0_tcp"
         TOOL_XYZ = (0, 0, 0.14)
+        TOOL_RPY = (-np.pi / 2, 0, 0)
         HOME_POSE = (0, 0, 0, 0, 0, 0)
         GRIP_DEPTH = 0.05
 
@@ -21,21 +22,21 @@ def get_single_robot_params(ROBOT_TYPE):
         ROBOT_NAME = "panda0"
         TOOL_LINK = "panda0_hand"
         TOOL_XYZ = (0, 0, 0.112)
+        TOOL_RPY = (-np.pi / 2, 0, 0)
         HOME_POSE = (0, -0.3, 0, -0.5, 0, 2.5, 0)
         GRIP_DEPTH = 0.03
-    return ROBOT_NAME, TOOL_LINK, TOOL_XYZ, HOME_POSE, GRIP_DEPTH
+    return ROBOT_NAME, TOOL_LINK, TOOL_XYZ, TOOL_RPY, HOME_POSE, GRIP_DEPTH
 
 
 ##
 # @brief prepare single-robot planning scene
-def prepare_single_robot_scene(ROBOT_TYPE, ROBOT_NAME, TOOL_LINK, TOOL_XYZ,
-                               VISUALIZE=True, base_xyz_rpy=((0, 0, 0), (0, 0, 0)), TOOL_RPY=(-np.pi / 2, 0, 0)):
+def prepare_single_robot_scene(ROBOT_TYPE, ROBOT_NAME, TOOL_LINK, TOOL_XYZ, TOOL_RPY,
+                               VISUALIZE=True, base_xyz_rpy=((0, 0, 0), (0, 0, 0))):
     crob = CombinedRobot(robots_on_scene=[
         RobotConfig(0, ROBOT_TYPE, base_xyz_rpy,
                     INDY_IP)]
         , connection_list=[False])
 
-    # for data_idx in range(100):
     s_builder = SceneBuilder(None)
     gscene = s_builder.create_gscene(crob, start_rviz=VISUALIZE)
 
