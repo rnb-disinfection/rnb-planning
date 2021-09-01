@@ -37,6 +37,7 @@ OPPOSITE_DICT = {
 # @remark   get_redundancy should be implemented in chlid classes.
 class ActionPoint:
     ctype = None
+    redundancy = {}
 
     ##
     # @param    name        action point name
@@ -61,6 +62,7 @@ class ActionPoint:
         self.R_point = Rot_rpy(self.rpy_point)
         self.Toff_gh = SE3(self.R_point, self.point if self.point is not None else (0, 0, 0))
         self.update_handle()
+        self.update_redundancy()
 
     ##
     # @brief    update Transformation from link (Toff_lf), when parent geometry has moved
@@ -75,9 +77,13 @@ class ActionPoint:
         return np.matmul(self.geometry.get_tf(joint_dict, from_link=from_link), self.Toff_gh)
 
     ##
-    # @brief    function prototype to define redundancy of action point
-    @abstractmethod
+    # @brief    return redundancy of action point
     def get_redundancy(self):
+        return self.redundancy
+
+    ##
+    # @brief (prototype) update redundancy based on current informations: point, dims
+    def update_redundancy(self):
         pass
 
 

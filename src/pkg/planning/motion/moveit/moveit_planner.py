@@ -437,7 +437,7 @@ def save_converted_chain(urdf_content, urdf_path, robot_new, base_link, end_link
     new_chain = __get_chain(end_link, urdf_content_new)
     new_joints = [linkage[0] for linkage in new_chain if
                   linkage[0] and urdf_content_new.joint_map[linkage[0]].type != "fixed"]
-    new_links = sorted(urdf_content_new.link_map.keys())
+    new_links = [link.name for link in urdf_content_new.links]
 
     srdf_path_new = write_srdf(robot_names=[robot_new], urdf_content=urdf_content_new, urdf_path=urdf_path_new,
                                link_names=new_links, joint_names=new_joints,
@@ -457,7 +457,7 @@ def write_srdf(robot_names, urdf_content, urdf_path, link_names, joint_names, ch
         grp.setAttribute('name', rname)
 
         chain = root.createElement("chain")
-        chain.setAttribute('base_link', base_link)
+        chain.setAttribute('base_link', chain_dict[rname]['link_names'][0])
         chain.setAttribute('tip_link', chain_dict[rname]['tip_link'])
         grp.appendChild(chain)
         xml.appendChild(grp)

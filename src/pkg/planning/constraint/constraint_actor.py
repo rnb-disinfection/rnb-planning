@@ -22,10 +22,6 @@ class Actor(ActionPoint):
     def check_type(self, action_point):
         return action_point.ctype == self.ctype
 
-    @abstractmethod
-    def get_redundancy(self):
-        pass
-
     ##
     # @brief function prototype to check quick availability of action point when building search tree
     @abstractmethod
@@ -38,17 +34,18 @@ class Actor(ActionPoint):
 # @brief Base class for Pointer type binder. z-direction and contact are constrained.
 # @remark not usable at this level
 class PointerActor(Actor):
+
     ##
     # @brief currently support only x-y plane
-    def get_redundancy(self):
+    def update_redundancy(self):
         if self.point is not None:
-            return {"w":(-np.pi,np.pi)}
+            self.redundancy = {"w":(-np.pi,np.pi)}
         else:
             dims =self.geometry.dims
-            return {"x":(-dims[0]/2,dims[0]/2),
-                    "y":(-dims[1]/2,dims[1]/2),
-                    "z":(dims[2]/2,dims[2]/2),
-                    "w":(-np.pi,np.pi)}
+            self.redundancy = {"x":(-dims[0]/2,dims[0]/2),
+                               "y":(-dims[1]/2,dims[1]/2),
+                               "z":(dims[2]/2,dims[2]/2),
+                               "w":(-np.pi,np.pi)}
 
 
 ##
@@ -58,13 +55,13 @@ class PointerActor(Actor):
 class FrameActor(Actor):
     ##
     # @brief currently support only x-y plane
-    def get_redundancy(self):
-        if self.point:
-            return {}
+    def update_redundancy(self):
+        if self.point is not None:
+            self.redundancy = {}
         else:
             dims =self.geometry.dims
-            return {"x":(-dims[0]/2,dims[0]/2),
-                    "y":(-dims[1]/2,dims[1]/2)}
+            self.redundancy = {"x":(-dims[0]/2,dims[0]/2),
+                               "y":(-dims[1]/2,dims[1]/2)}
 
 ################################# USABLE CLASS #########################################
 
@@ -96,15 +93,17 @@ class Gripper2Tool(PointerActor):
     def check_available(self, joint_dict):
         return True
 
-    def get_redundancy(self):
+    ##
+    # @brief currently support only x-y plane
+    def update_redundancy(self):
         if self.point is not None:
-            return {"w":(-np.pi/4,np.pi/4)}
+            self.redundancy = {"w":(-np.pi/4,np.pi/4)}
         else:
             dims =self.geometry.dims
-            return {"x":(-dims[0]/2,dims[0]/2),
-                    "y":(-dims[1]/2,dims[1]/2),
-                    "z":(dims[2]/2,dims[2]/2),
-                    "w":(-np.pi/4,np.pi/4)}
+            self.redundancy = {"x":(-dims[0]/2,dims[0]/2),
+                               "y":(-dims[1]/2,dims[1]/2),
+                               "z":(dims[2]/2,dims[2]/2),
+                               "w":(-np.pi/4,np.pi/4)}
 
 
 ##

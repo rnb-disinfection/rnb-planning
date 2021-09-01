@@ -12,57 +12,59 @@ __metaclass__ = type
 # @class DirectedPoint
 # @brief ActionPoint with z-axis constraint
 class DirectedPoint(ActionPoint):
-    def get_redundancy(self):
+    ##
+    # @brief update redundancy based on current informations: point, dims
+    def update_redundancy(self):
         if self.point is not None:
-            return {"w":(-np.pi,np.pi)}
+            self.redundancy = {"w":(-np.pi,np.pi)}
         else:
             dims =self.geometry.dims
-            return {"x":(-dims[0]/2,dims[0]/2),
-                    "y":(-dims[1]/2,dims[1]/2),
-                    "z":(dims[2]/2,dims[2]/2),
-                    "w":(-np.pi,np.pi)}
+            self.redundancy = {"x":(-dims[0]/2,dims[0]/2),
+                               "y":(-dims[1]/2,dims[1]/2),
+                               "z":(dims[2]/2,dims[2]/2),
+                               "w":(-np.pi,np.pi)}
 
 ##
 # @class PitchPoint
 # @brief ActionPoint with z-axis constraint
 class PitchPoint(ActionPoint):
-    def get_redundancy(self):
+    def update_redundancy(self):
         if self.point is not None:
-            return {"v":(-np.pi,np.pi)}
+            self.redundancy = {"v":(-np.pi,np.pi)}
         else:
             dims =self.geometry.dims
-            return {"x":(-dims[0]/2,dims[0]/2),
-                    "y":(-dims[1]/2,dims[1]/2),
-                    "z":(dims[2]/2,dims[2]/2),
-                    "v":(-np.pi,np.pi)}
+            self.redundancy ={"x":(-dims[0]/2,dims[0]/2),
+                              "y":(-dims[1]/2,dims[1]/2),
+                              "z":(dims[2]/2,dims[2]/2),
+                              "v":(-np.pi,np.pi)}
 
 ##
 # @class RollPoint
 # @brief ActionPoint with z-axis constraint
 class RollPoint(ActionPoint):
-    def get_redundancy(self):
+    def update_redundancy(self):
         if self.point is not None:
-            return {"u":(-np.pi,np.pi)}
+            self.redundancy = {"u":(-np.pi,np.pi)}
         else:
             dims =self.geometry.dims
-            return {"x":(-dims[0]/2,dims[0]/2),
-                    "y":(-dims[1]/2,dims[1]/2),
-                    "z":(dims[2]/2,dims[2]/2),
-                    "u":(-np.pi,np.pi)}
+            self.redundancy = {"x":(-dims[0]/2,dims[0]/2),
+                               "y":(-dims[1]/2,dims[1]/2),
+                               "z":(dims[2]/2,dims[2]/2),
+                               "u":(-np.pi,np.pi)}
 
 
 ##
 # @class FramedPoint
 # @brief ActionPoint with full orientation constraint
 class FramedPoint(ActionPoint):
-    def get_redundancy(self):
+    def update_redundancy(self):
         if self.point is not None:
-            return {}
+            self.redundancy = {}
         else:
             dims =self.geometry.dims
-            return {"x":(-dims[0]/2,dims[0]/2),
-                    "y":(-dims[1]/2,dims[1]/2),
-                    "z":(dims[2]/2,dims[2]/2)}
+            self.redundancy = {"x":(-dims[0]/2,dims[0]/2),
+                               "y":(-dims[1]/2,dims[1]/2),
+                               "z":(dims[2]/2,dims[2]/2)}
 
 
 ################################# USABLE CLASS #########################################
@@ -94,29 +96,29 @@ class VacuumPoint(DirectedPoint):
 # @brief ActionPoint for rnb-planning.src.pkg.planning.constraint.constraint_actor.Gripper2Tool
 class Grasp2Point(DirectedPoint):
     ctype=ConstraintType.Grasp2
-    def get_redundancy(self):
+    def update_redundancy(self):
         if self.point is not None:
-            return {"w":(0.0,0.0)}
+            self.redundancy = {"w":(0.0,0.0)}
         else:
             dims =self.geometry.dims
-            return {"x":(-dims[0]/2,dims[0]/2),
-                    "y":(-dims[1]/2,dims[1]/2),
-                    "z":(dims[2]/2,dims[2]/2),
-                    "w":(0.0,0.0)}
+            self.redundancy = {"x":(-dims[0]/2,dims[0]/2),
+                               "y":(-dims[1]/2,dims[1]/2),
+                               "z":(dims[2]/2,dims[2]/2),
+                               "w":(0.0,0.0)}
 
 ##
 # @class RollGrasp2Point
 # @brief ActionPoint for rnb-planning.src.pkg.planning.constraint.constraint_actor.Gripper2Tool
 class RollGrasp2Point(RollPoint):
     ctype=ConstraintType.Grasp2
-    def get_redundancy(self):
+    def update_redundancy(self):
         if self.point is not None:
-            return {"u":(-np.pi,np.pi)}
+            self.redundancy = {"u":(-np.pi,np.pi)}
         else:
             dims =self.geometry.dims
-            return {"x":(-dims[0]/2,dims[0]/2),
-                    "y":(-dims[1]/2,dims[1]/2),
-                    "u":(-np.pi,np.pi)}
+            self.redundancy = {"x":(-dims[0]/2,dims[0]/2),
+                               "y":(-dims[1]/2,dims[1]/2),
+                               "u":(-np.pi,np.pi)}
 
 
 ##

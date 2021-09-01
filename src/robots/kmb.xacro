@@ -4,16 +4,19 @@
     <xacro:unless value="${not connected_to}">
       <joint name="kmb${robot_id}_joint_${connected_to}" type="fixed">
         <parent link="${connected_to}"/>
-        <child link="kmb${robot_id}_link_0"/>
+        <child link="kmb${robot_id}_link0"/>
         <origin rpy="${rpy}" xyz="${xyz}"/>
       </joint>
     </xacro:unless>
 	<xacro:property name="PI" value="3.1415926535897931"/>
 
-	<link name="kmb${robot_id}_link_0"/>
-	<link name="kmb${robot_id}_link_x"/>
-	<link name="kmb${robot_id}_link_y"/>
-	<link name="kmb${robot_id}_link_r">
+	<link name="kmb${robot_id}_link0"/>
+	<link name="kmb${robot_id}_link1"/>
+	<link name="kmb${robot_id}_link2"/>
+	<link name="kmb${robot_id}_link3"/>
+	<link name="kmb${robot_id}_link4"/>
+	<link name="kmb${robot_id}_link5"/>
+	<link name="kmb${robot_id}_platform">
 		<visual>
 			<origin xyz="0 0 0" rpy="0 0 0"/>
 			<geometry>
@@ -36,27 +39,51 @@
 	</link>
 
 	<joint name="kmb${robot_id}_joint0" type="prismatic">
-		<parent link="kmb${robot_id}_link_0"/>
-		<child link="kmb${robot_id}_link_x"/>
+		<parent link="kmb${robot_id}_link0"/>
+		<child link="kmb${robot_id}_link1"/>
 		<origin xyz="0 0 0" rpy="0 0 0"/>
 		<axis xyz="1 0 0"/>
     	<limit effort="10000" lower="-5" upper="5" velocity="1.0"/>
 	</joint>
 
 	<joint name="kmb${robot_id}_joint1" type="prismatic">
-		<parent link="kmb${robot_id}_link_x"/>
-		<child link="kmb${robot_id}_link_y"/>
+		<parent link="kmb${robot_id}_link1"/>
+		<child link="kmb${robot_id}_link2"/>
 		<origin xyz="0 0 0" rpy="0 0 0"/>
 		<axis xyz="0 1 0"/>
     	<limit effort="10000" lower="-5" upper="5" velocity="1.0"/>
 	</joint>
 
 	<joint name="kmb${robot_id}_joint2" type="continuous">
-		<parent link="kmb${robot_id}_link_y"/>
-		<child link="kmb${robot_id}_link_r"/>
+		<parent link="kmb${robot_id}_link2"/>
+		<child link="kmb${robot_id}_link3"/>
 		<origin xyz="0 0 0" rpy="0 0 0"/>
 		<axis xyz="0 0 1"/>
     	<limit effort="10000" velocity="1.5708"/>
+	</joint>
+
+	<joint name="kmb${robot_id}_joint3" type="revolute">
+		<parent link="kmb${robot_id}_link3"/>
+		<child link="kmb${robot_id}_link4"/>
+		<origin xyz="0 0 0" rpy="0 0 0"/>
+		<axis xyz="1 0 0"/>
+    	<limit effort="0" lower="0" upper="0" velocity="0"/>
+	</joint>
+
+	<joint name="kmb${robot_id}_joint4" type="revolute">
+		<parent link="kmb${robot_id}_link4"/>
+		<child link="kmb${robot_id}_link5"/>
+		<origin xyz="0 0 0" rpy="0 0 0"/>
+		<axis xyz="0 1 0"/>
+    	<limit effort="0" lower="0" upper="0" velocity="0"/>
+	</joint>
+
+	<joint name="kmb${robot_id}_joint5" type="prismatic">
+		<parent link="kmb${robot_id}_link5"/>
+		<child link="kmb${robot_id}_platform"/>
+		<origin xyz="0 0 0" rpy="0 0 0"/>
+		<axis xyz="0 0 1"/>
+    	<limit effort="0" lower="0" upper="0" velocity="0.0"/>
 	</joint>
   </xacro:macro>
 </robot>

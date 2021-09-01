@@ -136,9 +136,8 @@ class PeriodicIterator(PeriodicTimer):
 ##
 # @class    GlobalLogger
 # @brief    A singleton logger to record data anywhere in the code.
-class GlobalLogger(Singleton):
+class GlobalLogger(Singleton, dict):
     def __init__(self):
-        self.log_dict = {}
         for _ in range(10):
             TextColors.RED.println("=====================================================================")
             TextColors.RED.println("========== WARN - Performance drop: GlobalLogger is working =========")

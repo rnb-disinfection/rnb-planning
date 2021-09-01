@@ -63,12 +63,12 @@ class RobotSpecs:
                                                     +[(-3.75245789179, 3.75245789179)]*2,
                                        vel_limits=np.deg2rad([150, 150, 150,  180, 180])/2,
                                        acc_limits=np.deg2rad([180]*5)/2),
-        RobotType.kmb: RobotTemplate(robot_name='kmb', base_name="link_0", tip_name="link_r",
-                                       joint_names=["joint{}".format(idx) for idx in [0,1,2]],
-                                       home_pose=[0, 0, 0],
-                                       joint_limits=[None,None, None],
-                                       vel_limits=[None,None, None],
-                                       acc_limits=[None,None, None]),
+        RobotType.kmb: RobotTemplate(robot_name='kmb', base_name="link0", tip_name="platform",
+                                       joint_names=["joint{}".format(idx) for idx in range(6)],
+                                       home_pose=[0,]*6,
+                                       joint_limits=[None,None, None, (-1e-3,1e-3), (-1e-3,1e-3), (-1e-3,1e-3)],
+                                       vel_limits=[None,None, None, 0,0,0],
+                                       acc_limits=[None,None, None, 0,0,0]),
     }
 
     @classmethod

@@ -5,6 +5,7 @@ from ...global_config import *
 from ..geometry import *
 from ...utils.singleton import Singleton
 from time import sleep
+from ...utils.utils import GlobalLogger
 
 XACRO_PATH_SRC = '{}src/robots/custom_robots_src.urdf.xacro'.format(RNB_PLANNING_DIR)
 XACRO_PATH_DEFAULT = '{}src/robots/custom_robots.urdf.xacro'.format(RNB_PLANNING_DIR)
