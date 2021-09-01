@@ -62,14 +62,14 @@ class MoveitPlanner(MotionInterface):
         MotionInterface.__init__(self, pscene, motion_filters)
         config_path = os.path.dirname(self.urdf_path)+"/"
         self.robot_names = self.combined_robot.robot_names
-        chain_dict = pscene.robot_chain_dict
-        binder_links = [chain_dict[rname]['tip_link'] for rname in self.robot_names]
+        self.chain_dict = pscene.robot_chain_dict
+        binder_links = [self.chain_dict[rname]['tip_link'] for rname in self.robot_names]
         self.binder_link_robot_dict = {blink: rname for blink, rname in zip(binder_links, self.robot_names)}
-        srdf_path = write_srdf(robot_names=self.robot_names, chain_dict=chain_dict,
+        srdf_path = write_srdf(robot_names=self.robot_names, chain_dict=self.chain_dict,
                                     link_names=self.link_names, joint_names=self.joint_names,
                                     urdf_content=self.urdf_content, urdf_path=self.urdf_path
                                )
-        self.planner = MoveitCompactPlanner_BP(self.urdf_path, srdf_path, self.robot_names, config_path)
+        self.planner = MoveitCompactPlanner_BP(self.urdf_path, srdf_path, self.robot_names, self.chain_dict, config_path)
         if not all([a==b for a,b in zip(self.joint_names, self.planner.joint_names_py)]):
             self.need_mapping = True
             self.idx_pscene_to_mpc = np.array([self.joint_names.index(jname) for jname in self.planner.joint_names_py])

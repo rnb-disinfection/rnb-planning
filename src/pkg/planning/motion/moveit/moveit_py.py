@@ -96,10 +96,12 @@ class ObjectMPC:
 # @class MoveitCompactPlanner_BP
 # @brief Python client of moveit-boost-python interface
 class MoveitCompactPlanner_BP(mpc.Planner):
-    def __init__(self, urdf_path, srdf_path, group_names, config_path):
+    def __init__(self, urdf_path, srdf_path, group_names, chain_dict, config_path):
         mpc.Planner.__init__(self)
         self.urdf_path, self.srdf_path, self.config_path = urdf_path, srdf_path, config_path
         self.group_names = group_names
+        self.chain_dict = chain_dict
+        self.group_joint_nums = {key: len(chain["joint_names"]) for key, chain in chain_dict.items()}
         self.__group_names = NameList(*group_names)
         if not self.init_planner_from_file(urdf_path, srdf_path, self.__group_names, self.config_path):
             raise (RuntimeError("Failed to initialize planner"))
@@ -188,4 +190,4 @@ class MoveitCompactPlanner_BP(mpc.Planner):
                     self_collision=False, fulll_collision=False):
         Q = self.solve_ik(robot_name, CartPose(*goal_pose), timeout_single, timeout_sampling,
                              self_collision, fulll_collision)
-        return np.array(spread(Q, self.joint_num))
+        return np.array(spread(Q, self.group_joint_nums[robot_name]))

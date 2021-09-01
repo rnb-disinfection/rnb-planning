@@ -28,6 +28,15 @@ int main(int argc, char** argv) {
     init_state << 0, 0, 0, 0, 0, 0, \
                     0, 0, -1.57, 0, -1.57, 0;
 
+    CartPose cartpose;
+//    cartpose << 0.1,0.2,0,0,0,0,1;
+    cartpose << 3.4572112560272217, -0.28122010827064514, 0.0, -3.5608298955615324e-17, -2.4632272317165464e-17, 0.9838032126426697, 0.17925205826759338;
+    JointState Q = planner.solve_ik(
+            "kmb0", cartpose, 0.1, 0.1, false, false);
+    std::cout<<"========== IK test ========="<<std::endl;
+    std::cout<<Q.transpose()<<std::endl;
+    std::cout<<"========== IK test ========="<<std::endl;
+
     robot_state::RobotStatePtr kinematic_state = std::make_shared<robot_state::RobotState>(planner.robot_model_);
     robot_state::JointModelGroup* joint_model_group = planner.robot_model_->getJointModelGroup(group_name);
     kinematic_state->setToDefaultValues();
@@ -92,7 +101,7 @@ int main(int argc, char** argv) {
 //    goal_pose << _vec.x()+0.1, _vec.y()-0.1, _vec.z()-0.1, _rot.x(), _rot.y(), _rot.z(), _rot.w();
 
     std::cout<<"========== goal ========="<<std::endl;
-    std::cout<<goal_pose<<std::endl;
+    std::cout<<goal_pose.transpose()<<std::endl;
     std::cout<<"========== goal ========="<<std::endl;
     GeometryList geometry_list;
     CartPose tool_offset;
@@ -156,7 +165,6 @@ int main(int argc, char** argv) {
 
 
     planner.terminate();
-
 //
 //    double goal_obs[7] = {-0.3,-0.2,0.0,0,0,0,1};
 //    double dims[3] = {0.1,0.1,0.1};

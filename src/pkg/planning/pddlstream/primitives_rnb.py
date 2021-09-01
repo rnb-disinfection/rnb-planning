@@ -283,10 +283,13 @@ def run_checkers(checkers, actor, subject, Tloal_list, Q_dict, ignore=[], show_s
     return res
 
 def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_link="base_link", show_state=False,
-                  disabled_collisions=set(), robot=0L, fixed=[], teleport=False, num_attempts=10):
+                  disabled_collisions=set(), robot=0L, fixed=[], teleport=False, num_attempts=10, mplan=None,
+                  timeout_single=0.01):
+    robot_name = [k for k, v in pscene.robot_chain_dict.items() if v["tip_link"]==actor.geometry.link_name][0]
     movable_joints = get_movable_joints(robot)
     sample_fn = get_sample_fn(robot, movable_joints)
     eye4 = np.identity(4)
+    home_pose = dict2list(home_dict, pscene.gscene.joint_names)
     def fn(body, pose, grasp):
         with GlobalTimer.instance().block("ik_fn"):
             if show_state:
@@ -306,7 +309,19 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                     pscene.gscene.show_pose(dict2list(home_dict, pscene.gscene.joint_names))
                 set_joint_positions(robot, movable_joints, sample_fn()) # Random seed
                 # TODO: multiple attempts?
-                q_approach = inverse_kinematics(robot, grasp.link, approach_pose)
+                # GlobalLogger.instance()["ik_params"] = (robot, grasp.link, approach_pose)
+                if mplan is None:
+                    q_approach = inverse_kinematics(robot, grasp.link, approach_pose)
+                else:
+                    q_approach = mplan.planner.solve_ik_py(robot_name, approach_pose[0]+approach_pose[1],
+                                                           timeout_single=timeout_single,
+                                                           timeout_sampling=timeout_single*num_attempts,
+                                                           self_collision=False, fulll_collision=False
+                                                           )
+                    q_approach_dict = list2dict(q_approach, mplan.chain_dict[robot_name]["joint_names"])
+                    home_dict_tmp = deepcopy(home_dict)
+                    home_dict_tmp.update(q_approach_dict)
+                    q_approach = tuple(dict2list(home_dict_tmp, pscene.gscene.joint_names))
                 if show_state and q_approach is not None:
                     print("inverse_kinematics fail to approach")
                     pscene.gscene.show_pose(q_approach)
@@ -328,7 +343,18 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                 if np.sum(np.abs(eye4 - T_xyzquat(grasp.approach_pose))) < 1e-6:
                     q_grasp = deepcopy(q_approach)
                 else:
-                    q_grasp = inverse_kinematics(robot, grasp.link, gripper_pose)
+                    if mplan is None:
+                        q_grasp = inverse_kinematics(robot, grasp.link, gripper_pose)
+                    else:
+                        q_grasp = mplan.planner.solve_ik(robot_name, gripper_pose[0]+gripper_pose[1],
+                                                         timeout_single=timeout_single,
+                                                         timeout_sampling=timeout_single*num_attempts,
+                                                         self_collision=False, fulll_collision=False
+                                                         )
+                        q_grasp_dict = list2dict(q_grasp, mplan.chain_dict[robot_name]["joint_names"])
+                        home_dict_tmp = deepcopy(home_dict)
+                        home_dict_tmp.update(q_grasp_dict)
+                        q_grasp = tuple(dict2list(home_dict_tmp, pscene.gscene.joint_names))
                     if show_state and q_grasp is not None:
                         print("inverse_kinematics fail to grasp")
                         pscene.gscene.show_pose(q_grasp)

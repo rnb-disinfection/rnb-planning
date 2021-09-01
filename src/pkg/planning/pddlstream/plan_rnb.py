@@ -30,7 +30,7 @@ from examples.pybullet.tamp.streams import get_cfree_approach_pose_test, get_cfr
 def pddlstream_from_problem_rnb(pscene, robot, body_names, Q_init, goal_pairs=[], movable=[], checkers_ik=[],
                                 tool_name=None, tool_link_name=None, mplan=None, timeout=TIMEOUT_MOTION_DEFAULT, teleport=False,
                                 grasp_sample=SAMPLE_GRASP_COUNT_DEFAULT, stable_sample=SAMPLE_STABLE_COUNT_DEFAULT,
-                                show_state=False):
+                                show_state=False, USE_MOVEIT_IK=False):
     print("================ MAKE PROBLEM ======================")
     print("IK checkers: {}".format([checker.__class__.__name__ for checker in checkers_ik]))
     print("MP checkers: {}".format([checker.__class__.__name__ for checker in mplan.motion_filters]))
@@ -93,11 +93,14 @@ def pddlstream_from_problem_rnb(pscene, robot, body_names, Q_init, goal_pairs=[]
     #     lambda body: sample_grasps(body_subject_map=body_subject_map, body=body, actor=actor,
     #                                sample_count=grasp_sample, show_state=show_state),
     #     approach_pose=Pose(APPROACH_VEC))})
-
+    if USE_MOVEIT_IK:
+        ik_kwargs = dict(mplan=mplan, timeout_single=0.01)
+    else:
+        ik_kwargs = {}
     ik_fun = get_ik_fn_rnb(
         pscene, body_subject_map, pscene.actor_dict[tool_name], checkers_ik, pscene.combined_robot.home_dict,
         disabled_collisions=get_disabled_collisions(pscene.gscene, robot),
-        robot=robot, fixed=fixed, teleport=teleport, show_state=show_state)
+        robot=robot, fixed=fixed, teleport=teleport, show_state=show_state, **ik_kwargs)
 
     stream_map = {
         'sample-pose': from_gen_fn(get_stable_gen_rnb(body_subject_map, body_actor_map,
@@ -141,7 +144,7 @@ def postprocess_plan(plan):
 def solve_in_pddlstream(pscene, mplan, ROBOT_NAME, TOOL_NAME, HOME_POSE, goal_pairs,
                         TIMEOUT_MOTION, MAX_TIME, MAX_ITER, MAX_SKELETONS,
                         GRASP_SAMPLE, STABLE_SAMPLE, SHOW_STATE, SEARCH_SAMPLE_RATIO,
-                        use_pybullet_gui=False):
+                        use_pybullet_gui=False, USE_MOVEIT_IK=False):
     gtimer = GlobalTimer.instance()
     gscene = pscene.gscene
     checkers_ik = [checker for checker in mplan.motion_filters if checker.BEFORE_IK]
@@ -162,7 +165,7 @@ def solve_in_pddlstream(pscene, mplan, ROBOT_NAME, TOOL_NAME, HOME_POSE, goal_pa
                                                   tool_link_name=gscene.NAME_DICT[TOOL_NAME].link_name,
                                                   mplan=mplan, timeout=TIMEOUT_MOTION,
                                                   grasp_sample=GRASP_SAMPLE, stable_sample=STABLE_SAMPLE,
-                                                  show_state=SHOW_STATE)
+                                                  show_state=SHOW_STATE, USE_MOVEIT_IK=USE_MOVEIT_IK)
     _, _, _, stream_map, init, goal = problem
     print('Init:', init)
     print('Goal:', goal)

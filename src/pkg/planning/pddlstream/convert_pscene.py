@@ -138,8 +138,8 @@ def get_grasp_gen_rnb(body_subject_map, robot, tool_link_name, actor,
                                                 redundancy_sampler=redundancy_sampler)
                 T_lo = np.matmul(actor.Toff_lh, T_ao)
                 point, euler = T2xyzrpy(T_lo)
-                if np.linalg.norm(point) > 0.4:
-                    print("strange here")
+                # if np.linalg.norm(point) > 0.4:
+                #     TextColors.RED.println("strange here")
                 body_grasp = BodyGrasp(body, Pose(point=point, euler=euler),
                                        approach_pose, robot, tool_link)
             yield (body_grasp,)
