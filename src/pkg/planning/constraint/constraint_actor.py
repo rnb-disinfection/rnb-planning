@@ -161,16 +161,7 @@ class FixtureSlot(PointerActor):
     def check_available(self, joint_dict):
         return False
 
-
-##
-# @class SweepTool
-# @brief Actor class for placing plane. z-direction constrained. (PointerActor)
-class SweepTool(PointerActor):
-    controlled = True
-    multiple = False
-    ctype = ConstraintType.Sweep
-    VERTICAL_CUT = np.cos(np.deg2rad(10))
-
+class AbstractWaypointAgent:
     def bind(self, action_obj, bind_point, joint_dict_last):
         state_param = action_obj.state_param
         state_param[action_obj.action_points_order.index(bind_point)] = True
@@ -180,26 +171,46 @@ class SweepTool(PointerActor):
     # @brief place plane is only available when vertical direction is in range of VERTICAL_CUT (10 deg)
     def check_available(self, joint_dict):
         return self.geometry.is_controlled()
+
+
+##
+# @class SweepTool
+# @brief Actor class for sweeping. z-direction constrained. (PointerActor)
+class SweepTool(AbstractWaypointAgent, PointerActor):
+    controlled = True
+    multiple = False
+    ctype = ConstraintType.Sweep
+    VERTICAL_CUT = np.cos(np.deg2rad(10))
 
 
 ##
 # @class SweepFramer
-# @brief Actor class for placing plane. z-direction constrained. (PointerActor)
-class SweepFramer(FrameActor):
+# @brief Actor class for sweeping. z-direction constrained. (FrameActor)
+class SweepFramer(AbstractWaypointAgent, FrameActor):
     controlled = True
     multiple = False
     ctype = ConstraintType.Sweep
     VERTICAL_CUT = np.cos(np.deg2rad(10))
 
-    def bind(self, action_obj, bind_point, joint_dict_last):
-        state_param = action_obj.state_param
-        state_param[action_obj.action_points_order.index(bind_point)] = True
-        action_obj.set_state((action_obj.oname, bind_point, self.name, self.geometry.name), state_param)
 
-    ##
-    # @brief place plane is only available when vertical direction is in range of VERTICAL_CUT (10 deg)
-    def check_available(self, joint_dict):
-        return self.geometry.is_controlled()
+##
+# @class WayAgent
+# @brief Actor class for waypoint reaching. z-direction constrained. (PointerActor)
+class WayAgent(AbstractWaypointAgent, PointerActor):
+    controlled = True
+    multiple = False
+    ctype = ConstraintType.Waypoint
+    VERTICAL_CUT = np.cos(np.deg2rad(10))
+
+
+##
+# @class WayFramer
+# @brief Actor class for waypoint reaching. z-direction constrained. (PointerActor)
+class WayFramer(AbstractWaypointAgent, FrameActor):
+    controlled = True
+    multiple = False
+    ctype = ConstraintType.Waypoint
+    VERTICAL_CUT = np.cos(np.deg2rad(10))
 
 
 ##

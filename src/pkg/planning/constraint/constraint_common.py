@@ -19,6 +19,7 @@ class ConstraintType(Enum):
     Grasp2 = 3
     Fixture = 4
     Sweep = 5
+    Waypoint = 6
 
 
 OPPOSITE_DICT = {

@@ -146,7 +146,7 @@ class PlanningPipeline:
 
     def __search_loop(self, ID, terminate_on_first, N_search,
                       display=False, dt_vis=None, verbose=False, timeout_loop=600,
-                      add_homing=True, post_optimize=False, **kwargs):
+                      add_homing=True, post_optimize=False, home_pose=None,  **kwargs):
         loop_counter = 0
         sample_fail_counter = 0
         sample_fail_max = 10
@@ -201,7 +201,7 @@ class PlanningPipeline:
             if add_homing:
                 print("++ adding return motion to acquired answer ++")
                 home_state = self.tplan.snode_dict[0].copy(self.pscene)
-                home_state.Q = self.pscene.combined_robot.home_pose
+                home_state.Q = self.pscene.combined_robot.home_pose if home_pose is None else home_pose
                 if add_homing>1:
                     self.add_return_motion(snode_new, try_count=add_homing, initial_state=home_state)
                 else:

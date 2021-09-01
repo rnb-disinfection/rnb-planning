@@ -132,6 +132,17 @@ class SweepPoint(DirectedPoint):
 # @brief ActionPoint for rnb-planning.src.pkg.planning.constraint.constraint_actor.SweepTool
 class SweepFrame(FramePoint):
     ctype=ConstraintType.Sweep
+##
+# @class WayPoint
+# @brief ActionPoint for rnb-planning.src.pkg.planning.constraint.constraint_actor.WayAgent
+class WayPoint(DirectedPoint):
+    ctype=ConstraintType.Waypoint
+
+##
+# @class WayFrame
+# @brief ActionPoint for rnb-planning.src.pkg.planning.constraint.constraint_actor.WayFramer
+class WayFrame(FramePoint):
+    ctype=ConstraintType.Waypoint
 
 
 ##
@@ -278,12 +289,12 @@ class AbstractTask(Subject):
 
 
 ##
-# @class SweepTask
+# @class WayopintTask
 # @brief sweep action points in alphabetical order
 # @remark   state_param: boolean vector of which each element represents if each waypoint is covered or not
 #           node_item: number of covered waypoints
-class SweepTask(AbstractTask):
-    constrained = True
+class WayopintTask(AbstractTask):
+    constrained = False
     ##
     # @param oname object's name
     # @param geometry parent geometry
@@ -298,17 +309,6 @@ class SweepTask(AbstractTask):
         self.state_param = np.zeros(len(self.action_points_order), dtype=np.bool)
         self.binding = (self.oname, None, None, None)
         self.tol = tol
-
-    ##
-    # @brief make constraints. by default, empty list.
-    # @remark constraint is applied when using same binding
-    # @param binding_from previous binding
-    # @param binding_to next binding
-    def make_constraints(self, binding_from, binding_to, tol=None):
-        if binding_from is not None and binding_from[2] == binding_to[2]:
-            return [MotionConstraint([self.geometry], True, True, tol=tol if tol is not None else self.tol)]
-        else:
-            return []
 
     ##
     # @brief set object binding state and update location
@@ -411,7 +411,27 @@ class SweepTask(AbstractTask):
 # @brief sweep action points in alphabetical order
 # @remark   state_param: boolean vector of which each element represents if each waypoint is covered or not
 #           node_item: number of covered waypoints
-class SweepLineTask(AbstractTask):
+class SweepTask(WayopintTask):
+    constrained = True
+
+    ##
+    # @brief make constraints. by default, empty list.
+    # @remark constraint is applied when using same binding
+    # @param binding_from previous binding
+    # @param binding_to next binding
+    def make_constraints(self, binding_from, binding_to, tol=None):
+        if binding_from is not None and binding_from[2] == binding_to[2]:
+            return [MotionConstraint([self.geometry], True, True, tol=tol if tol is not None else self.tol)]
+        else:
+            return []
+
+
+##
+# @class SweepLineTask
+# @brief sweep action points in alphabetical order
+# @remark   state_param: boolean vector of which each element represents if each waypoint is covered or not
+#           node_item: number of covered waypoints
+class SweepLineTask(SweepTask):
     unstoppable = True
     constrained = True
     ##
@@ -419,15 +439,8 @@ class SweepLineTask(AbstractTask):
     # @param geometry parent geometry
     # @param action_points_dict pre-defined action points as dictionary
     def __init__(self, oname, geometry, action_points_dict, geometry_vertical=None, tol=1e-3, clearance=None):
-        self.oname = oname
-        self.geometry = geometry
-        self.action_points_dict = action_points_dict
-        self.action_points_order = sorted(self.action_points_dict.keys())
-        self.action_point_len = len(self.action_points_order)
-        self.sub_binders_dict = {}
-        self.state_param = np.zeros(len(self.action_points_order), dtype=np.bool)
-        self.binding = (self.oname, None, None, None)
-        self.tol = tol
+        SweepTask.__init__(self, oname, geometry, action_points_dict, tol=tol)
+
         self.fix_direction = True
         if clearance is None:
             self.clearance = []
@@ -482,101 +495,6 @@ class SweepLineTask(AbstractTask):
                         MotionConstraint([self.geometry_vertical], True, False, tol=tol)]
         else:
             return []
-
-    ##
-    # @brief set object binding state and update location
-    # @param binding (handle name, binder name)
-    # @param state_param list of done-mask
-    def set_state(self, binding, state_param=None):
-        self.binding = binding
-        if state_param is None:
-            self.state_param = np.zeros(len(self.action_points_order), dtype=np.bool)
-        else:
-            self.state_param = state_param.copy()
-        self.update_sub_points()
-
-    ##
-    # @brief (prototype) get state param
-    # @return item for state_param
-    def get_state_param(self):
-        return self.state_param.copy()
-
-    ##
-    # @brief get object-level state_param component
-    def get_state_param_update(self, binding, state_param):
-        if binding[1] is not None:
-            state_param[self.action_points_order.index(binding[1])] = True
-        return state_param
-
-    ##
-    # @brief get available bindings from current binding state
-    # @param from_binding current binding (subject name, handle name, binder name, binder geometry name)
-    # @param to_node_item desired node item
-    # @param actor_dict
-    #           dictionary of binder {binder_name: rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor}
-    # @param Q_dict dictionary of joint values {joint_name: value}
-    # @return list of available bindings [(handle name, binder name, binder geometry name), ...]
-    def get_available_bindings(self, from_binding, to_node_item, actor_dict, Q_dict):
-        ap_dict = self.action_points_dict
-        apk_exclude = self.get_conflicting_points(from_binding[1])
-        bd_exclude = from_binding[-2]
-
-        apk = self.action_points_order[to_node_item - 1]
-        ap_list = [ap_dict[apk]] if apk not in apk_exclude else []
-        ctypes = [ap.ctype for ap in ap_list]
-        bd_list = [actor for actor in actor_dict.values() if actor.ctype in ctypes] # bd_exclude is ignored as previous binding is re-used in sweep
-        for bd in bd_list:
-            self.geometry.gscene.link_control_map[bd.geometry.link_name]
-
-        available_bindings = []
-        for bd in bd_list:
-            for ap in ap_list:
-                if bd.check_type(ap):
-                    available_bindings.append((ap.name, bd.name, bd.geometry.name))
-        if not available_bindings:
-            print("=================================")
-            print("=================================")
-            print("=================================")
-            print("Not available:{}-{}".format(self.oname, to_node_item))
-            print("np_exclude:{}".format(apk_exclude))
-            print("bd_exclude:{}".format(bd_exclude))
-            print("=================================")
-            print("=================================")
-            print("=================================")
-        return available_bindings
-
-    ##
-    # @brief get object-level node component (finished waypoint count)
-    @classmethod
-    def get_node_component(cls, binding_state, state_param):
-        if binding_state[1] is not None:
-            return int(np.sum(state_param))
-        else:
-            return 0
-
-    ##
-    # @brief get object-level neighbor component (detach or next waypoint)
-    def get_neighbor_node_component_list(self, node_tem, pscene):
-        if node_tem < len(self.state_param):
-            return [node_tem+1]
-        else:
-            return [node_tem]
-
-    ##
-    # @brief get all object-level node component
-    def get_all_node_components(self, pscene):
-        return list(range(len(self.state_param)+1))
-
-    ##
-    # @brief return list of state_params corresponds to given node_item.
-    def get_corresponding_params(self, node_item):
-        idx_combs = combinations(range(self.action_point_len), node_item)
-        params_list = []
-        for comb in idx_combs:
-            param = np.zeros(len(self.action_points_order), dtype=np.bool)
-            param[list(comb)] = True
-            params_list.append(param)
-        return params_list
 
 
 ##
