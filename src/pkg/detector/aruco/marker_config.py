@@ -155,6 +155,36 @@ def get_aruco_map():
                          dlevel=DetectionLevel.MOVABLE, gtype=GEOTYPE.BOX, dims=(0.1, 0.1,0.01), color=(0.8,0.0,0.0,1),
                          _list=[
                              ObjectMarker('target5', 215, 0.1, [0,-0.11,0.005], (np.pi,0,0))
+                         ]),
+        'mark1':MarkerSet('mark1',
+                         dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX, dims=(0.1, 0.1,0.1), color=(0.8,0.0,0.0,1),
+                         _list=[
+                             ObjectMarker('mark1', 221, 0.18, [0,0,0], (0,0,0))
+                         ]),
+        'mark2':MarkerSet('mark2',
+                         dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX, dims=(0.1, 0.1,0.1), color=(0.8,0.0,0.0,1),
+                         _list=[
+                             ObjectMarker('mark2', 222, 0.18, [0,0,0], (0,0,0))
+                         ]),
+        'mark3':MarkerSet('mark3',
+                         dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX, dims=(0.1, 0.1,0.1), color=(0.8,0.0,0.0,1),
+                         _list=[
+                             ObjectMarker('mark3', 223, 0.18, [0,0,0], (0,0,0))
+                         ]),
+        'mark4':MarkerSet('mark4',
+                         dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX, dims=(0.1, 0.1,0.1), color=(0.8,0.0,0.0,1),
+                         _list=[
+                             ObjectMarker('mark4', 224, 0.18, [0,0,0], (0,0,0))
+                         ]),
+        'chair':MarkerSet('chair',
+                         dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX, dims=(0.1, 0.1,0.1), color=(0.8,0.0,0.0,1),
+                         _list=[
+                             ObjectMarker('chair', 225, 0.18, [0,0,0], (0,0,0))
+                         ]),
+        'table':MarkerSet('table',
+                         dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX, dims=(0.1, 0.1,0.1), color=(0.8,0.0,0.0,1),
+                         _list=[
+                             ObjectMarker('table', 226, 0.18, [0,0,0], (0,0,0))
                          ])
     })
     return aruco_map
