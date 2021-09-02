@@ -84,6 +84,10 @@ class TaskRRT(TaskInterface):
 
         self.node_dict = {}
         for node, leafs in self.node_dict_full.items():
+            ## goal node does not have child leaf
+            if node in goal_nodes:
+                self.node_dict[node] = set()
+                continue
             ## unstoppable node should change or at terminal
             leaf_list = [leaf
                          for leaf in leafs
