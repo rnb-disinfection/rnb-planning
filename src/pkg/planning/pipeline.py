@@ -84,7 +84,7 @@ class PlanningPipeline:
     # @param verbose boolean flag for printing intermediate process
     def search(self, initial_state, goal_nodes, multiprocess=False,
                      terminate_on_first=True, N_search=None, N_agents=None, wait_proc=True,
-                     display=False, dt_vis=0.01, verbose=False, timeout_loop=600, **kwargs):
+                     display=False, dt_vis=0.01, verbose=False, timeout_loop=600, looptime_extra=1, **kwargs):
         ## @brief runber of redundancy sampling
         self.t0 = time.time()
         self.DOF = len(initial_state.Q)
@@ -127,7 +127,7 @@ class PlanningPipeline:
                     proc.start()
 
             if wait_proc:
-                self.wait_procs(timeout_loop+3)
+                self.wait_procs(timeout_loop+looptime_extra)
         else:
             self.proc_list = []
             self.__search_loop(0, terminate_on_first, N_search, display, dt_vis, verbose, timeout_loop, **kwargs)

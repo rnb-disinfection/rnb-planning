@@ -249,6 +249,7 @@ class GeometryScene(list):
 
         self.highlight_dict[hl_key][htem.name] = htem
         self.__add_marker(htem)
+        self.add_highlight_axis(hname, "axis", gtem.link_name, center=gtem.center, orientation_mat=gtem.orientation_mat)
 
     ##
     # @brief add highlight axis
@@ -452,7 +453,7 @@ class GeometryItem(object):
             self.center_child = center if center is not None else self.center_child
             ## @brief orientation matrix relative to attached link coordinate
             self.orientation_mat_child = orientation_mat if orientation_mat is not None else self.orientation_mat_child
-            ## @brief transformation matrix from geometry coordinate to attached link coordinate
+            ## @brief transformation matrix from parent geometry to attached link coordinate
             self.Toff_child = SE3(self.orientation_mat_child, self.center_child)
 
             ## @brief transformation matrix from geometry coordinate to attached link coordinate
