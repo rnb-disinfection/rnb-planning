@@ -19,10 +19,11 @@ def load_sweep_data(robot_type_name):
 def get_division_dict(match_range_dict, DEPTH_DIV, TABLE_DIMS, TOOL_DIM, DEPTH_MIN, DEPTH_MAX, MARGIN=0):
     TABLE_DEPTH, TABLE_WIDTH, TABLE_HEIGHT = TABLE_DIMS
     TOOL_DEPTH = TOOL_DIM[0]
+    print("== TOOL_DEPTH: {} ==".format(TOOL_DEPTH))
     MOTION_DEPTH =TABLE_DEPTH - TOOL_DEPTH +MARGIN
     print("== MOTION_DEPTH: {} ==".format(MOTION_DEPTH))
     wipe_depth = MOTION_DEPTH/DEPTH_DIV
-    print("== WIIPE_DEPTH: {} ==".format(wipe_depth))
+    print("== WIPE_DEPTH: {} ==".format(wipe_depth))
     depths = sorted([depth for depth in match_range_dict.keys() if DEPTH_MIN<=depth<=DEPTH_MAX])
     division_dict = {}
     for depth1, depth2 in combinations(depths, 2):
@@ -43,7 +44,7 @@ def get_division_dict(match_range_dict, DEPTH_DIV, TABLE_DIMS, TOOL_DIM, DEPTH_M
                     sweep_width = -np.subtract(*range_new)-MARGIN
                     if sweep_width <= 0: # no available sweep width
                         continue
-                    area = sweep_width, wdepth+TOOL_DEPTH
+                    area = sweep_width, np.max(depths_test)-np.min(depths_test)+TOOL_DEPTH
                     divisions = (int(ceil(TABLE_WIDTH/sweep_width)), DEPTH_DIV)
                     div_num = np.multiply(*divisions)
                     division_dict[depths_test] = (sweep_width, area, range_new, divisions, div_num)
@@ -119,8 +120,8 @@ def select_task_area(robot_config, TABLE_DIMS, TOOL_DIM, EE_DEPTH_OFF, EE_HEIGHT
     division_dict_2 = get_division_dict(match_range_dict, 2, TABLE_DIMS, TOOL_DIM,
                                         DEPTH_MIN=DEPTH_MIN, DEPTH_MAX=DEPTH_MAX, MARGIN=MARGIN)
 
-    divisions1_sorted = sorted(division_dict_1.items(), key=lambda item_: item_[1][-1])
-    divisions2_sorted = sorted(division_dict_2.items(), key=lambda item_: item_[1][-1])
+    # divisions1_sorted = sorted(division_dict_1.items(), key=lambda item_: item_[1][-1])
+    # divisions2_sorted = sorted(division_dict_2.items(), key=lambda item_: item_[1][-1])
     divisions_sorted = sorted(division_dict_1.items() + division_dict_2.items(), key=lambda item_: item_[1][-1])
     assert len(divisions_sorted) > 0, "no available table division solution"
 

@@ -109,22 +109,21 @@ def add_indy_tool_kiro(gscene, zoff=0, tool_link="indy0_tcp", face_name="brush_f
 
 ##
 # @param Rtw_ref reference orientation matrix for waypoints in track coordinates
-def make_work_plane(pscene, track, TOOL_DIM, Rtw_ref=None):
+def make_work_plane(pscene, track, area_depth, TOOL_DIM, Rtw_ref=None, collision_margin=0.02):
     gscene = pscene.gscene
     track_face_name = track.name
     if Rtw_ref is not None:
         rpy_wps = Rot2rpy(Rtw_ref)
     else:
         rpy_wps = (0,0,0)
-    track_face_binder = pscene.create_binder(bname=track_face_name, gname=track_face_name, _type=PlacePlane, point=None)
-    track_face = track_face_binder.geometry
-    TRACK_DIM = track.dims
-    TRACK_WIDTH = TOOL_DIM[0] + 0.02
+    track_face = track
+    TRACK_DIM = ((track.dims[0] + area_depth)/2,) + tuple(track.dims[1:])
+    TRACK_WIDTH = TOOL_DIM[0] + collision_margin
     TRACK_NUM = np.ceil(np.divide(TRACK_DIM[0] - TOOL_DIM[0], TOOL_DIM[0])).astype(np.int) + 1
-    OVERMARGIN = TRACK_NUM * TOOL_DIM[0] - TRACK_DIM[0]
-    OVERMARGIN_1 = OVERMARGIN / (TRACK_NUM + 1)
-    TRACK_STEP = (TRACK_DIM[0] - TOOL_DIM[0]) / (TRACK_NUM - 1) + OVERMARGIN_1
-    WP_REF_B = -np.subtract(TRACK_DIM[:2], TOOL_DIM[:2]) / 2 - [OVERMARGIN_1, 0]
+    OVERMARGIN = (TRACK_NUM * TOOL_DIM[0] - TRACK_DIM[0])
+    OVERMARGIN_1 = OVERMARGIN / (TRACK_NUM - 1)
+    TRACK_STEP = TOOL_DIM[0] - OVERMARGIN_1
+    WP_REF_B = -np.subtract(TRACK_DIM[:2], TOOL_DIM[:2]) / 2
     WP_REF_A = np.array([WP_REF_B[0], -WP_REF_B[1]])
     TRC_THIC = TRACK_DIM[2]
 
