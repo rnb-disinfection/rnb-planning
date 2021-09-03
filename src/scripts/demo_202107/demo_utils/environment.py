@@ -107,15 +107,16 @@ def add_indy_tool_kiro(gscene, zoff=0, tool_link="indy0_tcp", face_name="brush_f
                        collision=True, fixed=True)
     return brush_face
 
-def make_work_plane(pscene, track, TOOL_DIM, fix_orientation_front=False):
+##
+# @param Rtw_ref reference orientation matrix for waypoints in track coordinates
+def make_work_plane(pscene, track, TOOL_DIM, Rtw_ref=None):
     gscene = pscene.gscene
-    if fix_orientation_front:
-        Tbt = track.get_tf(pscene.combined_robot.home_dict)
-        Rbt = Tbt[:3,:3]
-        rpy_wps = Rot2rpy(Rbt.transpose())
+    track_face_name = track.name
+    if Rtw_ref is not None:
+        rpy_wps = Rot2rpy(Rtw_ref)
     else:
         rpy_wps = (0,0,0)
-    track_face_binder = pscene.create_binder(bname="track_face", gname="track_face", _type=PlacePlane, point=None)
+    track_face_binder = pscene.create_binder(bname=track_face_name, gname=track_face_name, _type=PlacePlane, point=None)
     track_face = track_face_binder.geometry
     TRACK_DIM = track.dims
     TRACK_WIDTH = TOOL_DIM[0] + 0.02
@@ -133,17 +134,17 @@ def make_work_plane(pscene, track, TOOL_DIM, fix_orientation_front=False):
                                  (TOOL_DIM[0] / 2, TOOL_DIM[1] / 2, TRC_THIC),
                                  tuple(WP_REF_A + [TRACK_STEP * i_trc, 0]) + (0,), rpy=rpy_wps,
                                  color=(0.8, 0.2, 0.2, 0.2), display=True, fixed=True, collision=False,
-                                 parent="track_face")
+                                 parent=track_face_name)
         wp2 = gscene.create_safe(GEOTYPE.BOX, "wp{}b".format(i_trc + 1), "base_link",
                                  (TOOL_DIM[0] / 2, TOOL_DIM[1] / 2, TRC_THIC),
                                  tuple(WP_REF_B + [TRACK_STEP * i_trc, 0]) + (0,), rpy=rpy_wps,
                                  color=(0.8, 0.2, 0.2, 0.2), display=True, fixed=True, collision=False,
-                                 parent="track_face")
+                                 parent=track_face_name)
         face = gscene.create_safe(GEOTYPE.BOX, "face{}".format(i_trc + 1), "base_link",
                                   (TRACK_WIDTH, TRACK_DIM[1], TRC_THIC),
                                   center=(WP_REF_A[0] + TRACK_STEP * i_trc, 0, 0), rpy=(0, 0, 0),
                                   color=(0.8, 0.2, 0.2, 0.2), display=True, fixed=True, collision=False,
-                                  parent="track_face")
+                                  parent=track_face_name)
         track_list.append((wp1, wp2, face))
 
     gscene.update_markers_all()
@@ -154,7 +155,7 @@ def make_work_plane(pscene, track, TOOL_DIM, fix_orientation_front=False):
     sweep_list = []
     for i_t, track_tem in enumerate(track_list):
         wp1, wp2, face = track_tem
-        sweep_ = pscene.create_subject(oname="sweep{}".format(i_t + 1), gname="track_face", _type=SweepLineTask,
+        sweep_ = pscene.create_subject(oname="sweep{}".format(i_t + 1), gname=track_face_name, _type=SweepLineTask,
                                        action_points_dict={
                                            wp1.name: SweepFrame(wp1.name, wp1, [0, 0, 0.005], [0, 0, 0]),
                                            wp2.name: SweepFrame(wp2.name, wp2, [0, 0, 0.005], [0, 0, 0])},

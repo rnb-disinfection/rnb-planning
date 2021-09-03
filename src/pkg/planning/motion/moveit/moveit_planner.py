@@ -58,9 +58,10 @@ class MoveitPlanner(MotionInterface):
     # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
     # @param enable_dual    boolean flag to enable dual arm manipulation (default=True)
     # @param    motion_filters list of child-class of rnb-planning.src.pkg.planning.motion.filtering.filter_interface.MotionFilterInterface
-    def __init__(self, pscene, motion_filters=[], enable_dual=True):
+    def __init__(self, pscene, motion_filters=[], enable_dual=True, incremental_constraint_motion=True):
         MotionInterface.__init__(self, pscene, motion_filters)
         config_path = os.path.dirname(self.urdf_path)+"/"
+        self.incremental_constraint_motion = incremental_constraint_motion
         self.robot_names = self.combined_robot.robot_names
         self.chain_dict = pscene.robot_chain_dict
         binder_links = [self.chain_dict[rname]['tip_link'] for rname in self.robot_names]
@@ -238,17 +239,24 @@ class MoveitPlanner(MotionInterface):
                 if verbose:
                     print("try constrained motion") ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
 
-                # ################################# Special planner ##############################
-                # self.sweep_params = (tool.geometry.link_name, list2dict(from_Q, self.gscene.joint_names), self.gscene.urdf_content,
-                #                      target.geometry.link_name, T_tar_tool)
-                # Tcur = get_tf(tool.geometry.link_name, list2dict(from_Q, self.gscene.joint_names), self.gscene.urdf_content,
-                #               from_link=target.geometry.link_name)
-                # trajectory, success = get_sweep_traj(self, tool.geometry, np.subtract(T_tar_tool[:3,3], Tcur[:3, 3]),
-                #                             from_Q, DP=0.01, ERROR_CUT=0.01, SINGULARITY_CUT = 0.01, VERBOSE=verbose)
-                ################################ Original planner ##############################
-                trajectory, success = planner.plan_constrained_py(
-                    group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q),
-                    timeout=timeout_constrained, **kwargs)
+                if self.incremental_constraint_motion:
+                    # ################################# Special planner ##############################
+                    self.sweep_params = (tool.geometry.link_name, list2dict(from_Q, self.gscene.joint_names), self.gscene.urdf_content,
+                                         target.geometry.link_name, T_tar_tool)
+                    Tcur = get_tf(tool.geometry.link_name, list2dict(from_Q, self.gscene.joint_names), self.gscene.urdf_content,
+                                  from_link=target.geometry.link_name)
+                    get_sweep_traj.args = (self, tool.geometry, np.subtract(T_tar_tool[:3, 3], Tcur[:3, 3]), from_Q)
+                    get_sweep_traj.kwargs = dict(DP=0.01, ERROR_CUT=0.01, SINGULARITY_CUT = 0.01, VERBOSE=verbose,
+                                                 ref_link=self.chain_dict[group_name]["link_names"][0])
+                    trajectory, success = get_sweep_traj(self, tool.geometry, np.subtract(T_tar_tool[:3,3], Tcur[:3, 3]),
+                                                         from_Q, DP=0.01, ERROR_CUT=0.01, SINGULARITY_CUT = 0.01,
+                                                         VERBOSE=verbose,
+                                                         ref_link=self.chain_dict[group_name]["link_names"][0])
+                else:
+                    ################################ Original planner ##############################
+                    trajectory, success = planner.plan_constrained_py(
+                        group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q),
+                        timeout=timeout_constrained, **kwargs)
                 ################################################################################
                 if verbose:
                     print("constrained motion tried: {}".format(success)) ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp

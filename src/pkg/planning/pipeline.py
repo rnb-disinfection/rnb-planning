@@ -127,33 +127,35 @@ class PlanningPipeline:
                     proc.start()
 
             if wait_proc:
-                self.wait_procs(timeout_loop+looptime_extra)
+                self.wait_procs(timeout_loop, looptime_extra)
         else:
             self.proc_list = []
             self.__search_loop(0, terminate_on_first, N_search, display, dt_vis, verbose, timeout_loop, **kwargs)
 
-    def wait_procs(self, timeout):
+    def wait_procs(self, timeout_loop, looptime_extra):
         self.non_joineds = []
         self.gtimer.tic("wait_procs")
-        elapsed = self.gtimer.toc("wait_procs") / 1000
-        while not self.stop_now.value:
+        elapsed = 0
+        while (not self.stop_now.value) and (elapsed<timeout_loop):
             time.sleep(0.5)
+            elapsed = self.gtimer.toc("wait_procs") / 1000
+
+        self.gtimer.tic("wait_procs_extra")
         all_stopped = False
         while not all_stopped:
             all_stopped = True
             for proc in self.proc_list:
-                elapsed = self.gtimer.toc("wait_procs") / 1000
+                elapsed = self.gtimer.toc("wait_procs_extra") / 1000
                 proc_alive = proc.is_alive()
                 all_stopped = all_stopped and not proc_alive
                 if proc_alive:
-                    if elapsed > timeout:
+                    if elapsed > looptime_extra:
                         proc.terminate()
                         time.sleep(0.5)
                         if not proc.is_alive():
                             self.non_joineds.append(proc)
                         continue
                     proc.join(timeout=0.5)
-        elapsed = self.gtimer.toc("wait_procs") / 1000
 
     def __search_loop(self, ID, terminate_on_first, N_search,
                       display=False, dt_vis=None, verbose=False, timeout_loop=600,

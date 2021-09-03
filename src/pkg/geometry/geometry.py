@@ -349,6 +349,10 @@ class GeometryScene(list):
                 gtem_args.append(deepcopy(gtem.get_args()))
         return gtem_args
 
+    def get_tf(self,to_link, Q, from_link="base_link"):
+        return get_tf(to_link=to_link, joint_dict=list2dict(Q, self.joint_names),
+                      urdf_content=self.urdf_content, from_link=from_link)
+
 ##
 # @class GeometryItem
 # @brief Instance of geometry item
