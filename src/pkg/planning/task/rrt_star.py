@@ -29,4 +29,4 @@ class TaskRRTstar(TaskRRT):
                                     reserve_stack.append((snode_new.idx, snode_candi.idx))
             for item in random.sample(reserve_stack, min(len(reserve_stack), self.REWIND_MAX)):
                 self.attempts_reseved.put(item)
-        return False
+        return rrt_res

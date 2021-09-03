@@ -384,7 +384,7 @@ class PlanningPipeline:
     # @param period play period
     def play_schedule(self, snode_schedule, period=0.01):
         snode_pre = snode_schedule[0]
-        for snode in snode_schedule:
+        for snode in snode_schedule[1:]:
             self.pscene.set_object_state(snode_pre.state)
             self.pscene.gscene.update_markers_all()
             print("{}->{}".format(snode_pre.state.node, snode.state.node))

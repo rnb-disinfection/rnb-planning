@@ -564,3 +564,38 @@ def show_action_point(gscene, handle, actor, Q_dict, redundancy):
 # # ====================================================================================================
 # # h_st_vec: 30.93/0.91 (32.37/29.64)
 # # h_kn_vec: 26.81/2.57 (29.57/22.88)
+
+
+def update_parents_recursive(snode_dict, snode, parents):
+    raise(NotImplementedError("ON DEVELOPMENT"))
+    snode.parents = parents
+    snode.set_traj(snode.traj, snode_dict[parents[-1]].traj_tot)
+    snode_dict[snode.idx] = snode
+    for leaf in snode.leafs:
+        update_parents_recursive(snode_dict, snode_dict[leaf], parents + [snode.idx])
+
+
+def reconnect_snodes(snode_dict, snode_parent, snode_child):
+    raise(NotImplementedError("ON DEVELOPMENT"))
+    snode_parent.leafs += [snode_child.idx]
+    snode_dict[snode_parent.idx] = snode_parent
+    update_parents_recursive(snode_dict, snode_child, snode_parent.parents + [snode_parent.idx])
+
+
+def remove_double_motion(ppline, snode_schedule, **kwargs):
+    raise(NotImplementedError("ON DEVELOPMENT"))
+    for snode_ppr, snode_cur in zip(snode_schedule[1:-2], snode_schedule[3:]):
+        if snode_ppr.state.node == snode_cur.state.node:
+            snode_parent = ppline.tplan.snode_dict[snode_ppr.parents[-1]]
+            print("try reconnect {}->{}".format(snode_parent.idx, snode_cur.idx))
+            state_to = snode_parent.state.copy(ppline.pscene)
+            state_to.Q = snode_cur.state.Q
+            try:
+                traj, new_state, error, succ = ppline.test_connection(snode_parent.state, state_to, **kwargs)
+            except Exception as e:
+                succ = False
+                print(e)
+            print("success" if succ else "failure")
+            if succ:
+                reconnect_snodes(ppline.tplan.snode_dict, snode_parent, snode_cur)
+    return ppline.tplan.idxSchedule2SnodeScedule(snode_schedule[-1].parents + [snode_schedule[-1].idx])

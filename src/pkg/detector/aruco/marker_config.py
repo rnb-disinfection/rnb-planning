@@ -181,7 +181,7 @@ def get_aruco_map():
                          _list=[
                              ObjectMarker('chair', 225, 0.18, [0,0,0], (0,0,0))
                          ]),
-        'table':MarkerSet('table',
+        'desk':MarkerSet('table',
                          dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX, dims=(0.1, 0.1,0.1), color=(0.8,0.0,0.0,1),
                          _list=[
                              ObjectMarker('table', 226, 0.18, [0,0,0], (0,0,0))

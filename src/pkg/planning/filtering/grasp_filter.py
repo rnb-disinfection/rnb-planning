@@ -155,7 +155,13 @@ class GraspChecker(MotionFilterInterface):
         object_geo_list = self.gscene.get_items_on_links(object_link_names)
 
         if object_link in self.link_robot_dict:   # object is held by a robot (put, actor is kind of PlacePlane)
-            actor_geo_list += self.put_banned
+            for pb in self.put_banned:
+                if pb.link_name in actor_link_names:
+                    actor_geo_list.append(pb)
+                elif pb.link_name in object_link_names:
+                    object_geo_list.append(pb)
+                else:
+                    raise(NotImplementedError("Put-ban geometric not in famility of object nor actor"))
 
         if obj_only:
             obj_family = obj.geometry.get_family()

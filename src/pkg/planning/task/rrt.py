@@ -28,6 +28,7 @@ class TaskRRT(TaskInterface):
         self.binding_sampler = binding_sampler
         self.redundancy_sampler = redundancy_sampler
         self.custom_rule = custom_rule
+        self.explicit_edges = {}
 
     ##
     # @brief build object-level node graph
@@ -83,24 +84,24 @@ class TaskRRT(TaskInterface):
                 self.unstoppable_terminals[sub_i].append(goal[sub_i])
 
         self.node_dict = {}
+        self.node_parent_dict = defaultdict(set)
         for node, leafs in self.node_dict_full.items():
             ## goal node does not have child leaf
             if node in goal_nodes:
                 self.node_dict[node] = set()
                 continue
-            ## unstoppable node should change or at terminal
-            leaf_list = [leaf
-                         for leaf in leafs
-                         if all([node[k] in terms or node[k] != leaf[k]
-                                 for k, terms in self.unstoppable_terminals.items()])]
-            self.node_dict[node] = set(leaf_list)
-
-        self.node_parent_dict = {}
-        for node, parents in self.node_parent_dict_full.items():
-            self.node_parent_dict[node] = set(
-                [parent for parent in parents ## unstoppable node should change or at terminal
-                 if all([node[k] in terms or node[k]!=parent[k]
-                         for k, terms in self.unstoppable_terminals.items()])])
+            if node in self.explicit_edges:
+                self.node_dict[node] = set(self.explicit_edges[node])
+            else:
+                ## unstoppable node should change or at terminal
+                leaf_list = [leaf
+                             for leaf in leafs
+                             if all([node[k] in terms or node[k] != leaf[k]
+                                     for k, terms in self.unstoppable_terminals.items()])]
+                self.node_dict[node] = set(leaf_list)
+            for leaf in self.node_dict[node]:
+                self.node_parent_dict[leaf].add(node)
+        self.node_parent_dict = dict(self.node_parent_dict)
 
         if hasattr(self.new_node_sampler, "init"):
             self.new_node_sampler.init(self, self.multiprocess_manager)
@@ -213,6 +214,7 @@ class TaskRRT(TaskInterface):
                         self.node_snode_dict[snode_new.state.node]+[snode_new.idx]
 
             if self.check_goal(snode_new.state):
+                print("Goal reached")
                 return True
 
         cres = False
