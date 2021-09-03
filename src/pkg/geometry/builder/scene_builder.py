@@ -68,7 +68,7 @@ class SceneBuilder(Singleton):
 
         if not SceneBuilder.__rospy_initialized:
             SceneBuilder.__roscore = subprocess.Popen(['roscore'])
-            rospy.init_node(node_name, anonymous=True)
+            rospy.init_node(node_name, anonymous=True, disable_signals=True)
             SceneBuilder.__rospy_initialized = True
 
         self.xcustom = XacroCustomizer.instance()
