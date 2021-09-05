@@ -25,53 +25,6 @@ from pddlstream.language.constants import print_solution, PDDLProblem
 from pddlstream.algorithms.common import SolutionStore
 from examples.pybullet.tamp.streams import get_cfree_approach_pose_test, get_cfree_pose_pose_test, get_cfree_traj_pose_test, \
     move_cost_fn, get_cfree_obj_approach_pose_test
-from examples.pybullet.tamp.streams import *
-def get_cfree_pose_pose_test(collisions=True, **kwargs):
-    def test(b1, p1, b2, p2):
-        if not collisions or (b1 == b2):
-            return True
-        p1.assign()
-        p2.assign()
-        res = not pairwise_collision(b1, b2, **kwargs)  # , max_distance=0.001)
-        return res
-    return test
-
-
-def get_cfree_obj_approach_pose_test(collisions=True):
-    def test(b1, p1, g1, b2, p2):
-        if not collisions or (b1 == b2):
-            return True
-        p2.assign()
-        grasp_pose = multiply(p1.value, invert(g1.value))
-        approach_pose = multiply(p1.value, invert(g1.approach), g1.value)
-        # time.sleep(1)
-        for obj_pose in interpolate_poses(grasp_pose, approach_pose):
-            set_pose(b1, obj_pose)
-            res = pairwise_collision(b1, b2)
-            print("grasp: {}".format(grasp_pose))
-            print("appro: {}".format(approach_pose))
-            print("{} - {}".format(b1, b2))
-            raw_input("Press Enter to continue...")
-            if res:
-                return False
-        return True
-    return test
-
-
-def get_cfree_approach_pose_test(problem, collisions=True):
-    # TODO: apply this before inverse kinematics as well
-    arm = 'left'
-    gripper = problem.get_gripper()
-    def test(b1, p1, g1, b2, p2):
-        if not collisions or (b1 == b2):
-            return True
-        p2.assign()
-        # time.sleep(1)
-        for _ in iterate_approach_path(problem.robot, arm, gripper, p1, g1, body=b1):
-            if pairwise_collision(b1, b2) or pairwise_collision(gripper, b2):
-                return False
-        return True
-    return test
 
 #######################################################
 
@@ -162,8 +115,8 @@ def pddlstream_from_problem_rnb(pscene, robot, body_names, Q_init, goal_pairs=[]
             get_holding_motion_gen_rnb(mplan, body_subject_map, robot, tool=pscene.actor_dict[tool_name],
                                        tool_link=tool_link_name, timeout=timeout, show_state=show_state,
                                        approach_vec=APPROACH_VEC)),
-        'test-cfree-pose-pose': from_test(get_cfree_pose_pose_test()),
-        'test-cfree-approach-pose': from_test(get_cfree_obj_approach_pose_test()),
+        'test-cfree-pose-pose': from_test(get_cfree_pose_pose_test_rnb()),
+        'test-cfree-approach-pose': from_test(get_cfree_obj_approach_pose_test_rnb()),
         'test-cfree-traj-pose': from_test(negate_test(get_movable_collision_test())),  # get_cfree_traj_pose_test()),
 
         'TrajCollision': get_movable_collision_test(),

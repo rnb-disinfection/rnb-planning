@@ -25,6 +25,7 @@ rospack = rospkg.RosPack()
 from ..constraint.constraint_common import combine_redundancy, sample_redundancy, calc_redundancy
 from primitives_pybullet import update_grasp_info, GraspInfo, pairwise_collision, BodyPose, sample_placement, BodyGrasp
 import random
+from constants_common import *
 
 SAMPLE_GRASP_COUNT_DEFAULT = 10
 SAMPLE_STABLE_COUNT_DEFAULT = 10

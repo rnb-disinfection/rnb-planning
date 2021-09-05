@@ -7,6 +7,9 @@ from ...utils.joint_utils import *
 from ...utils.utils import *
 from ..constraint.constraint_common import *
 from primitives_pybullet import *
+from examples.pybullet.tamp.streams import *
+from constants_common import *
+from pkg.planning.scene import State
 
 TIMEOUT_MOTION_DEFAULT = 1
 
@@ -89,7 +92,9 @@ def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, too
         graspped.set_state(binding=(graspped.oname, None, tool.geometry.name, tool.name),
                           state_param=(tool_link, Tgrasp))
     Qcur, Qto = conf1.values, conf2.values
-    from_state = pscene.initialize_state(np.array(Qcur))
+    # from_state = pscene.initialize_state(np.array(Qcur))   #This resets the binding state
+    binding_state, state_param = pscene.get_object_state()
+    from_state = State(binding_state, state_param, list(Qcur), pscene)
     if show_state:
         pscene.gscene.clear_highlight()
         pscene.gscene.update_markers_all()
@@ -104,6 +109,8 @@ def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, too
     else: # holding motion, go to release - actor:plane
         subject = graspped
         actor = get_matching_binder(pscene, subject, Qto_dict, excludes=[tool])
+    if show_state:
+        print("sucject/actor: {} / {}".format(subject.oname if subject is not None else subject, actor.name))
 
     # GlobalLogger.instance()["from_state"] = from_state
     # GlobalLogger.instance()["to_state"] = to_state
@@ -119,13 +126,17 @@ def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, too
                      Q_dict=list2dict(Qcur, pscene.gscene.joint_names), show_state=show_state, mplan=mplan)
     if mplan.flag_log:
         mplan.result_log["pre_motion_checks"].append(res)
+
     if res:
         Traj, LastQ, error, success, binding_list = mplan.plan_transition(
             from_state, to_state, {}, timeout=timeout, show_state=show_state)
     else:
         Traj, success = [], False
+
     if show_state:
+        print("check / plan: {} / {}".format(res, success))
         pscene.gscene.show_motion(Traj)
+
     return Traj, success
 
 def get_free_motion_gen_rnb(mplan, body_subject_map, robot, tool, tool_link, approach_vec, timeout=TIMEOUT_MOTION_DEFAULT,
@@ -277,7 +288,7 @@ def run_checkers(checkers, actor, subject, Tloal_list, Q_dict, ignore=[], show_s
         if not res:
             print("Check Feas Fail: {}".format(checker.__class__.__name__))
             vis_bak = gscene.highlight_robot(color=gscene.COLOR_LIST[i_c])
-        time.sleep(0.5)
+        time.sleep(SHOW_TIME)
         if not res:
             gscene.recover_robot(vis_bak)
     return res
@@ -301,7 +312,7 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
             obstacles = [body] + fixed
             set_pose(body, pose.pose)
             gripper_pose = end_effector_from_body(pose.pose, grasp.grasp_pose)
-            approach_pose = approach_from_grasp_tool_side(grasp.approach_pose, gripper_pose)
+            approach_pose = approach_from_grasp_tool_side(gripper_pose, grasp.approach_pose)
             # print("gripper_pose: {}".format(gripper_pose))
             # print("approach_pose: {}".format(approach_pose))
             for i_ in range(num_attempts):
@@ -335,7 +346,7 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                         else:
                             color = pscene.gscene.COLOR_LIST[0]
                         vis_bak = pscene.gscene.highlight_robot(color)
-                        time.sleep(0.5)
+                        time.sleep(SHOW_TIME)
                         pscene.gscene.recover_robot(vis_bak)
                     continue
                 # print("go on")
@@ -367,11 +378,11 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                             else:
                                 color = pscene.gscene.COLOR_LIST[0]
                             vis_bak = pscene.gscene.highlight_robot(color)
-                            time.sleep(0.5)
+                            time.sleep(SHOW_TIME)
                             pscene.gscene.recover_robot(vis_bak)
                         continue
                 if show_state:
-                    time.sleep(0.5)
+                    time.sleep(SHOW_TIME)
                 if teleport:
                     path = [q_approach, q_grasp]
                 else:
@@ -394,3 +405,29 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
             fn.fail_count += 1
             return None
     return fn
+
+## @brief same as the original
+def get_cfree_pose_pose_test_rnb(collisions=True, **kwargs):
+    def test(b1, p1, b2, p2):
+        if not collisions or (b1 == b2):
+            return True
+        p1.assign()
+        p2.assign()
+        res = not pairwise_collision(b1, b2, **kwargs)  # , max_distance=0.001)
+        return res
+    return test
+
+## @brief fixed version - the original version transformed object to tool cooridnate
+def get_cfree_obj_approach_pose_test_rnb(collisions=True):
+    def test(b1, p1, g1, b2, p2):
+        if not collisions or (b1 == b2):
+            return True
+        p2.assign()
+        grasp_pose = p1.value
+        approach_pose = multiply(p1.value, invert(g1.value), g1.approach, g1.value)
+        for obj_pose in interpolate_poses(grasp_pose, approach_pose):
+            set_pose(b1, obj_pose)
+            if pairwise_collision(b1, b2):
+                return False
+        return True
+    return test

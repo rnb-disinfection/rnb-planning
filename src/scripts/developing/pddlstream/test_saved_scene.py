@@ -26,6 +26,7 @@ SHOW_STATE = args.SHOW_STATE
 MAX_ITER = args.MAX_ITER
 MAX_SKELETONS=args.MAX_SKELETONS
 SEARCH_SAMPLE_RATIO=args.SEARCH_SAMPLE_RATIO
+USE_PYBULLET_GUI=args.USE_PYBULLET_GUI
 
 
 CLEARANCE = 1e-3
@@ -52,13 +53,21 @@ crob.home_pose = HOME_POSE
 crob.home_dict = list2dict(HOME_POSE, gscene.joint_names)
 
 fname = "data_%s_%02d.pkl" % (file_option, data_idx)
+print(fname)
 file_gtems = os.path.join(DATASET_PATH, fname)
 initial_state = load_saved_scene(pscene, file_gtems, VISUALIZE=VISUALIZE)
+
+gscene.NAME_DICT['obj_0'].color = (1,0,0,1)
+gscene.update_markers_all()
 
 mplan = MoveitPlanner(pscene)
 checkers = get_checkers_by_case_name(cname, pscene)
 
 mplan.motion_filters = checkers
+
+###################################################
+################ Manual Adjustments ###############
+# gscene.NAME_DICT["pole"].collision = False
 
 
 ########################################################
@@ -74,18 +83,20 @@ gtimer.reset()
 res, plan, log_dict = solve_in_pddlstream(pscene, mplan, ROBOT_NAME, TOOL_NAME, HOME_POSE, goal_pairs,
                         TIMEOUT_MOTION, MAX_TIME, MAX_ITER, MAX_SKELETONS,
                         GRASP_SAMPLE, STABLE_SAMPLE, SHOW_STATE, SEARCH_SAMPLE_RATIO,
-                        use_pybullet_gui=False)
+                        use_pybullet_gui=USE_PYBULLET_GUI)
 
 save_pickle(os.path.join(RESULTSET_PATH, "result_%s_%02d_%s.pkl" % (file_option, data_idx, cname)), log_dict)
 
+print("------- Result {} ({}): {} s -------".format(fname, cname, log_dict["plan_time"]))
+print("==========================================================")
 print("==========================================================")
 print(gtimer)
 print("==========================================================")
-print("------- Result {} ({}): {} / {} s -------".format(fname, cname, res, log_dict["plan_time"]))
 print("==========================================================")
+
 
 if VISUALIZE and PLAY_RESULT and res:
     play_pddl_plan(pscene, pscene.actor_dict["grip0"], initial_state=initial_state,
-                   body_names=body_names, plan=plan, SHOW_PERIOD=0.01)
+                   body_names=log_dict['body_names'], plan=plan, SHOW_PERIOD=0.01)
 
 s_builder.xcustom.clear()

@@ -121,17 +121,19 @@ def parse_test_args():
     parser.add_argument('--data_idx', type=int, help='data file index')
     parser.add_argument('--cname', type=str, help='checker type', default="None")
 
-    parser.add_argument('--VISUALIZE', type=str2bool, default=False, help='to show in RVIZ')
-    parser.add_argument('--PLAY_RESULT', type=str2bool, default=False, help='to play result')
     parser.add_argument('--TIMEOUT_MOTION', type=int, default=5, help='motion planning timeout')
     parser.add_argument('--MAX_TIME', type=int, default=100, help='TAMP timeout')
     parser.add_argument('--MAX_ITER', type=int, default=100, help='TAMP max iteration')
-    parser.add_argument('--SHOW_STATE', type=str2bool, default=False, help='show intermediate states')
     parser.add_argument('--MAX_SKELETONS', type=int, default=30, help='maximum number of skeletons to consider')
 
     parser.add_argument('--GRASP_SAMPLE', type=int, default=100, help='max. number of grasp to sample for a grasping instacee')
     parser.add_argument('--STABLE_SAMPLE', type=int, default=100, help='max. number of stable point to sample for a placement instacee')
     parser.add_argument('--SEARCH_SAMPLE_RATIO', type=int, default=10, help='the desired ratio of sample time / search time when max_skeletons!=None')
+
+    parser.add_argument('--VISUALIZE', type=str2bool, default=False, help='to show in RVIZ')
+    parser.add_argument('--SHOW_STATE', type=str2bool, default=False, help='show intermediate states')
+    parser.add_argument('--PLAY_RESULT', type=str2bool, default=False, help='to play result')
+    parser.add_argument('--USE_PYBULLET_GUI', type=str2bool, default=False, help='to show in pybullet gui')
 
     return parser.parse_args()
 
