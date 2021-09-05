@@ -41,6 +41,7 @@ class PlanningPipeline:
         ## @brief flag to stop multiprocess search
         self.stop_now =  None
         ## @brief PriorityQueueManager
+        self.execute_res = True
         self.manager = PriorityQueueManager()
         self.manager.start()
         self.counter_lock = self.manager.Lock()
@@ -83,7 +84,7 @@ class PlanningPipeline:
     # @param verbose boolean flag for printing intermediate process
     def search(self, initial_state, goal_nodes, multiprocess=False,
                      terminate_on_first=True, N_search=None, N_agents=None, wait_proc=True,
-                     display=False, dt_vis=0.01, verbose=False, timeout_loop=600, **kwargs):
+                     display=False, dt_vis=0.01, verbose=False, timeout_loop=600, looptime_extra=1, **kwargs):
         ## @brief runber of redundancy sampling
         self.t0 = time.time()
         self.DOF = len(initial_state.Q)
@@ -122,22 +123,43 @@ class PlanningPipeline:
                     args=(id_agent, terminate_on_first, N_search, False, dt_vis, verbose, timeout_loop),
                     kwargs=kwargs) for id_agent in range(N_agents)]
                 for proc in self.proc_list:
+                    proc.daemon = True
                     proc.start()
 
             if wait_proc:
-                self.wait_procs()
+                self.wait_procs(timeout_loop, looptime_extra)
         else:
             self.proc_list = []
             self.__search_loop(0, terminate_on_first, N_search, display, dt_vis, verbose, timeout_loop, **kwargs)
 
-    def wait_procs(self):
-        for proc in self.proc_list:
-            while not self.stop_now.value:
-                proc.join(timeout=0.1)
+    def wait_procs(self, timeout_loop, looptime_extra):
+        self.non_joineds = []
+        self.gtimer.tic("wait_procs")
+        elapsed = 0
+        while (not self.stop_now.value) and (elapsed<timeout_loop):
+            time.sleep(0.5)
+            elapsed = self.gtimer.toc("wait_procs") / 1000
+
+        self.gtimer.tic("wait_procs_extra")
+        all_stopped = False
+        while not all_stopped:
+            all_stopped = True
+            for proc in self.proc_list:
+                elapsed = self.gtimer.toc("wait_procs_extra") / 1000
+                proc_alive = proc.is_alive()
+                all_stopped = all_stopped and not proc_alive
+                if proc_alive:
+                    if elapsed > looptime_extra:
+                        proc.terminate()
+                        time.sleep(0.5)
+                        if not proc.is_alive():
+                            self.non_joineds.append(proc)
+                        continue
+                    proc.join(timeout=0.5)
 
     def __search_loop(self, ID, terminate_on_first, N_search,
                       display=False, dt_vis=None, verbose=False, timeout_loop=600,
-                      add_homing=True, post_optimize=False, **kwargs):
+                      add_homing=True, post_optimize=False, home_pose=None,  **kwargs):
         loop_counter = 0
         sample_fail_counter = 0
         sample_fail_max = 10
@@ -191,10 +213,12 @@ class PlanningPipeline:
             term_reason = "first answer acquired"
             if add_homing:
                 print("++ adding return motion to acquired answer ++")
+                home_state = self.tplan.snode_dict[0].copy(self.pscene)
+                home_state.Q = self.pscene.combined_robot.home_pose if home_pose is None else home_pose
                 if add_homing>1:
-                    self.add_return_motion(snode_new, try_count=add_homing)
+                    self.add_return_motion(snode_new, try_count=add_homing, initial_state=home_state)
                 else:
-                    self.add_return_motion(snode_new)
+                    self.add_return_motion(snode_new, initial_state=home_state)
             if post_optimize:
                 print("++ post-optimizing acquired answer ++")
                 self.post_optimize_schedule(snode_new)
@@ -261,6 +285,7 @@ class PlanningPipeline:
                     for _ in range(N_try)] for skey in snode_keys}
                 for proc_list in self.refine_proc_dict.values():
                     for proc in proc_list:
+                        proc.daemon = True
                         proc.start()
                 time_start = time.time()
                 timeout_max = np.max([v for k, v in kwargs.items() if "timeout" in k])*1.2
@@ -311,6 +336,7 @@ class PlanningPipeline:
                      for rname, idx in self.pscene.combined_robot.idx_dict.items()}
         snode_pre = snode_last
         state_pre = state_last
+        added_list = []
         for rname, diff in diff_dict.items():   # add return motion to robots not at home
             if diff:
                 rbt_idx = self.pscene.combined_robot.idx_dict[rname]
@@ -325,11 +351,13 @@ class PlanningPipeline:
                 if succ:
                     snode_next = self.tplan.connect(snode_pre, snode_next)
                     self.tplan.update(snode_pre, snode_next, succ)
+                    added_list.append(snode_next)
                     snode_pre = snode_next
                     state_pre = state_next
                 else:
                     break
                 time.sleep(0.2)
+        return added_list
 
     ##
     # @brief    optimize a SearchNode schedule
@@ -369,7 +397,7 @@ class PlanningPipeline:
     # @param period play period
     def play_schedule(self, snode_schedule, period=0.01):
         snode_pre = snode_schedule[0]
-        for snode in snode_schedule:
+        for snode in snode_schedule[1:]:
             self.pscene.set_object_state(snode_pre.state)
             self.pscene.gscene.update_markers_all()
             print("{}->{}".format(snode_pre.state.node, snode.state.node))
@@ -409,23 +437,44 @@ class PlanningPipeline:
     ##
     # @brief execute schedule
     # @param mode_switcher ModeSwitcher class instance
-    def execute_schedule(self, snode_schedule, auto_stop=True, mode_switcher=None):
+    def execute_schedule(self, snode_schedule, auto_stop=True, mode_switcher=None, one_by_one=False, multiproc=False,
+                         error_stop_deg=10):
+        self.execute_res = False
         snode_pre = snode_schedule[0]
         for snode in snode_schedule:
             if snode.traj is None or len(snode.traj) == 0:
                 snode_pre = snode
                 continue
-            switch_state = mode_switcher.switch_in(snode_pre, snode)
+            if mode_switcher is not None:
+                switch_state = mode_switcher.switch_in(snode_pre, snode)
 
             self.pscene.set_object_state(snode_pre.state)
-            self.pscene.combined_robot.move_joint_traj(snode.traj, auto_stop=False)
+            if multiproc:
+                t_exe = Process(target=self.pscene.combined_robot.move_joint_traj,
+                                args = (snode.traj,),
+                                kwargs=dict(auto_stop=False, one_by_one=one_by_one, error_stop=error_stop_deg))
+                t_exe.daemon = True
+                t_exe.start()
+                t_exe.join()
+            else:
+                self.pscene.combined_robot.move_joint_traj(snode.traj, auto_stop=False, one_by_one=one_by_one)
 
-            mode_switcher.switch_out(switch_state, snode)
+            if not self.pscene.combined_robot.wait_queue_empty(trajectory=[snode.traj[-1]], error_stop=error_stop_deg):
+                self.pscene.combined_robot.stop_tracking()
+                self.execute_res = False
+                print("=================== ERROR ===================")
+                print("====== Robot configuration not in sync ======")
+                return False
+
+            if mode_switcher is not None:
+                mode_switcher.switch_out(switch_state, snode)
             self.execute_grip(snode.state)
             snode_pre = snode
 
         if auto_stop:
             self.pscene.combined_robot.stop_tracking()
+        self.execute_res = True
+        return True
 
     ##
     # @brief execute schedule
@@ -501,7 +550,7 @@ class PlanningPipeline:
                         POS_CUR = trajectory[i_q]
                         self.gtimer.tic("move_wait")
                         if on_rviz:
-                            self.pscene.combined_robot.wait_step(self.pscene.gscene.rate)
+                            self.pscene.combined_robot.wait_step(self.pscene.gscene.rate.sleep_dur.to_sec())
                             all_sent = True
                         else:
                             all_sent = mt.move_possible_joints_x4(POS_CUR)

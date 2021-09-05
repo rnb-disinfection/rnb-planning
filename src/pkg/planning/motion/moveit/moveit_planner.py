@@ -3,6 +3,8 @@ from moveit_py import MoveitCompactPlanner_BP, ObjectType, ObjectMPC, \
 from ..interface import MotionInterface
 from ....utils.utils import list2dict
 from ....utils.rotation_utils import SE3, SE3_inv, Rot_rpy, T2xyzquat
+from ....utils.joint_utils import *
+from ....utils.traj_utils import *
 from ....geometry.geometry import GEOTYPE, GeometryScene
 from ...constraint.constraint_common import calc_redundancy
 from scipy.spatial.transform import Rotation
@@ -56,18 +58,19 @@ class MoveitPlanner(MotionInterface):
     # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
     # @param enable_dual    boolean flag to enable dual arm manipulation (default=True)
     # @param    motion_filters list of child-class of rnb-planning.src.pkg.planning.motion.filtering.filter_interface.MotionFilterInterface
-    def __init__(self, pscene, motion_filters=[], enable_dual=True):
+    def __init__(self, pscene, motion_filters=[], enable_dual=True, incremental_constraint_motion=True):
         MotionInterface.__init__(self, pscene, motion_filters)
         config_path = os.path.dirname(self.urdf_path)+"/"
+        self.incremental_constraint_motion = incremental_constraint_motion
         self.robot_names = self.combined_robot.robot_names
-        chain_dict = pscene.robot_chain_dict
-        binder_links = [chain_dict[rname]['tip_link'] for rname in self.robot_names]
+        self.chain_dict = pscene.robot_chain_dict
+        binder_links = [self.chain_dict[rname]['tip_link'] for rname in self.robot_names]
         self.binder_link_robot_dict = {blink: rname for blink, rname in zip(binder_links, self.robot_names)}
-        srdf_path = write_srdf(robot_names=self.robot_names, chain_dict=chain_dict,
+        srdf_path = write_srdf(robot_names=self.robot_names, chain_dict=self.chain_dict,
                                     link_names=self.link_names, joint_names=self.joint_names,
                                     urdf_content=self.urdf_content, urdf_path=self.urdf_path
                                )
-        self.planner = MoveitCompactPlanner_BP(self.urdf_path, srdf_path, self.robot_names, config_path)
+        self.planner = MoveitCompactPlanner_BP(self.urdf_path, srdf_path, self.robot_names, self.chain_dict, config_path)
         if not all([a==b for a,b in zip(self.joint_names, self.planner.joint_names_py)]):
             self.need_mapping = True
             self.idx_pscene_to_mpc = np.array([self.joint_names.index(jname) for jname in self.planner.joint_names_py])
@@ -235,9 +238,26 @@ class MoveitPlanner(MotionInterface):
                     self.add_constraint(group_name, tool.geometry.link_name, tool.Toff_lh, motion_constraint=motion_constraint)
                 if verbose:
                     print("try constrained motion") ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
-                trajectory, success = planner.plan_constrained_py(
-                    group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q),
-                    timeout=timeout_constrained, **kwargs)
+
+                if self.incremental_constraint_motion:
+                    # ################################# Special planner ##############################
+                    self.sweep_params = (tool.geometry.link_name, list2dict(from_Q, self.gscene.joint_names), self.gscene.urdf_content,
+                                         target.geometry.link_name, T_tar_tool)
+                    Tcur = get_tf(tool.geometry.link_name, list2dict(from_Q, self.gscene.joint_names), self.gscene.urdf_content,
+                                  from_link=target.geometry.link_name)
+                    get_sweep_traj.args = (self, tool.geometry, np.subtract(T_tar_tool[:3, 3], Tcur[:3, 3]), from_Q)
+                    get_sweep_traj.kwargs = dict(DP=0.01, ERROR_CUT=0.01, SINGULARITY_CUT = 0.01, VERBOSE=verbose,
+                                                 ref_link=self.chain_dict[group_name]["link_names"][0])
+                    trajectory, success = get_sweep_traj(self, tool.geometry, np.subtract(T_tar_tool[:3,3], Tcur[:3, 3]),
+                                                         from_Q, DP=0.01, ERROR_CUT=0.01, SINGULARITY_CUT = 0.01,
+                                                         VERBOSE=verbose,
+                                                         ref_link=self.chain_dict[group_name]["link_names"][0])
+                else:
+                    ################################ Original planner ##############################
+                    trajectory, success = planner.plan_constrained_py(
+                        group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q),
+                        timeout=timeout_constrained, **kwargs)
+                ################################################################################
                 if verbose:
                     print("constrained motion tried: {}".format(success)) ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
             else:
@@ -425,7 +445,7 @@ def save_converted_chain(urdf_content, urdf_path, robot_new, base_link, end_link
     new_chain = __get_chain(end_link, urdf_content_new)
     new_joints = [linkage[0] for linkage in new_chain if
                   linkage[0] and urdf_content_new.joint_map[linkage[0]].type != "fixed"]
-    new_links = sorted(urdf_content_new.link_map.keys())
+    new_links = [link.name for link in urdf_content_new.links]
 
     srdf_path_new = write_srdf(robot_names=[robot_new], urdf_content=urdf_content_new, urdf_path=urdf_path_new,
                                link_names=new_links, joint_names=new_joints,
@@ -445,7 +465,7 @@ def write_srdf(robot_names, urdf_content, urdf_path, link_names, joint_names, ch
         grp.setAttribute('name', rname)
 
         chain = root.createElement("chain")
-        chain.setAttribute('base_link', base_link)
+        chain.setAttribute('base_link', chain_dict[rname]['link_names'][0])
         chain.setAttribute('tip_link', chain_dict[rname]['tip_link'])
         grp.appendChild(chain)
         xml.appendChild(grp)

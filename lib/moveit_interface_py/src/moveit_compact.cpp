@@ -60,11 +60,27 @@ bool Planner::init_planner_from_file(string urdf_filepath, string srdf_filepath,
     return init_planner(urdf_txt, srdf_txt, group_names, config_path);
 }
 
+void Planner::set_tolerance(double pose, double angle, double pose_const, double angle_const, double joint){
+    if(pose>=0) tolerance_pose = pose;
+    if(angle>=0) tolerance_angle = angle;
+    if(pose_const>=0) tolerance_pose_const = pose_const;
+    if(angle_const>=0) tolerance_angle_const = angle_const;
+    if(joint>=0) tolerance_joint = joint;
+    tol_vals.setZero(5);
+    tol_vals << tolerance_pose, tolerance_angle, tolerance_pose_const, tolerance_angle_const, tolerance_joint;
+}
+
+JointState& Planner::get_tolerance(){
+    return tol_vals;
+}
+
 
 bool Planner::init_planner(string& urdf_txt, string& srdf_txt, NameList& group_names, string config_path){
     if(!__ros_initialized){
         __node_handle = init_ros();
     }
+
+    set_tolerance(0.0002, 0.001, 0.001, 0.001, 0.01);
 
     //------------------------parsing with Iterator
     rosparam_load_yaml(__node_handle, "/"+__node_name, config_path+"kinematics.yaml");
@@ -233,11 +249,6 @@ PlanResult &Planner::plan(string group_name, string tool_link,
     _goal_pose.pose.orientation.y = goal_pose[4];
     _goal_pose.pose.orientation.z = goal_pose[5];
     _goal_pose.pose.orientation.w = goal_pose[6];
-
-    // A tolerance of 0.01 m is specified in position
-    // and 0.01 radians in orientation
-    std::vector<double> tolerance_pose(3, 0.0002);
-    std::vector<double> tolerance_angle(3, 0.001);
 
     auto state_cur = planning_scene_->getCurrentState();
     state_cur.setVariablePositions(init_state.data());
@@ -410,7 +421,8 @@ PlanResult& Planner::plan_joint_motion(string group_name, JointState goal_state,
     robot_state::JointModelGroup* joint_model_group = robot_model_->getJointModelGroup(group_name);
     robot_state::RobotState goal_state_moveit(robot_model_);
     goal_state_moveit.setJointGroupPositions(joint_model_group, goal_state);
-    moveit_msgs::Constraints joint_goal = kinematic_constraints::constructGoalConstraints(goal_state_moveit, joint_model_group);
+    moveit_msgs::Constraints joint_goal = kinematic_constraints::constructGoalConstraints(
+            goal_state_moveit, joint_model_group, tolerance_joint);
 
     auto state_cur = planning_scene_->getCurrentState();
     state_cur.setVariablePositions(init_state.data());
@@ -590,11 +602,6 @@ PlanResult& Planner::plan_with_constraints(string group_name, string tool_link,
     _goal_pose.pose.orientation.z = goal_pose[5];
     _goal_pose.pose.orientation.w = goal_pose[6];
 
-    // A tolerance of 0.01 m is specified in position
-    // and 0.01 radians in orientation
-    std::vector<double> tolerance_pose(3, 0.001);
-    std::vector<double> tolerance_angle(3, 0.001);
-
     auto state_cur = planning_scene_->getCurrentState();
     state_cur.setVariablePositions(init_state.data());
     planning_scene_->setCurrentState(state_cur);
@@ -611,7 +618,8 @@ PlanResult& Planner::plan_with_constraints(string group_name, string tool_link,
     _req.group_name = group_name; //"indy0"; // "indy0_tcp"
     _req.planner_id = planner_id;
     _req.allowed_planning_time = allowed_planning_time;
-    _constrinat_pose_goal = kinematic_constraints::constructGoalConstraints(tool_link, _goal_pose, tolerance_pose, tolerance_angle);
+    _constrinat_pose_goal = kinematic_constraints::constructGoalConstraints(
+            tool_link, _goal_pose, tolerance_pose_const, tolerance_angle_const);
     _req.goal_constraints.clear();
     _req.goal_constraints.push_back(_constrinat_pose_goal);
     moveit::core::robotStateToRobotStateMsg(state_cur, _req.start_state);
@@ -932,7 +940,7 @@ bool Planner::clear_manifolds(){
     return true;
 }
 
-JointState Planner::solve_ik(string group_name, CartPose goal_pose,
+JointState& Planner::solve_ik(string group_name, CartPose goal_pose,
                              double timeout_single, double timeout_sampling,
                              bool self_collision, bool fulll_collision){
     auto state_cur = planning_scene_->getCurrentState();
@@ -947,7 +955,7 @@ JointState Planner::solve_ik(string group_name, CartPose goal_pose,
 
     std::vector<double> joint_values;
     const std::vector<std::string> &joint_names = joint_model_group->getJointModelNames();
-    JointState result(joint_names.size());
+    result_ik.setZero(joint_names.size());
     bool found_ik;
     bool collision_ok;
     ros::Time begin = ros::Time::now();
@@ -957,9 +965,9 @@ JointState Planner::solve_ik(string group_name, CartPose goal_pose,
         if (found_ik) {
             kinematic_state->copyJointGroupPositions(joint_model_group, joint_values);
             for (std::size_t i = 0; i < joint_names.size(); ++i) {
-                result[i] = joint_values[i];
+                result_ik[i] = joint_values[i];
             }
-            state_cur.setJointGroupPositions(joint_model_group, result.data());
+            state_cur.setJointGroupPositions(joint_model_group, result_ik.data());
             planning_scene_->setCurrentState(state_cur);
             if(fulll_collision){
                 planning_scene_->checkCollision(collision_request, collision_result);
@@ -978,10 +986,10 @@ JointState Planner::solve_ik(string group_name, CartPose goal_pose,
 
     if (!found_ik){
         for (std::size_t i = 0; i < joint_names.size(); ++i) {
-            result[i] = 0;
+            result_ik[i] = 0;
         }
     }
-    return result;
+    return result_ik;
 }
 
 bool Planner::check_collision(bool only_self){
@@ -997,7 +1005,7 @@ bool Planner::check_collision(bool only_self){
     return collision_result.collision;
 }
 
-JointState Planner::get_jacobian(string group_name, JointState Q){
+JointState& Planner::get_jacobian(string group_name, JointState Q){
     auto state_cur = planning_scene_->getCurrentState();
     robot_state::JointModelGroup* joint_model_group = robot_model_->getJointModelGroup(group_name);
     state_cur.setVariablePositions(Q.data());
@@ -1009,6 +1017,6 @@ JointState Planner::get_jacobian(string group_name, JointState Q){
                                  kinematic_state->getLinkModel(joint_model_group->getLinkModelNames().back()),
                                  reference_point_position, jacobian);
 
-    JointState return_val((Eigen::Map<Eigen::VectorXd>(jacobian.data(), jacobian.cols()*jacobian.rows())));
-    return return_val;
+    result_jac = JointState((Eigen::Map<Eigen::VectorXd>(jacobian.data(), jacobian.cols()*jacobian.rows())));
+    return result_jac;
 }

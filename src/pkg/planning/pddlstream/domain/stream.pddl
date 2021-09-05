@@ -49,8 +49,4 @@
     :domain (and (Traj ?t) (Pose ?o2 ?p2))
     :certified (CFreeTrajPose ?t ?o2 ?p2)
   )
-
-  ;(:predicate (TrajCollision ?t ?o2 ?p2)
-  ;  (and (Traj ?t) (Pose ?o2 ?p2))
-  ;)
 )

@@ -9,6 +9,7 @@ class RobotType(Enum):
     panda=1
     indy7gripper=2
     indy5dof=3
+    kmb=4
 
 
 ##
@@ -47,8 +48,9 @@ class RobotSpecs:
         RobotType.panda: RobotTemplate(robot_name='panda', base_name="link0", tip_name="hand",
                                        joint_names=["joint{}".format(idx) for idx in range(1,8)],
                                        home_pose=[0, -np.pi / 8, 0, -np.pi / 2, 0, np.pi / 2, np.pi / 2],
-                                       joint_limits=[(-2.75, 2.75), (-1.70, 1.70), (-2.75, 2.75),
-                                                     (-2.9, -0.1), (-2.75, 2.75), (0.1, 3.6), (-2.75, 2.75)],
+                                       # joint_limits=[(-2.75, 2.75), (-1.70, 1.70), (-2.75, 2.75),
+                                       joint_limits=[(-np.pi*2/3, np.pi*2/3), (-1.70, 1.70), (-np.pi*2/3, np.pi*2/3),
+                                                     (-2.9, -0.1), (-2.75, 2.75), (0.1, 3.6), (0.9, 2.75)],
                                        vel_limits=np.deg2rad([150, 150, 150, 150, 180, 180, 180])/2,
                                        acc_limits=np.deg2rad([180]*7)/2),
         RobotType.indy5dof: RobotTemplate(robot_name='indy', base_name="link0", tip_name="tcp",
@@ -61,6 +63,12 @@ class RobotSpecs:
                                                     +[(-3.75245789179, 3.75245789179)]*2,
                                        vel_limits=np.deg2rad([150, 150, 150,  180, 180])/2,
                                        acc_limits=np.deg2rad([180]*5)/2),
+        RobotType.kmb: RobotTemplate(robot_name='kmb', base_name="link0", tip_name="platform",
+                                       joint_names=["joint{}".format(idx) for idx in range(6)],
+                                       home_pose=[0,]*6,
+                                       joint_limits=[None,None, None, (-1e-3,1e-3), (-1e-3,1e-3), (-1e-3,1e-3)],
+                                       vel_limits=[None,None, None, 0,0,0],
+                                       acc_limits=[None,None, None, 0,0,0]),
     }
 
     @classmethod
@@ -104,8 +112,11 @@ class RobotConfig:
     # @param type type of robot, declared in robot_config.py
     # @param xyzrpy location of robot in tuple (xyz(m), rpy(rad))
     # @param address ip address of robot string
-    def __init__(self, idx, type, xyzrpy, address):
+    # @param specs  dictionary to describe additional characteristics
+    def __init__(self, idx, type, xyzrpy, address, root_on="base_link", specs=None):
         self.idx, self.type, self.xyzrpy, self.address = idx, type, xyzrpy, address
+        self.root_on = root_on
+        self.specs = {} if specs is None else specs
 
     ##
     # @brief get robot name + index (id for urdf)

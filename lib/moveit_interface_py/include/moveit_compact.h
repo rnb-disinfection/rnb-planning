@@ -45,11 +45,20 @@ namespace RNB {
             robot_model::RobotModelPtr robot_model_;
             planning_scene::PlanningScenePtr planning_scene_;
             std::vector<ompl::base::ConstraintPtr> manifolds;
+            double tolerance_pose;
+            double tolerance_angle;
+            double tolerance_pose_const;
+            double tolerance_angle_const;
+            double tolerance_joint;
+            JointState tol_vals;
 
             bool check_solution_paths_;
             PlanResult plan_result;
             NameList joint_names;
             int joint_num;
+
+            JointState result_ik;
+            JointState result_jac;
 
             /**
              * @brief initialize planner from urdf and srdf files. redirects to init_planner
@@ -130,6 +139,16 @@ namespace RNB {
                                              bool post_projection=false);
 
             /**
+             * @brief set tolerance for planning
+             */
+            void set_tolerance(double pose=-1, double angle=-1, double pose_const=-1, double angle_const=-1, double joint=-1);
+
+            /**
+             * @brief get current tolerance for planning
+             */
+            JointState &get_tolerance();
+
+            /**
              * @brief test jacobian
              * @author Junsu Kang
              */
@@ -172,7 +191,7 @@ namespace RNB {
              * @param fulll_collision   to check full collision with environment
              * @author Junsu Kang
              */
-            JointState solve_ik(string group_name, CartPose goal_pose,
+            JointState& solve_ik(string group_name, CartPose goal_pose,
                                 double timeout_single, double timeout_sampling,
                                 bool self_collision, bool fulll_collision);
 
@@ -183,7 +202,7 @@ namespace RNB {
              */
             bool check_collision(bool only_self);
 
-            JointState get_jacobian(string group_name, JointState Q);
+            JointState& get_jacobian(string group_name, JointState Q);
         };
 
     }

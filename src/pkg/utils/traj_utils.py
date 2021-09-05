@@ -1,5 +1,6 @@
 import numpy as np
-from .utils import sign_positive_bias
+from .utils import sign_positive_bias, list2dict
+from .rotation_utils import *
 from copy import deepcopy
 
 ##
@@ -119,11 +120,11 @@ def get_traj_all(dt_step, T_list, Q_list):
         q1 = Q_list[i + 1] if i + 1 < traj_len else Q_list[-1]
         q2 = Q_list[i + 2] if i + 2 < traj_len else Q_list[-1]
         a, b, c, d = calc_cubic_coeffs(T, v0, q0, q1, q2)
+        v0 = calc_cubic_vel(T, a, b, c)
+        t0 += T
         for t in np.arange(0, T-dt_step/2, dt_step):
             t_all.append(t0 + t)
             traj_all.append(calc_cubic_traj(t, a, b, c, d))
-        v0 = calc_cubic_vel(T, a, b, c)
-        t0 += T
     return t_all, traj_all
 
 
@@ -299,7 +300,7 @@ def simplify_traj(trajectory, step_fractions=[0, 0.1, 0.5, 0.9, 1]):
                 traj_new.append(traj_stack[:-1])
             traj_stack = [q]
         dq_pre = dq
-    traj_new.append(traj_stack[:1])
+    traj_new.append(traj_stack[-1:])
     return np.concatenate(traj_new)
 
 
@@ -362,3 +363,124 @@ def mix_schedule(mplan, snode_schedule):
         snode_pre = snode_cur
 
     return snode_schedule_mixed
+
+
+##
+# @brief calculate sweep trajectory
+# @param gtem GeometryItem
+# @param dP_tar target delta pos
+def get_sweep_traj(mplan, gtem, dP_tar, Q0, DP=0.01, ERROR_CUT=0.01, SINGULARITY_CUT = 0.01, VISUALIZE=False,
+                   VERBOSE=False, ref_link="base_link"):
+    gscene = gtem.gscene
+    joint_limits = [(gscene.urdf_content.joint_map[jname].limit.lower,
+                     gscene.urdf_content.joint_map[jname].limit.upper) for jname in gscene.joint_names]
+    Q = Q0
+    dP_tar = np.matmul(gscene.get_tf(ref_link, Q)[:3, :3].transpose(), dP_tar)
+    T0 = Tnew = gtem.get_tf(list2dict(Q0, gscene.joint_names), from_link=ref_link)
+    P0 = T0[:3, 3]
+    if VISUALIZE:
+        gscene.show_pose(Q)
+    Traj = []
+    dPnorm = np.linalg.norm(dP_tar)
+    DIR = np.concatenate([np.divide(dP_tar, dPnorm), [0, 0, 0]])
+    P0 = np.concatenate([P0, [0, 0, 0]])
+    reason = "end"
+    singularity = False
+    for dP_cur in np.arange(0, dPnorm + DP / 2, DP):
+        Jac = gtem.get_jacobian(Q, ref_link=ref_link)
+        if np.min(np.abs(np.real(np.linalg.svd(Jac)[1]))) <= SINGULARITY_CUT:
+            singularity = True
+            reason = "singular"
+            break
+        Jinv = np.linalg.pinv(Jac)
+        Ptar = np.multiply(DIR, dP_cur) + P0
+        Pcur = np.concatenate([Tnew[:3, 3], [0, 0, 0]])
+        dQ = np.matmul(Jinv, Ptar - Pcur)
+        Q = Q + dQ
+        if VISUALIZE:
+            gscene.show_pose(Q)
+        dlim = np.subtract(joint_limits, Q[:, np.newaxis])[np.where(np.sum(np.abs(Jac), axis=0) > 1e-6)[0], :]
+        if np.any(dlim[:, 0] > 0):
+            reason = "joint min"
+            break
+        if np.any(dlim[:, 1] < 0):
+            reason = "joint max"
+            break
+        if not mplan.validate_trajectory([Q]):
+            reason = "collision"
+            break
+        Tnew = gtem.get_tf(list2dict(Q, gscene.joint_names), from_link=ref_link)
+        dPcalc = Tnew[:3, 3] - T0[:3, 3]
+        dRcalc = Rotation.from_dcm(np.matmul(Tnew[:3, :3], T0[:3, :3].transpose())).as_rotvec()
+        if np.abs(np.linalg.norm(dPcalc) - np.dot(dPcalc, DIR[:3])) > ERROR_CUT:
+            reason = "error off"
+            break
+        Traj.append(Q)
+    if VERBOSE:
+        print(reason)
+    return np.array(Traj), reason=="end"
+
+
+from scipy.interpolate import splprep, splev
+
+
+def bspline_wps(dt_step, trajectory_simp, vel_lims, acc_lims, radii_deg=1):
+    T_list = calc_T_list_simple(trajectory_simp, vel_lims=vel_lims, acc_lims=acc_lims)
+    T_list = np.round(np.divide(T_list, dt_step).astype(int) * dt_step, 5)
+    Qsteps_list = []
+    for Qpre, Q, Tcur in zip(trajectory_simp[:-1], trajectory_simp[1:], T_list[:-1]):
+        Tsteps = np.arange(0, Tcur, dt_step)
+        Qsteps = Tsteps[:, np.newaxis] * (Q - Qpre) / Tcur + Qpre
+        Qsteps_list.append(Qsteps)
+    Qsteps_list.append([Q])
+    traj_cat = np.concatenate(Qsteps_list, axis=0)
+    bspline_traj(traj_cat, radii_deg)
+    return traj_new
+
+
+def bspline_traj(trajectory, radii_deg=1):
+    bspline_traj.trajectory = trajectory
+    plist = trajectory
+    ctr = np.array(plist)
+    idx_dup = np.where(np.sum(np.abs(np.subtract(ctr[1:], ctr[:-1])), axis=-1) == 0)[0]
+    len_ctr = len(ctr)
+    append_last = False
+    for i_dp in idx_dup:
+        if i_dp + 2 < len_ctr:
+            ctr[i_dp+1] = (ctr[i_dp] + ctr[i_dp+2])/2
+        else:
+            append_last = True
+    # ctr = np.delete(ctr, idx_dup, axis=0)
+
+    traj_new = np.copy(ctr)
+    idx_move = np.where(np.max(np.abs(ctr - ctr[-1]), axis=0) > 1e-5)[0]
+    tck, u = splprep(ctr.transpose()[idx_move], s=np.deg2rad(radii_deg))
+    new_points = splev(u, tck)
+    traj_new[:, idx_move] = np.array(new_points).transpose()
+    if append_last:
+        np.pad(traj_new, ((0, 1),(0,0)), 'edge')
+    return traj_new
+
+
+def bspline_simple_schedule(pscene, snode_schedule_wps, vel_lims, acc_lims, dt_step=2e-2, radii_deg=1):
+    snode_schedule_safe = []
+    for snode in snode_schedule_wps:
+        snode_cp = snode.copy(pscene)
+        snode_schedule_safe.append(snode_cp)
+        if snode_cp.traj is not None:
+            traj_new = bspline_wps(dt_step=dt_step, trajectory_simp=snode_cp.traj,
+                                   vel_lims=vel_lims, acc_lims=acc_lims, radii_deg=radii_deg)
+            snode_cp.set_traj(traj_new)
+    return snode_schedule_safe
+
+
+def bspline_schedule(pscene, snode_schedule, radii_deg=1):
+    snode_schedule_safe = []
+    for snode in snode_schedule:
+        snode_cp = snode.copy(pscene)
+        snode_schedule_safe.append(snode_cp)
+        if snode_cp.traj is not None:
+            traj_new = bspline_traj(trajectory=snode_cp.traj, radii_deg=radii_deg)
+            snode_cp.set_traj(traj_new)
+    return snode_schedule_safe
+

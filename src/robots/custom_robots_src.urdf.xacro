@@ -6,6 +6,7 @@
 <xacro:include filename="$(env RNB_PLANNING_DIR)/src/robots/indy7.xacro"/>
 <xacro:include filename="$(env RNB_PLANNING_DIR)/src/robots/indy7gripper.xacro"/>
 <xacro:include filename="$(env RNB_PLANNING_DIR)/src/robots/indy5dof.xacro"/>
+<xacro:include filename="$(env RNB_PLANNING_DIR)/src/robots/kmb.xacro"/>
 <link name="base_link"/>
 <!-- BODY BEGIN -->
 <!-- BODY END -->

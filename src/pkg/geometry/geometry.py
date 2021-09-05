@@ -249,6 +249,7 @@ class GeometryScene(list):
 
         self.highlight_dict[hl_key][htem.name] = htem
         self.__add_marker(htem)
+        self.add_highlight_axis(hname, "axis", gtem.link_name, center=gtem.center, orientation_mat=gtem.orientation_mat)
 
     ##
     # @brief add highlight axis
@@ -285,24 +286,24 @@ class GeometryScene(list):
 
     ##
     # @brief set workspace boundary
-    def set_workspace_boundary(self, XMIN, XMAX, YMIN, YMAX, ZMIN, ZMAX):
-        self.create_safe(GEOTYPE.BOX, "ceiling_ws", "base_link", (XMAX - XMIN, YMAX - YMIN, 0.01),
-                         ((XMAX + XMIN) / 2, (YMAX + YMIN) / 2, ZMAX), rpy=(0, 0, 0),
+    def set_workspace_boundary(self, XMIN, XMAX, YMIN, YMAX, ZMIN, ZMAX, thickness=0.01):
+        self.create_safe(GEOTYPE.BOX, "ceiling_ws", "base_link", (XMAX - XMIN, YMAX - YMIN, thickness),
+                         ((XMAX + XMIN) / 2, (YMAX + YMIN) / 2, ZMAX+thickness/2), rpy=(0, 0, 0),
                          color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
-        self.create_safe(GEOTYPE.BOX, "floor_ws", "base_link", (XMAX - XMIN, YMAX - YMIN, 0.01),
-                         ((XMAX + XMIN) / 2, (YMAX + YMIN) / 2, ZMIN), rpy=(0, 0, 0),
+        self.create_safe(GEOTYPE.BOX, "floor_ws", "base_link", (XMAX - XMIN, YMAX - YMIN, thickness),
+                         ((XMAX + XMIN) / 2, (YMAX + YMIN) / 2, ZMIN-thickness/2), rpy=(0, 0, 0),
                          color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
-        self.create_safe(GEOTYPE.BOX, "frontwall_ws", "base_link", (0.01, YMAX - YMIN, ZMAX - ZMIN),
-                         (XMAX, (YMAX + YMIN) / 2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
+        self.create_safe(GEOTYPE.BOX, "frontwall_ws", "base_link", (thickness, YMAX - YMIN, ZMAX - ZMIN),
+                         (XMAX+thickness/2, (YMAX + YMIN) / 2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
                          color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
-        self.create_safe(GEOTYPE.BOX, "backwall_ws", "base_link", (0.01, YMAX - YMIN, ZMAX - ZMIN),
-                         (XMIN, (YMAX + YMIN) / 2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
+        self.create_safe(GEOTYPE.BOX, "backwall_ws", "base_link", (thickness, YMAX - YMIN, ZMAX - ZMIN),
+                         (XMIN-thickness/2, (YMAX + YMIN) / 2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
                          color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
-        self.create_safe(GEOTYPE.BOX, "leftwall_ws", "base_link", (XMAX - XMIN, 0.01, ZMAX - ZMIN),
-                         ((XMAX + XMIN) / 2, YMIN, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
+        self.create_safe(GEOTYPE.BOX, "leftwall_ws", "base_link", (XMAX - XMIN, thickness, ZMAX - ZMIN),
+                         ((XMAX + XMIN) / 2, YMIN-thickness/2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
                          color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
-        self.create_safe(GEOTYPE.BOX, "rightwall_ws", "base_link", (XMAX - XMIN, 0.01, ZMAX - ZMIN),
-                         ((XMAX + XMIN) / 2, YMAX, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
+        self.create_safe(GEOTYPE.BOX, "rightwall_ws", "base_link", (XMAX - XMIN, thickness, ZMAX - ZMIN),
+                         ((XMAX + XMIN) / 2, YMAX+thickness/2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
                          color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
 
     ##
@@ -347,6 +348,10 @@ class GeometryScene(list):
             if condition(gtem):
                 gtem_args.append(deepcopy(gtem.get_args()))
         return gtem_args
+
+    def get_tf(self,to_link, Q, from_link="base_link"):
+        return get_tf(to_link=to_link, joint_dict=list2dict(Q, self.joint_names),
+                      urdf_content=self.urdf_content, from_link=from_link)
 
 ##
 # @class GeometryItem
@@ -452,7 +457,7 @@ class GeometryItem(object):
             self.center_child = center if center is not None else self.center_child
             ## @brief orientation matrix relative to attached link coordinate
             self.orientation_mat_child = orientation_mat if orientation_mat is not None else self.orientation_mat_child
-            ## @brief transformation matrix from geometry coordinate to attached link coordinate
+            ## @brief transformation matrix from parent geometry to attached link coordinate
             self.Toff_child = SE3(self.orientation_mat_child, self.center_child)
 
             ## @brief transformation matrix from geometry coordinate to attached link coordinate
@@ -567,4 +572,29 @@ class GeometryItem(object):
                 'dims': self.dims, 'center': center, 'rpy': rpy, 'color': self.color, 
                 'display': self.display, 'collision': self.collision, 'fixed': self.fixed, 
                 'parent': self.parent}
-        
+    ##
+    # @brief calculate jacobian for a geometry movement
+    # @param gtem   GeometryItem
+    # @param Q      current joint pose as array
+    # @param ref_link reference link to calculate pose
+    def get_jacobian(self, Q, ref_link="base_link"):
+
+        Q_dict = list2dict(Q, self.gscene.joint_names)
+        Jac = []
+        chain = self.gscene.urdf_content.get_chain(root=ref_link, tip=self.link_name)
+        for ij, jname in enumerate(self.gscene.joint_names):
+            if jname not in chain:
+                Jac.append(np.zeros(6))
+                continue
+            joint = self.gscene.urdf_content.joint_map[jname]
+            Tj = T_xyzrpy((joint.origin.xyz, joint.origin.rpy))
+            T_link = get_tf(joint.parent, Q_dict, self.gscene.urdf_content, from_link=ref_link)
+            T_bj = np.matmul(T_link, Tj)
+            zi = np.matmul(T_bj[:3, :3], joint.axis)
+            T_p = self.get_tf(Q_dict)
+            dpi = T_p[:3, 3] - T_bj[:3, 3]
+            zp = np.cross(zi, dpi)
+            Ji = np.concatenate([zp, zi])
+            Jac.append(Ji)
+        Jac = np.array(Jac).transpose()
+        return Jac

@@ -89,7 +89,6 @@
   (:derived (UnsafeTraj ?t)
     (exists (?o2 ?p2) (and (Traj ?t) (Pose ?o2 ?p2)
                            (not (CFreeTrajPose ?t ?o2 ?p2))
-                           ; (TrajCollision ?t ?o2 ?p2)
                            (AtPose ?o2 ?p2)))
   )
 )

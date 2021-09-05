@@ -74,6 +74,15 @@
   ```bash
   sudo killall -9 roscore && nohup roscore &  
   ```
+* ROS keyserver error? When installing new ros package and apt-update are impossible: get ros2 key?
+  ```
+  curl http://repo.ros2.org/repos.key | sudo apt-key add -
+  ```
+* Killing zombie network process
+  ```bash
+  netstat -lntp
+  kill -9 <PID>
+  ```
 
 
 ## Panda simulator

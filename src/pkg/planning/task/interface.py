@@ -162,10 +162,11 @@ class TaskInterface:
 
     ##
     # @brief find all schedules
-    # @return dictionary of SearchNode index list if in_indices=True. Else, SearchNode itself instead of indices.
-    def find_schedules(self, at_home=True, in_indices=True):
+    # @return list of SearchNode index list
+    def find_schedules(self, at_home=True, home_pose=None, in_indices=True):
         schedule_dict = {}
         sidx_checked = set()
+        home_pose = self.initial_state.Q if home_pose is None else home_pose
         for i in reversed(sorted(self.snode_dict.keys())):
             if i in sidx_checked:
                 continue
@@ -173,7 +174,7 @@ class TaskInterface:
             state = snode.state
             # parent should be checked - there are bi-directional trees
             if (self.check_goal(state) and len(snode.parents)>0 and snode.parents[0] == 0):
-                if at_home and np.linalg.norm(state.Q-self.initial_state.Q)>1e-2:
+                if at_home and np.linalg.norm(state.Q-home_pose)>1e-2:
                     continue
                 schedule = snode.parents + [i]
                 schedule_dict[i] = schedule

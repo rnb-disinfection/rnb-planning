@@ -28,6 +28,7 @@ class TaskRRT(TaskInterface):
         self.binding_sampler = binding_sampler
         self.redundancy_sampler = redundancy_sampler
         self.custom_rule = custom_rule
+        self.explicit_edges = {}
 
     ##
     # @brief build object-level node graph
@@ -83,20 +84,24 @@ class TaskRRT(TaskInterface):
                 self.unstoppable_terminals[sub_i].append(goal[sub_i])
 
         self.node_dict = {}
+        self.node_parent_dict = defaultdict(set)
         for node, leafs in self.node_dict_full.items():
-            ## unstoppable node should change or at terminal
-            leaf_list = [leaf
-                         for leaf in leafs
-                         if all([node[k] in terms or node[k] != leaf[k]
-                                 for k, terms in self.unstoppable_terminals.items()])]
-            self.node_dict[node] = set(leaf_list)
-
-        self.node_parent_dict = {}
-        for node, parents in self.node_parent_dict_full.items():
-            self.node_parent_dict[node] = set(
-                [parent for parent in parents ## unstoppable node should change or at terminal
-                 if all([node[k] in terms or node[k]!=parent[k]
-                         for k, terms in self.unstoppable_terminals.items()])])
+            ## goal node does not have child leaf
+            if node in goal_nodes:
+                self.node_dict[node] = set()
+                continue
+            if node in self.explicit_edges:
+                self.node_dict[node] = set(self.explicit_edges[node])
+            else:
+                ## unstoppable node should change or at terminal
+                leaf_list = [leaf
+                             for leaf in leafs
+                             if all([node[k] in terms or node[k] != leaf[k]
+                                     for k, terms in self.unstoppable_terminals.items()])]
+                self.node_dict[node] = set(leaf_list)
+            for leaf in self.node_dict[node]:
+                self.node_parent_dict[leaf].add(node)
+        self.node_parent_dict = dict(self.node_parent_dict)
 
         if hasattr(self.new_node_sampler, "init"):
             self.new_node_sampler.init(self, self.multiprocess_manager)
@@ -168,6 +173,10 @@ class TaskRRT(TaskInterface):
             if isinstance(new_node, State):
                 to_state = new_node
                 redundancy_dict = deepcopy(parent_snode.redundancy_dict)
+            elif isinstance(new_node, int): # for copy and extend existing SearchNode, especially for RRT* extension
+                snode_tar = self.snode_dict[new_node]
+                to_state = snode_tar.state
+                redundancy_dict = deepcopy(snode_tar.redundancy_dict)
             else:
                 available_binding_dict = self.pscene.get_available_binding_dict(from_state, new_node,
                                                                                 list2dict(from_state.Q, self.pscene.gscene.joint_names))
@@ -194,7 +203,8 @@ class TaskRRT(TaskInterface):
         if connection_result:
             node_new = snode_new.state.node
             for leaf in self.node_dict[node_new]:
-                self.neighbor_nodes[leaf] = None
+                if leaf not in self.goal_nodes: # goal nodes are manually reached below when possible. no need for random access
+                    self.neighbor_nodes[leaf] = None
 
             with self.snode_dict_lock:
                 if snode_new.state.node not in self.node_snode_dict:
@@ -204,6 +214,7 @@ class TaskRRT(TaskInterface):
                         self.node_snode_dict[snode_new.state.node]+[snode_new.idx]
 
             if self.check_goal(snode_new.state):
+                print("Goal reached")
                 return True
 
         cres = False
@@ -231,10 +242,13 @@ class TaskRRT(TaskInterface):
                                            for node_n in nodes_near
                                            if all([node_n[match_i] == node_new[match_i]
                                                    for match_i  in match_self_idx])]
-                            node_extend = self.new_node_sampler(nodes_candi)
-                            self.attempts_reseved.put((snode_new.idx, node_extend))
-                            # print("=============== try extend to goal {} -> {} =================".format(
-                            #     node_new, node_extend))
+                            try:
+                                node_extend = self.new_node_sampler(nodes_candi)
+                                self.attempts_reseved.put((snode_new.idx, node_extend))
+                                # print("=============== try extend to goal {} -> {} =================".format(
+                                #     node_new, node_extend))
+                            except Exception as e:
+                                print(e)
 
         return False
 

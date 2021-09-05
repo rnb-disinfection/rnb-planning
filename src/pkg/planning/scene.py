@@ -188,6 +188,12 @@ class PlanningScene:
         self.update_subjects()
 
     ##
+    # @brief clear all subjects
+    def clear_subjects(self):
+        for sname in self.subject_name_list:
+            self.remove_subject(sname)
+
+    ##
     # @param oname object name
     # @param gname name of parent object
     # @param _type type of object, subclass of rnb-planning.src.pkg.planning.constraint.constraint_subject.Subject

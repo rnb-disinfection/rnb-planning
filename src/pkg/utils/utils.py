@@ -84,6 +84,7 @@ class PeriodicTimer:
         self.__tic = Event()
         self.__stop = Event()
         self.thread_periodic = Thread(target=self.__tic_loop)
+        self.thread_periodic.daemon = True
         self.thread_periodic.start()
 
     def __tic_loop(self):
@@ -135,9 +136,8 @@ class PeriodicIterator(PeriodicTimer):
 ##
 # @class    GlobalLogger
 # @brief    A singleton logger to record data anywhere in the code.
-class GlobalLogger(Singleton):
+class GlobalLogger(Singleton, dict):
     def __init__(self):
-        self.log_dict = {}
         for _ in range(10):
             TextColors.RED.println("=====================================================================")
             TextColors.RED.println("========== WARN - Performance drop: GlobalLogger is working =========")
@@ -307,23 +307,26 @@ class NumpyEncoder(json.JSONEncoder):
             return obj.tolist()
         return json.JSONEncoder.default(self, obj)
 
-def send_recv(sdict, host, port):
+def send_recv(sdict, host, port, buffer_len=1024):
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     client_socket.connect((host, port))
 
     rdict = {}
     try:
-        sjson = json.dumps(sdict, cls=NumpyEncoder)
+        sjson = json.dumps(sdict, cls=NumpyEncoder, ensure_ascii = False)
         sbuff = sjson.encode()
         client_socket.sendall(sbuff)
 
-        rjson = client_socket.recv(1024)
-        # rjson = "".join(map(chr, rjson))
+        rjson = client_socket.recv(buffer_len)
+        send_recv.rjson = rjson
         rdict = json.loads(rjson)
+        send_recv.rdict = rdict
         if rdict is None:
             rdict = {}
         rdict = {str(k): v for k,v in rdict.items()}
+    except Exception as e:
+        print(e)
     finally:
         client_socket.close()
     return rdict

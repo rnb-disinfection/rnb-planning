@@ -281,7 +281,7 @@ def save_scene(gscene, arm_tar_idx, grasp_tool_idx, grasp_tar_idx, grasp_obj_idx
     scene_data["rth"] = rth
     scene_data["gtem_args"] = gtem_args
     scene_data["error_state"] = error_state
-    # scene_data["global_log"] = GlobalLogger.instance().log_dict
+    # scene_data["global_log"] = GlobalLogger.instance()
     save_pickle(
         os.path.join(SCENE_PATH,
                      "{0:08d}-{1}.pkl".format(
