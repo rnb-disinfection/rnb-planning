@@ -22,8 +22,56 @@ from examples.pybullet.utils.pybullet_tools.utils import WorldSaver, connect, ge
 from pddlstream.language.generator import from_gen_fn, from_fn, empty_gen, from_test, universe_test
 from pddlstream.utils import read, INF, get_file_path, find_unique, Profiler, str_from_object, negate_test
 from pddlstream.language.constants import print_solution, PDDLProblem
+from pddlstream.algorithms.common import SolutionStore
 from examples.pybullet.tamp.streams import get_cfree_approach_pose_test, get_cfree_pose_pose_test, get_cfree_traj_pose_test, \
     move_cost_fn, get_cfree_obj_approach_pose_test
+from examples.pybullet.tamp.streams import *
+def get_cfree_pose_pose_test(collisions=True, **kwargs):
+    def test(b1, p1, b2, p2):
+        if not collisions or (b1 == b2):
+            return True
+        p1.assign()
+        p2.assign()
+        res = not pairwise_collision(b1, b2, **kwargs)  # , max_distance=0.001)
+        return res
+    return test
+
+
+def get_cfree_obj_approach_pose_test(collisions=True):
+    def test(b1, p1, g1, b2, p2):
+        if not collisions or (b1 == b2):
+            return True
+        p2.assign()
+        grasp_pose = multiply(p1.value, invert(g1.value))
+        approach_pose = multiply(p1.value, invert(g1.approach), g1.value)
+        # time.sleep(1)
+        for obj_pose in interpolate_poses(grasp_pose, approach_pose):
+            set_pose(b1, obj_pose)
+            res = pairwise_collision(b1, b2)
+            print("grasp: {}".format(grasp_pose))
+            print("appro: {}".format(approach_pose))
+            print("{} - {}".format(b1, b2))
+            raw_input("Press Enter to continue...")
+            if res:
+                return False
+        return True
+    return test
+
+
+def get_cfree_approach_pose_test(problem, collisions=True):
+    # TODO: apply this before inverse kinematics as well
+    arm = 'left'
+    gripper = problem.get_gripper()
+    def test(b1, p1, g1, b2, p2):
+        if not collisions or (b1 == b2):
+            return True
+        p2.assign()
+        # time.sleep(1)
+        for _ in iterate_approach_path(problem.robot, arm, gripper, p1, g1, body=b1):
+            if pairwise_collision(b1, b2) or pairwise_collision(gripper, b2):
+                return False
+        return True
+    return test
 
 #######################################################
 
