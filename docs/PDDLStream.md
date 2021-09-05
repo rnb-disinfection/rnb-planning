@@ -40,6 +40,25 @@ to
 if final_depth == 0 or elapsed_time(start_time)>time_remain:
 ```
 
+## To get plan summary
+* Go to *pddlstream/algorithms/common.py*
+* Find the function ***export_summary(self)***
+* Change "return = {" to "SolutionStore.last_log = {"
+* Add "return SolutionStore.last_log" at the end of the function
+* The function should look like this:
+```python
+def export_summary(self):
+    SolutionStore.last_log = {
+    ...
+    }
+    return SolutionStore.last_log
+```
+* Get the log from pddlstream.algorithms.common.SolutionStore.last_log as follows:
+```python
+from pddlstream.algorithms.common import SolutionStore
+print(SolutionStore.last_log)
+```
+
 
 ## Examples
 * PR2 TAMP: `python3 -m examples.pybullet.tamp.run -viewer`

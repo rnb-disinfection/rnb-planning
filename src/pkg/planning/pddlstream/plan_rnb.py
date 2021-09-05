@@ -67,13 +67,6 @@ def pddlstream_from_problem_rnb(pscene, robot, body_names, Q_init, goal_pairs=[]
             if is_placement(body, surface):
                 init += [('Supported', body, pose, surface)]
 
-    for body in fixed:
-        name = get_body_name(body)
-        if 'sink' in name:
-            init += [('Sink', body)]
-        if 'stove' in name:
-            init += [('Stove', body)]
-
     body_subject_map = make_body_subject_map(pscene, body_names)
     body_actor_map = make_body_actor_map(pscene, body_names)
     subject_body_map = {sj.oname: bid for bid, sj in body_subject_map.items()}
@@ -176,7 +169,7 @@ def solve_in_pddlstream(pscene, mplan, ROBOT_NAME, TOOL_NAME, HOME_POSE, goal_pa
             solution = solve(problem, algorithm='adaptive',
                              unit_costs=False, success_cost=INF, max_time=MAX_TIME, max_iterations=MAX_ITER,
                              max_skeletons=MAX_SKELETONS, search_sample_ratio=SEARCH_SAMPLE_RATIO)
-            elapsed = gtimer.toc("plan") / 1000
+            gtimer.toc("plan") / 1000
             saver.restore()
     print_solution(solution)
     plan, cost, evaluations = solution
@@ -188,6 +181,7 @@ def solve_in_pddlstream(pscene, mplan, ROBOT_NAME, TOOL_NAME, HOME_POSE, goal_pa
     planning_log = mplan.result_log["planning"]
     plan_num = len(planning_log)
     fail_num = np.sum(np.logical_not(mplan.result_log["planning"]))
+    elapsed = SolutionStore.last_log['run_time']
 
     log_dict = {"plan_time": elapsed, "length": move_num,
                 "IK_tot": ik_fun.checkout_count + ik_fun.pass_count + ik_fun.fail_count,

@@ -48,6 +48,8 @@ print("-"*50)
 ROBOT_NAME, TOOL_LINK, TOOL_XYZ, HOME_POSE, GRIP_DEPTH = get_single_robot_params(ROBOT_TYPE)
 s_builder, pscene = prepare_single_robot_scene(ROBOT_TYPE, ROBOT_NAME, TOOL_LINK, TOOL_XYZ, VISUALIZE=VISUALIZE)
 crob, gscene = pscene.combined_robot, pscene.gscene
+crob.home_pose = HOME_POSE
+crob.home_dict = list2dict(HOME_POSE, gscene.joint_names)
 
 fname = "data_%s_%02d.pkl" % (file_option, data_idx)
 file_gtems = os.path.join(DATASET_PATH, fname)

@@ -2,8 +2,6 @@
   (:requirements :strips :equality)
   (:predicates
     (Stackable ?o ?r)
-    (Sink ?r)
-    (Stove ?r)
 
     (Pose ?o ?p)
     (Grasp ?o ?g)
@@ -20,14 +18,12 @@
 
     (AtPose ?o ?p)
     (AtGrasp ?o ?g)
+    (Graspable ?o)
     (HandEmpty)
     (AtConf ?q)
     (CanMove)
-    (Cleaned ?o)
-    (Cooked ?o)
-
+    
     (On ?o ?r)
-    (Holding ?o)
 
     (UnsafePose ?o ?p)
     (UnsafeApproach ?o ?p ?g)
@@ -74,28 +70,10 @@
     :effect (and (AtPose ?o ?p) (HandEmpty) (CanMove)
                  (not (AtGrasp ?o ?g)))
   )
-
-  (:action clean
-    :parameters (?o ?r)
-    :precondition (and (Stackable ?o ?r) (Sink ?r)
-                       (On ?o ?r))
-    :effect (Cleaned ?o)
-  )
-  (:action cook
-    :parameters (?o ?r)
-    :precondition (and (Stackable ?o ?r) (Stove ?r)
-                       (On ?o ?r) (Cleaned ?o))
-    :effect (and (Cooked ?o)
-                 (not (Cleaned ?o)))
-  )
-
+  
   (:derived (On ?o ?r)
     (exists (?p) (and (Supported ?o ?p ?r)
                       (AtPose ?o ?p)))
-  )
-  (:derived (Holding ?o)
-    (exists (?g) (and (Grasp ?o ?g)
-                      (AtGrasp ?o ?g)))
   )
 
   (:derived (UnsafePose ?o ?p)

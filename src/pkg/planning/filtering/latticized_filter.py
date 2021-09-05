@@ -228,7 +228,7 @@ class LatticedChecker(MotionFilterInterface):
             print(self.ltc_effector.coll_idx_dict.keys())
             print("===== obj_names =====")
             print(obj_names)
-            value = raw_input("Wait key input : ")
+#             value = raw_input("Wait key input : ")
         # if not hasattr(LatticedChecker, "test_count"):
         #     LatticedChecker.test_count = 0
         # LatticedChecker.test_count += 1
