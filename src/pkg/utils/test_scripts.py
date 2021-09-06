@@ -135,6 +135,8 @@ def parse_test_args():
     parser.add_argument('--PLAY_RESULT', type=str2bool, default=False, help='to play result')
     parser.add_argument('--USE_PYBULLET_GUI', type=str2bool, default=False, help='to show in pybullet gui')
 
+    parser.add_argument('--SAVE_RESULTS', type=str2bool, default=False, help='to save results (overwrite same index)')
+
     return parser.parse_args()
 
 def load_gtem_args(gscene, gtem_args):

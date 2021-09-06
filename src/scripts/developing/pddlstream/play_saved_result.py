@@ -40,12 +40,17 @@ crob, gscene = pscene.combined_robot, pscene.gscene
 fname = "data_%s_%02d.pkl" % (file_option, data_idx)
 file_gtems = os.path.join(DATASET_PATH, fname)
 initial_state = load_saved_scene(pscene, file_gtems, VISUALIZE=VISUALIZE)
+gscene.NAME_DICT['obj_0'].color = (1,0,0,1)
+gscene.update_markers_all()
 
 sample = load_pickle(os.path.join(RESULTSET_PATH, "result_%s_%02d_%s.pkl" % (file_option, data_idx, cname)))
 
 res = sample["success"]
 plan = sample["plan"]
 body_names = sample["body_names"]
+
+for action in plan:
+    print(action)
 
 if VISUALIZE and PLAY_RESULT and res:
     play_pddl_plan(pscene, pscene.actor_dict["grip0"], initial_state=initial_state,

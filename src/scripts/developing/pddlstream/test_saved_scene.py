@@ -24,10 +24,10 @@ TIMEOUT_MOTION = args.TIMEOUT_MOTION
 MAX_TIME = args.MAX_TIME
 SHOW_STATE = args.SHOW_STATE
 MAX_ITER = args.MAX_ITER
-MAX_SKELETONS=args.MAX_SKELETONS
-SEARCH_SAMPLE_RATIO=args.SEARCH_SAMPLE_RATIO
-USE_PYBULLET_GUI=args.USE_PYBULLET_GUI
-
+MAX_SKELETONS = args.MAX_SKELETONS
+SEARCH_SAMPLE_RATIO = args.SEARCH_SAMPLE_RATIO
+USE_PYBULLET_GUI = args.USE_PYBULLET_GUI
+SAVE_RESULTS = args.SAVE_RESULTS
 
 CLEARANCE = 1e-3
 TOOL_NAME="grip0"
@@ -85,7 +85,8 @@ res, plan, log_dict = solve_in_pddlstream(pscene, mplan, ROBOT_NAME, TOOL_NAME, 
                         GRASP_SAMPLE, STABLE_SAMPLE, SHOW_STATE, SEARCH_SAMPLE_RATIO,
                         use_pybullet_gui=USE_PYBULLET_GUI)
 
-save_pickle(os.path.join(RESULTSET_PATH, "result_%s_%02d_%s.pkl" % (file_option, data_idx, cname)), log_dict)
+if SAVE_RESULTS:
+    save_pickle(os.path.join(RESULTSET_PATH, "result_%s_%02d_%s.pkl" % (file_option, data_idx, cname)), log_dict)
 
 print("------- Result {} ({}): {} s -------".format(fname, cname, log_dict["plan_time"]))
 print("==========================================================")

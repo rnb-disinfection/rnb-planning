@@ -51,7 +51,7 @@
 
   (:action pick
     :parameters (?o ?p ?g ?q ?t)
-    :precondition (and (Kin ?o ?p ?g ?q ?t)
+    :precondition (and (Kin ?o ?p ?g ?q ?t) (not (CanMove))
                        (AtPose ?o ?p) (HandEmpty) (AtConf ?q)
                        (not (UnsafeApproach ?o ?p ?g))
                        (not (UnsafeTraj ?t))
@@ -61,7 +61,7 @@
   )
   (:action place
     :parameters (?o ?p ?g ?q ?t)
-    :precondition (and (Kin ?o ?p ?g ?q ?t)
+    :precondition (and (Kin ?o ?p ?g ?q ?t) (not (CanMove))
                        (AtGrasp ?o ?g) (AtConf ?q)
                        (not (UnsafePose ?o ?p))
                        (not (UnsafeApproach ?o ?p ?g))
