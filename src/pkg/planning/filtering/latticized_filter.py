@@ -48,6 +48,8 @@ def div_h(h):
 # @remark   launch SharedArray predictor server rnb-planning.src.pkg.planning.filtering.lattice_model.shared_lattice_predictor.SharedLatticePredictor,
 #           which is separated because tensorflow needs to be run in python 3
 class LatticedChecker(MotionFilterInterface):
+    BEFORE_IK = False
+
     ##
     # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
     # @param gcheck GraspChecker
@@ -137,12 +139,12 @@ class LatticedChecker(MotionFilterInterface):
     # @param T_loal     transformation matrix from object-side link to actor-side link
     # @param Q_dict joint configuration in dictionary format {joint name: radian value}
     # @param interpolate    interpolate path and check intermediate poses
-    def check_T_loal(self, actor, obj, T_loal, Q_dict, interpolate=False,**kwargs):
+    def check_T_loal(self, actor, obj, T_loal, Q_dict, interpolate=False, ignore=[],**kwargs):
         actor_link = actor.geometry.link_name
         object_link = obj.geometry.link_name
 
         actor_vertinfo_list, object_vertinfo_list, actor_Tinv_dict, object_Tinv_dict = \
-            self.gcheck.get_grasping_vert_infos(actor, obj, T_loal, Q_dict)
+            self.gcheck.get_grasping_vert_infos(actor, obj, T_loal, Q_dict, ignore=ignore)
 
         obj_names = obj.geometry.get_family()
         group_name_handle = self.binder_link_robot_dict[object_link] if object_link in self.binder_link_robot_dict else None
