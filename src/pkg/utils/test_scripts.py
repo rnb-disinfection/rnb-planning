@@ -137,7 +137,12 @@ def parse_test_args():
 
     parser.add_argument('--SAVE_RESULTS', type=str2bool, default=True, help='to save results (overwrite same index)')
 
-    return parser.parse_args()
+    args = parser.parse_args()
+    print("=================== arguments ==================")
+    for k,v in vars(args).items():
+        print("{}: {}".format(k, v))
+    return args
+    print("================================================")
 
 def load_gtem_args(gscene, gtem_args):
     gtem_remove = []
