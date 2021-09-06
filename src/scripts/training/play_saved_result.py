@@ -136,7 +136,7 @@ class WorkPlane(ObstacleBase):
     def is_overlapped_with(self, gtem):
         verts, radii = gtem.get_vertice_radius()
         verts_global = np.add(np.matmul(verts, gtem.orientation_mat.transpose()), gtem.center)
-        verts_wp = np.multiply(DEFAULT_VERT_DICT[self.GTYPE], tuple(self.DIM[:2]) + (self.H,))
+        verts_wp = np.multiply(DEFAULT_VERT_DICT[self.GTYPE], tuple(self.DIM[:2]) + (self.H*2,))
         verts_wp_global = np.add(np.matmul(verts_wp, self.geometry.orientation_mat.transpose()),
                                  np.add(self.geometry.center, (0, 0, self.H / 2)))
         return get_gjk_distance(get_point_list(verts_global), get_point_list(verts_wp_global)) - radii < 1e-4
