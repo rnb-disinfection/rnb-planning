@@ -13,9 +13,9 @@ from pkg.planning.scene import State
 
 TIMEOUT_MOTION_DEFAULT = 1
 
-__DEBUG_MODE_PRIM_RNB = True
+DEBUG_MODE_PRIM_RNB = True
 
-if __DEBUG_MODE_PRIM_RNB:
+if DEBUG_MODE_PRIM_RNB:
     TextColors.RED.println("===== WARNING: primitives_rnb in DEBUG MODE====")
 
 gtimer= GlobalTimer.instance()
@@ -130,10 +130,10 @@ def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, too
     res = True
     if subject is not None:
         ckey = get_checker_keys(tool, subject, fluents, conf2, body_subject_map)
-        if __DEBUG_MODE_PRIM_RNB: print(ckey)
+        if DEBUG_MODE_PRIM_RNB: print(ckey)
         if ckey in run_checkers.cache:
             res = run_checkers.cache[ckey]
-            if __DEBUG_MODE_PRIM_RNB:
+            if DEBUG_MODE_PRIM_RNB:
                 Tloal_list = [
                     get_tf(to_link=actor.geometry.link_name, from_link=subject.geometry.link_name,
                            joint_dict=Qto_dict, urdf_content=pscene.gscene.urdf_content)]
@@ -152,10 +152,10 @@ def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, too
             run_checkers.cache[ckey] = res
     if res and subject_from is not None:
         ckey = get_checker_keys(tool, subject_from, fluents, conf1, body_subject_map)
-        if __DEBUG_MODE_PRIM_RNB: print(ckey)
+        if DEBUG_MODE_PRIM_RNB: print(ckey)
         if ckey in run_checkers.cache:
             res = run_checkers.cache[ckey]
-            if __DEBUG_MODE_PRIM_RNB:
+            if DEBUG_MODE_PRIM_RNB:
                 Tloal_list = [
                     get_tf(to_link=actor.geometry.link_name, from_link=subject_from.geometry.link_name,
                            joint_dict=Qfrom_dict, urdf_content=pscene.gscene.urdf_content)]
@@ -174,10 +174,10 @@ def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, too
             run_checkers.cache[ckey] = res
     if res and actor_from is not None:
         ckey = get_checker_keys(tool, subject, fluents, conf1, body_subject_map)
-        if __DEBUG_MODE_PRIM_RNB: print(ckey)
+        if DEBUG_MODE_PRIM_RNB: print(ckey)
         if ckey in run_checkers.cache:
             res = run_checkers.cache[ckey]
-            if __DEBUG_MODE_PRIM_RNB:
+            if DEBUG_MODE_PRIM_RNB:
                 Tloal_list = [
                     get_tf(to_link=actor_from.geometry.link_name, from_link=subject.geometry.link_name,
                            joint_dict=Qfrom_dict, urdf_content=pscene.gscene.urdf_content)]
@@ -197,7 +197,7 @@ def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, too
     if mplan.flag_log:
         mplan.result_log["pre_motion_checks"].append(res)
 
-    if res or __DEBUG_MODE_PRIM_RNB:
+    if res or DEBUG_MODE_PRIM_RNB:
         Traj, LastQ, error, success, binding_list = mplan.plan_transition(
             from_state, to_state, {}, timeout=timeout, show_state=show_state)
     else:
@@ -327,9 +327,11 @@ def check_feas(pscene, body_subject_map, actor, checkers, home_dict, body, pose,
     return res
 
 def run_checkers(checkers, actor, subject, Tloal_list, Q_dict, ignore=[], show_state=False, mplan=None):
+    run_checkers.reason = None
     res = True
     for i_c, checker in enumerate(checkers):
         fname = checker.__class__.__name__
+        run_checkers.reason = fname
         flag_log = mplan is not None and mplan.flag_log
         if flag_log:
             mplan.gtimer.tic(fname)
@@ -375,6 +377,14 @@ def get_checker_keys(tool, subject, fluents, conf1, body_subject_map, grasp=None
                       if body_subject_map[fluent[1]].oname != sname])),
         conf1.index, None if grasp is None else grasp.index)
 
+class IK_Reason(Enum):
+    success = 0
+    ik_approach = 1
+    col_approach = 2
+    ik_grasp = 3
+    col_grasp = 4
+    approach_motion = 5
+
 def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_link="base_link", show_state=False,
                   disabled_collisions=set(), robot=0L, fixed=[], teleport=False, num_attempts=10, mplan=None,
                   timeout_single=0.01):
@@ -386,6 +396,8 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
     glog = GlobalLogger.instance()
     glog["ik_feas"] = []
     glog["ik_res"] = []
+    glog["ik_feas_reason"] = []
+    glog["ik_res_reason"] = []
     def fn(body, pose, grasp):
         with GlobalTimer.instance().block("ik_fn"):
             if show_state:
@@ -393,17 +405,19 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
             feas = check_feas(pscene, body_subject_map, actor, checkers,
                               home_dict, body, pose, grasp, base_link=base_link, show_state=show_state)
 
-            if not feas and not __DEBUG_MODE_PRIM_RNB:
+            if not feas and not DEBUG_MODE_PRIM_RNB:
                 fn.checkout_count += 1
                 return None
-            if __DEBUG_MODE_PRIM_RNB:
+            if DEBUG_MODE_PRIM_RNB:
                 glog['ik_feas'].append(feas)
+                glog['ik_feas_reason'].append(run_checkers.reason)
             obstacles = [body] + fixed
             set_pose(body, pose.pose)
             gripper_pose = end_effector_from_body(pose.pose, grasp.grasp_pose)
             approach_pose = approach_from_grasp_tool_side(gripper_pose, grasp.approach_pose)
             # print("gripper_pose: {}".format(gripper_pose))
             # print("approach_pose: {}".format(approach_pose))
+            ik_res_reason = IK_Reason.success
             for i_ in range(num_attempts):
                 if show_state:
                     pscene.gscene.show_pose(dict2list(home_dict, pscene.gscene.joint_names))
@@ -428,6 +442,10 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                 # print("q_approach: {}".format(q_approach))
                 if (q_approach is None) or any(pairwise_collision(robot, b) for b in obstacles):
                     # print("obstacles: {}".format(obstacles))
+                    if DEBUG_MODE_PRIM_RNB:
+                        ik_res_reason = max(ik_res_reason,
+                                            IK_Reason.ik_approach if q_approach is None else IK_Reason.col_approach,
+                                            key=lambda x: x.value)
                     if show_state:
                         print("IK-col approach fail")
                         if q_approach is None:
@@ -460,6 +478,10 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                         pscene.gscene.show_pose(q_grasp)
                     if (q_grasp is None) or any(pairwise_collision(robot, b) for b in obstacles):
                         # print("obstacles: {}".format(obstacles))
+                        if DEBUG_MODE_PRIM_RNB:
+                            ik_res_reason = max(ik_res_reason,
+                                                IK_Reason.ik_grasp if q_grasp is None else IK_Reason.col_grasp,
+                                            key=lambda x: x.value)
                         if show_state:
                             print("IK-col grasp fail")
                             if q_grasp is None:
@@ -484,18 +506,24 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                     if path is None:
                         # print("Approach motion failed")
                         if DEBUG_FAILURE: wait_if_gui('Approach motion failed')
+                        if DEBUG_MODE_PRIM_RNB:
+                            ik_res_reason = max(ik_res_reason, IK_Reason.approach_motion,
+                                            key=lambda x: x.value)
                         continue
                 command = Command([BodyPath(robot, path),
                                    Attach(body, robot, grasp.link),
                                    BodyPath(robot, path[::-1], attachments=[grasp])])
                 fn.pass_count += 1
-                if __DEBUG_MODE_PRIM_RNB:
+                if DEBUG_MODE_PRIM_RNB:
+                    ik_res_reason = IK_Reason.success
                     glog['ik_res'].append(True)
+                    glog['ik_res_reason'].append(ik_res_reason.name)
                 return (conf, command)
                 # TODO: holding collisions
             fn.fail_count += 1
-            if __DEBUG_MODE_PRIM_RNB:
+            if DEBUG_MODE_PRIM_RNB:
                 glog['ik_res'].append(False)
+                glog['ik_res_reason'].append(ik_res_reason)
             return None
     return fn
 
