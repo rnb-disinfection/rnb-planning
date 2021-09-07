@@ -82,7 +82,6 @@ class GraspChecker(MotionFilterInterface):
     # @param ignore         GeometryItems to ignore
     def check_T_loal(self, actor, obj, T_loal, Q_dict, interpolate=False, obj_only=False, ignore=[],
               **kwargs):
-
         actor_vertinfo_list, object_vertinfo_list, _, _ = self.get_grasping_vert_infos(
             actor, obj, T_loal, Q_dict, obj_only=obj_only,
             interpolate=interpolate, ignore=ignore)
@@ -92,7 +91,7 @@ class GraspChecker(MotionFilterInterface):
             verts = np.matmul(verts, T[:3,:3].transpose())+T[:3,3]
             vert_point_list = get_point_list(verts)
             actor_vertice_list.append((vert_point_list, radius))
-            if DEBUG_MODE_GRAB_FILT and actor.geometry.link_name == "base_link":
+            if DEBUG_MODE_GRAB_FILT:
                 for actor_vertice, actor_radius in actor_vertice_list:
                     for i_v, vert in enumerate(verts):
                         self.gscene.add_highlight_axis("gc_actor", geo_name+"_{:03}".format(i_v), "base_link",
@@ -104,7 +103,7 @@ class GraspChecker(MotionFilterInterface):
             verts = np.matmul(verts, T[:3,:3].transpose())+T[:3,3]
             vert_point_list = get_point_list(verts)
             object_vertice_list.append((vert_point_list, radius))
-            if DEBUG_MODE_GRAB_FILT and actor.geometry.link_name == "base_link":
+            if DEBUG_MODE_GRAB_FILT:
                 for actor_vertice, actor_radius in actor_vertice_list:
                     for i_v, vert in enumerate(verts):
                         self.gscene.add_highlight_axis("gc_object", geo_name+"_{:03}".format(i_v), "base_link",
@@ -116,14 +115,14 @@ class GraspChecker(MotionFilterInterface):
             for object_vertice, object_radius in object_vertice_list:
                 dist_list.append(get_gjk_distance(actor_vertice, object_vertice) - actor_radius - object_radius)
         res = np.min(dist_list) > + 1e-4
-        if DEBUG_MODE_GRAB_FILT and actor.geometry.link_name == "base_link":
+        if DEBUG_MODE_GRAB_FILT:
             print("res: {} ({})".format(res, round(np.min(dist_list), 4)))
             if not res:
                 i_ac, i_ob = np.unravel_index(np.argmin(dist_list), (len(actor_vertinfo_list),len(object_vertinfo_list)))
                 print("{} - {}".format(actor_vertinfo_list[i_ac][0], object_vertinfo_list[i_ob][0]))
-            self.gscene.add_highlight_axis("gc_ax", "Tloal", obj.geometry.link_name,
+            self.gscene.add_highlight_axis("gc_center", "Tloal", obj.geometry.link_name,
                                            center=T_loal[:3,3], orientation_mat=T_loal[:3,:3])
-            self.gscene.clear_highlight(hl_keys=["gc_actor", "gc_object"])
+            self.gscene.clear_highlight(hl_keys=["gc_actor", "gc_object", "gc_center"])
 
         return res
 
