@@ -13,7 +13,7 @@ from pkg.planning.scene import State
 
 TIMEOUT_MOTION_DEFAULT = 1
 
-DEBUG_MODE_PRIM_RNB = True
+DEBUG_MODE_PRIM_RNB = False
 
 if DEBUG_MODE_PRIM_RNB:
     TextColors.RED.println("===== WARNING: primitives_rnb in DEBUG MODE====")
@@ -344,6 +344,8 @@ def run_checkers(checkers, actor, subject, Tloal_list, Q_dict, ignore=[], show_s
             mplan.result_log[fname].append(res)
         if not res:
             break
+    if res:
+        run_checkers.reason = "Success"
     if show_state:
         gscene = subject.geometry.gscene
         if subject.geometry.link_name == "base_link":
@@ -393,11 +395,12 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
     sample_fn = get_sample_fn(robot, movable_joints)
     eye4 = np.identity(4)
     home_pose = dict2list(home_dict, pscene.gscene.joint_names)
-    glog = GlobalLogger.instance()
-    glog["ik_feas"] = []
-    glog["ik_res"] = []
-    glog["ik_feas_reason"] = []
-    glog["ik_res_reason"] = []
+    if DEBUG_MODE_PRIM_RNB:
+        glog = GlobalLogger.instance()
+        glog["ik_feas"] = []
+        glog["ik_res"] = []
+        glog["ik_feas_reason"] = []
+        glog["ik_res_reason"] = []
     def fn(body, pose, grasp):
         with GlobalTimer.instance().block("ik_fn"):
             if show_state:
@@ -523,7 +526,7 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
             fn.fail_count += 1
             if DEBUG_MODE_PRIM_RNB:
                 glog['ik_res'].append(False)
-                glog['ik_res_reason'].append(ik_res_reason)
+                glog['ik_res_reason'].append(ik_res_reason.name)
             return None
     return fn
 

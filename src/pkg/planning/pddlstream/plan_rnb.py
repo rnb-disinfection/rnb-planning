@@ -143,15 +143,8 @@ def solve_in_pddlstream(pscene, mplan, ROBOT_NAME, TOOL_NAME, HOME_POSE, goal_pa
     gscene = pscene.gscene
     checkers_ik = [checker for checker in mplan.motion_filters if checker.BEFORE_IK]
     mplan.motion_filters = [checker for checker in mplan.motion_filters if not checker.BEFORE_IK]
-    print('=============================================')
-    print('============== IK Checkers ==================')
     checkers_ik_names = [checker.__class__.__name__ for checker in checkers_ik]
-    print(checkers_ik_names)
-    print('=============================================')
-    print('============== MP Checkers ==================')
     checkers_mp_names = [checker.__class__.__name__ for checker in mplan.motion_filters]
-    print(checkers_mp_names)
-    print('=============================================')
     connect_notebook(use_gui=use_pybullet_gui)
     urdf_pybullet_path = copy_meshes(gscene)
     reset_pybullet()
@@ -203,5 +196,5 @@ def solve_in_pddlstream(pscene, mplan, ROBOT_NAME, TOOL_NAME, HOME_POSE, goal_pa
                 "MP_tot": plan_try, "MP_count": plan_num, "failed_MPs": fail_num,
                 "success": res, "body_names": body_names, "plan": plan,
                 "pre_motion_checks": pre_motion_checks, "planning_log": planning_log,
-                "checker_ik": checkers_ik_names, "checkers_mp":checkers_mp_names}
+                "checkers_ik": checkers_ik_names, "checkers_mp":checkers_mp_names}
     return res, plan, log_dict

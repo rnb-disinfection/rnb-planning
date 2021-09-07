@@ -252,7 +252,7 @@ class LatticedChecker(MotionFilterInterface):
                                        )[0]
         if DEBUG_LAT_FILT:
             save_scene(self.pscene.gscene, arm_tar_idx, grasp_tool_idx, grasp_tar_idx, grasp_obj_idx, [r, th, h],
-                       error_state=True, result=res)
+                       error_state=False, result=res)
         return res[-1]>0.5
 
     def query_wait_response(self, robot_type_name, grasp_img_batch, arm_img_batch, rh_vals_batch):
