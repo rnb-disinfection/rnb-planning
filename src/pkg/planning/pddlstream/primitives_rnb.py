@@ -13,6 +13,11 @@ from pkg.planning.scene import State
 
 TIMEOUT_MOTION_DEFAULT = 1
 
+__DEBUG_MODE_PRIM_RNB = True
+
+if __DEBUG_MODE_PRIM_RNB:
+    TextColors.RED.println("===== WARNING: primitives_rnb in DEBUG MODE====")
+
 gtimer= GlobalTimer.instance()
 
 def get_matching_object(pscene, binder, Q_dict, approach_vec):
@@ -102,13 +107,18 @@ def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, too
     to_state.Q = np.array(Qto)
 
     Qto_dict = list2dict(Qto, pscene.gscene.joint_names)
+    Qfrom_dict = list2dict(Qcur, pscene.gscene.joint_names)
 
+    subject_from = None
+    actor_from = None
     if grasp is None: # free motion, go to grasp - actor:tool
         subject = get_matching_object(pscene,tool, Qto_dict, approach_vec)
+        subject_from = get_matching_object(pscene,tool, Qfrom_dict, approach_vec)
         actor = tool
     else: # holding motion, go to release - actor:plane
         subject = graspped
         actor = get_matching_binder(pscene, subject, Qto_dict, excludes=[tool])
+        actor_from = get_matching_binder(pscene, subject, Qfrom_dict, excludes=[tool])
     if show_state:
         print("sucject/actor: {} / {}".format(subject.oname if subject is not None else subject, actor.name))
 
@@ -119,15 +129,75 @@ def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, too
     ## Check motion_filters outside, as plan_transition below will do joint motion - filters will be skipped
     res = True
     if subject is not None:
-        Tloal_list = [
-            get_tf(to_link=actor.geometry.link_name, from_link=subject.geometry.link_name,
-                   joint_dict=Qto_dict, urdf_content=pscene.gscene.urdf_content)]
-        res = run_checkers(mplan.motion_filters, actor, subject, Tloal_list,
-                     Q_dict=list2dict(Qcur, pscene.gscene.joint_names), show_state=show_state, mplan=mplan)
+        ckey = get_checker_keys(tool, subject, fluents, conf2, body_subject_map)
+        if __DEBUG_MODE_PRIM_RNB: print(ckey)
+        if ckey in run_checkers.cache:
+            res = run_checkers.cache[ckey]
+            if __DEBUG_MODE_PRIM_RNB:
+                Tloal_list = [
+                    get_tf(to_link=actor.geometry.link_name, from_link=subject.geometry.link_name,
+                           joint_dict=Qto_dict, urdf_content=pscene.gscene.urdf_content)]
+                newres = run_checkers(mplan.motion_filters, actor, subject, Tloal_list,
+                                        Q_dict=list2dict(Qcur, pscene.gscene.joint_names), show_state=show_state, mplan=mplan)
+                mplan.result_log["cache_log"].append(
+                    (res, newres)
+                )
+                res = newres
+        else:
+            Tloal_list = [
+                get_tf(to_link=actor.geometry.link_name, from_link=subject.geometry.link_name,
+                       joint_dict=Qto_dict, urdf_content=pscene.gscene.urdf_content)]
+            res = run_checkers(mplan.motion_filters, actor, subject, Tloal_list,
+                         Q_dict=list2dict(Qcur, pscene.gscene.joint_names), show_state=show_state, mplan=mplan)
+            run_checkers.cache[ckey] = res
+    if res and subject_from is not None:
+        ckey = get_checker_keys(tool, subject_from, fluents, conf1, body_subject_map)
+        if __DEBUG_MODE_PRIM_RNB: print(ckey)
+        if ckey in run_checkers.cache:
+            res = run_checkers.cache[ckey]
+            if __DEBUG_MODE_PRIM_RNB:
+                Tloal_list = [
+                    get_tf(to_link=actor.geometry.link_name, from_link=subject_from.geometry.link_name,
+                           joint_dict=Qfrom_dict, urdf_content=pscene.gscene.urdf_content)]
+                newres = run_checkers(mplan.motion_filters, actor, subject_from, Tloal_list,
+                             Q_dict=list2dict(Qto, pscene.gscene.joint_names), show_state=show_state, mplan=mplan)
+                mplan.result_log["cache_log"].append(
+                    (res, newres)
+                )
+                res = newres
+        else:
+            Tloal_list = [
+                get_tf(to_link=actor.geometry.link_name, from_link=subject_from.geometry.link_name,
+                       joint_dict=Qfrom_dict, urdf_content=pscene.gscene.urdf_content)]
+            res = run_checkers(mplan.motion_filters, actor, subject_from, Tloal_list,
+                         Q_dict=list2dict(Qto, pscene.gscene.joint_names), show_state=show_state, mplan=mplan)
+            run_checkers.cache[ckey] = res
+    if res and actor_from is not None:
+        ckey = get_checker_keys(tool, subject, fluents, conf1, body_subject_map)
+        if __DEBUG_MODE_PRIM_RNB: print(ckey)
+        if ckey in run_checkers.cache:
+            res = run_checkers.cache[ckey]
+            if __DEBUG_MODE_PRIM_RNB:
+                Tloal_list = [
+                    get_tf(to_link=actor_from.geometry.link_name, from_link=subject.geometry.link_name,
+                           joint_dict=Qfrom_dict, urdf_content=pscene.gscene.urdf_content)]
+                newres = run_checkers(mplan.motion_filters, actor_from, subject, Tloal_list,
+                                        Q_dict=list2dict(Qto, pscene.gscene.joint_names), show_state=show_state, mplan=mplan)
+                mplan.result_log["cache_log"].append(
+                    (res, newres)
+                )
+                res = newres
+        else:
+            Tloal_list = [
+                get_tf(to_link=actor_from.geometry.link_name, from_link=subject.geometry.link_name,
+                       joint_dict=Qfrom_dict, urdf_content=pscene.gscene.urdf_content)]
+            res = run_checkers(mplan.motion_filters, actor_from, subject, Tloal_list,
+                         Q_dict=list2dict(Qto, pscene.gscene.joint_names), show_state=show_state, mplan=mplan)
+            run_checkers.cache[ckey] = res
     if mplan.flag_log:
         mplan.result_log["pre_motion_checks"].append(res)
 
-    if res:
+    if res or __DEBUG_MODE_PRIM_RNB:
         Traj, LastQ, error, success, binding_list = mplan.plan_transition(
             from_state, to_state, {}, timeout=timeout, show_state=show_state)
     else:
@@ -293,6 +363,18 @@ def run_checkers(checkers, actor, subject, Tloal_list, Q_dict, ignore=[], show_s
             gscene.recover_robot(vis_bak)
     return res
 
+def reset_checker_cache():
+    run_checkers.cache = {}
+
+def get_checker_keys(tool, subject, fluents, conf1, body_subject_map, grasp=None):
+    sname = subject.oname if subject is not None else None
+    return (
+        tool.name if tool is not None else None,
+        sname,
+        tuple(sorted([(fluent[0], fluent[1], fluent[2].index) for fluent in fluents
+                      if body_subject_map[fluent[1]].oname != sname])),
+        conf1.index, None if grasp is None else grasp.index)
+
 def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_link="base_link", show_state=False,
                   disabled_collisions=set(), robot=0L, fixed=[], teleport=False, num_attempts=10, mplan=None,
                   timeout_single=0.01):
@@ -301,14 +383,21 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
     sample_fn = get_sample_fn(robot, movable_joints)
     eye4 = np.identity(4)
     home_pose = dict2list(home_dict, pscene.gscene.joint_names)
+    glog = GlobalLogger.instance()
+    glog["ik_feas"] = []
+    glog["ik_res"] = []
     def fn(body, pose, grasp):
         with GlobalTimer.instance().block("ik_fn"):
             if show_state:
                 pscene.gscene.show_pose(dict2list(home_dict, pscene.gscene.joint_names))
-            if not check_feas(pscene, body_subject_map, actor, checkers,
-                              home_dict, body, pose, grasp, base_link=base_link, show_state=show_state):
+            feas = check_feas(pscene, body_subject_map, actor, checkers,
+                              home_dict, body, pose, grasp, base_link=base_link, show_state=show_state)
+
+            if not feas and not __DEBUG_MODE_PRIM_RNB:
                 fn.checkout_count += 1
                 return None
+            if __DEBUG_MODE_PRIM_RNB:
+                glog['ik_feas'].append(feas)
             obstacles = [body] + fixed
             set_pose(body, pose.pose)
             gripper_pose = end_effector_from_body(pose.pose, grasp.grasp_pose)
@@ -400,9 +489,13 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                                    Attach(body, robot, grasp.link),
                                    BodyPath(robot, path[::-1], attachments=[grasp])])
                 fn.pass_count += 1
+                if __DEBUG_MODE_PRIM_RNB:
+                    glog['ik_res'].append(True)
                 return (conf, command)
                 # TODO: holding collisions
             fn.fail_count += 1
+            if __DEBUG_MODE_PRIM_RNB:
+                glog['ik_res'].append(False)
             return None
     return fn
 

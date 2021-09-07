@@ -79,17 +79,22 @@ goal_pairs=[(obj_pscene.oname, 'gp')]
 
 gtimer = GlobalTimer.instance()
 gtimer.reset()
+gloc = GlobalLogger.instance()
 
 res, plan, log_dict = solve_in_pddlstream(pscene, mplan, ROBOT_NAME, TOOL_NAME, HOME_POSE, goal_pairs,
                         TIMEOUT_MOTION, MAX_TIME, MAX_ITER, MAX_SKELETONS,
                         GRASP_SAMPLE, STABLE_SAMPLE, SHOW_STATE, SEARCH_SAMPLE_RATIO,
                         use_pybullet_gui=USE_PYBULLET_GUI)
 
+log_dict.update(mplan.result_log)
+log_dict.update(gloc)
+
 if SAVE_RESULTS:
+    log_dict.update({"args": vars(args)})
     save_pickle(os.path.join(RESULTSET_PATH, "result_%s_%02d_%s.pkl" % (file_option, data_idx, cname)), log_dict)
 
-print("------- Result {} ({}): {} s -------".format(fname, cname, log_dict["plan_time"]))
 print("==========================================================")
+print("======= Result {} ({}): {} s =======".format(fname, cname, log_dict["plan_time"]))
 print("==========================================================")
 print(gtimer)
 print("==========================================================")

@@ -67,10 +67,20 @@ class GeometryScene(list):
             self.__add_marker(geo)
 
     ##
-    # @brief clear handle
+    # @brief clear GeometryScene
     def clear(self):
         for x in self:
             self.remove(x)
+
+    ##
+    # @brief clear GeometryItems on specific link
+    def clear_link(self, link_name):
+        names_to_remove = [gtem.name for gtem in self if gtem.link_name == link_name and gtem.parent is None]
+        for gname in names_to_remove:
+            try:
+                self.remove(self.NAME_DICT[gname])
+            except Exception as e:
+                print(e)
 
     ##
     # @brief remove one item from handle
@@ -215,6 +225,8 @@ class GeometryScene(list):
     # @brief show pose
     # @param pose Q in radian numpy array
     def show_pose(self, pose, **kwargs):
+        if isinstance(pose, dict):
+            pose = dict2list(pose, self.joint_names)
         show_motion([pose], self.marker_list, self.pub, self.joints, self.joint_names, **kwargs)
 
     ##
@@ -254,6 +266,15 @@ class GeometryScene(list):
     ##
     # @brief add highlight axis
     def add_highlight_axis(self, hl_key, name, link_name, center, orientation_mat, color=None, axis="xyz", dims=(0.10, 0.01, 0.01)):
+        if axis == '' or axis == None:
+            ctem = self.create_safe(gtype=GEOTYPE.SPHERE, name="cp_" + name, link_name=link_name,
+                                  center=center, dims=(min(dims),)*3, rpy=(0,0,0),
+                                  color=color or (0.3, 0.3, 0.3, 0.5),
+                                  collision=False)
+            self.__add_marker(ctem)
+            self.highlight_dict[hl_key][ctem.name] = ctem
+            return
+
         if 'x' in axis:
             axtemx = self.create_safe(gtype=GEOTYPE.ARROW, name="axx_" + name, link_name=link_name,
                                   center=center, dims=dims, rpy=Rot2rpy(orientation_mat), color=color or (1, 0, 0, 0.5),
