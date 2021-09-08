@@ -141,7 +141,8 @@ def solve_in_pddlstream(pscene, mplan, ROBOT_NAME, TOOL_NAME, HOME_POSE, goal_pa
                         use_pybullet_gui=False, USE_MOVEIT_IK=False):
     gtimer = GlobalTimer.instance()
     gscene = pscene.gscene
-    checkers_ik = [checker for checker in mplan.motion_filters if checker.BEFORE_IK]
+#     checkers_ik = [checker for checker in mplan.motion_filters if checker.BEFORE_IK]
+    checkers_ik = [checker for checker in mplan.motion_filters]
     mplan.motion_filters = [checker for checker in mplan.motion_filters if not checker.BEFORE_IK]
     checkers_ik_names = [checker.__class__.__name__ for checker in checkers_ik]
     checkers_mp_names = [checker.__class__.__name__ for checker in mplan.motion_filters]
