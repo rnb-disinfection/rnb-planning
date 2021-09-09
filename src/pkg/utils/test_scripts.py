@@ -138,6 +138,7 @@ def parse_test_args():
     parser.add_argument('--TIMED_COMPLETE', type=str2bool, default=False, help='to use timed ik solving for infeasible predictions')
 
     parser.add_argument('--VERBOSE', type=str2bool, default=False, help='to print states')
+    parser.add_argument('--STACK_TIMELOG', type=str2bool, default=False, help='to stack all time logs, not average')
     parser.add_argument('--SAVE_RESULTS', type=str2bool, default=True, help='to save results (overwrite same index)')
 
     args = parser.parse_args()

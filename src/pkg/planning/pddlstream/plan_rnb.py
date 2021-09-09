@@ -210,5 +210,6 @@ def solve_in_pddlstream(pscene, mplan, ROBOT_NAME, TOOL_NAME, HOME_POSE, goal_pa
                 "MP_tot": plan_try, "MP_count": plan_num, "failed_MPs": fail_num,
                 "success": res, "body_names": body_names, "plan": plan,
                 "pre_motion_checks": pre_motion_checks, "planning_log": planning_log,
-                "checkers_ik": checkers_ik_names, "checkers_mp":checkers_mp_names}
+                "checkers_ik": checkers_ik_names, "checkers_mp":checkers_mp_names,
+                "time_log": gtimer.timelist_dict if gtimer.stack else gtimer.time_dict}
     return res, plan, log_dict
