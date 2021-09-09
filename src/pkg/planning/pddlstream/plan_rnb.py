@@ -146,7 +146,7 @@ def postprocess_plan(plan):
 def solve_in_pddlstream(pscene, mplan, ROBOT_NAME, TOOL_NAME, HOME_POSE, goal_pairs,
                         TIMEOUT_MOTION, MAX_TIME, MAX_ITER, MAX_SKELETONS,
                         GRASP_SAMPLE, STABLE_SAMPLE, SHOW_STATE, SEARCH_SAMPLE_RATIO,
-                        use_pybullet_gui=False, USE_MOVEIT_IK=False, TIMED_COMPLETE=False):
+                        use_pybullet_gui=False, USE_MOVEIT_IK=False, TIMED_COMPLETE=False, VERBOSE=False):
     gtimer = GlobalTimer.instance()
     gscene = pscene.gscene
 #     checkers_ik = [checker for checker in mplan.motion_filters if checker.BEFORE_IK]
@@ -185,7 +185,7 @@ def solve_in_pddlstream(pscene, mplan, ROBOT_NAME, TOOL_NAME, HOME_POSE, goal_pa
             gtimer.tic("plan")
             solution = solve(problem, algorithm='adaptive',
                              unit_costs=False, success_cost=INF, max_time=MAX_TIME, max_iterations=MAX_ITER,
-                             max_skeletons=MAX_SKELETONS, search_sample_ratio=SEARCH_SAMPLE_RATIO)
+                             max_skeletons=MAX_SKELETONS, search_sample_ratio=SEARCH_SAMPLE_RATIO, verbose=VERBOSE)
             gtimer.toc("plan") / 1000
             saver.restore()
     print_solution(solution)

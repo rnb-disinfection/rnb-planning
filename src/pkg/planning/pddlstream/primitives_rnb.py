@@ -129,7 +129,9 @@ def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, too
     # GlobalLogger.instance()["actor"] = actor.name if hasattr(actor, "name") else actor
     ## Check motion_filters outside, as plan_transition below will do joint motion - filters will be skipped
     feas = True
-    if not skip_feas:
+    if skip_feas:
+        feas = True
+    else:
         if subject is not None:
             ckey = get_checker_keys(tool, subject, fluents, conf2, body_subject_map)
             if DEBUG_MODE_PRIM_RNB: print(ckey)
@@ -197,6 +199,7 @@ def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, too
                 feas = run_checkers(mplan.motion_filters, actor_from, subject, Tloal_list,
                              Q_dict=list2dict(Qto, pscene.gscene.joint_names), show_state=show_state, mplan=mplan)
                 run_checkers.cache[ckey] = feas
+
     if mplan.flag_log:
         mplan.result_log["pre_motion_checks"].append(feas)
 
@@ -221,12 +224,11 @@ def get_free_motion_gen_rnb(mplan, body_subject_map, robot, tool, tool_link, app
         if tkey in returneds:
             return None
 
+        skip_feas = False
         if time_ is not None:
             firstcall = tkey not in time_dict
             if not firstcall:
                 skip_feas = time_.value - time_dict[tkey] > POSTPONE
-            else:
-                skip_feas = False
 
         if (time_ is None # not timed domain (do feas-motion)
                 or firstcall # first call in timed domain (do feas-motion)
@@ -261,12 +263,11 @@ def get_holding_motion_gen_rnb(mplan, body_subject_map, robot, tool, tool_link, 
         if tkey in returneds:
             return None
 
+        skip_feas = False
         if time_ is not None:
             firstcall = tkey not in time_dict
             if not firstcall:
                 skip_feas = time_.value - time_dict[tkey] > POSTPONE
-            else:
-                skip_feas = False
 
         if (time_ is None # not timed domain (do feas-motion)
                 or firstcall # first call in timed domain (do feas-motion)
