@@ -42,6 +42,10 @@ def pddlstream_from_problem_rnb(pscene, robot, body_names, Q_init, goal_pairs=[]
     assert tool_name is not None, "tool_name should be passed to pddlstream_from_problem"
     assert mplan is not None, "mplan should be passed to pddlstream_from_problem"
 
+    if len(checkers_ik)==0 and len(mplan.motion_filters)==0:
+        print("No predictors are assigned. Automatically set TIMED_COMPLETE=False")
+        TIMED_COMPLETE = False
+
     if TIMED_COMPLETE:
         domain_pddl = read(get_file_path(__file__, 'domain/domain_timed.pddl'))
         stream_pddl = read(get_file_path(__file__, 'domain/stream_timed.pddl'))
