@@ -88,6 +88,36 @@ def sample_redundancy_offset(subject, actor, drop_downward_dir=None, show_state=
     return T_ao
 
 
+from itertools import count
+
+class Time(object):
+    num = count()
+    def __init__(self, t):
+        self.t = t
+        self.index = next(self.num)
+    @property
+    def value(self):
+        return self.t
+
+    def __repr__(self):
+        index = self.index
+        return 'i{}'.format(index)
+
+def get_time_gen():
+    dt = 0.1
+    def gen(body):
+        while True:
+            _t = time.time()
+            if gen.time_last - _t > dt:
+                time_ = Time(_t)
+                gen.time_last = _t
+                yield (time_,)
+            else:
+                yield None
+    gen.time_last = 0
+    return gen
+
+
 def get_stable_gen_rnb(body_subject_map, body_actor_map, home_dict, fixed=[], show_state=False,
                        sample_count=SAMPLE_STABLE_COUNT_DEFAULT,
                        binding_sampler=random.choice, redundancy_sampler=random.uniform):

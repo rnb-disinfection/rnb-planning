@@ -389,31 +389,44 @@ class IK_Reason(Enum):
 
 def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_link="base_link", show_state=False,
                   disabled_collisions=set(), robot=0L, fixed=[], teleport=False, num_attempts=10, mplan=None,
-                  timeout_single=0.01):
+                  timeout_single=0.01, POSTPONE=5):
     robot_name = [k for k, v in pscene.robot_chain_dict.items() if v["tip_link"]==actor.geometry.link_name][0]
     movable_joints = get_movable_joints(robot)
     sample_fn = get_sample_fn(robot, movable_joints)
     eye4 = np.identity(4)
     home_pose = dict2list(home_dict, pscene.gscene.joint_names)
+    time_dict = {}
+    returneds = set()
     if DEBUG_MODE_PRIM_RNB:
         glog = GlobalLogger.instance()
         glog["ik_feas"] = []
         glog["ik_res"] = []
         glog["ik_feas_reason"] = []
         glog["ik_res_reason"] = []
-    def fn(body, pose, grasp):
+    def fn(body, pose, grasp, time_=None):
         with GlobalTimer.instance().block("ik_fn"):
+            tkey = (body, pose.index, grasp.index)
             if show_state:
                 pscene.gscene.show_pose(dict2list(home_dict, pscene.gscene.joint_names))
-            feas = check_feas(pscene, body_subject_map, actor, checkers,
-                              home_dict, body, pose, grasp, base_link=base_link, show_state=show_state)
 
-            if not feas and not DEBUG_MODE_PRIM_RNB:
-                fn.checkout_count += 1
+            if tkey in returneds:
                 return None
-            if DEBUG_MODE_PRIM_RNB:
-                glog['ik_feas'].append(feas)
-                glog['ik_feas_reason'].append(run_checkers.reason)
+            if time_ is None or tkey not in time_dict:
+                feas = check_feas(pscene, body_subject_map, actor, checkers,
+                                  home_dict, body, pose, grasp, base_link=base_link, show_state=show_state)
+
+                if not feas and not DEBUG_MODE_PRIM_RNB:
+                    fn.checkout_count += 1
+                    time_dict[tkey] = time.time()
+                    return None
+
+                if DEBUG_MODE_PRIM_RNB:
+                    glog['ik_feas'].append(feas)
+                    glog['ik_feas_reason'].append(run_checkers.reason)
+            elif time_.value-time_dict[tkey] < POSTPONE:
+                return None
+            returneds.add(tkey)
+
             obstacles = [body] + fixed
             set_pose(body, pose.pose)
             gripper_pose = end_effector_from_body(pose.pose, grasp.grasp_pose)

@@ -31,7 +31,7 @@ from examples.pybullet.tamp.streams import get_cfree_approach_pose_test, get_cfr
 def pddlstream_from_problem_rnb(pscene, robot, body_names, Q_init, goal_pairs=[], movable=[], checkers_ik=[],
                                 tool_name=None, tool_link_name=None, mplan=None, timeout=TIMEOUT_MOTION_DEFAULT, teleport=False,
                                 grasp_sample=SAMPLE_GRASP_COUNT_DEFAULT, stable_sample=SAMPLE_STABLE_COUNT_DEFAULT,
-                                show_state=False, USE_MOVEIT_IK=False):
+                                show_state=False, USE_MOVEIT_IK=False, TIMED_COMPLETE=False):
     print("================ MAKE PROBLEM ======================")
     print("IK checkers: {}".format([checker.__class__.__name__ for checker in checkers_ik]))
     print("MP checkers: {}".format([checker.__class__.__name__ for checker in mplan.motion_filters]))
@@ -42,8 +42,12 @@ def pddlstream_from_problem_rnb(pscene, robot, body_names, Q_init, goal_pairs=[]
     assert tool_name is not None, "tool_name should be passed to pddlstream_from_problem"
     assert mplan is not None, "mplan should be passed to pddlstream_from_problem"
 
-    domain_pddl = read(get_file_path(__file__, 'domain/domain.pddl'))
-    stream_pddl = read(get_file_path(__file__, 'domain/stream.pddl'))
+    if TIMED_COMPLETE:
+        domain_pddl = read(get_file_path(__file__, 'domain/domain_timed.pddl'))
+        stream_pddl = read(get_file_path(__file__, 'domain/stream_timed.pddl'))
+    else:
+        domain_pddl = read(get_file_path(__file__, 'domain/domain.pddl'))
+        stream_pddl = read(get_file_path(__file__, 'domain/stream.pddl'))
     constant_map = {}
 
     print('Robot:', robot)
@@ -59,7 +63,8 @@ def pddlstream_from_problem_rnb(pscene, robot, body_names, Q_init, goal_pairs=[]
     print('Fixed:', fixed)
     for body in movable:
         pose = BodyPose(body, get_pose(body))
-        init += [('Graspable', body),
+        init += [('Timer', 0L),
+                 ('Graspable', body),
                  ('Pose', body, pose),
                  ('AtPose', body, pose)]
         for surface in fixed:
@@ -97,6 +102,8 @@ def pddlstream_from_problem_rnb(pscene, robot, body_names, Q_init, goal_pairs=[]
         robot=robot, fixed=fixed, teleport=teleport, show_state=show_state, **ik_kwargs)
 
     stream_map = {
+        'stream-time': from_gen_fn(get_time_gen()),
+        'timed-ik': from_fn(ik_fun),
         'sample-pose': from_gen_fn(get_stable_gen_rnb(body_subject_map, body_actor_map,
                                                       pscene.combined_robot.home_dict, fixed, show_state=show_state,
                                                       sample_count=stable_sample)),
@@ -138,7 +145,7 @@ def postprocess_plan(plan):
 def solve_in_pddlstream(pscene, mplan, ROBOT_NAME, TOOL_NAME, HOME_POSE, goal_pairs,
                         TIMEOUT_MOTION, MAX_TIME, MAX_ITER, MAX_SKELETONS,
                         GRASP_SAMPLE, STABLE_SAMPLE, SHOW_STATE, SEARCH_SAMPLE_RATIO,
-                        use_pybullet_gui=False, USE_MOVEIT_IK=False):
+                        use_pybullet_gui=False, USE_MOVEIT_IK=False, TIMED_COMPLETE=False):
     gtimer = GlobalTimer.instance()
     gscene = pscene.gscene
 #     checkers_ik = [checker for checker in mplan.motion_filters if checker.BEFORE_IK]
@@ -163,7 +170,8 @@ def solve_in_pddlstream(pscene, mplan, ROBOT_NAME, TOOL_NAME, HOME_POSE, goal_pa
                                                   tool_link_name=gscene.NAME_DICT[TOOL_NAME].link_name,
                                                   mplan=mplan, timeout=TIMEOUT_MOTION,
                                                   grasp_sample=GRASP_SAMPLE, stable_sample=STABLE_SAMPLE,
-                                                  show_state=SHOW_STATE, USE_MOVEIT_IK=USE_MOVEIT_IK)
+                                                  show_state=SHOW_STATE, USE_MOVEIT_IK=USE_MOVEIT_IK,
+                                                  TIMED_COMPLETE=TIMED_COMPLETE)
     _, _, _, stream_map, init, goal = problem
     print('Init:', init)
     print('Goal:', goal)
