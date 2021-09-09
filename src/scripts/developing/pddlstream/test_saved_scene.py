@@ -28,6 +28,8 @@ MAX_SKELETONS = args.MAX_SKELETONS
 SEARCH_SAMPLE_RATIO = args.SEARCH_SAMPLE_RATIO
 USE_PYBULLET_GUI = args.USE_PYBULLET_GUI
 SAVE_RESULTS = args.SAVE_RESULTS
+USE_MOVEIT_IK = args.USE_MOVEIT_IK
+TIMED_COMPLETE = args.TIMED_COMPLETE
 
 CLEARANCE = 1e-3
 TOOL_NAME="grip0"
@@ -84,7 +86,7 @@ gtimer.reset()
 res, plan, log_dict = solve_in_pddlstream(pscene, mplan, ROBOT_NAME, TOOL_NAME, HOME_POSE, goal_pairs,
                         TIMEOUT_MOTION, MAX_TIME, MAX_ITER, MAX_SKELETONS,
                         GRASP_SAMPLE, STABLE_SAMPLE, SHOW_STATE, SEARCH_SAMPLE_RATIO,
-                        use_pybullet_gui=USE_PYBULLET_GUI)
+                        use_pybullet_gui=USE_PYBULLET_GUI, USE_MOVEIT_IK=USE_MOVEIT_IK, TIMED_COMPLETE=TIMED_COMPLETE)
 
 log_dict.update(mplan.result_log)
 if DEBUG_MODE_PRIM_RNB:

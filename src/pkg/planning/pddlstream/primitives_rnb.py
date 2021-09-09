@@ -14,6 +14,7 @@ from pkg.planning.scene import State
 TIMEOUT_MOTION_DEFAULT = 1
 
 DEBUG_MODE_PRIM_RNB = False
+POSTPONE_DEFAULT = 5.0
 
 if DEBUG_MODE_PRIM_RNB:
     TextColors.RED.println("===== WARNING: primitives_rnb in DEBUG MODE====")
@@ -83,7 +84,7 @@ def get_matching_binder(pscene, subject, Q_dict, excludes=[]):
 
 
 def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, tool_link, approach_vec=None,
-                timeout=TIMEOUT_MOTION_DEFAULT, base_link="base_link", show_state=False):
+                timeout=TIMEOUT_MOTION_DEFAULT, base_link="base_link", skip_feas=False, show_state=False):
     pscene = mplan.pscene
     for fluent in fluents:
         subject = body_subject_map[fluent[1]]
@@ -127,126 +128,173 @@ def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, too
     # GlobalLogger.instance()["subject"] = subject.oname if hasattr(subject, "oname") else subject
     # GlobalLogger.instance()["actor"] = actor.name if hasattr(actor, "name") else actor
     ## Check motion_filters outside, as plan_transition below will do joint motion - filters will be skipped
-    res = True
-    if subject is not None:
-        ckey = get_checker_keys(tool, subject, fluents, conf2, body_subject_map)
-        if DEBUG_MODE_PRIM_RNB: print(ckey)
-        if ckey in run_checkers.cache:
-            res = run_checkers.cache[ckey]
-            if DEBUG_MODE_PRIM_RNB:
+    feas = True
+    if skip_feas:
+        feas = True
+    else:
+        if subject is not None:
+            ckey = get_checker_keys(tool, subject, fluents, conf2, body_subject_map)
+            if DEBUG_MODE_PRIM_RNB: print(ckey)
+            if ckey in run_checkers.cache:
+                feas = run_checkers.cache[ckey]
+                if DEBUG_MODE_PRIM_RNB:
+                    Tloal_list = [
+                        get_tf(to_link=actor.geometry.link_name, from_link=subject.geometry.link_name,
+                               joint_dict=Qto_dict, urdf_content=pscene.gscene.urdf_content)]
+                    newres = run_checkers(mplan.motion_filters, actor, subject, Tloal_list,
+                                            Q_dict=list2dict(Qcur, pscene.gscene.joint_names), show_state=show_state, mplan=mplan)
+                    mplan.result_log["cache_log"].append(
+                        (feas, newres)
+                    )
+                    feas = newres
+            else:
                 Tloal_list = [
                     get_tf(to_link=actor.geometry.link_name, from_link=subject.geometry.link_name,
                            joint_dict=Qto_dict, urdf_content=pscene.gscene.urdf_content)]
-                newres = run_checkers(mplan.motion_filters, actor, subject, Tloal_list,
-                                        Q_dict=list2dict(Qcur, pscene.gscene.joint_names), show_state=show_state, mplan=mplan)
-                mplan.result_log["cache_log"].append(
-                    (res, newres)
-                )
-                res = newres
-        else:
-            Tloal_list = [
-                get_tf(to_link=actor.geometry.link_name, from_link=subject.geometry.link_name,
-                       joint_dict=Qto_dict, urdf_content=pscene.gscene.urdf_content)]
-            res = run_checkers(mplan.motion_filters, actor, subject, Tloal_list,
-                         Q_dict=list2dict(Qcur, pscene.gscene.joint_names), show_state=show_state, mplan=mplan)
-            run_checkers.cache[ckey] = res
-    if res and subject_from is not None:
-        ckey = get_checker_keys(tool, subject_from, fluents, conf1, body_subject_map)
-        if DEBUG_MODE_PRIM_RNB: print(ckey)
-        if ckey in run_checkers.cache:
-            res = run_checkers.cache[ckey]
-            if DEBUG_MODE_PRIM_RNB:
+                feas = run_checkers(mplan.motion_filters, actor, subject, Tloal_list,
+                             Q_dict=list2dict(Qcur, pscene.gscene.joint_names), show_state=show_state, mplan=mplan)
+                run_checkers.cache[ckey] = feas
+        if feas and subject_from is not None:
+            ckey = get_checker_keys(tool, subject_from, fluents, conf1, body_subject_map)
+            if DEBUG_MODE_PRIM_RNB: print(ckey)
+            if ckey in run_checkers.cache:
+                feas = run_checkers.cache[ckey]
+                if DEBUG_MODE_PRIM_RNB:
+                    Tloal_list = [
+                        get_tf(to_link=actor.geometry.link_name, from_link=subject_from.geometry.link_name,
+                               joint_dict=Qfrom_dict, urdf_content=pscene.gscene.urdf_content)]
+                    newres = run_checkers(mplan.motion_filters, actor, subject_from, Tloal_list,
+                                 Q_dict=list2dict(Qto, pscene.gscene.joint_names), show_state=show_state, mplan=mplan)
+                    mplan.result_log["cache_log"].append(
+                        (feas, newres)
+                    )
+                    feas = newres
+            else:
                 Tloal_list = [
                     get_tf(to_link=actor.geometry.link_name, from_link=subject_from.geometry.link_name,
                            joint_dict=Qfrom_dict, urdf_content=pscene.gscene.urdf_content)]
-                newres = run_checkers(mplan.motion_filters, actor, subject_from, Tloal_list,
+                feas = run_checkers(mplan.motion_filters, actor, subject_from, Tloal_list,
                              Q_dict=list2dict(Qto, pscene.gscene.joint_names), show_state=show_state, mplan=mplan)
-                mplan.result_log["cache_log"].append(
-                    (res, newres)
-                )
-                res = newres
-        else:
-            Tloal_list = [
-                get_tf(to_link=actor.geometry.link_name, from_link=subject_from.geometry.link_name,
-                       joint_dict=Qfrom_dict, urdf_content=pscene.gscene.urdf_content)]
-            res = run_checkers(mplan.motion_filters, actor, subject_from, Tloal_list,
-                         Q_dict=list2dict(Qto, pscene.gscene.joint_names), show_state=show_state, mplan=mplan)
-            run_checkers.cache[ckey] = res
-    if res and actor_from is not None:
-        ckey = get_checker_keys(tool, subject, fluents, conf1, body_subject_map)
-        if DEBUG_MODE_PRIM_RNB: print(ckey)
-        if ckey in run_checkers.cache:
-            res = run_checkers.cache[ckey]
-            if DEBUG_MODE_PRIM_RNB:
+                run_checkers.cache[ckey] = feas
+
+        if feas and actor_from is not None:
+            ckey = get_checker_keys(tool, subject, fluents, conf1, body_subject_map)
+            if DEBUG_MODE_PRIM_RNB: print(ckey)
+            if ckey in run_checkers.cache:
+                feas = run_checkers.cache[ckey]
+                if DEBUG_MODE_PRIM_RNB:
+                    Tloal_list = [
+                        get_tf(to_link=actor_from.geometry.link_name, from_link=subject.geometry.link_name,
+                               joint_dict=Qfrom_dict, urdf_content=pscene.gscene.urdf_content)]
+                    newres = run_checkers(mplan.motion_filters, actor_from, subject, Tloal_list,
+                                            Q_dict=list2dict(Qto, pscene.gscene.joint_names), show_state=show_state, mplan=mplan)
+                    mplan.result_log["cache_log"].append(
+                        (feas, newres)
+                    )
+                    feas = newres
+            else:
                 Tloal_list = [
                     get_tf(to_link=actor_from.geometry.link_name, from_link=subject.geometry.link_name,
                            joint_dict=Qfrom_dict, urdf_content=pscene.gscene.urdf_content)]
-                newres = run_checkers(mplan.motion_filters, actor_from, subject, Tloal_list,
-                                        Q_dict=list2dict(Qto, pscene.gscene.joint_names), show_state=show_state, mplan=mplan)
-                mplan.result_log["cache_log"].append(
-                    (res, newres)
-                )
-                res = newres
-        else:
-            Tloal_list = [
-                get_tf(to_link=actor_from.geometry.link_name, from_link=subject.geometry.link_name,
-                       joint_dict=Qfrom_dict, urdf_content=pscene.gscene.urdf_content)]
-            res = run_checkers(mplan.motion_filters, actor_from, subject, Tloal_list,
-                         Q_dict=list2dict(Qto, pscene.gscene.joint_names), show_state=show_state, mplan=mplan)
-            run_checkers.cache[ckey] = res
-    if mplan.flag_log:
-        mplan.result_log["pre_motion_checks"].append(res)
+                feas = run_checkers(mplan.motion_filters, actor_from, subject, Tloal_list,
+                             Q_dict=list2dict(Qto, pscene.gscene.joint_names), show_state=show_state, mplan=mplan)
+                run_checkers.cache[ckey] = feas
 
-    if res or DEBUG_MODE_PRIM_RNB:
+    if mplan.flag_log:
+        mplan.result_log["pre_motion_checks"].append(feas)
+
+    if feas or DEBUG_MODE_PRIM_RNB:
         Traj, LastQ, error, success, binding_list = mplan.plan_transition(
             from_state, to_state, {}, timeout=timeout, show_state=show_state)
     else:
         Traj, success = [], False
 
     if show_state:
-        print("check / plan: {} / {}".format(res, success))
+        print("check / plan: {} / {}".format(feas, success))
         pscene.gscene.show_motion(Traj)
 
-    return Traj, success
+    return Traj, success, feas
 
 def get_free_motion_gen_rnb(mplan, body_subject_map, robot, tool, tool_link, approach_vec, timeout=TIMEOUT_MOTION_DEFAULT,
-                            base_link="base_link", show_state=False):
-    def fn(conf1, conf2, fluents=[]):
-        with GlobalTimer.instance().block("free_motion_gen"):
-            assert ((conf1.body == conf2.body) and (conf1.joints == conf2.joints))
-            conf1.assign()
-            path, succ = plan_motion(mplan=mplan, body_subject_map=body_subject_map,
-                                     conf1=conf1, conf2=conf2, grasp=None, fluents=fluents, tool=tool,
-                                     tool_link=tool_link, base_link=base_link, timeout=timeout,
-                                     show_state=show_state, approach_vec=approach_vec)
-            if not succ:
-                if DEBUG_FAILURE: wait_if_gui('Free motion failed')
-                return None
-            command = Command([BodyPath(robot, path, joints=conf2.joints)])
-            return (command,)
+                            base_link="base_link", show_state=False, POSTPONE=POSTPONE_DEFAULT):
+    time_dict = {}
+    returneds = set()
+    def fn(conf1, conf2, time_=None, fluents=[]):
+        tkey = (conf1.index, conf2.index) + tuple([(fl[0], fl[1], fl[2].index) for fl in fluents])
+        if tkey in returneds:
+            return None
+
+        skip_feas = False
+        if time_ is not None:
+            firstcall = tkey not in time_dict
+            if not firstcall:
+                skip_feas = time_.value - time_dict[tkey] > POSTPONE
+
+        if (time_ is None # not timed domain (do feas-motion)
+                or firstcall # first call in timed domain (do feas-motion)
+                or skip_feas): # postpone time passed (do motion only)
+            with GlobalTimer.instance().block("free_motion_gen"):
+                assert ((conf1.body == conf2.body) and (conf1.joints == conf2.joints))
+                conf1.assign()
+                path, succ, feas = plan_motion(mplan=mplan, body_subject_map=body_subject_map,
+                                         conf1=conf1, conf2=conf2, grasp=None, fluents=fluents, tool=tool,
+                                         tool_link=tool_link, base_link=base_link, timeout=timeout,
+                                         show_state=show_state, approach_vec=approach_vec,
+                                         skip_feas=skip_feas)
+
+                if succ or skip_feas:
+                    returneds.add(tkey) # success returned on first call or postpone time passed - mark finished case
+                if not succ:
+                    if DEBUG_FAILURE: wait_if_gui('Free motion failed')
+                    return None
+                command = Command([BodyPath(robot, path, joints=conf2.joints)])
+                return (command,)
+        else: # non-first call, postpone time not passed (X)
+            return None
     return fn
 
 
 def get_holding_motion_gen_rnb(mplan, body_subject_map, robot, tool, tool_link, approach_vec, timeout=TIMEOUT_MOTION_DEFAULT,
-                               base_link="base_link", show_state=False):
-    def fn(conf1, conf2, body, grasp, fluents=[]):
-        with GlobalTimer.instance().block("holding_motion_gen"):
-            assert ((conf1.body == conf2.body) and (conf1.joints == conf2.joints))
-            conf1.assign()
-            path, succ = plan_motion(mplan=mplan, body_subject_map=body_subject_map,
-                                     conf1=conf1, conf2=conf2, grasp=grasp, fluents=fluents, tool=tool,
-                                     tool_link=tool_link, base_link=base_link, timeout=timeout,
-                                     show_state=show_state, approach_vec=approach_vec)
-            if not succ:
-                if DEBUG_FAILURE: wait_if_gui('Holding motion failed')
-                return None
-            command = Command([BodyPath(robot, path, joints=conf2.joints, attachments=[grasp])])
-            return (command,)
+                               base_link="base_link", show_state=False, POSTPONE=POSTPONE_DEFAULT):
+    time_dict = {}
+    returneds = set()
+    def fn(conf1, conf2, body, grasp, time_=None, fluents=[]):
+        tkey = (conf1.index, conf2.index, body, grasp.index) + tuple([(fl[0], fl[1], fl[2].index) for fl in fluents])
+        if tkey in returneds:
+            return None
+
+        skip_feas = False
+        if time_ is not None:
+            firstcall = tkey not in time_dict
+            if not firstcall:
+                skip_feas = time_.value - time_dict[tkey] > POSTPONE
+
+        if (time_ is None # not timed domain (do feas-motion)
+                or firstcall # first call in timed domain (do feas-motion)
+                or skip_feas): # postpone time passed (do motion only)
+            with GlobalTimer.instance().block("holding_motion_gen"):
+                assert ((conf1.body == conf2.body) and (conf1.joints == conf2.joints))
+                conf1.assign()
+                path, succ, feas = plan_motion(mplan=mplan, body_subject_map=body_subject_map,
+                                               conf1=conf1, conf2=conf2, grasp=grasp, fluents=fluents, tool=tool,
+                                               tool_link=tool_link, base_link=base_link, timeout=timeout,
+                                               show_state=show_state, approach_vec=approach_vec,
+                                               skip_feas=skip_feas)
+
+                if succ or skip_feas:
+                    returneds.add(tkey) # success returned on first call or postpone time passed - mark finished case
+                if not succ:
+                    if DEBUG_FAILURE: wait_if_gui('Holding motion failed')
+                    return None
+                command = Command([BodyPath(robot, path, joints=conf2.joints, attachments=[grasp])])
+                return (command,)
+        else: # non-first call, postpone time not passed (X)
+            return None
     return fn
 
 
-def get_free_motion_gen_ori(robot, fixed=[], teleport=False, self_collisions=True):
-    def fn(conf1, conf2, fluents=[]):
+def get_free_motion_gen_ori(robot, fixed=[], teleport=False, self_collisions=True, POSTPONE=POSTPONE_DEFAULT):
+    def fn(conf1, conf2, time_=None, fluents=[]):
         with GlobalTimer.instance().block("free_motion_gen_ori"):
             assert ((conf1.body == conf2.body) and (conf1.joints == conf2.joints))
             if teleport:
@@ -264,7 +312,7 @@ def get_free_motion_gen_ori(robot, fixed=[], teleport=False, self_collisions=Tru
 
 
 def get_holding_motion_gen_ori(robot, fixed=[], teleport=False, self_collisions=True):
-    def fn(conf1, conf2, body, grasp, fluents=[]):
+    def fn(conf1, conf2, body, grasp, time_=None, fluents=[]):
         with GlobalTimer.instance().block("holding_motion_gen_ori"):
             assert ((conf1.body == conf2.body) and (conf1.joints == conf2.joints))
             if teleport:
@@ -389,31 +437,45 @@ class IK_Reason(Enum):
 
 def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_link="base_link", show_state=False,
                   disabled_collisions=set(), robot=0L, fixed=[], teleport=False, num_attempts=10, mplan=None,
-                  timeout_single=0.01):
+                  timeout_single=0.01, POSTPONE=POSTPONE_DEFAULT):
     robot_name = [k for k, v in pscene.robot_chain_dict.items() if v["tip_link"]==actor.geometry.link_name][0]
     movable_joints = get_movable_joints(robot)
     sample_fn = get_sample_fn(robot, movable_joints)
     eye4 = np.identity(4)
     home_pose = dict2list(home_dict, pscene.gscene.joint_names)
+    time_dict = {}
+    returneds = set()
     if DEBUG_MODE_PRIM_RNB:
         glog = GlobalLogger.instance()
         glog["ik_feas"] = []
         glog["ik_res"] = []
         glog["ik_feas_reason"] = []
         glog["ik_res_reason"] = []
-    def fn(body, pose, grasp):
+    def fn(body, pose, grasp, time_=None):
         with GlobalTimer.instance().block("ik_fn"):
+            tkey = (body, pose.index, grasp.index)
+            if tkey in returneds:
+                return None
+
             if show_state:
                 pscene.gscene.show_pose(dict2list(home_dict, pscene.gscene.joint_names))
-            feas = check_feas(pscene, body_subject_map, actor, checkers,
-                              home_dict, body, pose, grasp, base_link=base_link, show_state=show_state)
 
-            if not feas and not DEBUG_MODE_PRIM_RNB:
-                fn.checkout_count += 1
+            if time_ is None or tkey not in time_dict:
+                feas = check_feas(pscene, body_subject_map, actor, checkers,
+                                  home_dict, body, pose, grasp, base_link=base_link, show_state=show_state)
+
+                if not feas and not DEBUG_MODE_PRIM_RNB:
+                    fn.checkout_count += 1
+                    time_dict[tkey] = time.time()
+                    return None
+
+                if DEBUG_MODE_PRIM_RNB:
+                    glog['ik_feas'].append(feas)
+                    glog['ik_feas_reason'].append(run_checkers.reason)
+            elif time_.value-time_dict[tkey] < POSTPONE:
                 return None
-            if DEBUG_MODE_PRIM_RNB:
-                glog['ik_feas'].append(feas)
-                glog['ik_feas_reason'].append(run_checkers.reason)
+            returneds.add(tkey)
+
             obstacles = [body] + fixed
             set_pose(body, pose.pose)
             gripper_pose = end_effector_from_body(pose.pose, grasp.grasp_pose)

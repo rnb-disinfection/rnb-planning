@@ -134,7 +134,10 @@ def parse_test_args():
     parser.add_argument('--SHOW_STATE', type=str2bool, default=False, help='show intermediate states')
     parser.add_argument('--PLAY_RESULT', type=str2bool, default=False, help='to play result')
     parser.add_argument('--USE_PYBULLET_GUI', type=str2bool, default=False, help='to show in pybullet gui')
+    parser.add_argument('--USE_MOVEIT_IK', type=str2bool, default=False, help='to use ik solving by moveit (no random initialization)')
+    parser.add_argument('--TIMED_COMPLETE', type=str2bool, default=False, help='to use timed ik solving for infeasible predictions')
 
+    parser.add_argument('--VERBOSE', type=str2bool, default=False, help='to print states')
     parser.add_argument('--SAVE_RESULTS', type=str2bool, default=True, help='to save results (overwrite same index)')
 
     args = parser.parse_args()
