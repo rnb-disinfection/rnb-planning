@@ -14,6 +14,7 @@ from pkg.planning.scene import State
 TIMEOUT_MOTION_DEFAULT = 1
 
 DEBUG_MODE_PRIM_RNB = False
+GLOBAL_LOG_ENABLED = True
 POSTPONE_DEFAULT = 5.0
 
 if DEBUG_MODE_PRIM_RNB:
@@ -377,18 +378,16 @@ def check_feas(pscene, body_subject_map, actor, checkers, home_dict, body, pose,
 def run_checkers(checkers, actor, subject, Tloal_list, Q_dict, ignore=[], show_state=False, mplan=None):
     run_checkers.reason = None
     res = True
+    gtimer = GlobalTimer.instance()
     for i_c, checker in enumerate(checkers):
         fname = checker.__class__.__name__
         run_checkers.reason = fname
-        flag_log = mplan is not None and mplan.flag_log
-        if flag_log:
-            mplan.gtimer.tic(fname)
-        for Tloal in Tloal_list:
-            if not checker.check_T_loal(actor, subject, Tloal, Q_dict, ignore=ignore):
-                res = False
-                break
-        if flag_log:
-            mplan.gtimer.toc(fname)
+        with gtimer.block(fname):
+            for Tloal in Tloal_list:
+                if not checker.check_T_loal(actor, subject, Tloal, Q_dict, ignore=ignore):
+                    res = False
+                    break
+        if mplan is not None and mplan.flag_log:
             mplan.result_log[fname].append(res)
         if not res:
             break
@@ -445,7 +444,7 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
     home_pose = dict2list(home_dict, pscene.gscene.joint_names)
     time_dict = {}
     returneds = set()
-    if DEBUG_MODE_PRIM_RNB:
+    if GLOBAL_LOG_ENABLED:
         glog = GlobalLogger.instance()
         glog["ik_feas"] = []
         glog["ik_res"] = []
@@ -469,7 +468,7 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                     time_dict[tkey] = time.time()
                     return None
 
-                if DEBUG_MODE_PRIM_RNB:
+                if GLOBAL_LOG_ENABLED:
                     glog['ik_feas'].append(feas)
                     glog['ik_feas_reason'].append(run_checkers.reason)
             elif time_.value-time_dict[tkey] < POSTPONE:
@@ -483,73 +482,45 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
             # print("gripper_pose: {}".format(gripper_pose))
             # print("approach_pose: {}".format(approach_pose))
             ik_res_reason = IK_Reason.success
-            for i_ in range(num_attempts):
-                if show_state:
-                    pscene.gscene.show_pose(dict2list(home_dict, pscene.gscene.joint_names))
-                set_joint_positions(robot, movable_joints, sample_fn()) # Random seed
-                # TODO: multiple attempts?
-                # GlobalLogger.instance()["ik_params"] = (robot, grasp.link, approach_pose)
-                if mplan is None:
-                    q_approach = inverse_kinematics(robot, grasp.link, approach_pose)
-                else:
-                    q_approach = mplan.planner.solve_ik_py(robot_name, approach_pose[0]+approach_pose[1],
-                                                           timeout_single=timeout_single,
-                                                           timeout_sampling=timeout_single*num_attempts,
-                                                           self_collision=False, fulll_collision=False
-                                                           )
-                    q_approach_dict = list2dict(q_approach, mplan.chain_dict[robot_name]["joint_names"])
-                    home_dict_tmp = deepcopy(home_dict)
-                    home_dict_tmp.update(q_approach_dict)
-                    q_approach = tuple(dict2list(home_dict_tmp, pscene.gscene.joint_names))
-                if show_state and q_approach is not None:
-                    print("inverse_kinematics fail to approach")
-                    pscene.gscene.show_pose(q_approach)
-                # print("q_approach: {}".format(q_approach))
-                if (q_approach is None) or any(pairwise_collision(robot, b) for b in obstacles):
-                    # print("obstacles: {}".format(obstacles))
-                    if DEBUG_MODE_PRIM_RNB:
-                        ik_res_reason = max(ik_res_reason,
-                                            IK_Reason.ik_approach if q_approach is None else IK_Reason.col_approach,
-                                            key=lambda x: x.value)
+            with GlobalTimer.instance().block("ik_loop"):
+                for i_ in range(num_attempts):
                     if show_state:
-                        print("IK-col approach fail")
-                        if q_approach is None:
-                            color = pscene.gscene.COLOR_LIST[2]
+                        pscene.gscene.show_pose(dict2list(home_dict, pscene.gscene.joint_names))
+                    with GlobalTimer.instance().block("ik_approch1"):
+                        set_joint_positions(robot, movable_joints, sample_fn()) # Random seed
+                        # TODO: multiple attempts?
+                        # GlobalLogger.instance()["ik_params"] = (robot, grasp.link, approach_pose)
+                        if mplan is None:
+                            q_approach = inverse_kinematics(robot, grasp.link, approach_pose)
                         else:
-                            color = pscene.gscene.COLOR_LIST[0]
-                        vis_bak = pscene.gscene.highlight_robot(color)
-                        time.sleep(SHOW_TIME)
-                        pscene.gscene.recover_robot(vis_bak)
-                    continue
-                # print("go on")
-                conf = BodyConf(robot, q_approach)
-                if np.sum(np.abs(eye4 - T_xyzquat(grasp.approach_pose))) < 1e-6:
-                    q_grasp = deepcopy(q_approach)
-                else:
-                    if mplan is None:
-                        q_grasp = inverse_kinematics(robot, grasp.link, gripper_pose)
+                            q_approach = mplan.planner.solve_ik_py(robot_name, approach_pose[0]+approach_pose[1],
+                                                                   timeout_single=timeout_single,
+                                                                   timeout_sampling=timeout_single*num_attempts,
+                                                                   self_collision=False, fulll_collision=False
+                                                                   )
+                            q_approach_dict = list2dict(q_approach, mplan.chain_dict[robot_name]["joint_names"])
+                            home_dict_tmp = deepcopy(home_dict)
+                            home_dict_tmp.update(q_approach_dict)
+                            q_approach = tuple(dict2list(home_dict_tmp, pscene.gscene.joint_names))
+                    if show_state and q_approach is not None:
+                        print("inverse_kinematics fail to approach")
+                        pscene.gscene.show_pose(q_approach)
+
+                    if q_approach is not None:
+                        with GlobalTimer.instance().block("pairwise_collision_a"):
+                            pw_col = any(pairwise_collision(robot, b) for b in obstacles)
                     else:
-                        q_grasp = mplan.planner.solve_ik(robot_name, gripper_pose[0]+gripper_pose[1],
-                                                         timeout_single=timeout_single,
-                                                         timeout_sampling=timeout_single*num_attempts,
-                                                         self_collision=False, fulll_collision=False
-                                                         )
-                        q_grasp_dict = list2dict(q_grasp, mplan.chain_dict[robot_name]["joint_names"])
-                        home_dict_tmp = deepcopy(home_dict)
-                        home_dict_tmp.update(q_grasp_dict)
-                        q_grasp = tuple(dict2list(home_dict_tmp, pscene.gscene.joint_names))
-                    if show_state and q_grasp is not None:
-                        print("inverse_kinematics fail to grasp")
-                        pscene.gscene.show_pose(q_grasp)
-                    if (q_grasp is None) or any(pairwise_collision(robot, b) for b in obstacles):
+                        pw_col = False
+
+                    if (q_approach is None) or pw_col:
                         # print("obstacles: {}".format(obstacles))
-                        if DEBUG_MODE_PRIM_RNB:
+                        if GLOBAL_LOG_ENABLED:
                             ik_res_reason = max(ik_res_reason,
-                                                IK_Reason.ik_grasp if q_grasp is None else IK_Reason.col_grasp,
-                                            key=lambda x: x.value)
+                                                IK_Reason.ik_approach if q_approach is None else IK_Reason.col_approach,
+                                                key=lambda x: x.value)
                         if show_state:
-                            print("IK-col grasp fail")
-                            if q_grasp is None:
+                            print("IK-col approach fail")
+                            if q_approach is None:
                                 color = pscene.gscene.COLOR_LIST[2]
                             else:
                                 color = pscene.gscene.COLOR_LIST[0]
@@ -557,39 +528,84 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                             time.sleep(SHOW_TIME)
                             pscene.gscene.recover_robot(vis_bak)
                         continue
-                if show_state:
-                    time.sleep(SHOW_TIME)
-                if teleport:
-                    path = [q_approach, q_grasp]
-                else:
-                    conf.assign()
-                    #direction, _ = grasp.approach_pose
-                    #path = workspace_trajectory(robot, grasp.link, point_from_pose(approach_pose), -direction,
-                    #                                   quat_from_pose(approach_pose))
-                    path = plan_direct_joint_motion(robot, conf.joints, q_grasp, obstacles=obstacles,
-                                                    disabled_collisions=disabled_collisions)
-                    if path is None:
-                        # print("Approach motion failed")
-                        if DEBUG_FAILURE: wait_if_gui('Approach motion failed')
-                        if DEBUG_MODE_PRIM_RNB:
-                            ik_res_reason = max(ik_res_reason, IK_Reason.approach_motion,
-                                            key=lambda x: x.value)
-                        continue
-                command = Command([BodyPath(robot, path),
-                                   Attach(body, robot, grasp.link),
-                                   BodyPath(robot, path[::-1], attachments=[grasp])])
-                fn.pass_count += 1
-                if DEBUG_MODE_PRIM_RNB:
-                    ik_res_reason = IK_Reason.success
-                    glog['ik_res'].append(True)
+                    # print("go on")
+                    conf = BodyConf(robot, q_approach)
+                    if np.sum(np.abs(eye4 - T_xyzquat(grasp.approach_pose))) < 1e-6:
+                        q_grasp = deepcopy(q_approach)
+                    else:
+                        with GlobalTimer.instance().block("ik_grasp1"):
+                            if mplan is None:
+                                q_grasp = inverse_kinematics(robot, grasp.link, gripper_pose)
+                            else:
+                                q_grasp = mplan.planner.solve_ik(robot_name, gripper_pose[0]+gripper_pose[1],
+                                                                 timeout_single=timeout_single,
+                                                                 timeout_sampling=timeout_single*num_attempts,
+                                                                 self_collision=False, fulll_collision=False
+                                                                 )
+                                q_grasp_dict = list2dict(q_grasp, mplan.chain_dict[robot_name]["joint_names"])
+                                home_dict_tmp = deepcopy(home_dict)
+                                home_dict_tmp.update(q_grasp_dict)
+                                q_grasp = tuple(dict2list(home_dict_tmp, pscene.gscene.joint_names))
+                        if show_state and q_grasp is not None:
+                            print("inverse_kinematics fail to grasp")
+                            pscene.gscene.show_pose(q_grasp)
+
+                        if q_grasp is not None:
+                            with GlobalTimer.instance().block("pairwise_collision_g"):
+                                pw_col = any(pairwise_collision(robot, b) for b in obstacles)
+                        else:
+                            pw_col = False
+
+                        if (q_grasp is None) or pw_col:
+                            # print("obstacles: {}".format(obstacles))
+                            if GLOBAL_LOG_ENABLED:
+                                ik_res_reason = max(ik_res_reason,
+                                                    IK_Reason.ik_grasp if q_grasp is None else IK_Reason.col_grasp,
+                                                key=lambda x: x.value)
+                            if show_state:
+                                print("IK-col grasp fail")
+                                if q_grasp is None:
+                                    color = pscene.gscene.COLOR_LIST[2]
+                                else:
+                                    color = pscene.gscene.COLOR_LIST[0]
+                                vis_bak = pscene.gscene.highlight_robot(color)
+                                time.sleep(SHOW_TIME)
+                                pscene.gscene.recover_robot(vis_bak)
+                            continue
+                    if show_state:
+                        time.sleep(SHOW_TIME)
+                    if teleport:
+                        path = [q_approach, q_grasp]
+                    else:
+                        conf.assign()
+                        #direction, _ = grasp.approach_pose
+                        #path = workspace_trajectory(robot, grasp.link, point_from_pose(approach_pose), -direction,
+                        #                                   quat_from_pose(approach_pose))
+                        with GlobalTimer.instance().block("plan_direct_joint_motion"):
+                            path = plan_direct_joint_motion(robot, conf.joints, q_grasp, obstacles=obstacles,
+                                                            disabled_collisions=disabled_collisions)
+                        if path is None:
+                            # print("Approach motion failed")
+                            if DEBUG_FAILURE: wait_if_gui('Approach motion failed')
+                            if GLOBAL_LOG_ENABLED:
+                                ik_res_reason = max(ik_res_reason, IK_Reason.approach_motion,
+                                                key=lambda x: x.value)
+                            continue
+                    command = Command([BodyPath(robot, path),
+                                       Attach(body, robot, grasp.link),
+                                       BodyPath(robot, path[::-1], attachments=[grasp])])
+                    fn.pass_count += 1
+                    if GLOBAL_LOG_ENABLED:
+                        ik_res_reason = IK_Reason.success
+                        glog['ik_res'].append(True)
+                        glog['ik_res_reason'].append(ik_res_reason.name)
+                    return (conf, command)
+                    # TODO: holding collisions
+                fn.fail_count += 1
+                if GLOBAL_LOG_ENABLED:
+                    glog['ik_res'].append(False)
                     glog['ik_res_reason'].append(ik_res_reason.name)
-                return (conf, command)
-                # TODO: holding collisions
-            fn.fail_count += 1
-            if DEBUG_MODE_PRIM_RNB:
-                glog['ik_res'].append(False)
-                glog['ik_res_reason'].append(ik_res_reason.name)
-            return None
+                return None
     return fn
 
 ## @brief same as the original

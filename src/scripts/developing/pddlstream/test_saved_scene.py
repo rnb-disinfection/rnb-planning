@@ -30,6 +30,7 @@ USE_PYBULLET_GUI = args.USE_PYBULLET_GUI
 SAVE_RESULTS = args.SAVE_RESULTS
 USE_MOVEIT_IK = args.USE_MOVEIT_IK
 TIMED_COMPLETE = args.TIMED_COMPLETE
+STACK_TIMELOG= args.STACK_TIMELOG
 
 CLEARANCE = 1e-3
 TOOL_NAME="grip0"
@@ -80,7 +81,7 @@ gscene.update_markers_all()
 goal_pairs=[(obj_pscene.oname, 'gp')]
 
 gtimer = GlobalTimer.instance()
-gtimer.reset()
+gtimer.reset(stack=STACK_TIMELOG)
 
 
 res, plan, log_dict = solve_in_pddlstream(pscene, mplan, ROBOT_NAME, TOOL_NAME, HOME_POSE, goal_pairs,
@@ -89,8 +90,7 @@ res, plan, log_dict = solve_in_pddlstream(pscene, mplan, ROBOT_NAME, TOOL_NAME, 
                         use_pybullet_gui=USE_PYBULLET_GUI, USE_MOVEIT_IK=USE_MOVEIT_IK, TIMED_COMPLETE=TIMED_COMPLETE)
 
 log_dict.update(mplan.result_log)
-if DEBUG_MODE_PRIM_RNB:
-    log_dict.update(GlobalLogger.instance())
+log_dict.update(GlobalLogger.instance())
 
 if SAVE_RESULTS:
     log_dict.update({"args": vars(args)})
