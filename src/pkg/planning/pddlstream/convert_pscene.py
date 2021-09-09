@@ -29,7 +29,7 @@ from constants_common import *
 
 SAMPLE_GRASP_COUNT_DEFAULT = 10
 SAMPLE_STABLE_COUNT_DEFAULT = 10
-
+DT_DEFAULT = 1
 
 ##
 # @brief    add axis marker to handle
@@ -103,14 +103,13 @@ class Time(object):
         index = self.index
         return 'i{}'.format(index)
 
-def get_time_gen():
-    dt = 0.1
+def get_time_gen(dt=DT_DEFAULT):
     def gen(body):
         while True:
             _t = time.time()
-            if gen.time_last - _t > dt:
-                time_ = Time(_t)
+            if _t - gen.time_last> dt:
                 gen.time_last = _t
+                time_ = Time(_t)
                 yield (time_,)
             else:
                 yield None

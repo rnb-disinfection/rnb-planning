@@ -102,8 +102,6 @@ def pddlstream_from_problem_rnb(pscene, robot, body_names, Q_init, goal_pairs=[]
         robot=robot, fixed=fixed, teleport=teleport, show_state=show_state, **ik_kwargs)
 
     stream_map = {
-        'stream-time': from_gen_fn(get_time_gen()),
-        'timed-ik': from_fn(ik_fun),
         'sample-pose': from_gen_fn(get_stable_gen_rnb(body_subject_map, body_actor_map,
                                                       pscene.combined_robot.home_dict, fixed, show_state=show_state,
                                                       sample_count=stable_sample)),
@@ -111,8 +109,7 @@ def pddlstream_from_problem_rnb(pscene, robot, body_names, Q_init, goal_pairs=[]
                                                       sample_count=grasp_sample, show_state=show_state,
                                                       approach_pose=Pose(APPROACH_VEC))),
         'inverse-kinematics': from_fn(ik_fun),
-        # 'plan-free-motion': from_fn(get_free_motion_gen_ori(robot, fixed, teleport)),
-        # 'plan-holding-motion': from_fn(get_holding_motion_gen_ori(robot, fixed, teleport)),
+
         'plan-free-motion': from_fn(get_free_motion_gen_rnb(mplan, body_subject_map, robot,
                                                             tool=pscene.actor_dict[tool_name],
                                                             tool_link=tool_link_name, timeout=timeout,
@@ -126,8 +123,12 @@ def pddlstream_from_problem_rnb(pscene, robot, body_names, Q_init, goal_pairs=[]
         'test-cfree-approach-pose': from_test(get_cfree_obj_approach_pose_test_rnb()),
         'test-cfree-traj-pose': from_test(negate_test(get_movable_collision_test())),  # get_cfree_traj_pose_test()),
 
-        'TrajCollision': get_movable_collision_test(),
+        'TrajCollision': get_movable_collision_test()
     }
+
+    if TIMED_COMPLETE:
+        stream_map.update({'stream-time': from_gen_fn(get_time_gen())})
+
     reset_checker_cache()
     return PDDLProblem(domain_pddl, constant_map, stream_pddl, stream_map, init, goal), ik_fun
 
