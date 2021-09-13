@@ -139,6 +139,8 @@ BOOST_PYTHON_MODULE(moveit_interface_py){
             .def("process_object", &Planner::process_object)
             .def("clear_all_objects", &Planner::clear_all_objects)
             .def("terminate", &Planner::terminate)
+            .def("solve_ik_from", &Planner::solve_ik_from,
+                 return_value_policy<copy_non_const_reference>())
             .def("solve_ik", &Planner::solve_ik,
                  return_value_policy<copy_non_const_reference>())
             .def("check_collision", &Planner::check_collision)
