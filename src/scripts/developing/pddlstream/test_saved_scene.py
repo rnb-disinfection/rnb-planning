@@ -31,6 +31,8 @@ SAVE_RESULTS = args.SAVE_RESULTS
 USE_MOVEIT_IK = args.USE_MOVEIT_IK
 TIMED_COMPLETE = args.TIMED_COMPLETE
 STACK_TIMELOG= args.STACK_TIMELOG
+IK_TRY_NUM = args.IK_TRY_NUM
+VERBOSE = args.VERBOSE
 
 CLEARANCE = 1e-3
 TOOL_NAME="grip0"
@@ -85,9 +87,11 @@ gtimer.reset(stack=STACK_TIMELOG)
 
 
 res, plan, log_dict = solve_in_pddlstream(pscene, mplan, ROBOT_NAME, TOOL_NAME, HOME_POSE, goal_pairs,
-                        TIMEOUT_MOTION, MAX_TIME, MAX_ITER, MAX_SKELETONS,
-                        GRASP_SAMPLE, STABLE_SAMPLE, SHOW_STATE, SEARCH_SAMPLE_RATIO,
-                        use_pybullet_gui=USE_PYBULLET_GUI, USE_MOVEIT_IK=USE_MOVEIT_IK, TIMED_COMPLETE=TIMED_COMPLETE)
+                                          TIMEOUT_MOTION, MAX_TIME, MAX_ITER, MAX_SKELETONS,
+                                          GRASP_SAMPLE, STABLE_SAMPLE, SHOW_STATE, SEARCH_SAMPLE_RATIO,
+                                          use_pybullet_gui=USE_PYBULLET_GUI, USE_MOVEIT_IK=USE_MOVEIT_IK, 
+                                          TIMED_COMPLETE=TIMED_COMPLETE,
+                                          IK_TRY_NUM=IK_TRY_NUM, VERBOSE=VERBOSE)
 
 log_dict.update(mplan.result_log)
 log_dict.update(GlobalLogger.instance())
