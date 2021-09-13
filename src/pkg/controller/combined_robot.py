@@ -314,6 +314,9 @@ class CombinedRobot:
             self.wait_step(0.05)
         return True
 
-
     def get_connected_robot_names(self):
         return [rname for rname, connection in zip(self.robot_names, self.connection_list) if connection]
+
+    def get_joint_limits(self):
+        return np.concatenate(
+            map(RobotSpecs.get_joint_limits, [self.get_robot_config_dict()[rname].type for rname in self.robot_names]))

@@ -118,6 +118,7 @@ bool Planner::init_planner(string& urdf_txt, string& srdf_txt, NameList& group_n
         joint_names.push_back(*name_p);
         joint_num++;
     }
+    current_state.setZero(joint_num);
     return true;
 }
 
@@ -940,20 +941,9 @@ bool Planner::clear_manifolds(){
     return true;
 }
 
-JointState& Planner::solve_ik_from(string group_name, CartPose goal_pose,
-                             double timeout_single,
-                             bool self_collision, bool fulll_collision,
-                             JointState initial_state){
-    auto state_cur = planning_scene_->getCurrentState();
-    state_cur.setVariablePositions(initial_state.data());
-    planning_scene_->setCurrentState(state_cur);
-    return solve_ik(group_name, goal_pose, timeout_single,
-                    self_collision, fulll_collision);
-}
-
 JointState& Planner::solve_ik(string group_name, CartPose goal_pose,
-                              double timeout_single,
-                              bool self_collision, bool fulll_collision){
+                             double timeout_single,
+                             bool self_collision, bool fulll_collision){
     auto state_cur = planning_scene_->getCurrentState();
 
     robot_state::JointModelGroup* joint_model_group = robot_model_->getJointModelGroup(group_name);
@@ -966,6 +956,7 @@ JointState& Planner::solve_ik(string group_name, CartPose goal_pose,
 
     std::vector<double> joint_values;
     const std::vector<std::string> &joint_names = joint_model_group->getJointModelNames();
+    kinematic_state->setToRandomPositions();
     result_ik.setZero(joint_names.size());
     bool found_ik;
     bool collision_ok;
@@ -995,6 +986,21 @@ JointState& Planner::solve_ik(string group_name, CartPose goal_pose,
         }
     }
     return result_ik;
+}
+
+void Planner::set_joint_state(JointState values){
+    auto state_cur = planning_scene_->getCurrentState();
+    state_cur.setVariablePositions(values.data());
+    planning_scene_->setCurrentState(state_cur);
+}
+
+JointState& Planner::get_joint_state(){
+    auto state_cur = planning_scene_->getCurrentState();
+    auto joint_values = state_cur.getVariablePositions();
+    for (std::size_t i = 0; i < joint_names.size(); ++i) {
+        current_state[i] = joint_values[i];
+    }
+    return current_state;
 }
 
 bool Planner::check_collision(bool only_self){
