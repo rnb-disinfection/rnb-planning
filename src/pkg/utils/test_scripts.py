@@ -8,6 +8,34 @@ from ..planning.constraint.constraint_actor import Gripper2Tool, PlacePlane, Swe
 from ..planning.motion.moveit.moveit_planner import MoveitPlanner
 
 ##
+# @extract experiment data
+def extract_values(resdat_all, keys, fn=lambda x:x):
+    dat_dict_dict = {}
+    for scenario, resdat_dict in resdat_all.items():
+        dat_dict = {}
+        valid = False
+        for cname, resdat_list in resdat_dict.items():
+            dat_list = []
+            min_dat_len = 1e10
+            for resdat in resdat_list:
+                error = False
+                for key in keys:
+                    if key not in resdat:
+                        error = True
+                        break
+                    resdat = resdat[key]
+                if not error:
+                    valid = True
+                    dat_list.append(fn(resdat))
+            dat_len = len(dat_list)
+            if dat_len > 0:
+                dat_dict[cname] = dat_list
+                min_dat_len = min(min_dat_len, dat_len)
+        if valid:
+            dat_dict_dict[scenario] = {k: v[:min_dat_len]for k, v in dat_dict.items()}
+    return dat_dict_dict
+
+##
 # @brief get robot-specific parameters for single-robot tests
 def get_single_robot_params(ROBOT_TYPE):
     if ROBOT_TYPE in [RobotType.indy7, RobotType.indy7gripper]:
@@ -23,7 +51,7 @@ def get_single_robot_params(ROBOT_TYPE):
         TOOL_LINK = "panda0_hand"
         TOOL_XYZ = (0, 0, 0.112)
         TOOL_RPY = (-np.pi / 2, 0, 0)
-        HOME_POSE = (0, -0.3, 0, -0.5, 0, 2.5, 0)
+        HOME_POSE = (0, -0.3, 0, -0.5, 0, 2.5, np.pi/2)
         GRIP_DEPTH = 0.03
     return ROBOT_NAME, TOOL_LINK, TOOL_XYZ, TOOL_RPY, HOME_POSE, GRIP_DEPTH
 
@@ -49,6 +77,9 @@ def prepare_single_robot_scene(ROBOT_TYPE, ROBOT_NAME, TOOL_LINK, TOOL_XYZ, TOOL
                        collision=False,
                        fixed=True)
     gripper = pscene.create_binder(bname="grip0", gname="grip0", _type=Gripper2Tool, point=(0, 0, 0), rpy=(0, 0, 0))
+
+    if ROBOT_TYPE == RobotType.panda:
+        gripper.redundancy = {'w': (-np.pi / 6, np.pi / 6)}
 
     return s_builder, pscene
 
@@ -122,6 +153,7 @@ def parse_test_args():
     parser.add_argument('--cname', type=str, help='checker type', default="None")
 
     parser.add_argument('--TIMEOUT_MOTION', type=int, default=5, help='motion planning timeout')
+    parser.add_argument('--IK_TRY_NUM', type=int, default=10, help='max. number of trials for ik')
     parser.add_argument('--MAX_TIME', type=int, default=100, help='TAMP timeout')
     parser.add_argument('--MAX_ITER', type=int, default=100, help='TAMP max iteration')
     parser.add_argument('--MAX_SKELETONS', type=int, default=30, help='maximum number of skeletons to consider')
