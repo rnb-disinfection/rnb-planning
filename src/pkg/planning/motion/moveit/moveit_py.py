@@ -197,3 +197,14 @@ class MoveitCompactPlanner_BP(mpc.Planner):
         if np.sum(np.abs(Q)) < 1e-4:
             return None
         return Q
+
+    ##
+    # @brief set joint state in the planner for collision testing in solve_ik_py
+    def set_joint_state_py(self, Q):
+        self.planner.set_joint_state(JointState(self.joint_num, *Q))
+
+    ##
+    # @brief get joint state in the planner
+    def get_joint_state_py(self):
+        return np.array(spread(self.planner.get_joint_state(), self.joint_num))
+
