@@ -193,4 +193,7 @@ class MoveitCompactPlanner_BP(mpc.Planner):
                     self_collision=False, fulll_collision=False):
         Q = self.solve_ik(robot_name, CartPose(*goal_pose), timeout_single,
                              self_collision, fulll_collision)
-        return np.array(spread(Q, self.group_joint_nums[robot_name]))
+        Q = np.array(spread(Q, self.group_joint_nums[robot_name]))
+        if np.sum(np.abs(Q)) < 1e-4:
+            return None
+        return Q
