@@ -495,15 +495,15 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                         else:
                             q_approach = mplan.planner.solve_ik_py(robot_name, approach_pose[0]+approach_pose[1],
                                                                    timeout_single=timeout_single,
-                                                                   timeout_sampling=timeout_single*num_attempts,
                                                                    self_collision=False, fulll_collision=False
                                                                    )
-                            q_approach_dict = list2dict(q_approach, mplan.chain_dict[robot_name]["joint_names"])
-                            home_dict_tmp = deepcopy(home_dict)
-                            home_dict_tmp.update(q_approach_dict)
-                            q_approach = tuple(dict2list(home_dict_tmp, pscene.gscene.joint_names))
+                            if q_approach is not None:
+                                q_approach_dict = list2dict(q_approach, mplan.chain_dict[robot_name]["joint_names"])
+                                home_dict_tmp = deepcopy(home_dict)
+                                home_dict_tmp.update(q_approach_dict)
+                                q_approach = tuple(dict2list(home_dict_tmp, pscene.gscene.joint_names))
+                                set_joint_positions(robot, movable_joints, q_approach)
                     if show_state and q_approach is not None:
-                        print("inverse_kinematics fail to approach")
                         pscene.gscene.show_pose(q_approach)
 
                     if q_approach is not None:
@@ -519,10 +519,11 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                                                 IK_Reason.ik_approach if q_approach is None else IK_Reason.col_approach,
                                                 key=lambda x: x.value)
                         if show_state:
-                            print("IK-col approach fail")
                             if q_approach is None:
+                                print("inverse_kinematics fail to approach")
                                 color = pscene.gscene.COLOR_LIST[2]
                             else:
+                                print("IK-approach collision fail")
                                 color = pscene.gscene.COLOR_LIST[0]
                             vis_bak = pscene.gscene.highlight_robot(color)
                             time.sleep(SHOW_TIME)
@@ -530,7 +531,8 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                         continue
                     # print("go on")
                     conf = BodyConf(robot, q_approach)
-                    if np.sum(np.abs(eye4 - T_xyzquat(grasp.approach_pose))) < 1e-6:
+                    no_approach = np.sum(np.abs(eye4 - T_xyzquat(grasp.approach_pose))) < 1e-6
+                    if no_approach:
                         q_grasp = deepcopy(q_approach)
                     else:
                         with GlobalTimer.instance().block("ik_grasp1"):
@@ -546,8 +548,8 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                                 home_dict_tmp = deepcopy(home_dict)
                                 home_dict_tmp.update(q_grasp_dict)
                                 q_grasp = tuple(dict2list(home_dict_tmp, pscene.gscene.joint_names))
+                                set_joint_positions(robot, movable_joints, q_grasp)
                         if show_state and q_grasp is not None:
-                            print("inverse_kinematics fail to grasp")
                             pscene.gscene.show_pose(q_grasp)
 
                         if q_grasp is not None:
@@ -563,10 +565,11 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                                                     IK_Reason.ik_grasp if q_grasp is None else IK_Reason.col_grasp,
                                                 key=lambda x: x.value)
                             if show_state:
-                                print("IK-col grasp fail")
                                 if q_grasp is None:
+                                    print("inverse_kinematics fail to grasp")
                                     color = pscene.gscene.COLOR_LIST[2]
                                 else:
+                                    print("IK-grasp collision fail")
                                     color = pscene.gscene.COLOR_LIST[0]
                                 vis_bak = pscene.gscene.highlight_robot(color)
                                 time.sleep(SHOW_TIME)
@@ -585,7 +588,7 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                             path = plan_direct_joint_motion(robot, conf.joints, q_grasp, obstacles=obstacles,
                                                             disabled_collisions=disabled_collisions)
                         if path is None:
-                            # print("Approach motion failed")
+                            print("Approach motion failed")
                             if DEBUG_FAILURE: wait_if_gui('Approach motion failed')
                             if GLOBAL_LOG_ENABLED:
                                 ik_res_reason = max(ik_res_reason, IK_Reason.approach_motion,

@@ -167,6 +167,8 @@ class MoveitPlanner(MotionInterface):
                     from_Q = from_state.Q
                     to_Q =  to_state.Q[idx_rbt]
             else:
+                print("from Q: {}".format(np.round(from_state.Q, 2)))
+                print("tar  Q: {}".format(np.round(to_state.Q, 2)))
                 raise(RuntimeError("multi-robot joint motion not implemented!"))
             if verbose:
                 print("try joint motion") ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
