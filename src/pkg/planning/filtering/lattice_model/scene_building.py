@@ -35,7 +35,7 @@ class ObstacleBase:
                                   color=self.COLOR, display=True, collision=True, fixed=fixed)
         self.subgeo_list = []
         
-    def is_overlapped_with(self, gtem):
+    def is_overlapped_with(self, gtem, margin=1e-4):
         gscene = gtem.gscene
         res = False
         for gname in gtem.get_family():
@@ -47,7 +47,7 @@ class ObstacleBase:
                 verts_me, raddii_me = gchild_me.get_vertice_radius()
                 verts_me_global = np.add(np.matmul(verts_me, gchild_me.orientation_mat.transpose()), 
                                          gchild_me.center)
-                res = get_gjk_distance(get_point_list(verts_global), get_point_list(verts_me_global))-radii-raddii_me < 1e-4
+                res = get_gjk_distance(get_point_list(verts_global), get_point_list(verts_me_global))-radii-raddii_me < margin
                 if res:
                     break
             if res:
@@ -73,13 +73,13 @@ class WorkPlane(ObstacleBase):
         self.H = 0.3
         ObstacleBase.__init__(self, gscene, name, *args, **kwargs)
         
-    def is_overlapped_with(self, gtem):
+    def is_overlapped_with(self, gtem, margin=1e-4):
         verts, radii = gtem.get_vertice_radius()
         verts_global = np.add(np.matmul(verts, gtem.orientation_mat.transpose()), gtem.center)
-        verts_wp = np.multiply(DEFAULT_VERT_DICT[self.GTYPE], tuple(self.DIM[:2])+(self.H,))
+        verts_wp = np.multiply(DEFAULT_VERT_DICT[self.GTYPE], tuple(self.DIM[:2])+(self.H*2,))
         verts_wp_global = np.add(np.matmul(verts_wp, self.geometry.orientation_mat.transpose()), 
                                  np.add(self.geometry.center, (0,0,self.H/2)))
-        return get_gjk_distance(get_point_list(verts_global), get_point_list(verts_wp_global))-radii < 1e-4
+        return get_gjk_distance(get_point_list(verts_global), get_point_list(verts_wp_global))-radii < margin
         
     
 ##

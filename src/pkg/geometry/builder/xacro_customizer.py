@@ -117,8 +117,8 @@ class XacroCustomizer(Singleton):
     def __kill_existing_subprocess(self):
         if self.subp is not None:
             self.subp.terminate()
-            sleep(1)
-            while self.subp.is_alive():
+            sleep(0.5)
+            while self.subp.poll() is None:
                 sleep(0.5)
         self.subp = None
 

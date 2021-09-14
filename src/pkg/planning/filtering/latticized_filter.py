@@ -28,6 +28,11 @@ OFFSET_ZERO_ARM = (0.5, 1.0, 1.0)
 RH_MASK_SIZE = 512
 RH_MASK_STEP = 64
 
+DEBUG_LAT_FILT = False
+
+if DEBUG_LAT_FILT:
+    TextColors.RED.println("===== WARNING: latticized_filter in DEBUG MODE====")
+
 
 # def div_r(r):
 #     return floor(sigmoid((r)/0.1-8)*8)
@@ -48,6 +53,8 @@ def div_h(h):
 # @remark   launch SharedArray predictor server rnb-planning.src.pkg.planning.filtering.lattice_model.shared_lattice_predictor.SharedLatticePredictor,
 #           which is separated because tensorflow needs to be run in python 3
 class LatticedChecker(MotionFilterInterface):
+    BEFORE_IK = False
+
     ##
     # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
     # @param gcheck GraspChecker
@@ -137,12 +144,12 @@ class LatticedChecker(MotionFilterInterface):
     # @param T_loal     transformation matrix from object-side link to actor-side link
     # @param Q_dict joint configuration in dictionary format {joint name: radian value}
     # @param interpolate    interpolate path and check intermediate poses
-    def check_T_loal(self, actor, obj, T_loal, Q_dict, interpolate=False,**kwargs):
+    def check_T_loal(self, actor, obj, T_loal, Q_dict, interpolate=False, ignore=[],**kwargs):
         actor_link = actor.geometry.link_name
         object_link = obj.geometry.link_name
 
         actor_vertinfo_list, object_vertinfo_list, actor_Tinv_dict, object_Tinv_dict = \
-            self.gcheck.get_grasping_vert_infos(actor, obj, T_loal, Q_dict)
+            self.gcheck.get_grasping_vert_infos(actor, obj, T_loal, Q_dict, ignore=ignore)
 
         obj_names = obj.geometry.get_family()
         group_name_handle = self.binder_link_robot_dict[object_link] if object_link in self.binder_link_robot_dict else None
@@ -217,7 +224,7 @@ class LatticedChecker(MotionFilterInterface):
             grasp_obj_img[np.unravel_index(grasp_obj_idx, shape=GRASP_SHAPE)] = 1
         except Exception as e:
             save_scene(self.pscene.gscene, arm_tar_idx, grasp_tool_idx, grasp_tar_idx, grasp_obj_idx, [r, th, h],
-                       error_state=True)
+                       error_state=True, result=None)
             print("===== THE ERROR OCCURED!!! =====")
             print("===== THE ERROR OCCURED!!! =====")
             print("===== THE ERROR OCCURED!!! =====")
@@ -228,7 +235,7 @@ class LatticedChecker(MotionFilterInterface):
             print(self.ltc_effector.coll_idx_dict.keys())
             print("===== obj_names =====")
             print(obj_names)
-            value = raw_input("Wait key input : ")
+#             value = raw_input("Wait key input : ")
         # if not hasattr(LatticedChecker, "test_count"):
         #     LatticedChecker.test_count = 0
         # LatticedChecker.test_count += 1
@@ -243,6 +250,9 @@ class LatticedChecker(MotionFilterInterface):
         res = self.query_wait_response(self.rconfig_dict[group_name].type.name,
                                        np.array([grasp_img]), np.array([arm_img]), np.array([rh_vals]),
                                        )[0]
+        if DEBUG_LAT_FILT:
+            save_scene(self.pscene.gscene, arm_tar_idx, grasp_tool_idx, grasp_tar_idx, grasp_obj_idx, [r, th, h],
+                       error_state=False, result=res)
         return res[-1]>0.5
 
     def query_wait_response(self, robot_type_name, grasp_img_batch, arm_img_batch, rh_vals_batch):
@@ -270,7 +280,7 @@ from copy import deepcopy
 SCENE_PATH = os.path.join(os.environ['RNB_PLANNING_DIR'], "data/lcheck_scenes")
 try_mkdir(SCENE_PATH)
 
-def save_scene(gscene, arm_tar_idx, grasp_tool_idx, grasp_tar_idx, grasp_obj_idx, rth, error_state):
+def save_scene(gscene, arm_tar_idx, grasp_tool_idx, grasp_tar_idx, grasp_obj_idx, rth, error_state, result):
     gtem_args = gscene.get_gtem_args()
 
     scene_data = {}
@@ -281,6 +291,8 @@ def save_scene(gscene, arm_tar_idx, grasp_tool_idx, grasp_tar_idx, grasp_obj_idx
     scene_data["rth"] = rth
     scene_data["gtem_args"] = gtem_args
     scene_data["error_state"] = error_state
+    scene_data["result"] = result
+
     # scene_data["global_log"] = GlobalLogger.instance()
     save_pickle(
         os.path.join(SCENE_PATH,

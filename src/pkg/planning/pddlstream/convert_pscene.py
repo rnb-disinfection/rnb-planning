@@ -25,10 +25,11 @@ rospack = rospkg.RosPack()
 from ..constraint.constraint_common import combine_redundancy, sample_redundancy, calc_redundancy
 from primitives_pybullet import update_grasp_info, GraspInfo, pairwise_collision, BodyPose, sample_placement, BodyGrasp
 import random
+from constants_common import *
 
 SAMPLE_GRASP_COUNT_DEFAULT = 10
 SAMPLE_STABLE_COUNT_DEFAULT = 10
-
+DT_DEFAULT = 1
 
 ##
 # @brief    add axis marker to handle
@@ -85,6 +86,35 @@ def sample_redundancy_offset(subject, actor, drop_downward_dir=None, show_state=
             continue
         break
     return T_ao
+
+
+from itertools import count
+
+class Time(object):
+    num = count()
+    def __init__(self, t):
+        self.t = t
+        self.index = next(self.num)
+    @property
+    def value(self):
+        return self.t
+
+    def __repr__(self):
+        index = self.index
+        return 'i{}'.format(index)
+
+def get_time_gen(dt=DT_DEFAULT):
+    def gen(body):
+        while True:
+            _t = time.time()
+            if _t - gen.time_last> dt:
+                gen.time_last = _t
+                time_ = Time(_t)
+                yield (time_,)
+            else:
+                yield None
+    gen.time_last = 0
+    return gen
 
 
 def get_stable_gen_rnb(body_subject_map, body_actor_map, home_dict, fixed=[], show_state=False,

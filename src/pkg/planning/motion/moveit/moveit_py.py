@@ -186,8 +186,25 @@ class MoveitCompactPlanner_BP(mpc.Planner):
             str(obj.name), obj.type, CartPose(*obj.pose), Vec3(*obj.dims), str(obj.link_name),
             NameList(*obj.touch_links), obj.attach, action)
 
-    def solve_ik_py(self, robot_name, goal_pose, timeout_single=0.01, timeout_sampling=0.01,
+    ##
+    # @brief get inverse kinematics solution
+    # @return joint values only for the specificed robot
+    def solve_ik_py(self, robot_name, goal_pose, timeout_single=0.01,
                     self_collision=False, fulll_collision=False):
-        Q = self.solve_ik(robot_name, CartPose(*goal_pose), timeout_single, timeout_sampling,
+        Q = self.solve_ik(robot_name, CartPose(*goal_pose), timeout_single,
                              self_collision, fulll_collision)
-        return np.array(spread(Q, self.group_joint_nums[robot_name]))
+        Q = np.array(spread(Q, self.group_joint_nums[robot_name]))
+        if np.sum(np.abs(Q)) < 1e-4:
+            return None
+        return Q
+
+    ##
+    # @brief set joint state in the planner for collision testing in solve_ik_py
+    def set_joint_state_py(self, Q):
+        self.planner.set_joint_state(JointState(self.joint_num, *Q))
+
+    ##
+    # @brief get joint state in the planner
+    def get_joint_state_py(self):
+        return np.array(spread(self.planner.get_joint_state(), self.joint_num))
+

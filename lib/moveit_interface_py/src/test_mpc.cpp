@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
 //    cartpose << 0.1,0.2,0,0,0,0,1;
     cartpose << 3.4572112560272217, -0.28122010827064514, 0.0, -3.5608298955615324e-17, -2.4632272317165464e-17, 0.9838032126426697, 0.17925205826759338;
     JointState Q = planner.solve_ik(
-            "kmb0", cartpose, 0.1, 0.1, false, false);
+            "kmb0", cartpose, 0.1, false, false);
     std::cout<<"========== IK test ========="<<std::endl;
     std::cout<<Q.transpose()<<std::endl;
     std::cout<<"========== IK test ========="<<std::endl;

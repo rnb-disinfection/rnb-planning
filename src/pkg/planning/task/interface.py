@@ -163,7 +163,7 @@ class TaskInterface:
     ##
     # @brief find all schedules
     # @return list of SearchNode index list
-    def find_schedules(self, at_home=True, home_pose=None):
+    def find_schedules(self, at_home=True, home_pose=None, in_indices=True):
         schedule_dict = {}
         sidx_checked = set()
         home_pose = self.initial_state.Q if home_pose is None else home_pose
@@ -179,7 +179,20 @@ class TaskInterface:
                 schedule = snode.parents + [i]
                 schedule_dict[i] = schedule
                 sidx_checked = sidx_checked.union(schedule)
-        return schedule_dict
+        if in_indices:
+            return schedule_dict
+        else:
+            return {k: self.idxSchedule2SnodeScedule(v) for k, v in schedule_dict.items()}
+
+
+    ##
+    # @brief find schedule with shortest path
+    # @returnlist of SearchNode instances
+    def get_best_schedule(self):
+        schedules = self.find_schedules(False)
+        schedules_sorted = self.sort_schedule(schedules)
+        snode_schedule = self.idxSchedule2SnodeScedule(schedules_sorted[0])
+        return snode_schedule
 
     ##
     # @brief find all schedules

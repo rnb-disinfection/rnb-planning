@@ -11,7 +11,7 @@ from examples.pybullet.utils.pybullet_tools.utils import get_pose, set_pose, get
     step_simulation, refine_path, plan_direct_joint_motion, get_joint_positions, dump_world, wait_if_gui, \
     flatten, multiply, approach_from_grasp
 
-def approach_from_grasp_tool_side(approach_pose, end_effector_pose):
+def approach_from_grasp_tool_side(end_effector_pose, approach_pose):
     return multiply(end_effector_pose, approach_pose)
 
 

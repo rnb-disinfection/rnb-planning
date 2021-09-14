@@ -59,6 +59,7 @@ namespace RNB {
 
             JointState result_ik;
             JointState result_jac;
+            JointState current_state;
 
             /**
              * @brief initialize planner from urdf and srdf files. redirects to init_planner
@@ -185,6 +186,20 @@ namespace RNB {
 
             /**
              * @brief solve inverse kinematics
+             * @param values    values for all joints
+             * @author Junsu Kang
+             */
+            void set_joint_state(JointState values);
+
+            /**
+             * @brief solve inverse kinematics
+             * @param values    values for all joints
+             * @author Junsu Kang
+             */
+            JointState& get_joint_state();
+
+            /**
+             * @brief solve inverse kinematics
              * @param timeout_single    timeout for single ik
              * @param timeout_sampling  timeout for sampling loop
              * @param self_collision    to check self-collision
@@ -192,8 +207,8 @@ namespace RNB {
              * @author Junsu Kang
              */
             JointState& solve_ik(string group_name, CartPose goal_pose,
-                                double timeout_single, double timeout_sampling,
-                                bool self_collision, bool fulll_collision);
+                                 double timeout_single,
+                                 bool self_collision, bool fulll_collision);
 
             /**
              * @brief check current status of collision

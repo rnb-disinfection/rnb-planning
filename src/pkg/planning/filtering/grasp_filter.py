@@ -3,7 +3,13 @@ from .filter_interface import MotionFilterInterface
 from ..constraint.constraint_common import calc_redundancy
 from ...utils.joint_utils import *
 from ...utils.gjk import get_point_list, set_point_list, get_gjk_distance
-from ...utils.utils import GlobalTimer
+from ...utils.utils import GlobalTimer,TextColors
+import random
+
+DEBUG_MODE_GRAB_FILT = False
+
+if DEBUG_MODE_GRAB_FILT:
+    TextColors.RED.println("===== WARNING: grasp_filter in DEBUG MODE====")
 
 
 ##
@@ -76,7 +82,6 @@ class GraspChecker(MotionFilterInterface):
     # @param ignore         GeometryItems to ignore
     def check_T_loal(self, actor, obj, T_loal, Q_dict, interpolate=False, obj_only=False, ignore=[],
               **kwargs):
-
         actor_vertinfo_list, object_vertinfo_list, _, _ = self.get_grasping_vert_infos(
             actor, obj, T_loal, Q_dict, obj_only=obj_only,
             interpolate=interpolate, ignore=ignore)
@@ -85,42 +90,40 @@ class GraspChecker(MotionFilterInterface):
         for geo_name, T, verts, radius, geo_dims in actor_vertinfo_list:
             verts = np.matmul(verts, T[:3,:3].transpose())+T[:3,3]
             vert_point_list = get_point_list(verts)
-            # if geo_name not in self.verts_holder_dict:
-            #     # gtimer.tic("ac_get_point_list")
-            #     vert_point_list = get_point_list(verts)
-            #     self.verts_holder_dict[geo_name] = vert_point_list
-            #     # gtimer.toc("ac_get_point_list")
-            # else:
-            #     # gtimer.tic("ac_set_point_list")
-            #     vert_point_list = self.verts_holder_dict[geo_name]
-            #     set_point_list(vert_point_list, verts)
-            #     # gtimer.toc("ac_set_point_list")
             actor_vertice_list.append((vert_point_list, radius))
+            if DEBUG_MODE_GRAB_FILT:
+                for actor_vertice, actor_radius in actor_vertice_list:
+                    for i_v, vert in enumerate(verts):
+                        self.gscene.add_highlight_axis("gc_actor", geo_name+"_{:03}".format(i_v), "base_link",
+                                                       center=vert, orientation_mat=None,
+                                                       color=(0,0,1,0.3), axis=None)
+
         object_vertice_list = []
         for geo_name, T, verts, radius, geo_dims in object_vertinfo_list:
             verts = np.matmul(verts, T[:3,:3].transpose())+T[:3,3]
             vert_point_list = get_point_list(verts)
-            # if geo_name not in self.verts_holder_dict:
-            #     # gtimer.tic("obj_get_point_list")
-            #     vert_point_list = get_point_list(verts)
-            #     self.verts_holder_dict[geo_name] = vert_point_list
-            #     # gtimer.toc("obj_get_point_list")
-            # else:
-            #     # gtimer.tic("obj_set_point_list")
-            #     vert_point_list = self.verts_holder_dict[geo_name]
-            #     set_point_list(vert_point_list, verts)
-            #     # gtimer.toc("obj_set_point_list")
             object_vertice_list.append((vert_point_list, radius))
+            if DEBUG_MODE_GRAB_FILT:
+                for actor_vertice, actor_radius in actor_vertice_list:
+                    for i_v, vert in enumerate(verts):
+                        self.gscene.add_highlight_axis("gc_object", geo_name+"_{:03}".format(i_v), "base_link",
+                                                       center=vert, orientation_mat=None,
+                                                       color=(1,1,0,0.3), axis=None)
 
-        #     with gtimer.block("calc_distance"):
-        # gtimer.tic("get_gjk_distance")
         dist_list = []
         for actor_vertice, actor_radius in actor_vertice_list:
             for object_vertice, object_radius in object_vertice_list:
                 dist_list.append(get_gjk_distance(actor_vertice, object_vertice) - actor_radius - object_radius)
-        # gtimer.toc("get_gjk_distance")
-
         res = np.min(dist_list) > + 1e-4
+        if DEBUG_MODE_GRAB_FILT:
+            print("res: {} ({})".format(res, round(np.min(dist_list), 4)))
+            if not res:
+                i_ac, i_ob = np.unravel_index(np.argmin(dist_list), (len(actor_vertinfo_list),len(object_vertinfo_list)))
+                print("{} - {}".format(actor_vertinfo_list[i_ac][0], object_vertinfo_list[i_ob][0]))
+            self.gscene.add_highlight_axis("gc_center", "Tloal", obj.geometry.link_name,
+                                           center=T_loal[:3,3], orientation_mat=T_loal[:3,:3])
+            self.gscene.clear_highlight(hl_keys=["gc_actor", "gc_object", "gc_center"])
+
         return res
 
     ##

@@ -34,3 +34,51 @@ def scatter_3d(X, style='.', view=None, xlabel="x",ylabel="y", zlabel="z",
     sub.set_ylabel(ylabel)
     sub.set_zlabel(zlabel)
     # sub.axis('equal')
+    
+from collections import Iterable
+
+
+##
+# @brief draw grouped bar
+# @remark if value is list, mean and error bar are drawn
+# @param data_dict dictionary of value dictionaries {group: case: value}
+# @groups group name list
+# @cases case name list
+def grouped_bar(data_dict, groups=None, cases=None, scatter=False):
+    if groups is None:
+        groups = sorted(data_dict.keys())
+        
+    if cases is None:
+        cases = sorted(data_dict[groups[0]].keys())
+
+    groups = [group for group in groups if group in data_dict]
+    X_big = np.arange(len(groups)) * (len(cases) + 1) +1
+    X_small = np.arange(len(cases))
+
+    dat_max = 0
+    for xsmall in X_small:
+        dat_vec = [data_dict[group][cases[xsmall]] for group in groups]
+        if len(dat_vec) == 0:
+            continue
+        if scatter:
+            Xs = np.concatenate([[x]*len(tvec)for x, tvec in zip(X_big+xsmall, dat_vec)])
+            dat_vec = np.concatenate(dat_vec)
+            plt.plot(Xs, dat_vec, '.')
+            dat_max = max(dat_max, np.max(dat_vec))
+        else:
+            if isinstance(dat_vec[0], Iterable):
+                std_vec = map(np.std, dat_vec)
+                dat_vec = map(np.mean, dat_vec)
+            else:
+                std_vec = None
+
+            plt.bar(X_big+xsmall, dat_vec, yerr=std_vec)
+            dat_max = max(dat_max, np.max(np.add(dat_vec, std_vec) 
+                                           if std_vec is not None 
+                                           else dat_vec))
+
+    # plt.axis([0,np.max(X_big[gidc])+np.max(X_small)+1,0, dat_max+1])
+    plt.grid()
+    plt.xticks(X_big + np.mean(X_small), np.array(groups))
+    plt.legend(cases)
+    return groups, cases
