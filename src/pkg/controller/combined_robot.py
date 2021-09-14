@@ -319,4 +319,6 @@ class CombinedRobot:
 
     def get_joint_limits(self):
         return np.concatenate(
-            map(RobotSpecs.get_joint_limits, [self.get_robot_config_dict()[rname].type for rname in self.robot_names]))
+                map(lambda x: RobotSpecs.get_joint_limits(x, none_as_inf=True),
+                    [self.get_robot_config_dict()[rname].type for rname in self.robot_names])
+                )

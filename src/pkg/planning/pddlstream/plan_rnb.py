@@ -101,7 +101,8 @@ def pddlstream_from_problem_rnb(pscene, robot, body_names, Q_init, goal_pairs=[]
     else:
         ik_kwargs = {}
     ik_fun = get_ik_fn_rnb(
-        pscene, body_subject_map, pscene.actor_dict[tool_name], checkers_ik, pscene.combined_robot.home_dict,
+        pscene, body_subject_map, pscene.actor_dict[tool_name], checkers_ik,
+        list2dict(Q_init, pscene.gscene.joint_names),
         disabled_collisions=get_disabled_collisions(pscene.gscene, robot),
         robot=robot, fixed=fixed, teleport=teleport, show_state=show_state, num_attempts=IK_TRY_NUM, **ik_kwargs)
 

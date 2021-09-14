@@ -91,8 +91,12 @@ class RobotSpecs:
         return [rname + "_" + jname for jname in cls.SPEC_DICT[_type].joint_names]
 
     @classmethod
-    def get_joint_limits(cls, _type):
-        return cls.SPEC_DICT[_type].joint_limits
+    def get_joint_limits(cls, _type, none_as_inf=False):
+        if none_as_inf:
+            return map(lambda x: x if x is not None else (-np.inf, np.inf),
+                       cls.SPEC_DICT[_type].joint_limits)
+        else:
+            return cls.SPEC_DICT[_type].joint_limits
 
     @classmethod
     def get_vel_limits(cls, _type):

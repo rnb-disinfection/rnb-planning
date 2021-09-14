@@ -59,7 +59,7 @@
 		<child link="kmb${robot_id}_link3"/>
 		<origin xyz="0 0 0" rpy="0 0 0"/>
 		<axis xyz="0 0 1"/>
-    	<limit effort="10000" velocity="1.5708"/>
+    	<limit effort="10000" lower="-10000" upper="10000" velocity="1.5708"/>
 	</joint>
 
 	<joint name="kmb${robot_id}_joint3" type="revolute">
