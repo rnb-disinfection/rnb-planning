@@ -5,6 +5,7 @@
     (Timer ?k)
     (Time ?i)
 
+    (Conf ?q)
     (Pose ?o ?p)
     (Grasp ?o ?g)
     (Kin ?o ?p ?g ?q ?t)
@@ -36,6 +37,7 @@
     :parameters (?q1 ?q2 ?t)
     :precondition (and (FreeMotion ?q1 ?t ?q2)
                        (AtConf ?q1) (HandEmpty) (CanMove)
+                       (not (= ?q1 ?q2))
                        ;(not (UnsafeTraj ?t))
                   )
     :effect (and (AtConf ?q2)
@@ -45,6 +47,7 @@
     :parameters (?q1 ?q2 ?o ?g ?t)
     :precondition (and (HoldingMotion ?q1 ?t ?q2 ?o ?g)
                        (AtConf ?q1) (AtGrasp ?o ?g) (CanMove)
+                       (not (= ?q1 ?q2))
                        ;(not (UnsafeTraj ?t))
                   )
     :effect (and (AtConf ?q2)
