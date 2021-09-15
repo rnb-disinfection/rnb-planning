@@ -47,18 +47,18 @@ def pddlstream_from_problem_rnb(pscene, robot, body_names, Q_init, goal_pairs=[]
         TIMED_COMPLETE = False
 
     if TIMED_COMPLETE:
-        domain_pddl = read(get_file_path(__file__, 'domain/domain_timed.pddl'))
-        stream_pddl = read(get_file_path(__file__, 'domain/stream_timed.pddl'))
+        domain_pddl = read(get_file_path(__file__, 'domain/domain_noik_timed.pddl'))
+        stream_pddl = read(get_file_path(__file__, 'domain/stream_noik_timed.pddl'))
     else:
-        domain_pddl = read(get_file_path(__file__, 'domain/domain.pddl'))
-        stream_pddl = read(get_file_path(__file__, 'domain/stream.pddl'))
+        domain_pddl = read(get_file_path(__file__, 'domain/domain_noik.pddl'))
+        stream_pddl = read(get_file_path(__file__, 'domain/stream_noik.pddl'))
     constant_map = {}
 
     print('Robot:', robot)
     set_configuration(robot, Q_init)
     conf = BodyConf(robot, get_configuration(robot))
     init = [('CanMove',),
-            ('Conf', conf),
+            ('ConfF', conf),
             ('AtConf', conf),
             ('HandEmpty',)]
 
@@ -139,7 +139,7 @@ def pddlstream_from_problem_rnb(pscene, robot, body_names, Q_init, goal_pairs=[]
         stream_map.update({'stream-time': from_gen_fn(get_time_gen())})
 
     reset_checker_cache()
-    return PDDLProblem(domain_pddl, constant_map, stream_pddl, stream_map, init, goal), ik_fun
+    return PDDLProblem(domain_pddl, constant_map, stream_pddl, stream_map, init, goal), feas_fun
 
 
 def postprocess_plan(plan):
@@ -172,7 +172,7 @@ def solve_in_pddlstream(pscene, mplan, ROBOT_NAME, TOOL_NAME, HOME_POSE, goal_pa
     print('Objects:', body_names)
     saver = WorldSaver()
     mplan.reset_log(True)
-    problem, ik_fun = pddlstream_from_problem_rnb(pscene, robot_body, body_names=body_names,
+    problem, feas_fun = pddlstream_from_problem_rnb(pscene, robot_body, body_names=body_names,
                                                   Q_init=HOME_POSE,
                                                   goal_pairs=goal_pairs,
                                                   movable=movable_bodies,
@@ -187,9 +187,6 @@ def solve_in_pddlstream(pscene, mplan, ROBOT_NAME, TOOL_NAME, HOME_POSE, goal_pa
     print('Init:', init)
     print('Goal:', goal)
     print('Streams:', str_from_object(set(stream_map)))
-    ik_fun.checkout_count = 0
-    ik_fun.fail_count = 0
-    ik_fun.pass_count = 0
     with Profiler():
         with LockRenderer(lock=not True):
             gtimer.tic("plan")
@@ -211,8 +208,6 @@ def solve_in_pddlstream(pscene, mplan, ROBOT_NAME, TOOL_NAME, HOME_POSE, goal_pa
     elapsed = SolutionStore.last_log['run_time']
 
     log_dict = {"plan_time": elapsed, "length": move_num,
-                "IK_tot": ik_fun.checkout_count + ik_fun.pass_count + ik_fun.fail_count,
-                "IK_count": ik_fun.pass_count + ik_fun.fail_count, "failed_IKs": ik_fun.fail_count,
                 "MP_tot": plan_try, "MP_count": plan_num, "failed_MPs": fail_num,
                 "success": res, "body_names": body_names, "plan": plan,
                 "pre_motion_checks": pre_motion_checks, "planning_log": planning_log,
