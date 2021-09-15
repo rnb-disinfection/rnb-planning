@@ -29,7 +29,6 @@ from constants_common import *
 
 SAMPLE_GRASP_COUNT_DEFAULT = 10
 SAMPLE_STABLE_COUNT_DEFAULT = 10
-DT_DEFAULT = 1
 
 ##
 # @brief    add axis marker to handle
