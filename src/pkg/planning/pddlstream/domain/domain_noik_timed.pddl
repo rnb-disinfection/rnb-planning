@@ -5,13 +5,16 @@
     (Timer ?k)
     (Time ?i)
 
-    (Conf ?q)
+    (ConfF ?q)
+    (KinF ?e ?g)
+    (ConfH ?q)
+    (KinH ?e ?g)
     (Pose ?o ?p)
     (EndPose ?e)
     (Grasp ?o ?g)
     (Feasible ?o ?p ?g ?e)
-    (Kin ?e ?g)
     (FreeMotion ?q1 ?t ?q2)
+    (ApproachMotion ?q1 ?t ?q2)
     (HoldingMotion ?q1 ?t ?q2 ?o ?g)
     (Supported ?o ?p ?r)
     (Traj ?t)
@@ -37,7 +40,7 @@
 
   (:action move_free
     :parameters (?q1 ?q2 ?t)
-    :precondition (and (FreeMotion ?q1 ?t ?q2)
+    :precondition (and (or (FreeMotion ?q1 ?t ?q2) (ApproachMotion ?q1 ?t ?q2))
                        (AtConf ?q1) (HandEmpty) (CanMove)
                        ;(not (UnsafeTraj ?t))
                   )
@@ -56,7 +59,7 @@
 
   (:action pick
     :parameters (?o ?p ?g ?e ?q)
-    :precondition (and (Feasible ?o ?p ?g ?e) (Kin ?e ?q)
+    :precondition (and (Feasible ?o ?p ?g ?e) (KinH ?e ?q)
                        (not (CanMove))
                        (AtPose ?o ?p) (HandEmpty) (AtConf ?q)
                   )
@@ -66,7 +69,7 @@
 
   (:action place
     :parameters (?o ?p ?g ?e ?q)
-    :precondition (and (Feasible ?o ?p ?g ?e) (Kin ?e ?q)
+    :precondition (and (Feasible ?o ?p ?g ?e) (KinF ?e ?q)
                        (not (CanMove))
                        (AtGrasp ?o ?g) (AtConf ?q)
                        (not (UnsafePose ?o ?p))

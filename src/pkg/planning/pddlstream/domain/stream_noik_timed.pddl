@@ -25,24 +25,24 @@
   )
   (:stream plan-free-motion
     :inputs (?q1 ?q2)
-    :domain (and (Conf ?q1) (Conf ?q2))
+    :domain (and (ConfF ?q1) (ConfF ?q2))
     :fluents (AtPose) ; AtGrasp
     :outputs (?t)
     :certified (FreeMotion ?q1 ?t ?q2)
   )
   (:stream plan-approach-motion
     :inputs (?q1 ?e2)
-    :domain (and (Conf ?q1) (EndPose ?e2))
+    :domain (and (ConfF ?q1) (EndPose ?e2))
     :fluents (AtPose) ; AtGrasp
     :outputs (?q2 ?t)
-    :certified (and (Conf ?q2) (Kin ?e2 ?q2) (FreeMotion ?q1 ?t ?q2))
+    :certified (and (ConfH ?q2) (KinH ?e2 ?q2) (ApproachMotion ?q1 ?t ?q2))
   )
   (:stream plan-holding-motion
     :inputs (?q1 ?e2 ?o ?g)
-    :domain (and (Conf ?q1) (EndPose ?e2) (Grasp ?o ?g))
+    :domain (and (ConfH ?q1) (EndPose ?e2) (Grasp ?o ?g))
     :fluents (AtPose)
     :outputs (?q2 ?t)
-    :certified (and (Conf ?q2) (Kin ?e2 ?q2) (HoldingMotion ?q1 ?t ?q2 ?o ?g))
+    :certified (and (ConfF ?q2) (KinF ?e2 ?q2) (HoldingMotion ?q1 ?t ?q2 ?o ?g))
   )
 
   (:stream test-cfree-pose-pose

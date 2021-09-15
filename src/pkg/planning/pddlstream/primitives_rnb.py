@@ -41,6 +41,9 @@ class Time(object):
         index = self.index
         return 'i{}'.format(index)
 
+##
+# @class EndPose
+# @brief PDDL variable class that contains target transformation of the actor link in xyz, quat (Tbal)
 class EndPose(object):
     num = count()
     def __init__(self, body, xyzquat=None, joints=None):
@@ -84,12 +87,19 @@ def get_time_gen(dt=DT_DEFAULT):
     gen.time_last = 0
     return gen
 
-def get_matching_object(pscene, binder, approach_vec, Q_dict=None, binder_T=None, handle_T=None):
+##
+# @brief find matching object at a given configuration to the given binder. Assume the handle is empty.
+# @remark   Either Q_dict or T_bal for the target configuration should be given.
+#           If Q_dict in the target configuration is not given, Q_dict in current configuration should be given.
+def get_matching_object(pscene, binder, approach_vec, Q_dict, T_bal=None):
     margin_max = -1e10
     max_point = ""
     max_binder = ""
-    if binder_T is None:
+    if T_bal is None:
         binder_T = binder.get_tf_handle(Q_dict)
+    else:
+        binder_T = np.matmul(T_bal, binder.Toff_lh)
+
     if approach_vec is not None:
         binder_link_T = np.matmul(binder_T, SE3_inv(binder.Toff_lh))
         binder_link_T_approached = np.matmul(binder_link_T, SE3(np.identity(3), np.negative(approach_vec)))
@@ -103,7 +113,7 @@ def get_matching_object(pscene, binder, approach_vec, Q_dict=None, binder_T=None
             if handle_T is None:
                 handle_T = handle.get_tf_handle(Q_dict)
 
-            if binder.check_available(Q_dict):
+            if binder.check_available(T_bl=T_bal):
                 if binder.geometry.name in self_family or not binder.check_type(handle):
                     continue
                 binder_redundancy = binder.get_redundancy()
@@ -119,7 +129,13 @@ def get_matching_object(pscene, binder, approach_vec, Q_dict=None, binder_T=None
         return None
     return max_subject
 
-def get_matching_binder(pscene, subject, Q_dict, excludes=[]):
+##
+# @brief    find matching binder at a given configuration to the given subject.
+#           Assume the object is held by the robot and we are looking for a place to go.
+# @remark   Either Q_dict or T_bal for the target configuration should be given.
+#           If Q_dict in the target configuration is not given, Q_dict in current configuration should be given.
+# @param    excludes    give the currently holding actor to exclude from the target candidates that the object is going to.
+def get_matching_binder(pscene, subject, Q_dict, excludes=[], T_bal=None):
     margin_max = -1e10
     max_point = ""
     max_binder = ""
@@ -129,7 +145,10 @@ def get_matching_binder(pscene, subject, Q_dict, excludes=[]):
     self_family = subject.geometry.get_family()
     ## find best binding between object and binders
     for kpt, handle in subject.action_points_dict.items():
-        handle_T = handle.get_tf_handle(Q_dict)
+        if T_bal is None:
+            handle_T = handle.get_tf_handle(Q_dict)
+        else:
+            handle_T = np.matmul(T_bal, handle.Toff_lh)
 
         for bname, binder in actor_dict.items():
             if binder.check_available(Q_dict):
@@ -174,38 +193,41 @@ def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, too
 
     if isinstance(conf2, EndPose):
         to_state = from_state.copy(pscene)
-        Qto = conf2.values
-        raise(NotImplementedError("EndPose not implemented!"))
-        plan_transition(self, from_state, to_state, redundancy_dict=None, verbose=False, test_filters_only=False,
-                        show_state=False, **kwargs)
-        ###################################################################
-        ###################################################################
-        ###################################################################
-        ######################## Here not done ############################
-        ###################################################################
-        ###################################################################
-        ###################################################################
-        ###################################################################
+        Qto_dict = deepcopy(Qfrom_dict) # fill Q_to with Q_from as there's no information about Q_to
+        Tbal_to = T_xyzquat(to_xyzquat)
     elif isinstance(conf2, BodyConf):
         Qto = conf2.values
         to_state = from_state.copy(pscene)
         to_state.Q = np.array(Qto)
         Qto_dict = list2dict(Qto, pscene.gscene.joint_names)
-
-        subject_from = None
-        actor_from = None
-        if grasp is None: # free motion, go to grasp - actor:tool
-            subject = get_matching_object(pscene,tool, approach_vec, Qto_dict)
-            subject_from = get_matching_object(pscene,tool, approach_vec, Qfrom_dict)
-            actor = tool
-        else: # holding motion, go to release - actor:plane
-            subject = graspped
-            actor = get_matching_binder(pscene, subject, Qto_dict, excludes=[tool])
-            actor_from = get_matching_binder(pscene, subject, Qfrom_dict, excludes=[tool])
-        if show_state:
-            print("sucject/actor: {} / {}".format(subject.oname if subject is not None else subject, actor.name))
+        Tbal_to = None
     else:
         raise(NotImplementedError("Undefined config type!: {}!".format(conf2.__class__.__name__)))
+
+    subject_from = None
+    actor_from = None
+    if grasp is None: # free motion, go to grasp - actor:tool
+        subject_from = get_matching_object(pscene,tool, approach_vec, Qfrom_dict)
+        subject = get_matching_object(pscene,tool, approach_vec, Qto_dict, T_bal=Tbal_to)
+        actor = tool
+        if isinstance(conf2, EndPose):
+            # move actor from a subject to a new subject
+            to_binding_state = tuple([sbinding if oname!=subject.name
+                                      else (sbinding[0], None, actor.name, actor.geometry.name)
+                                      for oname, sbinding in zip(self.subject_name_list, from_state.binding_state)])
+            to_state.set_binding_state(to_binding_state, pscene)
+    else: # holding motion, go to release - actor:plane
+        subject = graspped
+        actor_from = get_matching_binder(pscene, subject, Qfrom_dict, excludes=[tool])
+        actor = get_matching_binder(pscene, subject, Qto_dict, excludes=[tool], T_bal=Tbal_to)
+        if isinstance(conf2, EndPose):
+            # move actor from a subject to a new subject
+            to_binding_state = tuple([sbinding if oname!=subject.name
+                                      else (sbinding[0], None, actor.name, actor.geometry.name)
+                                      for oname, sbinding in zip(self.subject_name_list, from_state.binding_state)])
+            to_state.set_binding_state(to_binding_state, pscene)
+    if show_state:
+        print("sucject/actor: {} / {}".format(subject.oname if subject is not None else subject, actor.name))
 
     # GlobalLogger.instance()["from_state"] = from_state
     # GlobalLogger.instance()["to_state"] = to_state
@@ -248,7 +270,7 @@ def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, too
                         get_tf(to_link=actor.geometry.link_name, from_link=subject_from.geometry.link_name,
                                joint_dict=Qfrom_dict, urdf_content=pscene.gscene.urdf_content)]
                     newres = run_checkers(mplan.motion_filters, actor, subject_from, Tloal_list,
-                                 Q_dict=list2dict(Qto, pscene.gscene.joint_names), show_state=show_state, mplan=mplan)
+                                 Q_dict=Qto_dict, show_state=show_state, mplan=mplan)
                     mplan.result_log["cache_log"].append(
                         (feas, newres)
                     )
@@ -258,7 +280,7 @@ def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, too
                     get_tf(to_link=actor.geometry.link_name, from_link=subject_from.geometry.link_name,
                            joint_dict=Qfrom_dict, urdf_content=pscene.gscene.urdf_content)]
                 feas = run_checkers(mplan.motion_filters, actor, subject_from, Tloal_list,
-                             Q_dict=list2dict(Qto, pscene.gscene.joint_names), show_state=show_state, mplan=mplan)
+                             Q_dict=Qto_dict, show_state=show_state, mplan=mplan)
                 run_checkers.cache[ckey] = feas
 
         if feas and actor_from is not None:
@@ -271,7 +293,7 @@ def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, too
                         get_tf(to_link=actor_from.geometry.link_name, from_link=subject.geometry.link_name,
                                joint_dict=Qfrom_dict, urdf_content=pscene.gscene.urdf_content)]
                     newres = run_checkers(mplan.motion_filters, actor_from, subject, Tloal_list,
-                                            Q_dict=list2dict(Qto, pscene.gscene.joint_names), show_state=show_state, mplan=mplan)
+                                            Q_dict=Qto_dict, show_state=show_state, mplan=mplan)
                     mplan.result_log["cache_log"].append(
                         (feas, newres)
                     )
@@ -281,7 +303,7 @@ def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, too
                     get_tf(to_link=actor_from.geometry.link_name, from_link=subject.geometry.link_name,
                            joint_dict=Qfrom_dict, urdf_content=pscene.gscene.urdf_content)]
                 feas = run_checkers(mplan.motion_filters, actor_from, subject, Tloal_list,
-                             Q_dict=list2dict(Qto, pscene.gscene.joint_names), show_state=show_state, mplan=mplan)
+                             Q_dict=Qto_dict, show_state=show_state, mplan=mplan)
                 run_checkers.cache[ckey] = feas
 
     if mplan.flag_log:

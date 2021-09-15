@@ -122,12 +122,14 @@ class MoveitPlanner(MotionInterface):
     # @param to_state   goal state (rnb-planning.src.pkg.planning.scene.State)
     # @param binding_list   list of bindings to pursue
     # @param redundancy_values calculated redundancy values in dictionary format {(object name, point name): (xyz, rpy)}
+    # @param T_bal      special temporary variable for endtool coordination motion in PDDLStream: To be implemented better way
     # @return Traj      Full trajectory as array of Q
     # @return LastQ     Last joint configuration as array
     # @return error     planning error
     # @return success   success/failure of planning result
     def plan_algorithm(self, from_state, to_state, binding_list, redundancy_values=None, timeout=1,
-                       timeout_joint=None, timeout_constrained=None, verbose=False, only_self_collision=False, **kwargs):
+                       timeout_joint=None, timeout_constrained=None, verbose=False, only_self_collision=False,
+                       T_bal=None, **kwargs):
         timeout_joint = timeout_joint if timeout_joint is not None else timeout
         timeout_constrained = timeout_constrained if timeout_constrained is not None else timeout
         self.planner.clear_context_cache()
@@ -184,41 +186,54 @@ class MoveitPlanner(MotionInterface):
             binder = self.pscene.actor_dict[binder_name]
             obj = self.pscene.subject_dict[obj_name]
             handle = obj.action_points_dict[ap_name]
-            point_add_handle, rpy_add_handle = redundancy_values[(obj_name, handle.name)]
-            point_add_binder, rpy_add_binder = redundancy_values[(obj_name, binder.name)]
-            T_handle = np.matmul(handle.Toff_lh, SE3(Rot_rpy(rpy_add_handle), point_add_handle))
-            T_binder = np.matmul(binder.Toff_lh, SE3(Rot_rpy(rpy_add_binder), point_add_binder))
 
             group_name_handle = self.binder_link_robot_dict[handle.geometry.link_name] if handle.geometry.link_name in self.binder_link_robot_dict else None
             group_name_binder = self.binder_link_robot_dict[binder.geometry.link_name] if binder.geometry.link_name in self.binder_link_robot_dict else None
 
-            dual = False
-            if group_name_binder and not group_name_handle:
-                group_name = group_name_binder
-                tool, T_tool = binder, T_binder
-                target, T_tar = handle, T_handle
-                point_add_tool, rpy_add_tool = point_add_binder, rpy_add_binder
-                point_add_tar, rpy_add_tar = point_add_handle, rpy_add_handle
-            elif group_name_handle and not group_name_binder:
-                group_name = group_name_handle
-                tool, T_tool = handle, T_handle
-                target, T_tar = binder, T_binder
-                point_add_tool, rpy_add_tool = point_add_handle, rpy_add_handle
-                point_add_tar, rpy_add_tar = point_add_binder, rpy_add_binder
+            if T_bal is not None:
+                if group_name_binder and not group_name_handle:
+                    group_name = group_name_binder
+                    tool = binder
+                elif group_name_handle and not group_name_binder:
+                    group_name = group_name_handle
+                    tool = handle
+                else:
+                    raise (NotImplementedError("dual motion not implemented with PDDLStream"))
+                goal_pose = tuple(T_bal[:3,3]) \
+                            +tuple(Rotation.from_dcm(T_bal[:3,:3]).as_quat())
             else:
-                if not self.enable_dual:
-                    raise(RuntimeError("dual arm motion is not enabled"))
-                dual = True
-                group_name = "{}_{}".format(group_name_binder, group_name_handle)
-                self.update_gscene(group_name, only_self_collision=only_self_collision)
-                tool, T_tool = handle, T_handle
-                target, T_tar = binder, T_binder
-                point_add_tool, rpy_add_tool = point_add_handle, rpy_add_handle
-                point_add_tar, rpy_add_tar = point_add_binder, rpy_add_binder
+                point_add_handle, rpy_add_handle = redundancy_values[(obj_name, handle.name)]
+                point_add_binder, rpy_add_binder = redundancy_values[(obj_name, binder.name)]
+                T_handle = np.matmul(handle.Toff_lh, SE3(Rot_rpy(rpy_add_handle), point_add_handle))
+                T_binder = np.matmul(binder.Toff_lh, SE3(Rot_rpy(rpy_add_binder), point_add_binder))
 
-            T_tar_tool = np.matmul(T_tar, SE3_inv(T_tool))
-            goal_pose = tuple(T_tar_tool[:3,3]) \
-                        +tuple(Rotation.from_dcm(T_tar_tool[:3,:3]).as_quat())
+                dual = False
+                if group_name_binder and not group_name_handle:
+                    group_name = group_name_binder
+                    tool, T_tool = binder, T_binder
+                    target, T_tar = handle, T_handle
+                    point_add_tool, rpy_add_tool = point_add_binder, rpy_add_binder
+                    point_add_tar, rpy_add_tar = point_add_handle, rpy_add_handle
+                elif group_name_handle and not group_name_binder:
+                    group_name = group_name_handle
+                    tool, T_tool = handle, T_handle
+                    target, T_tar = binder, T_binder
+                    point_add_tool, rpy_add_tool = point_add_handle, rpy_add_handle
+                    point_add_tar, rpy_add_tar = point_add_binder, rpy_add_binder
+                else:
+                    if not self.enable_dual:
+                        raise(RuntimeError("dual arm motion is not enabled"))
+                    dual = True
+                    group_name = "{}_{}".format(group_name_binder, group_name_handle)
+                    self.update_gscene(group_name, only_self_collision=only_self_collision)
+                    tool, T_tool = handle, T_handle
+                    target, T_tar = binder, T_binder
+                    point_add_tool, rpy_add_tool = point_add_handle, rpy_add_handle
+                    point_add_tar, rpy_add_tar = point_add_binder, rpy_add_binder
+
+                T_tar_tool = np.matmul(T_tar, SE3_inv(T_tool))
+                goal_pose = tuple(T_tar_tool[:3,3]) \
+                            +tuple(Rotation.from_dcm(T_tar_tool[:3,:3]).as_quat())
 
             if dual:
                 dual_planner = self.dual_planner_dict[group_name]
@@ -287,13 +302,17 @@ class MoveitPlanner(MotionInterface):
             if motion_type == MoveitPlanner.JOINT_MOTION:
                 error = np.sum(np.abs(to_state.Q - Q_last))
             elif motion_type == MoveitPlanner.TASK_MOTION:
-                T_tar, T_tool = target.get_tf_handle(Q_last_dict), tool.get_tf_handle(Q_last_dict)
-                T_tar = np.matmul(T_tar, SE3(Rot_rpy(rpy_add_tar), point_add_tar))
-                T_tool = np.matmul(T_tool, SE3(Rot_rpy(rpy_add_tool), point_add_tool))
+                if T_bal is None:
+                    T_tar, T_tool = target.get_tf_handle(Q_last_dict), tool.get_tf_handle(Q_last_dict)
+                    T_tar = np.matmul(T_tar, SE3(Rot_rpy(rpy_add_tar), point_add_tar))
+                    T_tool = np.matmul(T_tool, SE3(Rot_rpy(rpy_add_tool), point_add_tool))
 
-                # T_handle = np.matmul(handle.Toff_lh, SE3(Rot_rpy(rpy_add_handle), point_add_handle))
-                # T_binder = np.matmul(binder.Toff_lh, SE3(Rot_rpy(rpy_add_binder), point_add_binder))
-                error = np.linalg.norm(T_tar-T_tool)
+                    # T_handle = np.matmul(handle.Toff_lh, SE3(Rot_rpy(rpy_add_handle), point_add_handle))
+                    # T_binder = np.matmul(binder.Toff_lh, SE3(Rot_rpy(rpy_add_binder), point_add_binder))
+                    error = np.linalg.norm(T_tar-T_tool)
+                else:
+                    T_res = get_tf(tool.geometry.link_name, Q_last_dict, self.gscene.urdf_content)
+                    error = np.linalg.norm(T_bal-T_res)
         else:
             Q_last, error = [0]*self.planner.joint_num, None
         return trajectory, Q_last, error, success

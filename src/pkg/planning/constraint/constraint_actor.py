@@ -25,7 +25,7 @@ class Actor(ActionPoint):
     ##
     # @brief function prototype to check quick availability of action point when building search tree
     @abstractmethod
-    def check_available(self, joint_dict):
+    def check_available(self, joint_dict=None, T_bl=None):
         pass
 
 
@@ -76,7 +76,7 @@ class VacuumTool(PointerActor):
 
     ##
     # @brief vacuum tool is always available
-    def check_available(self, joint_dict):
+    def check_available(self, joint_dict=None, T_bl=None):
         return True
 
 
@@ -90,7 +90,7 @@ class Gripper2Tool(PointerActor):
 
     ##
     # @brief gripper tool is always available
-    def check_available(self, joint_dict):
+    def check_available(self, joint_dict=None, T_bl=None):
         return True
 
     ##
@@ -116,7 +116,7 @@ class FramedTool(FrameActor):
 
     ##
     # @brief frame tool is always available
-    def check_available(self, joint_dict):
+    def check_available(self, joint_dict=None, T_bl=None):
         return True
 
 
@@ -131,8 +131,14 @@ class PlacePlane(PointerActor):
 
     ##
     # @brief place plane is only available when vertical direction is in range of VERTICAL_CUT (10 deg)
-    def check_available(self, joint_dict):
-        return self.get_tf_handle(joint_dict)[2,2]>self.VERTICAL_CUT
+    def check_available(self, joint_dict=None, T_bl=None):
+        if joint_dict is not None:
+            return self.get_tf_handle(joint_dict)[2,2]>self.VERTICAL_CUT
+        elif T_bal is not None:
+            return np.matmul(T_bl, self.Toff_lh)[2,2]>self.VERTICAL_CUT
+        else:
+            raise(NotImplementedError("Cannot check actor's availability: either joint configuration or link transformation should be given"))
+
 
 
 ##
@@ -146,8 +152,13 @@ class PlaceFrame(FrameActor):
 
     ##
     # @brief place frame is only available when vertical direction is in range of VERTICAL_CUT (10 deg)
-    def check_available(self, joint_dict):
-        return self.get_tf_handle(joint_dict)[2,2]>self.VERTICAL_CUT
+    def check_available(self, joint_dict=None, T_bl=None):
+        if joint_dict is not None:
+            return self.get_tf_handle(joint_dict)[2,2]>self.VERTICAL_CUT
+        elif T_bal is not None:
+            return np.matmul(T_bl, self.Toff_lh)[2,2]>self.VERTICAL_CUT
+        else:
+            raise(NotImplementedError("Cannot check actor's availability: either joint configuration or link transformation should be given"))
 
 
 ##
@@ -158,7 +169,7 @@ class FixtureSlot(PointerActor):
     multiple = True
     ctype = ConstraintType.Fixture
 
-    def check_available(self, joint_dict):
+    def check_available(self, joint_dict=None, T_bl=None):
         return False
 
 class AbstractWaypointAgent:
@@ -169,7 +180,7 @@ class AbstractWaypointAgent:
 
     ##
     # @brief place plane is only available when vertical direction is in range of VERTICAL_CUT (10 deg)
-    def check_available(self, joint_dict):
+    def check_available(self, joint_dict=None, T_bl=None):
         return self.geometry.is_controlled()
 
 
