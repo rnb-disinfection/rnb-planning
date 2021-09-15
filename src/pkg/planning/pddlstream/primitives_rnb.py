@@ -27,39 +27,6 @@ eye4 = np.identity(4)
 
 from itertools import count
 
-class Time(object):
-    num = count()
-    def __init__(self, t):
-        self.t = t
-        self.index = next(self.num)
-
-    @property
-    def value(self):
-        return self.t
-
-    def __repr__(self):
-        index = self.index
-        return 'i{}'.format(index)
-
-##
-# @class EndPose
-# @brief PDDL variable class that contains target transformation of the actor link in xyz, quat (Tbal)
-class EndPose(object):
-    num = count()
-    def __init__(self, body, xyzquat=None, joints=None):
-        if joints is None:
-            joints = get_movable_joints(body)
-        self.body = body
-        self.xyzquat = xyzquat
-        self.index = next(self.num)
-
-    @property
-    def values(self):
-        return self.xyzquat
-
-    def __repr__(self):
-        index = self.index
-        return 'e{}'.format(index)
 
 class Time(object):
     num = count()
@@ -89,16 +56,12 @@ def get_time_gen(dt=DT_DEFAULT):
 
 ##
 # @brief find matching object at a given configuration to the given binder. Assume the handle is empty.
-# @remark   Either Q_dict or T_bal for the target configuration should be given.
-#           If Q_dict in the target configuration is not given, Q_dict in current configuration should be given.
-def get_matching_object(pscene, binder, approach_vec, Q_dict, T_bal=None):
+def get_matching_object(pscene, binder, approach_vec, Q_dict):
     margin_max = -1e10
     max_point = ""
     max_binder = ""
-    if T_bal is None:
-        binder_T = binder.get_tf_handle(Q_dict)
-    else:
-        binder_T = np.matmul(T_bal, binder.Toff_lh)
+
+    binder_T = binder.get_tf_handle(Q_dict)
 
     if approach_vec is not None:
         binder_link_T = np.matmul(binder_T, SE3_inv(binder.Toff_lh))
@@ -110,10 +73,9 @@ def get_matching_object(pscene, binder, approach_vec, Q_dict, T_bal=None):
         self_family = subject.geometry.get_family()
         ## find best binding between object and binders
         for kpt, handle in subject.action_points_dict.items():
-            if handle_T is None:
-                handle_T = handle.get_tf_handle(Q_dict)
+            handle_T = handle.get_tf_handle(Q_dict)
 
-            if binder.check_available(T_bl=T_bal):
+            if binder.check_available(Q_dict):
                 if binder.geometry.name in self_family or not binder.check_type(handle):
                     continue
                 binder_redundancy = binder.get_redundancy()
@@ -132,10 +94,8 @@ def get_matching_object(pscene, binder, approach_vec, Q_dict, T_bal=None):
 ##
 # @brief    find matching binder at a given configuration to the given subject.
 #           Assume the object is held by the robot and we are looking for a place to go.
-# @remark   Either Q_dict or T_bal for the target configuration should be given.
-#           If Q_dict in the target configuration is not given, Q_dict in current configuration should be given.
 # @param    excludes    give the currently holding actor to exclude from the target candidates that the object is going to.
-def get_matching_binder(pscene, subject, Q_dict, excludes=[], T_bal=None):
+def get_matching_binder(pscene, subject, Q_dict, excludes=[]):
     margin_max = -1e10
     max_point = ""
     max_binder = ""
@@ -145,10 +105,7 @@ def get_matching_binder(pscene, subject, Q_dict, excludes=[], T_bal=None):
     self_family = subject.geometry.get_family()
     ## find best binding between object and binders
     for kpt, handle in subject.action_points_dict.items():
-        if T_bal is None:
-            handle_T = handle.get_tf_handle(Q_dict)
-        else:
-            handle_T = np.matmul(T_bal, handle.Toff_lh)
+        handle_T = handle.get_tf_handle(Q_dict)
 
         for bname, binder in actor_dict.items():
             if binder.check_available(Q_dict):
@@ -191,41 +148,22 @@ def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, too
         pscene.gscene.clear_highlight()
         pscene.gscene.update_markers_all()
 
-    if isinstance(conf2, EndPose):
-        to_state = from_state.copy(pscene)
-        Qto_dict = deepcopy(Qfrom_dict) # fill Q_to with Q_from as there's no information about Q_to
-        Tbal_to = T_xyzquat(to_xyzquat)
-    elif isinstance(conf2, BodyConf):
-        Qto = conf2.values
-        to_state = from_state.copy(pscene)
-        to_state.Q = np.array(Qto)
-        Qto_dict = list2dict(Qto, pscene.gscene.joint_names)
-        Tbal_to = None
-    else:
-        raise(NotImplementedError("Undefined config type!: {}!".format(conf2.__class__.__name__)))
+
+    Qto = conf2.values
+    to_state = from_state.copy(pscene)
+    to_state.Q = np.array(Qto)
+    Qto_dict = list2dict(Qto, pscene.gscene.joint_names)
 
     subject_from = None
     actor_from = None
     if grasp is None: # free motion, go to grasp - actor:tool
         subject_from = get_matching_object(pscene,tool, approach_vec, Qfrom_dict)
-        subject = get_matching_object(pscene,tool, approach_vec, Qto_dict, T_bal=Tbal_to)
+        subject = get_matching_object(pscene,tool, approach_vec, Qto_dict)
         actor = tool
-        if isinstance(conf2, EndPose):
-            # move actor from a subject to a new subject
-            to_binding_state = tuple([sbinding if oname!=subject.name
-                                      else (sbinding[0], None, actor.name, actor.geometry.name)
-                                      for oname, sbinding in zip(self.subject_name_list, from_state.binding_state)])
-            to_state.set_binding_state(to_binding_state, pscene)
     else: # holding motion, go to release - actor:plane
         subject = graspped
         actor_from = get_matching_binder(pscene, subject, Qfrom_dict, excludes=[tool])
-        actor = get_matching_binder(pscene, subject, Qto_dict, excludes=[tool], T_bal=Tbal_to)
-        if isinstance(conf2, EndPose):
-            # move actor from a subject to a new subject
-            to_binding_state = tuple([sbinding if oname!=subject.name
-                                      else (sbinding[0], None, actor.name, actor.geometry.name)
-                                      for oname, sbinding in zip(self.subject_name_list, from_state.binding_state)])
-            to_state.set_binding_state(to_binding_state, pscene)
+        actor = get_matching_binder(pscene, subject, Qto_dict, excludes=[tool])
     if show_state:
         print("sucject/actor: {} / {}".format(subject.oname if subject is not None else subject, actor.name))
 
@@ -359,45 +297,6 @@ def get_free_motion_gen_rnb(mplan, body_subject_map, robot, tool, tool_link, app
             return None
     return fn
 
-def get_approach_motion_gen_rnb(mplan, body_subject_map, robot, tool, tool_link, approach_vec,
-                                timeout=TIMEOUT_MOTION_DEFAULT,base_link="base_link", show_state=False,
-                                POSTPONE=POSTPONE_DEFAULT):
-    time_dict = {}
-    returneds = set()
-    def fn(conf1, epos2, time_=None, fluents=[]):
-        tkey = (conf1.index, epos2.index) + tuple([(fl[0], fl[1], fl[2].index) for fl in fluents])
-        if tkey in returneds:
-            return None
-
-        skip_feas = False
-        if time_ is not None:
-            firstcall = tkey not in time_dict
-            if not firstcall:
-                skip_feas = time_.value - time_dict[tkey] > POSTPONE
-
-        if (time_ is None # not timed domain (do feas-motion)
-                or firstcall # first call in timed domain (do feas-motion)
-                or skip_feas): # postpone time passed (do motion only)
-            with GlobalTimer.instance().block("free_motion_gen"):
-                assert ((conf1.body == epos2.body) and (conf1.joints == epos2.joints))
-                conf1.assign()
-                path, succ, feas = plan_motion(mplan=mplan, body_subject_map=body_subject_map,
-                                         conf1=conf1, conf2=epos2, grasp=None, fluents=fluents, tool=tool,
-                                         tool_link=tool_link, base_link=base_link, timeout=timeout,
-                                         show_state=show_state, approach_vec=approach_vec,
-                                         skip_feas=skip_feas)
-
-                if succ or skip_feas:
-                    returneds.add(tkey) # success returned on first call or postpone time passed - mark finished case
-                if not succ:
-                    if DEBUG_FAILURE: wait_if_gui('Free motion failed')
-                    return None
-                command = Command([BodyPath(robot, path, joints=conf2.joints)])
-                return (command,)
-        else: # non-first call, postpone time not passed (X)
-            return None
-    return fn
-
 
 def get_holding_motion_gen_rnb(mplan, body_subject_map, robot, tool, tool_link, approach_vec, timeout=TIMEOUT_MOTION_DEFAULT,
                                base_link="base_link", show_state=False, POSTPONE=POSTPONE_DEFAULT):
@@ -478,9 +377,9 @@ def get_holding_motion_gen_ori(robot, fixed=[], teleport=False, self_collisions=
 
 ##
 # @brief check feasibility for given actor's grasping action to the body in pose with approach defined in grasp
-# @return True if feasible. Tf return_Tbal==True, tuple of (feasibility, Tbal_list) is returned
+# @return True if feasible.
 def check_feas(pscene, body_subject_map, actor, checkers, home_dict, body, pose, grasp,
-               base_link="base_link", show_state=False, no_approach=False, return_Tbal=False):
+               base_link="base_link", show_state=False, no_approach=False):
     assert body == grasp.body
     gtimer = GlobalTimer.instance()
     if show_state:
@@ -517,8 +416,7 @@ def check_feas(pscene, body_subject_map, actor, checkers, home_dict, body, pose,
             pscene.gscene.add_highlight_axis("feas", "obj", "base_link",
                                              center=Tbo[:3,3], orientation_mat=Tbo[:3,:3])
 
-        res = run_checkers(checkers, actor, subject, Tboal_list, home_dict, ignore, show_state=show_state,
-                           return_Tbal=return_Tbal)
+        res = run_checkers(checkers, actor, subject, Tboal_list, home_dict, ignore, show_state=show_state)
 
         if show_state:
             for ig_tem, disp in zip(ignore, display_bak):
@@ -528,9 +426,8 @@ def check_feas(pscene, body_subject_map, actor, checkers, home_dict, body, pose,
 
 ##
 # @brief run checkers
-# @return True if feasible. Tf return_Tbal==True, tuple of (feasibility, Tbal_list) is returned
-def run_checkers(checkers, actor, subject, Tloal_list, Q_dict, ignore=[], show_state=False, mplan=None,
-                 return_Tbal=False):
+# @return True if feasible.
+def run_checkers(checkers, actor, subject, Tloal_list, Q_dict, ignore=[], show_state=False, mplan=None):
     run_checkers.reason = None
     res = True
     gtimer = GlobalTimer.instance()
@@ -548,14 +445,15 @@ def run_checkers(checkers, actor, subject, Tloal_list, Q_dict, ignore=[], show_s
             break
     if res:
         run_checkers.reason = "Success"
-    if return_Tbal or show_state:
+
+    if show_state:
         if subject.geometry.link_name == "base_link":
             Tbal_list = [Tloal for Tloal in Tloal_list]
         elif actor.geometry.link_name == "base_link":
             Tbal_list = [SE3_inv(Tloal) for Tloal in Tloal_list]
         else:
             raise(NotImplementedError("undefined binding case - possibly dual arm manipulation"))
-    if show_state:
+
         gscene = subject.geometry.gscene
         for i_t, Tbal in enumerate(Tbal_list):
             gscene.add_highlight_axis("feas", "tlink_{}".format(i_t), "base_link",
@@ -567,10 +465,7 @@ def run_checkers(checkers, actor, subject, Tloal_list, Q_dict, ignore=[], show_s
         time.sleep(SHOW_TIME)
         if not res:
             gscene.recover_robot(vis_bak)
-    if return_Tbal:
-        return res, Tbal_list
-    else:
-        return res
+    return res
 
 def reset_checker_cache():
     run_checkers.cache = {}
@@ -767,55 +662,6 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                     glog['ik_res'].append(False)
                     glog['ik_res_reason'].append(ik_res_reason.name)
                 return None
-    return fn
-
-def get_feas_fn(pscene, body_subject_map, actor, checkers, home_dict, base_link="base_link", show_state=False,
-                robot=0L, POSTPONE=POSTPONE_DEFAULT):
-    robot_name = [k for k, v in pscene.robot_chain_dict.items() if v["tip_link"]==actor.geometry.link_name][0]
-    movable_joints = get_movable_joints(robot)
-    sample_fn = get_sample_fn(robot, movable_joints)
-    home_pose = dict2list(home_dict, pscene.gscene.joint_names)
-    time_dict = {}
-    xyzquat_dict = {}
-    returneds = set()
-    if GLOBAL_LOG_ENABLED:
-        glog = GlobalLogger.instance()
-        glog["ik_feas"] = []
-        glog["ik_res"] = []
-        glog["ik_feas_reason"] = []
-        glog["ik_res_reason"] = []
-    def fn(body, pose, grasp, time_=None):
-        with GlobalTimer.instance().block("ik_fn"):
-            tkey = (body, pose.index, grasp.index)
-            if tkey in returneds:
-                return None
-
-            if show_state:
-                pscene.gscene.show_pose(dict2list(home_dict, pscene.gscene.joint_names))
-
-            if time_ is None or tkey not in time_dict:
-                feas, Tbal_list = check_feas(pscene, body_subject_map, actor, checkers,
-                                             home_dict, body, pose, grasp, base_link=base_link, show_state=show_state,
-                                             no_approach=True, return_Tbal=True)
-                xyzquat = T2xyzquat(Tbal_list[0]) # only consider grasping pose
-
-                if not feas and not DEBUG_MODE_PRIM_RNB:
-                    fn.checkout_count += 1
-                    time_dict[tkey] = time.time()
-                    xyzquat_dict[tkey] = xyzquat
-                    return None
-
-                if GLOBAL_LOG_ENABLED:
-                    glog['ik_feas'].append(feas)
-                    glog['ik_feas_reason'].append(run_checkers.reason)
-            elif time_.value-time_dict[tkey] < POSTPONE:
-                return None
-            else:
-                xyzquat = xyzquat_dict[tkey]
-            returneds.add(tkey)
-            epos = EndPose(robot, xyzquat)
-            # conf = BodyConf(robot, q_approach)
-            return (epos,)
     return fn
 
 ## @brief same as the original
