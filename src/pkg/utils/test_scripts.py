@@ -14,9 +14,9 @@ def extract_values(resdat_all, keys, fn=lambda x:x):
     for scenario, resdat_dict in resdat_all.items():
         dat_dict = {}
         valid = False
+        min_dat_len = 1e10
         for cname, resdat_list in resdat_dict.items():
             dat_list = []
-            min_dat_len = 1e10
             for resdat in resdat_list:
                 error = False
                 for key in keys:
@@ -25,10 +25,10 @@ def extract_values(resdat_all, keys, fn=lambda x:x):
                         break
                     resdat = resdat[key]
                 if not error:
-                    valid = True
                     dat_list.append(fn(resdat))
             dat_len = len(dat_list)
             if dat_len > 0:
+                valid = True
                 dat_dict[cname] = dat_list
                 min_dat_len = min(min_dat_len, dat_len)
         if valid:
