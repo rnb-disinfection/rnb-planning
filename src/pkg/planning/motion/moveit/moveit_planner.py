@@ -184,13 +184,14 @@ class MoveitPlanner(MotionInterface):
             binder = self.pscene.actor_dict[binder_name]
             obj = self.pscene.subject_dict[obj_name]
             handle = obj.action_points_dict[ap_name]
+
+            group_name_handle = self.binder_link_robot_dict[handle.geometry.link_name] if handle.geometry.link_name in self.binder_link_robot_dict else None
+            group_name_binder = self.binder_link_robot_dict[binder.geometry.link_name] if binder.geometry.link_name in self.binder_link_robot_dict else None
+
             point_add_handle, rpy_add_handle = redundancy_values[(obj_name, handle.name)]
             point_add_binder, rpy_add_binder = redundancy_values[(obj_name, binder.name)]
             T_handle = np.matmul(handle.Toff_lh, SE3(Rot_rpy(rpy_add_handle), point_add_handle))
             T_binder = np.matmul(binder.Toff_lh, SE3(Rot_rpy(rpy_add_binder), point_add_binder))
-
-            group_name_handle = self.binder_link_robot_dict[handle.geometry.link_name] if handle.geometry.link_name in self.binder_link_robot_dict else None
-            group_name_binder = self.binder_link_robot_dict[binder.geometry.link_name] if binder.geometry.link_name in self.binder_link_robot_dict else None
 
             dual = False
             if group_name_binder and not group_name_handle:

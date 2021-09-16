@@ -135,6 +135,7 @@ class PlacePlane(PointerActor):
         return self.get_tf_handle(joint_dict)[2,2]>self.VERTICAL_CUT
 
 
+
 ##
 # @class PlaceFrame
 # @brief Actor class for placing frame. Fully constrained. (FrameActor)
