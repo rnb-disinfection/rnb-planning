@@ -24,7 +24,9 @@ def extract_values(resdat_all, keys, fn=lambda x:x):
                         error = True
                         break
                     resdat = resdat[key]
-                if not error:
+                if error:
+                    dat_list.append(None)
+                else:
                     dat_list.append(fn(resdat))
             dat_len = len(dat_list)
             if dat_len > 0:
