@@ -20,7 +20,7 @@ class WorkPlane(ObstacleBase):
     COLOR = (0.8, 0.8, 0.2, 1)
     THICKNESS = 0.05
 
-    def __init__(self, gscene, name, floor_height=None, edge_margin=0.04, *args, **kwargs):
+    def __init__(self, gscene, name, floor_height=None, edge_margin=0.05, *args, **kwargs):
         assert floor_height is not None, "floor_height needed"
         if floor_height > self.RTH_MIN[2]:
             self.RTH_MIN = self.RTH_MIN[:2] + (floor_height,)
@@ -36,7 +36,8 @@ class WorkPlane(ObstacleBase):
     def is_overlapped_with(self, gtem, margin=1e-4):
         verts, radii = gtem.get_vertice_radius()
         verts_global = np.add(np.matmul(verts, gtem.orientation_mat.transpose()), gtem.center)
-        verts_wp = np.multiply(DEFAULT_VERT_DICT[self.GTYPE], tuple(self.DIM[:2]) + (self.H * 2,))
+        verts_wp = np.multiply(DEFAULT_VERT_DICT[self.GTYPE],
+                               tuple(np.add(self.DIM[:2], 0.2)) + (self.H + 0.1,))
         verts_wp_global = np.add(np.matmul(verts_wp, self.geometry.orientation_mat.transpose()),
                                  np.add(self.geometry.center, (0, 0, self.H / 2)))
         return get_gjk_distance(get_point_list(verts_global), get_point_list(verts_wp_global)) - radii < margin

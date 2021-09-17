@@ -26,6 +26,7 @@ from ..constraint.constraint_common import combine_redundancy, sample_redundancy
 from primitives_pybullet import update_grasp_info, GraspInfo, pairwise_collision, BodyPose, sample_placement, BodyGrasp
 import random
 from constants_common import *
+from pkg.utils.test_scripts import set_meta_data, get_meta_data, create_data_dirs
 
 SAMPLE_GRASP_COUNT_DEFAULT = 10
 SAMPLE_STABLE_COUNT_DEFAULT = 10
@@ -41,6 +42,8 @@ def add_handle_axis(hl_key, handle, Toff=None, color=None, dims=(0.10, 0.01, 0.0
     axis = "xyz"
     gscene.add_highlight_axis(hl_key, hobj.name, hobj.link_name, Toff_lh[:3, 3], Toff_lh[:3, :3], color=color,
                                    axis=axis, dims=dims)
+
+
 
 ##
 # @brief return offset from actor coordinate to object coordinate
@@ -86,24 +89,60 @@ def sample_redundancy_offset(subject, actor, drop_downward_dir=None, show_state=
         break
     return T_ao
 
+def prepare_stable_redundancy_set(body_subject_map, body_actor_map, show_state=False,
+                                  sample_count=SAMPLE_STABLE_COUNT_DEFAULT,
+                                  binding_sampler=random.choice, redundancy_sampler=random.uniform):
+    meta_data = get_meta_data()
+    if any(map(lambda x: x  not in meta_data, ["dat_root", "rtype", "dat_dir", "fname"])):
+        TextColors.RED.println("================== ERROR in preparing redundancy set =====================")
+        TextColors.RED.prinln('===== metadata is not set for "dat_root", "rtype", "dat_dir", "fname" ====')
+    data_path = create_data_dirs(meta_data['dat_root'], meta_data['rtype'], meta_data['dat_dir']+"-stableset")
+    rdc_file = os.path.join(data_path, meta_data['fname'])
+    if os.path.isfile(rdc_file):
+        redundancyque_dict = load_pickle(rdc_file)
+    else:
+        redundancyque_dict = {}
+        for body, subject in body_subject_map.items():
+            for surface, actor in body_actor_map.items():
+                if actor.controlled:
+                    continue
+                redundancyque = []
+                for _ in range(sample_count):
+                    T_ao = sample_redundancy_offset(subject, actor, show_state=show_state,
+                                                    binding_sampler=binding_sampler,
+                                                    drop_downward_dir=[0, 1, 0],
+                                                    redundancy_sampler=redundancy_sampler)
+                    redundancyque.append(T_ao)
+                redundancyque_dict[(body, surface)] = redundancyque
+        save_pickle(rdc_file, redundancyque_dict)
+    return redundancyque_dict
+
 
 def get_stable_gen_rnb(body_subject_map, body_actor_map, home_dict, fixed=[], show_state=False,
                        sample_count=SAMPLE_STABLE_COUNT_DEFAULT,
                        binding_sampler=random.choice, redundancy_sampler=random.uniform):
+    redundancyque_dict = prepare_stable_redundancy_set(body_subject_map, body_actor_map,
+                                                       show_state=show_state, sample_count=sample_count,
+                                                       binding_sampler=binding_sampler,
+                                                       redundancy_sampler=redundancy_sampler)
     def gen(body, surface):
         rnb_style = False
         if body in body_subject_map and surface in body_actor_map:
             rnb_style = True
             subject = body_subject_map[body]
             actor = body_actor_map[surface]
+        if (body, surface) not in redundancyque_dict:
+            return
+        redundancyque = redundancyque_dict[(body, surface)]
         fail_count = 0
         for _ in range(sample_count):
             with GlobalTimer.instance().block("get_stable_{}_{}".format(body, surface)):
                 if rnb_style:
-                    T_ao = sample_redundancy_offset(subject, actor, show_state=show_state,
-                                                    binding_sampler=binding_sampler,
-                                                    drop_downward_dir=[0, 1, 0],
-                                                    redundancy_sampler=redundancy_sampler)
+                    T_ao = redundancyque.pop(0)
+                    # T_ao = sample_redundancy_offset(subject, actor, show_state=show_state,
+                    #                                 binding_sampler=binding_sampler,
+                    #                                 drop_downward_dir=[0, 1, 0],
+                    #                                 redundancy_sampler=redundancy_sampler)
                     T_pose = np.matmul(actor.get_tf_handle(home_dict), T_ao)
                     pose = T2xyzquat(T_pose)
                 else:
@@ -122,20 +161,52 @@ def get_stable_gen_rnb(body_subject_map, body_actor_map, home_dict, fixed=[], sh
     return gen
 
 
+def prepare_grasp_redundancy_set(body_subject_map, actor,
+                                 sample_count=SAMPLE_GRASP_COUNT_DEFAULT, show_state=False,
+                                 binding_sampler=random.choice, redundancy_sampler=random.uniform):
+    meta_data = get_meta_data()
+    if any(map(lambda x: x  not in meta_data, ["dat_root", "rtype", "dat_dir", "fname"])):
+        TextColors.RED.println("================== ERROR in preparing redundancy set =====================")
+        TextColors.RED.prinln('===== metadata is not set for "dat_root", "rtype", "dat_dir", "fname" ====')
+    data_path = create_data_dirs(meta_data['dat_root'], meta_data['rtype'], meta_data['dat_dir']+"-graspset")
+    rdc_file = os.path.join(data_path, meta_data['fname'])
+    if os.path.isfile(rdc_file):
+        redundancyque_dict = load_pickle(rdc_file)
+    else:
+        redundancyque_dict = {}
+        for body, subject in body_subject_map.items():
+            redundancyque = []
+            for _ in range(sample_count):
+                T_ao = sample_redundancy_offset(subject, actor, show_state=show_state,
+                                                binding_sampler=binding_sampler,
+                                                drop_downward_dir=[0, 1, 0],
+                                                redundancy_sampler=redundancy_sampler)
+                redundancyque.append(T_ao)
+            redundancyque_dict[body] = redundancyque
+        save_pickle(rdc_file, redundancyque_dict)
+    return redundancyque_dict
+
 
 def get_grasp_gen_rnb(body_subject_map, robot, tool_link_name, actor,
                       sample_count=SAMPLE_GRASP_COUNT_DEFAULT, show_state=False,
                       binding_sampler=random.choice, redundancy_sampler=random.uniform,
                       approach_pose=Pose(0.05 * Point(z=-1))):
+    redundancyque_dict = prepare_grasp_redundancy_set(body_subject_map, actor,
+                                                      sample_count=sample_count, show_state=show_state,
+                                                      binding_sampler=binding_sampler, redundancy_sampler=redundancy_sampler)
     tool_link = link_from_name(robot, tool_link_name)
     def gen(body):
+        if body not in redundancyque_dict:
+            return
+        redundancyque = redundancyque_dict[body]
         subject = body_subject_map[body]
         for _ in range(sample_count):
             with GlobalTimer.instance().block("sample_grasps_{}".format(body)):
-                T_ao = sample_redundancy_offset(subject, actor, show_state=show_state,
-                                                binding_sampler=binding_sampler,
-                                                drop_downward_dir=[0, 1, 0],
-                                                redundancy_sampler=redundancy_sampler)
+                T_ao = redundancyque.pop(0)
+                # T_ao = sample_redundancy_offset(subject, actor, show_state=show_state,
+                #                                 binding_sampler=binding_sampler,
+                #                                 drop_downward_dir=[0, 1, 0],
+                #                                 redundancy_sampler=redundancy_sampler)
                 T_lo = np.matmul(actor.Toff_lh, T_ao)
                 point, euler = T2xyzrpy(T_lo)
                 # if np.linalg.norm(point) > 0.4:

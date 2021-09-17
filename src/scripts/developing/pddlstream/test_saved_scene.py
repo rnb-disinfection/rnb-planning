@@ -1,6 +1,7 @@
 from __future__ import print_function
 import os
 import sys
+from test_arg_utils import *
 
 sys.path.append(os.path.join(os.environ["RNB_PLANNING_DIR"], "src"))
 
@@ -38,7 +39,6 @@ CLEARANCE = 1e-3
 TOOL_NAME="grip0"
 ROBOT_TYPE = {e.name: e for e in RobotType}[rtype]
 
-
 ########################################################
 ################### Create data folders ################
 DATASET_PATH = create_data_dirs(dat_root, rtype, dat_dir)
@@ -59,6 +59,12 @@ crob.home_dict = list2dict(HOME_POSE, gscene.joint_names)
 
 fname = "data_%s_%02d.pkl" % (file_option, data_idx)
 print(fname)
+set_meta_data("dat_root", dat_root)
+set_meta_data("rtype", rtype)
+set_meta_data("dat_dir", dat_dir)
+set_meta_data("fname", fname)
+
+
 file_gtems = os.path.join(DATASET_PATH, fname)
 initial_state = load_saved_scene(pscene, file_gtems, VISUALIZE=VISUALIZE)
 
