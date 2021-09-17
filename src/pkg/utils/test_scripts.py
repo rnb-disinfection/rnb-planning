@@ -7,35 +7,17 @@ from ..planning.scene import PlanningScene
 from ..planning.constraint.constraint_actor import Gripper2Tool, PlacePlane, SweepTool
 from ..planning.motion.moveit.moveit_planner import MoveitPlanner
 
-##
-# @extract experiment data
-def extract_values(resdat_all, keys, fn=lambda x:x):
-    dat_dict_dict = {}
-    for scenario, resdat_dict in resdat_all.items():
-        dat_dict = {}
-        valid = False
-        min_dat_len = 1e10
-        for cname, resdat_list in resdat_dict.items():
-            dat_list = []
-            for resdat in resdat_list:
-                error = False
-                for key in keys:
-                    if key not in resdat:
-                        error = True
-                        break
-                    resdat = resdat[key]
-                if error:
-                    dat_list.append(None)
-                else:
-                    dat_list.append(fn(resdat))
-            dat_len = len(dat_list)
-            if dat_len > 0:
-                valid = True
-                dat_dict[cname] = dat_list
-                min_dat_len = min(min_dat_len, dat_len)
-        if valid:
-            dat_dict_dict[scenario] = {k: v[:min_dat_len]for k, v in dat_dict.items()}
-    return dat_dict_dict
+meta_data = {}
+
+def set_meta_data(key, dat):
+    global meta_data
+    meta_data[key] = dat
+
+def get_meta_data(key=None):
+    if key is None:
+        return meta_data
+    else:
+        return meta_data[key]
 
 ##
 # @brief get robot-specific parameters for single-robot tests
@@ -105,82 +87,8 @@ def create_data_dirs(dat_root, rtype, dat_dir=None):
     return DATASET_PATH
 
 
-def get_checkers_by_case_name(cname, pscene):
-    if cname == "None":
-        checkers = []
-    if cname == "Tool":
-        from pkg.planning.filtering.grasp_filter import GraspChecker
-
-        gcheck = GraspChecker(pscene)
-        checkers = [gcheck]
-    if cname == "ToolReach":
-        from pkg.planning.filtering.grasp_filter import GraspChecker
-
-        gcheck = GraspChecker(pscene)
-        from pkg.planning.filtering.reach_filter import ReachChecker
-
-        rcheck = ReachChecker(pscene)
-        checkers = [gcheck, rcheck]
-    if cname == "Full":
-        from pkg.planning.filtering.grasp_filter import GraspChecker
-
-        gcheck = GraspChecker(pscene)
-        from pkg.planning.filtering.reach_filter import ReachChecker
-
-        rcheck = ReachChecker(pscene)
-        from pkg.planning.filtering.latticized_filter import LatticedChecker
-
-        lcheck = LatticedChecker(pscene, gcheck)
-        checkers = [gcheck, rcheck, lcheck]
-    if cname == "Pairwise":
-        from pkg.planning.filtering.pair_svm import PairSVM
-
-        pcheck = PairSVM(pscene)
-        checkers = [pcheck]
-    return checkers
-
-
 from pkg.planning.constraint.constraint_subject import CustomObject, Grasp2Point, PlacePoint, SweepPoint, SweepTask
 from pkg.planning.filtering.lattice_model.scene_building import *
-import argparse
-
-def parse_test_args():
-    parser = argparse.ArgumentParser(description='Test saved data.')
-    parser.add_argument('--rtype', type=str, help='robot type name')
-    parser.add_argument('--dat_root', type=str, help='data root directory name')
-    parser.add_argument('--res_root', type=str, help='result root directory name')
-    parser.add_argument('--dat_dir', type=str, help='data folder name')
-    parser.add_argument('--file_option', type=str, help='data file name option')
-    parser.add_argument('--data_idx', type=int, help='data file index')
-    parser.add_argument('--cname', type=str, help='checker type', default="None")
-
-    parser.add_argument('--TIMEOUT_MOTION', type=int, default=5, help='motion planning timeout')
-    parser.add_argument('--IK_TRY_NUM', type=int, default=10, help='max. number of trials for ik')
-    parser.add_argument('--MAX_TIME', type=int, default=100, help='TAMP timeout')
-    parser.add_argument('--MAX_ITER', type=int, default=100, help='TAMP max iteration')
-    parser.add_argument('--MAX_SKELETONS', type=int, default=30, help='maximum number of skeletons to consider')
-
-    parser.add_argument('--GRASP_SAMPLE', type=int, default=100, help='max. number of grasp to sample for a grasping instacee')
-    parser.add_argument('--STABLE_SAMPLE', type=int, default=100, help='max. number of stable point to sample for a placement instacee')
-    parser.add_argument('--SEARCH_SAMPLE_RATIO', type=int, default=10, help='the desired ratio of sample time / search time when max_skeletons!=None')
-
-    parser.add_argument('--VISUALIZE', type=str2bool, default=False, help='to show in RVIZ')
-    parser.add_argument('--SHOW_STATE', type=str2bool, default=False, help='show intermediate states')
-    parser.add_argument('--PLAY_RESULT', type=str2bool, default=False, help='to play result')
-    parser.add_argument('--USE_PYBULLET_GUI', type=str2bool, default=False, help='to show in pybullet gui')
-    parser.add_argument('--USE_MOVEIT_IK', type=str2bool, default=False, help='to use ik solving by moveit (no random initialization)')
-    parser.add_argument('--TIMED_COMPLETE', type=str2bool, default=False, help='to use timed ik solving for infeasible predictions')
-
-    parser.add_argument('--VERBOSE', type=str2bool, default=False, help='to print states')
-    parser.add_argument('--STACK_TIMELOG', type=str2bool, default=False, help='to stack all time logs, not average')
-    parser.add_argument('--SAVE_RESULTS', type=str2bool, default=True, help='to save results (overwrite same index)')
-
-    args = parser.parse_args()
-    print("=================== arguments ==================")
-    for k,v in vars(args).items():
-        print("{}: {}".format(k, v))
-    return args
-    print("================================================")
 
 def load_gtem_args(gscene, gtem_args):
     gtem_remove = []
