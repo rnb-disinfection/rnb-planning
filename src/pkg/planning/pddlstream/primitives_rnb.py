@@ -549,7 +549,7 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                         else:
                             q_approach = mplan.planner.solve_ik_py(robot_name, approach_pose[0]+approach_pose[1],
                                                                    timeout_single=timeout_single,
-                                                                   self_collision=False, fulll_collision=False
+                                                                   self_collision=True, fulll_collision=False
                                                                    )
                             if q_approach is not None:
                                 q_approach_dict = list2dict(q_approach, mplan.chain_dict[robot_name]["joint_names"])
@@ -592,11 +592,10 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                             if mplan is None:
                                 q_grasp = inverse_kinematics(robot, grasp.link, gripper_pose)
                             else:
-                                q_grasp = mplan.planner.solve_ik(robot_name, gripper_pose[0]+gripper_pose[1],
-                                                                 timeout_single=timeout_single,
-                                                                 timeout_sampling=timeout_single*num_attempts,
-                                                                 self_collision=False, fulll_collision=False
-                                                                 )
+                                q_grasp = mplan.planner.solve_ik_py(robot_name, gripper_pose[0]+gripper_pose[1],
+                                                                    timeout_single=timeout_single,
+                                                                    self_collision=True, fulll_collision=False
+                                                                    )
                                 q_grasp_dict = list2dict(q_grasp, mplan.chain_dict[robot_name]["joint_names"])
                                 home_dict_tmp = deepcopy(home_dict)
                                 home_dict_tmp.update(q_grasp_dict)
@@ -630,7 +629,7 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                             continue
                     if show_state:
                         time.sleep(SHOW_TIME)
-                    if teleport:
+                    if teleport or (no_approach and mplan is not None): # mplan does self-collision check
                         path = [q_approach, q_grasp]
                     else:
                         conf.assign()
