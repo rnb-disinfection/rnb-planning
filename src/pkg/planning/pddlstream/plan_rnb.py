@@ -31,7 +31,7 @@ from examples.pybullet.tamp.streams import get_cfree_approach_pose_test, get_cfr
 def pddlstream_from_problem_rnb(pscene, robot, body_names, Q_init, goal_pairs=[], movable=[], checkers_ik=[],
                                 tool_name=None, tool_link_name=None, mplan=None, timeout=TIMEOUT_MOTION_DEFAULT, teleport=False,
                                 grasp_sample=SAMPLE_GRASP_COUNT_DEFAULT, stable_sample=SAMPLE_STABLE_COUNT_DEFAULT,
-                                show_state=False, USE_MOVEIT_IK=False, TIMED_COMPLETE=False, IK_TRY_NUM=10):
+                                show_state=False, USE_MOVEIT_IK=False, TIMED_COMPLETE=False, IK_TRY_NUM=10, IK_TIMEOUT_SINGLE=0.01):
     print("================ MAKE PROBLEM ======================")
     print("IK checkers: {}".format([checker.__class__.__name__ for checker in checkers_ik]))
     print("MP checkers: {}".format([checker.__class__.__name__ for checker in mplan.motion_filters]))
@@ -97,7 +97,7 @@ def pddlstream_from_problem_rnb(pscene, robot, body_names, Q_init, goal_pairs=[]
     #                                sample_count=grasp_sample, show_state=show_state),
     #     approach_pose=Pose(APPROACH_VEC))})
     if USE_MOVEIT_IK:
-        ik_kwargs = dict(mplan=mplan, timeout_single=0.01)
+        ik_kwargs = dict(mplan=mplan, timeout_single=IK_TIMEOUT_SINGLE)
     else:
         ik_kwargs = {}
     ik_fun = get_ik_fn_rnb(
@@ -152,7 +152,7 @@ def solve_in_pddlstream(pscene, mplan, ROBOT_NAME, TOOL_NAME, HOME_POSE, goal_pa
                         TIMEOUT_MOTION, MAX_TIME, MAX_ITER, MAX_SKELETONS,
                         GRASP_SAMPLE, STABLE_SAMPLE, SHOW_STATE, SEARCH_SAMPLE_RATIO,
                         use_pybullet_gui=False, USE_MOVEIT_IK=False, TIMED_COMPLETE=False, VERBOSE=False,
-                        IK_TRY_NUM=10):
+                        IK_TRY_NUM=10, IK_TIMEOUT_SINGLE=0.01):
     gtimer = GlobalTimer.instance()
     gscene = pscene.gscene
 #     checkers_ik = [checker for checker in mplan.motion_filters if checker.BEFORE_IK]
@@ -178,7 +178,7 @@ def solve_in_pddlstream(pscene, mplan, ROBOT_NAME, TOOL_NAME, HOME_POSE, goal_pa
                                                   mplan=mplan, timeout=TIMEOUT_MOTION,
                                                   grasp_sample=GRASP_SAMPLE, stable_sample=STABLE_SAMPLE,
                                                   show_state=SHOW_STATE, USE_MOVEIT_IK=USE_MOVEIT_IK,
-                                                  TIMED_COMPLETE=TIMED_COMPLETE, IK_TRY_NUM=IK_TRY_NUM)
+                                                  TIMED_COMPLETE=TIMED_COMPLETE, IK_TRY_NUM=IK_TRY_NUM, IK_TIMEOUT_SINGLE=IK_TIMEOUT_SINGLE)
     _, _, _, stream_map, init, goal = problem
     print('Init:', init)
     print('Goal:', goal)
