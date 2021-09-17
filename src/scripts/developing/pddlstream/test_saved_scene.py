@@ -33,6 +33,7 @@ USE_MOVEIT_IK = args.USE_MOVEIT_IK
 TIMED_COMPLETE = args.TIMED_COMPLETE
 STACK_TIMELOG= args.STACK_TIMELOG
 IK_TRY_NUM = args.IK_TRY_NUM
+IK_TIMEOUT_SINGLE = args.IK_TIMEOUT_SINGLE
 VERBOSE = args.VERBOSE
 
 CLEARANCE = 1e-3
@@ -97,7 +98,7 @@ res, plan, log_dict = solve_in_pddlstream(pscene, mplan, ROBOT_NAME, TOOL_NAME, 
                                           GRASP_SAMPLE, STABLE_SAMPLE, SHOW_STATE, SEARCH_SAMPLE_RATIO,
                                           use_pybullet_gui=USE_PYBULLET_GUI, USE_MOVEIT_IK=USE_MOVEIT_IK, 
                                           TIMED_COMPLETE=TIMED_COMPLETE,
-                                          IK_TRY_NUM=IK_TRY_NUM, VERBOSE=VERBOSE)
+                                          IK_TRY_NUM=IK_TRY_NUM, IK_TIMEOUT_SINGLE=IK_TIMEOUT_SINGLE, VERBOSE=VERBOSE)
 
 log_dict.update(mplan.result_log)
 log_dict.update(GlobalLogger.instance())

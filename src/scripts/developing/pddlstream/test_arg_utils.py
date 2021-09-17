@@ -16,6 +16,7 @@ def parse_test_args():
 
     parser.add_argument('--TIMEOUT_MOTION', type=int, default=5, help='motion planning timeout')
     parser.add_argument('--IK_TRY_NUM', type=int, default=10, help='max. number of trials for ik')
+    parser.add_argument('--IK_TIMEOUT_SINGLE', type=float, default=0.01, help='timeout for single ik trial')
     parser.add_argument('--MAX_TIME', type=int, default=100, help='TAMP timeout')
     parser.add_argument('--MAX_ITER', type=int, default=100, help='TAMP max iteration')
     parser.add_argument('--MAX_SKELETONS', type=int, default=30, help='maximum number of skeletons to consider')
