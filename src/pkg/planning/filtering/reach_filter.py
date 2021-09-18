@@ -261,7 +261,7 @@ class ReachTrainer:
                         height_min=-0.7, height_max=1.5, zenith_min=0, zenith_max=np.pi,
                         azimuth_min=-np.pi, azimuth_max=np.pi):
         while True: # sample in cartesian space with rejection, for uniform sampling
-            xyz = np.random.uniform(0, radius_max, size=3)
+            xyz = np.random.uniform(-radius_max, radius_max, size=3) + [0,0,self.shoulder_height]
             radius, theta, height = cart2cyl(*xyz)
             if not radius_min<radius<radius_max:
                 continue
