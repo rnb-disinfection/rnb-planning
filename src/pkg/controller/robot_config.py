@@ -16,10 +16,21 @@ class RobotType(Enum):
 # @class RobotTemplate
 # @brief Robot spec template
 class RobotTemplate:
-    def __init__(self, robot_name, base_name, tip_name, joint_names, home_pose, joint_limits, vel_limits, acc_limits):
+    ##
+    # @param robot_name robot type name
+    # @param base_name base link name for the robot
+    # @param base_name base link name for the robot, without robot name prefix
+    # @param tip_name tip link name for the robot, without robot name prefix
+    # @param joint_names movable joint names from base to tip order
+    # @param home_pose home joint configuration, base to tip order
+    # @param joint_limits list of (lower, upper) limits
+    # @param vel_limits velocity limit
+    # @param acc_limits acceleration limit, recorded as effort in urdf
+    # @param shoulder_reach reach from the shoulder joint (usually the 2nd joint)
+    def __init__(self, robot_name, base_name, tip_name, joint_names, home_pose, joint_limits, vel_limits, acc_limits, shoulder_reach):
         self.robot_name, self.base_name, self.tip_name, self.joint_names, \
-            self.home_pose, self.joint_limits, self.vel_limits, self.acc_limits = \
-            robot_name, base_name, tip_name, joint_names, home_pose, joint_limits, vel_limits, acc_limits
+            self.home_pose, self.joint_limits, self.vel_limits, self.acc_limits, self.shoulder_reach = \
+            robot_name, base_name, tip_name, joint_names, home_pose, joint_limits, vel_limits, acc_limits, shoulder_reach
 
 
 ##
@@ -35,7 +46,8 @@ class RobotSpecs:
                                                     +[(-3.05432619099, 3.05432619099)]*3 \
                                                     +[(-3.75245789179, 3.75245789179)],
                                        vel_limits=np.deg2rad([150, 150, 150, 180, 180, 180])/2,
-                                       acc_limits=np.deg2rad([180]*6)/2),
+                                       acc_limits=np.deg2rad([180]*6)/2,
+                                       shoulder_reach=1.04),
         RobotType.indy7gripper: RobotTemplate(robot_name='indy', base_name="link0", tip_name="tcp",
                                        joint_names=["joint{}".format(idx) for idx in range(6)],
                                        home_pose=[0, 0, -np.pi / 2, 0, -np.pi / 2, 0],
@@ -44,7 +56,8 @@ class RobotSpecs:
                                                     +[(-3.05432619099, 3.05432619099)]*3 \
                                                     +[(-3.75245789179, 3.75245789179)],
                                        vel_limits=np.deg2rad([150, 150, 150, 180, 180, 180])/2,
-                                       acc_limits=np.deg2rad([180]*6)/2),
+                                       acc_limits=np.deg2rad([180]*6)/2,
+                                       shoulder_reach=1.04),
         RobotType.panda: RobotTemplate(robot_name='panda', base_name="link0", tip_name="hand",
                                        joint_names=["joint{}".format(idx) for idx in range(1,8)],
                                        home_pose=[0, -np.pi / 8, 0, -np.pi / 2, 0, np.pi / 2, np.pi / 2],
@@ -52,7 +65,8 @@ class RobotSpecs:
 #                                        joint_limits=[(-np.pi*2/3, np.pi*2/3), (-1.70, 1.70), (-np.pi*2/3, np.pi*2/3),
                                                      (-2.9, -0.1), (-2.75, 2.75), (0.1, 3.6), (0.9, 2.75)],
                                        vel_limits=np.deg2rad([150, 150, 150, 150, 180, 180, 180])/2,
-                                       acc_limits=np.deg2rad([180]*7)/2),
+                                       acc_limits=np.deg2rad([180]*7)/2,
+                                       shoulder_reach=0.85),
         RobotType.indy5dof: RobotTemplate(robot_name='indy', base_name="link0", tip_name="tcp",
                                        joint_names=["joint{}".format(idx) for idx in [0,1,2,4,5]],
                                        home_pose=[0, 0, -np.pi / 2, -np.pi / 2, 0],
@@ -62,13 +76,15 @@ class RobotSpecs:
                                                     # +[(-0, 0)] \
                                                     +[(-3.75245789179, 3.75245789179)]*2,
                                        vel_limits=np.deg2rad([150, 150, 150,  180, 180])/2,
-                                       acc_limits=np.deg2rad([180]*5)/2),
+                                       acc_limits=np.deg2rad([180]*5)/2,
+                                       shoulder_reach=1.04),
         RobotType.kmb: RobotTemplate(robot_name='kmb', base_name="link0", tip_name="platform",
                                        joint_names=["joint{}".format(idx) for idx in range(6)],
                                        home_pose=[0,]*6,
                                        joint_limits=[None,None, None, (-1e-3,1e-3), (-1e-3,1e-3), (-1e-3,1e-3)],
                                        vel_limits=[None,None, None, 0,0,0],
-                                       acc_limits=[None,None, None, 0,0,0]),
+                                       acc_limits=[None,None, None, 0,0,0],
+                                       shoulder_reach=1e1),
     }
 
     @classmethod
@@ -105,6 +121,10 @@ class RobotSpecs:
     @classmethod
     def get_acc_limits(cls, _type):
         return cls.SPEC_DICT[_type].acc_limits
+
+    @classmethod
+    def get_shoulder_reach(cls, _type):
+        return cls.SPEC_DICT[_type].shoulder_reach
 
 
 ##

@@ -269,7 +269,7 @@ class GeometryScene(list):
         if axis == '' or axis == None:
             ctem = self.create_safe(gtype=GEOTYPE.SPHERE, name="cp_" + name, link_name=link_name,
                                   center=center, dims=(min(dims),)*3, rpy=(0,0,0),
-                                  color=color or (0.3, 0.3, 0.3, 0.5),
+                                  color=(1, 0, 0, 0.5) if color is None else color,
                                   collision=False)
             self.__add_marker(ctem)
             self.highlight_dict[hl_key][ctem.name] = ctem
@@ -277,7 +277,7 @@ class GeometryScene(list):
 
         if 'x' in axis:
             axtemx = self.create_safe(gtype=GEOTYPE.ARROW, name="axx_" + name, link_name=link_name,
-                                  center=center, dims=dims, rpy=Rot2rpy(orientation_mat), color=color or (1, 0, 0, 0.5),
+                                  center=center, dims=dims, rpy=Rot2rpy(orientation_mat), color=(1, 0, 0, 0.5) if color is None else color,
                                   collision=False)
             self.__add_marker(axtemx)
             self.highlight_dict[hl_key][axtemx.name] = axtemx
@@ -285,7 +285,7 @@ class GeometryScene(list):
         if 'y' in axis:
             axtemy = self.create_safe(gtype=GEOTYPE.ARROW, name="axy_" + name, link_name=link_name,
                                   center=center, dims=dims,
-                                  rpy=Rot2rpy(np.matmul(orientation_mat, Rot_axis(3, np.pi / 2))), color=color or (0, 1, 0, 0.5),
+                                  rpy=Rot2rpy(np.matmul(orientation_mat, Rot_axis(3, np.pi / 2))), color=(1, 0, 0, 0.5) if color is None else color,
                                   collision=False)
             self.__add_marker(axtemy)
             self.highlight_dict[hl_key][axtemy.name] = axtemy
@@ -294,7 +294,7 @@ class GeometryScene(list):
             axtemz = self.create_safe(gtype=GEOTYPE.ARROW, name="axz_" + name, link_name=link_name,
                                   center=center, dims=dims,
                                   rpy=Rot2rpy(np.matmul(orientation_mat, Rot_axis(2, -np.pi / 2))),
-                                  color=color or (0, 0, 1, 0.5),
+                                  color=(1, 0, 0, 0.5) if color is None else color,
                                   collision=False)
             self.__add_marker(axtemz)
             self.highlight_dict[hl_key][axtemz.name] = axtemz

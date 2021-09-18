@@ -33,6 +33,9 @@ class ReachChecker(MotionFilterInterface):
         self.shoulder_height_dict = {rname: get_tf(shoulder_link, self.combined_robot.home_dict,
                                                    pscene.gscene.urdf_content, from_link=self.base_dict[rname])[2,3]
                                      for rname, shoulder_link in self.shoulder_link_dict.items()}
+        self.shoulder_reach_dict = {
+            rname: RobotSpecs.get_shoulder_reach(self.combined_robot.get_robot_config_dict()[rname])
+            for rname in self.shoulder_link_dict.keys()}
 
     ##
     # @brief check end-effector collision in grasping
@@ -83,12 +86,15 @@ class ReachChecker(MotionFilterInterface):
         azimuth_loc, zenith = mat2hori(T_tar[:3,:3], theta)
         shoulder_height = self.shoulder_height_dict[group_name]
         ee_dist = np.linalg.norm([radius, height-shoulder_height])
+        if ee_dist > self.shoulder_reach_dict[group_name]:
+            return False
         featurevec = (radius, theta, height, azimuth_loc, zenith, radius**2, ee_dist, ee_dist**2)
         return self.model_dict[group_name].predict([featurevec])[0]
 
 
 from ...utils.utils import *
 from ...controller.combined_robot import CombinedRobot, RobotConfig
+from ...controller.robot_config import RobotSpecs
 from ...planning.scene import PlanningScene
 from ...planning.motion.moveit.moveit_planner import MoveitPlanner
 from ...planning.constraint.constraint_actor import Gripper2Tool
@@ -254,9 +260,19 @@ class ReachTrainer:
                         radius_min=0.2, radius_max=1.5, theta_min=-np.pi, theta_max=np.pi,
                         height_min=-0.7, height_max=1.5, zenith_min=0, zenith_max=np.pi,
                         azimuth_min=-np.pi, azimuth_max=np.pi):
-        radius = random.uniform(radius_min, radius_max)
-        theta = random.uniform(theta_min, theta_max)
-        height = random.uniform(height_min, height_max)
+        while True: # sample in cartesian space with rejection, for uniform sampling
+            xyz = np.random.uniform(0, radius_max, size=3)
+            radius, theta, height = cart2cyl(*xyz)
+            if not radius_min<radius<radius_max:
+                continue
+            if not theta_min<theta<theta_max:
+                continue
+            if not height_min<height<height_max:
+                continue
+            ee_dist = np.linalg.norm([radius, height-self.shoulder_height])
+            if ee_dist>radius_max:
+                continue
+            break
         azimuth_loc = random.uniform(azimuth_min, azimuth_max)
         zenith = random.uniform(zenith_min, zenith_max)
 
@@ -268,7 +284,6 @@ class ReachTrainer:
             robot_name, tool_link, goal_pose, base_link, tuple(home_pose), timeout=timeout)
         self.time_plan.append(GlobalTimer.instance().toc("plan_py"))
 
-        ee_dist = np.linalg.norm([radius, height-self.shoulder_height])
         return (radius, theta, height, azimuth_loc, zenith, radius**2, ee_dist, ee_dist**2), success, trajectory
 
     def collect_reaching_data(self, robot_type, TIP_LINK, N_s, timeout=1):
@@ -306,7 +321,8 @@ class ReachTrainer:
         self.time_list = []
         for i_s in range(N_s):
             gtimer.tic("sample_reaching")
-            featurevec, success, trajectory = self.sample_reaching(ROBOT_NAME, TIP_LINK, home_pose=crob.home_pose, timeout=timeout)
+            featurevec, success, trajectory = self.sample_reaching(ROBOT_NAME, TIP_LINK, home_pose=crob.home_pose, timeout=timeout, 
+                                                                   radius_max=RobotSpecs.get_shoulder_reach(robot_type))
             self.time_list.append(gtimer.toc("sample_reaching"))
             # xyz = cyl2cart(*featurevec[:3])
             # orientation_mat = hori2mat(featurevec[1], *featurevec[-2:])
