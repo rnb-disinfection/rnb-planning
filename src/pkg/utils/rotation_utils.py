@@ -154,6 +154,15 @@ def Rot_rpy(rpy):
 def Rot2rpy(R):
     return np.asarray(list(reversed(Rot2zyx(R))))
 
+def Rot2axis(R, axis):
+    shift = 1-axis
+    Rshift = np.zeros((3,3))
+    for ax in range(3):
+        Rshift[ax+shift,ax] = 1
+    Rx = matmul_series(Rshift, R, Rshift.transpose())
+    rot_x = Rot2zyx(Rx)[-1]
+    return rot_x
+
 ##
 # @return tuple(xyz, rpy(rad))
 def T2xyzrpy(T):

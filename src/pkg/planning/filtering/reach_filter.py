@@ -7,6 +7,9 @@ from ...utils.gjk import get_point_list, get_gjk_distance
 C_SVM_DEFAULT = 1000
 GAMMA_SVM_DEFAULT = 'scale'
 
+def to_featurevec(radius,theta, height, azimuth_loc, zenith, ee_dist, rot_z):
+    return (radius, theta, height, azimuth_loc, zenith, radius**2, ee_dist, ee_dist**2, rot_z)
+
 ##
 # @class    ReachChecker
 # @brief    check reach regarding kinematic chain
@@ -132,13 +135,16 @@ class ReachTrainer:
     # @brief collect and learn
     def collect_and_learn(self, ROBOT_TYPE, END_LINK, TRAIN_COUNT=10000, TEST_COUNT=10000,
                           save_data=True, save_model=True, C_svm=C_SVM_DEFAULT, 
-                          gamma=GAMMA_SVM_DEFAULT, timeout=1, try_num=1):
-        self.featurevec_list_train, self.success_list_train = self.collect_reaching_data(ROBOT_TYPE, END_LINK, TRAIN_COUNT, timeout=timeout, try_num=try_num)
+                          gamma=GAMMA_SVM_DEFAULT, timeout=1, try_num=1, feature_fn=to_featurevec):
+        self.samplevec_list_train, self.success_list_train = self.collect_reaching_data(ROBOT_TYPE, END_LINK, TRAIN_COUNT, timeout=timeout, try_num=try_num)
+        self.samplevec_list_test, self.success_list_test = self.collect_reaching_data(ROBOT_TYPE, END_LINK, TEST_COUNT, timeout=timeout, try_num=try_num)
 
-        self.featurevec_list_test, self.success_list_test = self.collect_reaching_data(ROBOT_TYPE, END_LINK, TEST_COUNT, timeout=timeout, try_num=try_num)
         if save_data:
-            self.save_data("train", self.featurevec_list_train, self.success_list_train)
-            self.save_data("test", self.featurevec_list_test, self.success_list_test)
+            self.save_data("train", self.samplevec_list_train, self.success_list_train)
+            self.save_data("test", self.samplevec_list_test, self.success_list_test)
+
+        self.featurevec_list_train = map(lambda x: feature_fn(*self.xyzquat2features(x)), self.samplevec_list_train)
+        self.featurevec_list_test = map(lambda x: feature_fn(*self.xyzquat2features(x)), self.samplevec_list_test)
 
         feature_mat_train = np.array(self.featurevec_list_train)
         self.clf = svm.SVC(kernel='rbf', C=C_svm, gamma=gamma)
@@ -175,9 +181,12 @@ class ReachTrainer:
 
     ##
     # @brief load and learn
-    def load_and_learn(self, ROBOT_TYPE, C_svm=C_SVM_DEFAULT, gamma=GAMMA_SVM_DEFAULT, save_model=True):
-        self.featurevec_list_train, self.success_list_train = self.load_data(ROBOT_TYPE, "train")
-        self.featurevec_list_test, self.success_list_test = self.load_data(ROBOT_TYPE, "test")
+    def load_and_learn(self, ROBOT_TYPE, C_svm=C_SVM_DEFAULT, gamma=GAMMA_SVM_DEFAULT, save_model=True, feature_fn=to_featurevec):
+        self.samplevec_list_train, self.success_list_train = self.load_data(ROBOT_TYPE, "train")
+        self.samplevec_list_test, self.success_list_test = self.load_data(ROBOT_TYPE, "test")
+
+        self.featurevec_list_train = map(lambda x: feature_fn(*self.xyzquat2features(x)), self.samplevec_list_train)
+        self.featurevec_list_test = map(lambda x: feature_fn(*self.xyzquat2features(x)), self.samplevec_list_test)
 
         feature_mat_train = np.array(self.featurevec_list_train)
         feature_mat_test = np.array(self.featurevec_list_test)
@@ -213,9 +222,13 @@ class ReachTrainer:
 
     ##
     # @brief load and test
-    def load_and_test(self, ROBOT_TYPE):
-        self.featurevec_list_train, self.success_list_train = self.load_data(ROBOT_TYPE, "train")
-        self.featurevec_list_test, self.success_list_test = self.load_data(ROBOT_TYPE, "test")
+    def load_and_test(self, ROBOT_TYPE, feature_fn=to_featurevec):
+        self.samplevec_list_train, self.success_list_train = self.load_data(ROBOT_TYPE, "train")
+        self.samplevec_list_test, self.success_list_test = self.load_data(ROBOT_TYPE, "test")
+
+        self.featurevec_list_train = map(lambda x: feature_fn(*self.xyzquat2features(x)), self.samplevec_list_train)
+        self.featurevec_list_test = map(lambda x: feature_fn(*self.xyzquat2features(x)), self.samplevec_list_test)
+
         feature_mat_train = np.array(self.featurevec_list_train)
         feature_mat_test = np.array(self.featurevec_list_test)
 
@@ -259,7 +272,7 @@ class ReachTrainer:
     def sample_reaching(self, robot_name, tool_link, home_pose, base_link="base_link", timeout=1,
                         radius_min=0.2, radius_max=1.5, theta_min=-np.pi, theta_max=np.pi,
                         height_min=-0.7, height_max=1.5, zenith_min=0, zenith_max=np.pi,
-                        azimuth_min=-np.pi, azimuth_max=np.pi, try_num=1):
+                        azimuth_min=-np.pi, azimuth_max=np.pi, rot_z_min=-np.pi,rot_z_max=np.pi, try_num=1):
         while True: # sample in cartesian space with rejection, for uniform sampling
             xyz = np.random.uniform(-radius_max, radius_max, size=3) + [0,0,self.shoulder_height]
             radius, theta, height = cart2cyl(*xyz)
@@ -281,9 +294,12 @@ class ReachTrainer:
             break
         azimuth_loc = np.random.uniform(azimuth_min, azimuth_max)
         zenith = np.arccos(np.random.uniform(-np.cos(zenith_min), -np.cos(zenith_max)))
+        rot_z = np.random.uniform(rot_z_min, rot_z_max)
+        R_mat_ref = hori2mat(theta, azimuth_loc, zenith)
+        R_mat = np.matmul(R_mat_ref, Rot_axis(3, rot_z))
 
         xyz = cyl2cart(radius, theta, height)
-        quat = tuple(Rotation.from_dcm(hori2mat(theta, azimuth_loc, zenith)).as_quat())
+        quat = tuple(Rotation.from_dcm(R_mat).as_quat())
         goal_pose = xyz+quat
         GlobalTimer.instance().tic("plan_py")
         for _ in range(try_num):
@@ -293,7 +309,38 @@ class ReachTrainer:
                 break
         self.time_plan.append(GlobalTimer.instance().toc("plan_py"))
 
-        return (radius, theta, height, azimuth_loc, zenith, radius**2, ee_dist, ee_dist**2), success, trajectory
+        features_recalc = self.xyzquat2features(goal_pose)
+        goal_pose_recalc = self.features2xyzquat(*features_recalc)
+        assert np.sum(np.abs(
+            np.subtract(features_recalc,
+                        (radius,theta, height, azimuth_loc, zenith, ee_dist, rot_z)))
+        )<1e-5, "feature transformation mismatch"
+        assert np.sum(np.abs(
+            np.subtract(goal_pose_recalc, goal_pose))
+        )<1e-5, "goal pose transformation mismatch"
+
+        return goal_pose, success, trajectory
+
+    def xyzquat2features(self, xyzquat):
+        xyz = xyzquat[:3]
+        quat = xyzquat[3:]
+        R_mat = Rotation.from_quat(quat).as_dcm()
+        radius, theta, height = cart2cyl(*xyz)
+        azimuth_loc, zenith = mat2hori(R_mat, theta=theta)
+        R_mat_ref = hori2mat(theta, azimuth_loc, zenith)
+        R_z = np.matmul(R_mat_ref.transpose(), R_mat)
+        rot_z = Rot2axis(R_z, 3)
+        ee_dist = np.linalg.norm([radius, height-self.shoulder_height])
+        return radius,theta, height, azimuth_loc, zenith, ee_dist, rot_z
+
+    def features2xyzquat(self, radius,theta, height, azimuth_loc, zenith, ee_dist, rot_z):
+        xyz = cyl2cart(radius,theta, height)
+        R_mat_ref = hori2mat(theta, azimuth_loc, zenith)
+        R_mat = np.matmul(R_mat_ref, Rot_axis(3, rot_z))
+        xyz = cyl2cart(radius, theta, height)
+        quat = tuple(Rotation.from_dcm(R_mat).as_quat())
+        goal_pose = xyz+quat
+        return goal_pose
 
     def collect_reaching_data(self, robot_type, TIP_LINK, N_s, timeout=1, try_num=1):
         self.robot_type = robot_type
@@ -325,25 +372,25 @@ class ReachTrainer:
         gtimer = GlobalTimer.instance()
         gtimer.reset()
         gtimer.tic("full_loop")
-        featurevec_list = []
+        samplevec_list = []
         success_list = []
         self.time_list = []
         for i_s in range(N_s):
             gtimer.tic("sample_reaching")
-            featurevec, success, trajectory = self.sample_reaching(ROBOT_NAME, TIP_LINK, home_pose=crob.home_pose, timeout=timeout, 
+            samplevec, success, trajectory = self.sample_reaching(ROBOT_NAME, TIP_LINK, home_pose=crob.home_pose, timeout=timeout,
                                                                    radius_max=RobotSpecs.get_shoulder_reach(robot_type), try_num=try_num)
             self.time_list.append(gtimer.toc("sample_reaching"))
             # xyz = cyl2cart(*featurevec[:3])
             # orientation_mat = hori2mat(featurevec[1], *featurevec[-2:])
     #         gscene.add_highlight_axis("hl", "toolvec", "base_link", xyz, orientation_mat)
-            featurevec_list.append(featurevec)
+            samplevec_list.append(samplevec)
             success_list.append(success)
             if i_s % 100 == 0 :
                 t_cur = gtimer.toc("full_loop")
                 print("{} / {} ({} / {} s): current success ratio = {}".format(
                     i_s, N_s, int(t_cur/1000), int(float(N_s)/float(i_s+1e-3)*t_cur/1000), np.mean(success_list)))
 
-        return featurevec_list, success_list
+        return samplevec_list, success_list
 
     def update_label(self, robot_type, tip_link, data_div, update_labels, timeout=1):
         self.robot_type = robot_type
