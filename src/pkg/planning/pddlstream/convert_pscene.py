@@ -95,7 +95,7 @@ def prepare_stable_redundancy_set(body_subject_map, body_actor_map, show_state=F
     meta_data = get_meta_data()
     if any(map(lambda x: x  not in meta_data, ["dat_root", "rtype", "dat_dir", "fname"])):
         TextColors.RED.println("================== ERROR in preparing redundancy set =====================")
-        TextColors.RED.prinln('===== metadata is not set for "dat_root", "rtype", "dat_dir", "fname" ====')
+        TextColors.RED.println('===== metadata is not set for "dat_root", "rtype", "dat_dir", "fname" ====')
     data_path = create_data_dirs(meta_data['dat_root'], meta_data['rtype'], meta_data['dat_dir']+"-stableset")
     rdc_file = os.path.join(data_path, meta_data['fname'])
     if os.path.isfile(rdc_file):
@@ -167,7 +167,7 @@ def prepare_grasp_redundancy_set(body_subject_map, actor,
     meta_data = get_meta_data()
     if any(map(lambda x: x  not in meta_data, ["dat_root", "rtype", "dat_dir", "fname"])):
         TextColors.RED.println("================== ERROR in preparing redundancy set =====================")
-        TextColors.RED.prinln('===== metadata is not set for "dat_root", "rtype", "dat_dir", "fname" ====')
+        TextColors.RED.println('===== metadata is not set for "dat_root", "rtype", "dat_dir", "fname" ====')
     data_path = create_data_dirs(meta_data['dat_root'], meta_data['rtype'], meta_data['dat_dir']+"-graspset")
     rdc_file = os.path.join(data_path, meta_data['fname'])
     if os.path.isfile(rdc_file):

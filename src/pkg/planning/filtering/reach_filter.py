@@ -263,18 +263,24 @@ class ReachTrainer:
         while True: # sample in cartesian space with rejection, for uniform sampling
             xyz = np.random.uniform(-radius_max, radius_max, size=3) + [0,0,self.shoulder_height]
             radius, theta, height = cart2cyl(*xyz)
-            if not radius_min<radius<radius_max:
+            if radius_min == radius_max:
+                radius = radius_min
+            if theta_min == theta_max:
+                theta = theta_min
+            if height_min == height_max:
+                height = height_min
+            if not radius_min<=radius<=radius_max:
                 continue
-            if not theta_min<theta<theta_max:
+            if not theta_min<=theta<=theta_max:
                 continue
-            if not height_min<height<height_max:
+            if not height_min<=height<=height_max:
                 continue
             ee_dist = np.linalg.norm([radius, height-self.shoulder_height])
-            if ee_dist>radius_max:
+            if ee_dist>radius_max and not radius_min == radius_max:
                 continue
             break
-        azimuth_loc = random.uniform(azimuth_min, azimuth_max)
-        zenith = random.uniform(zenith_min, zenith_max)
+        azimuth_loc = np.random.uniform(azimuth_min, azimuth_max)
+        zenith = np.arccos(np.random.uniform(-np.cos(zenith_min), -np.cos(zenith_max)))
 
         xyz = cyl2cart(radius, theta, height)
         quat = tuple(Rotation.from_dcm(hori2mat(theta, azimuth_loc, zenith)).as_quat())
