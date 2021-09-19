@@ -34,7 +34,7 @@ class ReachChecker(MotionFilterInterface):
                                                    pscene.gscene.urdf_content, from_link=self.base_dict[rname])[2,3]
                                      for rname, shoulder_link in self.shoulder_link_dict.items()}
         self.shoulder_reach_dict = {
-            rname: RobotSpecs.get_shoulder_reach(self.combined_robot.get_robot_config_dict()[rname])
+            rname: RobotSpecs.get_shoulder_reach(self.combined_robot.get_robot_config_dict()[rname].type)
             for rname in self.shoulder_link_dict.keys()}
 
     ##
