@@ -473,9 +473,9 @@ class ReachTrainer:
 
     def save_model(self):
         try_mkdir(self.model_path)
-        save_pickle(os.path.join(self.model_path, "{}.json".format(self.robot_type.name)), self.clf)
+        save_pickle(os.path.join(self.model_path, "{}.pkl".format(self.robot_type.name)), self.clf)
 
     def load_model(self, robot_type):
         self.robot_type = robot_type
-        self.clf = load_pickle(os.path.join(self.model_path, "{}.json".format(self.robot_type.name)))
+        self.clf = load_pickle(os.path.join(self.model_path, "{}.pkl".format(self.robot_type.name)))
         return self.clf
