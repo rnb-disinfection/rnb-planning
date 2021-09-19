@@ -132,10 +132,10 @@ class ReachTrainer:
     # @brief collect and learn
     def collect_and_learn(self, ROBOT_TYPE, END_LINK, TRAIN_COUNT=10000, TEST_COUNT=10000,
                           save_data=True, save_model=True, C_svm=C_SVM_DEFAULT, 
-                          gamma=GAMMA_SVM_DEFAULT, timeout=1):
-        self.featurevec_list_train, self.success_list_train = self.collect_reaching_data(ROBOT_TYPE, END_LINK, TRAIN_COUNT, timeout=timeout)
+                          gamma=GAMMA_SVM_DEFAULT, timeout=1, try_num=1):
+        self.featurevec_list_train, self.success_list_train = self.collect_reaching_data(ROBOT_TYPE, END_LINK, TRAIN_COUNT, timeout=timeout, try_num=try_num)
 
-        self.featurevec_list_test, self.success_list_test = self.collect_reaching_data(ROBOT_TYPE, END_LINK, TEST_COUNT, timeout=timeout)
+        self.featurevec_list_test, self.success_list_test = self.collect_reaching_data(ROBOT_TYPE, END_LINK, TEST_COUNT, timeout=timeout, try_num=try_num)
         if save_data:
             self.save_data("train", self.featurevec_list_train, self.success_list_train)
             self.save_data("test", self.featurevec_list_test, self.success_list_test)
@@ -259,7 +259,7 @@ class ReachTrainer:
     def sample_reaching(self, robot_name, tool_link, home_pose, base_link="base_link", timeout=1,
                         radius_min=0.2, radius_max=1.5, theta_min=-np.pi, theta_max=np.pi,
                         height_min=-0.7, height_max=1.5, zenith_min=0, zenith_max=np.pi,
-                        azimuth_min=-np.pi, azimuth_max=np.pi):
+                        azimuth_min=-np.pi, azimuth_max=np.pi, try_num=1):
         while True: # sample in cartesian space with rejection, for uniform sampling
             xyz = np.random.uniform(-radius_max, radius_max, size=3) + [0,0,self.shoulder_height]
             radius, theta, height = cart2cyl(*xyz)
@@ -280,13 +280,16 @@ class ReachTrainer:
         quat = tuple(Rotation.from_dcm(hori2mat(theta, azimuth_loc, zenith)).as_quat())
         goal_pose = xyz+quat
         GlobalTimer.instance().tic("plan_py")
-        trajectory, success = self.planner.planner.plan_py(
-            robot_name, tool_link, goal_pose, base_link, tuple(home_pose), timeout=timeout)
+        for _ in range(try_num):
+            trajectory, success = self.planner.planner.plan_py(
+                robot_name, tool_link, goal_pose, base_link, tuple(home_pose), timeout=timeout)
+            if success:
+                break
         self.time_plan.append(GlobalTimer.instance().toc("plan_py"))
 
         return (radius, theta, height, azimuth_loc, zenith, radius**2, ee_dist, ee_dist**2), success, trajectory
 
-    def collect_reaching_data(self, robot_type, TIP_LINK, N_s, timeout=1):
+    def collect_reaching_data(self, robot_type, TIP_LINK, N_s, timeout=1, try_num=1):
         self.robot_type = robot_type
         # set robot
         crob = CombinedRobot(robots_on_scene=[
@@ -322,7 +325,7 @@ class ReachTrainer:
         for i_s in range(N_s):
             gtimer.tic("sample_reaching")
             featurevec, success, trajectory = self.sample_reaching(ROBOT_NAME, TIP_LINK, home_pose=crob.home_pose, timeout=timeout, 
-                                                                   radius_max=RobotSpecs.get_shoulder_reach(robot_type))
+                                                                   radius_max=RobotSpecs.get_shoulder_reach(robot_type), try_num=try_num)
             self.time_list.append(gtimer.toc("sample_reaching"))
             # xyz = cyl2cart(*featurevec[:3])
             # orientation_mat = hori2mat(featurevec[1], *featurevec[-2:])
