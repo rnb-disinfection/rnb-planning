@@ -24,13 +24,17 @@ def xyzquat2features(xyzquat, shoulder_height):
     R_mat = Rotation.from_quat(quat).as_dcm()
     return T2features(SE3(R_mat, xyz), shoulder_height)
 
-def features2xyzquat(radius,theta, height, azimuth_loc, zenith, ee_dist, rot_z):
+def features2T(radius,theta, height, azimuth_loc, zenith, ee_dist, rot_z):
     xyz = cyl2cart(radius,theta, height)
     R_mat_ref = hori2mat(theta, azimuth_loc, zenith)
     R_mat = np.matmul(R_mat_ref, Rot_axis(3, rot_z))
     xyz = cyl2cart(radius, theta, height)
-    quat = tuple(Rotation.from_dcm(R_mat).as_quat())
-    goal_pose = xyz+quat
+    return SE3(R_mat, xyz)
+
+def features2xyzquat(radius,theta, height, azimuth_loc, zenith, ee_dist, rot_z):
+    T = features2T(radius,theta, height, azimuth_loc, zenith, ee_dist, rot_z)
+    xyzquat = T2xyzquat(T)
+    goal_pose = xyzquat[0]+xyzquat[1]
     return goal_pose
 
 def to_featurevec(radius,theta, height, azimuth_loc, zenith, ee_dist, rot_z):
