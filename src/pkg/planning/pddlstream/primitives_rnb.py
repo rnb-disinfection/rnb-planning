@@ -502,6 +502,7 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
         glog["ik_res"] = []
         glog["ik_feas_reason"] = []
         glog["ik_res_reason"] = []
+        glog["ik_fail_args"] = []
     def fn(body, pose, grasp, time_=None):
         with GlobalTimer.instance().block("ik_fn"):
             tkey = (body, pose.index, grasp.index)
@@ -660,6 +661,8 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                 if GLOBAL_LOG_ENABLED:
                     glog['ik_res'].append(False)
                     glog['ik_res_reason'].append(ik_res_reason.name)
+                    glog["ik_fail_args"].append((robot_name, approach_pose[0]+approach_pose[1],
+                                                timeout_single, True, False))
                 return None
     return fn
 
