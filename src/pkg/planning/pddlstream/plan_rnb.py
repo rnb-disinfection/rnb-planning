@@ -180,8 +180,8 @@ def solve_in_pddlstream(pscene, mplan, ROBOT_NAME, TOOL_NAME, HOME_POSE, goal_pa
                                                   grasp_sample=GRASP_SAMPLE, stable_sample=STABLE_SAMPLE,
                                                   show_state=SHOW_STATE, USE_MOVEIT_IK=USE_MOVEIT_IK,
                                                   TIMED_COMPLETE=TIMED_COMPLETE, IK_TRY_NUM=IK_TRY_NUM, IK_TIMEOUT_SINGLE=IK_TIMEOUT_SINGLE)
-    GlobalLogger.instance()["ik_fun"] = ik_fun
-    GlobalLogger.instance()["problem"] = problem
+    # GlobalLogger.instance()["ik_fun"] = ik_fun
+    # GlobalLogger.instance()["problem"] = problem
     _, _, _, stream_map, init, goal = problem
     print('Init:', init)
     print('Goal:', goal)
@@ -199,7 +199,7 @@ def solve_in_pddlstream(pscene, mplan, ROBOT_NAME, TOOL_NAME, HOME_POSE, goal_pa
             saver.restore()
     print_solution(solution)
     plan, cost, evaluations = solution
-    GlobalLogger.instance()["solution"] = solution
+    # GlobalLogger.instance()["solution"] = solution
     res = not any(plan is status for status in [None, False])
 
     move_num = len(plan) if res else 0
