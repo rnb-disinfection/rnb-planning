@@ -7,6 +7,32 @@ from ...utils.gjk import get_point_list, get_gjk_distance
 C_SVM_DEFAULT = 1000
 GAMMA_SVM_DEFAULT = 'scale'
 
+def T2features(T, shoulder_height):
+    xyz = T[:3, 3]
+    R_mat = T[:3,:3]
+    radius, theta, height = cart2cyl(*xyz)
+    azimuth_loc, zenith = mat2hori(R_mat, theta=theta)
+    R_mat_ref = hori2mat(theta, azimuth_loc, zenith)
+    R_z = np.matmul(R_mat_ref.transpose(), R_mat)
+    rot_z = Rot2axis(R_z, 3)
+    ee_dist = np.linalg.norm([radius, height-shoulder_height])
+    return radius,theta, height, azimuth_loc, zenith, ee_dist, rot_z
+
+def xyzquat2features(xyzquat, shoulder_height):
+    xyz = xyzquat[:3]
+    quat = xyzquat[3:]
+    R_mat = Rotation.from_quat(quat).as_dcm()
+    return T2features(SE3(R_mat, xyz), shoulder_height)
+
+def features2xyzquat(radius,theta, height, azimuth_loc, zenith, ee_dist, rot_z):
+    xyz = cyl2cart(radius,theta, height)
+    R_mat_ref = hori2mat(theta, azimuth_loc, zenith)
+    R_mat = np.matmul(R_mat_ref, Rot_axis(3, rot_z))
+    xyz = cyl2cart(radius, theta, height)
+    quat = tuple(Rotation.from_dcm(R_mat).as_quat())
+    goal_pose = xyz+quat
+    return goal_pose
+
 def to_featurevec(radius,theta, height, azimuth_loc, zenith, ee_dist, rot_z):
     return (radius, theta, height, azimuth_loc, zenith, radius**2, ee_dist, ee_dist**2, rot_z)
 
@@ -19,8 +45,9 @@ class ReachChecker(MotionFilterInterface):
 
     ##
     # @param pscene rnb-planning.src.pkg.planning.scene
-    def __init__(self, pscene):
+    def __init__(self, pscene, feature_fn=to_featurevec):
         self.pscene = pscene
+        self.feature_fn = feature_fn
         self.combined_robot = pscene.combined_robot
         self.robot_names = pscene.combined_robot.robot_names
         chain_dict = pscene.robot_chain_dict
@@ -85,13 +112,13 @@ class ReachChecker(MotionFilterInterface):
         else:
             # dual motion not predictable
             return True
-        radius, theta, height = cart2cyl(*T_tar[:3,3])
-        azimuth_loc, zenith = mat2hori(T_tar[:3,:3], theta)
+
         shoulder_height = self.shoulder_height_dict[group_name]
-        ee_dist = np.linalg.norm([radius, height-shoulder_height])
+        features = T2features(T_tar, shoulder_height)
+        radius, theta, height, azimuth_loc, zenith, ee_dist, rot_z = features
         if ee_dist > self.shoulder_reach_dict[group_name]:
             return False
-        featurevec = (radius, theta, height, azimuth_loc, zenith, radius**2, ee_dist, ee_dist**2)
+        featurevec = self.feature_fn(*features)
         return self.model_dict[group_name].predict([featurevec])[0]
 
 
@@ -143,8 +170,8 @@ class ReachTrainer:
             self.save_data("train", self.samplevec_list_train, self.success_list_train)
             self.save_data("test", self.samplevec_list_test, self.success_list_test)
 
-        self.featurevec_list_train = map(lambda x: feature_fn(*self.xyzquat2features(x)), self.samplevec_list_train)
-        self.featurevec_list_test = map(lambda x: feature_fn(*self.xyzquat2features(x)), self.samplevec_list_test)
+        self.featurevec_list_train = map(lambda x: feature_fn(*xyzquat2features(x, self.shoulder_height)), self.samplevec_list_train)
+        self.featurevec_list_test = map(lambda x: feature_fn(*xyzquat2features(x, self.shoulder_height)), self.samplevec_list_test)
 
         feature_mat_train = np.array(self.featurevec_list_train)
         self.clf = svm.SVC(kernel='rbf', C=C_svm, gamma=gamma)
@@ -185,8 +212,8 @@ class ReachTrainer:
         self.samplevec_list_train, self.success_list_train = self.load_data(ROBOT_TYPE, "train")
         self.samplevec_list_test, self.success_list_test = self.load_data(ROBOT_TYPE, "test")
 
-        self.featurevec_list_train = map(lambda x: feature_fn(*self.xyzquat2features(x)), self.samplevec_list_train)
-        self.featurevec_list_test = map(lambda x: feature_fn(*self.xyzquat2features(x)), self.samplevec_list_test)
+        self.featurevec_list_train = map(lambda x: feature_fn(*xyzquat2features(x, self.shoulder_height)), self.samplevec_list_train)
+        self.featurevec_list_test = map(lambda x: feature_fn(*xyzquat2features(x, self.shoulder_height)), self.samplevec_list_test)
 
         feature_mat_train = np.array(self.featurevec_list_train)
         feature_mat_test = np.array(self.featurevec_list_test)
@@ -226,8 +253,8 @@ class ReachTrainer:
         self.samplevec_list_train, self.success_list_train = self.load_data(ROBOT_TYPE, "train")
         self.samplevec_list_test, self.success_list_test = self.load_data(ROBOT_TYPE, "test")
 
-        self.featurevec_list_train = map(lambda x: feature_fn(*self.xyzquat2features(x)), self.samplevec_list_train)
-        self.featurevec_list_test = map(lambda x: feature_fn(*self.xyzquat2features(x)), self.samplevec_list_test)
+        self.featurevec_list_train = map(lambda x: feature_fn(*xyzquat2features(x, self.shoulder_height)), self.samplevec_list_train)
+        self.featurevec_list_test = map(lambda x: feature_fn(*xyzquat2features(x, self.shoulder_height)), self.samplevec_list_test)
 
         feature_mat_train = np.array(self.featurevec_list_train)
         feature_mat_test = np.array(self.featurevec_list_test)
@@ -309,8 +336,8 @@ class ReachTrainer:
                 break
         self.time_plan.append(GlobalTimer.instance().toc("plan_py"))
 
-        features_recalc = self.xyzquat2features(goal_pose)
-        goal_pose_recalc = self.features2xyzquat(*features_recalc)
+        features_recalc = xyzquat2features(goal_pose, self.shoulder_height)
+        goal_pose_recalc = features2xyzquat(*features_recalc)
         assert np.sum(np.abs(
             np.subtract(features_recalc,
                         (radius,theta, height, azimuth_loc, zenith, ee_dist, rot_z)))
@@ -320,27 +347,6 @@ class ReachTrainer:
         )<1e-5, "goal pose transformation mismatch"
 
         return goal_pose, success, trajectory
-
-    def xyzquat2features(self, xyzquat):
-        xyz = xyzquat[:3]
-        quat = xyzquat[3:]
-        R_mat = Rotation.from_quat(quat).as_dcm()
-        radius, theta, height = cart2cyl(*xyz)
-        azimuth_loc, zenith = mat2hori(R_mat, theta=theta)
-        R_mat_ref = hori2mat(theta, azimuth_loc, zenith)
-        R_z = np.matmul(R_mat_ref.transpose(), R_mat)
-        rot_z = Rot2axis(R_z, 3)
-        ee_dist = np.linalg.norm([radius, height-self.shoulder_height])
-        return radius,theta, height, azimuth_loc, zenith, ee_dist, rot_z
-
-    def features2xyzquat(self, radius,theta, height, azimuth_loc, zenith, ee_dist, rot_z):
-        xyz = cyl2cart(radius,theta, height)
-        R_mat_ref = hori2mat(theta, azimuth_loc, zenith)
-        R_mat = np.matmul(R_mat_ref, Rot_axis(3, rot_z))
-        xyz = cyl2cart(radius, theta, height)
-        quat = tuple(Rotation.from_dcm(R_mat).as_quat())
-        goal_pose = xyz+quat
-        return goal_pose
 
     def collect_reaching_data(self, robot_type, TIP_LINK, N_s, timeout=1, try_num=1):
         self.robot_type = robot_type
