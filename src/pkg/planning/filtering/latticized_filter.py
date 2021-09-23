@@ -27,9 +27,9 @@ OFFSET_ZERO_ARM = (0.5, 1.0, 1.0)
 RH_MASK_SIZE = 512
 RH_MASK_STEP = 64
 
-DEBUG_LAT_FILT = True
+DEBUG_LAT_FILT_LOG = False
 
-if DEBUG_LAT_FILT:
+if DEBUG_LAT_FILT_LOG:
     TextColors.RED.println("===== WARNING: latticized_filter in DEBUG MODE====")
 
 
@@ -235,7 +235,7 @@ class LatticedChecker(MotionFilterInterface):
         res = self.query_wait_response(self.rconfig_dict[group_name].type.name,
                                        np.array([grasp_img]), np.array([arm_img]), np.array([rh_vals]),
                                        )[0]
-        if DEBUG_LAT_FILT:
+        if DEBUG_LAT_FILT_LOG:
             save_scene(self.__class__.__name__, self.pscene, actor, obj, handle, btf, Q_dict,
                        error_state=False, result=res, ignore=[igtem.name for igtem in ignore], **kwargs)
         return res[-1]>0.5

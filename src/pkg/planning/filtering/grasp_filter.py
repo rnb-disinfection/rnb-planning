@@ -5,7 +5,7 @@ from ...utils.gjk import get_point_list, set_point_list, get_gjk_distance
 from ...utils.utils import GlobalTimer,TextColors
 import random
 
-DEBUG_MODE_GRAB_FILT_LOG = True
+DEBUG_MODE_GRAB_FILT_LOG = False
 
 if DEBUG_MODE_GRAB_FILT_LOG:
     TextColors.RED.println("===== WARNING: grasp_filter in DEBUG MODE====")
