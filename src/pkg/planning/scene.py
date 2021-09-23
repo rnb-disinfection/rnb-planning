@@ -566,16 +566,18 @@ class PlanningScene:
                 Toff = SE3(Rot_rpy(rpy_add_binder), point_add_binder)
             self.add_handle_axis("{}".format(bname), binder, Toff=Toff)
 
-    def get_scene_args(self):
+    def get_scene_args(self, Q):
         gtem_args = self.gscene.get_gtem_args()
         binder_args = {aname: actor.get_args() for aname, actor in self.actor_dict.items()}
         subject_args = {sname: subject.get_args() for sname, subject in self.subject_dict.items()}
         subject_names = self.subject_name_list
+        binding_state, state_param = self.get_object_state()
+        state = State(binding_state, state_param, list(Q), self)
         return {"gtem_args": gtem_args,
                 "binder_args": binder_args,
                 "subject_args": subject_args,
-                "subject_names": subject_names
-                }
+                "subject_names": subject_names,
+                "state": state}
 
     def recover_scene_args(self, scene_args):
         self.clear_subjects()
@@ -595,3 +597,5 @@ class PlanningScene:
                                 action_points_dict=sargs["action_points_dict"],
                                 sub_binders_dict={bname: self.actor_dict[bname] for bname in sargs["sub_binders_dict"]},
                                 **sargs['kwargs'])
+
+        self.set_object_state(scene_args['state'])
