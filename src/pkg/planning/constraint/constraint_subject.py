@@ -273,7 +273,7 @@ class Subject:
                     apname: ap.get_args()
                     for apname, ap in self.action_points_dict.items()
                 },
-                "sub_binders": sorted(self.sub_binders_dict.keys())
+                "sub_binders": sorted(self.sub_binders_dict.keys()),
                 "kwargs": self.kwargs
                 }
 

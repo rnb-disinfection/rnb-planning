@@ -1,14 +1,13 @@
 import numpy as np
-from .filter_interface import MotionFilterInterface
+from .filter_interface import MotionFilterInterface, save_scene
 from ...utils.joint_utils import *
 from ...utils.gjk import get_point_list, set_point_list, get_gjk_distance
 from ...utils.utils import GlobalTimer,TextColors
 import random
 
-DEBUG_MODE_GRAB_FILT = False
-DEBUG_MODE_GRAB_FILT_LOG = False
+DEBUG_MODE_GRAB_FILT_LOG = True
 
-if DEBUG_MODE_GRAB_FILT or DEBUG_MODE_GRAB_FILT_LOG:
+if DEBUG_MODE_GRAB_FILT_LOG:
     TextColors.RED.println("===== WARNING: grasp_filter in DEBUG MODE====")
 
 
@@ -48,6 +47,8 @@ class GraspChecker(MotionFilterInterface):
             self.robot_ex_link_dict[rname] = [lname for lname in self.gscene.link_names if lname not in robot_link_names]
             for lname in robot_link_names:
                 self.link_robot_dict[lname] = rname
+        # @brief set show_vertices=True to show collision vertices
+        self.show_vertices = False
         # self.verts_holder_dict = {}
 
 
@@ -72,7 +73,7 @@ class GraspChecker(MotionFilterInterface):
             verts = np.matmul(verts, T[:3,:3].transpose())+T[:3,3]
             vert_point_list = get_point_list(verts)
             actor_vertice_list.append((vert_point_list, radius))
-            if DEBUG_MODE_GRAB_FILT:
+            if self.show_vertices:
                 for actor_vertice, actor_radius in actor_vertice_list:
                     for i_v, vert in enumerate(verts):
                         self.gscene.add_highlight_axis("gc_actor", geo_name+"_{:03}".format(i_v), "base_link",
@@ -84,7 +85,7 @@ class GraspChecker(MotionFilterInterface):
             verts = np.matmul(verts, T[:3,:3].transpose())+T[:3,3]
             vert_point_list = get_point_list(verts)
             object_vertice_list.append((vert_point_list, radius))
-            if DEBUG_MODE_GRAB_FILT:
+            if self.show_vertices:
                 for actor_vertice, actor_radius in actor_vertice_list:
                     for i_v, vert in enumerate(verts):
                         self.gscene.add_highlight_axis("gc_object", geo_name+"_{:03}".format(i_v), "base_link",
@@ -96,7 +97,7 @@ class GraspChecker(MotionFilterInterface):
             for object_vertice, object_radius in object_vertice_list:
                 dist_list.append(get_gjk_distance(actor_vertice, object_vertice) - actor_radius - object_radius)
         res = np.min(dist_list) > + 1e-4
-        if DEBUG_MODE_GRAB_FILT:
+        if self.show_vertices:
             print("res: {} ({})".format(res, round(np.min(dist_list), 4)))
             if not res:
                 i_ac, i_ob = np.unravel_index(np.argmin(dist_list), (len(actor_vertinfo_list),len(object_vertinfo_list)))
@@ -108,7 +109,7 @@ class GraspChecker(MotionFilterInterface):
         if DEBUG_MODE_GRAB_FILT_LOG:
             save_scene(self.__class__.__name__, self.pscene, actor, obj, handle, btf, Q_dict,
                        error_state=False, result=res,
-                       interpolate=interpolate, obj_only=obj_only, ignore=ignore, **kwargs)
+                       interpolate=interpolate, obj_only=obj_only, ignore=[igtem.name for igtem in ignore], **kwargs)
         return res
 
     ##

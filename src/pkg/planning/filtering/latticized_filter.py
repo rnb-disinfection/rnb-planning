@@ -2,7 +2,7 @@ import os
 RNB_PLANNING_DIR = os.environ["RNB_PLANNING_DIR"]
 
 import numpy as np
-from .filter_interface import MotionFilterInterface
+from .filter_interface import MotionFilterInterface, save_scene
 from ...utils.joint_utils import *
 from ...utils.gjk import get_point_list, get_gjk_distance
 from ...utils.rotation_utils import *
@@ -27,7 +27,7 @@ OFFSET_ZERO_ARM = (0.5, 1.0, 1.0)
 RH_MASK_SIZE = 512
 RH_MASK_STEP = 64
 
-DEBUG_LAT_FILT = False
+DEBUG_LAT_FILT = True
 
 if DEBUG_LAT_FILT:
     TextColors.RED.println("===== WARNING: latticized_filter in DEBUG MODE====")
@@ -171,6 +171,7 @@ class LatticedChecker(MotionFilterInterface):
         T_end_joint = T_end_effector
 
         r, th, h = cart2cyl(*T_end_effector[:3, 3])
+        self.rth_last = r, th, h
         Tref = SE3(Rot_axis(3, th), T_end_effector[:3, 3]) # in robot base link coordinate
         target_names = [item[0] for item in target_vertinfo_list if item[0] not in obj_names]
         tool_names = [item[0] for item in tool_vertinfo_list]
@@ -198,7 +199,7 @@ class LatticedChecker(MotionFilterInterface):
 
         r, th, h = cart2cyl(*T_ee[:3, 3])
 #         r_ej, th, h_ej = cart2cyl(*T_ej[:3, 3])
-        rh_vals = np.array(r, h)
+        rh_vals = np.array([r, h])
         grasp_tool_img = np.zeros(GRASP_SHAPE)
         grasp_tar_img = np.zeros(GRASP_SHAPE)
         grasp_obj_img = np.zeros(GRASP_SHAPE)
@@ -236,7 +237,7 @@ class LatticedChecker(MotionFilterInterface):
                                        )[0]
         if DEBUG_LAT_FILT:
             save_scene(self.__class__.__name__, self.pscene, actor, obj, handle, btf, Q_dict,
-                       error_state=False, result=res, ignore=ignore, **kwargs)
+                       error_state=False, result=res, ignore=[igtem.name for igtem in ignore], **kwargs)
         return res[-1]>0.5
 
     def query_wait_response(self, robot_type_name, grasp_img_batch, arm_img_batch, rh_vals_batch):

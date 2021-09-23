@@ -91,6 +91,7 @@ class ActionPoint:
     def get_args(self):
         return {"name": self.name,
                 "gname": self.geometry.name,
+                "type": self.__class__.__name__,
                 "point": self.point,
                 "rpy": self.rpy_point,
                 "name_full": self.name_full}
@@ -118,13 +119,11 @@ def calc_redundancy(redundancy, action_point):
 # @remark   give either one of redundancy or T_loal
 class BindingTransform:
     def __init__(self, obj, handle, actor, redundancy=None, T_loal=None):
-        self.obj, self.handle, self.actor, self.redundancy = obj, handle, actor, redundancy
         self.point_add_handle, self.rpy_add_handle, self.point_add_actor, self.rpy_add_actor = [(0,0,0)]*4
         if handle is None: # for cases where handle is not important. this can cause errors
             handle = DummyObject()
             handle.name = "none"
             handle.Toff_lh = np.identity(4)
-            self.handle = handle
         if redundancy is not None:
             if handle.name in redundancy:
                 self.point_add_handle, self.rpy_add_handle = calc_redundancy(redundancy[handle.name], handle)
@@ -134,6 +133,8 @@ class BindingTransform:
             T_handle_lh = np.matmul(T_loal, actor.Toff_lh)
             T_add_handle = np.matmul(SE3_inv(handle.Toff_lh), T_handle_lh)
             self.point_add_handle, self.rpy_add_handle = T2xyzrpy(T_add_handle)
+        self.sname, self.hname, self.aname, self.redundancy, self.T_loal = \
+            obj.oname, handle.name, actor.name, redundancy, T_loal
 
 
         ## @brief redundant transformation added on the handle side

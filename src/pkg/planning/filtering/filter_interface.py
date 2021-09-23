@@ -26,7 +26,10 @@ class MotionFilterInterface:
         pass
 
 import os
+import sys
 from copy import deepcopy
+sys.path.append(os.path.join(os.environ["RNB_PLANNING_DIR"], "src"))
+from pkg.utils.utils import *
 
 SCENE_PATH = os.path.join(os.environ['RNB_PLANNING_DIR'], "data/checker_scenes")
 try_mkdir(SCENE_PATH)
@@ -34,20 +37,42 @@ try_mkdir(SCENE_PATH)
 def save_scene(cname, pscene, actor, obj, handle, btf, Q_dict, error_state, result, **kwargs):
     path_dir = os.path.join(SCENE_PATH, cname)
     try_mkdir(path_dir)
-    query_args = {}
-    query_args["scene_args"] = pscene.get_scene_args()
-    query_args["actor"] = actor.name
-    query_args["obj"] = obj.oname
-    query_args["handle"] = handle.name
-    query_args["btf"] = btf
-    query_args["Q_dict"] = Q_dict
-    query_args["kwargs"] = kwargs
-    query_args["error_state"] = error_state
-    query_args["result"] = result
+    scene_data = {}
+    scene_data["scene_args"] = pscene.get_scene_args(list2dict(Q_dict, pscene.gscene.joint_names))
+    scene_data["actor"] = actor.name
+    scene_data["obj"] = obj.oname
+    scene_data["handle"] = None if handle is None else handle.name
+    scene_data["btf"] = btf
+    scene_data["Q_dict"] = Q_dict
+    scene_data["kwargs"] = kwargs
+    scene_data["error_state"] = error_state
+    scene_data["result"] = result
 
     save_pickle(
         os.path.join(path_dir,
                      "{0:08d}-{1}.pkl".format(
-                         len(os.listdir(SCENE_PATH)),
+                         len(os.listdir(path_dir)),
                          "ERROR" if error_state else "OK"
-                     )), query_args)
+                     )), scene_data)
+
+def load_unpack_scene_args(pscene, scene_data):
+    pscene_args = scene_data["scene_args"]
+    pscene.recover_scene_args(pscene_args)
+
+    Q_dict = scene_data["Q_dict"]
+    pscene.gscene.show_pose(Q_dict)
+
+    aname = scene_data["actor"]
+    oname = scene_data["obj"]
+    hname = scene_data["handle"]
+    btf = scene_data["btf"]
+    kwargs = scene_data["kwargs"]
+    if "ignore" in kwargs:
+        kwargs["ignore"] = [pscene.gscene.NAME_DICT[ig_name] for ig_name in kwargs["ignore"]]
+
+    obj = pscene.subject_dict[oname]
+    handle = pscene.handle_dict[hname] if hname is not None else None
+    actor = pscene.actor_dict[aname]
+    error_state = scene_data["error_state"]
+    result = scene_data["result"]
+    return obj, handle, actor, btf, Q_dict, kwargs, error_state, result

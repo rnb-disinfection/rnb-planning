@@ -584,18 +584,24 @@ class PlanningScene:
         for bname in sorted(self.actor_dict.keys()):
             self.remove_binder(bname)
 
-        load_gtem_args(self.gscene, scene_args['scene_args'])
+        load_gtem_args(self.gscene, scene_args['gtem_args'])
 
         for bname, bargs in scene_args['binder_args'].items():
             self.create_binder(bargs["name"], bargs["gname"], _type=eval(bargs["type"]),
                                point=bargs["point"], rpy=bargs["rpy"])
 
-        subject_args = scene_args['subject_args'].items()
+        subject_args = scene_args['subject_args']
         for sname in scene_args['subject_names']:
             sargs = subject_args[sname]
             self.create_subject(sargs["name"], gname=sargs["gname"], _type=eval(sargs["type"]),
-                                action_points_dict=sargs["action_points_dict"],
-                                sub_binders_dict={bname: self.actor_dict[bname] for bname in sargs["sub_binders_dict"]},
+                                action_points_dict={aname:
+                                                        eval(ap_args["type"])(ap_args["name"],
+                                                                              self.gscene.NAME_DICT[ap_args["gname"]],
+                                                                              point=ap_args["point"], rpy=ap_args["rpy"],
+                                                                              name_full=ap_args["name_full"]
+                                                                              )
+                                                    for aname, ap_args in sargs["action_points_dict"].items()},
+                                sub_binders_dict={bname: self.actor_dict[bname] for bname in sargs["sub_binders"]},
                                 **sargs['kwargs'])
 
         self.set_object_state(scene_args['state'])

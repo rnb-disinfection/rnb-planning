@@ -1,5 +1,5 @@
 import numpy as np
-from .filter_interface import MotionFilterInterface
+from .filter_interface import MotionFilterInterface, save_scene
 from ..constraint.constraint_subject import AbstractTask
 from ...utils.joint_utils import *
 from ...utils.gjk import get_point_list, set_point_list, get_gjk_distance
