@@ -1,6 +1,5 @@
 import numpy as np
 from .filter_interface import MotionFilterInterface
-from ..constraint.constraint_common import calc_redundancy
 from ...utils.joint_utils import *
 from ...utils.gjk import get_point_list, get_gjk_distance
 
@@ -74,14 +73,16 @@ class ReachChecker(MotionFilterInterface):
     ##
     # @param actor  rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
     # @param obj    rnb-planning.src.pkg.planning.constraint.constraint_subject.Subject
-    # @param T_loal     transformation matrix from object-side link to actor-side link
+    # @param handle rnb-planning.src.pkg.planning.constraint.constraint_common.ActionPoint
+    # @param btf    BindingTransorm instance
     # @param Q_dict joint configuration in dictionary format {joint name: radian value}
     # @param interpolate    interpolate path and check intermediate poses
     # @param ignore         GeometryItems to ignore
-    def check_T_loal(self, actor, obj, T_loal, Q_dict, interpolate=False, **kwargs):
+    def check(self, actor, obj, handle, btf, Q_dict, interpolate=False, **kwargs):
 
         actor_link = actor.geometry.link_name
         object_link = obj.geometry.link_name
+        T_loal = btf.T_loal
 
         group_name_handle = self.binder_link_robot_dict[object_link] if object_link in self.binder_link_robot_dict else None
         group_name_actor = self.binder_link_robot_dict[actor_link] if actor_link in self.binder_link_robot_dict else None

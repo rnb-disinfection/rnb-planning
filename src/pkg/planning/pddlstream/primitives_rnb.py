@@ -431,12 +431,13 @@ def run_checkers(checkers, actor, subject, Tloal_list, Q_dict, ignore=[], show_s
     run_checkers.reason = None
     res = True
     gtimer = GlobalTimer.instance()
+    btf_list = [BindingTransform(subject, None, actor, T_loal=Tloal) for Tloal in Tloal_list]
     for i_c, checker in enumerate(checkers):
         fname = checker.__class__.__name__
         run_checkers.reason = fname
         with gtimer.block(fname):
-            for Tloal in Tloal_list:
-                if not checker.check_T_loal(actor, subject, Tloal, Q_dict, ignore=ignore):
+            for btf in btf_list:
+                if not checker.check(actor, subject, None, btf, Q_dict, ignore=ignore):
                     res = False
                     break
         if mplan is not None and mplan.flag_log:

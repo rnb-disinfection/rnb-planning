@@ -51,12 +51,12 @@ class EtaslPlanner(MotionInterface):
     # @param from_state starting state (rnb-planning.src.pkg.planning.scene.State)
     # @param to_state   goal state (rnb-planning.src.pkg.planning.scene.State)
     # @param binding_list   list of bindings to pursue
-    # @param redundancy_values calculated redundancy values in dictionary format {(object name, point name): (xyz, rpy)}
+    # @param btf_dict calculated redundancy values in dictionary format {(object name, point name): (xyz, rpy)}
     # @return Traj      Full trajectory as array of Q
     # @return LastQ     Last joint configuration as array
     # @return error     planning error
     # @return success   success/failure of planning result
-    def plan_algorithm(self, from_state, to_state, binding_list, redundancy_values=None,
+    def plan_algorithm(self, from_state, to_state, binding_list, btf_dict=None,
                        vel_conv=1e-2, err_conv=1e-3, collision=True, N=None, dt=1e-2,
                        print_expression=False, cut_dot=False, traj_count=DEFAULT_TRAJ_COUNT,
                        timeout=None, verbose=False, **kwargs):
@@ -71,7 +71,7 @@ class EtaslPlanner(MotionInterface):
             print("===================== plan joint manipulation =====================")
         full_context, kwargs = self.__get_transition_context(
             from_state, to_state, binding_list, vel_conv, err_conv, collision=collision,
-            redundancy_values=redundancy_values, **kwargs)
+            btf_dict=btf_dict, **kwargs)
         if print_expression:
             print(full_context)
         e = self.__set_simulate(full_context, initial_jpos=np.array(from_state.Q),
@@ -189,7 +189,7 @@ class EtaslPlanner(MotionInterface):
 
     def __get_transition_context(self, from_state=None, to_state=None, binding_list=[],
                                vel_conv=1e-2, err_conv=1e-4, collision=True,
-                               activation=False, redundancy_values=None, **kwargs):
+                               activation=False, btf_dict=None, **kwargs):
         kwargs.update(deepcopy(self.kwargs_online))
 
         tf_text = self.fixed_tf_text + self.online_input_text + get_tf_text(self.gscene.movable_gtems)
@@ -213,7 +213,7 @@ class EtaslPlanner(MotionInterface):
                 self.pscene.subject_dict[bd1[0]], self.pscene.subject_dict[bd1[0]].action_points_dict[bd1[1]],
                 self.pscene.actor_dict[bd1[2]],
                 binding_from=from_state.binding_state[sidx], binding_to=to_state.binding_state[sidx],
-                redundancy_values=redundancy_values, activation=activation)
+                btf_dict=btf_dict, activation=activation)
 
 
         if additional_constraints=="" and to_state.Q is not None:# and np.sum(np.abs(np.subtract(to_state.Q,from_state.Q)))>1e-2:

@@ -22,7 +22,7 @@ from shutil import copyfile
 import rospkg
 rospack = rospkg.RosPack()
 
-from ..constraint.constraint_common import combine_redundancy, sample_redundancy, calc_redundancy
+from ..constraint.constraint_common import combine_redundancy, sample_redundancy, BindingTransform
 from primitives_pybullet import update_grasp_info, GraspInfo, pairwise_collision, BodyPose, sample_placement, BodyGrasp
 import random
 from constants_common import *
@@ -57,11 +57,9 @@ def sample_redundancy_offset(subject, actor, drop_downward_dir=None, show_state=
         handle = binding_sampler([ap for ap in subject.action_points_dict.values() if actor.check_type(ap)])
         redundancy_tot = combine_redundancy(handle, actor)
         redundancy = sample_redundancy(redundancy_tot, sampler=redundancy_sampler)
-        point_add_handle, rpy_add_handle = calc_redundancy(redundancy[handle.name], handle)
-        point_add_actor, rpy_add_actor = calc_redundancy(redundancy[actor.name], actor)
-        T_handle_gh = np.matmul(handle.Toff_gh,
-                                SE3(Rot_rpy(rpy_add_handle), point_add_handle))
-        T_ah = T_xyzrpy((point_add_actor, rpy_add_actor))
+        btf = BindingTransform(subject, handle, actor, redundancy)
+        T_handle_gh = np.matmul(handle.Toff_gh, btf.T_add_handle)
+        T_ah = btf.T_add_actor
         T_ahg = np.matmul(T_ah, SE3_inv(T_handle_gh))
         if subject.geometry == handle.geometry:
             T_ao = T_ahg
@@ -77,11 +75,10 @@ def sample_redundancy_offset(subject, actor, drop_downward_dir=None, show_state=
                 kwargs, pass_this = dict(color=(1,0,0,0.5), dims=(0.07, 0.005, 0.005)), True
 
         if show_state:
-            T_ha = np.matmul(SE3(Rot_rpy(rpy_add_handle), point_add_handle), SE3_inv(T_ah))
             if actor.geometry.link_name == "base_link":
-                add_handle_axis("sro_{}".format(i_s), actor, Toff=SE3_inv(T_ha), **kwargs)
+                add_handle_axis("sro_{}".format(i_s), actor, Toff=btf.T_add_ah, **kwargs)
             else:
-                add_handle_axis("sro_{}".format(i_s), handle, Toff=T_ha, **kwargs)
+                add_handle_axis("sro_{}".format(i_s), handle, Toff=SE3_inv(btf.T_add_ah), **kwargs)
             if not pass_this:
                 time.sleep(0.5)
         if pass_this:
@@ -98,23 +95,25 @@ def prepare_stable_redundancy_set(body_subject_map, body_actor_map, show_state=F
         TextColors.RED.println('===== metadata is not set for "dat_root", "rtype", "dat_dir", "fname" ====')
     data_path = create_data_dirs(meta_data['dat_root'], meta_data['rtype'], meta_data['dat_dir']+"-stableset")
     rdc_file = os.path.join(data_path, meta_data['fname'])
+    redundancyque_dict = {}
     if os.path.isfile(rdc_file):
         redundancyque_dict = load_pickle(rdc_file)
-    else:
-        redundancyque_dict = {}
-        for body, subject in body_subject_map.items():
-            for surface, actor in body_actor_map.items():
-                if actor.controlled:
-                    continue
-                redundancyque = []
-                for _ in range(sample_count):
-                    T_ao = sample_redundancy_offset(subject, actor, show_state=show_state,
-                                                    binding_sampler=binding_sampler,
-                                                    drop_downward_dir=[0, 1, 0],
-                                                    redundancy_sampler=redundancy_sampler)
-                    redundancyque.append(T_ao)
-                redundancyque_dict[(body, surface)] = redundancyque
-        save_pickle(rdc_file, redundancyque_dict)
+
+    for body, subject in body_subject_map.items():
+        for surface, actor in body_actor_map.items():
+            if actor.controlled:
+                continue
+            if (body, surface) in redundancyque_dict and len(redundancyque_dict[(body, surface)])>=sample_count:
+                continue
+            redundancyque = []
+            for _ in range(sample_count):
+                T_ao = sample_redundancy_offset(subject, actor, show_state=show_state,
+                                                binding_sampler=binding_sampler,
+                                                drop_downward_dir=[0, 1, 0],
+                                                redundancy_sampler=redundancy_sampler)
+                redundancyque.append(T_ao)
+            redundancyque_dict[(body, surface)] = redundancyque
+    save_pickle(rdc_file, redundancyque_dict)
     return redundancyque_dict
 
 

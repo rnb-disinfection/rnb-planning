@@ -3,7 +3,8 @@ from copy import deepcopy
 import random
 from ...geometry.geometry import *
 from abc import *
-from ...utils.rotation_utils import SE3_inv
+from ...utils.utils import DummyObject
+from ...utils.rotation_utils import SE3_inv, T_xyzrpy, T2xyzrpy
 from scipy.spatial.transform import Rotation
 
 __metaclass__ = type
@@ -103,6 +104,43 @@ def calc_redundancy(redundancy, action_point):
             else:
                 rpy_add[ax - 3] += redundancy[k]
     return point_add, rpy_add
+
+##
+# @class    BindingTransform
+# @brief    information holder that contains all sub-transfomations in the binding
+# @remark   give either one of redundancy or T_loal
+class BindingTransform:
+    def __init__(self, obj, handle, actor, redundancy=None, T_loal=None):
+        self.obj, self.handle, self.actor, self.redundancy = obj, handle, actor, redundancy
+        self.point_add_handle, self.rpy_add_handle, self.point_add_actor, self.rpy_add_actor = [(0,0,0)]*4
+        if handle is None: # for cases where handle is not important. this can cause errors
+            handle = DummyObject()
+            handle.name = "none"
+            handle.Toff_lh = np.identity(4)
+            self.handle = handle
+        if redundancy is not None:
+            if handle.name in redundancy:
+                self.point_add_handle, self.rpy_add_handle = calc_redundancy(redundancy[handle.name], handle)
+            if actor.name in redundancy:
+                self.point_add_actor, self.rpy_add_actor = calc_redundancy(redundancy[actor.name], actor)
+        elif T_loal is not None:
+            T_handle_lh = np.matmul(T_loal, actor.Toff_lh)
+            T_add_handle = np.matmul(SE3_inv(handle.Toff_lh), T_handle_lh)
+            self.point_add_handle, self.rpy_add_handle = T2xyzrpy(T_add_handle)
+
+
+        ## @brief redundant transformation added on the handle side
+        self.T_add_handle = T_xyzrpy((self.point_add_handle, self.rpy_add_handle))
+        ## @brief redundant transformation added on the actor side
+        self.T_add_actor = T_xyzrpy((self.point_add_actor, self.rpy_add_actor))
+        ## @brief redundant transformation from handle to effector
+        self.T_add_ah = np.matmul(self.T_add_actor, SE3_inv(self.T_add_handle))
+        ## @brief link-to-handle transformation with redundancy
+        self.T_handle_lh = np.matmul(handle.Toff_lh, self.T_add_handle)
+        ## @brief link-to-actor transformation with redundancy
+        self.T_actor_lh = np.matmul(actor.Toff_lh, self.T_add_actor)
+        ## @brief link-object-actor-link transformation with redundancy
+        self.T_loal = np.matmul(self.T_handle_lh, SE3_inv(self.T_actor_lh))
 
 
 ##

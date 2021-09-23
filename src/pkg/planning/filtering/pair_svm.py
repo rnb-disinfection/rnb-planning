@@ -1,6 +1,5 @@
 import numpy as np
 from .filter_interface import MotionFilterInterface
-from ..constraint.constraint_common import calc_redundancy
 from ...utils.joint_utils import *
 from ...controller.combined_robot import *
 from ...utils.utils import get_now, try_mkdir
@@ -69,15 +68,17 @@ class PairSVM(MotionFilterInterface):
     # @brief check end-effector collision in grasping
     # @param actor  rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
     # @param obj    rnb-planning.src.pkg.planning.constraint.constraint_subject.Subject
-    # @param T_loal     transformation matrix from object-side link to actor-side link
+    # @param handle rnb-planning.src.pkg.planning.constraint.constraint_common.ActionPoint
+    # @param btf    BindingTransorm instance
     # @param Q_dict joint configuration in dictionary format {joint name: radian value}
     # @param interpolate    interpolate path and check intermediate poses
     # @param ignore         GeometryItems to ignore
-    def check_T_loal(self, actor, obj, T_loal, Q_dict, interpolate=False, obj_only=False, ignore=[],
+    def check(self, actor, obj, handle, btf, Q_dict, interpolate=False, obj_only=False, ignore=[],
                      **kwargs):
 
         actor_link = actor.geometry.link_name
         object_link = obj.geometry.link_name
+        T_loal = btf.T_loal
 
         group_name_handle = self.binder_link_robot_dict[
             object_link] if object_link in self.binder_link_robot_dict else None

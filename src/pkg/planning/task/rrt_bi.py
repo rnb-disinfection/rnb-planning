@@ -1,7 +1,7 @@
 from .rrt import  *
 from copy import deepcopy
 from ..constraint.constraint_subject import AbstractObject, AbstractTask
-from ..constraint.constraint_common import combine_redundancy, sample_redundancy, calc_redundancy
+from ..constraint.constraint_common import combine_redundancy, sample_redundancy, BindingTransform
 
 
 
@@ -242,15 +242,9 @@ class TaskBiRRT(TaskInterface):
                                         to_ap = subject.action_points_dict[_hname]
                                         to_binder = self.pscene.actor_dict[_bname]
                                         redundancy = redundancy_dict[_oname]
-                                        point_add_handle, rpy_add_handle = calc_redundancy(redundancy[to_ap.name],
-                                                                                           to_ap)
-                                        point_add_actor, rpy_add_actor = calc_redundancy(redundancy[to_binder.name],
-                                                                                         to_binder)
-
-                                        T_handle_gh = np.matmul(to_ap.Toff_gh,
-                                                                SE3(Rot_rpy(rpy_add_handle), point_add_handle))
-                                        T_actor_lh = np.matmul(to_binder.Toff_lh,
-                                                               SE3(Rot_rpy(rpy_add_actor), point_add_actor))
+                                        btf = BindingTransform(subject, to_ap, to_binder, redundancy)
+                                        T_handle_gh = np.matmul(to_ap.Toff_gh, btf.T_add_handle)
+                                        T_actor_lh = np.matmul(to_binder.Toff_lh, btf.T_add_actor)
                                         T_lhg = np.matmul(T_actor_lh, SE3_inv(T_handle_gh))
                                         if subject.geometry == to_ap.geometry:
                                             T_lo = T_lhg
@@ -261,12 +255,7 @@ class TaskBiRRT(TaskInterface):
                                         to_state.state_param[_oname] = (
                                         self.pscene.gscene.NAME_DICT[_bgname].link_name, T_lo)
 
-                                        redundancy_values = {}
-                                        redundancy_values[(_oname, to_ap.name)] = point_add_handle, rpy_add_handle
-                                        redundancy_values[(_oname, to_binder.name)] = point_add_actor, rpy_add_actor
-                                        print(redundancy_values)
-                                        sample_fail = not self.gcheck.check(to_binder, subject, to_ap,
-                                                                            redundancy_values, Qdict
+                                        sample_fail = not self.gcheck.check(to_binder, subject, to_ap, btf, Qdict
                                                                             , obj_only=False)
                                         if sample_fail:
                                             break

@@ -1,7 +1,7 @@
 from abc import *
 import numpy as np
 from ...utils.utils import list2dict, GlobalTimer, DummyBlock, save_pickle, try_mkdir, TextColors
-from ..constraint.constraint_common import calc_redundancy
+from ..constraint.constraint_common import BindingTransform
 from collections import defaultdict
 import time
 import os
@@ -84,7 +84,7 @@ class MotionInterface:
             self.pscene.set_object_state(from_state)
         binding_list, success = self.pscene.get_slack_bindings(from_state, to_state)
 
-        redundancy_values = {}
+        btf_dict = {}
 
         if success:
             for binding in binding_list:
@@ -96,14 +96,14 @@ class MotionInterface:
                     success = False
                     break
                 redundancy, Q_dict = redundancy_dict[obj_name], list2dict(from_state.Q, self.joint_names)
-                redundancy_values[(obj_name, handle.name)] = calc_redundancy(redundancy[handle.name], handle)
-                redundancy_values[(obj_name, actor.name)] = calc_redundancy(redundancy[actor.name], actor)
+                btf = BindingTransform(obj, handle, actor, redundancy)
+                btf_dict[(obj_name, handle.name, actor.name)] = btf
 
                 for i_f, mfilter in enumerate(self.motion_filters):
                     fname = mfilter.__class__.__name__
                     if self.flag_log:
                         self.gtimer.tic(fname)
-                    success = mfilter.check(actor, obj, handle, redundancy_values, Q_dict)
+                    success = mfilter.check(actor, obj, handle, btf, Q_dict)
                     if self.flag_log:
                         self.gtimer.toc(fname)
                         if self.log_lock is not None:
@@ -147,7 +147,7 @@ class MotionInterface:
             if self.flag_log:
                 self.gtimer.tic('planning')
             Traj, LastQ, error, success = self.plan_algorithm(from_state, to_state, binding_list,
-                                                              redundancy_values=redundancy_values,
+                                                              btf_dict=btf_dict,
                                                               verbose=verbose, **kwargs)
             if self.flag_log:
                 self.gtimer.toc('planning')
@@ -176,13 +176,13 @@ class MotionInterface:
     # @param from_state     starting state (rnb-planning.src.pkg.planning.scene.State)
     # @param to_state       goal state (rnb-planning.src.pkg.planning.scene.State)
     # @param binding_list   list of bindings to pursue
-    # @param redundancy_values calculated redundancy values in dictionary format {(object name, point name): (xyz, rpy)}
+    # @param btf_dict   dictionary of BindingTransfrom {(object name, handle name, actor name): BindingTrasnfrom}
     # @return Traj      Full trajectory as array of Q
     # @return LastQ     Last joint configuration as array
     # @return error     planning error
     # @return success   success/failure of planning result
     @abstractmethod
-    def plan_algorithm(self, from_state, to_state, binding_list, redundancy_values=None, verbose=False, **kwargs):
+    def plan_algorithm(self, from_state, to_state, binding_list, btf_dict=None, verbose=False, **kwargs):
         return [], [], 1e10, False
 
     ##
@@ -193,7 +193,7 @@ class MotionInterface:
     def init_online_plan(self, from_state, to_state, T_step, control_freq, playback_rate=0.5,
                          redundancy_dict=None, **kwargs):
         binding_list, success = self.pscene.get_slack_bindings(from_state, to_state)
-        redundancy_values = {}
+        btf_dict = {}
         if success:
             if redundancy_dict is not None:
                 for binding in binding_list:
@@ -201,11 +201,10 @@ class MotionInterface:
                     actor, obj = self.pscene.actor_dict[binder_name], self.pscene.subject_dict[obj_name]
                     handle = obj.action_points_dict[ap_name]
                     redundancy, Q_dict = redundancy_dict[obj_name], list2dict(from_state.Q, self.joint_names)
-                    redundancy_values[(obj_name, handle.name)] = calc_redundancy(redundancy[handle.name], handle)
-                    redundancy_values[(obj_name, actor.name)] = calc_redundancy(redundancy[actor.name], actor)
+                    btf_dict[(obj_name, ap_name, binder_name)] = BindingTransform(obj, handle, actor, redundancy)
             return self.init_online_algorithm(from_state, to_state, binding_list=binding_list,
                                               T_step=T_step, control_freq=control_freq, playback_rate=playback_rate,
-                                              redundancy_values=redundancy_values**kwargs)
+                                              btf_dict=btf_dict, **kwargs)
         else:
             raise(RuntimeError("init online plan fail - get_slack_bindings"))
 
@@ -215,7 +214,7 @@ class MotionInterface:
     # @param from_state starting state (rnb-planning.src.pkg.planning.scene.State)
     # @param to_state   goal state (rnb-planning.src.pkg.planning.scene.State)
     @abstractmethod
-    def init_online_algorithm(self, from_state, to_state, T_step, control_freq, redundancy_values=None,
+    def init_online_algorithm(self, from_state, to_state, T_step, control_freq, btf_dict=None,
                               playback_rate=0.5, **kwargs):
         pass
 

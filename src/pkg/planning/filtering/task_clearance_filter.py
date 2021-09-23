@@ -1,6 +1,5 @@
 import numpy as np
 from .filter_interface import MotionFilterInterface
-from ..constraint.constraint_common import calc_redundancy
 from ..constraint.constraint_subject import AbstractTask
 from ...utils.joint_utils import *
 from ...utils.gjk import get_point_list, set_point_list, get_gjk_distance
@@ -24,10 +23,10 @@ class TaskClearanceChecker(MotionFilterInterface):
     # @param actor  rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
     # @param obj    rnb-planning.src.pkg.planning.constraint.constraint_subject.Subject
     # @param handle rnb-planning.src.pkg.planning.constraint.constraint_common.ActionPoint
-    # @param redundancy_values calculated redundancy values in dictionary format {(object name, point name): (xyz, rpy)}
+    # @param btf    BindingTransorm instance
     # @param Q_dict joint configuration in dictionary format {joint name: radian value}
     # @param interpolate    interpolate path and check intermediate poses
-    def check(self, actor, obj, handle, redundancy_values, Q_dict, interpolate=False):
+    def check(self, actor, obj, handle, btf, Q_dict, interpolate=False):
         if (not isinstance(obj, AbstractTask)) \
                 or (not hasattr(obj, "clearance")) \
                 or obj.clearance is None:

@@ -1,6 +1,5 @@
 import numpy as np
 from .filter_interface import MotionFilterInterface
-from ..constraint.constraint_common import calc_redundancy
 from ...utils.joint_utils import *
 from ...utils.gjk import get_point_list, set_point_list, get_gjk_distance
 from ...utils.utils import GlobalTimer,TextColors
@@ -55,12 +54,14 @@ class GraspChecker(MotionFilterInterface):
     # @brief check end-effector collision in grasping
     # @param actor  rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
     # @param obj    rnb-planning.src.pkg.planning.constraint.constraint_subject.Subject
-    # @param T_loal     transformation matrix from object-side link to actor-side link
+    # @param handle rnb-planning.src.pkg.planning.constraint.constraint_common.ActionPoint
+    # @param btf    BindingTransorm instance
     # @param Q_dict joint configuration in dictionary format {joint name: radian value}
     # @param interpolate    interpolate path and check intermediate poses
     # @param ignore         GeometryItems to ignore
-    def check_T_loal(self, actor, obj, T_loal, Q_dict, interpolate=False, obj_only=False, ignore=[],
+    def check(self, actor, obj, handle, btf, Q_dict, interpolate=False, obj_only=False, ignore=[],
               **kwargs):
+        T_loal = btf.T_loal
         actor_vertinfo_list, object_vertinfo_list, _, _ = self.get_grasping_vert_infos(
             actor, obj, T_loal, Q_dict, obj_only=obj_only,
             interpolate=interpolate, ignore=ignore)
