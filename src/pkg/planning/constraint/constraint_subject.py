@@ -181,6 +181,8 @@ class Subject:
         self.sub_binders_dict = {}
         ## @brief object's binding state tuple (object name, point, actor, actor-geometry)
         self.binding = (None, None, None, None)
+        ## @brief keyword arguments for save&load
+        self.kwargs = {}
         raise(NotImplementedError("AbstractObject is abstract class"))
 
     ##
@@ -263,6 +265,18 @@ class Subject:
     def get_all_node_components(cls, pscene):
         pass
 
+    def get_args(self):
+        return {"name": self.oname,
+                "gname": self.geometry.name,
+                "type": self.__class__.__name__,
+                "action_points_dict": {
+                    apname: ap.get_args()
+                    for apname, ap in self.action_points_dict.items()
+                },
+                "sub_binders": sorted(self.sub_binders_dict.keys())
+                "kwargs": self.kwargs
+                }
+
 
 ##
 # @class AbstractTask
@@ -299,16 +313,17 @@ class WayopintTask(AbstractTask):
     # @param oname object's name
     # @param geometry parent geometry
     # @param action_points_dict pre-defined action points as dictionary
-    def __init__(self, oname, geometry, action_points_dict, tol=1e-3):
+    def __init__(self, oname, geometry, action_points_dict, sub_binders_dict=None, tol=1e-3):
         self.oname = oname
         self.geometry = geometry
         self.action_points_dict = action_points_dict
         self.action_points_order = sorted(self.action_points_dict.keys())
         self.action_point_len = len(self.action_points_order)
-        self.sub_binders_dict = {}
+        self.sub_binders_dict = {} if sub_binders_dict is None else sub_binders_dict
         self.state_param = np.zeros(len(self.action_points_order), dtype=np.bool)
         self.binding = (self.oname, None, None, None)
         self.tol = tol
+        self.kwargs = {"tol": tol}
 
     ##
     # @brief set object binding state and update location
@@ -438,8 +453,21 @@ class SweepLineTask(SweepTask):
     # @param oname object's name
     # @param geometry parent geometry
     # @param action_points_dict pre-defined action points as dictionary
-    def __init__(self, oname, geometry, action_points_dict, geometry_vertical=None, tol=1e-3, clearance=None):
-        SweepTask.__init__(self, oname, geometry, action_points_dict, tol=tol)
+    def __init__(self, oname, geometry, action_points_dict, sub_binders_dict=None,
+                 geometry_vertical=None, tol=1e-3, clearance=None):
+        if isinstance(geometry_vertical, str):
+            geometry_vertical = geometry.gscene.NAME_DICT[geometry_vertical]
+        clearance_names = []
+        if isinstance(clearance, list):
+            clearance_gtem = []
+            for gtem in clearance:
+                if isinstance(gtem, str):
+                    gtem = geometry.gscene.NAME_DICT[gtem]
+                clearance_gtem.append(gtem)
+                clearance_names.append(gtem.name)
+            clearance = clearance_gtem
+        SweepTask.__init__(self, oname, geometry, action_points_dict, sub_binders_dict=sub_binders_dict, tol=tol)
+        self.kwargs = {"geometry_vertical":geometry_vertical.name, "tol": tol, "clearance": clearance_names}
 
         self.fix_direction = True
         if clearance is None:
@@ -638,11 +666,11 @@ class CustomObject(AbstractObject):
     # @param oname object's name
     # @param geometry parent geometry
     # @param action_points_dict pre-defined action points as dictionary
-    def __init__(self, oname, geometry, action_points_dict):
+    def __init__(self, oname, geometry, action_points_dict, sub_binders_dict=None):
         self.oname = oname
         self.geometry = geometry
         self.action_points_dict = action_points_dict
-        self.sub_binders_dict = {}
+        self.sub_binders_dict = {} if sub_binders_dict is None else sub_binders_dict
         self.binding = (self.oname, None, None, None)
 
     ##
@@ -659,11 +687,12 @@ class SingleHandleObject(AbstractObject):
     # @param oname object's name
     # @param geometry parent geometry
     # @param action_point pre-defined single action point
-    def __init__(self, oname, geometry, action_point):
+    def __init__(self, oname, geometry, action_point=None, action_points_dict=None, sub_binders_dict=None):
         self.oname = oname
         self.geometry = geometry
-        self.action_points_dict = {action_point.name: action_point}
-        self.sub_binders_dict = {}
+        assert action_point is not None or action_points_dict is not None, "Error: Either action_point or action_points_dict should be given"
+        self.action_points_dict = {action_point.name: action_point} if action_points_dict is None else action_points_dict
+        self.sub_binders_dict = {} if sub_binders_dict is None else sub_binders_dict
         self.binding = (self.oname, None, None, None)
 
     ##
@@ -681,7 +710,8 @@ class BoxObject(AbstractObject):
     # @param geometry parent geometry
     # @param hexahedral If True, all hexahedral points are defined. Otherwise, only top and bottom points are defined
     def __init__(self, oname, geometry, hexahedral=True, CLEARANCE=1e-3,
-                 GRASP_WIDTH_MIN=0.04, GRASP_WIDTH_MAX=0.06, GRASP_DEPTH_MIN=0.025, GRASP_DEPTH_MAX=0.025):
+                 GRASP_WIDTH_MIN=0.04, GRASP_WIDTH_MAX=0.06, GRASP_DEPTH_MIN=0.025, GRASP_DEPTH_MAX=0.025,
+                 action_points_dict=None, sub_binders_dict=None):
         self.oname = oname
         self.geometry = geometry
         self.CLEARANCE = CLEARANCE
@@ -691,14 +721,20 @@ class BoxObject(AbstractObject):
         self.GRASP_DEPTH_MAX = GRASP_DEPTH_MAX
         self.action_points_dict = {}
         self.conflict_dict = {}
-        self.sub_binders_dict = {}
+        self.sub_binders_dict = {} if sub_binders_dict is None else sub_binders_dict
         self.hexahedral = hexahedral
-        self.add_place_points(self.geometry, CLEARANCE=CLEARANCE)
-        self.add_grip_points(self.geometry, GRASP_WIDTH_MIN=GRASP_WIDTH_MIN, GRASP_WIDTH_MAX=GRASP_WIDTH_MAX,
-                               GRASP_DEPTH_MIN=GRASP_DEPTH_MIN, GRASP_DEPTH_MAX=GRASP_DEPTH_MAX)
+        if action_points_dict is None:
+            self.add_place_points(self.geometry, CLEARANCE=CLEARANCE)
+            self.add_grip_points(self.geometry, GRASP_WIDTH_MIN=GRASP_WIDTH_MIN, GRASP_WIDTH_MAX=GRASP_WIDTH_MAX,
+                                   GRASP_DEPTH_MIN=GRASP_DEPTH_MIN, GRASP_DEPTH_MAX=GRASP_DEPTH_MAX)
+        else:
+            self.action_points_dict = action_points_dict
 
         self.set_conflict_dict()
         self.binding = (self.oname, None, None, None)
+        self.kwargs = dict(hexahedral=hexahedral, CLEARANCE=CLEARANCE,
+                           GRASP_WIDTH_MIN=GRASP_WIDTH_MIN, GRASP_WIDTH_MAX=GRASP_WIDTH_MAX,
+                           GRASP_DEPTH_MIN=GRASP_DEPTH_MIN, GRASP_DEPTH_MAX=GRASP_DEPTH_MAX)
 
     ##
     # @brief add action points to given box geometry
@@ -810,7 +846,8 @@ class CylinderObject(AbstractObject):
     # @param geometry parent geometry
     # @param hexahedral If True, all hexahedral points are defined. Otherwise, only top and bottom points are defined
     def __init__(self, oname, geometry, CLEARANCE=1e-3,
-                 GRASP_WIDTH_MIN=0.04, GRASP_WIDTH_MAX=0.06, GRASP_DEPTH_MIN=0.025, GRASP_DEPTH_MAX=0.025):
+                 GRASP_WIDTH_MIN=0.04, GRASP_WIDTH_MAX=0.06, GRASP_DEPTH_MIN=0.025, GRASP_DEPTH_MAX=0.025,
+                 action_points_dict=None, sub_binders_dict=None):
         self.oname = oname
         self.geometry = geometry
         self.CLEARANCE = CLEARANCE
@@ -820,13 +857,19 @@ class CylinderObject(AbstractObject):
         self.GRASP_DEPTH_MAX = GRASP_DEPTH_MAX
         self.action_points_dict = {}
         self.conflict_dict = {}
-        self.sub_binders_dict = {}
-        self.add_place_points(self.geometry, CLEARANCE=CLEARANCE)
-        self.add_grip_points(self.geometry, GRASP_WIDTH_MIN=GRASP_WIDTH_MIN, GRASP_WIDTH_MAX=GRASP_WIDTH_MAX,
-                               GRASP_DEPTH_MIN=GRASP_DEPTH_MIN, GRASP_DEPTH_MAX=GRASP_DEPTH_MAX)
+        self.sub_binders_dict = {} if sub_binders_dict is None else sub_binders_dict
+        if action_points_dict is None:
+            self.add_place_points(self.geometry, CLEARANCE=CLEARANCE)
+            self.add_grip_points(self.geometry, GRASP_WIDTH_MIN=GRASP_WIDTH_MIN, GRASP_WIDTH_MAX=GRASP_WIDTH_MAX,
+                                   GRASP_DEPTH_MIN=GRASP_DEPTH_MIN, GRASP_DEPTH_MAX=GRASP_DEPTH_MAX)
+        else:
+            self.action_points_dict = action_points_dict
 
         self.set_conflict_dict()
         self.binding = (self.oname, None, None, None)
+        self.kwargs = dict(CLEARANCE=CLEARANCE,
+                           GRASP_WIDTH_MIN=GRASP_WIDTH_MIN, GRASP_WIDTH_MAX=GRASP_WIDTH_MAX,
+                           GRASP_DEPTH_MIN=GRASP_DEPTH_MIN, GRASP_DEPTH_MAX=GRASP_DEPTH_MAX)
 
     ##
     # @brief add action points to given box geometry

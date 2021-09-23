@@ -88,6 +88,13 @@ class ActionPoint:
     def update_redundancy(self):
         pass
 
+    def get_args(self):
+        return {"name": self.name,
+                "gname": self.geometry.name,
+                "point": self.point,
+                "rpy": self.rpy_point,
+                "name_full": self.name_full}
+
 
 ##
 # @brief    calculate redundancy offset

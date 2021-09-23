@@ -1,8 +1,10 @@
 from collections import defaultdict
-from ..utils.utils import list2dict
+from ..utils.utils import list2dict, save_pickle
 from .constraint.constraint_common import combine_redundancy, sample_redundancy, calc_redundancy, fit_binding
-from .constraint.constraint_subject import SubjectType
+from .constraint.constraint_subject import *
+from .constraint.constraint_actor import *
 from ..utils.rotation_utils import SE3, Rot_rpy
+from ..geometry.geometry import *
 from ..geometry.geotype import *
 from itertools import product
 import numpy as np
@@ -563,3 +565,37 @@ class PlanningScene:
                 point_add_binder, rpy_add_binder = calc_redundancy(redundancy[bname], binder)
                 Toff = SE3(Rot_rpy(rpy_add_binder), point_add_binder)
             self.add_handle_axis("{}".format(bname), binder, Toff=Toff)
+
+    def get_scene_args(self, Q):
+        gtem_args = self.gscene.get_gtem_args()
+        binder_args = {aname: actor.get_args() for aname, actor in self.actor_dict.items()}
+        subject_args = {sname: subject.get_args() for sname, subject in self.subject_dict.items()}
+        subject_names = self.subject_name_list
+        binding_state, state_param = self.get_object_state()
+        state = State(binding_state, state_param, list(Q), self)
+        return {"gtem_args": gtem_args,
+                "binder_args": binder_args,
+                "subject_args": subject_args,
+                "subject_names": subject_names,
+                "state": state}
+
+    def recover_scene_args(self, scene_args):
+        self.clear_subjects()
+        for bname in sorted(self.actor_dict.keys()):
+            self.remove_binder(bname)
+
+        load_gtem_args(self.gscene, scene_args['scene_args'])
+
+        for bname, bargs in scene_args['binder_args'].items():
+            self.create_binder(bargs["name"], bargs["gname"], _type=eval(bargs["type"]),
+                               point=bargs["point"], rpy=bargs["rpy"])
+
+        subject_args = scene_args['subject_args'].items()
+        for sname in scene_args['subject_names']:
+            sargs = subject_args[sname]
+            self.create_subject(sargs["name"], gname=sargs["gname"], _type=eval(sargs["type"]),
+                                action_points_dict=sargs["action_points_dict"],
+                                sub_binders_dict={bname: self.actor_dict[bname] for bname in sargs["sub_binders_dict"]},
+                                **sargs['kwargs'])
+
+        self.set_object_state(scene_args['state'])

@@ -6,8 +6,9 @@ from ...utils.utils import GlobalTimer,TextColors
 import random
 
 DEBUG_MODE_GRAB_FILT = False
+DEBUG_MODE_GRAB_FILT_LOG = False
 
-if DEBUG_MODE_GRAB_FILT:
+if DEBUG_MODE_GRAB_FILT or DEBUG_MODE_GRAB_FILT_LOG:
     TextColors.RED.println("===== WARNING: grasp_filter in DEBUG MODE====")
 
 
@@ -104,6 +105,10 @@ class GraspChecker(MotionFilterInterface):
                                            center=T_loal[:3,3], orientation_mat=T_loal[:3,:3])
             self.gscene.clear_highlight(hl_keys=["gc_actor", "gc_object", "gc_center"])
 
+        if DEBUG_MODE_GRAB_FILT_LOG:
+            save_scene(self.__class__.__name__, self.pscene, actor, obj, handle, btf, Q_dict,
+                       error_state=False, result=res,
+                       interpolate=interpolate, obj_only=obj_only, ignore=ignore, **kwargs)
         return res
 
     ##

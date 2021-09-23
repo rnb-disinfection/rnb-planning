@@ -207,8 +207,8 @@ class LatticedChecker(MotionFilterInterface):
         try:
             grasp_obj_img[np.unravel_index(grasp_obj_idx, shape=GRASP_SHAPE)] = 1
         except Exception as e:
-            save_scene(self.pscene.gscene, arm_tar_idx, grasp_tool_idx, grasp_tar_idx, grasp_obj_idx, [r, th, h],
-                       error_state=True, result=None)
+            save_scene(self.__class__.__name__, self.pscene, actor, obj, handle, btf, Q_dict,
+                       error_state=True, result=None, ignore=ignore, **kwargs)
             print("===== THE ERROR OCCURED!!! =====")
             print("===== THE ERROR OCCURED!!! =====")
             print("===== THE ERROR OCCURED!!! =====")
@@ -235,8 +235,8 @@ class LatticedChecker(MotionFilterInterface):
                                        np.array([grasp_img]), np.array([arm_img]), np.array([rh_vals]),
                                        )[0]
         if DEBUG_LAT_FILT:
-            save_scene(self.pscene.gscene, arm_tar_idx, grasp_tool_idx, grasp_tar_idx, grasp_obj_idx, [r, th, h],
-                       error_state=False, result=res)
+            save_scene(self.__class__.__name__, self.pscene, actor, obj, handle, btf, Q_dict,
+                       error_state=False, result=res, ignore=ignore, **kwargs)
         return res[-1]>0.5
 
     def query_wait_response(self, robot_type_name, grasp_img_batch, arm_img_batch, rh_vals_batch):
@@ -258,29 +258,3 @@ class LatticedChecker(MotionFilterInterface):
         for rname in self.server_on_me:
             self.quit_shared_server(rname)
 
-
-from copy import deepcopy
-
-SCENE_PATH = os.path.join(os.environ['RNB_PLANNING_DIR'], "data/lcheck_scenes")
-try_mkdir(SCENE_PATH)
-
-def save_scene(gscene, arm_tar_idx, grasp_tool_idx, grasp_tar_idx, grasp_obj_idx, rth, error_state, result):
-    gtem_args = gscene.get_gtem_args()
-
-    scene_data = {}
-    scene_data["arm_tar_idx"] = arm_tar_idx
-    scene_data["grasp_tool_idx"] = grasp_tool_idx
-    scene_data["grasp_tar_idx"] = grasp_tar_idx
-    scene_data["grasp_obj_idx"] = grasp_obj_idx
-    scene_data["rth"] = rth
-    scene_data["gtem_args"] = gtem_args
-    scene_data["error_state"] = error_state
-    scene_data["result"] = result
-
-    # scene_data["global_log"] = GlobalLogger.instance()
-    save_pickle(
-        os.path.join(SCENE_PATH,
-                     "{0:08d}-{1}.pkl".format(
-                         len(os.listdir(SCENE_PATH)),
-                         "ERROR" if error_state else "OK"
-                     )), scene_data)

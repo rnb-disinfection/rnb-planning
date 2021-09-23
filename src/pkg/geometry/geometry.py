@@ -619,3 +619,21 @@ class GeometryItem(object):
             Jac.append(Ji)
         Jac = np.array(Jac).transpose()
         return Jac
+
+def load_gtem_args(gscene, gtem_args):
+    gtem_remove = []
+    for gtem in gscene:
+        if ((gtem.link_name == "base_link" or not gtem.fixed)
+                and gtem.parent is None):
+            gtem_remove.append(gtem)
+    for gtem in gtem_remove:
+        gscene.remove(gtem)
+
+    gid_list = np.arange(len(gtem_args)).tolist()
+    for gidx in gid_list:
+        args = gtem_args[gidx]
+        if args['parent'] is not None:
+            if args['parent'] not in gscene.NAME_DICT:
+                gid_list.append(gidx)
+                continue
+        gscene.create_safe(**args)
