@@ -208,7 +208,7 @@ class LatticedChecker(MotionFilterInterface):
             grasp_obj_img[np.unravel_index(grasp_obj_idx, shape=GRASP_SHAPE)] = 1
         except Exception as e:
             save_scene(self.__class__.__name__, self.pscene, actor, obj, handle, btf, Q_dict,
-                       error_state=True, result=None, ignore=ignore, **kwargs)
+                       error_state=True, result=None, ignore=[igtem.name for igtem in ignore], **kwargs)
             print("===== THE ERROR OCCURED!!! =====")
             print("===== THE ERROR OCCURED!!! =====")
             print("===== THE ERROR OCCURED!!! =====")
