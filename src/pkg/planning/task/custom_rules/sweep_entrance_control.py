@@ -18,32 +18,31 @@ class SweepEntranceControlRule(CustomRuleInterface):
 
         no_enter_sidxes = [stype == SweepLineTask for stype in enumerate(self.pscene.subject_type_list)]
         no_enter_initials = [tplan.initial_state.node[sidx] for sidx in no_enter_sidxes]
-        self.sorted_unstop_keys = sorted(tplan.unstoppable_terminals.keys())
+        self.sorted_unstop_keys = [i_s
+                                   for i_s, sname in enumerate(self.pscene.subject_name_list)
+                                   if sname in tplan.unstoppable_terminals]
 
         self.node_dict = {}
         self.enter_dict = {}
         for node, leafs in tplan.node_dict.items():
             self.node_dict[node] = deepcopy(leafs)
-            if not all([node[k] in terms for k, terms in tplan.unstoppable_terminals.items()]):
+            if not tplan.check_unstoppable_terminals(node):
                 tplan.node_dict[node] = set([])  ## unstoppable node change will be reserved by this custom rule
             else:
                 # entering to unstoppable terminal is controlled by this rule
                 self.enter_dict[node] = set([leaf for leaf in leafs
-                                             if any(
-                        [leaf[k] not in terms for k, terms in tplan.unstoppable_terminals.items()])
+                                             if not tplan.check_unstoppable_terminals(leaf)
                                              and all(
                         [leaf[k] >= leaf[k + 1] for k in self.sorted_unstop_keys[:-1]])])  # the task is done in order
                 tplan.node_dict[node] = set([leaf for leaf in leafs
-                                             if
-                                             all([leaf[k] in terms for k, terms in tplan.unstoppable_terminals.items()])
-                                             ])
+                                             if tplan.check_unstoppable_terminals(leaf)])
 
         self.node_parent_dict = {}
         for node, parents in tplan.node_parent_dict.items():
             self.node_parent_dict[node] = deepcopy(parents)
             tplan.node_parent_dict[node] = set(
                 [parent for parent in parents  ## unstoppable node change will be reserved by this custom rule
-                 if all([parent[k] in terms for k, terms in tplan.unstoppable_terminals.items()])])
+                 if tplan.check_unstoppable_terminals(parent)])
 
     ##
     # @brief    re-foliate for some defined cases
@@ -108,18 +107,18 @@ class SweepEntranceControlRule(CustomRuleInterface):
 
             node_src = snode_src.state.node
             node_new = snode_new.state.node
-            diff_sidxes = np.where([ntem_s != ntem_g for ntem_s, ntem_g in zip(node_src, node_new)])[0]
-            #             print("{}->{} , diff: {}".format(node_src, node_new, diff_sidxes))
-            if len(diff_sidxes) == 0:
+            diff_ntems = [(sname, ntem_s, ntem_g)
+                           for sname, ntem_s, ntem_g
+                           in zip(tplan.pscene.subject_name_list, node_src, node_new) if ntem_s != ntem_g]
+            if len(diff_ntems) == 0:
                 return stack_res, stack_items
-            diff_sidx = diff_sidxes[0]
-            diff_sname = self.pscene.subject_name_list[diff_sidx]
+            diff_sname, diff_ntem_s, diff_ntem_g = diff_ntems[0]
             diff_subject = self.pscene.subject_dict[diff_sname]
 
             if isinstance(diff_subject, SweepLineTask): # Sweep entrance control rule
                 #                 print("Rule for SweepLineTask")
                 with tplan.snode_dict_lock:
-                    if node_src[diff_sidx] not in tplan.unstoppable_terminals[diff_sidx]:
+                    if diff_ntem_s not in tplan.unstoppable_terminals[diff_sname]:
                         # from intermediate wp -> remove access to them
                         snode_list = tplan.node_snode_dict[node_src]
                         if snode_src.idx in snode_list:
@@ -133,11 +132,11 @@ class SweepEntranceControlRule(CustomRuleInterface):
                         if len(snode_list) == 0 and node_new in tplan.neighbor_nodes:
                             del tplan.neighbor_nodes[node_new]
                     if connection_result:
-                        if node_new[diff_sidx] in tplan.unstoppable_terminals[diff_sidx]:  ## in terminal condition
+                        if diff_ntem_g in tplan.unstoppable_terminals[diff_sname]:  ## in terminal condition
                             # print("Check home: {} in {}".format(
                             #     node_new[diff_sidx], tplan.unstoppable_terminals[diff_sidx]))
                             link_name = self.pscene.gscene.NAME_DICT[
-                                snode_new.state.binding_state[diff_sidx][-1]].link_name
+                                snode_new.state.binding_state[diff_sname].binding.actor_root_gname].link_name
                             rname_candis = [rname for rname, chain_vals in self.chain_dict.items() if
                                             link_name in chain_vals['link_names']]
                             if len(rname_candis) == 0:
@@ -156,9 +155,9 @@ class SweepEntranceControlRule(CustomRuleInterface):
                                 snode_list.remove(snode_new.idx)
                                 tplan.node_snode_dict[node_new] = snode_list
                             next_node_candis = list(self.node_dict[node_new])
-                            assert len(
-                                next_node_candis) == 1, "non-terminal sweep task should have 1 leaf ({}) {}-{}".format(
-                                diff_sidx, node_new, next_node_candis)
+                            assert len(next_node_candis) == 1, \
+                                "non-terminal sweep task should have 1 leaf ({}) {}-{}".format(
+                                    diff_sname, node_new, next_node_candis)
                             return True, next_node_candis * self.NUM_WP_TRIALS + stack_items
                     elif len(tplan.neighbor_nodes)==0 and not stack_res: # connection failed but no other new node
                         print("connection failed but no other new node - retry previous one")

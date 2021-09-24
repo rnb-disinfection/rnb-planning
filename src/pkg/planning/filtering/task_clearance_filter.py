@@ -26,7 +26,8 @@ class TaskClearanceChecker(MotionFilterInterface):
     # @param btf    BindingTransorm instance
     # @param Q_dict joint configuration in dictionary format {joint name: radian value}
     # @param interpolate    interpolate path and check intermediate poses
-    def check(self, actor, obj, handle, btf, Q_dict, interpolate=False):
+    def check(self, btf, Q_dict, interpolate=False):
+        obj, handle, actor = btf.get_instance_chain(self.pscene)
         if (not isinstance(obj, AbstractTask)) \
                 or (not hasattr(obj, "clearance")) \
                 or obj.clearance is None:

@@ -430,8 +430,8 @@ def play_pddl_plan(pscene, gripper, initial_state, body_names, plan, SHOW_PERIOD
             T_bgl = np.matmul(gripper.geometry.get_tf(list2dict(q_e, gscene.joint_names)), SE3_inv(gripper.geometry.Toff))
             T_lgo = np.matmul(SE3_inv(T_bgl), T_obj)
             obj_pscene = pscene.subject_dict[tar_obj]
-            obj_pscene.set_state(binding=(tar_obj, None, gripper.geometry.name, gripper.name),
-                             state_param=(gripper.geometry.link_name, T_lgo))
+            obj_pscene.set_state(binding=BindingChain(tar_obj, None, gripper.geometry.name, gripper.name),
+                                 state_param=(gripper.geometry.link_name, T_lgo))
             gscene.show_motion(np.array(traj_rev), period=SHOW_PERIOD)
 
         if action.name == "move_holding":
@@ -448,7 +448,7 @@ def play_pddl_plan(pscene, gripper, initial_state, body_names, plan, SHOW_PERIOD
             T_obj = np.matmul(SE3_inv(get_tf("base_link", list2dict(q_s, gscene.joint_names), gscene.urdf_content)), T_obj)
             obj_pscene = pscene.subject_dict[tar_obj]
             gscene.show_motion(np.array(traj), period=SHOW_PERIOD)
-            obj_pscene.set_state(binding=(tar_obj, None, None, None),
+            obj_pscene.set_state(binding=BindingChain(tar_obj, None, None, None),
                              state_param=("base_link", T_obj))
             gscene.show_motion(np.array(traj_rev), period=SHOW_PERIOD)
 

@@ -127,7 +127,8 @@ class LatticedChecker(MotionFilterInterface):
     # @param btf    BindingTransorm instance
     # @param Q_dict joint configuration in dictionary format {joint name: radian value}
     # @param interpolate    interpolate path and check intermediate poses
-    def check(self, actor, obj, handle, btf, Q_dict, interpolate=False, ignore=[],**kwargs):
+    def check(self, btf, Q_dict, interpolate=False, ignore=[],**kwargs):
+        obj, handle, actor = btf.get_instance_chain(self.pscene)
         actor_link = actor.geometry.link_name
         object_link = obj.geometry.link_name
         T_loal = btf.T_loal

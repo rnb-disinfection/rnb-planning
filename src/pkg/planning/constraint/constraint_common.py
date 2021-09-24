@@ -4,7 +4,7 @@ import random
 from ...geometry.geometry import *
 from abc import *
 from ...utils.utils import DummyObject
-from ...utils.rotation_utils import SE3_inv, T_xyzrpy, T2xyzrpy
+from ...utils.rotation_utils import SE3_inv, T_xyzrpy, T2xyzrpy, matmul_series
 from scipy.spatial.transform import Rotation
 from collections import namedtuple
 
@@ -114,17 +114,19 @@ def calc_redundancy(redundancy, action_point):
                 rpy_add[ax - 3] += redundancy[k]
     return point_add, rpy_add
 
+BindingChain = namedtuple("BindingChain", ["object_name", "handle_name", "actor_name", "actor_root_gname"])
+
 ##
 # @class    BindingTransform
 # @brief    information holder that contains all sub-transfomations in the binding
-# @remark   give either one of redundancy or T_loal
+# @remark   give either one of redundancy, T_loal. It none is given, current position is used
 class BindingTransform:
     def __init__(self, obj, handle, actor, redundancy=None, T_loal=None):
         self.point_add_handle, self.rpy_add_handle, self.point_add_actor, self.rpy_add_actor = [(0,0,0)]*4
         if handle is None: # for cases where handle is not important. this can cause errors
             handle = DummyObject()
             handle.name = None
-            handle.Toff_lh = np.identity(4)
+            handle.Toff_lh = obj.geometry.Toff
         if redundancy is not None:
             if handle.name in redundancy:
                 self.point_add_handle, self.rpy_add_handle = calc_redundancy(redundancy[handle.name], handle)
@@ -134,19 +136,15 @@ class BindingTransform:
             T_handle_lh = np.matmul(T_loal, actor.Toff_lh)
             T_add_handle = np.matmul(SE3_inv(handle.Toff_lh), T_handle_lh)
             self.point_add_handle, self.rpy_add_handle = T2xyzrpy(T_add_handle)
+        else:
+            assert actor.geometry.link_name == obj.geometry.link_name, "object not attached on actor and offset is not given"
+            T_add_actor = np.matmul(SE3_inv(actor.Toff_lh), handle.Toff_lh)
+            self.point_add_actor, self.rpy_add_actor = T2xyzrpy(T_add_actor)
 
-        # @brief subject name
-        self.subject_name = obj.oname
-        # @brief handle name, can be None when handle is not important
-        self.handle_name = handle.name
-        # @brief actor name
-        self.actor_name = actor.name
-        # @brief actor's root geometry name
-        self.actor_root_gname = actor.geometry.get_family()[0]
+        # @brief BindingChain, (subject name, handle name, actor name, actor's root geometry name)
+        self.binding = BindingChain(obj.oname, handle.name, actor.name, actor.geometry.get_family()[0])
         # @brief correscponding redundancy in form of {action point name: {axis: value}}
         self.redundancy = redundancy
-        ## @brief link-object-actor-link transformation with redundancy
-        self.T_loal = T_loal
 
 
         ## @brief redundant transformation added on the handle side
@@ -159,10 +157,16 @@ class BindingTransform:
         self.T_handle_lh = np.matmul(handle.Toff_lh, self.T_add_handle)
         ## @brief link-to-actor transformation with redundancy
         self.T_actor_lh = np.matmul(actor.Toff_lh, self.T_add_actor)
+        ## @brief link-object-actor-link transformation with redundancy
         self.T_loal = np.matmul(self.T_handle_lh, SE3_inv(self.T_actor_lh))
 
     def get_chain(self):
-        return self.subject_name, self.handle_name, self.actor_name, self.actor_root_gname
+        return self.binding
+
+    def get_instance_chain(self, pscene):
+        return pscene.subject_dict[self.binding.subject_name], \
+               pscene.handle_dict[self.binding.handle_name], \
+               pscene.actor_dict[self.binding.actor_name]
 
 ##
 # @class    BindingState

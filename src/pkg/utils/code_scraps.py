@@ -108,7 +108,9 @@ def use_current_place_point_only(pscene, current_state):
 ##
 # @brief remove attached binders on objects except for the current one
 def use_current_sub_binders_only(pscene, current_state):
-    active_binders  = [btf.actor_name for btf in current_state.binding_state.values() if btf.actor_name is not None]
+    active_binders  = [btf.binding.actor_name
+                       for btf in current_state.binding_state.values()
+                       if btf.binding.actor_name is not None]
 
     for obj in pscene.subject_dict.values():
         for bname, binder in pscene.actor_dict.items():
@@ -266,8 +268,10 @@ def play_schedule_clearance_highlight(ppline, snode_schedule, tcheck, period, ac
         snode_pre = snode
         for obj_name in ppline.pscene.subject_name_list:
             if isinstance(ppline.pscene.subject_dict[obj_name], AbstractTask):
-                actor, obj = ppline.pscene.actor_dict[actor_name], ppline.pscene.subject_dict[obj_name]
-                tcheck_res = tcheck.check(actor, obj, None, None,
+                obj = ppline.pscene.subject_dict[obj_name]
+                btf = snode.state.binding_state[obj_name]
+                assert btf.binding.actor_name == actor_name, "someting wrong: actor name mismatch with BindingTransfrom"
+                tcheck_res = tcheck.check(btf,
                                           list2dict(snode.state.Q, ppline.pscene.gscene.joint_names))
                 for gtem in obj.clearance:
                     if tcheck_res:

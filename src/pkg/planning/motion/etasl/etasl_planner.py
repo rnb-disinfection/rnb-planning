@@ -188,7 +188,7 @@ class EtaslPlanner(MotionInterface):
         # self.inp[self.idx_jnt_online] = traj[-1]
         return idx_cur # len(traj)
 
-    def __get_transition_context(self, from_state=None, to_state=None, btf_list=[],
+    def __get_transition_context(self, from_state=None, to_state=None, subject_list=[],
                                vel_conv=1e-2, err_conv=1e-4, collision=True,
                                activation=False, **kwargs):
         kwargs.update(deepcopy(self.kwargs_online))
@@ -208,14 +208,15 @@ class EtaslPlanner(MotionInterface):
         if activation:
             additional_constraints = '\nconstraint_activation = ctx:createInputChannelScalar("constraint_activation",0.0) \n'
 
-        for btf in btf_list:
+        for sname in subject_list:
+            btf = to_state.binding_state[sname]
             additional_constraints += make_action_constraints(
-                self.pscene.subject_dict[btf.subject_name],
-                self.pscene.subject_dict[btf.subject_name].
-                    action_points_dict[btf.handle_name],
-                self.pscene.actor_dict[btf.actor_name],
-                btf_from=from_state.binding_state[btf.subject_name],
-                btf_to=to_state.binding_state[btf.subject_name], activation=activation)
+                self.pscene.subject_dict[sname],
+                self.pscene.subject_dict[sname].
+                    action_points_dict[btf.binding.handle_name],
+                self.pscene.actor_dict[btf.binding.actor_name],
+                btf_from=from_state.binding_state[sname],
+                btf_to=to_state.binding_state[sname], activation=activation)
 
 
         if additional_constraints=="" and to_state.Q is not None:# and np.sum(np.abs(np.subtract(to_state.Q,from_state.Q)))>1e-2:

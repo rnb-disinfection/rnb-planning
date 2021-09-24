@@ -61,8 +61,9 @@ class GraspChecker(MotionFilterInterface):
     # @param Q_dict joint configuration in dictionary format {joint name: radian value}
     # @param interpolate    interpolate path and check intermediate poses
     # @param ignore         GeometryItems to ignore
-    def check(self, actor, obj, handle, btf, Q_dict, interpolate=False, obj_only=False, ignore=[],
+    def check(self, btf, Q_dict, interpolate=False, obj_only=False, ignore=[],
               **kwargs):
+        obj, handle, actor = btf.get_instance_chain(self.pscene)
         T_loal = btf.T_loal
         actor_vertinfo_list, object_vertinfo_list, _, _ = self.get_grasping_vert_infos(
             actor, obj, T_loal, Q_dict, obj_only=obj_only,

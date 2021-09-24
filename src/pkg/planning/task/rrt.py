@@ -49,7 +49,7 @@ class TaskRRT(TaskInterface):
             self.node_dict_full[node] = set(self.node_dict_full[node])
             self.node_parent_dict_full[node] = set(self.node_parent_dict_full[node])
 
-        self.unstoppable_subjects = [i_s for i_s, sname in enumerate(self.pscene.subject_name_list)
+        self.unstoppable_subjects = [sname for sname in self.pscene.subject_name_list
                                      if self.pscene.subject_dict[sname].unstoppable]
 
     ##
@@ -78,10 +78,12 @@ class TaskRRT(TaskInterface):
         self.reserved_attempt = False
 
         self.unstoppable_terminals = {}
-        for sub_i in self.unstoppable_subjects:
-            self.unstoppable_terminals[sub_i] = [self.initial_state.node[sub_i]]
+        for i_s, sname in enumerate(self.pscene.subject_name_list):
+            if sname not in self.unstoppable_subjects:
+                continue
+            self.unstoppable_terminals[sname] = [self.initial_state.node[i_s]]
             for goal in goal_nodes:
-                self.unstoppable_terminals[sub_i].append(goal[sub_i])
+                self.unstoppable_terminals[sname].append(goal[i_s])
 
         self.node_dict = {}
         self.node_parent_dict = defaultdict(set)
@@ -255,3 +257,9 @@ class TaskRRT(TaskInterface):
     # @param state rnb-planning.src.pkg.planning.scene.State
     def check_goal(self, state):
         return state.node in self.goal_nodes
+
+    def check_unstoppable_terminals(self, node, leaf=None):
+        return all([(node[k] in self.unstoppable_terminals[sname] or
+                     (False if leaf is None else node[k] != leaf[k]))
+                    for k, sname in enumerate(self.pscene.subject_name_list)
+                    if sname in self.unstoppable_terminals])

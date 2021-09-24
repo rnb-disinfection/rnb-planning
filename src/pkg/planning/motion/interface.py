@@ -86,14 +86,12 @@ class MotionInterface:
         if success:
             for sname in subject_list:
                 btf = to_state.binding_state[sname]
-                actor, obj = self.pscene.actor_dict[btf.actor_name], self.pscene.subject_dict[sname]
-                handle = obj.action_points_dict[btf.handle_name]
 
                 for i_f, mfilter in enumerate(self.motion_filters):
                     fname = mfilter.__class__.__name__
                     if self.flag_log:
                         self.gtimer.tic(fname)
-                    success = mfilter.check(actor, obj, handle, btf, Q_dict)
+                    success = mfilter.check(btf, Q_dict)
                     if self.flag_log:
                         self.gtimer.toc(fname)
                         if self.log_lock is not None:

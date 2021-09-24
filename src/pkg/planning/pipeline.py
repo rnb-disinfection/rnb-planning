@@ -376,7 +376,8 @@ class PlanningPipeline:
                 for obj_name in diffs:
                     btf_from = state_pre.binding_state[obj_name]
                     btf_to = snode.state.binding_state[obj_name]
-                    constraints = self.pscene.subject_dict[obj_name].make_constraints(btf_from, btf_to)
+                    constraints = self.pscene.subject_dict[obj_name].make_constraints(btf_from.get_chain(),
+                                                                                      btf_to.get_chain())
                     post_opt = post_opt and len(constraints) == 0  # no optimization for constrained motion
 
                 if post_opt:
@@ -493,8 +494,8 @@ class PlanningPipeline:
             scale_tmp = 1
             subject_list, success = self.pscene.get_changing_subjects(snode_pre.state, snode.state)
             for sname in subject_list:
-                actor_root = snode.state.binding_state[sname].actor_root_gname
-                actor_root_prev = snode_pre.state.binding_state[sname].actor_root_gname
+                actor_root = snode.state.binding_state[sname].binding.actor_root_gname
+                actor_root_prev = snode_pre.state.binding_state[sname].binding.actor_root_gname
                 if actor_root_prev == actor_root and \
                         self.pscene.subject_dict[sname].constrained:
                     scale_tmp = self.constrained_motion_scale

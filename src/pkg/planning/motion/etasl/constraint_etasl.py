@@ -278,8 +278,8 @@ Constraint{{
     return joint_constraints + error_statement
 
 def make_action_constraints(object, handle, effector,
-                            binding_from, binding_to, btf_dict=None, activation=False):
-    if btf_dict is None:
+                            btf_from, btf_to, activation=False):
+    if btf_to.redundancy is None:
         if isinstance(handle, FramedPoint):
             make_constraint_fun = make_oriented_point_constraint
         elif isinstance(handle, DirectedPoint):
@@ -288,14 +288,15 @@ def make_action_constraints(object, handle, effector,
             raise(NotImplementedError("non-implemented handle type"))
         const_txt = make_constraint_fun(handle, effector, handle.name_full, activation=activation)
     else:
-        btf = btf_dict[(object.oname, handle.name, effector.name)]
+        btf = btf_to[object.oname]
         T_add = btf.T_add_ah
         point_add = T_add[:3,3]
         rpy_add = Rot2rpy(T_add[:3,:3])
         const_txt = make_oriented_point_constraint(handle, effector, handle.name_full,
                                                    point_add=point_add, rpy_add=rpy_add,
                                                    activation=activation)
-    constraints = object.make_constraints(binding_from, binding_to)
+    constraints = object.make_constraints(btf_from.get_chain(),
+                                          btf_to.get_chain())
     if constraints:
         for motion_constraint in constraints:
             const_txt += "\n" + make_motion_constraints(effector, motion_constraint, activation=activation)

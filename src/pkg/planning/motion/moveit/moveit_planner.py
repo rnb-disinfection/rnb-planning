@@ -231,9 +231,10 @@ class MoveitPlanner(MotionInterface):
                 else:
                     from_Q = from_state.Q
 
-            binding_from = from_state.binding_state[obj_name]
-            binding_to = to_state.binding_state[obj_name]
-            constraints = obj.make_constraints(binding_from, binding_to)
+            btf_from = from_state.binding_state[obj_name]
+            btf_to = to_state.binding_state[obj_name]
+            constraints = obj.make_constraints(btf_from.get_chain(),
+                                               btf_to.get_chain())
             if constraints:
                 for motion_constraint in constraints:
                     self.add_constraint(group_name, tool.geometry.link_name, tool.Toff_lh, motion_constraint=motion_constraint)
