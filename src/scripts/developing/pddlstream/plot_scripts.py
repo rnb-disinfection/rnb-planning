@@ -367,12 +367,13 @@ def plot_log(
         fn=np.mean,
         CHECKERS=['None', 'Tool', 'ToolReach', 'Full'],
         CASES=['obj_1c_obs0', 'obj_1c_obs3', 'obj_1c_obs5', 'obj_1c_obs7', 'obj_3c_obs3', 'obj_3c_obs5', 'obj_3c_obs7'],
-        scatter=False
+        scatter=False,
+        average_all=False,
 ):
     valid_idc_dict = get_valid_idc_dict(resdat_all)
-    time_dict = {case:
+    val_dict = {case:
                      {cname: np.array(tvec)[valid_idc_dict[case][:len(tvec)]]
                       for cname, tvec in tdict.items()}
                  for case, tdict in extract_values(resdat_all, keys, fn=fn).items()}
-    grouped_bar(time_dict, groups=CASES, cases=CHECKERS, scatter=scatter)
-    return time_dict
+    grouped_bar(val_dict, groups=CASES, cases=CHECKERS, scatter=scatter, average_all=average_all)
+    return val_dict

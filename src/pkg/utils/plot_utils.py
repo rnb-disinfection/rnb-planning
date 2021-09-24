@@ -42,9 +42,10 @@ from collections import Iterable
 # @brief draw grouped bar
 # @remark if value is list, mean and error bar are drawn
 # @param data_dict dictionary of value dictionaries {group: case: value}
-# @groups group name list
-# @cases case name list
-def grouped_bar(data_dict, groups=None, cases=None, scatter=False):
+# @param groups group name list
+# @param cases case name list
+# @param average_all do not separate group and average all in one graph
+def grouped_bar(data_dict, groups=None, cases=None, scatter=False, average_all=False):
     if groups is None:
         groups = sorted(data_dict.keys())
         
@@ -66,19 +67,29 @@ def grouped_bar(data_dict, groups=None, cases=None, scatter=False):
             plt.plot(Xs, dat_vec, '.')
             dat_max = max(dat_max, np.max(dat_vec))
         else:
-            if isinstance(dat_vec[0], Iterable):
-                std_vec = map(np.std, dat_vec)
-                dat_vec = map(np.mean, dat_vec)
-            else:
-                std_vec = None
 
-            plt.bar(X_big+xsmall, dat_vec, yerr=std_vec)
+            if average_all:
+                if isinstance(dat_vec[0], Iterable):
+                    dat_vec = np.concatenate(dat_vec)
+                std_vec = np.std(dat_vec)
+                dat_vec = np.mean(dat_vec)
+                plt.bar(xsmall, dat_vec, yerr=std_vec)
+            else:
+                if isinstance(dat_vec[0], Iterable):
+                    std_vec = map(np.std, dat_vec)
+                    dat_vec = map(np.mean, dat_vec)
+                else:
+                    std_vec = None
+                plt.bar(X_big+xsmall, dat_vec, yerr=std_vec)
             dat_max = max(dat_max, np.max(np.add(dat_vec, std_vec) 
                                            if std_vec is not None 
                                            else dat_vec))
 
     # plt.axis([0,np.max(X_big[gidc])+np.max(X_small)+1,0, dat_max+1])
     plt.grid()
-    plt.xticks(X_big + np.mean(X_small), np.array(groups))
-    plt.legend(cases)
+    if average_all:
+        plt.xticks(X_small, np.array(cases))
+    else:
+        plt.xticks(X_big + np.mean(X_small), np.array(groups))
+        plt.legend(cases)
     return groups, cases
