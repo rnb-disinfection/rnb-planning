@@ -6,6 +6,7 @@ from abc import *
 from ...utils.utils import DummyObject
 from ...utils.rotation_utils import SE3_inv, T_xyzrpy, T2xyzrpy
 from scipy.spatial.transform import Rotation
+from collections import namedtuple
 
 __metaclass__ = type
 
@@ -122,7 +123,7 @@ class BindingTransform:
         self.point_add_handle, self.rpy_add_handle, self.point_add_actor, self.rpy_add_actor = [(0,0,0)]*4
         if handle is None: # for cases where handle is not important. this can cause errors
             handle = DummyObject()
-            handle.name = "none"
+            handle.name = None
             handle.Toff_lh = np.identity(4)
         if redundancy is not None:
             if handle.name in redundancy:
@@ -133,8 +134,19 @@ class BindingTransform:
             T_handle_lh = np.matmul(T_loal, actor.Toff_lh)
             T_add_handle = np.matmul(SE3_inv(handle.Toff_lh), T_handle_lh)
             self.point_add_handle, self.rpy_add_handle = T2xyzrpy(T_add_handle)
-        self.sname, self.hname, self.aname, self.redundancy, self.T_loal = \
-            obj.oname, handle.name, actor.name, redundancy, T_loal
+
+        # @brief subject name
+        self.subject_name = obj.oname
+        # @brief handle name, can be None when handle is not important
+        self.handle_name = handle.name
+        # @brief actor name
+        self.actor_name = actor.name
+        # @brief actor's root geometry name
+        self.actor_root_gname = actor.geometry.get_family()[0]
+        # @brief correscponding redundancy in form of {action point name: {axis: value}}
+        self.redundancy = redundancy
+        ## @brief link-object-actor-link transformation with redundancy
+        self.T_loal = T_loal
 
 
         ## @brief redundant transformation added on the handle side
@@ -147,8 +159,21 @@ class BindingTransform:
         self.T_handle_lh = np.matmul(handle.Toff_lh, self.T_add_handle)
         ## @brief link-to-actor transformation with redundancy
         self.T_actor_lh = np.matmul(actor.Toff_lh, self.T_add_actor)
-        ## @brief link-object-actor-link transformation with redundancy
         self.T_loal = np.matmul(self.T_handle_lh, SE3_inv(self.T_actor_lh))
+
+    def get_chain(self):
+        return self.subject_name, self.handle_name, self.actor_name, self.actor_root_gname
+
+##
+# @class    BindingState
+# @brief    dictionary of form {subject name: BindingTransform}
+class BindingState(dict):
+    def __init__(self, *args, **kwargs):
+        dict.__init__(self, *args, **kwargs)
+
+    def get_chains_sorted(self):
+        return tuple(sorted([btf.get_chain() for btf in self.values()]))
+
 
 
 ##

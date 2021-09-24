@@ -116,7 +116,7 @@ class TaskRRT(TaskInterface):
         if hasattr(self.custom_rule, "init"):
             self.custom_rule.init(self, self.multiprocess_manager)
 
-        snode_root = self.make_search_node(None, initial_state, None, None)
+        snode_root = self.make_search_node(None, initial_state, None)
         self.connect(None, snode_root)
         self.update(None, snode_root, True)
 
@@ -126,7 +126,7 @@ class TaskRRT(TaskInterface):
     def sample(self):
         sample_fail = True
         fail_count = 0
-        parent_snode, from_state, to_state, redundancy_dict = None, None, None, None
+        parent_snode, from_state, to_state = None, None, None
         while sample_fail and fail_count<3:
             fail_count += 1
             self.reserved_attempt = False
@@ -161,7 +161,7 @@ class TaskRRT(TaskInterface):
                         print("ERROR sampling parent from : {} / parent nodes: {}".format(new_node, parent_nodes))
                     except:
                         print("ERROR sampling parent - Failed to get new_node or parent_nodes")
-                        # snode_root = self.make_search_node(None, self.initial_state, None, None)
+                        # snode_root = self.make_search_node(None, self.initial_state, None)
                         # self.connect(None, snode_root)
                         # self.update(None, snode_root, True)
                         time.sleep(0.5)
@@ -172,11 +172,9 @@ class TaskRRT(TaskInterface):
             from_state = parent_snode.state
             if isinstance(new_node, State):
                 to_state = new_node
-                redundancy_dict = deepcopy(parent_snode.redundancy_dict)
             elif isinstance(new_node, int): # for copy and extend existing SearchNode, especially for RRT* extension
                 snode_tar = self.snode_dict[new_node]
                 to_state = snode_tar.state
-                redundancy_dict = deepcopy(snode_tar.redundancy_dict)
             else:
                 available_binding_dict = self.pscene.get_available_binding_dict(from_state, new_node,
                                                                                 list2dict(from_state.Q, self.pscene.gscene.joint_names))
@@ -184,11 +182,11 @@ class TaskRRT(TaskInterface):
                     print("============== Non-available transition: sample again =====================")
                     sample_fail = True
                     continue
-                to_state, redundancy_dict = self.pscene.sample_leaf_state(from_state, available_binding_dict, new_node,
-                                                                          binding_sampler=self.binding_sampler,
-                                                                          redundancy_sampler=self.redundancy_sampler)
+                to_state = self.pscene.sample_leaf_state(from_state, available_binding_dict, new_node,
+                                                         binding_sampler=self.binding_sampler,
+                                                         redundancy_sampler=self.redundancy_sampler)
             sample_fail = False
-        return parent_snode, from_state, to_state, redundancy_dict, sample_fail
+        return parent_snode, from_state, to_state, sample_fail
 
     ##
     # @brief (prototype) update connection result to the searchng algorithm

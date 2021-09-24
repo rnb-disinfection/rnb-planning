@@ -104,7 +104,7 @@ class TaskBiRRT(TaskInterface):
                  if all([node[k] in terms or node[k]!=pnode[k]
                          for k, terms in self.unstoppable_terminals.items()])])
 
-        snode_root = self.make_search_node(None, initial_state, None, None)
+        snode_root = self.make_search_node(None, initial_state, None)
         self.connect(None, snode_root)
         self.update(None, snode_root, True)
 
@@ -128,8 +128,6 @@ class TaskBiRRT(TaskInterface):
                         self.target_sidx = new_item
                         snode_new = self.snode_dict[self.target_sidx]
                         to_state = snode_new.state
-                        # redundancy_dict = deepcopy(parent_snode.redundancy_dict) or {}
-                        redundancy_dict = deepcopy(snode_new.redundancy_dict) or {}
                         self.reserved_attempt = True
                         sample_fail = False
                         print("direct reaching: {} -> {}".format(parent_sidx, self.target_sidx))
@@ -147,11 +145,7 @@ class TaskBiRRT(TaskInterface):
                             sample_fail = True
                         else:
                             self.reserved_attempt = True
-                            to_state, redundancy_dict_new = self.pscene.sample_leaf_state(from_state,
-                                                                                          available_binding_dict,
-                                                                                          new_node)
-                            redundancy_dict = deepcopy(parent_snode.redundancy_dict) or {}
-                            redundancy_dict.update(redundancy_dict_new)
+                            to_state = self.pscene.sample_leaf_state(from_state, available_binding_dict, new_node)
                             sample_fail = False
             #                     except:
             #                         self.reserved_attempt = False
@@ -176,12 +170,10 @@ class TaskBiRRT(TaskInterface):
                     print("============== Non-available transition: sample again =====================")
                     sample_fail = True
                     continue
-                to_state, redundancy_dict_new = self.pscene.sample_leaf_state(from_state, available_binding_dict,
+                to_state = self.pscene.sample_leaf_state(from_state, available_binding_dict,
                                                                               new_node)
-                redundancy_dict = deepcopy(parent_snode.redundancy_dict) or {}
-                redundancy_dict.update(redundancy_dict_new)
                 sample_fail = False
-        return parent_snode, from_state, to_state, redundancy_dict, sample_fail
+        return parent_snode, from_state, to_state, sample_fail
 
     ##
     # @brief (prototype) update connection result to the searchng algorithm
@@ -231,45 +223,28 @@ class TaskBiRRT(TaskInterface):
                         trial_count = 0
                         while sample_fail and trial_count < self.goal_trial_count:
                             trial_count += 1
-                            to_state, redundancy_dict = self.pscene.sample_leaf_state(from_state,
-                                                                                      available_binding_dict,
-                                                                                      goal)
-                            for i_s, ntem_s, ntem_g in zip(range(subj_num), node_src, goal):
+                            to_state = self.pscene.sample_leaf_state(from_state, available_binding_dict, goal)
+                            for sname, ntem_s, ntem_g in zip(self.pscene.subject_dict, node_src, goal):
                                 if ntem_s != ntem_g:
-                                    _oname, _hname, _bname, _bgname = to_state.binding_state[i_s]
-                                    subject = self.pscene.subject_dict[_oname]
+                                    btf = to_state.binding_state[sname]
+                                    subject = self.pscene.subject_dict[sname]
                                     if isinstance(subject, AbstractObject):
-                                        to_ap = subject.action_points_dict[_hname]
-                                        to_binder = self.pscene.actor_dict[_bname]
-                                        redundancy = redundancy_dict[_oname]
-                                        btf = BindingTransform(subject, to_ap, to_binder, redundancy)
-                                        T_handle_gh = np.matmul(to_ap.Toff_gh, btf.T_add_handle)
-                                        T_actor_lh = np.matmul(to_binder.Toff_lh, btf.T_add_actor)
-                                        T_lhg = np.matmul(T_actor_lh, SE3_inv(T_handle_gh))
-                                        if subject.geometry == to_ap.geometry:
-                                            T_lo = T_lhg
-                                        else:
-                                            T_hgo = np.matmul(SE3_inv(to_ap.geometry.Toff), subject.geometry.Toff)
-                                            T_lo = np.matmul(T_lhg, T_hgo)
-
-                                        to_state.state_param[_oname] = (
-                                        self.pscene.gscene.NAME_DICT[_bgname].link_name, T_lo)
-
+                                        to_binder = self.pscene.actor_dict[btf.actor_name]
+                                        to_ap = self.pscene.handle_dict[btf.handle_name]
                                         sample_fail = not self.gcheck.check(to_binder, subject, to_ap, btf, Qdict
                                                                             , obj_only=False)
                                         if sample_fail:
                                             break
                                     elif isinstance(subject, AbstractTask):
                                         raise (NotImplementedError("Reverse direction Task is not implemented"))
-                                        to_state.state_param[_oname] = random.choice(
+                                        to_state.state_param[sname] = random.choice(
                                             subject.get_corresponding_params(ntem_g))
                         if sample_fail:
                             break
                         if not sample_fail:
                             goal_state_new = State(to_state.binding_state, to_state.state_param, self.initial_state.Q,
                                                    self.pscene)
-                            goal_snode_new = self.connect(None, self.make_search_node(None, goal_state_new, None,
-                                                                                      redundancy_dict))
+                            goal_snode_new = self.connect(None, self.make_search_node(None, goal_state_new, None))
                             tree_cur, tree_tar = self.get_trees()
                             self.swap_trees()
                             self.update(None, goal_snode_new, True)

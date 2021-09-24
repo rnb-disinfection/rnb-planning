@@ -19,12 +19,10 @@ class SearchNode:
     # @param parents    list of parent SearchNode idx
     # @param leafs      list of available nodes
     # @param depth      depth of current node = number of parent
-    # @param redundancy_dict defined redundancy of transition in dictionary form, {object name: {axis: value}}
-    def __init__(self, idx, state, parents, leafs, depth=None,
-                 redundancy_dict=None, traj=None, traj_tot_parent=0):
+    def __init__(self, idx, state, parents, leafs, depth=None, traj=None, traj_tot_parent=0):
         self.traj_tot, self.traj_length = 0, 0
-        self.idx, self.state, self.parents, self.leafs, self.depth, self.redundancy_dict = \
-            idx, state, parents, leafs, depth, redundancy_dict
+        self.idx, self.state, self.parents, self.leafs, self.depth = \
+            idx, state, parents, leafs, depth
         self.set_traj(traj, traj_tot_parent)
 
     ##
@@ -52,7 +50,7 @@ class SearchNode:
     # @param    pscene  rnb-planning.src.pkg.planning.scene.PlanningScene
     def copy(self, pscene):
         return SearchNode(self.idx, State(self.state.binding_state, self.state.state_param, self.state.Q, pscene),
-                          self.parents, self.leafs, self.depth, self.redundancy_dict,
+                          self.parents, self.leafs, self.depth,
                           self.traj, self.traj_tot-self.traj_length)
 
 
@@ -103,7 +101,7 @@ class TaskInterface:
     @abstractmethod
     def init_search(self, initial_state, goal_nodes, multiprocess_manager):
         ## When overiding init_search, Don't forget to make root SearchNode and connect, update it, as below!
-        snode_root = self.make_search_node(None, initial_state, None, None)
+        snode_root = self.make_search_node(None, initial_state, None)
         self.connect(None, snode_root)
         self.update(None, snode_root, True)
         raise(NotImplementedError("abstract method"))
@@ -133,15 +131,14 @@ class TaskInterface:
     # @param snode_pre SearchNode
     # @param new_state State
     # @param traj traj from previous state to new state
-    # @param redundancy_dict redundancy of current transition
-    def make_search_node(self, snode_pre, new_state, traj,  redundancy_dict):
+    def make_search_node(self, snode_pre, new_state, traj):
         if snode_pre is None:
             snode_new = SearchNode(idx=0, state=new_state, parents=[], leafs=[],
-                                    depth=0, redundancy_dict=redundancy_dict)
+                                    depth=0)
         else:
             snode_new = SearchNode(
                 idx=0, state=new_state, parents=snode_pre.parents + [snode_pre.idx], leafs=[],
-                depth=len(snode_pre.parents) + 1, redundancy_dict=redundancy_dict)
+                depth=len(snode_pre.parents) + 1)
             snode_new.set_traj(traj, snode_pre.traj_tot)
         return snode_new
 

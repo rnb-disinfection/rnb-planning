@@ -167,7 +167,7 @@ class PlanningPipeline:
         ret = False
         while (N_search is None or self.tplan.snode_counter.value < N_search) and (time.time() - self.t0) < timeout_loop and not self.stop_now.value:
             loop_counter += 1
-            snode, from_state, to_state, redundancy_dict, sample_fail = self.tplan.sample()
+            snode, from_state, to_state, sample_fail = self.tplan.sample()
             with self.counter_lock:
                 if not sample_fail:
                     sample_fail_counter = 0
@@ -182,11 +182,11 @@ class PlanningPipeline:
             if verbose:
                 print('try: {} - {}->{}'.format(snode.idx, from_state.node, to_state.node))
             self.gtimer.tic("test_connection")
-            traj, new_state, error, succ = self.test_connection(from_state, to_state, redundancy_dict=redundancy_dict,
+            traj, new_state, error, succ = self.test_connection(from_state, to_state,
                                                                 display=display, dt_vis=dt_vis, verbose=verbose,
                                                                 **kwargs)
             simtime = self.gtimer.toc("test_connection")
-            snode_new = self.tplan.make_search_node(snode, new_state, traj,  redundancy_dict)
+            snode_new = self.tplan.make_search_node(snode, new_state, traj)
             if succ:
                 snode_new = self.tplan.connect(snode, snode_new)
             ret = self.tplan.update(snode, snode_new, succ)
@@ -235,15 +235,14 @@ class PlanningPipeline:
     # @brief test transition between states to connect
     # @param from_state         starting state (rnb-planning.src.pkg.planning.scene.State)
     # @param to_state           goal state (rnb-planning.src.pkg.planning.scene.State)
-    # @param redundancy_dict    redundancy in dictionary format {object name: {axis: value}}
     # @return Traj      Full trajectory as array of Q
     # @return end_state     new state at the end of transition (rnb-planning.src.pkg.planning.scene.State)
     # @return error     planning error
     # @return success   success/failure of planning result
-    def test_connection(self, from_state=None, to_state=None, redundancy_dict=None, display=False, dt_vis=1e-2,
+    def test_connection(self, from_state=None, to_state=None, display=False, dt_vis=1e-2,
                           error_skip=0, verbose=False, **kwargs):
         Traj, LastQ, error, success, binding_list = \
-            self.mplan.plan_transition(from_state, to_state, redundancy_dict=redundancy_dict, verbose=verbose, **kwargs)
+            self.mplan.plan_transition(from_state, to_state, verbose=verbose, **kwargs)
 
         if success:
             if display:
@@ -310,9 +309,8 @@ class PlanningPipeline:
     def __refine_trajectory(self, key, snode_from, snode_to, **kwargs):
         from_state = snode_from.state
         to_state = snode_to.state
-        redundancy_dict = snode_to.redundancy_dict
         Traj, LastQ, error, success, binding_list = \
-            self.mplan.plan_transition(from_state, to_state, redundancy_dict=redundancy_dict, **kwargs)
+            self.mplan.plan_transition(from_state, to_state, **kwargs)
 
         if success:
             if key in self.refine_success_dict and self.refine_success_dict[key]:
@@ -343,11 +341,11 @@ class PlanningPipeline:
                 state_new = state_pre.copy(self.pscene)
                 state_new.Q[rbt_idx] = initial_state.Q[rbt_idx]
                 for _ in range(try_count):
-                    traj, state_next, error, succ = self.test_connection(state_pre, state_new, redundancy_dict=None,
-                                                                          display=False, timeout=timeout)
+                    traj, state_next, error, succ = self.test_connection(state_pre, state_new,
+                                                                         display=False, timeout=timeout)
                     if succ:
                         break
-                snode_next = self.tplan.make_search_node(snode_pre, state_next, traj, None)
+                snode_next = self.tplan.make_search_node(snode_pre, state_next, traj)
                 if succ:
                     snode_next = self.tplan.connect(snode_pre, snode_next)
                     self.tplan.update(snode_pre, snode_next, succ)
@@ -370,14 +368,15 @@ class PlanningPipeline:
             if snode.traj is not None:
                 state_new = state_pre.copy(self.pscene)
                 state_new.Q = snode.traj[-1]
-                diffs = np.where([bs1 != bs2
-                                  for bs1, bs2 in zip(state_pre.binding_state, snode.state.binding_state)])[0]
+                diffs = [sname for sname in self.pscene.subject_name_list
+                         if (state_pre.binding_state[sname].get_chain()
+                             != snode.state.binding_state[sname].get_chain())
+                         ]
                 post_opt = True
-                for i_stem in diffs:
-                    obj_name = self.pscene.subject_name_list[i_stem]
-                    binding_from = state_pre.binding_state[i_stem]
-                    binding_to = snode.state.binding_state[i_stem]
-                    constraints = self.pscene.subject_dict[obj_name].make_constraints(binding_from, binding_to)
+                for obj_name in diffs:
+                    btf_from = state_pre.binding_state[obj_name]
+                    btf_to = snode.state.binding_state[obj_name]
+                    constraints = self.pscene.subject_dict[obj_name].make_constraints(btf_from, btf_to)
                     post_opt = post_opt and len(constraints) == 0  # no optimization for constrained motion
 
                 if post_opt:
@@ -405,9 +404,10 @@ class PlanningPipeline:
                 snode_pre = snode
                 continue
             self.pscene.gscene.clear_highlight()
-            for binding_pre, binding in zip(snode_pre.state.binding_state, snode.state.binding_state):
-                if not binding_pre == binding:
-                    self.pscene.show_binding(binding, redundancy_dict=snode.redundancy_dict)
+            for sname in self.pscene.subject_name_list:
+                btf_pre, btf = snode_pre.state.binding_state[sname], snode.state.binding_state[sname]
+                if btf_pre.get_chain() != btf.get_chain():
+                    self.pscene.show_binding(btf)
             if period<0.01:
                 self.pscene.gscene.show_motion(snode.traj[::int(0.01/period)], period=0.01)
             else:
@@ -423,8 +423,8 @@ class PlanningPipeline:
         for name in self.pscene.combined_robot.robot_names:
             grasp_dict[name] = False
 
-        for binding in state.binding_state:
-            oname, bpoint, binder, bgeo = binding
+        for btf in state.binding_state.values():
+            oname, bpoint, binder, bgeo = btf.get_chain()
             print("binder: {}".format(binder))
             if binder in self.pscene.actor_robot_dict:
                 rname = self.pscene.actor_robot_dict[binder]
@@ -491,13 +491,12 @@ class PlanningPipeline:
 
             # slow down if constrained motion
             scale_tmp = 1
-            binding_list, success = self.pscene.get_slack_bindings(snode_pre.state, snode.state)
-            for binding in binding_list:
-                obj_name, ap_name, binder_name, binder_geometry_name = binding
-                binder_geometry_prev = snode_pre.state.binding_state[self.pscene.subject_name_list.index(obj_name)][
-                    -1]
-                if binder_geometry_prev == binder_geometry_name and \
-                        self.pscene.subject_dict[obj_name].constrained:
+            subject_list, success = self.pscene.get_changing_subjects(snode_pre.state, snode.state)
+            for sname in subject_list:
+                actor_root = snode.state.binding_state[sname].actor_root_gname
+                actor_root_prev = snode_pre.state.binding_state[sname].actor_root_gname
+                if actor_root_prev == actor_root and \
+                        self.pscene.subject_dict[sname].constrained:
                     scale_tmp = self.constrained_motion_scale
                     break
 
@@ -522,7 +521,7 @@ class PlanningPipeline:
         state_home.Q = np.array(self.pscene.combined_robot.home_pose)
         trajectory, Q_last, error, success, binding_list = self.mplan.plan_transition(state_fin, state_home)
         if success:
-            snode_home = SearchNode(0, state_home, [], [], depth=0, redundancy_dict=None)
+            snode_home = SearchNode(0, state_home, [], [], depth=0)
             snode_home.set_traj(trajectory, 0)
             snode_schedule.append(snode_home)
 

@@ -119,13 +119,12 @@ class MoveitPlanner(MotionInterface):
     # @brief moveit planning implementation
     # @param from_state starting state (rnb-planning.src.pkg.planning.scene.State)
     # @param to_state   goal state (rnb-planning.src.pkg.planning.scene.State)
-    # @param binding_list   list of bindings to pursue
-    # @param btf_dict   dictionary of BindingTransfrom {(object name, handle name, actor name): BindingTrasnfrom}
+    # @param subject_list   list of changed subjects
     # @return Traj      Full trajectory as array of Q
     # @return LastQ     Last joint configuration as array
     # @return error     planning error
     # @return success   success/failure of planning result
-    def plan_algorithm(self, from_state, to_state, binding_list, btf_dict=None, timeout=1,
+    def plan_algorithm(self, from_state, to_state, subject_list, timeout=1,
                        timeout_joint=None, timeout_constrained=None, verbose=False, only_self_collision=False, **kwargs):
         timeout_joint = timeout_joint if timeout_joint is not None else timeout
         timeout_constrained = timeout_constrained if timeout_constrained is not None else timeout
@@ -136,13 +135,13 @@ class MoveitPlanner(MotionInterface):
                 dual_planner.planner.clear_context_cache()
                 dual_planner.planner.clear_manifolds()
 
-        if len(binding_list)>1:
+        if len(subject_list)>1:
             raise(RuntimeError("Only single manipulator operation is implemented with moveit!"))
 
         self.update_gscene(only_self_collision=only_self_collision)
 
         motion_type = 0
-        if len(binding_list) == 0: # joint motion case
+        if len(subject_list) == 0: # joint motion case
             motion_type = MoveitPlanner.JOINT_MOTION
             if from_state.Q is None or to_state.Q is None:
                 raise(RuntimeError("No motion goal is defined!"))
@@ -178,7 +177,7 @@ class MoveitPlanner(MotionInterface):
 
         else: # task motion case
             motion_type = MoveitPlanner.TASK_MOTION
-            obj_name, ap_name, binder_name, binder_geometry_name = binding_list[0]
+            obj_name, ap_name, binder_name, binder_geometry_name = to_state.binding_state[subject_list[0]].get_chain()
 
             binder = self.pscene.actor_dict[binder_name]
             obj = self.pscene.subject_dict[obj_name]
@@ -187,7 +186,7 @@ class MoveitPlanner(MotionInterface):
             group_name_handle = self.binder_link_robot_dict[handle.geometry.link_name] if handle.geometry.link_name in self.binder_link_robot_dict else None
             group_name_binder = self.binder_link_robot_dict[binder.geometry.link_name] if binder.geometry.link_name in self.binder_link_robot_dict else None
 
-            btf = btf_dict[(obj_name, handle.name, binder.name)]
+            btf = to_state.binding_state[obj_name]
             T_handle = btf.T_handle_lh
             T_binder = btf.T_actor_lh
             T_add_handle = T_add_handle
@@ -232,9 +231,8 @@ class MoveitPlanner(MotionInterface):
                 else:
                     from_Q = from_state.Q
 
-            i_stem = self.pscene.subject_name_list.index(obj_name)
-            binding_from = from_state.binding_state[i_stem]
-            binding_to = to_state.binding_state[i_stem]
+            binding_from = from_state.binding_state[obj_name]
+            binding_to = to_state.binding_state[obj_name]
             constraints = obj.make_constraints(binding_from, binding_to)
             if constraints:
                 for motion_constraint in constraints:
@@ -300,7 +298,7 @@ class MoveitPlanner(MotionInterface):
         return trajectory, Q_last, error, success
 
 
-    def init_online_plan(self, from_state, to_state, binding_list, T_step, control_freq, playback_rate=0.5, **kwargs):
+    def init_online_plan(self, from_state, to_state, subject_list, T_step, control_freq, playback_rate=0.5, **kwargs):
         raise(RuntimeError("online operation not implemented with moveit"))
 
     def step_online_plan(self, i_q, pos, wp_action=False):

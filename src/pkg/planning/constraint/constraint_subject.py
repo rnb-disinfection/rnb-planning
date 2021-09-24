@@ -212,10 +212,10 @@ class Subject:
 
     ##
     # @brief (prototype) set state param
-    # @param binding (handle name, binder name)
+    # @param binding_tf BindingTransform
     # @param state_param
     @abstractmethod
-    def set_state(self, binding, state_param):
+    def set_state(self, binding_tf, state_param):
         pass
 
     ##
@@ -250,7 +250,7 @@ class Subject:
     # @brief (prototype) get object-level node component
     @classmethod
     @abstractmethod
-    def get_node_component(cls, binding_state, state_param):
+    def get_node_component(cls, btf, state_param):
         pass
 
     ##
@@ -327,10 +327,11 @@ class WayopintTask(AbstractTask):
 
     ##
     # @brief set object binding state and update location
-    # @param binding (handle name, binder name)
+    # @param binding_tf BindingTransform
     # @param state_param list of done-mask
-    def set_state(self, binding, state_param=None):
-        self.binding = binding
+    def set_state(self, binding_tf, state_param=None):
+        self.binding_tf = binding_tf
+        self.binding = binding_tf.get_chain()
         if state_param is None:
             self.state_param = np.zeros(len(self.action_points_order), dtype=np.bool)
         else:
@@ -345,9 +346,9 @@ class WayopintTask(AbstractTask):
 
     ##
     # @brief get object-level state_param component
-    def get_state_param_update(self, binding, state_param):
-        if binding[1] is not None:
-            state_param[self.action_points_order.index(binding[1])] = True
+    def get_state_param_update(self, btf, state_param):
+        if btf.handle_name is not None:
+            state_param[self.action_points_order.index(btf.handle_name)] = True
         return state_param
 
     ##
@@ -390,8 +391,8 @@ class WayopintTask(AbstractTask):
     ##
     # @brief get object-level node component (finished waypoint count)
     @classmethod
-    def get_node_component(cls, binding_state, state_param):
-        if binding_state[1] is not None:
+    def get_node_component(cls, btf, state_param):
+        if btf.handle_name is not None:
             return int(np.sum(state_param))
         else:
             return 0
@@ -600,9 +601,11 @@ class AbstractObject(Subject):
         return available_bindings
     ##
     # @brief set object binding state and update location
-    # @param binding (object name, handle name, binder name, binder geometry name)
+    # @param binding_tf BindingTransform
     # @param state_param (link name, offset transformation in 4x4 matrix)
-    def set_state(self, binding, state_param):
+    def set_state(self, binding_tf, state_param):
+        self.binding_tf = binding_tf
+        self.binding = binding_tf.get_chain()
         link_name = state_param[0]
         frame = state_param[1]
         self.geometry.set_offset_tf(frame[:3, 3], frame[:3,:3])
@@ -627,14 +630,14 @@ class AbstractObject(Subject):
 
     ##
     # @brief get object-level state_param update
-    def get_state_param_update(self, binding, state_param):
+    def get_state_param_update(self, btf, state_param):
         return state_param
 
     ##
     # @brief get object-level node component (binder geometry name)
     @classmethod
-    def get_node_component(cls, binding, state_param):
-        return binding[3]
+    def get_node_component(cls, btf, state_param):
+        return btf.actor_root_gname
 
     ##
     # @brief    get object-level neighbor component (other available binder geometry name)

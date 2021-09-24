@@ -2,7 +2,6 @@ from ..geometry.geometry import *
 from ..utils.utils import list2dict
 from ..planning.constraint.constraint_subject import *
 from ..planning.constraint.constraint_actor import PlacePlane
-from ..planning.constraint.constraint_common import calc_redundancy
 
 
 ##
@@ -95,7 +94,8 @@ def finish_L_shape(gscene, gtem_dict):
 ##
 # @brief remove place points except for the current one
 def use_current_place_point_only(pscene, current_state):
-    for oname, aname, bname, bgname in current_state.binding_state:
+    for btf in current_state.binding_state.values():
+        oname, aname, bname, bgname = btf.get_chain()
         obj = pscene.subject_dict[oname]
         if isinstance(obj, AbstractObject):
             pp_list = [ap for ap in obj.action_points_dict.values() if isinstance(ap, PlacePoint)]
@@ -108,7 +108,7 @@ def use_current_place_point_only(pscene, current_state):
 ##
 # @brief remove attached binders on objects except for the current one
 def use_current_sub_binders_only(pscene, current_state):
-    active_binders  = [binding[2] for binding in current_state.binding_state if binding[2] is not None]
+    active_binders  = [btf.actor_name for btf in current_state.binding_state.values() if btf.actor_name is not None]
 
     for obj in pscene.subject_dict.values():
         for bname, binder in pscene.actor_dict.items():
@@ -253,9 +253,10 @@ def play_schedule_clearance_highlight(ppline, snode_schedule, tcheck, period, ac
             continue
         ppline.pscene.gscene.clear_highlight()
 
-        for binding_pre, binding in zip(snode_pre.state.binding_state, snode.state.binding_state):
-            if not binding_pre == binding:
-                ppline.pscene.show_binding(binding, redundancy_dict=snode.redundancy_dict)
+        for sname in sname in ppline.pscene.subject_name_list:
+            btf_pre, btf = snode_pre.state.binding_state[sname], snode.state.binding_state[sname]
+            if not btf_pre.get_chain() == btf.get_chain():
+                ppline.pscene.show_binding(btf)
         if period < 0.01:
             ppline.pscene.gscene.show_motion(snode.traj[::int(0.01 / period)], period=0.01)
         else:
@@ -447,9 +448,8 @@ def disperse_on(pscene, gcheck, surface, item_names):
 ##
 # @brief show redundancy-applied action point
 # @param redundancy  {action point name: {axis: value}}
-def show_action_point(gscene, obj, handle, actor, Q_dict, redundancy):
-    btf = BindingTransform(obj, handle, actor, redundancy)
-    T_grip = np.matmul(handle.get_tf_handle(Q_dict), SE3_inv(self.T_add_ah))
+def show_action_point(gscene, btf, Q_dict):
+    T_grip = np.matmul(handle.get_tf_handle(Q_dict), SE3_inv(btf.T_add_ah))
     T_elink = btf.T_loal
     gscene.add_highlight_axis("hl", "grip", link_name="base_link", center=T_grip[:3,3], orientation_mat=T_grip[:3,:3])
     gscene.add_highlight_axis("hl", "elink", link_name="base_link", center=T_elink[:3,3], orientation_mat=T_elink[:3,:3])
