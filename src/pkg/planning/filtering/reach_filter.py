@@ -1,10 +1,16 @@
 import numpy as np
 from .filter_interface import MotionFilterInterface, save_scene
 from ...utils.joint_utils import *
+from ...utils.utils import *
 from ...utils.gjk import get_point_list, get_gjk_distance
 
 C_SVM_DEFAULT = 1000
 GAMMA_SVM_DEFAULT = 'scale'
+
+DEBUG_REACH_FILT_LOG = False
+
+if DEBUG_REACH_FILT_LOG:
+    TextColors.RED.println("===== WARNING: reach_filter in DEBUG MODE====")
 
 def T2features(T, shoulder_height):
     xyz = T[:3, 3]
@@ -102,9 +108,15 @@ class ReachChecker(MotionFilterInterface):
         features = T2features(T_tar, shoulder_height)
         radius, theta, height, azimuth_loc, zenith, ee_dist, rot_z = features
         if ee_dist > self.shoulder_reach_dict[group_name]:
-            return False
-        featurevec = self.feature_fn(*features)
-        return self.model_dict[group_name].predict([featurevec])[0]
+            res = False
+        else:
+            featurevec = self.feature_fn(*features)
+            res = self.model_dict[group_name].predict([featurevec])[0]
+
+        if DEBUG_REACH_FILT_LOG:
+            save_scene(self.__class__.__name__, self.pscene, btf, Q_dict,
+                       error_state=False, result=res, **kwargs)
+        return res
 
 
 from ...utils.utils import *

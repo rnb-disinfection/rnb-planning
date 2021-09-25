@@ -8,38 +8,11 @@ from .constraint.constraint_actor import *
 from ..utils.rotation_utils import SE3, Rot_rpy
 from ..geometry.geometry import *
 from ..geometry.geotype import *
+from state import State
 from itertools import product
 import numpy as np
 import random
 from copy import deepcopy
-
-
-##
-# @class    State
-# @brief    planning scene state
-class State:
-    ##
-    # @param binding_state  BindingState
-    # @param state_param    task state parameters
-    # @param Q              robot joint configuration
-    # @param pscene         PlanningScene instance
-    def __init__(self, binding_state, state_param, Q, pscene):
-        self.state_param = state_param if state_param is not None else defaultdict(lambda:None)
-        self.Q = np.array(Q)
-        self.set_binding_state(binding_state, pscene)
-
-    def set_binding_state(self, binding_state, pscene):
-        ## @brief tuple of binding state ((object name, binding point, binder), ..)
-        self.binding_state = binding_state
-        self.state_param = pscene.get_state_param_update(self.binding_state, self.state_param)
-        ## @brief tuple of simplified binding state (binder geometry name 1, binder geometry name 2, ..)
-        self.node = pscene.get_node(self.binding_state, self.state_param)
-
-    def get_tuple(self):
-        return (self.binding_state, self.state_param, self.Q)
-
-    def copy(self, pscene):
-        return State(deepcopy(self.binding_state), deepcopy(self.state_param), deepcopy(self.Q), pscene)
 
 
 
@@ -105,7 +78,7 @@ class PlanningScene:
             del self.actor_dict[bname]
             rname = self.actor_robot_dict[bname]
             del self.actor_robot_dict[bname]
-            if rname is not None:
+            if rname is not None and rname in self.robot_actor_dict:
                 del self.robot_actor_dict[rname]
             for subject in self.subject_dict.values():
                 if bname in subject.sub_binders_dict:

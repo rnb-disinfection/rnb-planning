@@ -1,15 +1,14 @@
 import os
 import sys
 sys.path.insert(1, os.environ["PDDL_STREAM_DIR"])
-sys.path.insert(1, os.path.join(os.environ["RNB_PLANNING_DIR"], 'src'))
 from ...utils.rotation_utils import *
 from ...utils.joint_utils import *
 from ...utils.utils import *
 from ..constraint.constraint_common import *
+from ..scene import State
 from primitives_pybullet import *
 from examples.pybullet.tamp.streams import *
 from constants_common import *
-from pkg.planning.scene import State
 
 TIMEOUT_MOTION_DEFAULT = 1
 

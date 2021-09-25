@@ -25,8 +25,8 @@ class MotionFilterInterface:
 import os
 import sys
 from copy import deepcopy
-sys.path.append(os.path.join(os.environ["RNB_PLANNING_DIR"], "src"))
-from pkg.utils.utils import *
+from ...utils.utils import *
+from ..state import State
 
 SCENE_PATH = os.path.join(os.environ['RNB_PLANNING_DIR'], "data/checker_scenes")
 try_mkdir(SCENE_PATH)
@@ -36,8 +36,12 @@ def save_scene(cname, pscene, btf, Q_dict, error_state, result, **kwargs):
     try_mkdir(path_dir)
     scene_data = {}
     scene_data["scene_args"] = pscene.get_scene_args(list2dict(Q_dict, pscene.gscene.joint_names))
+
+    binding_state, state_param = pscene.get_object_state()
+    state = State(binding_state, state_param, dict2list(Q_dict, pscene.gscene.joint_names), pscene)
+    scene_data["state"] = state
+
     scene_data["btf"] = btf
-    scene_data["Q_dict"] = Q_dict
     scene_data["kwargs"] = kwargs
     scene_data["error_state"] = error_state
     scene_data["result"] = result
@@ -52,9 +56,11 @@ def save_scene(cname, pscene, btf, Q_dict, error_state, result, **kwargs):
 def load_unpack_scene_args(pscene, scene_data):
     pscene_args = scene_data["scene_args"]
     pscene.recover_scene_args(pscene_args)
-
-    Q_dict = scene_data["Q_dict"]
-    pscene.gscene.show_pose(Q_dict)
+    state = scene_data["state"]
+    pscene.set_object_state(state)
+    pscene.gscene.update_markers_all()
+    pscene.gscene.show_pose(state.Q)
+    Q_dict = list2dict(state.Q, pscene.gscene.joint_names)
 
     btf = scene_data["btf"]
     kwargs = scene_data["kwargs"]
@@ -63,4 +69,4 @@ def load_unpack_scene_args(pscene, scene_data):
 
     error_state = scene_data["error_state"]
     result = scene_data["result"]
-    return btf, Q_dict, kwargs, error_state, result
+    return state, btf, Q_dict, kwargs, error_state, result

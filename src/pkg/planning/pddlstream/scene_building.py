@@ -1,9 +1,8 @@
 from __future__ import print_function
 import os
-os.chdir(os.path.join(os.environ["RNB_PLANNING_DIR"], 'src'))
 
-from pkg.planning.constraint.constraint_subject import CustomObject, Grasp2Point, PlacePoint, SweepPoint, SweepTask
-from pkg.planning.filtering.lattice_model.scene_building import *
+from ..constraint.constraint_subject import CustomObject, Grasp2Point, PlacePoint, SweepPoint, SweepTask
+from ..filtering.lattice_model.scene_building import *
 
 
 ##

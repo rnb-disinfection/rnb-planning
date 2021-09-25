@@ -204,21 +204,17 @@ class LatticedChecker(MotionFilterInterface):
         grasp_tool_img = np.zeros(GRASP_SHAPE)
         grasp_tar_img = np.zeros(GRASP_SHAPE)
         grasp_obj_img = np.zeros(GRASP_SHAPE)
-        grasp_tool_img[np.unravel_index(grasp_tool_idx, shape=GRASP_SHAPE)] = 1
-        grasp_tar_img[np.unravel_index(grasp_tar_idx, shape=GRASP_SHAPE)] = 1
         try:
+            grasp_tool_img[np.unravel_index(grasp_tool_idx, shape=GRASP_SHAPE)] = 1
+            grasp_tar_img[np.unravel_index(grasp_tar_idx, shape=GRASP_SHAPE)] = 1
             grasp_obj_img[np.unravel_index(grasp_obj_idx, shape=GRASP_SHAPE)] = 1
         except Exception as e:
-            save_scene(self.__class__.__name__, self.pscene, actor, obj, handle, btf, Q_dict,
+            save_scene(self.__class__.__name__, self.pscene, btf, Q_dict,
                        error_state=True, result=None, ignore=[igtem.name for igtem in ignore], **kwargs)
             print("===== THE ERROR OCCURED!!! =====")
             print("===== THE ERROR OCCURED!!! =====")
             print("===== THE ERROR OCCURED!!! =====")
             print(e)
-            print("===== grasp_obj_idx =====")
-            print(grasp_obj_idx)
-            print("===== coll_idx_dict.keys() =====")
-            print(self.ltc_effector.coll_idx_dict.keys())
             print("===== obj_names =====")
             print(obj_names)
 #             value = raw_input("Wait key input : ")
@@ -237,7 +233,7 @@ class LatticedChecker(MotionFilterInterface):
                                        np.array([grasp_img]), np.array([arm_img]), np.array([rh_vals]),
                                        )[0]
         if DEBUG_LAT_FILT_LOG:
-            save_scene(self.__class__.__name__, self.pscene, actor, obj, handle, btf, Q_dict,
+            save_scene(self.__class__.__name__, self.pscene, btf, Q_dict,
                        error_state=False, result=res, ignore=[igtem.name for igtem in ignore], **kwargs)
         return res[-1]>0.5
 
