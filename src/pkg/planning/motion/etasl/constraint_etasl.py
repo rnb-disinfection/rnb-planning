@@ -288,8 +288,7 @@ def make_action_constraints(object, handle, effector,
             raise(NotImplementedError("non-implemented handle type"))
         const_txt = make_constraint_fun(handle, effector, handle.name_full, activation=activation)
     else:
-        btf = btf_to[object.oname]
-        T_add = btf.T_add_ah
+        T_add = btf_to.T_add_ah
         point_add = T_add[:3,3]
         rpy_add = Rot2rpy(T_add[:3,:3])
         const_txt = make_oriented_point_constraint(handle, effector, handle.name_full,

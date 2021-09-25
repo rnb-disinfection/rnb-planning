@@ -245,7 +245,9 @@ class PlanningScene:
         for k in self.subject_name_list:
             v = self.subject_dict[k]
             sname, hname, aname, _ = v.binding
-            subject, handle, actor = self.subject_dict[sname], self.handle_dict[hname], self.actor_dict[aname]
+            subject = self.subject_dict[sname]
+            handle =  subject.action_points_dict[hname] if hname in subject.action_points_dict else hname
+            actor = self.actor_dict[aname] if aname in self.actor_dict else aname
             binding_state[k] = BindingTransform(subject, handle, actor)
             state_param[k] = v.get_state_param()
         return binding_state, state_param
@@ -271,7 +273,7 @@ class PlanningScene:
 
     def get_state_param_update(self, binding_state, state_param):
         state_param_new = {}
-        for sname in zip(self.subject_name_list):
+        for sname in self.subject_name_list:
             btf = binding_state[sname]
             subject = self.subject_dict[sname]
             state_param_new[sname] = subject.get_state_param_update(btf, state_param[btf.binding.subject_name])
@@ -348,10 +350,10 @@ class PlanningScene:
     def rebind(self, binding, joint_dict):
         object_tar = self.subject_dict[binding.subject_name]
         obj_fam = object_tar.geometry.get_family()
-        if binding.actor_root_gname is None:
+        if binding.actor_name is None:
             object_tar.set_state(binding, None)
         else:
-            binder = self.actor_dict[binding.actor_root_gname]
+            binder = self.actor_dict[binding.actor_name]
             binder.bind(action_obj=object_tar, bind_point=binding.handle_name, joint_dict_last=joint_dict)   # bind given binding
         for binder_sub in [k for k,v in self.actor_dict.items()
                            if v.geometry.name in obj_fam]: # find bound object's sub-binder
@@ -499,7 +501,7 @@ class PlanningScene:
         to_binding_state = BindingState()
         for sname, from_ntem, to_ntem in zip(self.subject_name_list, state.node, to_node):
             btf_from = state.binding_state[sname]
-            if from_ntem != to_ntem:
+            if from_ntem == to_ntem:
                 btf_to = deepcopy(btf_from)
             else:
                 hname_to, bname_to, _ = binding_sampler(available_binding_dict[sname])

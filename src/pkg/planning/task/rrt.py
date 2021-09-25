@@ -98,8 +98,7 @@ class TaskRRT(TaskInterface):
                 ## unstoppable node should change or at terminal
                 leaf_list = [leaf
                              for leaf in leafs
-                             if all([node[k] in terms or node[k] != leaf[k]
-                                     for k, terms in self.unstoppable_terminals.items()])]
+                             if self.check_unstoppable_terminals(node, leaf)]
                 self.node_dict[node] = set(leaf_list)
             for leaf in self.node_dict[node]:
                 self.node_parent_dict[leaf].add(node)

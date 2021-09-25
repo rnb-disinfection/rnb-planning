@@ -31,14 +31,11 @@ from pkg.utils.utils import *
 SCENE_PATH = os.path.join(os.environ['RNB_PLANNING_DIR'], "data/checker_scenes")
 try_mkdir(SCENE_PATH)
 
-def save_scene(cname, pscene, actor, obj, handle, btf, Q_dict, error_state, result, **kwargs):
+def save_scene(cname, pscene, btf, Q_dict, error_state, result, **kwargs):
     path_dir = os.path.join(SCENE_PATH, cname)
     try_mkdir(path_dir)
     scene_data = {}
     scene_data["scene_args"] = pscene.get_scene_args(list2dict(Q_dict, pscene.gscene.joint_names))
-    scene_data["actor"] = actor.name
-    scene_data["obj"] = obj.oname
-    scene_data["handle"] = None if handle is None else handle.name
     scene_data["btf"] = btf
     scene_data["Q_dict"] = Q_dict
     scene_data["kwargs"] = kwargs
@@ -59,17 +56,11 @@ def load_unpack_scene_args(pscene, scene_data):
     Q_dict = scene_data["Q_dict"]
     pscene.gscene.show_pose(Q_dict)
 
-    aname = scene_data["actor"]
-    oname = scene_data["obj"]
-    hname = scene_data["handle"]
     btf = scene_data["btf"]
     kwargs = scene_data["kwargs"]
     if "ignore" in kwargs:
         kwargs["ignore"] = [pscene.gscene.NAME_DICT[ig_name] for ig_name in kwargs["ignore"]]
 
-    obj = pscene.subject_dict[oname]
-    handle = pscene.handle_dict[hname] if hname is not None else None
-    actor = pscene.actor_dict[aname]
     error_state = scene_data["error_state"]
     result = scene_data["result"]
-    return obj, handle, actor, btf, Q_dict, kwargs, error_state, result
+    return btf, Q_dict, kwargs, error_state, result

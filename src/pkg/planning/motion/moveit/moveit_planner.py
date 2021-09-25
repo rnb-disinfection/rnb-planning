@@ -189,8 +189,8 @@ class MoveitPlanner(MotionInterface):
             btf = to_state.binding_state[obj_name]
             T_handle = btf.T_handle_lh
             T_binder = btf.T_actor_lh
-            T_add_handle = T_add_handle
-            T_add_actor = T_add_actor
+            T_add_handle = btf.T_add_handle
+            T_add_actor = btf.T_add_actor
 
             dual = False
             if group_name_binder and not group_name_handle:

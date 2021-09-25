@@ -179,7 +179,7 @@ class Subject:
         self.action_points_dict = {}
         ## @brief dictionary of sub-binder points {point name: rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor}
         self.sub_binders_dict = {}
-        ## @brief object's BindingChain (object_name, handle_name, actor_name, actor_root_gname)
+        ## @brief object's BindingChain (subject_name, handle_name, actor_name, actor_root_gname)
         self.binding = BindingChain(None, None, None, None)
         ## @brief keyword arguments for save&load
         self.kwargs = {}
@@ -467,7 +467,9 @@ class SweepLineTask(SweepTask):
                 clearance_names.append(gtem.name)
             clearance = clearance_gtem
         SweepTask.__init__(self, oname, geometry, action_points_dict, sub_binders_dict=sub_binders_dict, tol=tol)
-        self.kwargs = {"geometry_vertical":geometry_vertical.name, "tol": tol, "clearance": clearance_names}
+        self.kwargs = {"geometry_vertical":
+                           geometry_vertical.name if geometry_vertical is not None else geometry_vertical,
+                       "tol": tol, "clearance": clearance_names}
 
         self.fix_direction = True
         if clearance is None:
