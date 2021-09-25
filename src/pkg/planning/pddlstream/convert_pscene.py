@@ -22,7 +22,7 @@ from shutil import copyfile
 import rospkg
 rospack = rospkg.RosPack()
 
-from ..constraint.constraint_common import combine_redundancy, sample_redundancy, BindingTransform
+from ..constraint.constraint_common import combine_redundancy, sample_redundancy, BindingTransform, BindingChain
 from primitives_pybullet import update_grasp_info, GraspInfo, pairwise_collision, BodyPose, sample_placement, BodyGrasp
 import random
 from constants_common import *
