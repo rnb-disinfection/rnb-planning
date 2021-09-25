@@ -241,12 +241,22 @@ class PlanningPipeline:
     # @return success   success/failure of planning result
     def test_connection(self, from_state=None, to_state=None, display=False, dt_vis=1e-2,
                           error_skip=0, verbose=False, **kwargs):
+        if display:
+            self.pscene.gscene.clear_highlight()
+            snames, change_ok = self.pscene.get_changing_subjects(from_state, to_state)
+            for sname in snames:
+                self.pscene.set_object_state(from_state)
+                self.pscene.gscene.update_markers_all()
+                self.pscene.gscene.show_pose(from_state.Q)
+                self.pscene.show_binding(to_state.binding_state[sname])
+
         Traj, LastQ, error, success, binding_list = \
             self.mplan.plan_transition(from_state, to_state, verbose=verbose, **kwargs)
 
-        if success:
-            if display:
+        if display:
+            if success:
                 self.pscene.gscene.show_motion(Traj, error_skip=error_skip, period=dt_vis)
+            self.pscene.gscene.clear_highlight()
 
         end_state = self.pscene.rebind_all(binding_list, LastQ)
         return Traj, end_state, error, success

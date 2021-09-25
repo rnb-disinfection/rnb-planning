@@ -486,6 +486,7 @@ class PlanningScene:
     # @return   (sampled next state, sampled redundancy)
     def sample_leaf_state(self, state, available_binding_dict, to_node,
                           binding_sampler=random.choice, redundancy_sampler=random.uniform):
+        self.set_object_state(state)
         to_state = state.copy(self)
         if state.node == to_node:
             dQ = (self.combined_robot.home_pose - to_state.Q)
@@ -534,8 +535,9 @@ class PlanningScene:
         if hname is not None:
             handle = self.subject_dict[sname].action_points_dict[hname]
             self.add_handle_axis("{}_{}".format(sname, hname), handle, Toff=btf.T_add_handle)
-        actor = self.actor_dict[aname]
-        self.add_handle_axis("{}".format(aname), actor, Toff=btf.T_add_actor)
+        if aname is not None:
+            actor = self.actor_dict[aname]
+            self.add_handle_axis("{}".format(aname), actor, Toff=btf.T_add_actor)
 
     def get_scene_args(self, Q):
         gtem_args = self.gscene.get_gtem_args()

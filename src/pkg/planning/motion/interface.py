@@ -84,6 +84,7 @@ class MotionInterface:
         subject_list, success = self.pscene.get_changing_subjects(from_state, to_state)
 
         if success:
+            Q_dict = list2dict(from_state.Q, self.gscene.joint_names)
             for sname in subject_list:
                 btf = to_state.binding_state[sname]
 
