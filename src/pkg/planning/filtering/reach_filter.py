@@ -206,6 +206,8 @@ class ReachTrainer:
     ##
     # @brief load and learn
     def load_and_learn(self, ROBOT_TYPE, C_svm=C_SVM_DEFAULT, gamma=GAMMA_SVM_DEFAULT, save_model=True, feature_fn=to_featurevec):
+        self.set_shoulder_height(ROBOT_TYPE)
+
         self.samplevec_list_train, self.success_list_train = self.load_data(ROBOT_TYPE, "train")
         self.samplevec_list_test, self.success_list_test = self.load_data(ROBOT_TYPE, "test")
 
@@ -243,6 +245,17 @@ class ReachTrainer:
             round(np.mean(test_res[np.where(np.logical_not(self.success_list_test))]) * 100, 2)))
         print("=" * 80)
         return round(np.mean(test_res) * 100, 2)
+
+    def set_shoulder_height(self, ROBOT_TYPE):
+        crob = CombinedRobot(robots_on_scene=[
+            RobotConfig(0, ROBOT_TYPE, ((0, 0, 0), (0, 0, 0)),
+                        None)]
+            , connection_list=[False])
+
+        gscene = self.scene_builder.create_gscene(crob, start_rviz=False)
+
+        shoulder_link = gscene.urdf_content.joint_map[gscene.joint_names[1]].child
+        self.shoulder_height = get_tf(shoulder_link, crob.home_dict, gscene.urdf_content)[2, 3]
 
     ##
     # @brief load and test
