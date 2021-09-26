@@ -348,16 +348,8 @@ def plot_times(resdat_all,
 
     plt.subplot(2, 3, 6)
     time_max = 0
-    for xsmall, cname in enumerate(cnames):
-        times = [time_dict[group][cname] for group in groups]
-        times = np.concatenate(times)
-        stds = np.std(times)
-        times = np.mean(times)
-        plt.bar(xsmall + 0.5, times, yerr=stds)
-        time_max = max(time_max, times + stds)
-    plt.axis([0, len(cnames), 0, time_max + 1])
-    plt.grid()
-    plt.xticks(np.arange(len(cnames)) + 1, cnames)
+    grouped_bar(time_dict, groups=CASES, cases=CHECKERS, average_all=True)
+    plt.title("scattered planning times")
     plt.title("total mean planning time")
 
 
@@ -372,7 +364,7 @@ def plot_log(
 ):
     valid_idc_dict = get_valid_idc_dict(resdat_all)
     val_dict = {case:
-                     {cname: np.array(tvec)[valid_idc_dict[case][:len(tvec)]]
+                     {cname: np.array(tvec)[valid_idc_dict[case][:len(tvec)]].astype(np.float)
                       for cname, tvec in tdict.items()}
                  for case, tdict in extract_values(resdat_all, keys, fn=fn).items()}
     grouped_bar(val_dict, groups=CASES, cases=CHECKERS, scatter=scatter, average_all=average_all)
