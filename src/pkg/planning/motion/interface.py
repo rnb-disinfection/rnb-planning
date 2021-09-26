@@ -11,6 +11,10 @@ __metaclass__ = type
 MOTION_PATH = os.path.join(os.environ['RNB_PLANNING_DIR'], "data/motion_scenes")
 try_mkdir(MOTION_PATH)
 
+LOG_MOTION_PLANNING = True
+if LOG_MOTION_PLANNING:
+    TextColors.RED.println("[WARN] Motion Planning Logging is ON")
+
 ##
 # @class MotionInterface
 # @brief Motion planner class interface
@@ -156,6 +160,12 @@ class MotionInterface:
                     self.gscene.recover_robot(vis_bak)
         else:
             Traj, LastQ, error, success = [from_state.Q], from_state.Q, 1e10, False
+        if LOG_MOTION_PLANNING:
+            save_pickle(os.path.join(MOTION_PATH, "%05d.pkl"%len(os.listdir(MOTION_PATH))),
+                        {"from_state":from_state, "to_state":to_state,
+                         "binding_list":binding_list, "btf_dict":btf_dict,
+                         "Traj": Traj, "success": success})
+        return Traj, LastQ, error, success, binding_list
         return Traj, LastQ, error, success, [to_state.binding_state[sname].get_chain() for sname in subject_list]
 
     ##
