@@ -169,20 +169,22 @@ def prepare_grasp_redundancy_set(body_subject_map, actor,
         TextColors.RED.println('===== metadata is not set for "dat_root", "rtype", "dat_dir", "fname" ====')
     data_path = create_data_dirs(meta_data['dat_root'], meta_data['rtype'], meta_data['dat_dir']+"-graspset")
     rdc_file = os.path.join(data_path, meta_data['fname'])
+    redundancyque_dict = {}
     if os.path.isfile(rdc_file):
         redundancyque_dict = load_pickle(rdc_file)
-    else:
-        redundancyque_dict = {}
-        for body, subject in body_subject_map.items():
-            redundancyque = []
-            for _ in range(sample_count):
-                T_ao = sample_redundancy_offset(subject, actor, show_state=show_state,
-                                                binding_sampler=binding_sampler,
-                                                drop_downward_dir=[0, 1, 0],
-                                                redundancy_sampler=redundancy_sampler)
-                redundancyque.append(T_ao)
-            redundancyque_dict[body] = redundancyque
-        save_pickle(rdc_file, redundancyque_dict)
+
+    for body, subject in body_subject_map.items():
+        if body in redundancyque_dict and len(redundancyque_dict[body])>=sample_count:
+            continue
+        redundancyque = []
+        for _ in range(sample_count):
+            T_ao = sample_redundancy_offset(subject, actor, show_state=show_state,
+                                            binding_sampler=binding_sampler,
+                                            drop_downward_dir=[0, 1, 0],
+                                            redundancy_sampler=redundancy_sampler)
+            redundancyque.append(T_ao)
+        redundancyque_dict[body] = redundancyque
+    save_pickle(rdc_file, redundancyque_dict)
     return redundancyque_dict
 
 

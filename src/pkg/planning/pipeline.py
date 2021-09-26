@@ -339,6 +339,7 @@ class PlanningPipeline:
         if initial_state is None:
             initial_state = self.initial_state
         state_last = snode_last.state
+        initial_state.Q = np.array(initial_state.Q)
         diffQ = initial_state.Q - state_last.Q
         diff_dict = {rname: np.sum(np.abs(diffQ[idx]))>1e-4
                      for rname, idx in self.pscene.combined_robot.idx_dict.items()}
