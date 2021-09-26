@@ -43,22 +43,22 @@ from collections import Iterable
 # @remark if value is list, mean and error bar are drawn
 # @param data_dict dictionary of value dictionaries {group: case: value}
 # @param groups group name list
-# @param cases case name list
+# @param options sub-group option name list
 # @param average_all do not separate group and average all in one graph
-def grouped_bar(data_dict, groups=None, cases=None, scatter=False, average_all=False):
+def grouped_bar(data_dict, groups=None, options=None, scatter=False, average_all=False):
     if groups is None:
         groups = sorted(data_dict.keys())
         
-    if cases is None:
-        cases = sorted(data_dict[groups[0]].keys())
+    if options is None:
+        options = sorted(data_dict[groups[0]].keys())
 
     groups = [group for group in groups if group in data_dict]
-    X_big = np.arange(len(groups)) * (len(cases) + 1) +1
-    X_small = np.arange(len(cases))
+    X_big = np.arange(len(groups)) * (len(options) + 1) +1
+    X_small = np.arange(len(options))
 
     dat_max = 0
     for xsmall in X_small:
-        dat_vec = [data_dict[group][cases[xsmall]] for group in groups]
+        dat_vec = [data_dict[group][options[xsmall]] for group in groups]
         if len(dat_vec) == 0:
             continue
         if scatter:
@@ -88,8 +88,8 @@ def grouped_bar(data_dict, groups=None, cases=None, scatter=False, average_all=F
     # plt.axis([0,np.max(X_big[gidc])+np.max(X_small)+1,0, dat_max+1])
     plt.grid()
     if average_all:
-        plt.xticks(X_small, np.array(cases))
+        plt.xticks(X_small, np.array(options))
     else:
         plt.xticks(X_big + np.mean(X_small), np.array(groups))
-        plt.legend(cases)
-    return groups, cases
+        plt.legend(options)
+    return groups, options

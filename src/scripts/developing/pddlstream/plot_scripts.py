@@ -11,6 +11,11 @@ from pkg.utils.test_scripts import *
 from pkg.utils.plot_utils import *
 import subprocess
 
+CNAME_LIST = ['None', 'Tool', 'ToolReach', 'Full']
+EXP_LIST = ['obj_1', 'obj_1_obs3', 'obj_1_obs5', 'obj_3', 'obj_3_pole', 'obj_3_hard',
+            'obj_1c_obs0', 'obj_1c_obs3', 'obj_1c_obs5', 'obj_1c_obs7',
+            'obj_3c_obs3', 'obj_3c_obs5', 'obj_3c_obs7']
+
 ##
 # @extract experiment data
 def extract_values(resdat_all, keys, fn=lambda x:x):
@@ -49,11 +54,9 @@ def get_valid_idc_dict(resdat_all):
     return valid_idc_dict
 
 
-def print_results(RES_ROOT, RTYPE, DAT_DIR, CNAME_LIST=['None', 'Tool', 'ToolReach', 'Full']  # ,'Pairwise']
+def print_results(RES_ROOT, RTYPE, DAT_DIR, CNAME_LIST=CNAME_LIST  # ,'Pairwise']
                   , CNAMES_EXCLUDE=['None'],
-                  exp_list=['obj_1', 'obj_1_obs3', 'obj_1_obs5', 'obj_3', 'obj_3_pole', 'obj_3_hard',
-                            'obj_1c_obs0', 'obj_1c_obs3', 'obj_1c_obs5', 'obj_1c_obs7',
-                            'obj_3c_obs3', 'obj_3c_obs5', 'obj_3c_obs7']
+                  exp_list=EXP_LIST
                   , read_only=False
                   ):
     DATA_PATH = os.path.join(RNB_PLANNING_DIR, "data")
@@ -220,10 +223,8 @@ def print_results(RES_ROOT, RTYPE, DAT_DIR, CNAME_LIST=['None', 'Tool', 'ToolRea
 
 
 def print_debug_info(resdat_all,
-                     CNAME_LIST=['None', 'Tool', 'ToolReach', 'Full'],
-                     exp_list=['obj_1', 'obj_1_obs3', 'obj_1_obs5', 'obj_3', 'obj_3_pole', 'obj_3_hard',
-                               'obj_1c_obs0', 'obj_1c_obs3', 'obj_1c_obs5', 'obj_1c_obs7',
-                               'obj_3c_obs3', 'obj_3c_obs5', 'obj_3c_obs7']):
+                     CNAME_LIST=CNAME_LIST,
+                     exp_list=EXP_LIST):
     print("==============================================")
     print("============== Checker Results ===============")
     for exp in exp_list:
@@ -327,10 +328,8 @@ import matplotlib.pyplot as plt
 
 
 def plot_times(resdat_all,
-               CHECKERS=['None', 'Tool', 'ToolReach', 'Full'],
-               CASES=['obj_1', 'obj_1_obs3', 'obj_1_obs5', 'obj_3', 'obj_3_pole', 'obj_3_hard',
-                      'obj_1c_obs0', 'obj_1c_obs3', 'obj_1c_obs5', 'obj_1c_obs7',
-                      'obj_3c_obs3', 'obj_3c_obs5', 'obj_3c_obs7']):
+               CHECKERS=CNAME_LIST,
+               CASES=EXP_LIST):
     valid_idc_dict = get_valid_idc_dict(resdat_all)
 
     plt.figure(figsize=(15, 12))
@@ -339,34 +338,46 @@ def plot_times(resdat_all,
                      {cname: np.array(tvec)[valid_idc_dict[case][:len(tvec)]]
                       for cname, tvec in tdict.items()}
                  for case, tdict in extract_values(resdat_all, ["plan_time"]).items()}
-    groups, cnames = grouped_bar(time_dict, groups=CASES, cases=CHECKERS)
+    groups, cnames = grouped_bar(time_dict, groups=CASES, options=CHECKERS)
     plt.title("mean planning time")
 
     plt.subplot(2, 3, (4, 5))
     time_max = 0
-    grouped_bar(time_dict, groups=CASES, cases=CHECKERS, scatter=True)
+    grouped_bar(time_dict, groups=CASES, options=CHECKERS, scatter=True)
     plt.title("scattered planning times")
 
     plt.subplot(2, 3, 6)
     time_max = 0
-    grouped_bar(time_dict, groups=CASES, cases=CHECKERS, average_all=True)
+    grouped_bar(time_dict, groups=CASES, options=CHECKERS, average_all=True)
     plt.title("scattered planning times")
     plt.title("total mean planning time")
 
+def extract_valid(resdat_all, keys, fn=np.mean):
+    valid_idc_dict = get_valid_idc_dict(resdat_all)
+    return {case:
+            {cname: np.array(tvec)[valid_idc_dict[case][:len(tvec)]].astype(np.float)
+             for cname, tvec in tdict.items()}
+            for case, tdict in extract_values(resdat_all, keys, fn=fn).items()}
 
-def plot_log(
+def plot_valid(
         resdat_all,
         keys,
         fn=np.mean,
-        CHECKERS=['None', 'Tool', 'ToolReach', 'Full'],
-        CASES=['obj_1c_obs0', 'obj_1c_obs3', 'obj_1c_obs5', 'obj_1c_obs7', 'obj_3c_obs3', 'obj_3c_obs5', 'obj_3c_obs7'],
+        CHECKERS=CNAME_LIST,
+        CASES=EXP_LIST,
         scatter=False,
         average_all=False,
 ):
-    valid_idc_dict = get_valid_idc_dict(resdat_all)
-    val_dict = {case:
-                     {cname: np.array(tvec)[valid_idc_dict[case][:len(tvec)]].astype(np.float)
-                      for cname, tvec in tdict.items()}
-                 for case, tdict in extract_values(resdat_all, keys, fn=fn).items()}
-    grouped_bar(val_dict, groups=CASES, cases=CHECKERS, scatter=scatter, average_all=average_all)
+    val_dict = extract_valid(resdat_all, keys, fn)
+    grouped_bar(val_dict, groups=CASES, options=CHECKERS, scatter=scatter, average_all=average_all)
     return val_dict
+
+def subplot_trisect_line(ROWS, COLS, row, plot_dat, title, groups=EXP_LIST,
+                         options=CNAME_LIST):
+    row = row-1
+    plt.subplot(ROWS,COLS,(row*COLS+1, row*COLS+2))
+    _ = grouped_bar(plot_dat)
+    plt.title(title)
+    plt.subplot(ROWS,COLS,row*COLS+3)
+    time_dict = grouped_bar(plot_dat, groups=groups, options=options, average_all=True)
+    plt.title(title + " total")
