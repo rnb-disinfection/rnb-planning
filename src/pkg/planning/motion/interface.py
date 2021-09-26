@@ -163,9 +163,9 @@ class MotionInterface:
         if LOG_MOTION_PLANNING:
             save_pickle(os.path.join(MOTION_PATH, "%05d.pkl"%len(os.listdir(MOTION_PATH))),
                         {"from_state":from_state, "to_state":to_state,
-                         "binding_list":binding_list, "btf_dict":btf_dict,
+                         "subject_list":subject_list, "kwargs": kwargs,
                          "Traj": Traj, "success": success})
-        return Traj, LastQ, error, success, binding_list
+
         return Traj, LastQ, error, success, [to_state.binding_state[sname].get_chain() for sname in subject_list]
 
     ##
@@ -188,7 +188,6 @@ class MotionInterface:
     # @param to_state   goal state (rnb-planning.src.pkg.planning.scene.State)
     def init_online_plan(self, from_state, to_state, T_step, control_freq, playback_rate=0.5, **kwargs):
         subject_list, success = self.pscene.get_changing_subjects(from_state, to_state)
-        btf_dict = {}
         if success:
             return self.init_online_algorithm(from_state, to_state, subject_list=subject_list,
                                               T_step=T_step, control_freq=control_freq, playback_rate=playback_rate,
