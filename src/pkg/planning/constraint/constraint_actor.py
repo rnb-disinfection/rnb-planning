@@ -15,7 +15,7 @@ class Actor(ActionPoint):
         Tbo = action_obj.geometry.get_tf(joint_dict_last)
         Tbt = get_tf(self.geometry.link_name, joint_dict_last, self.gscene.urdf_content)
         Tto = np.matmul(np.linalg.inv(Tbt), Tbo)
-        binding = (action_obj.oname, bind_point, self.name, self.geometry.name)
+        binding = BindingChain(action_obj.oname, bind_point, self.name, self.geometry.name)
         state_param = (self.geometry.link_name, Tto)
         action_obj.set_state(binding, state_param)
 
@@ -166,7 +166,7 @@ class AbstractWaypointAgent:
     def bind(self, action_obj, bind_point, joint_dict_last):
         state_param = action_obj.state_param
         state_param[action_obj.action_points_order.index(bind_point)] = True
-        action_obj.set_state((action_obj.oname, bind_point, self.name, self.geometry.name), state_param)
+        action_obj.set_state(BindingChain(action_obj.oname, bind_point, self.name, self.geometry.name), state_param)
 
     ##
     # @brief place plane is only available when vertical direction is in range of VERTICAL_CUT (10 deg)

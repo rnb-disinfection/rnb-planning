@@ -363,7 +363,7 @@ class GeometryScene(list):
             gtem.color = color
             self.update_marker(gtem)
 
-    def get_gtem_args(self, condition=lambda gtem:gtem.link_name == "base_link" or not gtem.fixed):
+    def get_gtem_args(self, condition=lambda gtem:True):
         gtem_args = []
         for gtem in self:
             if condition(gtem):
@@ -371,7 +371,8 @@ class GeometryScene(list):
         return gtem_args
 
     def get_tf(self,to_link, Q, from_link="base_link"):
-        return get_tf(to_link=to_link, joint_dict=list2dict(Q, self.joint_names),
+        Q_dict = Q if isinstance(Q, dict) else list2dict(Q, self.joint_names)
+        return get_tf(to_link=to_link, joint_dict=Q_dict,
                       urdf_content=self.urdf_content, from_link=from_link)
 
 ##

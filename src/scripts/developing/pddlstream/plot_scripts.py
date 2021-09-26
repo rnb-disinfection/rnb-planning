@@ -1,8 +1,9 @@
 from __future__ import print_function
 import os
+import sys
 
 RNB_PLANNING_DIR = os.environ["RNB_PLANNING_DIR"]
-os.chdir(os.path.join(RNB_PLANNING_DIR, 'src'))
+sys.path.append(os.path.join(RNB_PLANNING_DIR, 'src'))
 from pkg.controller.combined_robot import *
 from pkg.utils.utils import get_now, try_mkdir
 from pkg.planning.pddlstream.convert_pscene import *

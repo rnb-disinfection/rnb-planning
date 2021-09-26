@@ -71,39 +71,28 @@ class MotionInterface:
     # @brief plan transition
     # @param from_state         starting state (rnb-planning.src.pkg.planning.scene.State)
     # @param to_state           goal state (rnb-planning.src.pkg.planning.scene.State)
-    # @param redundancy_dict    redundancy in dictionary format {object name: {axis: value}}
     # @param show_state         show intermediate state on RVIZ
     # @return Traj      Full trajectory as array of Q
     # @return LastQ     Last joint configuration as array
     # @return error     planning error
     # @return success   success/failure of planning result
-    # @return binding_list  list of binding
-    def plan_transition(self, from_state, to_state, redundancy_dict=None, verbose=False, test_filters_only=False,
+    # @param binding_list   list of bindings to pursue [(subject name, handle name, actor name, actor root geometry name)]
+    def plan_transition(self, from_state, to_state, verbose=False, test_filters_only=False,
                         show_state=False, **kwargs):
         if from_state is not None:
             self.pscene.set_object_state(from_state)
-        binding_list, success = self.pscene.get_slack_bindings(from_state, to_state)
-
-        btf_dict = {}
+        subject_list, success = self.pscene.get_changing_subjects(from_state, to_state)
 
         if success:
-            for binding in binding_list:
-                obj_name, ap_name, binder_name, binder_geometry_name = binding
-                actor, obj = self.pscene.actor_dict[binder_name], self.pscene.subject_dict[obj_name]
-                handle = obj.action_points_dict[ap_name]
-                if obj_name not in redundancy_dict:
-                    print("========== obj_name {} not in redundancy_dict {} -> {} =============".format(obj_name, from_state.node, to_state.node))
-                    success = False
-                    break
-                redundancy, Q_dict = redundancy_dict[obj_name], list2dict(from_state.Q, self.joint_names)
-                btf = BindingTransform(obj, handle, actor, redundancy)
-                btf_dict[(obj_name, handle.name, actor.name)] = btf
+            Q_dict = list2dict(from_state.Q, self.gscene.joint_names)
+            for sname in subject_list:
+                btf = to_state.binding_state[sname]
 
                 for i_f, mfilter in enumerate(self.motion_filters):
                     fname = mfilter.__class__.__name__
                     if self.flag_log:
                         self.gtimer.tic(fname)
-                    success = mfilter.check(actor, obj, handle, btf, Q_dict)
+                    success = mfilter.check(btf, Q_dict)
                     if self.flag_log:
                         self.gtimer.toc(fname)
                         if self.log_lock is not None:
@@ -130,7 +119,6 @@ class MotionInterface:
                 motion_dat = {}
                 motion_dat['from_state'] = from_state
                 motion_dat['to_state'] = to_state
-                motion_dat['redundancy_dict'] = redundancy_dict
                 motion_dat['gtem_args'] = self.gscene.get_gtem_args()
                 save_pickle(
                     os.path.join(MOTION_PATH,
@@ -146,8 +134,7 @@ class MotionInterface:
         if success:
             if self.flag_log:
                 self.gtimer.tic('planning')
-            Traj, LastQ, error, success = self.plan_algorithm(from_state, to_state, binding_list,
-                                                              btf_dict=btf_dict,
+            Traj, LastQ, error, success = self.plan_algorithm(from_state, to_state, subject_list,
                                                               verbose=verbose, **kwargs)
             if self.flag_log:
                 self.gtimer.toc('planning')
@@ -169,20 +156,19 @@ class MotionInterface:
                     self.gscene.recover_robot(vis_bak)
         else:
             Traj, LastQ, error, success = [from_state.Q], from_state.Q, 1e10, False
-        return Traj, LastQ, error, success, binding_list
+        return Traj, LastQ, error, success, [to_state.binding_state[sname].get_chain() for sname in subject_list]
 
     ##
     # @brief (prototype) planning algorithm implementation for each planner
     # @param from_state     starting state (rnb-planning.src.pkg.planning.scene.State)
     # @param to_state       goal state (rnb-planning.src.pkg.planning.scene.State)
-    # @param binding_list   list of bindings to pursue
-    # @param btf_dict   dictionary of BindingTransfrom {(object name, handle name, actor name): BindingTrasnfrom}
+    # @param subject_list   list of changed subjects
     # @return Traj      Full trajectory as array of Q
     # @return LastQ     Last joint configuration as array
     # @return error     planning error
     # @return success   success/failure of planning result
     @abstractmethod
-    def plan_algorithm(self, from_state, to_state, binding_list, btf_dict=None, verbose=False, **kwargs):
+    def plan_algorithm(self, from_state, to_state, subject_list, verbose=False, **kwargs):
         return [], [], 1e10, False
 
     ##
@@ -190,31 +176,24 @@ class MotionInterface:
     # @remark  call step_online_plan to get each step plans
     # @param from_state starting state (rnb-planning.src.pkg.planning.scene.State)
     # @param to_state   goal state (rnb-planning.src.pkg.planning.scene.State)
-    def init_online_plan(self, from_state, to_state, T_step, control_freq, playback_rate=0.5,
-                         redundancy_dict=None, **kwargs):
-        binding_list, success = self.pscene.get_slack_bindings(from_state, to_state)
+    def init_online_plan(self, from_state, to_state, T_step, control_freq, playback_rate=0.5, **kwargs):
+        subject_list, success = self.pscene.get_changing_subjects(from_state, to_state)
         btf_dict = {}
         if success:
-            if redundancy_dict is not None:
-                for binding in binding_list:
-                    obj_name, ap_name, binder_name, binder_geometry_name = binding
-                    actor, obj = self.pscene.actor_dict[binder_name], self.pscene.subject_dict[obj_name]
-                    handle = obj.action_points_dict[ap_name]
-                    redundancy, Q_dict = redundancy_dict[obj_name], list2dict(from_state.Q, self.joint_names)
-                    btf_dict[(obj_name, ap_name, binder_name)] = BindingTransform(obj, handle, actor, redundancy)
-            return self.init_online_algorithm(from_state, to_state, binding_list=binding_list,
+            return self.init_online_algorithm(from_state, to_state, subject_list=subject_list,
                                               T_step=T_step, control_freq=control_freq, playback_rate=playback_rate,
-                                              btf_dict=btf_dict, **kwargs)
+                                              **kwargs)
         else:
-            raise(RuntimeError("init online plan fail - get_slack_bindings"))
+            raise(RuntimeError("init online plan fail - get_changing_subjects"))
 
 
     ##
     # @brief (prototype) initialize online planning algorithm
     # @param from_state starting state (rnb-planning.src.pkg.planning.scene.State)
     # @param to_state   goal state (rnb-planning.src.pkg.planning.scene.State)
+    # @param subject_list   list of changed subject names
     @abstractmethod
-    def init_online_algorithm(self, from_state, to_state, T_step, control_freq, btf_dict=None,
+    def init_online_algorithm(self, from_state, to_state, subject_list, T_step, control_freq,
                               playback_rate=0.5, **kwargs):
         pass
 

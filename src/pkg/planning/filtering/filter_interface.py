@@ -11,13 +11,10 @@ class MotionFilterInterface:
 
     ##
     # @brief check feasibility by calling check_T_loal defined in each class
-    # @param actor  rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
-    # @param obj    rnb-planning.src.pkg.planning.constraint.constraint_subject.Subject
-    # @param handle rnb-planning.src.pkg.planning.constraint.constraint_common.ActionPoint
     # @param btf    BindingTransorm instance
     # @param Q_dict joint configuration in dictionary format {joint name: radian value}
     # @return True if feasible, else False
-    def check(self, actor, obj, handle, btf, Q_dict, **kwargs):
+    def check(self, btf, Q_dict, **kwargs):
         raise(NotImplementedError("check is not implemented for {}".format(self.__class__.__name__)))
 
     ##
@@ -28,22 +25,23 @@ class MotionFilterInterface:
 import os
 import sys
 from copy import deepcopy
-sys.path.append(os.path.join(os.environ["RNB_PLANNING_DIR"], "src"))
-from pkg.utils.utils import *
+from ...utils.utils import *
+from ..state import State
 
 SCENE_PATH = os.path.join(os.environ['RNB_PLANNING_DIR'], "data/checker_scenes")
 try_mkdir(SCENE_PATH)
 
-def save_scene(cname, pscene, actor, obj, handle, btf, Q_dict, error_state, result, **kwargs):
+def save_scene(cname, pscene, btf, Q_dict, error_state, result, **kwargs):
     path_dir = os.path.join(SCENE_PATH, cname)
     try_mkdir(path_dir)
     scene_data = {}
     scene_data["scene_args"] = pscene.get_scene_args(list2dict(Q_dict, pscene.gscene.joint_names))
-    scene_data["actor"] = actor.name
-    scene_data["obj"] = obj.oname
-    scene_data["handle"] = None if handle is None else handle.name
+
+    binding_state, state_param = pscene.get_object_state()
+    state = State(binding_state, state_param, dict2list(Q_dict, pscene.gscene.joint_names), pscene)
+    scene_data["state"] = state
+
     scene_data["btf"] = btf
-    scene_data["Q_dict"] = Q_dict
     scene_data["kwargs"] = kwargs
     scene_data["error_state"] = error_state
     scene_data["result"] = result
@@ -58,21 +56,17 @@ def save_scene(cname, pscene, actor, obj, handle, btf, Q_dict, error_state, resu
 def load_unpack_scene_args(pscene, scene_data):
     pscene_args = scene_data["scene_args"]
     pscene.recover_scene_args(pscene_args)
+    state = scene_data["state"]
+    pscene.set_object_state(state)
+    pscene.gscene.update_markers_all()
+    pscene.gscene.show_pose(state.Q)
+    Q_dict = list2dict(state.Q, pscene.gscene.joint_names)
 
-    Q_dict = scene_data["Q_dict"]
-    pscene.gscene.show_pose(Q_dict)
-
-    aname = scene_data["actor"]
-    oname = scene_data["obj"]
-    hname = scene_data["handle"]
     btf = scene_data["btf"]
     kwargs = scene_data["kwargs"]
     if "ignore" in kwargs:
         kwargs["ignore"] = [pscene.gscene.NAME_DICT[ig_name] for ig_name in kwargs["ignore"]]
 
-    obj = pscene.subject_dict[oname]
-    handle = pscene.handle_dict[hname] if hname is not None else None
-    actor = pscene.actor_dict[aname]
     error_state = scene_data["error_state"]
     result = scene_data["result"]
-    return obj, handle, actor, btf, Q_dict, kwargs, error_state, result
+    return state, btf, Q_dict, kwargs, error_state, result

@@ -1,15 +1,14 @@
 import os
 import sys
 sys.path.insert(1, os.environ["PDDL_STREAM_DIR"])
-sys.path.insert(1, os.path.join(os.environ["RNB_PLANNING_DIR"], 'src'))
 from ...utils.rotation_utils import *
 from ...utils.joint_utils import *
 from ...utils.utils import *
 from ..constraint.constraint_common import *
+from ..scene import State
 from primitives_pybullet import *
 from examples.pybullet.tamp.streams import *
 from constants_common import *
-from pkg.planning.scene import State
 
 TIMEOUT_MOTION_DEFAULT = 1
 
@@ -130,13 +129,13 @@ def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, too
     for fluent in fluents:
         subject = body_subject_map[fluent[1]]
         Tbase = T_xyzquat(fluent[2].value)
-        subject.set_state(binding=(subject.oname, None, None, None),
+        subject.set_state(binding=BindingChain(subject.oname, None, None, None),
                           state_param=(base_link, Tbase))
 
     if grasp is not None:
         graspped = body_subject_map[grasp.body]
         Tgrasp = T_xyzquat(grasp.grasp_pose)
-        graspped.set_state(binding=(graspped.oname, None, tool.geometry.name, tool.name),
+        graspped.set_state(binding=BindingChain(graspped.oname, None, tool.geometry.name, tool.name),
                           state_param=(tool_link, Tgrasp))
 
     Qcur = conf1.values
@@ -249,7 +248,7 @@ def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, too
 
     if feas or DEBUG_MODE_PRIM_RNB:
         Traj, LastQ, error, success, binding_list = mplan.plan_transition(
-            from_state, to_state, {}, timeout=timeout, show_state=show_state)
+            from_state, to_state, timeout=timeout, show_state=show_state)
     else:
         Traj, success = [], False
 
@@ -387,7 +386,7 @@ def check_feas(pscene, body_subject_map, actor, checkers, home_dict, body, pose,
     with gtimer.block('check_feas'):
         subject = body_subject_map[body]
         Tbo = T_xyzquat(pose.value)
-        subject.set_state(binding=(subject.oname, None, None, None),
+        subject.set_state(binding=BindingChain(subject.oname, None, None, None),
                           state_param=(base_link, Tbo))
 
         Tlao = T_xyzquat(grasp.grasp_pose)
@@ -437,7 +436,7 @@ def run_checkers(checkers, actor, subject, Tloal_list, Q_dict, ignore=[], show_s
         run_checkers.reason = fname
         with gtimer.block(fname):
             for btf in btf_list:
-                if not checker.check(actor, subject, None, btf, Q_dict, ignore=ignore):
+                if not checker.check(btf, Q_dict, ignore=ignore):
                     res = False
                     break
         if mplan is not None and mplan.flag_log:

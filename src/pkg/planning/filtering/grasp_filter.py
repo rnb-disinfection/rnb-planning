@@ -61,8 +61,9 @@ class GraspChecker(MotionFilterInterface):
     # @param Q_dict joint configuration in dictionary format {joint name: radian value}
     # @param interpolate    interpolate path and check intermediate poses
     # @param ignore         GeometryItems to ignore
-    def check(self, actor, obj, handle, btf, Q_dict, interpolate=False, obj_only=False, ignore=[],
+    def check(self, btf, Q_dict, interpolate=False, obj_only=False, ignore=[],
               **kwargs):
+        obj, handle, actor = btf.get_instance_chain(self.pscene)
         T_loal = btf.T_loal
         actor_vertinfo_list, object_vertinfo_list, _, _ = self.get_grasping_vert_infos(
             actor, obj, T_loal, Q_dict, obj_only=obj_only,
@@ -74,11 +75,13 @@ class GraspChecker(MotionFilterInterface):
             vert_point_list = get_point_list(verts)
             actor_vertice_list.append((vert_point_list, radius))
             if self.show_vertices:
-                for actor_vertice, actor_radius in actor_vertice_list:
-                    for i_v, vert in enumerate(verts):
-                        self.gscene.add_highlight_axis("gc_actor", geo_name+"_{:03}".format(i_v), "base_link",
-                                                       center=vert, orientation_mat=None,
-                                                       color=(0,0,1,0.3), axis=None)
+                Tbol = np.identity(4) \
+                    if obj.geometry.link_name=="base_link" \
+                    else SE3_inv(T_loal)
+                for i_v, vert in enumerate(verts):
+                    self.gscene.add_highlight_axis("gc_actor", geo_name+"_{:03}".format(i_v), "base_link",
+                                                   center=np.matmul(Tbol[:3,:3], vert)+ Tbol[:3,3], orientation_mat=None,
+                                                   color=(0,0,1,0.3), axis=None)
 
         object_vertice_list = []
         for geo_name, T, verts, radius, geo_dims in object_vertinfo_list:
@@ -86,11 +89,10 @@ class GraspChecker(MotionFilterInterface):
             vert_point_list = get_point_list(verts)
             object_vertice_list.append((vert_point_list, radius))
             if self.show_vertices:
-                for actor_vertice, actor_radius in actor_vertice_list:
-                    for i_v, vert in enumerate(verts):
-                        self.gscene.add_highlight_axis("gc_object", geo_name+"_{:03}".format(i_v), "base_link",
-                                                       center=vert, orientation_mat=None,
-                                                       color=(1,1,0,0.3), axis=None)
+                for i_v, vert in enumerate(verts):
+                    self.gscene.add_highlight_axis("gc_object", geo_name+"_{:03}".format(i_v), "base_link",
+                                                   center=np.matmul(Tbol[:3,:3], vert)+ Tbol[:3,3], orientation_mat=None,
+                                                   color=(1,1,0,0.3), axis=None)
 
         dist_list = []
         for actor_vertice, actor_radius in actor_vertice_list:
@@ -102,12 +104,15 @@ class GraspChecker(MotionFilterInterface):
             if not res:
                 i_ac, i_ob = np.unravel_index(np.argmin(dist_list), (len(actor_vertinfo_list),len(object_vertinfo_list)))
                 print("{} - {}".format(actor_vertinfo_list[i_ac][0], object_vertinfo_list[i_ob][0]))
-            self.gscene.add_highlight_axis("gc_center", "Tloal", obj.geometry.link_name,
-                                           center=T_loal[:3,3], orientation_mat=T_loal[:3,:3])
+            T_bl= np.matmul(Tbol, T_loal)
+            self.gscene.add_highlight_axis("gc_center", "Tloal", "base_link",
+                                           center=T_bl[:3,3], orientation_mat=T_bl[:3,:3])
+            raw_input("wait for key")
             self.gscene.clear_highlight(hl_keys=["gc_actor", "gc_object", "gc_center"])
 
+
         if DEBUG_MODE_GRAB_FILT_LOG:
-            save_scene(self.__class__.__name__, self.pscene, actor, obj, handle, btf, Q_dict,
+            save_scene(self.__class__.__name__, self.pscene, btf, Q_dict,
                        error_state=False, result=res,
                        interpolate=interpolate, obj_only=obj_only, ignore=[igtem.name for igtem in ignore], **kwargs)
         return res

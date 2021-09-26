@@ -179,8 +179,8 @@ class Subject:
         self.action_points_dict = {}
         ## @brief dictionary of sub-binder points {point name: rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor}
         self.sub_binders_dict = {}
-        ## @brief object's binding state tuple (object name, point, actor, actor-geometry)
-        self.binding = (None, None, None, None)
+        ## @brief object's BindingChain (subject_name, handle_name, actor_name, actor_root_gname)
+        self.binding = BindingChain(None, None, None, None)
         ## @brief keyword arguments for save&load
         self.kwargs = {}
         raise(NotImplementedError("AbstractObject is abstract class"))
@@ -212,7 +212,7 @@ class Subject:
 
     ##
     # @brief (prototype) set state param
-    # @param binding (handle name, binder name)
+    # @param binding BindingChain
     # @param state_param
     @abstractmethod
     def set_state(self, binding, state_param):
@@ -250,7 +250,7 @@ class Subject:
     # @brief (prototype) get object-level node component
     @classmethod
     @abstractmethod
-    def get_node_component(cls, binding_state, state_param):
+    def get_node_component(cls, btf, state_param):
         pass
 
     ##
@@ -299,7 +299,7 @@ class AbstractTask(Subject):
     # @param Q_dict dictionary of joint values {joint_name: value}
     # @return binding (subject name, handle name, binder name, binder geometry name)
     def get_initial_binding(self, actor_dict, Q_dict):
-        return (self.oname, None, None, None)
+        return BindingChain(self.oname, None, None, None)
 
 
 ##
@@ -321,16 +321,16 @@ class WayopintTask(AbstractTask):
         self.action_point_len = len(self.action_points_order)
         self.sub_binders_dict = {} if sub_binders_dict is None else sub_binders_dict
         self.state_param = np.zeros(len(self.action_points_order), dtype=np.bool)
-        self.binding = (self.oname, None, None, None)
+        self.binding = BindingChain(self.oname, None, None, None)
         self.tol = tol
         self.kwargs = {"tol": tol}
 
     ##
     # @brief set object binding state and update location
-    # @param binding (handle name, binder name)
+    # @param binding BindingChain
     # @param state_param list of done-mask
     def set_state(self, binding, state_param=None):
-        self.binding = binding
+        self.binding = deepcopy(binding)
         if state_param is None:
             self.state_param = np.zeros(len(self.action_points_order), dtype=np.bool)
         else:
@@ -345,9 +345,9 @@ class WayopintTask(AbstractTask):
 
     ##
     # @brief get object-level state_param component
-    def get_state_param_update(self, binding, state_param):
-        if binding[1] is not None:
-            state_param[self.action_points_order.index(binding[1])] = True
+    def get_state_param_update(self, btf, state_param):
+        if btf.binding.handle_name is not None:
+            state_param[self.action_points_order.index(btf.binding.handle_name)] = True
         return state_param
 
     ##
@@ -390,8 +390,8 @@ class WayopintTask(AbstractTask):
     ##
     # @brief get object-level node component (finished waypoint count)
     @classmethod
-    def get_node_component(cls, binding_state, state_param):
-        if binding_state[1] is not None:
+    def get_node_component(cls, btf, state_param):
+        if btf.binding.handle_name is not None:
             return int(np.sum(state_param))
         else:
             return 0
@@ -435,7 +435,7 @@ class SweepTask(WayopintTask):
     # @param binding_from previous binding
     # @param binding_to next binding
     def make_constraints(self, binding_from, binding_to, tol=None):
-        if binding_from is not None and binding_from[2] == binding_to[2]:
+        if binding_from is not None and binding_from.actor_name == binding_to.actor_name:
             return [MotionConstraint([self.geometry], True, True, tol=tol if tol is not None else self.tol)]
         else:
             return []
@@ -467,7 +467,9 @@ class SweepLineTask(SweepTask):
                 clearance_names.append(gtem.name)
             clearance = clearance_gtem
         SweepTask.__init__(self, oname, geometry, action_points_dict, sub_binders_dict=sub_binders_dict, tol=tol)
-        self.kwargs = {"geometry_vertical":geometry_vertical.name, "tol": tol, "clearance": clearance_names}
+        self.kwargs = {"geometry_vertical":
+                           geometry_vertical.name if geometry_vertical is not None else geometry_vertical,
+                       "tol": tol, "clearance": clearance_names}
 
         self.fix_direction = True
         if clearance is None:
@@ -511,7 +513,7 @@ class SweepLineTask(SweepTask):
     # @param binding_from previous binding
     # @param binding_to next binding
     def make_constraints(self, binding_from, binding_to, tol=None):
-        if binding_from is not None and binding_from[2] == binding_to[2]:
+        if binding_from is not None and binding_from.actor_name == binding_to.actor_name:
             tol = tol if tol is not None else self.tol
             if self.fix_direction:
                 return [MotionConstraint([self.geometry], True, True, tol=tol),
@@ -561,7 +563,7 @@ class AbstractObject(Subject):
                         margin_max = margin_min
                         max_point = handle.name
                         max_binder = bname
-        return (self.oname, max_point, max_binder, actor_dict[max_binder].geometry.name)
+        return BindingChain(self.oname, max_point, max_binder, actor_dict[max_binder].geometry.name)
 
     ##
     # @brief get available bindings from current binding state
@@ -600,7 +602,7 @@ class AbstractObject(Subject):
         return available_bindings
     ##
     # @brief set object binding state and update location
-    # @param binding (object name, handle name, binder name, binder geometry name)
+    # @param binding BindingChain
     # @param state_param (link name, offset transformation in 4x4 matrix)
     def set_state(self, binding, state_param):
         link_name = state_param[0]
@@ -608,8 +610,9 @@ class AbstractObject(Subject):
         self.geometry.set_offset_tf(frame[:3, 3], frame[:3,:3])
         self.geometry.set_link(link_name)
         self.update_sub_points()
-        assert binding[0] == self.oname, "wrong binding given {} <- {}".format(self.oname, binding[0])
-        self.binding = binding
+        assert binding.subject_name == self.oname, "wrong binding given {} <- {}".format(
+            self.oname, binding.subject_name)
+        self.binding = deepcopy(binding)
 
     ##
     # @brief get state param (link_name, Toff)
@@ -627,14 +630,14 @@ class AbstractObject(Subject):
 
     ##
     # @brief get object-level state_param update
-    def get_state_param_update(self, binding, state_param):
+    def get_state_param_update(self, btf, state_param):
         return state_param
 
     ##
     # @brief get object-level node component (binder geometry name)
     @classmethod
-    def get_node_component(cls, binding, state_param):
-        return binding[3]
+    def get_node_component(cls, btf, state_param):
+        return btf.binding.actor_root_gname
 
     ##
     # @brief    get object-level neighbor component (other available binder geometry name)
@@ -671,7 +674,7 @@ class CustomObject(AbstractObject):
         self.geometry = geometry
         self.action_points_dict = action_points_dict
         self.sub_binders_dict = {} if sub_binders_dict is None else sub_binders_dict
-        self.binding = (self.oname, None, None, None)
+        self.binding = BindingChain(self.oname, None, None, None)
 
     ##
     # @brief do nothing
@@ -693,7 +696,7 @@ class SingleHandleObject(AbstractObject):
         assert action_point is not None or action_points_dict is not None, "Error: Either action_point or action_points_dict should be given"
         self.action_points_dict = {action_point.name: action_point} if action_points_dict is None else action_points_dict
         self.sub_binders_dict = {} if sub_binders_dict is None else sub_binders_dict
-        self.binding = (self.oname, None, None, None)
+        self.binding = BindingChain(self.oname, None, None, None)
 
     ##
     # @brief do nothing
@@ -731,7 +734,7 @@ class BoxObject(AbstractObject):
             self.action_points_dict = action_points_dict
 
         self.set_conflict_dict()
-        self.binding = (self.oname, None, None, None)
+        self.binding = BindingChain(self.oname, None, None, None)
         self.kwargs = dict(hexahedral=hexahedral, CLEARANCE=CLEARANCE,
                            GRASP_WIDTH_MIN=GRASP_WIDTH_MIN, GRASP_WIDTH_MAX=GRASP_WIDTH_MAX,
                            GRASP_DEPTH_MIN=GRASP_DEPTH_MIN, GRASP_DEPTH_MAX=GRASP_DEPTH_MAX)
@@ -866,7 +869,7 @@ class CylinderObject(AbstractObject):
             self.action_points_dict = action_points_dict
 
         self.set_conflict_dict()
-        self.binding = (self.oname, None, None, None)
+        self.binding = BindingChain(self.oname, None, None, None)
         self.kwargs = dict(CLEARANCE=CLEARANCE,
                            GRASP_WIDTH_MIN=GRASP_WIDTH_MIN, GRASP_WIDTH_MAX=GRASP_WIDTH_MAX,
                            GRASP_DEPTH_MIN=GRASP_DEPTH_MIN, GRASP_DEPTH_MAX=GRASP_DEPTH_MAX)
