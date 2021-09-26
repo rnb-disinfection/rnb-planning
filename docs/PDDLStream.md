@@ -26,6 +26,13 @@ pip install pybullet numpy scipy \
 ```
 
 ## Edit to strictly obey timeout
+* Go to *pddlstream/algorithms/skeleton.py* and find STANDBY = None and set STANDBY = False
+* This makes empty stream removed from stream queue. Possibly remove chance for the stream to be used by later-discovered skeletons
+```python
+STANDBY = False
+```
+
+## Edit to strictly obey timeout
 * Go to *pddlstream/algorithms/focused.py*
 * Find the line that calls the function ***iterative_plan_streams*** (around line 177)
 * Add a new argument *time_remain=max_time-store.elapsed_time()*

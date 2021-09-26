@@ -11,7 +11,7 @@ __metaclass__ = type
 MOTION_PATH = os.path.join(os.environ['RNB_PLANNING_DIR'], "data/motion_scenes")
 try_mkdir(MOTION_PATH)
 
-LOG_MOTION_PLANNING = True
+LOG_MOTION_PLANNING = False
 if LOG_MOTION_PLANNING:
     TextColors.RED.println("[WARN] Motion Planning Logging is ON")
 
