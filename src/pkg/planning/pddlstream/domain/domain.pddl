@@ -43,7 +43,7 @@
   (:action move_holding
     :parameters (?q1 ?q2 ?o ?g ?t)
     :precondition (and (HoldingMotion ?q1 ?t ?q2 ?o ?g)
-                       (AtConf ?q1) (AtGrasp ?o ?g) (CanMove)
+                       (AtConf ?q1) (AtGrasp ?o ?g) (CanMove) (not (HandEmpty))
                        ;(not (UnsafeTraj ?t))
                   )
     :effect (and (AtConf ?q2)
@@ -62,7 +62,7 @@
   )
   (:action place
     :parameters (?o ?p ?g ?q ?t)
-    :precondition (and (Kin ?o ?p ?g ?q ?t) (not (CanMove))
+    :precondition (and (Kin ?o ?p ?g ?q ?t) (not (CanMove)) (not (HandEmpty))
                        (AtGrasp ?o ?g) (AtConf ?q)
                        (not (UnsafePose ?o ?p))
                        (not (UnsafeApproach ?o ?p ?g))

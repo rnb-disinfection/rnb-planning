@@ -135,7 +135,7 @@ def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, too
     if grasp is not None:
         graspped = body_subject_map[grasp.body]
         Tgrasp = T_xyzquat(grasp.grasp_pose)
-        graspped.set_state(binding=BindingChain(graspped.oname, None, tool.geometry.name, tool.name),
+        graspped.set_state(binding=BindingChain(graspped.oname, None, tool.name, tool.geometry.name),
                           state_param=(tool_link, Tgrasp))
 
     Qcur = conf1.values
@@ -164,7 +164,7 @@ def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, too
         actor_from = get_matching_binder(pscene, subject, Qfrom_dict, excludes=[tool])
         actor = get_matching_binder(pscene, subject, Qto_dict, excludes=[tool])
     if show_state:
-        print("sucject/actor: {} / {}".format(subject.oname if subject is not None else subject, actor.name))
+        print("subject/actor: {} / {}".format(subject.oname if subject is not None else subject, actor.name))
 
     # GlobalLogger.instance()["from_state"] = from_state
     # GlobalLogger.instance()["to_state"] = to_state

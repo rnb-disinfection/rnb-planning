@@ -376,7 +376,7 @@ def subplot_trisect_line(ROWS, COLS, row, plot_dat, title, groups=EXP_LIST,
                          options=CNAME_LIST):
     row = row-1
     plt.subplot(ROWS,COLS,(row*COLS+1, row*COLS+2))
-    _ = grouped_bar(plot_dat)
+    _ = grouped_bar(plot_dat, groups=groups, options=options)
     plt.title(title)
     plt.subplot(ROWS,COLS,row*COLS+3)
     time_dict = grouped_bar(plot_dat, groups=groups, options=options, average_all=True)

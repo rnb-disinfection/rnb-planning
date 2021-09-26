@@ -96,24 +96,36 @@ def prepare_stable_redundancy_set(body_subject_map, body_actor_map, show_state=F
     data_path = create_data_dirs(meta_data['dat_root'], meta_data['rtype'], meta_data['dat_dir']+"-stableset")
     rdc_file = os.path.join(data_path, meta_data['fname'])
     redundancyque_dict = {}
+    save_dict = True
     if os.path.isfile(rdc_file):
+        TextColors.BLUE.println("[INFO] Load stable set {}".format(meta_data['fname']))
         redundancyque_dict = load_pickle(rdc_file)
+        save_dict = False
 
     for body, subject in body_subject_map.items():
         for surface, actor in body_actor_map.items():
             if actor.controlled:
                 continue
-            if (body, surface) in redundancyque_dict and len(redundancyque_dict[(body, surface)])>=sample_count:
+            rd_key = (subject.oname, actor.name)
+            if rd_key in redundancyque_dict:
+                redundancyque = redundancyque_dict[rd_key]
+            else:
+                redundancyque = []
+            if len(redundancyque)>=sample_count:
                 continue
-            redundancyque = []
-            for _ in range(sample_count):
+
+            save_dict = True
+            TextColors.YELLOW.println("[INFO] Update stable set for {} - {}".format(*rd_key))
+            for _ in range(sample_count-len(redundancyque)):
                 T_ao = sample_redundancy_offset(subject, actor, show_state=show_state,
                                                 binding_sampler=binding_sampler,
                                                 drop_downward_dir=[0, 1, 0],
                                                 redundancy_sampler=redundancy_sampler)
                 redundancyque.append(T_ao)
-            redundancyque_dict[(body, surface)] = redundancyque
-    save_pickle(rdc_file, redundancyque_dict)
+            redundancyque_dict[rd_key] = redundancyque
+    if save_dict:
+        TextColors.YELLOW.println("[INFO] Save stable set {}".format(meta_data['fname']))
+        save_pickle(rdc_file, redundancyque_dict)
     return redundancyque_dict
 
 
@@ -125,28 +137,22 @@ def get_stable_gen_rnb(body_subject_map, body_actor_map, home_dict, fixed=[], sh
                                                        binding_sampler=binding_sampler,
                                                        redundancy_sampler=redundancy_sampler)
     def gen(body, surface):
-        rnb_style = False
-        if body in body_subject_map and surface in body_actor_map:
-            rnb_style = True
-            subject = body_subject_map[body]
-            actor = body_actor_map[surface]
-        if (body, surface) not in redundancyque_dict:
+        if body not in body_subject_map:    # not available object
             return
-        redundancyque = redundancyque_dict[(body, surface)]
+        subject = body_subject_map[body]
+        if surface not in body_actor_map:   # not available surface
+            return
+        actor = body_actor_map[surface]
+        rd_key = (subject.oname, actor.name)
+        if rd_key not in redundancyque_dict:
+            return
+        redundancyque = redundancyque_dict[rd_key]
         fail_count = 0
         for _ in range(sample_count):
             with GlobalTimer.instance().block("get_stable_{}_{}".format(body, surface)):
-                if rnb_style:
-                    T_ao = redundancyque.pop(0)
-                    # T_ao = sample_redundancy_offset(subject, actor, show_state=show_state,
-                    #                                 binding_sampler=binding_sampler,
-                    #                                 drop_downward_dir=[0, 1, 0],
-                    #                                 redundancy_sampler=redundancy_sampler)
-                    T_pose = np.matmul(actor.get_tf_handle(home_dict), T_ao)
-                    pose = T2xyzquat(T_pose)
-                else:
-                    pose = None
-                    break
+                T_ao = redundancyque.pop(0)
+                T_pose = np.matmul(actor.get_tf_handle(home_dict), T_ao)
+                pose = T2xyzquat(T_pose)
 
                 set_pose(body, pose)
                 if (pose is None) or any(pairwise_collision(body, b) for b in fixed):
@@ -170,21 +176,33 @@ def prepare_grasp_redundancy_set(body_subject_map, actor,
     data_path = create_data_dirs(meta_data['dat_root'], meta_data['rtype'], meta_data['dat_dir']+"-graspset")
     rdc_file = os.path.join(data_path, meta_data['fname'])
     redundancyque_dict = {}
+    save_dict = True
     if os.path.isfile(rdc_file):
+        TextColors.BLUE.println("[INFO] Load grasp set {}".format(meta_data['fname']))
         redundancyque_dict = load_pickle(rdc_file)
+        save_dict = False
 
     for body, subject in body_subject_map.items():
-        if body in redundancyque_dict and len(redundancyque_dict[body])>=sample_count:
+        rd_key = subject.oname
+        if rd_key in redundancyque_dict:
+            redundancyque = redundancyque_dict[rd_key]
+        else:
+            redundancyque = []
+        if len(redundancyque)>=sample_count:
             continue
-        redundancyque = []
-        for _ in range(sample_count):
+
+        save_dict = True
+        TextColors.YELLOW.println("[INFO] Update grasp set for {}".format(rd_key))
+        for _ in range(sample_count-len(redundancyque)):
             T_ao = sample_redundancy_offset(subject, actor, show_state=show_state,
                                             binding_sampler=binding_sampler,
                                             drop_downward_dir=[0, 1, 0],
                                             redundancy_sampler=redundancy_sampler)
             redundancyque.append(T_ao)
-        redundancyque_dict[body] = redundancyque
-    save_pickle(rdc_file, redundancyque_dict)
+        redundancyque_dict[rd_key] = redundancyque
+    if save_dict:
+        TextColors.YELLOW.println("[INFO] Save grasp set {}".format(meta_data['fname']))
+        save_pickle(rdc_file, redundancyque_dict)
     return redundancyque_dict
 
 
@@ -197,17 +215,16 @@ def get_grasp_gen_rnb(body_subject_map, robot, tool_link_name, actor,
                                                       binding_sampler=binding_sampler, redundancy_sampler=redundancy_sampler)
     tool_link = link_from_name(robot, tool_link_name)
     def gen(body):
-        if body not in redundancyque_dict:
+        if body not in body_subject_map:    # not available object
             return
-        redundancyque = redundancyque_dict[body]
         subject = body_subject_map[body]
+        rd_key = subject.oname
+        if rd_key not in redundancyque_dict:
+            return
+        redundancyque = redundancyque_dict[rd_key]
         for _ in range(sample_count):
             with GlobalTimer.instance().block("sample_grasps_{}".format(body)):
                 T_ao = redundancyque.pop(0)
-                # T_ao = sample_redundancy_offset(subject, actor, show_state=show_state,
-                #                                 binding_sampler=binding_sampler,
-                #                                 drop_downward_dir=[0, 1, 0],
-                #                                 redundancy_sampler=redundancy_sampler)
                 T_lo = np.matmul(actor.Toff_lh, T_ao)
                 point, euler = T2xyzrpy(T_lo)
                 # if np.linalg.norm(point) > 0.4:
@@ -432,7 +449,7 @@ def play_pddl_plan(pscene, gripper, initial_state, body_names, plan, SHOW_PERIOD
             T_bgl = np.matmul(gripper.geometry.get_tf(list2dict(q_e, gscene.joint_names)), SE3_inv(gripper.geometry.Toff))
             T_lgo = np.matmul(SE3_inv(T_bgl), T_obj)
             obj_pscene = pscene.subject_dict[tar_obj]
-            obj_pscene.set_state(binding=BindingChain(tar_obj, None, gripper.geometry.name, gripper.name),
+            obj_pscene.set_state(binding=BindingChain(tar_obj, None, gripper.name, gripper.geometry.name),
                                  state_param=(gripper.geometry.link_name, T_lgo))
             gscene.show_motion(np.array(traj_rev), period=SHOW_PERIOD)
 
