@@ -133,105 +133,111 @@ class LatticedChecker(MotionFilterInterface):
         object_link = obj.geometry.link_name
         T_loal = btf.T_loal
 
-        actor_vertinfo_list, object_vertinfo_list, actor_Tinv_dict, object_Tinv_dict = \
-            self.gcheck.get_grasping_vert_infos(actor, obj, T_loal, Q_dict, ignore=ignore)
+        gtimer = GlobalTimer.instance()
+        with gtimer.block("get_grasping_vert_infos"):
+            actor_vertinfo_list, object_vertinfo_list, actor_Tinv_dict, object_Tinv_dict = \
+                self.gcheck.get_grasping_vert_infos(actor, obj, T_loal, Q_dict, ignore=ignore)
 
-        obj_names = obj.geometry.get_family()
-        group_name_handle = self.binder_link_robot_dict[object_link] if object_link in self.binder_link_robot_dict else None
-        group_name_actor = self.binder_link_robot_dict[actor_link] if actor_link in self.binder_link_robot_dict else None
+        with gtimer.block("transform_verts"):
+            obj_names = obj.geometry.get_family()
+            group_name_handle = self.binder_link_robot_dict[object_link] if object_link in self.binder_link_robot_dict else None
+            group_name_actor = self.binder_link_robot_dict[actor_link] if actor_link in self.binder_link_robot_dict else None
 
-        if group_name_actor and not group_name_handle:
-            group_name = group_name_actor
-            T_robot_base = get_tf(self.base_dict[group_name], joint_dict=Q_dict,
-                                  urdf_content=self.gscene.urdf_content, from_link=obj.geometry.link_name)
-            T_end_effector = np.matmul(SE3_inv(T_robot_base), T_loal)
-            tool_vertinfo_list = [(name, np.matmul(SE3_inv(T_robot_base), T), verts, radius, dims) for name, T, verts, radius, dims in actor_vertinfo_list]
-            target_vertinfo_list = [(name, np.matmul(SE3_inv(T_robot_base), T), verts, radius, dims) for name, T, verts, radius, dims in object_vertinfo_list]
-        elif group_name_handle and not group_name_actor:
-            group_name = group_name_handle
-            T_robot_base = get_tf(self.base_dict[group_name], joint_dict=Q_dict,
-                                  urdf_content=self.gscene.urdf_content, from_link=actor.geometry.link_name)
-            T_end_effector = np.matmul(SE3_inv(T_robot_base), SE3_inv(T_loal))
-            tool_vertinfo_list = [(name, np.matmul(T_end_effector, T), verts, radius, dims) for name, T, verts, radius, dims in object_vertinfo_list]
-            target_vertinfo_list = [(name, np.matmul(T_end_effector, T), verts, radius, dims) for name, T, verts, radius, dims in actor_vertinfo_list]
-        else:
-            raise ("Invaild robot")
+            if group_name_actor and not group_name_handle:
+                group_name = group_name_actor
+                T_robot_base = get_tf(self.base_dict[group_name], joint_dict=Q_dict,
+                                      urdf_content=self.gscene.urdf_content, from_link=obj.geometry.link_name)
+                T_end_effector = np.matmul(SE3_inv(T_robot_base), T_loal)
+                tool_vertinfo_list = [(name, np.matmul(SE3_inv(T_robot_base), T), verts, radius, dims) for name, T, verts, radius, dims in actor_vertinfo_list]
+                target_vertinfo_list = [(name, np.matmul(SE3_inv(T_robot_base), T), verts, radius, dims) for name, T, verts, radius, dims in object_vertinfo_list]
+            elif group_name_handle and not group_name_actor:
+                group_name = group_name_handle
+                T_robot_base = get_tf(self.base_dict[group_name], joint_dict=Q_dict,
+                                      urdf_content=self.gscene.urdf_content, from_link=actor.geometry.link_name)
+                T_end_effector = np.matmul(SE3_inv(T_robot_base), SE3_inv(T_loal))
+                tool_vertinfo_list = [(name, np.matmul(T_end_effector, T), verts, radius, dims) for name, T, verts, radius, dims in object_vertinfo_list]
+                target_vertinfo_list = [(name, np.matmul(T_end_effector, T), verts, radius, dims) for name, T, verts, radius, dims in actor_vertinfo_list]
+            else:
+                raise ("Invaild robot")
 
-        verts_to_move = []
-        for vertinfo in tool_vertinfo_list:
-            gname = vertinfo[0]
-            if gname in obj_names:
-                verts_to_move.append(vertinfo)
-        target_vertinfo_list = target_vertinfo_list + verts_to_move
-        for vertinfo in verts_to_move:
-            tool_vertinfo_list.remove(vertinfo)
+            verts_to_move = []
+            for vertinfo in tool_vertinfo_list:
+                gname = vertinfo[0]
+                if gname in obj_names:
+                    verts_to_move.append(vertinfo)
+            target_vertinfo_list = target_vertinfo_list + verts_to_move
+            for vertinfo in verts_to_move:
+                tool_vertinfo_list.remove(vertinfo)
 
-        self.ltc_effector.clear()
-        self.ltc_arm_10.clear()
+        with gtimer.block("convert_vertices"):
+            self.ltc_effector.clear()
+            self.ltc_arm_10.clear()
 
-        T_end_joint = T_end_effector
+            T_end_joint = T_end_effector
 
-        r, th, h = cart2cyl(*T_end_effector[:3, 3])
-        self.rth_last = r, th, h
-        Tref = SE3(Rot_axis(3, th), T_end_effector[:3, 3]) # in robot base link coordinate
-        target_names = [item[0] for item in target_vertinfo_list if item[0] not in obj_names]
-        tool_names = [item[0] for item in tool_vertinfo_list]
+            r, th, h = cart2cyl(*T_end_effector[:3, 3])
+            self.rth_last = r, th, h
+            Tref = SE3(Rot_axis(3, th), T_end_effector[:3, 3]) # in robot base link coordinate
+            target_names = [item[0] for item in target_vertinfo_list if item[0] not in obj_names]
+            tool_names = [item[0] for item in tool_vertinfo_list]
 
-        self.ltc_effector.convert_vertices(tool_vertinfo_list, Tref=Tref)
-        self.ltc_effector.convert_vertices(target_vertinfo_list, Tref=Tref)
+            self.ltc_effector.convert_vertices(tool_vertinfo_list, Tref=Tref)
+            self.ltc_effector.convert_vertices(target_vertinfo_list, Tref=Tref)
 
-        Tref_base = SE3(Tref[:3, :3], (0, 0, self.shoulder_height_dict[group_name])) # in robot base link coordinate
+            Tref_base = SE3(Tref[:3, :3], (0, 0, self.shoulder_height_dict[group_name])) # in robot base link coordinate
 
-        self.ltc_arm_10.convert([gtem for gtem in self.gscene
-                                 if gtem.collision
-                                 and gtem.link_name not in self.robot_chain_dict[group_name]["link_names"]],
-                                self.combined_robot.home_dict,
-                                Tref=np.matmul(T_robot_base, Tref_base))
+            self.ltc_arm_10.convert([gtem for gtem in self.gscene
+                                     if gtem.collision
+                                     and gtem.link_name not in self.robot_chain_dict[group_name]["link_names"]],
+                                    self.combined_robot.home_dict,
+                                    Tref=np.matmul(T_robot_base, Tref_base))
 
-        grasp_tar_idx = sorted(set(itertools.chain(*[self.ltc_effector.coll_idx_dict[tname] for tname in target_names if
-                                                     tname in self.ltc_effector.coll_idx_dict])))
-        grasp_tool_idx = sorted(set(itertools.chain(*[self.ltc_effector.coll_idx_dict[tname] for tname in tool_names if
-                                                      tname in self.ltc_effector.coll_idx_dict])))
-        grasp_obj_idx = sorted(set(itertools.chain(*[self.ltc_effector.coll_idx_dict[tname] for tname in obj_names if
-                                                      tname in self.ltc_effector.coll_idx_dict])))
-        arm_tar_idx = sorted(set(itertools.chain(*[self.ltc_arm_10.coll_idx_dict[tname] for tname in target_names if
-                                                   tname in self.ltc_arm_10.coll_idx_dict])))
-        T_ee, T_ej = T_end_effector, T_end_joint
+        with gtimer.block("indexing_vertices"):
+            grasp_tar_idx = sorted(set(itertools.chain(*[self.ltc_effector.coll_idx_dict[tname] for tname in target_names if
+                                                         tname in self.ltc_effector.coll_idx_dict])))
+            grasp_tool_idx = sorted(set(itertools.chain(*[self.ltc_effector.coll_idx_dict[tname] for tname in tool_names if
+                                                          tname in self.ltc_effector.coll_idx_dict])))
+            grasp_obj_idx = sorted(set(itertools.chain(*[self.ltc_effector.coll_idx_dict[tname] for tname in obj_names if
+                                                          tname in self.ltc_effector.coll_idx_dict])))
+            arm_tar_idx = sorted(set(itertools.chain(*[self.ltc_arm_10.coll_idx_dict[tname] for tname in target_names if
+                                                       tname in self.ltc_arm_10.coll_idx_dict])))
+            T_ee, T_ej = T_end_effector, T_end_joint
 
-        r, th, h = cart2cyl(*T_ee[:3, 3])
-#         r_ej, th, h_ej = cart2cyl(*T_ej[:3, 3])
-        rh_vals = np.array([r, h])
-        grasp_tool_img = np.zeros(GRASP_SHAPE)
-        grasp_tar_img = np.zeros(GRASP_SHAPE)
-        grasp_obj_img = np.zeros(GRASP_SHAPE)
-        try:
-            grasp_tool_img[np.unravel_index(grasp_tool_idx, shape=GRASP_SHAPE)] = 1
-            grasp_tar_img[np.unravel_index(grasp_tar_idx, shape=GRASP_SHAPE)] = 1
-            grasp_obj_img[np.unravel_index(grasp_obj_idx, shape=GRASP_SHAPE)] = 1
-        except Exception as e:
-            save_scene(self.__class__.__name__, self.pscene, btf, Q_dict,
-                       error_state=True, result=None, ignore=[igtem.name for igtem in ignore], **kwargs)
-            print("===== THE ERROR OCCURED!!! =====")
-            print("===== THE ERROR OCCURED!!! =====")
-            print("===== THE ERROR OCCURED!!! =====")
-            print(e)
-            print("===== obj_names =====")
-            print(obj_names)
-#             value = raw_input("Wait key input : ")
-        # if not hasattr(LatticedChecker, "test_count"):
-        #     LatticedChecker.test_count = 0
-        # LatticedChecker.test_count += 1
-        # try_mkdir("data")
-        # np.save("data/grasp_tool_img_%04d.npy"%(LatticedChecker.test_count),grasp_tool_img)
-        # np.save("data/grasp_tar_img%04d.npy"%(LatticedChecker.test_count),grasp_tar_img)
-        # np.save("data/grasp_obj_img%04d.npy"%(LatticedChecker.test_count),grasp_obj_img)
+            r, th, h = cart2cyl(*T_ee[:3, 3])
+    #         r_ej, th, h_ej = cart2cyl(*T_ej[:3, 3])
+            rh_vals = np.array([r, h])
+            grasp_tool_img = np.zeros(GRASP_SHAPE)
+            grasp_tar_img = np.zeros(GRASP_SHAPE)
+            grasp_obj_img = np.zeros(GRASP_SHAPE)
+            try:
+                grasp_tool_img[np.unravel_index(grasp_tool_idx, shape=GRASP_SHAPE)] = 1
+                grasp_tar_img[np.unravel_index(grasp_tar_idx, shape=GRASP_SHAPE)] = 1
+                grasp_obj_img[np.unravel_index(grasp_obj_idx, shape=GRASP_SHAPE)] = 1
+            except Exception as e:
+                save_scene(self.__class__.__name__, self.pscene, btf, Q_dict,
+                           error_state=True, result=None, ignore=[igtem.name for igtem in ignore], **kwargs)
+                print("===== THE ERROR OCCURED!!! =====")
+                print("===== THE ERROR OCCURED!!! =====")
+                print("===== THE ERROR OCCURED!!! =====")
+                print(e)
+                print("===== obj_names =====")
+                print(obj_names)
+    #             value = raw_input("Wait key input : ")
+            # if not hasattr(LatticedChecker, "test_count"):
+            #     LatticedChecker.test_count = 0
+            # LatticedChecker.test_count += 1
+            # try_mkdir("data")
+            # np.save("data/grasp_tool_img_%04d.npy"%(LatticedChecker.test_count),grasp_tool_img)
+            # np.save("data/grasp_tar_img%04d.npy"%(LatticedChecker.test_count),grasp_tar_img)
+            # np.save("data/grasp_obj_img%04d.npy"%(LatticedChecker.test_count),grasp_obj_img)
 
-        arm_img = np.zeros(ARM_SHAPE + (1,))
-        arm_img[np.unravel_index(arm_tar_idx, shape=ARM_SHAPE)] = 1
-        grasp_img = np.stack([grasp_tool_img, grasp_obj_img, grasp_tar_img], axis=-1)
-        res = self.query_wait_response(self.rconfig_dict[group_name].type.name,
-                                       np.array([grasp_img]), np.array([arm_img]), np.array([rh_vals]),
-                                       )[0]
+        with gtimer.block("query_wait_response"):
+            arm_img = np.zeros(ARM_SHAPE + (1,))
+            arm_img[np.unravel_index(arm_tar_idx, shape=ARM_SHAPE)] = 1
+            grasp_img = np.stack([grasp_tool_img, grasp_obj_img, grasp_tar_img], axis=-1)
+            res = self.query_wait_response(self.rconfig_dict[group_name].type.name,
+                                           np.array([grasp_img]), np.array([arm_img]), np.array([rh_vals]),
+                                           )[0]
         if DEBUG_LAT_FILT_LOG:
             save_scene(self.__class__.__name__, self.pscene, btf, Q_dict,
                        error_state=False, result=res, ignore=[igtem.name for igtem in ignore], **kwargs)

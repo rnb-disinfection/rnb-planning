@@ -1,3 +1,11 @@
+import os
+import sys
+import shutil
+import random
+import time
+PROJ_DIR = os.environ["RNB_PLANNING_DIR"]
+sys.path.append(os.path.join(PROJ_DIR, "src"))
+
 import SharedArray as sa
 import numpy as np
 import time
@@ -37,18 +45,13 @@ if __name__ == "__main__":
 from tensorflow.compat.v1 import ConfigProto
 from tensorflow.compat.v1 import InteractiveSession
 import tensorflow as tf
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+from tensorflow.python.saved_model import tag_constants, signature_constants
+from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
 
 config = ConfigProto()
 config.gpu_options.allow_growth = True
 session = InteractiveSession(config=config)
-
-import os
-import sys
-import shutil
-import random
-import time
-PROJ_DIR = os.environ["RNB_PLANNING_DIR"]
-sys.path.append(os.path.join(PROJ_DIR, "src"))
 
 from pkg.utils.utils_python3 import *
 from pkg.controller.robot_config import RobotType
@@ -88,13 +91,31 @@ class SharedLatticePredictor:
             last_save = sorted([item for item in os.listdir(os.path.join(self.ROBOT_MODEL_ROOT, last_model)) if item.startswith("model")])[-1]
             model_path_rel = os.path.join(last_model, last_save)
         model_log_dir = os.path.join(self.ROBOT_MODEL_ROOT, model_path_rel)
-        self.model = tf.keras.models.load_model(model_log_dir)
+        model_log_dir_trt = os.path.join(self.ROBOT_MODEL_ROOT, model_path_rel.replace("model", "trt"))
+        if not os.path.isdir(model_log_dir_trt):
+            from tensorflow.python.compiler.tensorrt import trt_convert as trt
+            converter = trt.TrtGraphConverterV2(input_saved_model_dir=model_log_dir)
+            converter.convert()
+            def my_input_fn():
+                grasp_img_t = tf.zeros((BATCH_SIZE,) + GRASP_SHAPE + (3,), dtype=tf.float32)
+                arm_img_t = tf.zeros((BATCH_SIZE,) + ARM_SHAPE + (1,), dtype=tf.float32)
+                rh_mask_t = tf.zeros((BATCH_SIZE, 54), dtype=tf.float32)
+                yield (grasp_img_t, arm_img_t, rh_mask_t)
+            converter.build(input_fn=my_input_fn)
+            converter.save(model_log_dir_trt)
 
-    @tf.function
+        saved_model_loaded = tf.saved_model.load(
+            model_log_dir_trt, tags=[tag_constants.SERVING])
+        graph_func = saved_model_loaded.signatures[
+            signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY]
+        self.frozen_func = convert_variables_to_constants_v2(graph_func)
+
+#     @tf.function
     def inference(self, images):
         # training=False is only needed if there are layers with different
         # behavior during training versus inference (e.g. Dropout).
-        predictions = self.model(images, training=False)
+#         predictions = self.model(images, training=False)
+        predictions = self.frozen_func(*images)[0].numpy()
         return predictions
 
     ##
@@ -121,7 +142,10 @@ class SharedLatticePredictor:
         r_mask = div_r_gaussian(rh_vals_p[0][0])
         h_mask = div_h_gaussian(rh_vals_p[0][1])
         rh_mask[0] = np.concatenate([r_mask, h_mask])
-        self.inference([grasp_img_p, arm_img_p, rh_mask])
+        grasp_img_t = tf.constant(grasp_img_p, dtype=tf.float32)
+        arm_img_t = tf.constant(arm_img_p, dtype=tf.float32)
+        rh_mask_t = tf.constant(rh_mask, dtype=tf.float32)
+        self.inference((grasp_img_t, arm_img_t, rh_mask_t))
         print("=============== initialization done ==================")
         prepared_p[0] = True
 
@@ -135,7 +159,10 @@ class SharedLatticePredictor:
                 r_mask = div_r_gaussian(rh_vals_p[0][0])
                 h_mask = div_h_gaussian(rh_vals_p[0][1])
                 rh_mask[0] = np.concatenate([r_mask, h_mask])
-                result = self.inference([grasp_img_p, arm_img_p, rh_mask])
+                grasp_img_t = tf.constant(grasp_img_p, dtype=tf.float32)
+                arm_img_t = tf.constant(arm_img_p, dtype=tf.float32)
+                rh_mask_t = tf.constant(rh_mask, dtype=tf.float32)
+                result = self.inference((grasp_img_t, arm_img_t, rh_mask_t))
                 for i_b in range(BATCH_SIZE):
                     result_p[i_b] = result[i_b]
                 response_out[0] = True
