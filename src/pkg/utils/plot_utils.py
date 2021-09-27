@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def plot_band(plt, X, Y,title=None, legend=True):
-    plt.errorbar(x=X,y=np.mean(Y,axis=1), yerr=np.std(Y,axis=1), color='k', label="mean")
+    plt.errorbar(x=X,y=np.mean(Y,axis=1), yerr=np.std(Y,axis=1), color='k', label="mean", capsize=3)
     plt.plot(X, np.min(Y,axis=1),'-',color=(0.7,)*3)
     plt.plot(X, np.median(Y,axis=1),'-o',color='c', label="median")
     plt.plot(X, np.max(Y,axis=1),'-',color=(0.7,)*3)
@@ -77,23 +77,26 @@ def grouped_bar(data_dict, groups=None, options=None, scatter=False, average_all
                     dat_vec = np.concatenate(dat_vec)
                 std_vec = np.std(dat_vec)
                 dat_vec = np.mean(dat_vec)
-                plt.bar(xsmall, dat_vec, yerr=std_vec)
+                plt.bar(xsmall, dat_vec, yerr=std_vec, capsize=3)
             else:
                 if isinstance(dat_vec[0], Iterable):
                     std_vec = map(np.std, dat_vec)
                     dat_vec = map(np.mean, dat_vec)
                 else:
                     std_vec = None
-                plt.bar(X_big+xsmall, dat_vec, yerr=std_vec)
+                plt.bar(X_big+xsmall, dat_vec, yerr=std_vec, capsize=3)
             dat_max = max(dat_max, np.max(np.add(dat_vec, std_vec) 
                                            if std_vec is not None 
                                            else dat_vec))
             dat_min = min(dat_min, np.min(np.subtract(dat_vec, std_vec) 
                                            if std_vec is not None 
                                            else dat_vec))
-    margin = (dat_max - dat_min)/3
+    margin = (dat_max - dat_min)/3+abs(dat_min)/100
     if autoscale:
-        plt.axis([0,np.max(X_big)+np.max(X_small)+1, dat_min-margin, dat_max+margin])
+        if average_all:
+            plt.axis([-0.7,np.max(X_small)+0.7, dat_min-margin, dat_max+margin])
+        else:
+            plt.axis([0,np.max(X_big)+np.max(X_small)+1, dat_min-margin, dat_max+margin])
     plt.grid()
     if average_all:
         plt.xticks(X_small, np.array(options))
