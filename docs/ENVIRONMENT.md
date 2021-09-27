@@ -87,6 +87,35 @@ sudo apt-get install -y --no-install-recommends libnvinfer7=7.1.3-1+cuda11.0 \
 pip3 install tensorflow-gpu==2.4.0
 ```
 
+* TensorRT 7.2.1 (compatible with cudnn 8.0.4 above)
+  * Download *TensorRT 7.2.1 for Linux and CUDA 11.0* from https://developer.nvidia.com/tensorrt.
+    * Select Ubundu 18.04 deb file
+  * Follow the installation guide from https://docs.nvidia.com/deeplearning/tensorrt/archives/tensorrt-721/install-guide/index.html
+    * Example:
+      ```bash
+      os="ubuntu1804" \
+      && tag="cuda11.0-trt7.2.1.6-ga-20201007" \
+      && sudo dpkg -i nv-tensorrt-repo-${os}-${tag}_1-1_amd64.deb \
+      && sudo apt-key add /var/nv-tensorrt-repo-${tag}/7fa2af80.pub \
+      && sudo apt-get update
+      ```
+      * apt-get update sometimes generates errors. Ignore and continue.
+      ```bash
+      sudo apt-get -y install libnvinfer-dev=7.2.1-1+cuda11.0 libnvinfer-plugin-dev=7.2.1-1+cuda11.0 libnvparsers-dev=7.2.1-1+cuda11.0 libnvonnxparsers-dev=7.2.1-1+cuda11.0 libnvinfer-samples=7.2.1-1+cuda11.0 \
+      && sudo apt-get -y install tensorrt \
+      && sudo apt-get -y install python-libnvinfer-dev \
+      && sudo apt-get -y install python3-libnvinfer-dev \
+      && sudo apt-get install uff-converter-tf
+      ```
+  * Add path in .bashrc
+  ```bash
+  echo 'export PATH=$PATH:/usr/src/tensorrt/bin' >> ~/.bashrc
+  ```
+  * Install keras2onnx
+  ```bash
+  pip3 install keras2onnx
+  ```
+
 * ***[IMPORTANT]*** in TF 2.4.0, add below to python script before using tensorflow or you get "no algorithm worked" error! (no need to explicitly use session)
 ```python
 from tensorflow.compat.v1 import ConfigProto
