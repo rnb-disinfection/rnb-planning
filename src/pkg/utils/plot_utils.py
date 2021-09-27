@@ -38,6 +38,7 @@ def scatter_3d(X, style='.', view=None, xlabel="x",ylabel="y", zlabel="z",
 from collections import Iterable
 
 
+
 ##
 # @brief draw grouped bar
 # @remark if value is list, mean and error bar are drawn
@@ -45,7 +46,8 @@ from collections import Iterable
 # @param groups group name list
 # @param options sub-group option name list
 # @param average_all do not separate group and average all in one graph
-def grouped_bar(data_dict, groups=None, options=None, scatter=False, average_all=False):
+# @param autoscale auto fit y axis
+def grouped_bar(data_dict, groups=None, options=None, scatter=False, average_all=False, autoscale=True):
     if groups is None:
         groups = sorted(data_dict.keys())
         
@@ -57,6 +59,7 @@ def grouped_bar(data_dict, groups=None, options=None, scatter=False, average_all
     X_small = np.arange(len(options))
 
     dat_max = 0
+    dat_min = 1e10
     for xsmall in X_small:
         dat_vec = [data_dict[group][options[xsmall]] for group in groups]
         if len(dat_vec) == 0:
@@ -66,6 +69,7 @@ def grouped_bar(data_dict, groups=None, options=None, scatter=False, average_all
             dat_vec = np.concatenate(dat_vec)
             plt.plot(Xs, dat_vec, '.')
             dat_max = max(dat_max, np.max(dat_vec))
+            dat_min = min(dat_min, np.min(dat_vec))
         else:
 
             if average_all:
@@ -84,8 +88,12 @@ def grouped_bar(data_dict, groups=None, options=None, scatter=False, average_all
             dat_max = max(dat_max, np.max(np.add(dat_vec, std_vec) 
                                            if std_vec is not None 
                                            else dat_vec))
-
-    # plt.axis([0,np.max(X_big[gidc])+np.max(X_small)+1,0, dat_max+1])
+            dat_min = min(dat_min, np.min(np.subtract(dat_vec, std_vec) 
+                                           if std_vec is not None 
+                                           else dat_vec))
+    margin = (dat_max - dat_min)/3
+    if autoscale:
+        plt.axis([0,np.max(X_big)+np.max(X_small)+1, dat_min-margin, dat_max+margin])
     plt.grid()
     if average_all:
         plt.xticks(X_small, np.array(options))

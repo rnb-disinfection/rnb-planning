@@ -513,8 +513,8 @@ def print_confusion_mat(GT, Res):
     FP = np.sum(np.logical_and(np.logical_not(GT), Res))
     TN = np.sum(np.logical_and(np.logical_not(GT), np.logical_not(Res)))
     N = TP + FN + FP + TN
-    print("\t PP \t \t PN \t \t {}".format(N))
-    print("GP \t {} \t \t {} \t \t {:.2%}".format(TP, FN, float(TP) / (TP + FN)))
-    print("GN \t {} \t \t {} \t {:.2%}".format(FP, TN, float(TN) / (FP + TN)))
+    print("   {:>10} {:>10} {:>10}".format("PP", "PN", N))
+    print("GP {:10} {:10} {:10.2%}".format(TP, FN, float(TP) / (TP + FN)))
+    print("GN {:10} {:10} {:10.2%}".format(FP, TN, float(TN) / (FP + TN)))
     print(
-        "AL \t {:.2%} \t {:.2%} \t {:.2%}".format(float(TP) / (TP + FP), float(TN) / (TN + FN), float(TP + TN) / N))
+        "AL {:10.2%} {:10.2%} {:10.2%}".format(float(TP) / (TP + FP), float(TN) / (TN + FN), float(TP + TN) / N))
