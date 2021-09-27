@@ -43,7 +43,7 @@ def features2xyzquat(radius,theta, height, azimuth_loc, zenith, ee_dist, rot_z):
     return goal_pose
 
 def to_featurevec(radius,theta, height, azimuth_loc, zenith, ee_dist, rot_z):
-    return (radius, theta, height, azimuth_loc, zenith, radius**2, ee_dist, ee_dist**2, rot_z)
+    return (radius, theta, height, azimuth_loc, zenith, radius**2, ee_dist, ee_dist**2)
 
 ##
 # @class    ReachChecker
@@ -260,6 +260,8 @@ class ReachTrainer:
     ##
     # @brief load and test
     def load_and_test(self, ROBOT_TYPE, feature_fn=to_featurevec):
+        self.set_shoulder_height(ROBOT_TYPE)
+
         self.samplevec_list_train, self.success_list_train = self.load_data(ROBOT_TYPE, "train")
         self.samplevec_list_test, self.success_list_test = self.load_data(ROBOT_TYPE, "test")
 
