@@ -15,9 +15,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='start shared lattice predictor')
     parser.add_argument('--rtype', type=str, help='robot type name')
     parser.add_argument('--model_path', type=str, default="None", help='relative path to model')
+    parser.add_argument('--precision', type=str, default="FP16", help='TRT precision. FP32, FP16 (Default), INT8. INT8 is not currently supported needs calibration and decreases accuracy')
     args = parser.parse_args()
     if args.model_path == "None":
         args.model_path = None
+    PRECISION = args.precision
 
     ok_to_go = False
     while not ok_to_go:
@@ -42,16 +44,17 @@ if __name__ == "__main__":
                 pass
     prepared_p[0] = False
 
+import tensorflow as tf
 from tensorflow.compat.v1 import ConfigProto
 from tensorflow.compat.v1 import InteractiveSession
-import tensorflow as tf
-tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
-from tensorflow.python.saved_model import tag_constants, signature_constants
-from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
-
 config = ConfigProto()
 config.gpu_options.allow_growth = True
 session = InteractiveSession(config=config)
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+
+from tensorflow.python.saved_model import tag_constants, signature_constants
+from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
+
 
 from pkg.utils.utils_python3 import *
 from pkg.controller.robot_config import RobotType
@@ -91,16 +94,22 @@ class SharedLatticePredictor:
             last_save = sorted([item for item in os.listdir(os.path.join(self.ROBOT_MODEL_ROOT, last_model)) if item.startswith("model")])[-1]
             model_path_rel = os.path.join(last_model, last_save)
         model_log_dir = os.path.join(self.ROBOT_MODEL_ROOT, model_path_rel)
-        model_log_dir_trt = os.path.join(self.ROBOT_MODEL_ROOT, model_path_rel.replace("model", "trt"))
+        model_log_dir_trt = os.path.join(self.ROBOT_MODEL_ROOT, model_path_rel.replace("model", "trt")+"-"+PRECISION)
         if not os.path.isdir(model_log_dir_trt):
             from tensorflow.python.compiler.tensorrt import trt_convert as trt
-            converter = trt.TrtGraphConverterV2(input_saved_model_dir=model_log_dir)
+
+            conversion_params = trt.DEFAULT_TRT_CONVERSION_PARAMS
+            conversion_params = conversion_params._replace(precision_mode=PRECISION) # Set GPU temporary memory 4GB
+                
+            converter = trt.TrtGraphConverterV2(input_saved_model_dir=model_log_dir, conversion_params=conversion_params)
             converter.convert()
+                
             def my_input_fn():
                 grasp_img_t = tf.zeros((BATCH_SIZE,) + GRASP_SHAPE + (3,), dtype=tf.float32)
                 arm_img_t = tf.zeros((BATCH_SIZE,) + ARM_SHAPE + (1,), dtype=tf.float32)
                 rh_mask_t = tf.zeros((BATCH_SIZE, 54), dtype=tf.float32)
                 yield (grasp_img_t, arm_img_t, rh_mask_t)
+                
             converter.build(input_fn=my_input_fn)
             converter.save(model_log_dir_trt)
 
