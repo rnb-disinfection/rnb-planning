@@ -25,7 +25,7 @@ sudo apt-get install python3-pip && pip3 install --upgrade pip \
 && pip install setuptools==41.0.0  
 ```
 
-## Setup NVIDIA cuda 11.0 and cudnn 8.0 for tf 2.4.0 (below is official guide from homepage)
+## Setup NVIDIA cuda 11.1 and cudnn 8.1 for tf 2.5.0 (below is official guide from homepage)
 
 * Update repositories
 ```bash
@@ -43,7 +43,7 @@ mkdir ~/NVIDIA_TMP && cd ~/NVIDIA_TMP \
 
 * Install NVIDIA driver
 ```bash
-sudo apt-get install --no-install-recommends nvidia-driver-450
+sudo apt-get install --no-install-recommends nvidia-driver-460
 ```
 * ***[IMPORTANT]*** Reboot!!!  
   Check that GPUs are visible using the command: nvidia-smi
@@ -52,23 +52,26 @@ sudo apt-get install --no-install-recommends nvidia-driver-450
 * Install development and runtime libraries (~4GB)
 ```bash
 cd ~/NVIDIA_TMP \
-&& wget https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64/libnvinfer7_7.1.3-1+cuda11.0_amd64.deb \
-&& sudo apt install ./libnvinfer7_7.1.3-1+cuda11.0_amd64.deb \
+&& wget https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64/libnvinfer7_7.2.3-1+cuda11.1_amd64.deb \
+&& sudo apt install ./libnvinfer7_7.2.3-1+cuda11.1_amd64.deb \
 && sudo apt-get update \
 && sudo apt-get install --no-install-recommends \
-  cuda-11-0 \
-  libcudnn8=8.0.4.30-1+cuda11.0  \
-  libcudnn8-dev=8.0.4.30-1+cuda11.0
+  cuda-11-2 \
+  libcudnn8=8.1.1.33-1+cuda11.2  \
+  libcudnn8-dev=8.1.1.33-1+cuda11.2
 ```
+
+* ***[IMPORTANT]*** Reboot!!!  
+  Check that GPUs are visible using the command: nvidia-smi
 
 * Add PATH variables to environment
 ```bash
-echo 'export PATH=$PATH:/usr/local/cuda-11.0/bin' >> ~/.bashrc \
-&& echo 'export CUDADIR=/usr/local/cuda-11.0' >> ~/.bashrc \
+echo 'export PATH=$PATH:/usr/local/cuda-11.2/bin' >> ~/.bashrc \
+&& echo 'export CUDADIR=/usr/local/cuda-11.2' >> ~/.bashrc \
 && echo 'if [ -z $LD_LIBRARY_PATH ]; then' >> ~/.bashrc \
-&& echo '  export LD_LIBRARY_PATH=/usr/local/cuda-11.0/lib64' >> ~/.bashrc \
+&& echo '  export LD_LIBRARY_PATH=/usr/local/cuda-11.2/lib64' >> ~/.bashrc \
 && echo 'else' >> ~/.bashrc \
-&& echo '  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-11.0/lib64' >> ~/.bashrc \
+&& echo '  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-11.2/lib64' >> ~/.bashrc \
 && echo 'fi' >> ~/.bashrc  
 ```
 
@@ -76,36 +79,37 @@ echo 'export PATH=$PATH:/usr/local/cuda-11.0/bin' >> ~/.bashrc \
 
 * Install TensorRT. Requires that libcudnn8 is installed above.
 ```bash
-sudo apt-get install -y --no-install-recommends libnvinfer7=7.1.3-1+cuda11.0 \
-  libnvinfer-dev=7.1.3-1+cuda11.0 \
-  libnvinfer-plugin7=7.1.3-1+cuda11.0
+sudo apt-get install -y --no-install-recommends libnvinfer7=7.2.3-1+cuda11.1 \
+  libnvinfer-dev=7.2.3-1+cuda11.1 \
+  libnvinfer-plugin7=7.2.3-1+cuda11.1
 ```
 
   
 * Install tensorflow
 ```bash
-pip3 install tensorflow-gpu==2.4.0
+pip3 install tensorflow-gpu==2.5.0
 ```
 
-* TensorRT 7.2.1 (compatible with cudnn 8.0.4 above)
-  * Download *TensorRT 7.2.1 for Linux and CUDA 11.0* from https://developer.nvidia.com/tensorrt.
+* TensorRT 7.2.3 (compatible with cudnn 8.1.1 above)
+  * Download *TensorRT 7.2.3 for Linux and CUDA 11.1* from https://developer.nvidia.com/tensorrt.
     * Select Ubundu 18.04 deb file
-  * Follow the installation guide from https://docs.nvidia.com/deeplearning/tensorrt/archives/tensorrt-721/install-guide/index.html
+  * Follow the installation guide from https://docs.nvidia.com/deeplearning/tensorrt/archives/tensorrt-723/install-guide/index.html
     * Example:
       ```bash
       os="ubuntu1804" \
-      && tag="cuda11.0-trt7.2.1.6-ga-20201007" \
+      && tag="cuda11.1-trt7.2.3.4-ga-20210226" \
       && sudo dpkg -i nv-tensorrt-repo-${os}-${tag}_1-1_amd64.deb \
-      && sudo apt-key add /var/nv-tensorrt-repo-${tag}/7fa2af80.pub \
+      && sudo apt-key add /var/nv-tensorrt-repo-${os}-${tag}/7fa2af80.pub \
       && sudo apt-get update
       ```
       * apt-get update sometimes generates errors. Ignore and continue.
       ```bash
-      sudo apt-get -y install libnvinfer-dev=7.2.1-1+cuda11.0 libnvinfer-plugin-dev=7.2.1-1+cuda11.0 libnvparsers-dev=7.2.1-1+cuda11.0 libnvonnxparsers-dev=7.2.1-1+cuda11.0 libnvinfer-samples=7.2.1-1+cuda11.0 \
-      && sudo apt-get -y install tensorrt \
-      && sudo apt-get -y install python-libnvinfer-dev \
-      && sudo apt-get -y install python3-libnvinfer-dev \
-      && sudo apt-get install uff-converter-tf
+        && sudo apt-get -y install libnvinfer-dev=7.2.3-1+cuda11.1 libnvinfer-plugin-dev=7.2.3-1+cuda11.1 libnvparsers-dev=7.2.3-1+cuda11.1 libnvonnxparsers-dev=7.2.3-1+cuda11.1 libnvinfer-samples=7.2.3-1+cuda11.1 \
+        && sudo apt-get -y install tensorrt \
+        && sudo apt-get -y install python-libnvinfer-dev \
+        && sudo apt-get -y install python3-libnvinfer-dev \
+        && sudo apt-get install uff-converter-tf
+
       ```
   * Add path in .bashrc
   ```bash
