@@ -43,7 +43,7 @@ mkdir ~/NVIDIA_TMP && cd ~/NVIDIA_TMP \
 
 * Install NVIDIA driver
 ```bash
-sudo apt-get install --no-install-recommends nvidia-driver-460
+sudo apt-get install --no-install-recommends nvidia-driver-470
 ```
 * ***[IMPORTANT]*** Reboot!!!  
   Check that GPUs are visible using the command: nvidia-smi
@@ -53,14 +53,16 @@ sudo apt-get install --no-install-recommends nvidia-driver-460
 ```bash
 cd ~/NVIDIA_TMP \
 && wget https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64/libnvinfer7_7.2.3-1+cuda11.1_amd64.deb \
-&& sudo apt install ./libnvinfer7_7.2.3-1+cuda11.1_amd64.deb \
+&& sudo apt install --no-install-recommends ./libnvinfer7_7.2.3-1+cuda11.1_amd64.deb \
 && sudo apt-get update \
 && sudo apt-get install --no-install-recommends \
-  cuda-11-2 \
-  libcudnn8=8.1.1.33-1+cuda11.2  \
-  libcudnn8-dev=8.1.1.33-1+cuda11.2
+  cuda-11-2
 ```
-
+* [Troubleshooting] If error is raised due to overiting issue, possibly releated to cuda-cudart and cuda-toolkit-11-config, install the failed package with *-o Dpkg::Options::=* option. Below is an example
+```
+sudo apt-get -o Dpkg::Options::="--force-overwrite" install cuda-cudart-11-2
+```
+ 
 * ***[IMPORTANT]*** Reboot!!!  
   Check that GPUs are visible using the command: nvidia-smi
 
@@ -74,7 +76,7 @@ echo 'export PATH=$PATH:/usr/local/cuda-11.2/bin' >> ~/.bashrc \
 && echo '  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-11.2/lib64' >> ~/.bashrc \
 && echo 'fi' >> ~/.bashrc  
 ```
-
+ 
 * ***[IMPORTANT]*** Restart terminal!!!
 
 * Install TensorRT. Requires that libcudnn8 is installed above.
@@ -83,7 +85,6 @@ sudo apt-get install -y --no-install-recommends libnvinfer7=7.2.3-1+cuda11.1 \
   libnvinfer-dev=7.2.3-1+cuda11.1 \
   libnvinfer-plugin7=7.2.3-1+cuda11.1
 ```
-
   
 * Install tensorflow
 ```bash
@@ -102,14 +103,13 @@ pip3 install tensorflow-gpu==2.5.0
       && sudo apt-key add /var/nv-tensorrt-repo-${os}-${tag}/7fa2af80.pub \
       && sudo apt-get update
       ```
-      * apt-get update sometimes generates errors. Ignore and continue.
+      * apt-get update sometimes generates errors. You can ignore and continue mostly.
       ```bash
-        && sudo apt-get -y install libnvinfer-dev=7.2.3-1+cuda11.1 libnvinfer-plugin-dev=7.2.3-1+cuda11.1 libnvparsers-dev=7.2.3-1+cuda11.1 libnvonnxparsers-dev=7.2.3-1+cuda11.1 libnvinfer-samples=7.2.3-1+cuda11.1 \
+      sudo apt-get -y install libnvinfer-dev=7.2.3-1+cuda11.1 libnvinfer-plugin-dev=7.2.3-1+cuda11.1 libnvparsers-dev=7.2.3-1+cuda11.1 libnvonnxparsers-dev=7.2.3-1+cuda11.1 libnvinfer-samples=7.2.3-1+cuda11.1 \
         && sudo apt-get -y install tensorrt \
         && sudo apt-get -y install python-libnvinfer-dev \
         && sudo apt-get -y install python3-libnvinfer-dev \
         && sudo apt-get install uff-converter-tf
-
       ```
   * Add path in .bashrc
   ```bash
