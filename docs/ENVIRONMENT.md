@@ -45,8 +45,8 @@ mkdir ~/NVIDIA_TMP && cd ~/NVIDIA_TMP \
 ```bash
 sudo apt-get install --no-install-recommends nvidia-driver-470
 ```
-* ***[IMPORTANT]*** Reboot!!!  
-  Check that GPUs are visible using the command: nvidia-smi
+* ***[IMPORTANT]*** Reboot!!!
+  * Check that GPUs are visible using the command: nvidia-smi
 
 
 * Install development and runtime libraries (~4GB)
@@ -64,7 +64,7 @@ sudo apt-get -o Dpkg::Options::="--force-overwrite" install cuda-cudart-11-2
 ```
  
 * ***[IMPORTANT]*** Reboot!!!  
-  Check that GPUs are visible using the command: nvidia-smi
+  * Check that GPUs are visible using the command: nvidia-smi
 
 * Add PATH variables to environment
 ```bash
@@ -128,4 +128,13 @@ from tensorflow.compat.v1 import InteractiveSession
 config = ConfigProto()
 config.gpu_options.allow_growth = True
 session = InteractiveSession(config=config)
+```
+
+* [TROUBLESHOOTING] TensorRT version should match with linked version. Check by below script
+```python
+from tensorflow.compiler.tf2tensorrt._pywrap_py_utils import get_linked_tensorrt_version
+print(f"Linked TensorRT version {get_linked_tensorrt_version()}")
+
+from tensorflow.compiler.tf2tensorrt._pywrap_py_utils import get_loaded_tensorrt_version
+print(f"Loaded TensorRT version {get_loaded_tensorrt_version()}")
 ```
