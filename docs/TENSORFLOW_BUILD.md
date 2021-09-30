@@ -146,7 +146,8 @@ sudo rm -rf /usr/local/cuda
 ```bash
 apt list --installed | grep "nvidia-*"
 apt list --installed | grep "cuda-*"
-apt list --installed | grep "cuda-*"
+apt list --installed | grep "libcudnn-*"
+apt list --installed | grep "libnvinfer-*"
 ```
 * manually remove all packages listed above
 ```bash
