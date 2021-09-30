@@ -136,11 +136,11 @@ pip3 install /tmp/tensorflow_pkg/tensorflow-2.6.0-cp36-cp36m-linux_x86_64.whl
 ### nvidia, cuda, cudnn, tensorrt Clean Unsintall
 * uninstall all related packages
 ```bash
-sudo apt-get remove --purge '^nvidia-.*' 
-sudo apt-get --purge remove 'cuda*'
-sudo apt-get autoremove --purge 'cuda*'
-sudo apt-get autoremove --purge 'nv-tensorrt*'
-sudo rm -rf /usr/local/cuda
+sudo apt-get remove --purge '^nvidia-.*' \
+&& sudo apt-get --purge remove 'cuda*' \
+&& sudo apt-get autoremove --purge 'cuda*' \
+&& sudo apt-get autoremove --purge 'nv-tensorrt*' \
+&& sudo rm -rf /usr/local/cuda
 ```
 * check installed lists
 ```bash
