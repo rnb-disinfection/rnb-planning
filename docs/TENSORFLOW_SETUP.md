@@ -5,7 +5,7 @@
 * TensorRT>=7.2.3 is needed to it is the first version that supports Conv3D
 * This document is based on the package versions below.
   * nvidia driver == 460.32
-  * CUDA == 1.1.2 update 1
+  * CUDA == 1.1.2 ***update 1***
   * cuDNN == 8.1.1
   * TensorRT == 7.2.3
   * Tensorflow == 2.6.0
@@ -27,7 +27,8 @@ mkdir ~/NVIDIA_TMP && cd ~/NVIDIA_TMP \
 
 * Install NVIDIA driver
 ```bash
-sudo apt-get install --no-install-recommends nvidia-driver-460=
+sudo apt-get install --no-install-recommends nvidia-driver-460=460.91.03-0ubuntu1 \
+&& sudo apt-get install cuda-drivers=460.91.03-1
 ```
 
 * ***[IMPORTANT]*** Reboot!!!  
@@ -35,7 +36,7 @@ sudo apt-get install --no-install-recommends nvidia-driver-460=
 
 * Install cuda - this will install many dependancies like cudart,cublas of version 11.2
 ```bash
-sudo apt-get install --no-install-recommends cuda-11-2
+sudo apt-get install --no-install-recommends cuda-11-2=11.2.1-1
 ```
 
 * Install cudnn
@@ -77,7 +78,9 @@ echo 'export PATH=$PATH:/usr/local/cuda-11.2/bin' >> ~/.bashrc \
       libnvinfer-dev=7.2.3-1+cuda11.1 \
       libnvinfer-plugin7=7.2.3-1+cuda11.1 \
       libnvinfer-plugin-dev=7.2.3-1+cuda11.1 \
+      libnvparsers7=7.2.3-1+cuda11.1 \
       libnvparsers-dev=7.2.3-1+cuda11.1 \
+      libnvonnxparsers7=7.2.3-1+cuda11.1 \
       libnvonnxparsers-dev=7.2.3-1+cuda11.1 \
       libnvinfer-samples=7.2.3-1+cuda11.1 \
       && sudo apt-get -y install tensorrt=7.2.3.4-1+cuda11.1 \
