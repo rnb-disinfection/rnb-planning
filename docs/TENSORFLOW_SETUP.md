@@ -4,8 +4,8 @@
 * Until tensorflow 2.6.0, the compiled versions on pip is linked with TensorRT=7.2.2
 * TensorRT>=7.2.3 is needed to it is the first version that supports Conv3D
 * This document is based on the package versions below.
-  * nvidia driver == 470
-  * CUDA == 1.1.2 update 1
+  * nvidia driver == 460.32
+  * CUDA == 1.1.2 ***update 1***
   * cuDNN == 8.1.1
   * TensorRT == 7.2.3
   * Tensorflow == 2.6.0
@@ -27,7 +27,8 @@ mkdir ~/NVIDIA_TMP && cd ~/NVIDIA_TMP \
 
 * Install NVIDIA driver
 ```bash
-sudo apt-get install --no-install-recommends nvidia-driver-470
+sudo apt-get install --no-install-recommends nvidia-driver-460=460.91.03-0ubuntu1 \
+&& sudo apt-get install cuda-drivers=460.91.03-1
 ```
 
 * ***[IMPORTANT]*** Reboot!!!  
@@ -35,7 +36,7 @@ sudo apt-get install --no-install-recommends nvidia-driver-470
 
 * Install cuda - this will install many dependancies like cudart,cublas of version 11.2
 ```bash
-sudo apt-get install --no-install-recommends cuda-11-2
+sudo apt-get install --no-install-recommends cuda-11-2=11.2.1-1
 ```
 
 * Install cudnn
@@ -77,7 +78,9 @@ echo 'export PATH=$PATH:/usr/local/cuda-11.2/bin' >> ~/.bashrc \
       libnvinfer-dev=7.2.3-1+cuda11.1 \
       libnvinfer-plugin7=7.2.3-1+cuda11.1 \
       libnvinfer-plugin-dev=7.2.3-1+cuda11.1 \
+      libnvparsers7=7.2.3-1+cuda11.1 \
       libnvparsers-dev=7.2.3-1+cuda11.1 \
+      libnvonnxparsers7=7.2.3-1+cuda11.1 \
       libnvonnxparsers-dev=7.2.3-1+cuda11.1 \
       libnvinfer-samples=7.2.3-1+cuda11.1 \
       && sudo apt-get -y install tensorrt=7.2.3.4-1+cuda11.1 \
@@ -92,7 +95,16 @@ echo 'export PATH=$PATH:/usr/local/cuda-11.2/bin' >> ~/.bashrc \
   ```bash
   echo 'export PATH=$PATH:/usr/src/tensorrt/bin' >> ~/.bashrc
   ```
+
+* **[IMPORTANT]** Restart the terminal!
   
+## Install Tensorflow by pip3 or building from source
+### CASE 1: Install with pip3
+```bash
+pip3 install tensorflow-gpu==2.6.0
+```
+
+### CASE 2: Build from source code
 * Install Bazelisk
 ```bash
 sudo apt install apt-transport-https curl gnupg \
@@ -102,10 +114,6 @@ sudo apt install apt-transport-https curl gnupg \
 && sudo apt update && sudo apt install bazel-3.7.2 \
 && sudo mv /usr/bin/bazel-3.7.2 /usr/bin/bazel
 ```
-
-* **[IMPORTANT]** Restart the terminal!
-  
-## Build Tensorflow
 * get tensorflow
 ```bash
 cd ~ && git clone https://github.com/tensorflow/tensorflow.git && cd tensorflow \
@@ -137,9 +145,11 @@ pip3 install /tmp/tensorflow_pkg/tensorflow-2.6.0-cp36-cp36m-linux_x86_64.whl
 * uninstall all related packages
 ```bash
 sudo apt-get remove --purge '^nvidia-.*' \
-&& sudo apt-get --purge remove 'cuda*' \
-&& sudo apt-get autoremove --purge 'cuda*' \
-&& sudo apt-get autoremove --purge 'nv-tensorrt*' \
+&& sudo apt-get remove --purge 'cuda*' \
+&& sudo apt-get remove --purge 'nv-tensorrt*' \
+&& sudo apt-get remove --purge 'libnv*' \
+&& sudo apt-get remove --purge 'libcudnn*' \
+&& sudo apt-get remove --purge 'libcublas*' \
 && sudo rm -rf /usr/local/cuda
 ```
 * check installed lists
@@ -147,10 +157,10 @@ sudo apt-get remove --purge '^nvidia-.*' \
 apt list --installed | grep "nvidia-*"
 apt list --installed | grep "cuda-*"
 apt list --installed | grep "libcudnn-*"
-apt list --installed | grep "libnvinfer-*"
+apt list --installed | grep "libnv-*"
 ```
 * manually remove all packages listed above
 ```bash
-sudo apt-get --purge remove {package name}
+sudo apt-get remove --purge {package name}
 ```
 * **[IMPORTANT]** Reboot the system
