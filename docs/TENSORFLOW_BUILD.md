@@ -127,7 +127,7 @@ bazel build --config=opt  --local_ram_resources=16384 --jobs=10 //tensorflow/too
 ```bash
 ./bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/tensorflow_pkg
 ```
-* Instal whl
+* Install whl
 ```bash
 pip3 install /tmp/tensorflow_pkg/tensorflow-2.6.0-cp36-cp36m-linux_x86_64.whl
 ```
