@@ -130,7 +130,8 @@ config.gpu_options.allow_growth = True
 session = InteractiveSession(config=config)
 ```
 
-* [TROUBLESHOOTING] TensorRT version should match with linked version. Check by below script
+### [TROUBLESHOOTING]
+* TensorRT version should match with linked version. Check by below script
 ```python
 from tensorflow.compiler.tf2tensorrt._pywrap_py_utils import get_linked_tensorrt_version
 print(f"Linked TensorRT version {get_linked_tensorrt_version()}")
@@ -138,3 +139,26 @@ print(f"Linked TensorRT version {get_linked_tensorrt_version()}")
 from tensorflow.compiler.tf2tensorrt._pywrap_py_utils import get_loaded_tensorrt_version
 print(f"Loaded TensorRT version {get_loaded_tensorrt_version()}")
 ```
+
+* Tensorflow can raise NUMA-relaed error as shown below in the terminal
+  ```bash
+  successful NUMA node read from SysFS had negative value (-1), but there must be at least one NUMA node, so returning NUMA node zero
+  ```
+  * This error means the numa node setting is incorrect.
+  * check the node id - the one starts with *VGA compatible controller* on the list shown by below command
+  ```bash
+  sys/bus/pci/devicecs/
+  ```
+  * check numa setting. The below command will return *-1* replace *{node-id-above}* with the id found above. this may be *01:00.0*. 
+  ```
+  cat /sys/bus/pci/devices/0000:{node-id-above}/numa_node
+  ```
+  * edit the value to 0
+  ```
+  echo 0 | sudo tee -a /sys/bus/pci/devices/0000:{node-id-above}/numa_node
+  ```
+  * check numa setting again. now it will return 0
+  ```
+  cat /sys/bus/pci/devices/0000:{node-id-above}/numa_node
+  ```
+
