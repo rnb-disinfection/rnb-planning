@@ -85,15 +85,12 @@ echo 'export PATH=$PATH:/usr/local/cuda-11.2/bin' >> ~/.bashrc \
       && sudo apt-get -y install python-libnvinfer-dev=7.2.3-1+cuda11.1 \
       && sudo apt-get -y install python3-libnvinfer=7.2.3-1+cuda11.1 \
       && sudo apt-get -y install python3-libnvinfer-dev=7.2.3-1+cuda11.1 \
-      && sudo apt-get install uff-converter-tf
+      && sudo apt-get install uff-converter-tf \
+      && pip3 install keras2onnx
     ```
   * Add path in .bashrc
   ```bash
   echo 'export PATH=$PATH:/usr/src/tensorrt/bin' >> ~/.bashrc
-  ```
-  * Install keras2onnx
-  ```bash
-  pip3 install keras2onnx
   ```
   
 * Install Bazelisk
@@ -130,7 +127,7 @@ bazel build --config=opt  --local_ram_resources=16384 --jobs=10 //tensorflow/too
 ```bash
 ./bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/tensorflow_pkg
 ```
-* Instal whl
+* Install whl
 ```bash
 pip3 install /tmp/tensorflow_pkg/tensorflow-2.6.0-cp36-cp36m-linux_x86_64.whl
 ```
@@ -149,7 +146,8 @@ sudo rm -rf /usr/local/cuda
 ```bash
 apt list --installed | grep "nvidia-*"
 apt list --installed | grep "cuda-*"
-apt list --installed | grep "cuda-*"
+apt list --installed | grep "libcudnn-*"
+apt list --installed | grep "libnvinfer-*"
 ```
 * manually remove all packages listed above
 ```bash

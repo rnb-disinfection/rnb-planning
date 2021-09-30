@@ -15,7 +15,7 @@ find_package(catkin REQUIRED
         moveit_core
         moveit_ros_planning
         moveit_ros_planning_interface
-        moveit_chomp_optimizer_adapter
+#        moveit_chomp_optimizer_adapter
         pluginlib
         moveit_visual_tools
         geometric_shapes
@@ -25,8 +25,8 @@ find_package(catkin REQUIRED
         tf2_ros
         tf2_eigen
         tf2_geometry_msgs
-        stomp_core
-        stomp_moveit
+#        stomp_core
+#        stomp_moveit
         )
 
 MESSAGE("=====================================================================================================================================================================")

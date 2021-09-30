@@ -25,7 +25,7 @@ sudo apt-get install python3-pip && pip3 install --upgrade pip \
 && pip install setuptools==41.0.0  
 ```
 
-## Setup NVIDIA cuda 11.1 and cudnn 8.1 for tf 2.5.0 (below is official guide from homepage)
+## Setup NVIDIA cuda 11.1 and cudnn 8.1 for tf 2.6.0 (below is official guide from homepage)
 
 * Update repositories
 ```bash
@@ -88,7 +88,7 @@ sudo apt-get install -y --no-install-recommends libnvinfer7=7.2.3-1+cuda11.1 \
   
 * Install tensorflow
 ```bash
-pip3 install tensorflow-gpu==2.5.0
+pip3 install tensorflow-gpu==2.6.0
 ```
 
 * TensorRT 7.2.3 (compatible with cudnn 8.1.1 above)
@@ -120,6 +120,12 @@ pip3 install tensorflow-gpu==2.5.0
   pip3 install keras2onnx
   ```
 
+* hold upgrade
+```bash
+echo "libcudnn8 hold" | sudo dpkg --set-selections \
+&& echo "libcudnn8-dev hold" | sudo dpkg --set-selections
+```
+
 * ***[IMPORTANT]*** in TF 2.4.0, add below to python script before using tensorflow or you get "no algorithm worked" error! (no need to explicitly use session)
 ```python
 from tensorflow.compat.v1 import ConfigProto
@@ -130,7 +136,10 @@ config.gpu_options.allow_growth = True
 session = InteractiveSession(config=config)
 ```
 
-* [TROUBLESHOOTING] TensorRT version should match with linked version. Check by below script
+* ***[IMPORTANT]*** NEVER call *apt upgrade*!! This will ruin the environment setting!
+
+### [TROUBLESHOOTING]
+* TensorRT version should match with linked version. Check by below script
 ```python
 from tensorflow.compiler.tf2tensorrt._pywrap_py_utils import get_linked_tensorrt_version
 print(f"Linked TensorRT version {get_linked_tensorrt_version()}")
@@ -138,3 +147,26 @@ print(f"Linked TensorRT version {get_linked_tensorrt_version()}")
 from tensorflow.compiler.tf2tensorrt._pywrap_py_utils import get_loaded_tensorrt_version
 print(f"Loaded TensorRT version {get_loaded_tensorrt_version()}")
 ```
+
+* Tensorflow can raise NUMA-relaed error as shown below in the terminal
+  ```bash
+  successful NUMA node read from SysFS had negative value (-1), but there must be at least one NUMA node, so returning NUMA node zero
+  ```
+  * This error means the numa node setting is incorrect.
+  * check the node id - the one starts with *VGA compatible controller* on the list shown by below command
+  ```bash
+  sys/bus/pci/devicecs/
+  ```
+  * check numa setting. The below command will return *-1* replace *{node-id-above}* with the id found above. this may be *01:00.0*. 
+  ```
+  cat /sys/bus/pci/devices/0000:{node-id-above}/numa_node
+  ```
+  * edit the value to 0
+  ```
+  echo 0 | sudo tee -a /sys/bus/pci/devices/0000:{node-id-above}/numa_node
+  ```
+  * check numa setting again. now it will return 0
+  ```
+  cat /sys/bus/pci/devices/0000:{node-id-above}/numa_node
+  ```
+
