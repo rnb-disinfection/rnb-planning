@@ -96,6 +96,7 @@ class SharedLatticePredictor:
         model_log_dir = os.path.join(self.ROBOT_MODEL_ROOT, model_path_rel)
         model_log_dir_trt = os.path.join(self.ROBOT_MODEL_ROOT, model_path_rel.replace("model", "trt")+"-"+PRECISION)
         if not os.path.isdir(model_log_dir_trt):
+            print("==== Start converting ====")
             from tensorflow.python.compiler.tensorrt import trt_convert as trt
 
             conversion_params = trt.DEFAULT_TRT_CONVERSION_PARAMS
@@ -111,7 +112,9 @@ class SharedLatticePredictor:
                 yield (grasp_img_t, arm_img_t, rh_mask_t)
                 
             converter.build(input_fn=my_input_fn)
+            print("==== Conversion Done ====")
             converter.save(model_log_dir_trt)
+            print("==== Saved Converted model ====")
 
         saved_model_loaded = tf.saved_model.load(
             model_log_dir_trt, tags=[tag_constants.SERVING])
@@ -138,6 +141,8 @@ class SharedLatticePredictor:
         query_in = sa.create(f"shm://{self.ROBOT_TYPE_NAME}.query_in", (1,), dtype=np.bool)
         response_out = sa.create(f"shm://{self.ROBOT_TYPE_NAME}.response_out", (1,), dtype=np.bool)
         query_quit = sa.create(f"shm://{self.ROBOT_TYPE_NAME}.query_quit", (1,), dtype=np.bool)
+        gtimer = GlobalTimer.instance()
+        gtimer.reset()
         grasp_img_p[:] = 0
         arm_img_p[:] = 0
         rh_vals_p[:] = 0
