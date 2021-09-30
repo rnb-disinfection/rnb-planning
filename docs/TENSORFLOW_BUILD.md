@@ -85,15 +85,12 @@ echo 'export PATH=$PATH:/usr/local/cuda-11.2/bin' >> ~/.bashrc \
       && sudo apt-get -y install python-libnvinfer-dev=7.2.3-1+cuda11.1 \
       && sudo apt-get -y install python3-libnvinfer=7.2.3-1+cuda11.1 \
       && sudo apt-get -y install python3-libnvinfer-dev=7.2.3-1+cuda11.1 \
-      && sudo apt-get install uff-converter-tf
+      && sudo apt-get install uff-converter-tf \
+      && pip3 install keras2onnx
     ```
   * Add path in .bashrc
   ```bash
   echo 'export PATH=$PATH:/usr/src/tensorrt/bin' >> ~/.bashrc
-  ```
-  * Install keras2onnx
-  ```bash
-  pip3 install keras2onnx
   ```
   
 * Install Bazelisk

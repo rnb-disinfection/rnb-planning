@@ -154,6 +154,15 @@
 pip install klampt
 ```
 
+### STOMP-ROS  
+```bash
+cd $HOME/catkin_ws/src \
+&& git clone https://github.com/ros-planning/panda_moveit_config.git -b melodic-devel \
+&& git clone https://github.com/ros-industrial/stomp_ros.git -b melodic-devel \
+&& cd $HOME/catkin_ws \
+&& catkin_make -DCMAKE_BUILD_TYPE=Release  
+```  
+
 ### Tesseract  
 * clone tesseract on workspace  
   ```bash

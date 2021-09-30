@@ -25,7 +25,7 @@ sudo apt-get install python3-pip && pip3 install --upgrade pip \
 && pip install setuptools==41.0.0  
 ```
 
-## Setup NVIDIA cuda 11.1 and cudnn 8.1 for tf 2.5.0 (below is official guide from homepage)
+## Setup NVIDIA cuda 11.1 and cudnn 8.1 for tf 2.6.0 (below is official guide from homepage)
 
 * Update repositories
 ```bash
@@ -88,7 +88,7 @@ sudo apt-get install -y --no-install-recommends libnvinfer7=7.2.3-1+cuda11.1 \
   
 * Install tensorflow
 ```bash
-pip3 install tensorflow-gpu==2.5.0
+pip3 install tensorflow-gpu==2.6.0
 ```
 
 * TensorRT 7.2.3 (compatible with cudnn 8.1.1 above)
@@ -120,6 +120,12 @@ pip3 install tensorflow-gpu==2.5.0
   pip3 install keras2onnx
   ```
 
+* hold upgrade
+```bash
+echo "libcudnn8 hold" | sudo dpkg --set-selections \
+&& echo "libcudnn8-dev hold" | sudo dpkg --set-selections
+```
+
 * ***[IMPORTANT]*** in TF 2.4.0, add below to python script before using tensorflow or you get "no algorithm worked" error! (no need to explicitly use session)
 ```python
 from tensorflow.compat.v1 import ConfigProto
@@ -129,6 +135,8 @@ config = ConfigProto()
 config.gpu_options.allow_growth = True
 session = InteractiveSession(config=config)
 ```
+
+* ***[IMPORTANT]*** NEVER call *apt upgrade*!! This will ruin the environment setting!
 
 ### [TROUBLESHOOTING]
 * TensorRT version should match with linked version. Check by below script
