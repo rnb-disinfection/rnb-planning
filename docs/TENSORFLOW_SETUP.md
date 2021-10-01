@@ -27,7 +27,7 @@ mkdir ~/NVIDIA_TMP && cd ~/NVIDIA_TMP \
 
 * Install NVIDIA driver
 ```bash
-sudo apt-get install --no-install-recommends nvidia-driver-460=460.91.03-0ubuntu1 \
+sudo apt-get install --no-install-recommends nvidia-driver-460=460.91.03-0ubuntu1 libxnvctrl0=460.91.03-0ubuntu1 nvidia-modprobe nvidia-settings=460.91.03-0ubuntu1 \
 && sudo apt-get install cuda-drivers=460.91.03-1
 ```
 
