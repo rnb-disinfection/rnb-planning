@@ -4,8 +4,8 @@
 * Until tensorflow 2.6.0, the compiled versions on pip is linked with TensorRT=7.2.2
 * TensorRT>=7.2.3 is needed to it is the first version that supports Conv3D
 * This document is based on the package versions below.
-  * nvidia driver == 460.32
-  * CUDA == 1.1.2 ***update 1***
+  * nvidia driver == 460.91.03
+  * CUDA == 11.2 ***update 1***
   * cuDNN == 8.1.1
   * TensorRT == 7.2.3
   * Tensorflow == 2.6.0
@@ -61,7 +61,7 @@ echo 'export PATH=$PATH:/usr/local/cuda-11.2/bin' >> ~/.bashrc \
   * Check that GPUs are visible using the command: nvidia-smi
 
 * TensorRT 7.2.3 (compatible with cudnn 8.1.1 above)
-  * Download *TensorRT 7.2.3 for Linux and CUDA 11.1* from https://developer.nvidia.com/tensorrt.
+  * Download *TensorRT 7.2.3 for Linux and CUDA 11.2* from https://developer.nvidia.com/tensorrt.
     * Select Ubundu 18.04 deb file
   * Follow the installation guide from https://docs.nvidia.com/deeplearning/tensorrt/archives/tensorrt-723/install-guide/index.html
     * Example:
@@ -103,6 +103,7 @@ echo 'export PATH=$PATH:/usr/local/cuda-11.2/bin' >> ~/.bashrc \
 ```bash
 pip3 install tensorflow-gpu==2.6.0
 ```
+  * Tensorflow is installed. 
 
 ### CASE 2: Build from source code
 * Install Bazelisk
