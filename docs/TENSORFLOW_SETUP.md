@@ -27,8 +27,9 @@ mkdir ~/NVIDIA_TMP && cd ~/NVIDIA_TMP \
 
 * Install NVIDIA driver
 ```bash
-sudo apt-get install --no-install-recommends nvidia-driver-460=460.91.03-0ubuntu1 libxnvctrl0=460.91.03-0ubuntu1 nvidia-modprobe nvidia-settings=460.91.03-0ubuntu1 \
-&& sudo apt-get install cuda-drivers=460.91.03-1
+sudo apt-get install --no-install-recommends nvidia-driver-460=460.91.03-0ubuntu1 \
+&& libxnvctrl0=460.91.03-0ubuntu1 \
+&& nvidia-modprobe nvidia-settings=460.91.03-0ubuntu1
 ```
 
 * ***[IMPORTANT]*** Reboot!!!  
@@ -36,7 +37,8 @@ sudo apt-get install --no-install-recommends nvidia-driver-460=460.91.03-0ubuntu
 
 * Install cuda - this will install many dependancies like cudart,cublas of version 11.2
 ```bash
-sudo apt-get install --no-install-recommends cuda-11-2=11.2.1-1
+sudo apt-get install cuda-drivers=460.91.03-1 \
+&& sudo apt-get install --no-install-recommends cuda-11-2=11.2.1-1
 ```
 
 * Install cudnn
