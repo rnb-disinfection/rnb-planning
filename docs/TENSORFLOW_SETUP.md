@@ -151,7 +151,8 @@ pip3 install /tmp/tensorflow_pkg/tensorflow-2.6.0-cp36-cp36m-linux_x86_64.whl
 sudo apt remove --purge '*nvidia*' '*cuda*' 'libcudnn*' 'libcublas*' \
 && sudo apt remove --purge 'libcufft*' 'libcurand*' 'libcusolver*' 'libcusparse*' 'libnpp*' \
 && sudo rm -rf /usr/local/cuda \
-&& sudo apt remove --purge libxnvctrl0 graphsurgeon-tf
+&& sudo apt remove --purge libxnvctrl0 \
+&& sudo apt remove --purge graphsurgeon-tf
 ```
 * check installed lists
 ```bash
