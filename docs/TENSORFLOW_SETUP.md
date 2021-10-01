@@ -104,7 +104,7 @@ echo 'export PATH=$PATH:/usr/local/cuda-11.2/bin' >> ~/.bashrc \
 ## Install Tensorflow by pip3 or building from source
 ### CASE 1: Install with pip3
 ```bash
-pip3 install tensorflow-gpu==2.6.0
+pip3 install tensorflow-gpu==2.6.0 --force-reinstall
 ```
   * Tensorflow is installed. 
 
@@ -141,7 +141,7 @@ bazel build --config=opt  --local_ram_resources=16384 --jobs=10 //tensorflow/too
 ```
 * Install whl
 ```bash
-pip3 install /tmp/tensorflow_pkg/tensorflow-2.6.0-cp36-cp36m-linux_x86_64.whl
+pip3 install /tmp/tensorflow_pkg/tensorflow-2.6.0-cp36-cp36m-linux_x86_64.whl --force-reinstall
 ```
 
 ## Supplementary
