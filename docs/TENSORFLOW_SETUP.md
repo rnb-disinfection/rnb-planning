@@ -41,6 +41,9 @@ sudo apt-get install cuda-drivers=460.91.03-1 \
 && sudo apt-get install --no-install-recommends cuda-11-2=11.2.1-1
 ```
 
+* ***[IMPORTANT]*** Reboot!!!  
+  * Check that GPUs are visible using the command: nvidia-smi
+
 * Install cudnn
 ```bash
 sudo apt-get install --no-install-recommends \
