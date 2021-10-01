@@ -1,13 +1,12 @@
-# Build tensorflow from source code
-* This document introduces how to build the tensorflow from source code.
-* Building TF from source code is specifically required to use TensorRT>=7.2.3 with tensorflow<=2.6.0
+# TensorFlow-TensorRT Setup Process
 * Until tensorflow 2.6.0, the compiled versions on pip is linked with TensorRT=7.2.2
 * TensorRT>=7.2.3 is needed to it is the first version that supports Conv3D
+* Building TF from source code is explained in **Build from source code**, but just building the same code with TensorRT==7.2.3 does not work. Just install compiled whl from pip.
 * This document is based on the package versions below.
-  * nvidia driver == 460.32
-  * CUDA == 1.1.2 ***update 1***
+  * nvidia driver == 460.91.03
+  * CUDA == 11.2 update 1
   * cuDNN == 8.1.1
-  * TensorRT == 7.2.3
+  * TensorRT == 7.2.2
   * Tensorflow == 2.6.0
 
 ## Prepare dependencies
@@ -28,7 +27,9 @@ mkdir ~/NVIDIA_TMP && cd ~/NVIDIA_TMP \
 * Install NVIDIA driver
 ```bash
 sudo apt-get install --no-install-recommends nvidia-driver-460=460.91.03-0ubuntu1 \
-&& sudo apt-get install cuda-drivers=460.91.03-1
+  libxnvctrl0=460.91.03-0ubuntu1 \
+  nvidia-modprobe=460.91.03-0ubuntu1 \
+  nvidia-settings=460.91.03-0ubuntu1
 ```
 
 * ***[IMPORTANT]*** Reboot!!!  
@@ -36,8 +37,12 @@ sudo apt-get install --no-install-recommends nvidia-driver-460=460.91.03-0ubuntu
 
 * Install cuda - this will install many dependancies like cudart,cublas of version 11.2
 ```bash
-sudo apt-get install --no-install-recommends cuda-11-2=11.2.1-1
+sudo apt-get install cuda-drivers=460.91.03-1 \
+&& sudo apt-get install --no-install-recommends cuda-11-2=11.2.1-1
 ```
+
+* ***[IMPORTANT]*** Reboot!!!  
+  * Check that GPUs are visible using the command: nvidia-smi
 
 * Install cudnn
 ```bash
@@ -60,34 +65,34 @@ echo 'export PATH=$PATH:/usr/local/cuda-11.2/bin' >> ~/.bashrc \
 * ***[IMPORTANT]*** Reboot!!!  
   * Check that GPUs are visible using the command: nvidia-smi
 
-* TensorRT 7.2.3 (compatible with cudnn 8.1.1 above)
-  * Download *TensorRT 7.2.3 for Linux and CUDA 11.1* from https://developer.nvidia.com/tensorrt.
+* TensorRT 7.2.2
+  * Download *TensorRT 7.2.2 for Linux and CUDA 11.2* from https://developer.nvidia.com/tensorrt.
     * Select Ubundu 18.04 deb file
   * Follow the installation guide from https://docs.nvidia.com/deeplearning/tensorrt/archives/tensorrt-723/install-guide/index.html
     * Example:
     ```bash
     os="ubuntu1804" \
-      && tag="cuda11.1-trt7.2.3.4-ga-20210226" \
+      && tag="cuda11.1-trt7.2.2.3-ga-20201211" \
       && sudo dpkg -i nv-tensorrt-repo-${os}-${tag}_1-1_amd64.deb \
-      && sudo apt-key add /var/nv-tensorrt-repo-${os}-${tag}/7fa2af80.pub \
+      && sudo apt-key add /var/nv-tensorrt-repo-${tag}/7fa2af80.pub \
       && sudo apt-get update
-      ```
+    ```
     * apt-get update sometimes generates errors. You can ignore and continue mostly.
     ```bash  
-    sudo apt-get -y install --no-install-recommends libnvinfer7=7.2.3-1+cuda11.1 \
-      libnvinfer-dev=7.2.3-1+cuda11.1 \
-      libnvinfer-plugin7=7.2.3-1+cuda11.1 \
-      libnvinfer-plugin-dev=7.2.3-1+cuda11.1 \
-      libnvparsers7=7.2.3-1+cuda11.1 \
-      libnvparsers-dev=7.2.3-1+cuda11.1 \
-      libnvonnxparsers7=7.2.3-1+cuda11.1 \
-      libnvonnxparsers-dev=7.2.3-1+cuda11.1 \
-      libnvinfer-samples=7.2.3-1+cuda11.1 \
-      && sudo apt-get -y install tensorrt=7.2.3.4-1+cuda11.1 \
-      && sudo apt-get -y install python-libnvinfer=7.2.3-1+cuda11.1 \
-      && sudo apt-get -y install python-libnvinfer-dev=7.2.3-1+cuda11.1 \
-      && sudo apt-get -y install python3-libnvinfer=7.2.3-1+cuda11.1 \
-      && sudo apt-get -y install python3-libnvinfer-dev=7.2.3-1+cuda11.1 \
+    sudo apt-get -y install --no-install-recommends libnvinfer7=7.2.2-1+cuda11.1 \
+      libnvinfer-dev=7.2.2-1+cuda11.1 \
+      libnvinfer-plugin7=7.2.2-1+cuda11.1 \
+      libnvinfer-plugin-dev=7.2.2-1+cuda11.1 \
+      libnvparsers7=7.2.2-1+cuda11.1 \
+      libnvparsers-dev=7.2.2-1+cuda11.1 \
+      libnvonnxparsers7=7.2.2-1+cuda11.1 \
+      libnvonnxparsers-dev=7.2.2-1+cuda11.1 \
+      libnvinfer-samples=7.2.2-1+cuda11.1 \
+      && sudo apt-get -y install tensorrt=7.2.2.3-1+cuda11.1 \
+      && sudo apt-get -y install python-libnvinfer=7.2.2-1+cuda11.1 \
+      && sudo apt-get -y install python-libnvinfer-dev=7.2.2-1+cuda11.1 \
+      && sudo apt-get -y install python3-libnvinfer=7.2.2-1+cuda11.1 \
+      && sudo apt-get -y install python3-libnvinfer-dev=7.2.2-1+cuda11.1 \
       && sudo apt-get install uff-converter-tf \
       && pip3 install keras2onnx
     ```
@@ -101,8 +106,9 @@ echo 'export PATH=$PATH:/usr/local/cuda-11.2/bin' >> ~/.bashrc \
 ## Install Tensorflow by pip3 or building from source
 ### CASE 1: Install with pip3
 ```bash
-pip3 install tensorflow-gpu==2.6.0
+pip3 install tensorflow-gpu==2.6.0 --force-reinstall
 ```
+  * Tensorflow is installed. 
 
 ### CASE 2: Build from source code
 * Install Bazelisk
@@ -137,20 +143,18 @@ bazel build --config=opt  --local_ram_resources=16384 --jobs=10 //tensorflow/too
 ```
 * Install whl
 ```bash
-pip3 install /tmp/tensorflow_pkg/tensorflow-2.6.0-cp36-cp36m-linux_x86_64.whl
+pip3 install /tmp/tensorflow_pkg/tensorflow-2.6.0-cp36-cp36m-linux_x86_64.whl --force-reinstall
 ```
 
 ## Supplementary
 ### nvidia, cuda, cudnn, tensorrt Clean Unsintall
 * uninstall all related packages
 ```bash
-sudo apt-get remove --purge '^nvidia-.*' \
-&& sudo apt-get remove --purge 'cuda*' \
-&& sudo apt-get remove --purge 'nv-tensorrt*' \
-&& sudo apt-get remove --purge 'libnv*' \
-&& sudo apt-get remove --purge 'libcudnn*' \
-&& sudo apt-get remove --purge 'libcublas*' \
-&& sudo rm -rf /usr/local/cuda
+sudo apt remove --purge '*nvidia*' '*cuda*' 'libcudnn*' 'libcublas*' \
+&& sudo apt remove --purge 'libcufft*' 'libcurand*' 'libcusolver*' 'libcusparse*' 'libnpp*' \
+&& sudo rm -rf /usr/local/cuda \
+&& sudo apt remove --purge libxnvctrl0 libnvjpeg-11-2 libnvjpeg-dev-11-2 \
+&& sudo apt remove --purge graphsurgeon-tf
 ```
 * check installed lists
 ```bash
