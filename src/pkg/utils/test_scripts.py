@@ -90,7 +90,7 @@ def create_data_dirs(dat_root, rtype, dat_dir=None):
 from pkg.planning.constraint.constraint_subject import CustomObject, Grasp2Point, PlacePoint, SweepPoint, SweepTask
 from pkg.planning.filtering.lattice_model.scene_building import *
 
-def load_saved_scene(pscene, file_path, VISUALIZE=True):
+def load_saved_scene(pscene, file_path, VISUALIZE=True, GRIP_DEPTH=None, CLEARANCE=None):
     gscene = pscene.gscene
     saved_data = load_pickle(file_path)
     gtem_args = saved_data['gtem_args']
@@ -98,17 +98,20 @@ def load_saved_scene(pscene, file_path, VISUALIZE=True):
 
     load_gtem_args(gscene, gtem_args)
 
-    pscene.create_binder(bname="wp", gname="wp", _type=PlacePlane, point=None)
-    pscene.create_binder(bname="gp", gname="gp", _type=PlacePlane, point=None)
+    if "wp" in gscene.NAME_DICT:
+        pscene.create_binder(bname="wp", gname="wp", _type=PlacePlane, point=None)
+    if "gp" in gscene.NAME_DICT:
+        pscene.create_binder(bname="gp", gname="gp", _type=PlacePlane, point=None)
+
 
     obj_set_list = []
     for obj_name in sorted(obj_args.keys()):
         obj, obj_arg = DummyObject(), obj_args[obj_name]
         obj.name = obj_name
-        obj.GRIP_DEPTH = obj_arg["GRIP_DEPTH"]
+        obj.GRIP_DEPTH = obj_arg["GRIP_DEPTH"] if "GRIP_DEPTH" in obj_arg else GRIP_DEPTH
         obj.DIM = obj_arg["DIM"]
         obj.geometry = gscene.NAME_DICT[obj_arg["gname"]]
-        obj.CLEARANCE = obj_arg["CLEARANCE"]
+        obj.CLEARANCE = obj_arg["CLEARANCE"] if "CLEARANCE" in obj_arg else CLEARANCE
         obj_pscene, handles = add_object(pscene, obj)
         obj_set_list.append((obj, obj_pscene, handles))
 
