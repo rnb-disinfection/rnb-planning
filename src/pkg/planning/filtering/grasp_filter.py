@@ -131,6 +131,43 @@ class GraspChecker(MotionFilterInterface):
     #           each list item consist of (geometry name, T(4x4), vertices, radius, geometry dimensions)
     def get_grasping_vert_infos(self, actor, obj, T_loal, Q_dict, obj_only=False,
                                 interpolate=False, ignore=[]):
+
+        (object_geo_list, object_T2end_dict), (actor_geo_list, actor_T2end_dict) = \
+            self.get_geolist_tflist_pairs(actor, obj, Q_dict, obj_only=obj_only, ignore=ignore)
+
+        if interpolate:
+            T_loal_cur = get_tf(actor_link, Q_dict, self.gscene.urdf_content, from_link=object_link)
+            T_loal_list = interpolate_T(T_loal_cur, T_loal,
+                                        POS_STEP=self.POS_STEP, ROT_STEP=self.ROT_STEP)
+        else:
+            T_loal_list = [T_loal]
+
+        actor_vertinfo_list = []
+        object_vertinfo_list = []
+        for ac_geo in actor_geo_list:
+            for T_loal_ in T_loal_list:
+                T = actor_T2end_dict[ac_geo.link_name]
+                verts, radius = ac_geo.get_vertice_radius()
+                Tac = np.matmul(T_loal_, np.matmul(T, ac_geo.Toff))
+                actor_vertinfo_list.append((ac_geo.name, Tac, verts, radius, ac_geo.dims))
+
+        for obj_geo in object_geo_list:
+            T = object_T2end_dict[obj_geo.link_name]
+            verts, radius = obj_geo.get_vertice_radius()
+            Tobj = np.matmul(T, obj_geo.Toff)
+            object_vertinfo_list.append((obj_geo.name, Tobj, verts, radius, obj_geo.dims))
+        return actor_vertinfo_list, object_vertinfo_list, actor_T2end_dict, object_T2end_dict
+
+    ##
+    # @brief get geometries and corresponding link transform matrices related to grasping motion
+    # @param actor      rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
+    # @param obj        rnb-planning.src.pkg.planning.constraint.constraint_subject.Subject
+    # @param Q_dict     joint configuration in dictionary format {joint name: radian value}
+    # @param obj_only   only use object and its family's geometry from the object side
+    # @param ignore         GeometryItems to ignore
+    # @return   (object_geo_list,object_T2end_dict), (actor_geo_list, actor_T2end_dict), where T2end_dict is
+    #           {link: link transform matrix to actor's or object's link}
+    def get_geolist_tflist_pairs(self, actor, obj, Q_dict, obj_only=False, ignore=[]):
         # gtimer = GlobalTimer.instance()
         # gtimer.tic("preprocess")
 
@@ -167,44 +204,13 @@ class GraspChecker(MotionFilterInterface):
             elif gtem_ig in object_geo_list:
                 object_geo_list.remove(gtem_ig)
 
-        #     with gtimer.block("link_offset"):
-
-        if interpolate:
-            T_loal_cur = get_tf(actor_link, Q_dict, self.gscene.urdf_content, from_link=object_link)
-            T_loal_list = interpolate_T(T_loal_cur, T_loal,
-                                        POS_STEP=self.POS_STEP, ROT_STEP=self.ROT_STEP)
-        else:
-            T_loal_list = [T_loal]
-        # gtimer.toc("preprocess")
-
-        #     with gtimer.block('extract_vertices'):
-        # gtimer.tic("invT")
         if actor_link == "base_link":
-            actor_Tinv_dict = get_T_dict_foward(actor_link, actor_link_names, Q_dict, self.gscene.urdf_content)
+            actor_T2end_dict = get_T_dict_foward(actor_link, actor_link_names, Q_dict, self.gscene.urdf_content)
         else:
-            actor_Tinv_dict = get_T_dict_reverse(actor_link, actor_link_names, Q_dict, self.gscene.urdf_content)
+            actor_T2end_dict = get_T_dict_reverse(actor_link, actor_link_names, Q_dict, self.gscene.urdf_content)
         if object_link == "base_link":
-            object_Tinv_dict = get_T_dict_foward(object_link, object_link_names, Q_dict, self.gscene.urdf_content)
+            object_T2end_dict = get_T_dict_foward(object_link, object_link_names, Q_dict, self.gscene.urdf_content)
         else:
-            object_Tinv_dict = get_T_dict_reverse(object_link, object_link_names, Q_dict, self.gscene.urdf_content)
+            object_T2end_dict = get_T_dict_reverse(object_link, object_link_names, Q_dict, self.gscene.urdf_content)
 
-        # gtimer.toc("invT")
-        actor_vertinfo_list = []
-        object_vertinfo_list = []
-        for ac_geo in actor_geo_list:
-            for T_loal_ in T_loal_list:
-                # gtimer.tic("ac_geo_calc_verts")
-                T = actor_Tinv_dict[ac_geo.link_name]
-                verts, radius = ac_geo.get_vertice_radius()
-                Tac = np.matmul(T_loal_, np.matmul(T, ac_geo.Toff))
-                actor_vertinfo_list.append((ac_geo.name, Tac, verts, radius, ac_geo.dims))
-                # gtimer.toc("ac_geo_calc_verts")
-
-        for obj_geo in object_geo_list:
-            # gtimer.tic("obj_geo_calc_verts")
-            T = object_Tinv_dict[obj_geo.link_name]
-            verts, radius = obj_geo.get_vertice_radius()
-            Tobj = np.matmul(T, obj_geo.Toff)
-            object_vertinfo_list.append((obj_geo.name, Tobj, verts, radius, obj_geo.dims))
-            # gtimer.toc("obj_geo_calc_verts")
-        return actor_vertinfo_list, object_vertinfo_list, actor_Tinv_dict, object_Tinv_dict
+        return (object_geo_list,object_T2end_dict), (actor_geo_list, actor_T2end_dict)

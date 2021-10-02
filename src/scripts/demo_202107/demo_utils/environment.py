@@ -169,7 +169,7 @@ def add_track(table, TABLE_HEIGHT, area_depth, area_width, corner_center):
                                color=(0.0,0.8,0.8,0.2), display=True, fixed=True, collision=True)
     track_face = gscene.copy_from(track, new_name="track_face", collision=False, color=(0.8,0.8,0.8,0.0))
     TRACK_DIM = np.copy(track_face.dims)
-    track_face.dims = (3, 3, track.dims[2])
+    track_face.set_dims((3, 3, track.dims[2]))
     gscene.update_markers_all()
     return track, track_face
 

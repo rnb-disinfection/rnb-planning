@@ -120,7 +120,7 @@ class LatticedChecker(MotionFilterInterface):
 
 
     ##
-    # @brief check end-effector collision in grasping
+    # @brief check end-effector collision in grasping - approximate cell-overlaps with inscribed sphere cells
     # @param actor  rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
     # @param obj    rnb-planning.src.pkg.planning.constraint.constraint_subject.Subject
     # @param handle rnb-planning.src.pkg.planning.constraint.constraint_common.ActionPoint
@@ -129,14 +129,148 @@ class LatticedChecker(MotionFilterInterface):
     # @param interpolate    interpolate path and check intermediate poses
     def check(self, btf, Q_dict, interpolate=False, ignore=[],**kwargs):
         obj, handle, actor = btf.get_instance_chain(self.pscene)
+        T_loal = btf.T_loal
+        object_link = obj.geometry.link_name
+        actor_link = actor.geometry.link_name
+
+        gtimer = GlobalTimer.instance()
+        (object_geo_list, object_T2end_dict), (actor_geo_list, actor_T2end_dict) = \
+            self.gcheck.get_geolist_tflist_pairs(actor, obj, Q_dict, ignore=ignore, **kwargs)
+        with gtimer.block("set_relation"):
+            obj_names = obj.geometry.get_family()
+            group_name_handle = self.binder_link_robot_dict[
+                object_link] if object_link in self.binder_link_robot_dict else None
+            group_name_actor = self.binder_link_robot_dict[
+                actor_link] if actor_link in self.binder_link_robot_dict else None
+
+            if group_name_actor and not group_name_handle:
+                group_name = group_name_actor
+                T_br = self.gscene.get_tf(self.base_dict[group_name], Q=Q_dict,
+                                          from_link=obj.geometry.link_name)
+                T_re = np.matmul(SE3_inv(T_br), T_loal)
+                T_tool_to_rob = T_re
+                tool_geo_list, tool_T2end_dict = actor_geo_list, actor_T2end_dict
+                T_tar_to_rob = SE3_inv(T_br)
+                target_geo_list, target_T2end_dict = object_geo_list, object_T2end_dict
+
+            elif group_name_handle and not group_name_actor:
+                group_name = group_name_handle
+                T_br = self.gscene.get_tf(self.base_dict[group_name], Q=Q_dict,
+                                          from_link=actor.geometry.link_name)
+                T_re = np.matmul(SE3_inv(T_br), SE3_inv(T_loal))
+                T_tool_to_rob = T_re
+                tool_geo_list, tool_T2end_dict = object_geo_list, object_T2end_dict
+                T_tar_to_rob = np.matmul(T_re, T_loal)
+                target_geo_list, target_T2end_dict = actor_geo_list, actor_T2end_dict
+
+            else:
+                raise ("Invaild robot")
+
+        self.ltc_effector.clear()
+        self.ltc_arm_10.clear()
+
+        r, th, h = cart2cyl(*T_tool_to_rob[:3, 3])
+        self.rth_last = r, th, h
+        T_rl = SE3(Rot_axis(3, th), T_re[:3, 3])  # in robot base link coordinate
+        target_names = [gtem.name for gtem in target_geo_list if gtem.name not in obj_names]
+        tool_names = [gtem.name for gtem in tool_geo_list]
+
+        with gtimer.block("effector"):
+            T_gl_list = []
+            gtem_list = target_geo_list + tool_geo_list
+            for gtem in gtem_list:
+                if gtem.link_name in tool_T2end_dict:
+                    T_rg = matmul_series(T_tool_to_rob, tool_T2end_dict[gtem.link_name], gtem.Toff)
+                else:
+                    T_rg = matmul_series(T_tar_to_rob, target_T2end_dict[gtem.link_name], gtem.Toff)
+                T_lg = np.matmul(SE3_inv(T_rl), T_rg)
+                T_gl = SE3_inv(T_lg)
+                T_gl_list.append(T_gl)
+
+            self.ltc_effector.convert_vertices_approx(gtem_list, T_gl_list)
+
+        with gtimer.block("arm"):
+            link_env = [lname for lname in self.gscene.link_names
+                        if lname not in self.robot_chain_dict[group_name]["link_names"]]
+            gtems_env = [gtem for gtem in self.gscene
+                         if gtem.collision
+                         and gtem.link_name in link_env]
+            Trl_base = SE3(T_rl[:3, :3], (0, 0, self.shoulder_height_dict[group_name]))  # in robot base link coordinate
+            T_bl = np.matmul(T_br, Trl_base)
+            T_lb = SE3_inv(T_bl)
+            Tlist_env = {lname: self.gscene.get_tf(lname, Q_dict) for lname in link_env}
+            T_gl_list_env = []
+            for gtem in gtems_env:
+                T_lg = matmul_series(T_lb, Tlist_env[gtem.link_name], gtem.Toff)
+                T_gl = SE3_inv(T_lg)
+                T_gl_list_env.append(T_gl)
+            self.ltc_arm_10.convert_vertices_approx(gtems_env, T_gl_list_env)
+
+        with gtimer.block("indexing_vertices"):
+            grasp_tar_idx = sorted(set(itertools.chain(*[self.ltc_effector.coll_idx_dict[tname]
+                                                         for tname in target_names
+                                                         if tname in self.ltc_effector.coll_idx_dict])))
+            grasp_tool_idx = sorted(set(itertools.chain(*[self.ltc_effector.coll_idx_dict[tname]
+                                                          for tname in tool_names
+                                                          if tname in self.ltc_effector.coll_idx_dict])))
+            grasp_obj_idx = sorted(set(itertools.chain(*[self.ltc_effector.coll_idx_dict[tname]
+                                                         for tname in obj_names
+                                                         if tname in self.ltc_effector.coll_idx_dict])))
+            arm_tar_idx = sorted(set(itertools.chain(*[self.ltc_arm_10.coll_idx_dict[tname]
+                                                       for tname in target_names
+                                                       if tname in self.ltc_arm_10.coll_idx_dict])))
+
+            r, th, h = cart2cyl(*T_re[:3, 3])
+            rh_vals = np.array([r, h])
+            grasp_tool_img = np.zeros(GRASP_SHAPE)
+            grasp_tar_img = np.zeros(GRASP_SHAPE)
+            grasp_obj_img = np.zeros(GRASP_SHAPE)
+            try:
+                grasp_tool_img[np.unravel_index(grasp_tool_idx, shape=GRASP_SHAPE)] = 1
+                grasp_tar_img[np.unravel_index(grasp_tar_idx, shape=GRASP_SHAPE)] = 1
+                grasp_obj_img[np.unravel_index(grasp_obj_idx, shape=GRASP_SHAPE)] = 1
+                arm_img = np.zeros(ARM_SHAPE + (1,))
+                arm_img[np.unravel_index(arm_tar_idx, shape=ARM_SHAPE)] = 1
+                grasp_img = np.stack([grasp_tool_img, grasp_obj_img, grasp_tar_img], axis=-1)
+            except Exception as e:
+                save_scene(self.__class__.__name__, self.pscene, btf, Q_dict,
+                           error_state=True, result=None, ignore=[igtem.name for igtem in ignore], **kwargs)
+                print("===== THE ERROR OCCURED!!! =====")
+                print("===== THE ERROR OCCURED!!! =====")
+                print("===== THE ERROR OCCURED!!! =====")
+                print(e)
+                print("===== obj_names =====")
+                print(obj_names)
+
+        with gtimer.block("query_wait_response"):
+            res = self.query_wait_response(self.rconfig_dict[group_name].type.name,
+                                           np.array([grasp_img]), np.array([arm_img]), np.array([rh_vals]),
+                                           )[0]
+        if DEBUG_LAT_FILT_LOG:
+            save_scene(self.__class__.__name__, self.pscene, btf, Q_dict,
+                       error_state=False, result=res, ignore=[igtem.name for igtem in ignore], **kwargs)
+        return res[-1]>0.5
+
+
+    ##
+    # @brief check end-effector collision in grasping, calculate voxels by strict cell-overlap checking
+    # @param actor  rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
+    # @param obj    rnb-planning.src.pkg.planning.constraint.constraint_subject.Subject
+    # @param handle rnb-planning.src.pkg.planning.constraint.constraint_common.ActionPoint
+    # @param btf    BindingTransorm instance
+    # @param Q_dict joint configuration in dictionary format {joint name: radian value}
+    # @param interpolate    interpolate path and check intermediate poses
+    def check_strict(self, btf, Q_dict, interpolate=False, ignore=[],**kwargs):
+        obj, handle, actor = btf.get_instance_chain(self.pscene)
         actor_link = actor.geometry.link_name
         object_link = obj.geometry.link_name
         T_loal = btf.T_loal
 
         gtimer = GlobalTimer.instance()
         with gtimer.block("get_grasping_vert_infos"):
-            actor_vertinfo_list, object_vertinfo_list, actor_Tinv_dict, object_Tinv_dict = \
-                self.gcheck.get_grasping_vert_infos(actor, obj, T_loal, Q_dict, ignore=ignore)
+            actor_vertinfo_list, object_vertinfo_list, actor_T2end_dict, object_T2end_dict = \
+                self.gcheck.get_grasping_vert_infos(actor, obj, T_loal, Q_dict, ignore=ignore,
+                                                    **kwargs)
 
         with gtimer.block("transform_verts"):
             obj_names = obj.geometry.get_family()
@@ -169,7 +303,7 @@ class LatticedChecker(MotionFilterInterface):
             for vertinfo in verts_to_move:
                 tool_vertinfo_list.remove(vertinfo)
 
-        with gtimer.block("convert_vertices"):
+        with gtimer.block("convert_vertices_end"):
             self.ltc_effector.clear()
             self.ltc_arm_10.clear()
 
@@ -184,6 +318,7 @@ class LatticedChecker(MotionFilterInterface):
             self.ltc_effector.convert_vertices(tool_vertinfo_list, Tref=Tref)
             self.ltc_effector.convert_vertices(target_vertinfo_list, Tref=Tref)
 
+        with gtimer.block("convert_vertices_arm"):
             Tref_base = SE3(Tref[:3, :3], (0, 0, self.shoulder_height_dict[group_name])) # in robot base link coordinate
 
             self.ltc_arm_10.convert([gtem for gtem in self.gscene

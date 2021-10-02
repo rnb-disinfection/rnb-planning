@@ -146,7 +146,7 @@ wp = gscene.NAME_DICT["wp"]
 wp.set_offset_tf(center=np.add(wp.center, (0,0,0.4)))
 wpa.update_handle()
 wpb = gscene.NAME_DICT["wp_bot"]
-wpb.dims = np.subtract(wpb.dims, (0.1, 0.1, 0.0))
+wpb.set_dims(np.subtract(wpb.dims, (0.1, 0.1, 0.0)))
 wpb.set_offset_tf(center=np.add(wpb.center, (0,0,0.4)))
 wp_ceil = gscene.copy_from(wp, new_name="wp_ceil")
 wp_ceil.set_offset_tf(center = np.add(wp.center, (0,0,0.3)))

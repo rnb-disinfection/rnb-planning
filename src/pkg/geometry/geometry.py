@@ -428,6 +428,8 @@ class GeometryItem(object):
     # @brief set dimension, update raidus and length for cylinder, capsule and sphere
     # @param dims tuple of 3 doubles in m scale.
     def set_dims(self, dims):
+        if dims is None:
+            return
         self.dims = dims
         self.radius = np.mean(dims[:2])/2 if self.gtype in [GEOTYPE.SPHERE, GEOTYPE.CAPSULE, GEOTYPE.CYLINDER] else 0
         self.length = dims[2]
@@ -585,7 +587,7 @@ class GeometryItem(object):
             raise(NotImplementedError("Permutation for {} is not implemented.".format(gtem.gtype)))
 
         gtem.set_offset_tf(orientation_mat=np.matmul(gtem.orientation_mat, Roff))
-        gtem.dims = tuple(np.abs(np.matmul(Roff.transpose(), gtem.dims)))
+        gtem.set_dims(tuple(np.abs(np.matmul(Roff.transpose(), gtem.dims))))
         
     def get_args(self):
         center = self.center if self.parent is None else self.center_child
