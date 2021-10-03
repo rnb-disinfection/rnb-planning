@@ -28,7 +28,7 @@ class WorkPlane(ObstacleBase):
         if edge_margin > 1e-6:
             gtem = gscene.NAME_DICT[name]
             gtem_new = gscene.copy_from(gtem, new_name=name + "_bot")
-            gtem.dims = np.subtract(gtem_new.dims, (edge_margin * 2, edge_margin * 2, 0))
+            gtem.set_dims(np.subtract(gtem_new.dims, (edge_margin * 2, edge_margin * 2, 0)))
             gscene.update_marker(gtem)
             gscene.update_marker(gtem_new)
 

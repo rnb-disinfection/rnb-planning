@@ -130,6 +130,22 @@ class Latticizer_py:
             self.coll_idx_dict[geo_name] = coll_idxes
 
     ##
+    # @brief update colliding cell indexes with geomerty list
+    # @param gtem_list GeometryItem list
+    # @param T_gl_list list of transformation of the lattice from the geometry
+    def convert_vertices_approx(self, gtem_list, T_gl_list):
+        for gtem, T_gl in zip(gtem_list, T_gl_list):
+            Rcoeffs = tuple(map(float, T_gl[:3, :3].flatten()))
+            Pcoeffs = tuple(map(float, T_gl[:3, 3]))
+            dims_bp = make_point3_ltc(*gtem.dims)
+            coll_idxes_bp = self.ltc_bp.get_colliding_cells_approx(*(Rcoeffs + Pcoeffs + (gtem.gtype.value, dims_bp)))
+            num_colls = len(coll_idxes_bp)
+            coll_idxes = np.zeros(num_colls, dtype=np.int)
+            for i in range(num_colls):
+                coll_idxes[i] = coll_idxes_bp[i]
+            self.coll_idx_dict[gtem.name] = coll_idxes
+
+    ##
     # @brief convert flattened index to 3D grid indices
     def index_to_grid(self, idxes):
         return np.unravel_index(idxes, self.Nwdh)

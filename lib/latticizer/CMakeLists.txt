@@ -21,7 +21,7 @@ set(CMAKE_SHARED_LIBRARY_PREFIX "") # output file name should match with BOOST_P
 ##############################  BUILD LIBRARY ##############################
 add_library(${PROJECT_NAME} SHARED
         src/latticizer.cpp
-        src/boost_python_interface.cpp include/timer.h)
+        src/boost_python_interface.cpp include/timer.h include/logger.h src/logger.cpp)
 target_link_libraries(${PROJECT_NAME} ${PYTHON_LIBRARIES} ${Boost_LIBRARIES} ${Eigen3_LIBRARIES})
 ##############################  BUILD LIBRARY ##############################
 ############################################################################

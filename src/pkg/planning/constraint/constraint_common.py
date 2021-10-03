@@ -314,6 +314,21 @@ def fit_binding(obj, handle, binder, Q_dict, Poffset=None):
     obj.update_sub_points()
     return offset_loc
 
+##
+# @brief find best matching object&handle for a actor pose
+def find_match(pscene, actor, T_ba, Q_dict, margin=1e-3):
+    binder_redundancy = actor.get_redundancy()
+    binder_T = T_ba
+    match = None
+    margin_max = -1e5
+    for obj in pscene.subject_dict.values():
+        for handle in obj.action_points_dict.values():
+            if actor.check_type(handle):
+                handle_T = handle.get_tf_handle(Q_dict)
+                handle_redundancy = handle.get_redundancy()
+                margin_mat = get_binding_margins(handle_T, binder_T, handle_redundancy, binder_redundancy)
+                if np.min(margin_mat>=-margin):
+                    return obj, handle
 
 ##
 # @class MotionConstraint
