@@ -380,13 +380,13 @@ class LatticedChecker(MotionFilterInterface):
 
     def query_wait_response(self, robot_type_name, grasp_img_batch, arm_img_batch, rh_vals_batch):
         with self.lock:
+            self.response_out_dict[robot_type_name][0] = False
             self.grasp_img_p_dict[robot_type_name][:] = grasp_img_batch[:]
             self.arm_img_p_dict[robot_type_name][:] = arm_img_batch[:]
             self.rh_vals_p_dict[robot_type_name][:] = rh_vals_batch[:]
             self.query_in_dict[robot_type_name][0] = True
             while not self.response_out_dict[robot_type_name][0]:
                 time.sleep(SERVER_PERIOD)
-            self.response_out_dict[robot_type_name][0] = False
             result = np.copy(self.result_p_dict[robot_type_name])
         return result
 
