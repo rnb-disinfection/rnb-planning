@@ -133,7 +133,7 @@ def pddlstream_from_problem_rnb(pscene, robot, body_names, Q_init, goal_pairs=[]
     }
 
     if TIMED_COMPLETE:
-        stream_map.update({'stream-time': from_gen_fn(get_time_gen())})
+        stream_map.update({'stream-time': from_gen_fn(get_time_gen(timeout))})
 
     reset_checker_cache()
     return PDDLProblem(domain_pddl, constant_map, stream_pddl, stream_map, init, goal), ik_fun
