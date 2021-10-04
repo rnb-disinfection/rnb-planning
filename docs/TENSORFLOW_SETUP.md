@@ -94,7 +94,8 @@ echo 'export PATH=$PATH:/usr/local/cuda-11.2/bin' >> ~/.bashrc \
       && sudo apt-get -y install python3-libnvinfer=7.2.2-1+cuda11.1 \
       && sudo apt-get -y install python3-libnvinfer-dev=7.2.2-1+cuda11.1 \
       && sudo apt-get install uff-converter-tf \
-      && pip3 install keras2onnx
+      && pip3 install keras2onnx \
+      && pip3 install tf2onnx
     ```
   * Add path in .bashrc
   ```bash
