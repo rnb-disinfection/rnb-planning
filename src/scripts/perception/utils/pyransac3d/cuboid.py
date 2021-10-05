@@ -21,37 +21,39 @@ class Cuboid:
         self.inliers = []
         self.equation = []
 
-    def eq_sorting(self, plane_eq):
-        result_eq = np.zeros((3,4))
-        eq1 = plane_eq[0]
-        eq2 = plane_eq[1]
-        eq3 = plane_eq[2]
-
-        temp = np.array([eq1[0], eq2[0], eq3[0]])
-        idx = temp.argsort()[::-1]
-        for i in range(len(idx)):
-            result_eq[i] = plane_eq[idx[i]]
-        if (eq1[0] == eq2[0]):
-            if (eq1[1] == eq2[1]):
-                if (eq1[2] < eq2[2]):
-                    result_eq[0] = eq2
-                    result_eq[1] = eq1
-            else:
-                if (eq1[1] < eq2[1]):
-                    result_eq[0] = eq2
-                    result_eq[1] = eq1
-
-        if (eq2[0] == eq3[0]):
-            if (eq2[1] == eq3[1]):
-                if (eq2[2] < eq3[2]):
-                    result_eq[1] = eq3
-                    result_eq[2] = eq2
-            else:
-                if (eq2[1] < eq3[1]):
-                    result_eq[1] = eq3
-                    result_eq[2] = eq2
-
-        return result_eq
+    # def eq_sorting(self, plane_eq):
+    #     result_eq = np.zeros((3,4))
+    #     eq1 = plane_eq[0]
+    #     eq2 = plane_eq[1]
+    #     eq3 = plane_eq[2]
+    #
+    #     temp = np.array([eq1[0], eq2[0], eq3[0]])
+    #     idx = temp.argsort()[::-1]
+    #     for i in range(len(idx)):
+    #         result_eq[i] = plane_eq[idx[i]]
+    #
+    #     if (eq1[0] == eq2[0]):
+    #         if (eq1[1] == eq2[1]):
+    #             if (eq1[2] < eq2[2]):
+    #                 result_eq[0] = eq2
+    #                 result_eq[1] = eq1
+    #         else:
+    #             if (eq1[1] < eq2[1]):
+    #                 result_eq[0] = eq2
+    #                 result_eq[1] = eq1
+    #
+    #     if (eq2[0] == eq3[0]):
+    #         if (eq2[1] == eq3[1]):
+    #             if (eq2[2] < eq3[2]):
+    #                 result_eq[1] = eq3
+    #                 result_eq[2] = eq2
+    #         else:
+    #             if (eq2[1] < eq3[1]):
+    #                 result_eq[1] = eq3
+    #                 result_eq[2] = eq2
+    #
+    #
+    #     return result_eq
 
     def fit(self, pts, thresh=0.05, maxIteration=5000):
         """
@@ -92,10 +94,10 @@ class Cuboid:
             vecC = vecC / np.linalg.norm(vecC)  # Normal
 
             k = -np.sum(np.multiply(vecC, pt_samples[1, :]))
-            if vecC[0] < 0:
-                plane_eq.append([-vecC[0], -vecC[1], -vecC[2], -k])
-            else:
-                plane_eq.append([vecC[0], vecC[1], vecC[2], k])
+            # if vecC[0] < 0:
+            #     plane_eq.append([-vecC[0], -vecC[1], -vecC[2], -k])
+            # else:
+            plane_eq.append([vecC[0], vecC[1], vecC[2], k])
 
             # Now we use another point to find a orthogonal plane 2
             # Calculate distance from the point to the first plane
@@ -116,20 +118,21 @@ class Cuboid:
             vecF = np.cross(vecD, vecE)
             vecF = vecF / np.linalg.norm(vecF)  # Normal
             k = -np.sum(np.multiply(vecF, pt_samples[4, :]))
-            if vecF[0] < 0:
-                plane_eq.append([-vecF[0], -vecF[1], -vecF[2], -k])
-            else:
-                plane_eq.append([vecF[0], vecF[1], vecF[2], k])
+            # if vecF[0] < 0:
+            #     plane_eq.append([-vecF[0], -vecF[1], -vecF[2], -k])
+            # else:
+            plane_eq.append([vecF[0], vecF[1], vecF[2], k])
 
 
             # The last plane will be orthogonal to the first and sacond plane (and its normals will be orthogonal to first and second planes' normal)
             vecG = np.cross(vecC, vecF)
 
             k = -np.sum(np.multiply(vecG, pt_samples[5, :]))
-            if vecG[0] < 0:
-                plane_eq.append([-vecG[0], -vecG[1], -vecG[2], -k])
-            else:
-                plane_eq.append([vecG[0], vecG[1], vecG[2], k])
+            # if vecG[0] < 0:
+            #     plane_eq.append([-vecG[0], -vecG[1], -vecG[2], -k])
+            # else:
+            plane_eq.append([vecG[0], vecG[1], vecG[2], k])
+
             plane_eq = np.asarray(plane_eq)
             # We have to find the value D for the last plane.
 
@@ -159,8 +162,8 @@ class Cuboid:
                 best_eq = plane_eq
                 best_inliers = pt_id_inliers
             self.inliers = best_inliers
-            self.equation = best_eq
-            self.equation = self.eq_sorting(best_eq)
+            self.equation = np.round(best_eq, 4)
+            # self.equation = np.round(self.eq_sorting(best_eq), 4)
             # temp = np.array([best_eq[0][0], best_eq[1][0], best_eq[2][0]])
             # idx = temp.argsort()[::-1]
             # for i in range(len(idx)):

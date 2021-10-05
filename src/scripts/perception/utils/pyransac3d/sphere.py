@@ -84,6 +84,8 @@ class Sphere:
             M15 = np.linalg.det(d_matrix)
 
             # Now we calculate the center and radius
+            # if M11 == 0.0:
+            #     center =
             center = [0.5 * (M12 / M11), -0.5 * (M13 / M11), 0.5 * (M14 / M11)]
             radius = np.sqrt(np.dot(center, center) - (M15 / M11))
 
@@ -98,7 +100,7 @@ class Sphere:
             if len(pt_id_inliers) > len(best_inliers):
                 best_inliers = pt_id_inliers
                 self.inliers = best_inliers
-                self.center = center
-                self.radius = radius
+                self.center = np.round(center, 4)
+                self.radius = round(radius, 4)
 
         return self.center, self.radius, self.inliers

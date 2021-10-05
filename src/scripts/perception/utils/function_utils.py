@@ -13,6 +13,8 @@ from perception_config import *
 from pyransac3d import *
 
 
+# geometry_list = [Cuboid(), Sphere(), Cylinder()]
+
 ####################### JSON NUMPYENCODER #######################
 class NumpyEncoder(json.JSONEncoder):
     """ Special json encoder for numpy types """
@@ -26,9 +28,8 @@ class NumpyEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
-geometry_list = [Cuboid(), Sphere(), Cylinder()]
 
-####################### Util functions #######################
+####################### Util functions for streaming #######################
 def make_dataset_folder(path_folder):
     if not os.path.exists(path_folder):
         os.makedirs(path_folder)
@@ -44,6 +45,7 @@ def make_dataset_folder(path_folder):
             return True
         else:
             return False
+
 
 
 def save_intrinsic_as_json(filename, frame, d_scale):
@@ -76,6 +78,7 @@ def save_intrinsic_as_json(filename, frame, d_scale):
             indent=8)
 
 
+
 def read_intrinsic_from_json(filename):
     with open(filename, 'r') as f:
         json_data = json.load(f)
@@ -87,6 +90,7 @@ def read_intrinsic_from_json(filename):
     cam_ppy = json_data['intrinsic_matrix'][7]
     depth_scale = json_data['depth_scale']
     return cam_width, cam_height, cam_fx, cam_fy, cam_ppx, cam_ppy, depth_scale
+
 
 
 def load_camera_trajectory(traj_log):
@@ -111,7 +115,6 @@ def load_camera_trajectory(traj_log):
 
 
 
-####################### Core functions #######################
 class Camera_parameter:
     def __init__(self, intrins_path, trajectory_log):
         cam_width_, cam_height_, cam_fx_, cam_fy_, cam_ppx_, cam_ppy_, depth_scale_ = read_intrinsic_from_json(
@@ -152,10 +155,10 @@ def streaming(path_folder):
         #     device_product_line = str(device.get_info(rs.camera_info.product_line))
 
         #     if device_product_line == 'L500':
-        #         config.enable_stream(rs.stream.color, 960, 540, rs.format.bgr8, 30)
+        #         config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
         #         config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
         #     else:
-        #         config.enable_stream(rs.stream.color, 960, 540, rs.format.bgr8, 30)
+        #         config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
         #         config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
 
         config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
@@ -168,11 +171,11 @@ def streaming(path_folder):
 
         # Set Preset option
         depth_sensor.set_option(rs.option.visual_preset, 3)
-        depth_sensor.set_option(rs.option.laser_power, 88)
+        depth_sensor.set_option(rs.option.laser_power, 89)
         depth_sensor.set_option(rs.option.noise_filtering, 4)
         depth_sensor.set_option(rs.option.receiver_gain, 17)
         depth_sensor.set_option(rs.option.post_processing_sharpening, 2.0)
-        depth_sensor.set_option(rs.option.pre_processing_sharpening, 0.5)
+        depth_sensor.set_option(rs.option.pre_processing_sharpening, 0.7)
 
         #  Not display the baground more than clipping_distance
         clipping_distance_in_meters = 2.0  # 2 meter
@@ -198,13 +201,6 @@ def streaming(path_folder):
                 aligned_depth_frame = aligned_frames.get_depth_frame()
                 color_frame = aligned_frames.get_color_frame()
 
-                # # Get intrinsic parameters
-                # intrins = aligned_depth_frame.profile.as_video_stream_profile().intrinsics
-                # cameraMatrix = np.array([[intrins.fx, 0, intrins.ppx],
-                #                          [0, intrins.fy, intrins.ppy],
-                #                          [0, 0, 1]])
-                # distCoeffs = np.array(intrins.coeffs)
-
                 # Validate that both frames are valid
                 if not aligned_depth_frame or not color_frame:
                     continue
@@ -224,10 +220,6 @@ def streaming(path_folder):
                 #                 poses.append(pose)
 
                 # Save color, depth image
-                #             cv2.imwrite("_%s/%d.png" % \
-                #                         (path_folder + "/depth/depth", frame_count), depth_image)
-                #             cv2.imwrite("_%s/%d.jpg" % \
-                #                         (path_folder + "/color/color", frame_count), color_image)
                 cv2.imwrite(path_folder + "/depth/depth_{}.png".format(frame_count), depth_image)
                 cv2.imwrite(path_folder + "/color/color_{}.jpg".format(frame_count), color_image)
                 #             print("Saved color + depth image %d" % frame_count)
@@ -261,7 +253,8 @@ def streaming(path_folder):
 
 
 
-def getPCDAll(img_num, depth_seg_path, pcd_path, Camera_parameter, detected_class):
+####################### Util functions for get point cloud #######################
+def getPCDAll(img_num, depth_seg_path, pcd_path, Camera_parameter):
     cam_width = Camera_parameter.cam_width
     cam_height = Camera_parameter.cam_height
     cam_fx = Camera_parameter.cam_fx
@@ -273,51 +266,52 @@ def getPCDAll(img_num, depth_seg_path, pcd_path, Camera_parameter, detected_clas
 
     obj_pcd_num = 0
     pcd = o3d.io.read_point_cloud(pcd_path)
-    for i in range(len(detected_class)):
-        temp_path = depth_seg_path + '/' + valid_class_dict[detected_class[i]]
-        for j in range(len(os.listdir(temp_path))):
-            # Consider only segmentation result number is over 80% of total image number
-            if (len(os.listdir(temp_path + '/{}'.format(j + 1))) > int(img_num * 0.8)):
-                pcd_overlap = o3d.geometry.PointCloud()
-                for k in range(img_num // 3):
-                    l = k * 4
-                    if (os.path.exists(temp_path + '/{}'.format(j + 1) + '/depth_mask_{}.png'.format(l))):
-                        img_s = o3d.io.read_image(temp_path + '/{}'.format(j + 1) + '/depth_mask_{}.png'.format(l))
-                        pcd_s = o3d.geometry.PointCloud.create_from_depth_image(img_s,
-                                                    o3d.camera.PinholeCameraIntrinsic(cam_width,
-                                                                            cam_height,cam_fx, cam_fy,
-                                                                            cam_ppx, cam_ppy), np.linalg.inv(cam_traj[l]),
-                                                                            depth_scale= d_scale)
+    for i in range(len(os.listdir(depth_seg_path))):
 
-                        d_trunc = np.linalg.norm(pcd_s.get_center()) * 1.2
-                        pcd_s = o3d.geometry.PointCloud.create_from_depth_image(img_s,
-                                                    o3d.camera.PinholeCameraIntrinsic(cam_width,
-                                                                            cam_height, cam_fx, cam_fy,
-                                                                            cam_ppx, cam_ppy), np.linalg.inv(cam_traj[l]),
-                                                                            depth_scale = d_scale, depth_trunc = d_trunc)
-                        source = pcd_s
-                        dists = source.compute_point_cloud_distance(pcd)
+        # Consider only segmentation result number is over 70% of total image number
+        if (len(os.listdir(depth_seg_path + '/{}'.format(i + 1))) > int(img_num * 0.7)):
+            pcd_overlap = o3d.geometry.PointCloud()
+            for j in range(img_num // 4):
+                k = j * 4
+                if (os.path.exists(depth_seg_path + '/{}'.format(i + 1) + '/depth_mask_{}.png'.format(k))):
+                    img_s = o3d.io.read_image(depth_seg_path + '/{}'.format(i + 1) + '/depth_mask_{}.png'.format(k))
+                    pcd_s = o3d.geometry.PointCloud.create_from_depth_image(img_s,
+                                                o3d.camera.PinholeCameraIntrinsic(cam_width,
+                                                                        cam_height,cam_fx, cam_fy,
+                                                                        cam_ppx, cam_ppy), np.linalg.inv(cam_traj[k]),
+                                                                        depth_scale= d_scale)
 
-                        dists = np.array(dists)
-                        thres = 0.003
-                        indices = np.where(dists < thres)[0]
-                        # pcd_overlap = pcd.select_by_index(indices)
+                    d_trunc = np.linalg.norm(pcd_s.get_center()) * 1.1
+                    pcd_s = o3d.geometry.PointCloud.create_from_depth_image(img_s,
+                                                o3d.camera.PinholeCameraIntrinsic(cam_width,
+                                                                        cam_height, cam_fx, cam_fy,
+                                                                        cam_ppx, cam_ppy), np.linalg.inv(cam_traj[k]),
+                                                                        depth_scale = d_scale, depth_trunc = d_trunc)
+                    source = pcd_s
+                    dists = source.compute_point_cloud_distance(pcd)
 
-                        p_overlap = []
-                        for k in range(len(indices)):
-                            p_overlap.append(source.points[indices[k]])
+                    dists = np.array(dists)
+                    thres = 0.003
+                    indices = np.where(dists < thres)[0]
+                    # pcd_overlap = pcd.select_by_index(indices)
 
-                        pcd_temp = o3d.geometry.PointCloud()
-                        pcd_temp.points = o3d.utility.Vector3dVector(p_overlap)
-                        pcd_temp.uniform_down_sample(every_k_points=9)
-                        pcd_overlap = pcd_overlap + pcd_temp
-                        pcd_overlap.uniform_down_sample(every_k_points = 15)
-                    else:
-                        pass
+                    p_overlap = []
+                    for l in range(len(indices)):
+                        p_overlap.append(source.points[indices[l]])
 
-                #     o3d.visualization.draw_geometries([pcd_overlap])
-                o3d.io.write_point_cloud(WORKING_DIR + "/object_{}.pcd".format(obj_pcd_num), pcd_overlap)
-                obj_pcd_num += 1
+                    pcd_temp = o3d.geometry.PointCloud()
+                    pcd_temp.points = o3d.utility.Vector3dVector(p_overlap)
+                    # size = int(len(np.asarray(pcd_temp.points)) // 1000)
+                    pcd_temp.uniform_down_sample(every_k_points=13)
+                    pcd_overlap = pcd_overlap + pcd_temp
+                    # size = int(len(np.asarray(pcd_overlap.points)) // 1000)
+                    pcd_overlap.uniform_down_sample(every_k_points=19)
+                else:
+                    pass
+
+            #     o3d.visualization.draw_geometries([pcd_overlap])
+            o3d.io.write_point_cloud(WORKING_DIR + "/object_{}.pcd".format(obj_pcd_num), pcd_overlap)
+            obj_pcd_num += 1
     return obj_pcd_num
 
 
@@ -332,6 +326,7 @@ def getGPDAll(obj_pcd_num):
 
 
 
+####################### Util functions for add geometry #######################
 def append_geometry_list(result, geometry_type_list, geometry_inform_list):
     if (len(result) == 5):
         geometry_type_list.append('Cylinder')
@@ -346,17 +341,28 @@ def append_geometry_list(result, geometry_type_list, geometry_inform_list):
 
 
 def extract_outliers(pcd_points, inliers):
-    temp = []
+    tmp = []
     for i in range(len(pcd_points)):
         idx = i
-        if not idx in inliers:
-            temp.append(pcd_points[idx])
+        if idx not in inliers:
+            tmp.append(pcd_points[idx])
 
-    p_outliers = np.zeros((len(temp), 3))
-    for i in range(len(temp)):
-        p_outliers[i] = temp[i]
+    p_outliers = np.zeros((len(tmp), 3))
+    for i in range(len(tmp)):
+        p_outliers[i] = tmp[i]
 
     return p_outliers
+
+
+
+def get_inliers(pcd_points, inliers):
+    p_inliers = []
+    for i in range(len(pcd_points)):
+        idx = i
+        if idx in inliers:
+            p_inliers.append(pcd_points[idx])
+
+    return p_inliers
 
 
 
@@ -371,80 +377,245 @@ def save_obj_geo_json(geometry_type_list, geometry_inform_list, num):
         obj = json.dump(json_data, outfile, cls=NumpyEncoder)
 
 
-def feature_matching(pcd_points):
-    total = len(pcd_points)
+
+def post_processing_cuboid(pcd_points, p_inliers, eq1, eq2):
+    x_sum = 0.0
+    y_sum = 0.0
+    z_sum = 0.0
+    for i in range(len(p_inliers)):
+        x_sum += p_inliers[i][0]
+        y_sum += p_inliers[i][1]
+        z_sum += p_inliers[i][2]
+
+    center = np.array([x_sum / len(p_inliers), y_sum / len(p_inliers), z_sum / len(p_inliers)])
+
+    # normal1
+    dot1 = abs(np.dot(eq1[0][:3], eq2[0][:3]))
+    dot2 = abs(np.dot(eq1[0][:3], eq2[1][:3]))
+    dot3 = abs(np.dot(eq1[0][:3], eq2[2][:3]))
+    dot_list = [dot1, dot2, dot3]
+    idx = dot_list.index(max(dot_list))
+    normal1 = np.array([0, 0, 0])
+    length1 = 0
+    if idx == 0:
+        normal1, length1 = calculate_normal_dims(eq1[0], eq2[0])
+    elif idx == 1:
+        normal1, length1 = calculate_normal_dims(eq1[0], eq2[1])
+    elif idx == 2:
+        normal1, length1 = calculate_normal_dims(eq1[0], eq2[2])
+
+    # normal2
+    dot1 = abs(np.dot(eq1[1][:3], eq2[0][:3]))
+    dot2 = abs(np.dot(eq1[1][:3], eq2[1][:3]))
+    dot3 = abs(np.dot(eq1[1][:3], eq2[2][:3]))
+    dot_list = [dot1, dot2, dot3]
+    idx = dot_list.index(max(dot_list))
+    normal2 = np.array([0, 0, 0])
+    length2 = 0
+    if idx == 0:
+        normal2, length2 = calculate_normal_dims(eq1[1], eq2[0])
+    elif idx == 1:
+        normal2, length2 = calculate_normal_dims(eq1[1], eq2[1])
+    elif idx == 2:
+        normal2, length2 = calculate_normal_dims(eq1[1], eq2[2])
+
+    # normal3
+    dot1 = abs(np.dot(eq1[2][:3], eq2[0][:3]))
+    dot2 = abs(np.dot(eq1[2][:3], eq2[1][:3]))
+    dot3 = abs(np.dot(eq1[2][:3], eq2[2][:3]))
+    dot_list = [dot1, dot2, dot3]
+    idx = dot_list.index(max(dot_list))
+    normal3 = np.array([0, 0, 0])
+    length3 = 0
+    if idx == 0:
+        normal3, length3 = calculate_normal_dims(eq1[2], eq2[0])
+    elif idx == 1:
+        normal3, length3 = calculate_normal_dims(eq1[2], eq2[1])
+    elif idx == 2:
+        normal3, length3 = calculate_normal_dims(eq1[2], eq2[2])
+
+    a = length1 / 2.0
+    b = length2 / 2.0
+    c = length3 / 2.0
+
+    idx_inliers = []
+    thres = np.sqrt(a*a + b*b + c*c) * 1.2
+    for i in range(len(pcd_points)):
+        if np.linalg.norm(pcd_points[i,:] - center) < thres:
+            idx_inliers.append(i)
+
+    p_inliers_result = get_inliers(pcd_points, idx_inliers)
+    p_outliers_result = extract_outliers(pcd_points, idx_inliers)
+
+    x_sum = 0.0
+    y_sum = 0.0
+    z_sum = 0.0
+    center_result = np.zeros((1,3))
+    for i in range(len(p_inliers_result)):
+        x_sum += p_inliers_result[i][0]
+        y_sum += p_inliers_result[i][1]
+        z_sum += p_inliers_result[i][2]
+
+    if len(p_inliers_result) != 0.0:
+        center_result = np.array([x_sum / len(p_inliers_result), y_sum / len(p_inliers_result), z_sum / len(p_inliers_result)])
+
+    return center_result, p_inliers_result, p_outliers_result
+
+
+
+
+def cuboid_fitting(pcd_points, thres, thres_ratioB=0.2, maxIterB=3500):
+    cuboid_obj = Cuboid()
 
     # Cuboid case
     # Pyransac3D cuboid fitting only return 3 plane eq, So apply fitting twice
-    eq11, inliers11 = geometry_list[0].fit(pcd_points, thresh=0.02, maxIteration=1300)
+    eq11, inliers11 = cuboid_obj.fit(pcd_points, thresh=thres * thres_ratioB, maxIteration=maxIterB)
     temp_outlier = extract_outliers(pcd_points, inliers11)
-    eq12, inliers12 = geometry_list[0].fit(temp_outlier, thresh=0.02, maxIteration=1300)
+    eq12, inliers12 = cuboid_obj.fit(temp_outlier, thresh=thres * thres_ratioB, maxIteration=maxIterB)
+    p_inliers11 = get_inliers(pcd_points, inliers11)
+    p_inliers12 = get_inliers(temp_outlier, inliers12)
+    p_inliers1 = p_inliers11 + p_inliers12
     p_outliers1 = extract_outliers(temp_outlier, inliers12)
 
-    # Calculate first fitting inliers
-    p1_temp = []
-    for i in range(len(pcd_points)):
-        idx = i
-        if not idx in inliers11:
-            p1_temp.append(pcd_points[idx])
-    p1 = np.zeros((len(p1_temp), 3))
-    for i in range(len(p1_temp)):
-        p1[i] = p1_temp[i]
 
-    # Calculate second fitting inliers
-    p2_temp = []
-    for i in range(len(temp_outlier)):
-        idx = i
-        if not idx in inliers12:
-            p2_temp.append(pcd_points[idx])
-    p2 = np.zeros((len(p2_temp), 3))
-    for i in range(len(p2_temp)):
-        p2[i] = p2_temp[i]
+    # Post-processing center, inliers
+    center1, p_inliers1, p_outliers1 = post_processing_cuboid(pcd_points, p_inliers1, eq11, eq12)
 
-    center11 = np.array([np.mean(p1[:,0]), np.mean(p1[:,1]), np.mean(p1[:,2])])
-    center12 = np.array([np.mean(p2[:,0]), np.mean(p2[:,1]), np.mean(p2[:,2])])
-    center1 = (center11 + center12) / 2
+    return [center1, eq11, eq12, p_outliers1], p_inliers1
+
+
+
+def sphere_fitting(pcd_points, thres, thres_ratioS=0.15, maxIterS=3000):
+    sphere_obj = Sphere()
 
     # Sphere case
-    center2, radius2, inliers2 = geometry_list[1].fit(pcd_points, thresh=0.02, maxIteration=2000)
+    center2, radius2, inliers2 = sphere_obj.fit(pcd_points, thresh=thres * thres_ratioS, maxIteration=maxIterS)
+    p_inliers2 = get_inliers(pcd_points, inliers2)
     p_outliers2 = extract_outliers(pcd_points, inliers2)
 
+    return [center2, radius2, p_outliers2], p_inliers2
+
+
+
+def cylinder_fitting(pcd_points, thres, thres_ratioC=0.25, maxIterC=8000):
+    cylinder_obj = Cylinder()
+
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(pcd_points)
+    pcd.estimate_normals()
+    pcd.normalize_normals()
+    point_normals = np.asarray(pcd.normals)
+
     # Cylinder case
-    center3, axis3, radius3, height3, inliers3 = geometry_list[2].fit(pcd_points, thresh=0.02, maxIteration=4000)
+    center3, axis3, radius3, height3, inliers3 = cylinder_obj.fit(pcd_points, point_normals, thresh=thres * thres_ratioC,
+                                                                                            maxIteration=maxIterC)
+    p_inliers3 = get_inliers(pcd_points, inliers3)
     p_outliers3 = extract_outliers(pcd_points, inliers3)
 
-    # Choose max inlier fitting
-    inlier_num = [len(inliers11) + len(inliers12), len(inliers2), len(inliers3)]
+    return [center3, axis3, radius3, height3, p_outliers3], p_inliers3
+
+
+
+def feature_matching(pcd_points, voxel_size=0.05, thres_ratioB=0.2, thres_ratioS=0.15, thres_ratioC=0.25,
+                                            maxIterB=3500, maxIterS=3000, maxIterC=8000):
+    total = len(pcd_points)
+    thres = voxel_size
+
+    # First, find primitive shape(harsh threshold)
+    resultB, inliersB = cuboid_fitting(pcd_points, thres, thres_ratioB=thres_ratioB, maxIterB=maxIterB)
+    resultS, inliersS = sphere_fitting(pcd_points, thres, thres_ratioS=thres_ratioS, maxIterS=maxIterS)
+    resultC, inliersC = cylinder_fitting(pcd_points, thres, thres_ratioC=thres_ratioC, maxIterC=maxIterC)
+
+    print("Total number :", total)
+    print("Cuboid inlier : ", int((len(inliersB)/2)))
+    print("Sphere inlier : ", len(inliersS))
+    print("Cylinder inlier : ", len(inliersC))
+
+    # Determien privitivs shape. Choose max inlier fitting
+    inlier_num = [int((len(inliersB)/2)), len(inliersS), len(inliersC)]
     max_index = inlier_num.index(max(inlier_num))
 
+    # Get inliers(relaxed threshold)
+    # This case is cuboid fitting
     if max_index == 0:
-        return [center1, eq11, eq12, p_outliers1]
+        return cuboid_fitting(pcd_points, thres, thres_ratioB=thres_ratioB * 2.4, maxIterB=maxIterB)
+    # This case is sphere fitting
     elif max_index == 1:
-        return [center2, radius2, p_outliers2]
+        return sphere_fitting(pcd_points, thres, thres_ratioS=thres_ratioS * 1.9, maxIterS=maxIterS)
+    # This case is cylinder fitting
     elif max_index == 2:
-        return [center3, axis3, radius3, height3, p_outliers3]
+        return cylinder_fitting(pcd_points, thres, thres_ratioC=thres_ratioC * 4.1, maxIterC=maxIterC)
 
 
 
-def geometry_matching(pcd_points, num):
+def geometry_matching(pcd_points, num, voxel_size=0.05, outliers_ratio_max=0.2, thres_ratioB=0.2, thres_ratioS=0.15, thres_ratioC=0.25,
+                                                        maxIterB=3500, maxIterS=3000, maxIterC=8000):
     total = len(pcd_points)
     geometry_type_list = []
     geometry_inform_list = []
+    save_inlier_points = []
 
-    result = feature_matching(pcd_points)
+    result, inliers = feature_matching(pcd_points, voxel_size=voxel_size, thres_ratioB=thres_ratioB,
+                                       thres_ratioS=thres_ratioS, thres_ratioC=thres_ratioC,
+                                       maxIterB=maxIterB, maxIterS=maxIterS, maxIterC=maxIterC)
     outliers = result[len(result) - 1]
-    outliers_ratio = len(outliers) / total
+    outliers_ratio = float(len(outliers)) / float(total)
+    save_inlier_points = save_inlier_points + inliers
+
+    pcd_ = o3d.geometry.PointCloud()
+    result_ = o3d.geometry.PointCloud()
+    pcd_.points = o3d.utility.Vector3dVector(pcd_points)
+    result_.points = o3d.utility.Vector3dVector(inliers)
+    pcd_.paint_uniform_color((0,0,0))
+    result_.paint_uniform_color((1,0,0))
+    o3d.visualization.draw_geometries([pcd_, result_])
 
     append_geometry_list(result, geometry_type_list, geometry_inform_list)
+    print("Outlier ratio : ", outliers_ratio)
 
-    while not outliers_ratio < 0.1:
-        result = feature_matching(outliers)
+    while not outliers_ratio < outliers_ratio_max:
+        result, inliers = feature_matching(outliers, voxel_size=voxel_size, thres_ratioB=thres_ratioB,
+                                           thres_ratioS=thres_ratioS, thres_ratioC=thres_ratioC,
+                                           maxIterB=maxIterB, maxIterS=maxIterS, maxIterC=maxIterC)
         outliers = result[len(result) - 1]
-        outliers_ratio = len(outliers) / total
+        outliers_ratio = float(len(outliers)) / float(total)
+        save_inlier_points = save_inlier_points + inliers
+
+        pcd_ = o3d.geometry.PointCloud()
+        result_ = o3d.geometry.PointCloud()
+        pcd_.points = o3d.utility.Vector3dVector(outliers)
+        result_.points = o3d.utility.Vector3dVector(inliers)
+        pcd_.paint_uniform_color((0, 0, 0))
+        result_.paint_uniform_color((1, 0, 0))
+        o3d.visualization.draw_geometries([pcd_, result_])
 
         append_geometry_list(result, geometry_type_list, geometry_inform_list)
+        print("Outlier ratio : ", outliers_ratio)
 
     save_obj_geo_json(geometry_type_list, geometry_inform_list, num)
+
+    return save_inlier_points
+
+
+
+def calculate_normal_dims(eq1, eq2):
+    if (np.dot(eq1[:3], eq2[:3]) < 0):
+        a = (eq1[0] - eq2[0]) / 2
+        b = (eq1[1] - eq2[1]) / 2
+        c = (eq1[2] - eq2[2]) / 2
+        normal = np.array([a, b, c])
+        length = abs((eq1[3] + eq2[3]) / np.linalg.norm(normal))
+        normal = normal / np.linalg.norm(normal)
+    else:
+        a = (eq1[0] + eq2[0]) / 2
+        b = (eq1[1] + eq2[1]) / 2
+        c = (eq1[2] + eq2[2]) / 2
+        normal = np.array([a, b, c])
+        length = abs((eq1[3] - eq2[3]) / np.linalg.norm(normal))
+        normal = normal / np.linalg.norm(normal)
+
+    return normal, length
+
 
 
 def get_Cuboid(temp):
@@ -456,40 +627,65 @@ def get_Cuboid(temp):
     eq1 = temp[1]
     eq2 = temp[2]
 
-    a1 = (eq1[0][0] + eq2[0][0]) / 2
-    b1 = (eq1[0][1] + eq2[0][1]) / 2
-    c1 = (eq1[0][2] + eq2[0][2]) / 2
-    normal1 = np.array([a1, b1, c1])
-    normal1 = normal1 / np.linalg.norm(normal1)
-    w = np.abs((eq1[0][3] - eq2[0][3]) / np.sqrt(a1 * a1 + b1 * b1 + c1 * c1))
+    # normal1
+    dot1 = abs(np.dot(eq1[0][:3], eq2[0][:3]))
+    dot2 = abs(np.dot(eq1[0][:3], eq2[1][:3]))
+    dot3 = abs(np.dot(eq1[0][:3], eq2[2][:3]))
+    dot_list = [dot1, dot2, dot3]
+    idx = dot_list.index(max(dot_list))
+    normal1 = np.array([0,0,0])
+    length1 = 0
+    if idx == 0:
+        normal1, length1 = calculate_normal_dims(eq1[0], eq2[0])
+    elif idx == 1:
+        normal1, length1 = calculate_normal_dims(eq1[0], eq2[1])
+    elif idx == 2:
+        normal1, length1 = calculate_normal_dims(eq1[0], eq2[2])
 
-    a2 = (eq1[1][0] + eq2[1][0]) / 2
-    b2 = (eq1[1][1] + eq2[1][1]) / 2
-    c2 = (eq1[1][2] + eq2[1][2]) / 2
-    normal2 = np.array([a2, b2, c2])
-    normal2 = normal2 / np.linalg.norm(normal2)
-    h = np.abs((eq1[1][3] - eq2[1][3]) / np.sqrt(a2 * a2 + b2 * b2 + c2 * c2))
+    # normal2
+    dot1 = abs(np.dot(eq1[1][:3], eq2[0][:3]))
+    dot2 = abs(np.dot(eq1[1][:3], eq2[1][:3]))
+    dot3 = abs(np.dot(eq1[1][:3], eq2[2][:3]))
+    dot_list = [dot1, dot2, dot3]
+    idx = dot_list.index(max(dot_list))
+    normal2 = np.array([0, 0, 0])
+    length2 = 0
+    if idx == 0:
+        normal2, length2 = calculate_normal_dims(eq1[1], eq2[0])
+    elif idx == 1:
+        normal2, length2 = calculate_normal_dims(eq1[1], eq2[1])
+    elif idx == 2:
+        normal2, length2 = calculate_normal_dims(eq1[1], eq2[2])
 
-    a3 = (eq1[2][0] + eq2[2][0]) / 2
-    b3 = (eq1[2][1] + eq2[2][1]) / 2
-    c3 = (eq1[2][2] + eq2[2][2]) / 2
-    normal3 = np.array([a3, b3, c3])
-    normal3 = normal3 / np.linalg.norm(normal3)
-    d = np.abs((eq1[2][3] - eq2[2][3]) / np.sqrt(a3 * a3 + b3 * b3 + c3 * c3))
+    # normal3
+    dot1 = abs(np.dot(eq1[2][:3], eq2[0][:3]))
+    dot2 = abs(np.dot(eq1[2][:3], eq2[1][:3]))
+    dot3 = abs(np.dot(eq1[2][:3], eq2[2][:3]))
+    dot_list = [dot1, dot2, dot3]
+    idx = dot_list.index(max(dot_list))
+    normal3 = np.array([0, 0, 0])
+    length3 = 0
+    if idx == 0:
+        normal3, length3 = calculate_normal_dims(eq1[2], eq2[0])
+    elif idx == 1:
+        normal3, length3 = calculate_normal_dims(eq1[2], eq2[1])
+    elif idx == 2:
+        normal3, length3 = calculate_normal_dims(eq1[2], eq2[2])
 
-    dims = np.round((w, h, d), 3)
-
-    # Object Orientation
-    axis_vec = normal1 + normal2 + normal3
-    axis_vec = axis_vec / np.linalg.norm(axis_vec)
-    vec = np.array([1, 1, 1])
-    vec = vec / np.linalg.norm(vec)
-    R_co = get_rotationMatrix_from_vectors(vec, axis_vec)
+    dims = np.round((length1, length2, length3), 4)
+    normals = [normal1, normal2, normal3]
+    R_co = np.identity(3)
+    R_co[:3, 0] = normal1
+    R_co[:3, 1] = normal2
+    R_co[:3, 2] = normal3
+    # print("R_co")
+    # print(R_co)
+    # print(np.linalg.det(R_co))
 
     # 6DoF
     T_co = np.identity(4)
-    T_co[:3, :3] = np.round(R_co, 3)
-    T_co[:3, 3] = np.round(center, 3)
+    T_co[:3, :3] = np.round(R_co, 4)
+    T_co[:3, 3] = np.round(center, 4)
 
     return T_co, dims, "Cuboid"
 
@@ -503,7 +699,7 @@ def get_Sphere(temp):
 
     # 6DoF (Do not need to consider orientation due to sphere geometry)
     T_co = np.identity(4)
-    T_co[:3, 3] = np.round(center, 3)
+    T_co[:3, 3] = np.round(center, 4)
     return T_co, dims, "Sphere"
 
 
@@ -521,10 +717,9 @@ def get_Cylinder(temp):
 
     # 6DoF
     T_co = np.identity(4)
-    T_co[:3, :3] = np.round(R_co, 3)
-    T_co[:3, 3] = np.round(center, 3)
+    T_co[:3, :3] = np.round(R_co, 4)
+    T_co[:3, 3] = np.round(center, 4)
     return T_co, dims, "Cylinder"
-
 
 
 
@@ -535,6 +730,67 @@ def check_geo_type(temp):
         return "Cuboid"
     elif (len(temp) == 4):
         return "Cylinder"
+
+
+
+def add_geometry_body(gscene, geotype, T_bo, dims_, num):
+    if (geotype == "Cuboid"):
+        body = gscene.create_safe(gtype=GEOTYPE.BOX, name="obj_{}".format(num), link_name="base_link",
+                                  dims=dims_, center=T_bo[:3, 3], rpy=Rot2rpy(T_bo[:3, :3]),
+                                  color=(0.1,0.9,0.1,0.9), display=True, collision=True, fixed=False)
+
+    elif (geotype == "Sphere"):
+        body = gscene.create_safe(gtype=GEOTYPE.SPHERE, name="obj_{}".format(num), link_name="base_link",
+                                  dims=dims_, center=T_bo[:3, 3], rpy=Rot2rpy(T_bo[:3, :3]),
+                                  color=(0.1,0.1,0.9,0.9), display=True, collision=True, fixed=False)
+
+    elif (geotype == "Cylinder"):
+        body = gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="obj_{}".format(num), link_name="base_link",
+                                  dims=dims_, center=T_bo[:3, 3], rpy=Rot2rpy(T_bo[:3, :3]),
+                                  color=(0.9,0.1,0.1,0.9), display=True, collision=True, fixed=False)
+    return body
+
+
+
+def add_geometry_sub(gscene, geotype_sub, T_oo_sub, dims_sub, num, sub_num):
+    if (geotype_sub == "Cuboid"):
+        gscene.create_safe(gtype=GEOTYPE.BOX, name="obj_{}".format(num) + "_sub_{}".format(sub_num),
+            link_name="base_link", dims=dims_sub, center=T_oo_sub[:3,3], rpy=Rot2rpy(T_oo_sub[:3,:3]),
+            color=(0.1,0.9,0.1,0.9), display=True, collision=True, fixed=False,  parent="obj_{}".format(num))
+
+    elif (geotype_sub == "Sphere"):
+        gscene.create_safe(gtype=GEOTYPE.SPHERE, name="obj_{}".format(num) + "_sub_{}".format(sub_num),
+            link_name="base_link", dims=dims_sub, center=T_oo_sub[:3,3], rpy=Rot2rpy(T_oo_sub[:3,:3]),
+            color=(0.1,0.1,0.9,0.9), display=True, collision=True, fixed=False,  parent="obj_{}".format(num))
+
+    elif (geotype_sub == "Cylinder"):
+        gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="obj_{}".format(num) + "_sub_{}".format(sub_num),
+            link_name="base_link", dims=dims_sub, center=T_oo_sub[:3,3], rpy=Rot2rpy(T_oo_sub[:3,:3]),
+            color=(0.9,0.1,0.1,0.9), display=True, collision=True, fixed=False,  parent="obj_{}".format(num))
+
+
+
+def add_geometry(gscene, json_data, T_bc, component_num, num, grasp_list):
+    if component_num == 1:
+        T_co, dims, geotype = convertGeometry(json_data, component_num)
+        for i in range(len(grasp_list[num])):
+            grasp_list[num - 1] = np.matmul(np.linalg.inv(T_co), grasp_list[num - 1])
+        T_bo = np.matmul(T_bc, T_co)
+        body = add_geometry_body(gscene, geotype, T_bo, dims, num)
+    else:
+        T_co, dims, geotype = convertGeometry(json_data, 1)
+        for i in range(len(grasp_list[num])):
+            grasp_list[num - 1] = np.matmul(np.linalg.inv(T_co), grasp_list[num - 1])
+        T_bo = np.matmul(T_bc, T_co)
+        body = add_geometry_body(gscene, geotype, T_bo, dims, num)
+
+        for i in range(component_num - 1):
+            T_co_sub, dims_sub, geotype_sub = convertGeometry(json_data, i + 2)
+            T_bo_sub = np.matmul(T_bc, T_co_sub)
+            T_oo_sub = np.matmul(np.linalg.inv(T_bo), T_bo_sub)
+            add_geometry_sub(gscene, geotype_sub, T_oo_sub, dims_sub, num, i + 1)
+
+    return body
 
 
 

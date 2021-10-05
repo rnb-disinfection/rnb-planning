@@ -5,7 +5,8 @@ import sys
 # os.chdir(os.path.join(os.environ["RNB_PLANNING_DIR"], 'src'))
 sys.path.append(os.path.join(os.environ["RNB_PLANNING_DIR"], 'src'))
 from pkg.global_config import RNB_PLANNING_DIR
-
+from pkg.utils.rotation_utils import *
+from pkg.geometry.geotype import GEOTYPE
 
 # Directory setting
 WORKING_DIR = os.path.join(RNB_PLANNING_DIR, "src/scripts/perception")

@@ -7,19 +7,14 @@ import time
 import shutil
 import json
 import open3d as o3d
+from sklearn.cluster import KMeans
 from mmdet.apis import init_detector, inference_detector, show_result_pyplot
 
 from perception_config import *
 from function_utils import *
 
+scores_thr = 0.97
 
-scores_thr = 0.9
-valid_class_dict = {24:'backpack', 25:'umbrella', 26:'handbag', 27:'tie', 28:'suitcase',
-                   29:'bottle', 40:'wine glass', 41:'cup', 42:'fork', 43:'knife',
-                   44:'spoon', 45:'bowl', 56:'chair', 57:'couch', 58:'potted plant',
-                   59:'bed', 60:'dining table', 61:'toilet', 62:'tv', 63:'laptop',
-                   64:'mouse', 65:'remote', 66:'keyboard', 67:'cell phone', 73:'book',
-                   74:'clock', 75:'vase', 76:'scissors', 77:'teddy bear', 78:'hair drier', 79:'toothbrush'}
 
 def remove_folder(path_folder):
     if not os.path.exists(path_folder):
@@ -67,14 +62,19 @@ if __name__ == "__main__":
     model = init_detector(config_file, checkpoint_file, device=device)
 
     # Remove existing folders
-    remove_folder('color_segmented')
-    remove_folder('depth_segmented')
+    remove_folder(DATASET_DIR + '/color_segmented')
+    remove_folder(DATASET_DIR + '/depth_segmented')
 
     # Load intrinsic, extrinsic parameters
     cam_width, cam_height, cam_fx, cam_fy, cam_ppx, cam_ppy, depth_scale = read_intrinsic_from_json(INTRINSIC_PATH)
     cam_traj = load_camera_trajectory(EXTRINSIC_PATH)
 
     output_class_dict = {}
+    center_list = []
+    class_list = []
+    depth_list = []
+    color_list = []
+    obj_num = []
     # Segmentation
     for j in range(args.img_num):
         # Set color, depth image path
@@ -91,16 +91,8 @@ if __name__ == "__main__":
         # Filter to get detected class only
         object_class_list = filter_segmentation_class(masks)
 
-        object_num = 0
+        obj_num_tmp = 0
         for idx in object_class_list:
-            output_color_temp = ""
-            output_depth_temp = ""
-            depth_center_dict = {}
-            color_center_dict = {}
-            sorted_depth_list = []
-            sorted_color_list = []
-            # if (masks[idx] is not False):
-            #     class_num += 1
             for i in range(len(masks[idx])):
                 if (boxes[idx][i][4] > scores_thr):
                     mask = masks[idx][i]
@@ -118,45 +110,47 @@ if __name__ == "__main__":
                                                                         np.linalg.inv(cam_traj[j]),
                                                                         depth_scale=depth_scale)
 
-                    depth_center_dict[round(pcd.get_center()[0], 3)] = depth_instance
-                    color_center_dict[round(pcd.get_center()[0], 3)] = color_instance
-                    object_num += 1
+                    d_trunc = np.linalg.norm(pcd.get_center()) * 1.4
+                    pcd = o3d.geometry.PointCloud.create_from_depth_image(depth,
+                                                                        o3d.camera.PinholeCameraIntrinsic(
+                                                                        cam_width,
+                                                                        cam_height, cam_fx, cam_fy,
+                                                                        cam_ppx, cam_ppy),
+                                                                        np.linalg.inv(cam_traj[j]),
+                                                                        depth_scale=depth_scale, depth_trunc=d_trunc)
+
+                    center_list.append(np.round(pcd.get_center(), 5))
+                    class_list.append(idx)
+                    depth_list.append(depth_instance)
+                    color_list.append(color_instance)
+                    obj_num_tmp += 1
+
+        obj_num.append(obj_num_tmp)
 
 
-            # Ascending sorting w.r.t x values of center of point cloud
-            # This is for classfication of multiple objects case under same class
-            for key, value in sorted(depth_center_dict.items()):
-                sorted_depth_list.append(value)
-
-            for key, value in sorted(color_center_dict.items()):
-                sorted_color_list.append(value)
-
-            # Make folders for each object
-            if (len(sorted_color_list) !=0):
-                output_color_class = args.output_path + '/color_segmented/' + valid_class_dict[idx]
-                output_depth_class = args.output_path + '/depth_segmented/' + valid_class_dict[idx]
-                # output_color_class = args.output_path + '/color_segmented/' + '{}'.format(class_num)
-                # output_depth_class = args.output_path + '/depth_segmented/' + '{}'.format(class_num)
-                make_folder(output_color_class)
-                make_folder(output_depth_class)
-                output_class_dict[str(idx)] = valid_class_dict[idx]
-
-            # Save segmenteed images for each object
-            for i in range(len(sorted_color_list)):
-                output_color_temp = output_color_class + '/{}'.format(i+1)
-                output_depth_temp = output_depth_class + '/{}'.format(i+1)
-                make_folder(output_color_temp)
-                make_folder(output_depth_temp)
-
-                output_color_img_path = output_color_temp + '/color_mask_{}.jpg'.format(j)
-                output_depth_img_path = output_depth_temp + '/depth_mask_{}.png'.format(j)
-                # print(len(sorted_color_list))
-                cv2.imwrite(output_color_img_path, sorted_color_list[i])
-                cv2.imwrite(output_depth_img_path, sorted_depth_list[i])
+    # Clustering number is obj_num
+    kmeans = KMeans(n_clusters=max(obj_num), random_state=0)
+    kmeans.fit(center_list)
 
 
+    for i in range(max(obj_num)):
+        output_color_temp = args.output_path + '/color_segmented' + '/{}'.format(i+1)
+        output_depth_temp = args.output_path + '/depth_segmented' + '/{}'.format(i+1)
+        make_folder(output_color_temp)
+        make_folder(output_depth_temp)
+
+        idx_arr = np.where(kmeans.labels_ == i)[0]
+
+        for j in range(len(idx_arr)):
+            output_color_img_path = output_color_temp + '/color_mask_{}.jpg'.format(j)
+            output_depth_img_path = output_depth_temp + '/depth_mask_{}.png'.format(j)
+            cv2.imwrite(output_color_img_path, color_list[idx_arr[j]])
+            cv2.imwrite(output_depth_img_path, depth_list[idx_arr[j]])
+
+        # if (len(os.listdir(output_color_temp)) > args.img_num):
+        #     os.remove(output_color_temp + '/color_mask_0.jpg')
+        #     os.remove(output_depth_temp + '/depth_mask_0.png')
 
         # show_result_pyplot(model, color_img, result, score_thr=0.8)
-    for key, values in output_class_dict.items():
-        print(key)
+    print(max(obj_num))
 
