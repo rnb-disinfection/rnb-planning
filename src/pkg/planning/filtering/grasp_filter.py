@@ -101,11 +101,11 @@ class GraspChecker(MotionFilterInterface):
             for object_vertice, object_radius in object_vertice_list:
                 dist_list.append(get_gjk_distance(actor_vertice, object_vertice) - actor_radius - object_radius)
         res = np.min(dist_list) > + 1e-6
-        print("res: {} ({})".format(res, round(np.min(dist_list), 4)))
-        if not res:
-            i_ac, i_ob = np.unravel_index(np.argmin(dist_list), (len(actor_vertinfo_list),len(object_vertinfo_list)))
-            print("{} - {}".format(actor_vertinfo_list[i_ac][0], object_vertinfo_list[i_ob][0]))
         if self.show_vertices:
+            print("res: {} ({})".format(res, round(np.min(dist_list), 4)))
+            if not res:
+                i_ac, i_ob = np.unravel_index(np.argmin(dist_list), (len(actor_vertinfo_list),len(object_vertinfo_list)))
+                print("{} - {}".format(actor_vertinfo_list[i_ac][0], object_vertinfo_list[i_ob][0]))
             T_bl= np.matmul(Tbol, T_loal)
             self.gscene.add_highlight_axis("gc_center", "Tloal", "base_link",
                                            center=T_bl[:3,3], orientation_mat=T_bl[:3,:3])
