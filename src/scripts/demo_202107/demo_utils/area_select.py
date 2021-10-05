@@ -456,3 +456,17 @@ def add_waypoint_task(pscene, name, dims, center, rpy, parent, color=(1, 1, 0, 0
     wp_task = pscene.create_subject(oname="waypoints", gname="floor_ws", _type=WayopintTask,
                                     action_points_dict={wp_hdl.name: wp_hdl})
     return wp_task, wp_hdl
+
+def set_base_sweep(pscene, floor_gtem, Tsm, surface, swp_centers, sqdiv_size, WP_DIMS, TOOL_DIM, Q_dict, ax_swp_tool = 1):
+    Tbf = floor_gtem.get_tf(Q_dict)
+    Tbs = surface.get_tf(Q_dict)
+    Tbm = np.matmul(Tbs, Tsm)
+    Tfm = np.matmul(SE3_inv(Tbf), Tbm)
+    Tfm[2,3] = 0
+    wp_task, wp_hdl = add_waypoint_task(pscene, "waypoint", WP_DIMS, Tfm[:3,3], Rot2rpy(Tfm[:3,:3]),
+                                        parent=floor_gtem.name)
+
+    TOOL_DIM_SWEEP = TOOL_DIM[ax_swp_tool]/2
+    swp_min, swp_max, ax_swp = get_min_max_sweep_points(
+        swp_centers, sqdiv_size, TOOL_DIM_SWEEP)
+    sweep_task = add_sweep_task(pscene, "sweep", surface, swp_min, swp_max, Tsm, wp_dims=TOOL_DIM)
