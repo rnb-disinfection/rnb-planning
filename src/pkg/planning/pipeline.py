@@ -335,7 +335,7 @@ class PlanningPipeline:
 
     ##
     # @brief add return motion to a SearchNode schedule
-    def add_return_motion(self, snode_last, initial_state=None, timeout=5, try_count=5):
+    def add_return_motion(self, snode_last, initial_state=None, timeout=1, try_count=3):
         if initial_state is None:
             initial_state = self.initial_state
         state_last = snode_last.state

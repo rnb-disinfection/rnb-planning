@@ -107,6 +107,51 @@ def add_indy_tool_kiro(gscene, zoff=0, tool_link="indy0_tcp", face_name="brush_f
                        collision=True, fixed=True)
     return brush_face
 
+
+def add_bed(gscene, bed_center, bed_rpy, COLOR_BED_COL):
+    bed_vis = gscene.create_safe(GEOTYPE.MESH, "bed_vis", link_name="base_link",
+                                 dims=(0.1,0.1,0.1), center=bed_center, rpy=bed_rpy,
+                                 color=(0.8,0.8,0.8,1), display=True, fixed=True, collision=False,
+                                 uri="package://my_mesh/meshes/stl/bed_floor_centered_m_scale.stl", scale=(1,1,1))
+    bed_mat = gscene.create_safe(GEOTYPE.BOX, "bed_mat", link_name="base_link", 
+                                 dims=(1.86,0.91,0.13), center=(-0.025,0,0.6), rpy=(0,0,0),
+                                 color=COLOR_BED_COL, fixed=True, collision=True, parent="bed_vis")
+
+    gscene.create_safe(GEOTYPE.BOX, "bed_head", link_name="base_link", 
+                                 dims=(0.1,1.0,1.10), center=(-1.03,0,0.5), rpy=(0,0,0),
+                                 color=COLOR_BED_COL, fixed=True, collision=True, parent="bed_vis")
+
+    gscene.create_safe(GEOTYPE.BOX, "bed_foot", link_name="base_link", 
+                                 dims=(0.2,1.0,1.10), center=(1.03,0,0.5), rpy=(0,0,0),
+                                 color=COLOR_BED_COL, fixed=True, collision=True, parent="bed_vis")
+    return bed_mat
+
+
+def add_closet(gscene, closet_center, closet_rpy, COLOR_CLOSET_COL = (0,1,0,0.3)):    
+    closet_vis = gscene.create_safe(GEOTYPE.MESH, "closet_vis", link_name="base_link",
+                                 dims=(0.1,0.1,0.1), center=closet_center, rpy=closet_rpy,
+                                 color=(0.8,0.8,0.8,1), display=True, fixed=True, collision=False,
+                                 uri="package://my_mesh/meshes/stl/top_table_centered_m_scale.stl", scale=(1,1,1))
+
+    closet_left = gscene.create_safe(GEOTYPE.BOX, "closet_left", link_name="base_link", 
+                                 dims=(2.2,0.255,0.6), center=(0,-0.145,1.1), rpy=(0,np.pi/2,0),
+                                 color=COLOR_CLOSET_COL, fixed=True, collision=True, parent="closet_vis")
+
+    closet_rightup = gscene.create_safe(GEOTYPE.BOX, "closet_rightup", link_name="base_link", 
+                                 dims=(0.62,0.24,0.465), center=(-0.065,0.105,1.89), rpy=(0,np.pi/2,0),
+                                 color=COLOR_CLOSET_COL, fixed=True, collision=True, parent="closet_vis")
+    closet_rightdown = gscene.create_safe(GEOTYPE.BOX, "closet_rightdown", link_name="base_link", 
+                                 dims=(0.86,0.24,0.6), center=(0,0.105,0.43), rpy=(0,np.pi/2,0),
+                                 color=COLOR_CLOSET_COL, fixed=True, collision=True, parent="closet_vis")
+    closet_shelf = gscene.create_safe(GEOTYPE.BOX, "closet_shelf", link_name="base_link", 
+                                 dims=(0.02,0.24,0.465), center=(-0.065,0.105,1.24), rpy=(0,np.pi/2,0),
+                                 color=COLOR_CLOSET_COL, fixed=True, collision=True, parent="closet_vis")
+    closet_back = gscene.create_safe(GEOTYPE.BOX, "closet_back", link_name="base_link", 
+                                 dims=(0.02,0.24,0.73), center=(-0.29,0.105,1.22), rpy=(0,0,0),
+                                 color=COLOR_CLOSET_COL, fixed=True, collision=True, parent="closet_vis")
+    return closet_left, closet_rightup, closet_rightdown
+
+
 ##
 # @param Rtw_ref reference orientation matrix for waypoints in track coordinates
 def make_work_plane(pscene, track, area_depth, TOOL_DIM, Rtw_ref=None, collision_margin=0.02):

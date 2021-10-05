@@ -52,7 +52,7 @@ def get_division_dict(match_range_dict, DEPTH_DIV, TABLE_DIMS, TOOL_DIM, DEPTH_M
 
 
 def select_task_area(robot_config, TABLE_DIMS, TOOL_DIM, EE_DEPTH_OFF, EE_HEIGHT, ROBOT_Z_ANGLE,
-                     TOOL_DEPTH_MIN=0.6, TOOL_DEPTH_MAX=1.0, MARGIN=0):
+                     TOOL_DEPTH_MIN=0.6, TOOL_DEPTH_MAX=1.0, MARGIN=0, allow_back_approach=False):
     print("reference height: {}".format(EE_HEIGHT))
     if ROBOT_Z_ANGLE == np.pi:
         flipper = -1
@@ -117,8 +117,11 @@ def select_task_area(robot_config, TABLE_DIMS, TOOL_DIM, EE_DEPTH_OFF, EE_HEIGHT
     DEPTH_MAX = TOOL_DEPTH_MAX + EE_DEPTH_OFF
     division_dict_1 = get_division_dict(match_range_dict, 1, TABLE_DIMS, TOOL_DIM,
                                         DEPTH_MIN=DEPTH_MIN, DEPTH_MAX=DEPTH_MAX, MARGIN=MARGIN)
-    division_dict_2 = get_division_dict(match_range_dict, 2, TABLE_DIMS, TOOL_DIM,
-                                        DEPTH_MIN=DEPTH_MIN, DEPTH_MAX=DEPTH_MAX, MARGIN=MARGIN)
+    if allow_back_approach:
+        division_dict_2 = get_division_dict(match_range_dict, 2, TABLE_DIMS, TOOL_DIM,
+                                            DEPTH_MIN=DEPTH_MIN, DEPTH_MAX=DEPTH_MAX, MARGIN=MARGIN)
+    else:
+        division_dict_2 = {}
 
     # divisions1_sorted = sorted(division_dict_1.items(), key=lambda item_: item_[1][-1])
     # divisions2_sorted = sorted(division_dict_2.items(), key=lambda item_: item_[1][-1])
@@ -225,3 +228,231 @@ def select_area(TABLE_HEIGHT, TABLE_DEPTH, TABLE_WIDTH):
     num_area = num_width * num_depth
 
     return corner_center, area_width, area_depth, height_goal, num_width, num_depth
+
+from pkg.planning.constraint.constraint_common import BindingTransform
+
+class CachedCollisionCheck:
+    def __init__(self, gcheck, wp_task, wp_hdl, wayframer):
+        self.gcheck = gcheck
+        self.wp_task, self.wp_hdl, self.wayframer = \
+            wp_task, wp_hdl, wayframer
+        self.cache = {}
+
+    def get_cache_key(self, T_loal, Q_dict):
+        xyzquat = T2xyzquat(T_loal)
+        key = (tuple(np.round(xyzquat[0], 3)),
+               tuple(np.round(xyzquat[1], 3)),
+               tuple(np.round(
+                   dict2list(Q_dict,
+                             self.gcheck.gscene.joint_names))))
+        return key
+
+    def __call__(self, T_loal, Q_dict):
+        key = self.get_cache_key(T_loal, Q_dict)
+        if key in self.cache:
+            return self.cache[key]
+        res = self.gcheck.check(
+            BindingTransform(self.wp_task, self.wp_hdl, self.wayframer,
+                             T_loal=T_loal), Q_dict)
+        self.cache[key] = res
+        return res
+
+
+SWEEP_DAT_PATH = os.path.join(os.environ["RNB_PLANNING_DIR"], "data/sweep_reach")
+
+
+##
+# @brief get division dictionary
+# @param plane_val value along the plane normal axis
+# @param ccheck CachedCollisionCheck
+# @param tip_dir None, up, down
+# @return {approach dir 0~3: {Tsm_key: [idx_div]}}, surface_div_centers
+def get_division_dict(surface, brush_face, robot_config, plane_val, tip_dir, TOOL_DIM, ccheck):
+    ## get data
+    rtype = robot_config.type.name
+    sweep_path = os.path.join(SWEEP_DAT_PATH, rtype if tip_dir is None else "{}-{}".format(rtype, tip_dir))
+    sweep_max = np.loadtxt(sweep_path+"-max.csv", delimiter=",")
+    sweep_min = np.loadtxt(sweep_path+"-min.csv", delimiter=",")
+
+    gcheck = ccheck.gcheck
+    pscene = gcheck.pscene
+    gscene = pscene.gscene
+    crob = pscene.combined_robot
+
+    ## set axes
+    ax_pln = 2 if tip_dir is None else 0
+    ax_swp = 1
+    idx_pln = np.argmin(np.abs(sweep_max[:, ax_pln] - plane_val))
+    val_pln = sweep_max[idx_pln, ax_pln]
+    idc_pln = np.where(sweep_max[:, ax_pln] == val_pln)[0]
+    sweep_max = sweep_max[idc_pln, :]
+    sweep_min = sweep_min[idc_pln, :]
+    ax_step = [ax for ax in [0,1,2] if ax not in [ax_pln, ax_swp]][0] # step axis = not plane axis nor sweep axis
+
+    ## divide surface with squares
+    sqdiv_size_ref = np.max(TOOL_DIM)
+    surf_offset = 0.05
+    surface_dim_eff = np.subtract(surface.dims[:2], sqdiv_size_ref) # effective surface dims - except tool dimension to boundaries
+    div_close = np.ceil(surface_dim_eff[0]/sqdiv_size_ref).astype(np.int)
+    sqdiv_size = surface_dim_eff[0]/div_close # reduce square size to fit the closed ends
+    div_num_ = np.ceil(surface_dim_eff/sqdiv_size).astype(np.int)
+    surface_dim_eff = np.round(sqdiv_size*div_num_, 5) # enpand effective size of open ends
+    div_num = div_num_ + 1
+    surface_div_centers = [tuple(np.round(-surface_dim_eff/2+np.multiply(sqdiv_size, (i,j)), 5))
+                            for i, j in product(range(div_num[0]), range(div_num[1]))]
+
+    ## get all sweep points
+    swp_points_all = []
+    for step_val, min_val, max_val in zip(sweep_min[:, ax_step], sweep_min[:, ax_swp], sweep_max[:, ax_swp]):
+        diff_val = max_val - min_val
+        sweep_num = np.floor(diff_val / sqdiv_size).astype(np.int)
+        min_val_clip = (max_val + min_val) / 2 - (sweep_num * sqdiv_size / 2) + (sqdiv_size / 2)
+
+        swp_points = np.zeros((sweep_num, 3))
+        swp_points[:, ax_swp] = min_val_clip + np.arange(sweep_num) * sqdiv_size
+        swp_points[:, ax_step] = step_val
+        swp_points[:, ax_pln] = plane_val
+        swp_points_all.append(np.round(swp_points, 3))
+    swp_points_all = np.concatenate(swp_points_all)
+
+    ## make feasible base-div dictionary
+    ROBOT_BASE = pscene.robot_chain_dict[robot_config.get_indexed_name()]["link_names"][0]
+    TIP_LINK = brush_face.geometry.link_name
+    Tbs = surface.get_tf(crob.home_dict)
+    Tmr = gcheck.gscene.get_tf(to_link=ROBOT_BASE, from_link=robot_config.root_on, Q=crob.home_dict)
+    Trm = SE3_inv(Tmr)
+    if tip_dir is None:
+        Rre = Rot_rpy([np.pi, np.pi/2, 0])
+    elif tip_dir == "up":
+        Rre = Rot_rpy([np.pi, 0, 0])
+    elif tip_dir == "down":
+        Rre = Rot_rpy([np.pi, np.pi, 0])
+    else:
+        raise(RuntimeError("Not defined"))
+    div_base_dict = defaultdict(lambda: defaultdict(list))
+    Tbm_in_all = []
+    Tbm_fail_all = []
+    Tbm_succ_all = []
+    for i_div, div_center in enumerate(surface_div_centers):
+            Tsc = SE3(np.identity(3), tuple(div_center)+(surface.dims[2]/2,))
+            for i in range(4):
+                Tct = SE3(Rot_axis(3, i * np.pi/2), [0, 0, surf_offset])
+                Tst = matmul_series(Tsc, Tct)
+                for swp_point in swp_points_all:
+                    Tre = SE3(Rre, swp_point)
+                    Tet = brush_face.get_tf_handle(crob.home_dict, from_link=TIP_LINK)
+                    Trt = matmul_series(Tre, Tet)
+                    Tsr = matmul_series(Tst, SE3_inv(Trt))
+                    Tsm = np.matmul(Tsr, Trm)
+                    Tbm = np.matmul(Tbs, Tsm)
+                    if (np.all(np.abs(Tsm[:2,3]) < np.divide(surface.dims[:2], 2))
+                        or (np.abs(Tsm[0,3]) > np.divide(surface.dims[0], 2))): # mobile loc inside surface
+                        Tbm_in_all.append(Tbm)
+                        continue
+                    if ccheck(T_loal=Tbm, Q_dict=crob.home_dict): #check feasible
+                        Tbm_succ_all.append(Tbm)
+                        Tsm_xq = T2xyzquat(Tsm)
+                        Tsm_key = tuple(np.round(Tsm_xq[0], 3)), tuple(np.round(Tsm_xq[1], 3))
+                        div_base_dict[Tsm_key][i].append(i_div)
+                    else:
+                        Tbm_fail_all.append(Tbm)
+    Tsm_keys = sorted(div_base_dict.keys())
+    return div_base_dict, Tsm_keys, surface_div_centers, sqdiv_size, div_num, (ax_step, ax_swp, ax_pln)
+
+
+## repeat selecting max-cover base
+def select_max_cover_bases(div_base_dict, Tsm_keys, surface_div_centers, div_num, ax_step):
+    covered_all = []
+    idx_bases = []
+    idc_divs = []
+    while True:
+        ## make feasible base-div matrix
+        Tsm_key_len = len(Tsm_keys)
+        div_len = len(surface_div_centers)
+        div_base_mat = np.zeros((Tsm_key_len, 4, div_len), dtype=np.int)
+        for i_aproc in range(4):
+            for i_tsm, Tsm_key in enumerate(Tsm_keys):
+                idc_div = div_base_dict[Tsm_key][i_aproc]
+                idc_div = sorted(set(idc_div) - set(covered_all))
+                if len(idc_div) > 0:
+                    vec_stp = np.zeros(3)
+                    vec_stp[ax_step] = 1
+                    vec_stp = np.abs(np.matmul(Rot_axis(3, i_aproc * np.pi / 2), vec_stp))
+                    ax_stp_ = np.where(vec_stp > 0.5)[0][0]
+                    idc_div_rav = np.array(np.unravel_index(idc_div, div_num))
+                    u_list, c_list = np.unique(idc_div_rav[ax_stp_, :], return_counts=True)
+                    count_dict = {u: c for u, c in zip(u_list, c_list)}
+                    for i_div in idc_div:
+                        i_div_rav = np.unravel_index(i_div, div_num)
+                        div_c = surface_div_centers[i_div]
+                        div_base_mat[i_tsm, i_aproc, i_div] = count_dict[i_div_rav[ax_stp_]]
+        ## Select best bases
+        div_base_mat_max = np.max(div_base_mat, axis=1)
+        div_marks = np.any(div_base_mat_max, axis=0)
+        if not np.any(div_marks):  ## repeat base selecting untile no div remaining
+            break
+        base_covers = np.max(div_base_mat_max, axis=1)  # max sweep length
+        idx_max = np.argmax(base_covers)
+        covereds = np.where(div_base_mat_max[idx_max] == base_covers[idx_max])[0]
+        covered_all = sorted(np.concatenate([covered_all, covereds]).astype(np.int))
+        idx_bases.append(idx_max)
+        idc_divs.append(covereds)
+    return idx_bases, idc_divs, covered_all
+
+
+def get_min_max_sweep_points(sweep_centers, sqdiv_size, TOOL_DIM_SWEEP):
+    swp_min = np.min(sweep_centers, axis=0)
+    swp_max = np.max(sweep_centers, axis=0)
+    ax_swp = np.where(swp_min!=swp_max)[0] # sweep axis
+    swp_min[ax_swp] = swp_min[ax_swp]-sqdiv_size/2+TOOL_DIM_SWEEP
+    swp_max[ax_swp] = swp_max[ax_swp]+sqdiv_size/2-TOOL_DIM_SWEEP
+    return swp_min, swp_max, ax_swp
+
+
+from pkg.geometry.geometry import *
+from pkg.planning.constraint.constraint_common import *
+from pkg.planning.constraint.constraint_actor import *
+from pkg.planning.constraint.constraint_subject import *
+
+def add_sweep_task(pscene, sweep_name, surface, swp_min, swp_max, Tsm, wp_dims,
+                   color_sweep=(0.6, 0.0, 0.0, 0.3), color_wp=(0.6, 0.0, 0.0, 0.5)):
+    gscene = pscene.gscene
+    wp_list = []
+    ax_swp = np.where(swp_min!=swp_max)[0][0] # sweep axis
+    ax_swp_s = np.where(np.abs(Tsm[:3,ax_swp])>0.5)[0][0]
+    sweep_dim = list(wp_dims)
+    sweep_dim[ax_swp_s] = np.subtract(swp_max, swp_min)[ax_swp] + wp_dims[ax_swp_s]
+    sweep_dim = tuple(sweep_dim)
+    gscene.create_safe(gtype=GEOTYPE.BOX, name=sweep_name, link_name="base_link",
+                       dims=sweep_dim + (surface.dims[2],),
+                       center=tuple(np.mean([swp_min, swp_max], axis=0)) + (0,),
+                       rpy=Rot2rpy(Tsm[:3, :3]), color=color_sweep, display=True,
+                       collision=False, fixed=True, parent=surface.name)
+
+    if np.matmul(Tsm[:2,:3].transpose(), swp_min)[ax_swp_s] < np.matmul(Tsm[:2,:3].transpose(), swp_max)[ax_swp_s]:
+        swp_0 = swp_max
+        swp_1 = swp_min
+    else:
+        # swp_0 = swp_min
+        # swp_1 = swp_max
+        swp_0 = swp_max
+        swp_1 = swp_min
+    for wp_idx, wp_pos in [(0, swp_0), (1, swp_1)]:
+        wp_list.append(gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_wp_{}".format(sweep_name, wp_idx), link_name="base_link",
+                                          dims=tuple(wp_dims[:2])+(surface.dims[2],), center=tuple(wp_pos)+(0,),
+                                          rpy=Rot2rpy(Tsm[:3,:3]), color=color_wp, display=True,
+                                          collision=False, fixed=True, parent=surface.name))
+    sweep_task = pscene.create_subject(oname=sweep_name, gname=sweep_name, _type=SweepLineTask,
+                                       action_points_dict={wp.name: SweepFrame(wp.name, wp, [0,0,wp.dims[2]/2], [0,0,0])
+                                                           for wp in wp_list})
+    return sweep_task
+
+def add_waypoint_task(pscene, name, dims, center, rpy, parent, color=(1, 1, 0, 0.5)):
+    gscene = pscene.gscene
+    wp = gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_wp".format(name), link_name="base_link",
+                               dims=dims, center=center, rpy=rpy,
+                               color=color, display=True, collision=False, fixed=True, parent=parent)
+    wp_hdl = WayFrame(wp.name, wp, [0, 0, dims[2] / 2], [0, 0, 0])
+    wp_task = pscene.create_subject(oname="waypoints", gname="floor_ws", _type=WayopintTask,
+                                    action_points_dict={wp_hdl.name: wp_hdl})
+    return wp_task, wp_hdl
