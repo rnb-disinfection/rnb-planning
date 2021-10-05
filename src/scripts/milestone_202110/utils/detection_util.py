@@ -109,7 +109,7 @@ def prepare_dataset(voxel_size, model_mesh, target):
     # trans_init = np.asarray([[0.0, 0.0, 1.0, 0.0], [1.0, 0.0, 0.0, 0.0],
     #                              [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 0.0, 1.0]])
     source.transform(trans_init)
-    draw_registration_result(source, target, np.identity(4))
+    # draw_registration_result(source, target, np.identity(4))
 
     source_down, source_fpfh = preprocess_point_cloud(source, voxel_size)
     target_down, target_fpfh = preprocess_point_cloud(target, voxel_size)
@@ -181,7 +181,7 @@ def compute_ICP(model_mesh, pcd, initial_guess):
 
     # Guess Initial Transformation
     trans_init = initial_guess
-    draw_registration_result(source, target, trans_init)
+    # draw_registration_result(source, target, trans_init)
 
     print("Apply point-to-point ICP")
     threshold = 0.07
@@ -275,7 +275,7 @@ def remove_bed(pcd_original, pcd_bed):
     return p_inliers
 
 
-def check_location_top_table(color_path, depth_path, ROBOT_LOCATION):
+def check_location_top_table(color_path, depth_path, T_bc, T_bo):
     # Load total PCD of first view
     color = o3d.io.read_image(color_path)
     depth = o3d.io.read_image(depth_path)
@@ -316,23 +316,51 @@ def check_location_top_table(color_path, depth_path, ROBOT_LOCATION):
     # Remove other noise
     cl, ind = pcd_top_table.remove_radius_outlier(nb_points=25, radius=0.3)
     pcd_top_table = cl
-    o3d.visualization.draw_geometries([pcd_top_table])
+    # o3d.visualization.draw_geometries([pcd_top_table])
+
 
     # Determine rough location of top_table
-    TOP_TABLE_MODE = "LEFT"
-    top_table_center = pcd_top_table.get_center()
-    bed_center = pcd_bed.get_center()
+    points = np.asarray(pcd_top_table.points)
+    # points_4d = np.zeros((len(points)),4)
+    points_4d = []
+    points_temp = []
+    points_transformed = []
+    for i in range(len(points)):
+        points_4d.append(np.hstack([points[i], [1]]))
 
-    if ROBOT_LOCATION == "RIGHT":
-        if np.linalg.norm(top_table_center) > np.linalg.norm(bed_center):
-            TOP_TABLE_MODE = "LEFT"
-        else:
-            TOP_TABLE_MODE = "RIGHT"
-    elif ROBOT_LOCATION == "LEFT":
-        if np.linalg.norm(top_table_center) > np.linalg.norm(bed_center):
-            TOP_TABLE_MODE = "RIGHT"
-        else:
-            TOP_TABLE_MODE = "LEFT"
+    for i in range(len(points_4d)):
+        points_temp.append(np.matmul(T_bc, points_4d[i]))
+
+    for i in range(len(points_temp)):
+        points_transformed.append(np.matmul(np.linalg.inv(T_bo), points_temp[i]))
+
+
+    check_left = 0
+    check_right = 0
+    for i in range(len(points_transformed)):
+        if points_transformed[i][1] > 0:
+            check_right += 1
+        elif points_transformed[i][1] < 0:
+            check_left += 1
+
+    TOP_TABLE_MODE = "LEFT"
+    if check_left > check_right:
+        TOP_TABLE_MODE = "LEFT"
+    else:
+        TOP_TABLE_MODE = "RIGHT"
+    # top_table_center = pcd_top_table.get_center()
+    # bed_center = pcd_bed.get_center()
+    #
+    # if ROBOT_LOCATION == "RIGHT":
+    #     if np.linalg.norm(top_table_center) > np.linalg.norm(bed_center):
+    #         TOP_TABLE_MODE = "LEFT"
+    #     else:
+    #         TOP_TABLE_MODE = "RIGHT"
+    # elif ROBOT_LOCATION == "LEFT":
+    #     if np.linalg.norm(top_table_center) > np.linalg.norm(bed_center):
+    #         TOP_TABLE_MODE = "RIGHT"
+    #     else:
+    #         TOP_TABLE_MODE = "LEFT"
 
     return TOP_TABLE_MODE
 
@@ -386,6 +414,7 @@ def save_intrinsic_as_json(filename):
 #         return False
 #     else:
 #         return True
+
 
 
 def process_top_table_detection():
