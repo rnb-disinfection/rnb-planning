@@ -1,41 +1,18 @@
 from collections import defaultdict
-from ..utils.utils import list2dict
-from .constraint.constraint_common import combine_redundancy, sample_redundancy, calc_redundancy, fit_binding
-from .constraint.constraint_subject import SubjectType
+from ..utils.utils import list2dict, save_pickle
+from .constraint.constraint_common import \
+    combine_redundancy, sample_redundancy, fit_binding, \
+    BindingTransform, BindingState
+from .constraint.constraint_subject import *
+from .constraint.constraint_actor import *
 from ..utils.rotation_utils import SE3, Rot_rpy
+from ..geometry.geometry import *
 from ..geometry.geotype import *
+from state import State
 from itertools import product
 import numpy as np
 import random
 from copy import deepcopy
-
-
-##
-# @class    State
-# @brief    planning scene state
-class State:
-    ##
-    # @param binding_state           tuple of binding state ((object name, binding point, binder, binder_geo), ..)
-    # @param state_param    object pose dictionary {object name: 4x4 offset relative to attached link}
-    # @param Q              robot joint configuration
-    # @param pscene         PlanningScene instance
-    def __init__(self, binding_state, state_param, Q, pscene):
-        self.state_param = state_param if state_param is not None else defaultdict(lambda:None)
-        self.Q = np.array(Q)
-        self.set_binding_state(binding_state, pscene)
-
-    def set_binding_state(self, binding_state, pscene):
-        ## @brief tuple of binding state ((object name, binding point, binder), ..)
-        self.binding_state = binding_state
-        self.state_param = pscene.get_state_param_update(self.binding_state, self.state_param)
-        ## @brief tuple of simplified binding state (binder geometry name 1, binder geometry name 2, ..)
-        self.node = pscene.get_node(self.binding_state, self.state_param)
-
-    def get_tuple(self):
-        return (self.binding_state, self.state_param, self.Q)
-
-    def copy(self, pscene):
-        return State(deepcopy(self.binding_state), deepcopy(self.state_param), deepcopy(self.Q), pscene)
 
 
 
@@ -101,7 +78,7 @@ class PlanningScene:
             del self.actor_dict[bname]
             rname = self.actor_robot_dict[bname]
             del self.actor_robot_dict[bname]
-            if rname is not None:
+            if rname is not None and rname in self.robot_actor_dict:
                 del self.robot_actor_dict[rname]
             for subject in self.subject_dict.values():
                 if bname in subject.sub_binders_dict:
@@ -172,10 +149,11 @@ class PlanningScene:
 
     ##
     # @brief add a subjct to the scene
+    # @param binding BindingChain
     def add_subject(self, name, subject, binding=None):
         self.subject_dict[name] = subject
         if binding is not None:
-            self.actor_dict[binding[1]].bind(self.subject_dict[name], binding[0],
+            self.actor_dict[binding.actor_name].bind(self.subject_dict[name], binding.handle_name,
                                               list2dict([0] * len(self.gscene.joint_names),
                                                         item_names=self.gscene.joint_names))
         self.update_subjects()
@@ -186,6 +164,12 @@ class PlanningScene:
         if name in self.subject_dict:
             del self.subject_dict[name]
         self.update_subjects()
+
+    ##
+    # @brief clear all subjects
+    def clear_subjects(self):
+        for sname in self.subject_name_list:
+            self.remove_subject(sname)
 
     ##
     # @param oname object name
@@ -203,16 +187,16 @@ class PlanningScene:
     # @brief set object states
     # @param state State
     def set_object_state(self, state):
-        bd_list = list(state.binding_state)
+        bd_list = state.binding_state.get_chains_sorted()
         bd_list_done = []
         while bd_list:
             bd = bd_list.pop(0)
-            obj = self.subject_dict[bd[0]]
-            state_param = state.state_param[bd[0]]
+            obj = self.subject_dict[bd.subject_name]
+            state_param = state.state_param[bd.subject_name]
             if None in bd:
                 obj.set_state(bd, state_param)
                 continue
-            binder = self.actor_dict[bd[2]]
+            binder = self.actor_dict[bd.actor_name]
             binder_family = set(binder.geometry.get_family())
             remaining_subjects = [self.subject_dict[bd_tmp[0]].geometry.name for bd_tmp in bd_list]
             if binder_family.intersection(remaining_subjects):
@@ -229,11 +213,15 @@ class PlanningScene:
     # @return binding_state tuple of binding state ((object name, binding point, binder, binder_geo), ..)
     # @return pose_dict object pose relative to attached links {name: 4x4 transformation}
     def get_object_state(self):
-        binding_state = ()
+        binding_state = BindingState()
         state_param = {}
         for k in self.subject_name_list:
             v = self.subject_dict[k]
-            binding_state += (v.binding,)
+            sname, hname, aname, _ = v.binding
+            subject = self.subject_dict[sname]
+            handle =  subject.action_points_dict[hname] if hname in subject.action_points_dict else hname
+            actor = self.actor_dict[aname] if aname in self.actor_dict else aname
+            binding_state[k] = BindingTransform(subject, handle, actor)
             state_param[k] = v.get_state_param()
         return binding_state, state_param
 
@@ -258,15 +246,17 @@ class PlanningScene:
 
     def get_state_param_update(self, binding_state, state_param):
         state_param_new = {}
-        for sname, binding in zip(self.subject_name_list, binding_state):
+        for sname in self.subject_name_list:
+            btf = binding_state[sname]
             subject = self.subject_dict[sname]
-            state_param_new[sname] = subject.get_state_param_update(binding, state_param[binding[0]])
+            state_param_new[sname] = subject.get_state_param_update(btf, state_param[btf.binding.subject_name])
         return state_param_new
 
     def get_node(self, binding_state, state_param):
         node = []
-        for stype, binding in zip(self.subject_type_list, binding_state):
-            node.append(stype.get_node_component(binding, state_param[binding[0]]))
+        for sname, stype in zip(self.subject_name_list, self.subject_type_list):
+            btf = binding_state[sname]
+            node.append(stype.get_node_component(btf, state_param[sname]))
         return tuple(node)
 
     def get_node_neighbor(self, node, include_self=False):
@@ -331,16 +321,17 @@ class PlanningScene:
     # @param binding    binding tuple (object name, binding point, binder)
     # @param joint_dict joint pose in radian as dictionary
     def rebind(self, binding, joint_dict):
-        object_tar = self.subject_dict[binding[0]]
-        if binding[2] is None:
+        object_tar = self.subject_dict[binding.subject_name]
+        obj_fam = object_tar.geometry.get_family()
+        if binding.actor_name is None:
             object_tar.set_state(binding, None)
         else:
-            binder = self.actor_dict[binding[2]]
-            binder.bind(action_obj=object_tar, bind_point=binding[1], joint_dict_last=joint_dict)   # bind given binding
+            binder = self.actor_dict[binding.actor_name]
+            binder.bind(action_obj=object_tar, bind_point=binding.handle_name, joint_dict_last=joint_dict)   # bind given binding
         for binder_sub in [k for k,v in self.actor_dict.items()
-                           if v.geometry == object_tar.geometry]: # find bound object's sub-binder
+                           if v.geometry.name in obj_fam]: # find bound object's sub-binder
             for binding_sub in [v.binding for v in self.subject_dict.values()
-                                if v.binding[2] == binder_sub]: # find object bound to the sub-binder
+                                if v.binding.actor_name == binder_sub]: # find object bound to the sub-binder
                 self.rebind(binding_sub, joint_dict) # update binding of the sub-binder too
 
     ##
@@ -360,13 +351,17 @@ class PlanningScene:
     # @brief get exact bindings to transit
     # @param from_state State
     # @param to_state   State
-    def get_slack_bindings(self, from_state, to_state):
-        binding_list = []
+    def get_changing_subjects(self, from_state, to_state):
+        subject_list = []
+        btf_list = []
         if to_state.binding_state is not None:
-            for bd0, bd1 in zip(from_state.binding_state, to_state.binding_state):
+            for sname in self.subject_name_list:
+                btf0 = from_state.binding_state[sname]
+                btf1 = to_state.binding_state[sname]
                 # if bd0[2] != bd1[2]: # check if new transition (slack) ## this was when sweep was not added
-                if bd0 != bd1: # check if new transition (slack)
-                    binding_list += [bd1]
+                if btf0.get_chain() != btf1.get_chain(): # check if new transition (slack)
+                    subject_list.append(sname)
+                    btf_list.append(btf1)
                 else:
                     # print("bd0 :{}".format(bd0))
                     # print("bd1 :{}".format(bd1))
@@ -374,16 +369,15 @@ class PlanningScene:
                     pass
 
         success = True
-        if len(binding_list)>0:
-            for binding in binding_list:
-                if not self.actor_dict[binding[2]].check_available(
-                        list2dict(from_state.Q, self.gscene.joint_names)):
-                    success = False
-        else:
-            if from_state.Q is not None and to_state.Q is not None:
-                if np.sum(np.abs(from_state.Q - to_state.Q))<1e-3:
-                    success = False
-        return binding_list, success
+        for btf1 in btf_list:
+            if not self.actor_dict[btf1.binding.actor_name].check_available(
+                    list2dict(from_state.Q, self.gscene.joint_names)):
+                success = False
+        # else: # commenting out this because there's no need to filter out no-motion transitions
+        #     if from_state.Q is not None and to_state.Q is not None:
+        #         if np.sum(np.abs(from_state.Q - to_state.Q))<1e-3:
+        #             success = False
+        return subject_list, success
 
     ##
     # @brief get current scene state
@@ -393,10 +387,10 @@ class PlanningScene:
         Q_dict = list2dict(Q, self.gscene.joint_names)
 
         ## get current binding state
-        binding_state = []
+        binding_list = []
         for kobj in self.subject_name_list:
             binding = self.subject_dict[kobj].get_initial_binding(self.actor_dict, Q_dict)
-            binding_state.append(binding)
+            binding_list.append(binding)
 
         if force_fit_binding:
             objects_to_update = [obj for obj in self.subject_dict.values() if obj.stype == SubjectType.OBJECT]
@@ -409,38 +403,7 @@ class PlanningScene:
                 fit_binding(obj, obj.action_points_dict[hname], self.actor_dict[bname], self.combined_robot.home_dict,
                             Poffset=Poffset)
 
-        return self.rebind_all(binding_list=binding_state, Q=Q)
-
-    ##
-    # @brief get goal nodes that link object to target binder
-    # @param initial_binding_state   initial binding state
-    # @param obj            object name
-    # @param binder_geo         target binder geometry name
-    # @return type checked binding_states
-    def get_goal_states(self, initial_binding_state, obj, binder_geo):
-        _object = self.subject_dict[obj]
-        type_checked_bindings = []
-        for bname in self.geometry_actor_dict[binder_geo]:
-            _binder = self.actor_dict[bname]
-            for k, v in _object.action_points_dict.items():
-                if _binder.check_type(v):
-                    type_checked_bindings.append((obj, k, bname, binder_geo))
-        binding_state_list = [tuple(binding if bd[0] == binding[0]\
-                                    else bd for bd in initial_binding_state)\
-                              for binding in type_checked_bindings]
-
-        return [State(binding_state, None, None,self) for binding_state in binding_state_list]
-
-    ##
-    # @brief make goal state that with specific binding target
-    # @param from_state starting state (rnb-planning.src.pkg.planning.scene.State)
-    # @param obj        object name
-    # @param handle     handle name
-    # @param binder     binder name
-    def make_goal_state(self, from_state, obj, handle, binder):
-        to_state = from_state.copy(self)
-        to_state.binding_state = tuple([(obj, handle, binder, self.actor_dict[binder].geometry.name) if binding[0] == obj else binding for binding in to_state.binding_state])
-        return to_state
+        return self.rebind_all(binding_list=binding_list, Q=Q)
 
     ##
     # @brief    get a dictionary of available bindings in object-binding geometry level =
@@ -472,8 +435,9 @@ class PlanningScene:
         if Q_dict is None:
             Q_dict = list2dict(state.Q, self.gscene.joint_names)
         available_binding_dict = {}
-        for oname, to_node_item, from_node_item, from_binding in zip(
-                self.subject_name_list, to_node, state.node, state.binding_state):
+        for oname, to_node_item, from_node_item in zip(
+                self.subject_name_list, to_node, state.node):
+            from_binding = state.binding_state[oname].get_chain()
             # bgname: binder geometry name
             # sbgname: state
             if from_node_item != to_node_item:
@@ -495,6 +459,7 @@ class PlanningScene:
     # @return   (sampled next state, sampled redundancy)
     def sample_leaf_state(self, state, available_binding_dict, to_node,
                           binding_sampler=random.choice, redundancy_sampler=random.uniform):
+        self.set_object_state(state)
         to_state = state.copy(self)
         if state.node == to_node:
             dQ = (self.combined_robot.home_pose - to_state.Q)
@@ -505,26 +470,24 @@ class PlanningScene:
                 rname = random.choice(rcandis)
                 to_state.Q[self.combined_robot.idx_dict[rname]] = \
                     self.combined_robot.home_pose[self.combined_robot.idx_dict[rname]]
-                redundancy_dict = {}
                 # print("============= try go home ({}) ===================".format(rname))
-                return to_state, redundancy_dict
-        to_binding_state = tuple([(((oname,)+\
-                           binding_sampler(available_binding_dict[oname]))
-                          if sbgname!=bgname else sbinding)
-                         for oname, bgname, sbgname, sbinding
-                         in zip(self.subject_name_list, to_node, state.node, state.binding_state)])
+                return to_state
+        to_binding_state = BindingState()
+        for sname, from_ntem, to_ntem in zip(self.subject_name_list, state.node, to_node):
+            btf_from = state.binding_state[sname]
+            if from_ntem == to_ntem:
+                btf_to = deepcopy(btf_from)
+            else:
+                hname_to, bname_to, _ = binding_sampler(available_binding_dict[sname])
+                obj = self.subject_dict[sname]
+                to_ap = obj.action_points_dict[hname_to]
+                to_binder = self.actor_dict[bname_to]
+                redundancy_tot = combine_redundancy(to_ap, to_binder)
+                redundancy = sample_redundancy(redundancy_tot, sampler=redundancy_sampler)
+                btf_to = BindingTransform(obj, to_ap, to_binder, redundancy)
+            to_binding_state[sname] = btf_to
         to_state.set_binding_state(to_binding_state, self)
-        redundancy_dict = {}
-        for from_binding, to_binding in zip(state.binding_state, to_binding_state):
-            if None in to_binding:
-                continue
-            obj = self.subject_dict[from_binding[0]]
-            to_ap = obj.action_points_dict[to_binding[1]]
-            to_binder = self.actor_dict[to_binding[2]]
-            redundancy_tot = combine_redundancy(to_ap, to_binder)
-            redundancy = sample_redundancy(redundancy_tot, sampler=redundancy_sampler)
-            redundancy_dict[from_binding[0]] = redundancy
-        return to_state, redundancy_dict
+        return to_state
 
     ##
     # @brief    add axis marker to handle
@@ -539,21 +502,52 @@ class PlanningScene:
     ##
     # @brief    add axis marker to handle
     # @param binding tuple (subject name, handle name, binder name, binder geometry name)
-    # @param redundancy_dict defined redundancy of transition in dictionary form, {object name: {axis: value}}
-    def show_binding(self, binding, redundancy_dict):
-        sname, hname, bname, bgname = binding
-        redundancy = redundancy_dict[sname] if sname in redundancy_dict else {}
+    # @param btf BindingTransform
+    def show_binding(self, btf):
+        sname, hname, aname, agname = btf.get_chain()
         if hname is not None:
             handle = self.subject_dict[sname].action_points_dict[hname]
-            Toff = None
-            if hname in redundancy:
-                point_add_handle, rpy_add_handle = calc_redundancy(redundancy[hname], handle)
-                Toff = SE3(Rot_rpy(rpy_add_handle), point_add_handle)
-            self.add_handle_axis("{}_{}".format(sname, hname), handle, Toff=Toff)
-        if bname is not None:
-            binder = self.actor_dict[bname]
-            Toff = None
-            if bname in redundancy:
-                point_add_binder, rpy_add_binder = calc_redundancy(redundancy[bname], binder)
-                Toff = SE3(Rot_rpy(rpy_add_binder), point_add_binder)
-            self.add_handle_axis("{}".format(bname), binder, Toff=Toff)
+            self.add_handle_axis("{}_{}".format(sname, hname), handle, Toff=btf.T_add_handle)
+        if aname is not None:
+            actor = self.actor_dict[aname]
+            self.add_handle_axis("{}".format(aname), actor, Toff=btf.T_add_actor)
+
+    def get_scene_args(self, Q):
+        gtem_args = self.gscene.get_gtem_args()
+        binder_args = {aname: actor.get_args() for aname, actor in self.actor_dict.items()}
+        subject_args = {sname: subject.get_args() for sname, subject in self.subject_dict.items()}
+        subject_names = self.subject_name_list
+        binding_state, state_param = self.get_object_state()
+        state = State(binding_state, state_param, list(Q), self)
+        return {"gtem_args": gtem_args,
+                "binder_args": binder_args,
+                "subject_args": subject_args,
+                "subject_names": subject_names,
+                "state": state}
+
+    def recover_scene_args(self, scene_args):
+        self.clear_subjects()
+        for bname in sorted(self.actor_dict.keys()):
+            self.remove_binder(bname)
+
+        load_gtem_args(self.gscene, scene_args['gtem_args'])
+
+        for bname, bargs in scene_args['binder_args'].items():
+            self.create_binder(bargs["name"], bargs["gname"], _type=eval(bargs["type"]),
+                               point=bargs["point"], rpy=bargs["rpy"])
+
+        subject_args = scene_args['subject_args']
+        for sname in scene_args['subject_names']:
+            sargs = subject_args[sname]
+            self.create_subject(sargs["name"], gname=sargs["gname"], _type=eval(sargs["type"]),
+                                action_points_dict={aname:
+                                                        eval(ap_args["type"])(ap_args["name"],
+                                                                              self.gscene.NAME_DICT[ap_args["gname"]],
+                                                                              point=ap_args["point"], rpy=ap_args["rpy"],
+                                                                              name_full=ap_args["name_full"]
+                                                                              )
+                                                    for aname, ap_args in sargs["action_points_dict"].items()},
+                                sub_binders_dict={bname: self.actor_dict[bname] for bname in sargs["sub_binders"]},
+                                **sargs['kwargs'])
+
+        self.set_object_state(scene_args['state'])

@@ -6,7 +6,6 @@ from ....utils.rotation_utils import SE3, SE3_inv, Rot_rpy, T2xyzquat
 from ....utils.joint_utils import *
 from ....utils.traj_utils import *
 from ....geometry.geometry import GEOTYPE, GeometryScene
-from ...constraint.constraint_common import calc_redundancy
 from scipy.spatial.transform import Rotation
 import numpy as np
 import os
@@ -58,18 +57,19 @@ class MoveitPlanner(MotionInterface):
     # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
     # @param enable_dual    boolean flag to enable dual arm manipulation (default=True)
     # @param    motion_filters list of child-class of rnb-planning.src.pkg.planning.motion.filtering.filter_interface.MotionFilterInterface
-    def __init__(self, pscene, motion_filters=[], enable_dual=True):
+    def __init__(self, pscene, motion_filters=[], enable_dual=True, incremental_constraint_motion=True):
         MotionInterface.__init__(self, pscene, motion_filters)
         config_path = os.path.dirname(self.urdf_path)+"/"
+        self.incremental_constraint_motion = incremental_constraint_motion
         self.robot_names = self.combined_robot.robot_names
-        chain_dict = pscene.robot_chain_dict
-        binder_links = [chain_dict[rname]['tip_link'] for rname in self.robot_names]
+        self.chain_dict = pscene.robot_chain_dict
+        binder_links = [self.chain_dict[rname]['tip_link'] for rname in self.robot_names]
         self.binder_link_robot_dict = {blink: rname for blink, rname in zip(binder_links, self.robot_names)}
-        srdf_path = write_srdf(robot_names=self.robot_names, chain_dict=chain_dict,
+        srdf_path = write_srdf(robot_names=self.robot_names, chain_dict=self.chain_dict,
                                     link_names=self.link_names, joint_names=self.joint_names,
                                     urdf_content=self.urdf_content, urdf_path=self.urdf_path
                                )
-        self.planner = MoveitCompactPlanner_BP(self.urdf_path, srdf_path, self.robot_names, config_path)
+        self.planner = MoveitCompactPlanner_BP(self.urdf_path, srdf_path, self.robot_names, self.chain_dict, config_path)
         if not all([a==b for a,b in zip(self.joint_names, self.planner.joint_names_py)]):
             self.need_mapping = True
             self.idx_pscene_to_mpc = np.array([self.joint_names.index(jname) for jname in self.planner.joint_names_py])
@@ -119,13 +119,12 @@ class MoveitPlanner(MotionInterface):
     # @brief moveit planning implementation
     # @param from_state starting state (rnb-planning.src.pkg.planning.scene.State)
     # @param to_state   goal state (rnb-planning.src.pkg.planning.scene.State)
-    # @param binding_list   list of bindings to pursue
-    # @param redundancy_values calculated redundancy values in dictionary format {(object name, point name): (xyz, rpy)}
+    # @param subject_list   list of changed subjects
     # @return Traj      Full trajectory as array of Q
     # @return LastQ     Last joint configuration as array
     # @return error     planning error
     # @return success   success/failure of planning result
-    def plan_algorithm(self, from_state, to_state, binding_list, redundancy_values=None, timeout=1,
+    def plan_algorithm(self, from_state, to_state, subject_list, timeout=1,
                        timeout_joint=None, timeout_constrained=None, verbose=False, only_self_collision=False, **kwargs):
         timeout_joint = timeout_joint if timeout_joint is not None else timeout
         timeout_constrained = timeout_constrained if timeout_constrained is not None else timeout
@@ -136,13 +135,13 @@ class MoveitPlanner(MotionInterface):
                 dual_planner.planner.clear_context_cache()
                 dual_planner.planner.clear_manifolds()
 
-        if len(binding_list)>1:
+        if len(subject_list)>1:
             raise(RuntimeError("Only single manipulator operation is implemented with moveit!"))
 
         self.update_gscene(only_self_collision=only_self_collision)
 
         motion_type = 0
-        if len(binding_list) == 0: # joint motion case
+        if len(subject_list) == 0: # joint motion case
             motion_type = MoveitPlanner.JOINT_MOTION
             if from_state.Q is None or to_state.Q is None:
                 raise(RuntimeError("No motion goal is defined!"))
@@ -153,7 +152,7 @@ class MoveitPlanner(MotionInterface):
                 if np.sum(diffs[idx_rbt])>1e-3:
                     joint_groups.append(rname)
             if len(joint_groups)==0:
-                return np.array([from_state.Q]), from_state.Q, 0, True
+                return np.array([from_state.Q, to_state.Q]), to_state.Q, 0, True
             dual = False
             if len(joint_groups)==1:
                 group_name = joint_groups[0]
@@ -166,6 +165,8 @@ class MoveitPlanner(MotionInterface):
                     from_Q = from_state.Q
                     to_Q =  to_state.Q[idx_rbt]
             else:
+                print("from Q: {}".format(np.round(from_state.Q, 2)))
+                print("tar  Q: {}".format(np.round(to_state.Q, 2)))
                 raise(RuntimeError("multi-robot joint motion not implemented!"))
             if verbose:
                 print("try joint motion") ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
@@ -176,32 +177,34 @@ class MoveitPlanner(MotionInterface):
 
         else: # task motion case
             motion_type = MoveitPlanner.TASK_MOTION
-            obj_name, ap_name, binder_name, binder_geometry_name = binding_list[0]
+            obj_name, ap_name, binder_name, binder_geometry_name = to_state.binding_state[subject_list[0]].get_chain()
 
             binder = self.pscene.actor_dict[binder_name]
             obj = self.pscene.subject_dict[obj_name]
             handle = obj.action_points_dict[ap_name]
-            point_add_handle, rpy_add_handle = redundancy_values[(obj_name, handle.name)]
-            point_add_binder, rpy_add_binder = redundancy_values[(obj_name, binder.name)]
-            T_handle = np.matmul(handle.Toff_lh, SE3(Rot_rpy(rpy_add_handle), point_add_handle))
-            T_binder = np.matmul(binder.Toff_lh, SE3(Rot_rpy(rpy_add_binder), point_add_binder))
 
             group_name_handle = self.binder_link_robot_dict[handle.geometry.link_name] if handle.geometry.link_name in self.binder_link_robot_dict else None
             group_name_binder = self.binder_link_robot_dict[binder.geometry.link_name] if binder.geometry.link_name in self.binder_link_robot_dict else None
+
+            btf = to_state.binding_state[obj_name]
+            T_handle = btf.T_handle_lh
+            T_binder = btf.T_actor_lh
+            T_add_handle = btf.T_add_handle
+            T_add_actor = btf.T_add_actor
 
             dual = False
             if group_name_binder and not group_name_handle:
                 group_name = group_name_binder
                 tool, T_tool = binder, T_binder
                 target, T_tar = handle, T_handle
-                point_add_tool, rpy_add_tool = point_add_binder, rpy_add_binder
-                point_add_tar, rpy_add_tar = point_add_handle, rpy_add_handle
+                T_add_tool = T_add_actor
+                T_add_tar = T_add_handle
             elif group_name_handle and not group_name_binder:
                 group_name = group_name_handle
                 tool, T_tool = handle, T_handle
                 target, T_tar = binder, T_binder
-                point_add_tool, rpy_add_tool = point_add_handle, rpy_add_handle
-                point_add_tar, rpy_add_tar = point_add_binder, rpy_add_binder
+                T_add_tool = T_add_handle
+                T_add_tar = T_add_actor
             else:
                 if not self.enable_dual:
                     raise(RuntimeError("dual arm motion is not enabled"))
@@ -210,8 +213,8 @@ class MoveitPlanner(MotionInterface):
                 self.update_gscene(group_name, only_self_collision=only_self_collision)
                 tool, T_tool = handle, T_handle
                 target, T_tar = binder, T_binder
-                point_add_tool, rpy_add_tool = point_add_handle, rpy_add_handle
-                point_add_tar, rpy_add_tar = point_add_binder, rpy_add_binder
+                T_add_tool = T_add_handle
+                T_add_tar = T_add_actor
 
             T_tar_tool = np.matmul(T_tar, SE3_inv(T_tool))
             goal_pose = tuple(T_tar_tool[:3,3]) \
@@ -228,28 +231,35 @@ class MoveitPlanner(MotionInterface):
                 else:
                     from_Q = from_state.Q
 
-            i_stem = self.pscene.subject_name_list.index(obj_name)
-            binding_from = from_state.binding_state[i_stem]
-            binding_to = to_state.binding_state[i_stem]
-            constraints = obj.make_constraints(binding_from, binding_to)
+            btf_from = from_state.binding_state[obj_name]
+            btf_to = to_state.binding_state[obj_name]
+            constraints = obj.make_constraints(btf_from.get_chain(),
+                                               btf_to.get_chain())
             if constraints:
                 for motion_constraint in constraints:
                     self.add_constraint(group_name, tool.geometry.link_name, tool.Toff_lh, motion_constraint=motion_constraint)
                 if verbose:
                     print("try constrained motion") ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
 
-                ################################# Special planner ##############################
-                self.sweep_params = (tool.geometry.link_name, list2dict(from_Q, self.gscene.joint_names), self.gscene.urdf_content,
-                                     target.geometry.link_name, T_tar_tool)
-                Tcur = get_tf(tool.geometry.link_name, list2dict(from_Q, self.gscene.joint_names), self.gscene.urdf_content,
-                              from_link=target.geometry.link_name)
-                trajectory, success = get_sweep_traj(self, tool.geometry, np.subtract(T_tar_tool[:3,3], Tcur[:3, 3]),
-                                            from_Q, DP=0.01, ERROR_CUT=0.01, SINGULARITY_CUT = 0.01, VERBOSE=verbose)
-                ################################# Original planner ##############################
-                # trajectory, success = planner.plan_constrained_py(
-                #     group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q),
-                #     timeout=timeout_constrained, **kwargs)
-                #################################################################################
+                if self.incremental_constraint_motion:
+                    # ################################# Special planner ##############################
+                    self.sweep_params = (tool.geometry.link_name, list2dict(from_Q, self.gscene.joint_names), self.gscene.urdf_content,
+                                         target.geometry.link_name, T_tar_tool)
+                    Tcur = get_tf(tool.geometry.link_name, list2dict(from_Q, self.gscene.joint_names), self.gscene.urdf_content,
+                                  from_link=target.geometry.link_name)
+                    get_sweep_traj.args = (self, tool.geometry, np.subtract(T_tar_tool[:3, 3], Tcur[:3, 3]), from_Q)
+                    get_sweep_traj.kwargs = dict(DP=0.01, ERROR_CUT=0.01, SINGULARITY_CUT = 0.01, VERBOSE=verbose,
+                                                 ref_link=self.chain_dict[group_name]["link_names"][0])
+                    trajectory, success = get_sweep_traj(self, tool.geometry, np.subtract(T_tar_tool[:3,3], Tcur[:3, 3]),
+                                                         from_Q, DP=0.01, ERROR_CUT=0.01, SINGULARITY_CUT = 0.01,
+                                                         VERBOSE=verbose,
+                                                         ref_link=self.chain_dict[group_name]["link_names"][0])
+                else:
+                    ################################ Original planner ##############################
+                    trajectory, success = planner.plan_constrained_py(
+                        group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q),
+                        timeout=timeout_constrained, **kwargs)
+                ################################################################################
                 if verbose:
                     print("constrained motion tried: {}".format(success)) ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
             else:
@@ -278,8 +288,8 @@ class MoveitPlanner(MotionInterface):
                 error = np.sum(np.abs(to_state.Q - Q_last))
             elif motion_type == MoveitPlanner.TASK_MOTION:
                 T_tar, T_tool = target.get_tf_handle(Q_last_dict), tool.get_tf_handle(Q_last_dict)
-                T_tar = np.matmul(T_tar, SE3(Rot_rpy(rpy_add_tar), point_add_tar))
-                T_tool = np.matmul(T_tool, SE3(Rot_rpy(rpy_add_tool), point_add_tool))
+                T_tar = np.matmul(T_tar, T_add_tar)
+                T_tool = np.matmul(T_tool, T_add_tool)
 
                 # T_handle = np.matmul(handle.Toff_lh, SE3(Rot_rpy(rpy_add_handle), point_add_handle))
                 # T_binder = np.matmul(binder.Toff_lh, SE3(Rot_rpy(rpy_add_binder), point_add_binder))
@@ -289,7 +299,7 @@ class MoveitPlanner(MotionInterface):
         return trajectory, Q_last, error, success
 
 
-    def init_online_plan(self, from_state, to_state, binding_list, T_step, control_freq, playback_rate=0.5, **kwargs):
+    def init_online_plan(self, from_state, to_state, subject_list, T_step, control_freq, playback_rate=0.5, **kwargs):
         raise(RuntimeError("online operation not implemented with moveit"))
 
     def step_online_plan(self, i_q, pos, wp_action=False):
@@ -437,7 +447,7 @@ def save_converted_chain(urdf_content, urdf_path, robot_new, base_link, end_link
     new_chain = __get_chain(end_link, urdf_content_new)
     new_joints = [linkage[0] for linkage in new_chain if
                   linkage[0] and urdf_content_new.joint_map[linkage[0]].type != "fixed"]
-    new_links = sorted(urdf_content_new.link_map.keys())
+    new_links = [link.name for link in urdf_content_new.links]
 
     srdf_path_new = write_srdf(robot_names=[robot_new], urdf_content=urdf_content_new, urdf_path=urdf_path_new,
                                link_names=new_links, joint_names=new_joints,
@@ -457,7 +467,7 @@ def write_srdf(robot_names, urdf_content, urdf_path, link_names, joint_names, ch
         grp.setAttribute('name', rname)
 
         chain = root.createElement("chain")
-        chain.setAttribute('base_link', base_link)
+        chain.setAttribute('base_link', chain_dict[rname]['link_names'][0])
         chain.setAttribute('tip_link', chain_dict[rname]['tip_link'])
         grp.appendChild(chain)
         xml.appendChild(grp)

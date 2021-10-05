@@ -26,6 +26,13 @@ pip install pybullet numpy scipy \
 ```
 
 ## Edit to strictly obey timeout
+* Go to *pddlstream/algorithms/skeleton.py* and find STANDBY = None and set STANDBY = False
+* This makes empty stream removed from stream queue. Possibly remove chance for the stream to be used by later-discovered skeletons
+```python
+STANDBY = False
+```
+
+## Edit to strictly obey timeout
 * Go to *pddlstream/algorithms/focused.py*
 * Find the line that calls the function ***iterative_plan_streams*** (around line 177)
 * Add a new argument *time_remain=max_time-store.elapsed_time()*
@@ -38,6 +45,25 @@ if final_depth == 0:
 to
 ```python
 if final_depth == 0 or elapsed_time(start_time)>time_remain:
+```
+
+## To get plan summary
+* Go to *pddlstream/algorithms/common.py*
+* Find the function ***export_summary(self)***
+* Change "return = {" to "SolutionStore.last_log = {"
+* Add "return SolutionStore.last_log" at the end of the function
+* The function should look like this:
+```python
+def export_summary(self):
+    SolutionStore.last_log = {
+    ...
+    }
+    return SolutionStore.last_log
+```
+* Get the log from pddlstream.algorithms.common.SolutionStore.last_log as follows:
+```python
+from pddlstream.algorithms.common import SolutionStore
+print(SolutionStore.last_log)
 ```
 
 

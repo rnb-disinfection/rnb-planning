@@ -50,13 +50,12 @@ class EtaslPlanner(MotionInterface):
     # @brief eTaSL planning implementation
     # @param from_state starting state (rnb-planning.src.pkg.planning.scene.State)
     # @param to_state   goal state (rnb-planning.src.pkg.planning.scene.State)
-    # @param binding_list   list of bindings to pursue
-    # @param redundancy_values calculated redundancy values in dictionary format {(object name, point name): (xyz, rpy)}
+    # @param subject_list   list of changed subjects
     # @return Traj      Full trajectory as array of Q
     # @return LastQ     Last joint configuration as array
     # @return error     planning error
     # @return success   success/failure of planning result
-    def plan_algorithm(self, from_state, to_state, binding_list, redundancy_values=None,
+    def plan_algorithm(self, from_state, to_state, subject_list,
                        vel_conv=1e-2, err_conv=1e-3, collision=True, N=None, dt=1e-2,
                        print_expression=False, cut_dot=False, traj_count=DEFAULT_TRAJ_COUNT,
                        timeout=None, verbose=False, **kwargs):
@@ -65,13 +64,12 @@ class EtaslPlanner(MotionInterface):
                 N = 1000
             else:
                 N = timeout*2500
-        if len(binding_list)>1:
+        if len(subject_list)>1:
             print("===================== plan simultaneous manipulation =====================")
-        if len(binding_list)==0:
+        if len(subject_list)==0:
             print("===================== plan joint manipulation =====================")
         full_context, kwargs = self.__get_transition_context(
-            from_state, to_state, binding_list, vel_conv, err_conv, collision=collision,
-            redundancy_values=redundancy_values, **kwargs)
+            from_state, to_state, subject_list, vel_conv, err_conv, collision=collision, **kwargs)
         if print_expression:
             print(full_context)
         e = self.__set_simulate(full_context, initial_jpos=np.array(from_state.Q),
@@ -88,7 +86,7 @@ class EtaslPlanner(MotionInterface):
     # @brief initialize online eTaSL planning
     # @param from_state starting state (rnb-planning.src.pkg.planning.scene.State)
     # @param to_state   goal state (rnb-planning.src.pkg.planning.scene.State)
-    def init_online_algorithm(self, from_state, to_state, binding_list, T_step, control_freq, playback_rate=0.5, **kwargs):
+    def init_online_algorithm(self, from_state, to_state, subject_list, T_step, control_freq, playback_rate=0.5, **kwargs):
         dt = 1.0 / control_freq
         dt_sim = dt * playback_rate
         N = int(float(T_step) / dt_sim)
@@ -96,9 +94,12 @@ class EtaslPlanner(MotionInterface):
         self.err_conv = kwargs['err_conv']
 
         full_context, kwargs = \
-            self.__get_transition_context(from_state, to_state, binding_list,
-                                        N=N, dt=dt_sim, activation=(from_state.binding_state != to_state.binding_state),
-                                        **kwargs)
+            self.__get_transition_context(from_state, to_state, subject_list,
+                                          N=N, dt=dt_sim,
+                                          activation=(
+                                                  from_state.binding_state.get_chains_sorted()
+                                                  != to_state.binding_state.get_chains_sorted()),
+                                          **kwargs)
 
         if "inp_lbl" not in kwargs:
             kwargs["inp_lbl"] = []
@@ -106,7 +107,7 @@ class EtaslPlanner(MotionInterface):
             kwargs["inp"] = []
         self.jact_idx = -1
         self.cact_idx = -1
-        if from_state.binding_state != to_state.binding_state:
+        if from_state.binding_state.get_chains_sorted() != to_state.binding_state.get_chains_sorted():
             joint_context = make_joint_constraints(self.joint_names, priority=2, make_error=False, activation=True)
             kwargs["inp_lbl"] = list(kwargs["inp_lbl"]) + ["target_{joint_name}".format(joint_name=joint_name) for joint_name in self.joint_names]
             kwargs["inp_lbl"] += ['joint_activation', 'constraint_activation']
@@ -139,7 +140,7 @@ class EtaslPlanner(MotionInterface):
         self.VEL_CUR = np.zeros_like(pos_start)
         self.POS_CUR = pos_start
 
-        return pos, binding_list
+        return pos, subject_list
 
     def step_online_plan(self, i_q, pos, wp_action=False):
         end_loop = False
@@ -187,9 +188,9 @@ class EtaslPlanner(MotionInterface):
         # self.inp[self.idx_jnt_online] = traj[-1]
         return idx_cur # len(traj)
 
-    def __get_transition_context(self, from_state=None, to_state=None, binding_list=[],
+    def __get_transition_context(self, from_state=None, to_state=None, subject_list=[],
                                vel_conv=1e-2, err_conv=1e-4, collision=True,
-                               activation=False, redundancy_values=None, **kwargs):
+                               activation=False, **kwargs):
         kwargs.update(deepcopy(self.kwargs_online))
 
         tf_text = self.fixed_tf_text + self.online_input_text + get_tf_text(self.gscene.movable_gtems)
@@ -207,13 +208,15 @@ class EtaslPlanner(MotionInterface):
         if activation:
             additional_constraints = '\nconstraint_activation = ctx:createInputChannelScalar("constraint_activation",0.0) \n'
 
-        for bd1 in binding_list:
-            sidx = self.pscene.subject_name_list.index(bd1[0])
+        for sname in subject_list:
+            btf = to_state.binding_state[sname]
             additional_constraints += make_action_constraints(
-                self.pscene.subject_dict[bd1[0]], self.pscene.subject_dict[bd1[0]].action_points_dict[bd1[1]],
-                self.pscene.actor_dict[bd1[2]],
-                binding_from=from_state.binding_state[sidx], binding_to=to_state.binding_state[sidx],
-                redundancy_values=redundancy_values, activation=activation)
+                self.pscene.subject_dict[sname],
+                self.pscene.subject_dict[sname].
+                    action_points_dict[btf.binding.handle_name],
+                self.pscene.actor_dict[btf.binding.actor_name],
+                btf_from=from_state.binding_state[sname],
+                btf_to=to_state.binding_state[sname], activation=activation)
 
 
         if additional_constraints=="" and to_state.Q is not None:# and np.sum(np.abs(np.subtract(to_state.Q,from_state.Q)))>1e-2:

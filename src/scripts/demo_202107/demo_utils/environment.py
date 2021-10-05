@@ -107,23 +107,68 @@ def add_indy_tool_kiro(gscene, zoff=0, tool_link="indy0_tcp", face_name="brush_f
                        collision=True, fixed=True)
     return brush_face
 
-def make_work_plane(pscene, track, TOOL_DIM, fix_orientation_front=False):
+
+def add_bed(gscene, bed_center, bed_rpy, COLOR_BED_COL):
+    bed_vis = gscene.create_safe(GEOTYPE.MESH, "bed_vis", link_name="base_link",
+                                 dims=(0.1,0.1,0.1), center=bed_center, rpy=bed_rpy,
+                                 color=(0.8,0.8,0.8,1), display=True, fixed=True, collision=False,
+                                 uri="package://my_mesh/meshes/stl/bed_floor_centered_m_scale.stl", scale=(1,1,1))
+    bed_mat = gscene.create_safe(GEOTYPE.BOX, "bed_mat", link_name="base_link", 
+                                 dims=(1.86,0.91,0.13), center=(-0.025,0,0.6), rpy=(0,0,0),
+                                 color=COLOR_BED_COL, fixed=True, collision=True, parent="bed_vis")
+
+    gscene.create_safe(GEOTYPE.BOX, "bed_head", link_name="base_link", 
+                                 dims=(0.1,1.0,1.10), center=(-1.03,0,0.5), rpy=(0,0,0),
+                                 color=COLOR_BED_COL, fixed=True, collision=True, parent="bed_vis")
+
+    gscene.create_safe(GEOTYPE.BOX, "bed_foot", link_name="base_link", 
+                                 dims=(0.2,1.0,1.10), center=(1.03,0,0.5), rpy=(0,0,0),
+                                 color=COLOR_BED_COL, fixed=True, collision=True, parent="bed_vis")
+    return bed_mat
+
+
+def add_closet(gscene, closet_center, closet_rpy, COLOR_CLOSET_COL = (0,1,0,0.3)):    
+    closet_vis = gscene.create_safe(GEOTYPE.MESH, "closet_vis", link_name="base_link",
+                                 dims=(0.1,0.1,0.1), center=closet_center, rpy=closet_rpy,
+                                 color=(0.8,0.8,0.8,1), display=True, fixed=True, collision=False,
+                                 uri="package://my_mesh/meshes/stl/top_table_centered_m_scale.stl", scale=(1,1,1))
+
+    closet_left = gscene.create_safe(GEOTYPE.BOX, "closet_left", link_name="base_link", 
+                                 dims=(2.2,0.255,0.6), center=(0,-0.145,1.1), rpy=(0,np.pi/2,0),
+                                 color=COLOR_CLOSET_COL, fixed=True, collision=True, parent="closet_vis")
+
+    closet_rightup = gscene.create_safe(GEOTYPE.BOX, "closet_rightup", link_name="base_link", 
+                                 dims=(0.62,0.24,0.465), center=(-0.065,0.105,1.89), rpy=(0,np.pi/2,0),
+                                 color=COLOR_CLOSET_COL, fixed=True, collision=True, parent="closet_vis")
+    closet_rightdown = gscene.create_safe(GEOTYPE.BOX, "closet_rightdown", link_name="base_link", 
+                                 dims=(0.86,0.24,0.6), center=(0,0.105,0.43), rpy=(0,np.pi/2,0),
+                                 color=COLOR_CLOSET_COL, fixed=True, collision=True, parent="closet_vis")
+    closet_shelf = gscene.create_safe(GEOTYPE.BOX, "closet_shelf", link_name="base_link", 
+                                 dims=(0.02,0.24,0.465), center=(-0.065,0.105,1.24), rpy=(0,np.pi/2,0),
+                                 color=COLOR_CLOSET_COL, fixed=True, collision=True, parent="closet_vis")
+    closet_back = gscene.create_safe(GEOTYPE.BOX, "closet_back", link_name="base_link", 
+                                 dims=(0.02,0.24,0.73), center=(-0.29,0.105,1.22), rpy=(0,0,0),
+                                 color=COLOR_CLOSET_COL, fixed=True, collision=True, parent="closet_vis")
+    return closet_left, closet_rightup, closet_rightdown
+
+
+##
+# @param Rtw_ref reference orientation matrix for waypoints in track coordinates
+def make_work_plane(pscene, track, area_depth, TOOL_DIM, Rtw_ref=None, collision_margin=0.02):
     gscene = pscene.gscene
-    if fix_orientation_front:
-        Tbt = track.get_tf(pscene.combined_robot.home_dict)
-        Rbt = Tbt[:3,:3]
-        rpy_wps = Rot2rpy(Rbt.transpose())
+    track_face_name = track.name
+    if Rtw_ref is not None:
+        rpy_wps = Rot2rpy(Rtw_ref)
     else:
         rpy_wps = (0,0,0)
-    track_face_binder = pscene.create_binder(bname="track_face", gname="track_face", _type=PlacePlane, point=None)
-    track_face = track_face_binder.geometry
-    TRACK_DIM = track.dims
-    TRACK_WIDTH = TOOL_DIM[0] + 0.02
+    track_face = track
+    TRACK_DIM = ((track.dims[0] + area_depth)/2,) + tuple(track.dims[1:])
+    TRACK_WIDTH = TOOL_DIM[0] + collision_margin
     TRACK_NUM = np.ceil(np.divide(TRACK_DIM[0] - TOOL_DIM[0], TOOL_DIM[0])).astype(np.int) + 1
-    OVERMARGIN = TRACK_NUM * TOOL_DIM[0] - TRACK_DIM[0]
-    OVERMARGIN_1 = OVERMARGIN / (TRACK_NUM + 1)
-    TRACK_STEP = (TRACK_DIM[0] - TOOL_DIM[0]) / (TRACK_NUM - 1) + OVERMARGIN_1
-    WP_REF_B = -np.subtract(TRACK_DIM[:2], TOOL_DIM[:2]) / 2 - [OVERMARGIN_1, 0]
+    OVERMARGIN = (TRACK_NUM * TOOL_DIM[0] - TRACK_DIM[0])
+    OVERMARGIN_1 = OVERMARGIN / (TRACK_NUM - 1)
+    TRACK_STEP = TOOL_DIM[0] - OVERMARGIN_1
+    WP_REF_B = -np.subtract(TRACK_DIM[:2], TOOL_DIM[:2]) / 2
     WP_REF_A = np.array([WP_REF_B[0], -WP_REF_B[1]])
     TRC_THIC = TRACK_DIM[2]
 
@@ -133,17 +178,17 @@ def make_work_plane(pscene, track, TOOL_DIM, fix_orientation_front=False):
                                  (TOOL_DIM[0] / 2, TOOL_DIM[1] / 2, TRC_THIC),
                                  tuple(WP_REF_A + [TRACK_STEP * i_trc, 0]) + (0,), rpy=rpy_wps,
                                  color=(0.8, 0.2, 0.2, 0.2), display=True, fixed=True, collision=False,
-                                 parent="track_face")
+                                 parent=track_face_name)
         wp2 = gscene.create_safe(GEOTYPE.BOX, "wp{}b".format(i_trc + 1), "base_link",
                                  (TOOL_DIM[0] / 2, TOOL_DIM[1] / 2, TRC_THIC),
                                  tuple(WP_REF_B + [TRACK_STEP * i_trc, 0]) + (0,), rpy=rpy_wps,
                                  color=(0.8, 0.2, 0.2, 0.2), display=True, fixed=True, collision=False,
-                                 parent="track_face")
+                                 parent=track_face_name)
         face = gscene.create_safe(GEOTYPE.BOX, "face{}".format(i_trc + 1), "base_link",
                                   (TRACK_WIDTH, TRACK_DIM[1], TRC_THIC),
                                   center=(WP_REF_A[0] + TRACK_STEP * i_trc, 0, 0), rpy=(0, 0, 0),
                                   color=(0.8, 0.2, 0.2, 0.2), display=True, fixed=True, collision=False,
-                                  parent="track_face")
+                                  parent=track_face_name)
         track_list.append((wp1, wp2, face))
 
     gscene.update_markers_all()
@@ -154,7 +199,7 @@ def make_work_plane(pscene, track, TOOL_DIM, fix_orientation_front=False):
     sweep_list = []
     for i_t, track_tem in enumerate(track_list):
         wp1, wp2, face = track_tem
-        sweep_ = pscene.create_subject(oname="sweep{}".format(i_t + 1), gname="track_face", _type=SweepLineTask,
+        sweep_ = pscene.create_subject(oname="sweep{}".format(i_t + 1), gname=track_face_name, _type=SweepLineTask,
                                        action_points_dict={
                                            wp1.name: SweepFrame(wp1.name, wp1, [0, 0, 0.005], [0, 0, 0]),
                                            wp2.name: SweepFrame(wp2.name, wp2, [0, 0, 0.005], [0, 0, 0])},
@@ -169,7 +214,7 @@ def add_track(table, TABLE_HEIGHT, area_depth, area_width, corner_center):
                                color=(0.0,0.8,0.8,0.2), display=True, fixed=True, collision=True)
     track_face = gscene.copy_from(track, new_name="track_face", collision=False, color=(0.8,0.8,0.8,0.0))
     TRACK_DIM = np.copy(track_face.dims)
-    track_face.dims = (3, 3, track.dims[2])
+    track_face.set_dims((3, 3, track.dims[2]))
     gscene.update_markers_all()
     return track, track_face
 

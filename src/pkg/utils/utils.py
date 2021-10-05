@@ -12,6 +12,25 @@ def try_mkdir(path):
     try: os.mkdir(path)
     except: pass
 
+from enum import Enum
+
+##
+# @class TextColors
+# @brief color codes for terminal. use println to simply print colored message
+class TextColors(Enum):
+    HEADER = '\033[95m'
+    BLUE = '\033[94m'
+    CYAN = '\033[96m'
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    RED = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+    def println(self, msg):
+        print(self.value + str(msg) + self.ENDC.value)
+
 import time
 from threading import Thread, Event
 import collections
@@ -65,6 +84,7 @@ class PeriodicTimer:
         self.__tic = Event()
         self.__stop = Event()
         self.thread_periodic = Thread(target=self.__tic_loop)
+        self.thread_periodic.daemon = True
         self.thread_periodic.start()
 
     def __tic_loop(self):
@@ -112,6 +132,13 @@ class PeriodicIterator(PeriodicTimer):
 
     def __len__(self):
         return len(self.item_list)
+
+##
+# @class    GlobalLogger
+# @brief    A singleton logger to record data anywhere in the code.
+class GlobalLogger(Singleton, dict):
+    def __init__(self):
+        pass
 
 
 ##
@@ -486,8 +513,25 @@ def print_confusion_mat(GT, Res):
     FP = np.sum(np.logical_and(np.logical_not(GT), Res))
     TN = np.sum(np.logical_and(np.logical_not(GT), np.logical_not(Res)))
     N = TP + FN + FP + TN
-    print("\t PP \t \t PN \t \t {}".format(N))
-    print("GP \t {} \t \t {} \t \t {:.2%}".format(TP, FN, float(TP) / (TP + FN)))
-    print("GN \t {} \t \t {} \t {:.2%}".format(FP, TN, float(TN) / (FP + TN)))
+    print("   {:>10} {:>10} {:>10}".format("PP", "PN", N))
+    print("GP {:10} {:10} {:10.2%}".format(TP, FN, float(TP) / (TP + FN)))
+    print("GN {:10} {:10} {:10.2%}".format(FP, TN, float(TN) / (FP + TN)))
     print(
-        "AL \t {:.2%} \t {:.2%} \t {:.2%}".format(float(TP) / (TP + FP), float(TN) / (TN + FN), float(TP + TN) / N))
+        "AL {:10.2%} {:10.2%} {:10.2%}".format(float(TP) / (TP + FP), float(TN) / (TN + FN), float(TP + TN) / N))
+
+def compare_dict(dict1, dict2):
+    if sorted(dict1.keys()) != sorted(dict2.keys()):
+        return False
+    for key in dict1.keys():
+        val1 = dict1[key]
+        val2 = dict2[key]
+        if isinstance(val1, dict):
+            res = compare_dict(val1, val2)
+        else:
+            res = val1 == val2
+            if isinstance(res, list) or isinstance(res, np.ndarray):
+                res = np.all(res)
+        if not res:
+            return res
+    return True
+

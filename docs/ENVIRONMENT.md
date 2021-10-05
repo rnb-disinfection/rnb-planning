@@ -25,7 +25,7 @@ sudo apt-get install python3-pip && pip3 install --upgrade pip \
 && pip install setuptools==41.0.0  
 ```
 
-## Setup NVIDIA cuda 11.0 and cudnn 8.0 for tf 2.4.0 (below is official guide from homepage)
+## Setup NVIDIA cuda 11.1 and cudnn 8.1 for tf 2.6.0 (below is official guide from homepage)
 
 * Update repositories
 ```bash
@@ -43,48 +43,87 @@ mkdir ~/NVIDIA_TMP && cd ~/NVIDIA_TMP \
 
 * Install NVIDIA driver
 ```bash
-sudo apt-get install --no-install-recommends nvidia-driver-450
+sudo apt-get install --no-install-recommends nvidia-driver-470
 ```
-* ***[IMPORTANT]*** Reboot!!!  
-  Check that GPUs are visible using the command: nvidia-smi
+* ***[IMPORTANT]*** Reboot!!!
+  * Check that GPUs are visible using the command: nvidia-smi
 
 
 * Install development and runtime libraries (~4GB)
 ```bash
 cd ~/NVIDIA_TMP \
-&& wget https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64/libnvinfer7_7.1.3-1+cuda11.0_amd64.deb \
-&& sudo apt install ./libnvinfer7_7.1.3-1+cuda11.0_amd64.deb \
+&& wget https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64/libnvinfer7_7.2.3-1+cuda11.1_amd64.deb \
+&& sudo apt install --no-install-recommends ./libnvinfer7_7.2.3-1+cuda11.1_amd64.deb \
 && sudo apt-get update \
 && sudo apt-get install --no-install-recommends \
-  cuda-11-0 \
-  libcudnn8=8.0.4.30-1+cuda11.0  \
-  libcudnn8-dev=8.0.4.30-1+cuda11.0
+  cuda-11-2
 ```
+* [Troubleshooting] If error is raised due to overiting issue, possibly releated to cuda-cudart and cuda-toolkit-11-config, install the failed package with *-o Dpkg::Options::=* option. Below is an example
+```
+sudo apt-get -o Dpkg::Options::="--force-overwrite" install cuda-cudart-11-2
+```
+ 
+* ***[IMPORTANT]*** Reboot!!!  
+  * Check that GPUs are visible using the command: nvidia-smi
 
 * Add PATH variables to environment
 ```bash
-echo 'export PATH=$PATH:/usr/local/cuda-11.0/bin' >> ~/.bashrc \
-&& echo 'export CUDADIR=/usr/local/cuda-11.0' >> ~/.bashrc \
+echo 'export PATH=$PATH:/usr/local/cuda-11.2/bin' >> ~/.bashrc \
+&& echo 'export CUDADIR=/usr/local/cuda-11.2' >> ~/.bashrc \
 && echo 'if [ -z $LD_LIBRARY_PATH ]; then' >> ~/.bashrc \
-&& echo '  export LD_LIBRARY_PATH=/usr/local/cuda-11.0/lib64' >> ~/.bashrc \
+&& echo '  export LD_LIBRARY_PATH=/usr/local/cuda-11.2/lib64' >> ~/.bashrc \
 && echo 'else' >> ~/.bashrc \
-&& echo '  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-11.0/lib64' >> ~/.bashrc \
+&& echo '  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-11.2/lib64' >> ~/.bashrc \
 && echo 'fi' >> ~/.bashrc  
 ```
-
+ 
 * ***[IMPORTANT]*** Restart terminal!!!
 
 * Install TensorRT. Requires that libcudnn8 is installed above.
 ```bash
-sudo apt-get install -y --no-install-recommends libnvinfer7=7.1.3-1+cuda11.0 \
-  libnvinfer-dev=7.1.3-1+cuda11.0 \
-  libnvinfer-plugin7=7.1.3-1+cuda11.0
+sudo apt-get install -y --no-install-recommends libnvinfer7=7.2.3-1+cuda11.1 \
+  libnvinfer-dev=7.2.3-1+cuda11.1 \
+  libnvinfer-plugin7=7.2.3-1+cuda11.1
 ```
-
   
 * Install tensorflow
 ```bash
-pip3 install tensorflow-gpu==2.4.0
+pip3 install tensorflow-gpu==2.6.0
+```
+
+* TensorRT 7.2.3 (compatible with cudnn 8.1.1 above)
+  * Download *TensorRT 7.2.3 for Linux and CUDA 11.1* from https://developer.nvidia.com/tensorrt.
+    * Select Ubundu 18.04 deb file
+  * Follow the installation guide from https://docs.nvidia.com/deeplearning/tensorrt/archives/tensorrt-723/install-guide/index.html
+    * Example:
+      ```bash
+      os="ubuntu1804" \
+      && tag="cuda11.1-trt7.2.3.4-ga-20210226" \
+      && sudo dpkg -i nv-tensorrt-repo-${os}-${tag}_1-1_amd64.deb \
+      && sudo apt-key add /var/nv-tensorrt-repo-${os}-${tag}/7fa2af80.pub \
+      && sudo apt-get update
+      ```
+      * apt-get update sometimes generates errors. You can ignore and continue mostly.
+      ```bash
+      sudo apt-get -y install libnvinfer-dev=7.2.3-1+cuda11.1 libnvinfer-plugin-dev=7.2.3-1+cuda11.1 libnvparsers-dev=7.2.3-1+cuda11.1 libnvonnxparsers-dev=7.2.3-1+cuda11.1 libnvinfer-samples=7.2.3-1+cuda11.1 \
+        && sudo apt-get -y install tensorrt \
+        && sudo apt-get -y install python-libnvinfer-dev \
+        && sudo apt-get -y install python3-libnvinfer-dev \
+        && sudo apt-get install uff-converter-tf
+      ```
+  * Add path in .bashrc
+  ```bash
+  echo 'export PATH=$PATH:/usr/src/tensorrt/bin' >> ~/.bashrc
+  ```
+  * Install keras2onnx
+  ```bash
+  pip3 install keras2onnx
+  ```
+
+* hold upgrade
+```bash
+echo "libcudnn8 hold" | sudo dpkg --set-selections \
+&& echo "libcudnn8-dev hold" | sudo dpkg --set-selections
 ```
 
 * ***[IMPORTANT]*** in TF 2.4.0, add below to python script before using tensorflow or you get "no algorithm worked" error! (no need to explicitly use session)
@@ -96,3 +135,38 @@ config = ConfigProto()
 config.gpu_options.allow_growth = True
 session = InteractiveSession(config=config)
 ```
+
+* ***[IMPORTANT]*** NEVER call *apt upgrade*!! This will ruin the environment setting!
+
+### [TROUBLESHOOTING]
+* TensorRT version should match with linked version. Check by below script
+```python
+from tensorflow.compiler.tf2tensorrt._pywrap_py_utils import get_linked_tensorrt_version
+print(f"Linked TensorRT version {get_linked_tensorrt_version()}")
+
+from tensorflow.compiler.tf2tensorrt._pywrap_py_utils import get_loaded_tensorrt_version
+print(f"Loaded TensorRT version {get_loaded_tensorrt_version()}")
+```
+
+* Tensorflow can raise NUMA-relaed error as shown below in the terminal
+  ```bash
+  successful NUMA node read from SysFS had negative value (-1), but there must be at least one NUMA node, so returning NUMA node zero
+  ```
+  * This error means the numa node setting is incorrect.
+  * check the node id - the one starts with *VGA compatible controller* on the list shown by below command
+  ```bash
+  sys/bus/pci/devicecs/
+  ```
+  * check numa setting. The below command will return *-1* replace *{node-id-above}* with the id found above. this may be *01:00.0*. 
+  ```
+  cat /sys/bus/pci/devices/0000:{node-id-above}/numa_node
+  ```
+  * edit the value to 0
+  ```
+  echo 0 | sudo tee -a /sys/bus/pci/devices/0000:{node-id-above}/numa_node
+  ```
+  * check numa setting again. now it will return 0
+  ```
+  cat /sys/bus/pci/devices/0000:{node-id-above}/numa_node
+  ```
+

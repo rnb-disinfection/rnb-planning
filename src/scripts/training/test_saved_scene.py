@@ -18,6 +18,7 @@ parser.add_argument('--VISUALIZE', type=str2bool, default=False, help='to show i
 parser.add_argument('--PLAY_RESULT', type=str2bool, default=False, help='to play result')
 parser.add_argument('--TIMEOUT_MOTION', type=int, default=5, help='motion planning timeout')
 parser.add_argument('--MAX_TIME', type=int, default=100, help='TAMP timeout')
+parser.add_argument('--PROC_COUNT', type=int, default=1, help='multi process count')
 
 args = parser.parse_args()
 rtype = args.rtype
@@ -29,6 +30,7 @@ VISUALIZE = args.VISUALIZE
 PLAY_RESULT = args.PLAY_RESULT
 TIMEOUT_MOTION = args.TIMEOUT_MOTION
 MAX_TIME = args.MAX_TIME
+PROC_COUNT = args.PROC_COUNT
 
 
 DATA_PATH = os.path.join(os.environ['RNB_PLANNING_DIR'], "data")
@@ -131,13 +133,14 @@ class WorkPlane(ObstacleBase):
         self.H = 0.4
         ObstacleBase.__init__(self, gscene, name, *args, **kwargs)
 
-    def is_overlapped_with(self, gtem):
+    def is_overlapped_with(self, gtem, margin=1e-4):
         verts, radii = gtem.get_vertice_radius()
         verts_global = np.add(np.matmul(verts, gtem.orientation_mat.transpose()), gtem.center)
-        verts_wp = np.multiply(DEFAULT_VERT_DICT[self.GTYPE], tuple(self.DIM[:2]) + (self.H,))
+        verts_wp = np.multiply(DEFAULT_VERT_DICT[self.GTYPE],
+                               tuple(np.add(self.DIM[:2], 0.2)) + (self.H + 0.1,))
         verts_wp_global = np.add(np.matmul(verts_wp, self.geometry.orientation_mat.transpose()),
                                  np.add(self.geometry.center, (0, 0, self.H / 2)))
-        return get_gjk_distance(get_point_list(verts_global), get_point_list(verts_wp_global)) - radii < 1e-4
+        return get_gjk_distance(get_point_list(verts_global), get_point_list(verts_wp_global)) - radii < margin
 
 
 ##
@@ -409,12 +412,19 @@ gtimer.reset()
 
 goal_nodes = [("gp",)+deepcopy(from_state.node)[1:]]
 mplan.reset_log(True)
+multiproc = not PROC_COUNT==1
 gtimer.tic("plan")
 ppline.search(initial_state, goal_nodes, verbose=True, display=False, dt_vis=0.01,
-              timeout_loop=MAX_TIME, multiprocess=False, timeout=TIMEOUT_MOTION)
+              timeout_loop=MAX_TIME, multiprocess=multiproc, timeout=TIMEOUT_MOTION,
+              N_agents=PROC_COUNT, add_homing=False)
 elapsed = gtimer.toc("plan") / 1000
 
-schedules = ppline.tplan.find_schedules()
+if multiproc:
+    last_proc = len(ppline.proc_list) - 1
+    for i_p, proc in enumerate(ppline.proc_list):
+        proc.join(TIMEOUT_MOTION*2 if i_p==last_proc else 1)
+
+schedules = ppline.tplan.find_schedules(at_home=False)
 res = len(schedules) > 0
 if res:
     schedule = ppline.tplan.sort_schedule(schedules)[0]
@@ -422,9 +432,15 @@ if res:
 else:
     move_num = 0
 
+if res:
+    snode_schedule = ppline.tplan.idxSchedule2SnodeScedule(schedule)
+else:
+    snode_schedule = None
+
 plan_num = len(mplan.result_log["planning"])
 fail_num = np.sum(np.logical_not(mplan.result_log["planning"]))
-sample = {"plan_time": elapsed, "length": move_num, "MP_count": plan_num, "failed_MPs": fail_num, "success": res}
+sample = {"plan_time": elapsed, "length": move_num, "MP_count": plan_num, "failed_MPs": fail_num, "success": res,
+          "snode_schedule": snode_schedule}
 save_pickle(os.path.join(RESULTSET_PATH, "result_%s_%02d_%s.pkl" % (
     file_option, data_idx, cname)), sample)
 
@@ -436,9 +452,11 @@ print("==========================================================")
 print("==========================================================")
 
 if VISUALIZE and PLAY_RESULT and res:
-    snode_schedule = ppline.tplan.idxSchedule2SnodeScedule(schedule)
+    print("==========================================================")
+    print("------------------------ Play ----------------------------")
     ppline.play_schedule(snode_schedule, period=0.001)
 
 s_builder.xcustom.clear()
 print("------------------------ Cleared ------------------------")
 print("==========================================================")
+sys.exit()

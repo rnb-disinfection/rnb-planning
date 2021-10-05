@@ -58,7 +58,7 @@ class MarkerGroupTable(TableInterface):
         elif active_col == 'GType':
             atem.gtype = getattr(GEOTYPE, value['GType']) if value['GType'] != "None" else None
         elif active_col == 'Dims':
-            atem.dims = str_num_it(value["Dims"]) if value["Dims"] != "None" else None
+            atem.set_dims(str_num_it(value["Dims"]) if value["Dims"] != "None" else None)
         elif active_col == 'Color':
             atem.color = str_num_it(value["Color"])
         elif active_col == 'Soft':

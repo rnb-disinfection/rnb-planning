@@ -1,5 +1,5 @@
 from ....utils.gjk import get_point_list, get_gjk_distance
-from ...constraint.constraint_subject import CustomObject, Grasp2Point, PlacePoint, SweepPoint, SweepTask
+from ...constraint.constraint_subject import CustomObject, Grasp2Point, PlacePoint, SweepPoint, SweepTask, CylinderObject
 import numpy as np
 from ....utils.utils import *
 from ....utils.rotation_utils import *
@@ -18,7 +18,7 @@ class ObstacleBase:
     GTYPE = None
     COLOR = (0.7,0.7,0.7,1)
     
-    def __init__(self, gscene, name, sampler=np.random.uniform, DIM=None, RTH=None, RPY=None):
+    def __init__(self, gscene, name, sampler=np.random.uniform, DIM=None, RTH=None, RPY=None, fixed=True):
         self.name = name
         self.DIM = sampler(self.DIM_MIN, self.DIM_MAX) if DIM is None else DIM
         self.RTH = sampler(self.RTH_MIN, self.RTH_MAX) if RTH is None else RTH
@@ -32,10 +32,10 @@ class ObstacleBase:
         self.RTH[0] -= np.min(verts_r_compo)
         self.geometry = gscene.create_safe(gtype=self.GTYPE, name=self.name, link_name="base_link", 
                                   dims=self.DIM, center=tuple(self.XYZ), rpy=self.RPY,
-                                  color=self.COLOR, display=True, collision=True, fixed=True)
+                                  color=self.COLOR, display=True, collision=True, fixed=fixed)
         self.subgeo_list = []
         
-    def is_overlapped_with(self, gtem):
+    def is_overlapped_with(self, gtem, margin=1e-4):
         gscene = gtem.gscene
         res = False
         for gname in gtem.get_family():
@@ -47,7 +47,7 @@ class ObstacleBase:
                 verts_me, raddii_me = gchild_me.get_vertice_radius()
                 verts_me_global = np.add(np.matmul(verts_me, gchild_me.orientation_mat.transpose()), 
                                          gchild_me.center)
-                res = get_gjk_distance(get_point_list(verts_global), get_point_list(verts_me_global))-radii-raddii_me < 1e-4
+                res = get_gjk_distance(get_point_list(verts_global), get_point_list(verts_me_global))-radii-raddii_me < margin
                 if res:
                     break
             if res:
@@ -73,13 +73,14 @@ class WorkPlane(ObstacleBase):
         self.H = 0.3
         ObstacleBase.__init__(self, gscene, name, *args, **kwargs)
         
-    def is_overlapped_with(self, gtem):
+    def is_overlapped_with(self, gtem, margin=1e-4):
         verts, radii = gtem.get_vertice_radius()
         verts_global = np.add(np.matmul(verts, gtem.orientation_mat.transpose()), gtem.center)
-        verts_wp = np.multiply(DEFAULT_VERT_DICT[self.GTYPE], tuple(self.DIM[:2])+(self.H,))
+        verts_wp = np.multiply(DEFAULT_VERT_DICT[self.GTYPE],
+                               tuple(np.add(self.DIM[:2], 0.2)) + (self.H + 0.1,))
         verts_wp_global = np.add(np.matmul(verts_wp, self.geometry.orientation_mat.transpose()), 
                                  np.add(self.geometry.center, (0,0,self.H/2)))
-        return get_gjk_distance(get_point_list(verts_global), get_point_list(verts_wp_global))-radii < 1e-4
+        return get_gjk_distance(get_point_list(verts_global), get_point_list(verts_wp_global))-radii < margin
         
     
 ##
@@ -230,7 +231,7 @@ class PlaneObject(ObstacleBase):
         self.GRIP_DEPTH = GRIP_DEPTH
         self.DIM_MIN = (0.02, GRIP_DEPTH, GRIP_DEPTH)
         self.CLEARANCE = CLEARANCE
-        ObstacleBase.__init__(self, gscene=gscene, name=name, **kwargs)
+        ObstacleBase.__init__(self, gscene=gscene, name=name, fixed=False, **kwargs)
         verts, radii = self.geometry.get_vertice_radius()
         verts_rot = np.matmul(self.geometry.orientation_mat, verts.transpose()) ## verices with global orientaion
         verts_rot_loc = np.matmul(workplane.geometry.Toff[:3,:3].transpose(), verts_rot) ## verices with local orientaion
@@ -287,53 +288,57 @@ def disperse_objects(gscene, object_class, key, Nmax, workplane_on, GRIP_DEPTH, 
 def add_object(pscene, obj, HANDLE_THICKNESS=1e-6, HANDLE_COLOR = (1,0,0,0.3)):
     gscene = pscene.gscene
     GRIP_DEPTH = obj.GRIP_DEPTH
-    handles = []
-    handles.append(
-        gscene.create_safe(gtype=GEOTYPE.BOX, name=obj.name+"_hdl_tp_a", link_name="base_link",
-                       dims=(obj.DIM[1], GRIP_DEPTH, HANDLE_THICKNESS), center=(0,0,obj.DIM[2]/2-GRIP_DEPTH/2), rpy=(np.pi/2,0,np.pi/2), 
+    if gscene.NAME_DICT[obj.name].gtype == GEOTYPE.BOX:
+        handles = []
+        handles.append(
+            gscene.create_safe(gtype=GEOTYPE.BOX, name=obj.name+"_hdl_tp_a", link_name="base_link",
+                           dims=(obj.DIM[1], GRIP_DEPTH, HANDLE_THICKNESS), center=(0,0,obj.DIM[2]/2-GRIP_DEPTH/2), rpy=(np.pi/2,0,np.pi/2),
+                               color=HANDLE_COLOR, display=True, collision=False, fixed=False,
+                           parent=obj.name)
+        )
+
+        handles.append(
+            gscene.create_safe(gtype=GEOTYPE.BOX, name=obj.name+"_hdl_tp_b", link_name="base_link",
+                           dims=(obj.DIM[1], GRIP_DEPTH, HANDLE_THICKNESS), center=(0,0,obj.DIM[2]/2-GRIP_DEPTH/2), rpy=(np.pi/2,0,-np.pi/2),
+                               color=HANDLE_COLOR, display=True, collision=False, fixed=False,
+                           parent=obj.name)
+        )
+
+        handles.append(
+            gscene.create_safe(gtype=GEOTYPE.BOX, name=obj.name+"_hdl_ft_a", link_name="base_link",
+                           dims=(obj.DIM[2], GRIP_DEPTH,HANDLE_THICKNESS), center=(0,obj.DIM[1]/2-GRIP_DEPTH/2,0), rpy=(0,np.pi/2,0),
+                               color=HANDLE_COLOR, display=True, collision=False, fixed=False,
+                           parent=obj.name)
+        )
+
+        handles.append(
+            gscene.create_safe(gtype=GEOTYPE.BOX, name=obj.name+"_hdl_ft_b", link_name="base_link",
+                           dims=(obj.DIM[2], GRIP_DEPTH,HANDLE_THICKNESS), center=(0,obj.DIM[1]/2-GRIP_DEPTH/2,0), rpy=(0,-np.pi/2,0),
+                               color=HANDLE_COLOR, display=True, collision=False, fixed=False,
+                           parent=obj.name)
+        )
+
+        handles.append(
+            gscene.create_safe(gtype=GEOTYPE.BOX, name=obj.name+"_hdl_bk_a", link_name="base_link",
+                           dims=(obj.DIM[2], GRIP_DEPTH,HANDLE_THICKNESS), center=(0,-obj.DIM[1]/2+GRIP_DEPTH/2,0), rpy=(-np.pi,-np.pi/2,0),
                            color=HANDLE_COLOR, display=True, collision=False, fixed=False,
                        parent=obj.name)
-    )
+        )
 
-    handles.append(
-        gscene.create_safe(gtype=GEOTYPE.BOX, name=obj.name+"_hdl_tp_b", link_name="base_link",
-                       dims=(obj.DIM[1], GRIP_DEPTH, HANDLE_THICKNESS), center=(0,0,obj.DIM[2]/2-GRIP_DEPTH/2), rpy=(np.pi/2,0,-np.pi/2), 
-                           color=HANDLE_COLOR, display=True, collision=False, fixed=False,
-                       parent=obj.name)
-    )
+        handles.append(
+            gscene.create_safe(gtype=GEOTYPE.BOX, name=obj.name+"_hdl_bk_b", link_name="base_link",
+                           dims=(obj.DIM[2], GRIP_DEPTH,HANDLE_THICKNESS), center=(0,-obj.DIM[1]/2+GRIP_DEPTH/2,0), rpy=(-np.pi,+np.pi/2,0),
+                               color=HANDLE_COLOR, display=True, collision=False, fixed=False,
+                           parent=obj.name)
+        )
 
-    handles.append(
-        gscene.create_safe(gtype=GEOTYPE.BOX, name=obj.name+"_hdl_ft_a", link_name="base_link",
-                       dims=(obj.DIM[2], GRIP_DEPTH,HANDLE_THICKNESS), center=(0,obj.DIM[1]/2-GRIP_DEPTH/2,0), rpy=(0,np.pi/2,0), 
-                           color=HANDLE_COLOR, display=True, collision=False, fixed=False,
-                       parent=obj.name)
-    )
-
-    handles.append(
-        gscene.create_safe(gtype=GEOTYPE.BOX, name=obj.name+"_hdl_ft_b", link_name="base_link",
-                       dims=(obj.DIM[2], GRIP_DEPTH,HANDLE_THICKNESS), center=(0,obj.DIM[1]/2-GRIP_DEPTH/2,0), rpy=(0,-np.pi/2,0), 
-                           color=HANDLE_COLOR, display=True, collision=False, fixed=False,
-                       parent=obj.name)
-    )
-
-    handles.append(
-        gscene.create_safe(gtype=GEOTYPE.BOX, name=obj.name+"_hdl_bk_a", link_name="base_link",
-                       dims=(obj.DIM[2], GRIP_DEPTH,HANDLE_THICKNESS), center=(0,-obj.DIM[1]/2+GRIP_DEPTH/2,0), rpy=(-np.pi,-np.pi/2,0), 
-                       color=HANDLE_COLOR, display=True, collision=False, fixed=False,
-                   parent=obj.name)
-    )
-
-    handles.append(
-        gscene.create_safe(gtype=GEOTYPE.BOX, name=obj.name+"_hdl_bk_b", link_name="base_link",
-                       dims=(obj.DIM[2], GRIP_DEPTH,HANDLE_THICKNESS), center=(0,-obj.DIM[1]/2+GRIP_DEPTH/2,0), rpy=(-np.pi,+np.pi/2,0), 
-                           color=HANDLE_COLOR, display=True, collision=False, fixed=False,
-                       parent=obj.name)
-    )
-
-    action_points_dict = {obj.name+"_placement": PlacePoint(obj.name+"_placement", obj.geometry, [0,0,-obj.DIM[2]/2-obj.CLEARANCE], [0,0,0])}
-    action_points_dict.update({handle.name: Grasp2Point(handle.name, handle, None, (0,0,0)) for handle in handles})
-    obj_pscene = pscene.create_subject(oname=obj.name, gname=obj.name, _type=CustomObject, 
-                                 action_points_dict=action_points_dict)
+        action_points_dict = {obj.name+"_placement": PlacePoint(obj.name+"_placement", obj.geometry, [0,0,-obj.DIM[2]/2-obj.CLEARANCE], [0,0,0])}
+        action_points_dict.update({handle.name: Grasp2Point(handle.name, handle, None, (0,0,0)) for handle in handles})
+        obj_pscene = pscene.create_subject(oname=obj.name, gname=obj.name, _type=CustomObject,
+                                     action_points_dict=action_points_dict)
+    elif gscene.NAME_DICT[obj.name].gtype == GEOTYPE.CYLINDER:
+            obj_pscene = pscene.create_subject(oname=obj.name, gname=obj.name, _type=CylinderObject)
+            handles = sorted([v for k, v in obj_pscene.action_points_dict.items() if k not in ["top_p", "bottom_p"]], key=lambda x: x.name)
     return obj_pscene, handles
 
 ## Done

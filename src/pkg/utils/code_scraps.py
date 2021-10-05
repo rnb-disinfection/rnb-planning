@@ -94,7 +94,8 @@ def finish_L_shape(gscene, gtem_dict):
 ##
 # @brief remove place points except for the current one
 def use_current_place_point_only(pscene, current_state):
-    for oname, aname, bname, bgname in current_state.binding_state:
+    for btf in current_state.binding_state.values():
+        oname, aname, bname, bgname = btf.get_chain()
         obj = pscene.subject_dict[oname]
         if isinstance(obj, AbstractObject):
             pp_list = [ap for ap in obj.action_points_dict.values() if isinstance(ap, PlacePoint)]
@@ -107,7 +108,9 @@ def use_current_place_point_only(pscene, current_state):
 ##
 # @brief remove attached binders on objects except for the current one
 def use_current_sub_binders_only(pscene, current_state):
-    active_binders  = [binding[2] for binding in current_state.binding_state if binding[2] is not None]
+    active_binders  = [btf.binding.actor_name
+                       for btf in current_state.binding_state.values()
+                       if btf.binding.actor_name is not None]
 
     for obj in pscene.subject_dict.values():
         for bname, binder in pscene.actor_dict.items():
@@ -252,9 +255,10 @@ def play_schedule_clearance_highlight(ppline, snode_schedule, tcheck, period, ac
             continue
         ppline.pscene.gscene.clear_highlight()
 
-        for binding_pre, binding in zip(snode_pre.state.binding_state, snode.state.binding_state):
-            if not binding_pre == binding:
-                ppline.pscene.show_binding(binding, redundancy_dict=snode.redundancy_dict)
+        for sname in sname in ppline.pscene.subject_name_list:
+            btf_pre, btf = snode_pre.state.binding_state[sname], snode.state.binding_state[sname]
+            if not btf_pre.get_chain() == btf.get_chain():
+                ppline.pscene.show_binding(btf)
         if period < 0.01:
             ppline.pscene.gscene.show_motion(snode.traj[::int(0.01 / period)], period=0.01)
         else:
@@ -264,8 +268,10 @@ def play_schedule_clearance_highlight(ppline, snode_schedule, tcheck, period, ac
         snode_pre = snode
         for obj_name in ppline.pscene.subject_name_list:
             if isinstance(ppline.pscene.subject_dict[obj_name], AbstractTask):
-                actor, obj = ppline.pscene.actor_dict[actor_name], ppline.pscene.subject_dict[obj_name]
-                tcheck_res = tcheck.check(actor, obj, None, None,
+                obj = ppline.pscene.subject_dict[obj_name]
+                btf = snode.state.binding_state[obj_name]
+                assert btf.binding.actor_name == actor_name, "someting wrong: actor name mismatch with BindingTransfrom"
+                tcheck_res = tcheck.check(btf,
                                           list2dict(snode.state.Q, ppline.pscene.gscene.joint_names))
                 for gtem in obj.clearance:
                     if tcheck_res:
@@ -443,6 +449,33 @@ def disperse_on(pscene, gcheck, surface, item_names):
     gscene.update_markers_all()
     return gtem_dict
 
+##
+# @brief        show redundancy-applied action point
+# @param btf    BindingTransform instance
+def show_action_point(pscene, btf, Q):
+    gscene = pscene.gscene
+    subject, handle, actor = btf.get_instance_chain(pscene)
+    Q_dict = Q if isinstance(Q, dict) else list2dict(Q, gscene.joint_names)
+    if handle is not None:
+        T_handle = np.matmul(handle.get_tf_handle(Q_dict, from_link=handle.geometry.link_name),
+                             SE3_inv(btf.T_add_ah))
+        gscene.add_highlight_axis("hl", "handle", link_name=handle.geometry.link_name,
+                                  center=T_handle[:3, 3], orientation_mat=T_handle[:3, :3])
+    if actor is not None:
+        T_actor = np.matmul(actor.get_tf_handle(Q_dict, from_link=actor.geometry.link_name),
+                            btf.T_add_ah)
+        gscene.add_highlight_axis("hl", "actor", link_name=actor.geometry.link_name,
+                                  center=T_actor[:3, 3], orientation_mat=T_actor[:3, :3])
+    if handle is not None and actor is not None:
+        T_hlink = SE3_inv(btf.T_loal)
+        T_elink = btf.T_loal
+        if handle.geometry.link_name != "base_link":
+            gscene.add_highlight_axis("hl", "hlink", link_name=actor.geometry.link_name,
+                                      center=T_hlink[:3, 3], orientation_mat=T_hlink[:3, :3])
+        if actor.geometry.link_name != "base_link":
+            gscene.add_highlight_axis("hl", "elink", link_name=handle.geometry.link_name,
+                                      center=T_elink[:3, 3], orientation_mat=T_elink[:3, :3])
+
 ### resized image plot
 # ratio = 1.0/3
 # color_image_tmp = cv2.resize(color_image, dsize=None, fx=ratio, fy=ratio)
@@ -548,3 +581,38 @@ def disperse_on(pscene, gcheck, surface, item_names):
 # # ====================================================================================================
 # # h_st_vec: 30.93/0.91 (32.37/29.64)
 # # h_kn_vec: 26.81/2.57 (29.57/22.88)
+
+
+def update_parents_recursive(snode_dict, snode, parents):
+    raise(NotImplementedError("ON DEVELOPMENT"))
+    snode.parents = parents
+    snode.set_traj(snode.traj, snode_dict[parents[-1]].traj_tot)
+    snode_dict[snode.idx] = snode
+    for leaf in snode.leafs:
+        update_parents_recursive(snode_dict, snode_dict[leaf], parents + [snode.idx])
+
+
+def reconnect_snodes(snode_dict, snode_parent, snode_child):
+    raise(NotImplementedError("ON DEVELOPMENT"))
+    snode_parent.leafs += [snode_child.idx]
+    snode_dict[snode_parent.idx] = snode_parent
+    update_parents_recursive(snode_dict, snode_child, snode_parent.parents + [snode_parent.idx])
+
+
+def remove_double_motion(ppline, snode_schedule, **kwargs):
+    raise(NotImplementedError("ON DEVELOPMENT"))
+    for snode_ppr, snode_cur in zip(snode_schedule[1:-2], snode_schedule[3:]):
+        if snode_ppr.state.node == snode_cur.state.node:
+            snode_parent = ppline.tplan.snode_dict[snode_ppr.parents[-1]]
+            print("try reconnect {}->{}".format(snode_parent.idx, snode_cur.idx))
+            state_to = snode_parent.state.copy(ppline.pscene)
+            state_to.Q = snode_cur.state.Q
+            try:
+                traj, new_state, error, succ = ppline.test_connection(snode_parent.state, state_to, **kwargs)
+            except Exception as e:
+                succ = False
+                print(e)
+            print("success" if succ else "failure")
+            if succ:
+                reconnect_snodes(ppline.tplan.snode_dict, snode_parent, snode_cur)
+    return ppline.tplan.idxSchedule2SnodeScedule(snode_schedule[-1].parents + [snode_schedule[-1].idx])

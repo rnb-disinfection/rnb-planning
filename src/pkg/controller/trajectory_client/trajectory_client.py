@@ -53,7 +53,7 @@ class TrajectoryClient(object):
     # @brief Wait until the queue on the server is empty. This also means the trajectory motion is finished.
     def wait_queue_empty(self):
         while self.get_qcount()>0:
-            self.periodic_x4.wait()
+            time.sleep(1.0/self.traj_freq)
 
     ##
     # @brief    Send target pose to the server and store the queue count.

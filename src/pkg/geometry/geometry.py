@@ -4,8 +4,9 @@ from .ros_rviz import show_motion, get_markers, get_publisher
 from .geotype import GEOTYPE
 from ..utils.rotation_utils import *
 from ..utils.joint_utils import get_tf, get_link_adjacency_map, get_min_distance_map, get_link_control_dict
-from ..utils.utils import list2dict
+from ..utils.utils import list2dict, dict2list
 from collections import defaultdict
+from copy import deepcopy
 
 POINT_DEFAULT = np.array([[0,0,0]])
 SEG_DEFAULT = np.array([[0,0,1.0],[0,0,-1.0]])/2
@@ -66,10 +67,20 @@ class GeometryScene(list):
             self.__add_marker(geo)
 
     ##
-    # @brief clear handle
+    # @brief clear GeometryScene
     def clear(self):
         for x in self:
             self.remove(x)
+
+    ##
+    # @brief clear GeometryItems on specific link
+    def clear_link(self, link_name):
+        names_to_remove = [gtem.name for gtem in self if gtem.link_name == link_name and gtem.parent is None]
+        for gname in names_to_remove:
+            try:
+                self.remove(self.NAME_DICT[gname])
+            except Exception as e:
+                print(e)
 
     ##
     # @brief remove one item from handle
@@ -214,6 +225,8 @@ class GeometryScene(list):
     # @brief show pose
     # @param pose Q in radian numpy array
     def show_pose(self, pose, **kwargs):
+        if isinstance(pose, dict):
+            pose = dict2list(pose, self.joint_names)
         show_motion([pose], self.marker_list, self.pub, self.joints, self.joint_names, **kwargs)
 
     ##
@@ -248,13 +261,23 @@ class GeometryScene(list):
 
         self.highlight_dict[hl_key][htem.name] = htem
         self.__add_marker(htem)
+        self.add_highlight_axis(hname, "axis", gtem.link_name, center=gtem.center, orientation_mat=gtem.orientation_mat)
 
     ##
     # @brief add highlight axis
     def add_highlight_axis(self, hl_key, name, link_name, center, orientation_mat, color=None, axis="xyz", dims=(0.10, 0.01, 0.01)):
+        if axis == '' or axis == None:
+            ctem = self.create_safe(gtype=GEOTYPE.SPHERE, name="cp_" + name, link_name=link_name,
+                                  center=center, dims=(min(dims),)*3, rpy=(0,0,0),
+                                  color=(0, 0, 0, 0.5) if color is None else color,
+                                  collision=False)
+            self.__add_marker(ctem)
+            self.highlight_dict[hl_key][ctem.name] = ctem
+            return
+
         if 'x' in axis:
             axtemx = self.create_safe(gtype=GEOTYPE.ARROW, name="axx_" + name, link_name=link_name,
-                                  center=center, dims=dims, rpy=Rot2rpy(orientation_mat), color=color or (1, 0, 0, 0.5),
+                                  center=center, dims=dims, rpy=Rot2rpy(orientation_mat), color=(1, 0, 0, 0.5) if color is None else color,
                                   collision=False)
             self.__add_marker(axtemx)
             self.highlight_dict[hl_key][axtemx.name] = axtemx
@@ -262,7 +285,7 @@ class GeometryScene(list):
         if 'y' in axis:
             axtemy = self.create_safe(gtype=GEOTYPE.ARROW, name="axy_" + name, link_name=link_name,
                                   center=center, dims=dims,
-                                  rpy=Rot2rpy(np.matmul(orientation_mat, Rot_axis(3, np.pi / 2))), color=color or (0, 1, 0, 0.5),
+                                  rpy=Rot2rpy(np.matmul(orientation_mat, Rot_axis(3, np.pi / 2))), color=(0, 1, 0, 0.5) if color is None else color,
                                   collision=False)
             self.__add_marker(axtemy)
             self.highlight_dict[hl_key][axtemy.name] = axtemy
@@ -271,7 +294,7 @@ class GeometryScene(list):
             axtemz = self.create_safe(gtype=GEOTYPE.ARROW, name="axz_" + name, link_name=link_name,
                                   center=center, dims=dims,
                                   rpy=Rot2rpy(np.matmul(orientation_mat, Rot_axis(2, -np.pi / 2))),
-                                  color=color or (0, 0, 1, 0.5),
+                                  color=(0, 0, 1, 0.5) if color is None else color,
                                   collision=False)
             self.__add_marker(axtemz)
             self.highlight_dict[hl_key][axtemz.name] = axtemz
@@ -284,24 +307,24 @@ class GeometryScene(list):
 
     ##
     # @brief set workspace boundary
-    def set_workspace_boundary(self, XMIN, XMAX, YMIN, YMAX, ZMIN, ZMAX):
-        self.create_safe(GEOTYPE.BOX, "ceiling_ws", "base_link", (XMAX - XMIN, YMAX - YMIN, 0.01),
-                         ((XMAX + XMIN) / 2, (YMAX + YMIN) / 2, ZMAX), rpy=(0, 0, 0),
+    def set_workspace_boundary(self, XMIN, XMAX, YMIN, YMAX, ZMIN, ZMAX, thickness=0.01):
+        self.create_safe(GEOTYPE.BOX, "ceiling_ws", "base_link", (XMAX - XMIN, YMAX - YMIN, thickness),
+                         ((XMAX + XMIN) / 2, (YMAX + YMIN) / 2, ZMAX+thickness/2), rpy=(0, 0, 0),
                          color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
-        self.create_safe(GEOTYPE.BOX, "floor_ws", "base_link", (XMAX - XMIN, YMAX - YMIN, 0.01),
-                         ((XMAX + XMIN) / 2, (YMAX + YMIN) / 2, ZMIN), rpy=(0, 0, 0),
+        self.create_safe(GEOTYPE.BOX, "floor_ws", "base_link", (XMAX - XMIN, YMAX - YMIN, thickness),
+                         ((XMAX + XMIN) / 2, (YMAX + YMIN) / 2, ZMIN-thickness/2), rpy=(0, 0, 0),
                          color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
-        self.create_safe(GEOTYPE.BOX, "frontwall_ws", "base_link", (0.01, YMAX - YMIN, ZMAX - ZMIN),
-                         (XMAX, (YMAX + YMIN) / 2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
+        self.create_safe(GEOTYPE.BOX, "frontwall_ws", "base_link", (thickness, YMAX - YMIN, ZMAX - ZMIN),
+                         (XMAX+thickness/2, (YMAX + YMIN) / 2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
                          color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
-        self.create_safe(GEOTYPE.BOX, "backwall_ws", "base_link", (0.01, YMAX - YMIN, ZMAX - ZMIN),
-                         (XMIN, (YMAX + YMIN) / 2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
+        self.create_safe(GEOTYPE.BOX, "backwall_ws", "base_link", (thickness, YMAX - YMIN, ZMAX - ZMIN),
+                         (XMIN-thickness/2, (YMAX + YMIN) / 2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
                          color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
-        self.create_safe(GEOTYPE.BOX, "leftwall_ws", "base_link", (XMAX - XMIN, 0.01, ZMAX - ZMIN),
-                         ((XMAX + XMIN) / 2, YMIN, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
+        self.create_safe(GEOTYPE.BOX, "leftwall_ws", "base_link", (XMAX - XMIN, thickness, ZMAX - ZMIN),
+                         ((XMAX + XMIN) / 2, YMIN-thickness/2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
                          color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
-        self.create_safe(GEOTYPE.BOX, "rightwall_ws", "base_link", (XMAX - XMIN, 0.01, ZMAX - ZMIN),
-                         ((XMAX + XMIN) / 2, YMAX, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
+        self.create_safe(GEOTYPE.BOX, "rightwall_ws", "base_link", (XMAX - XMIN, thickness, ZMAX - ZMIN),
+                         ((XMAX + XMIN) / 2, YMAX+thickness/2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
                          color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
 
     ##
@@ -339,6 +362,28 @@ class GeometryScene(list):
             gtem.display = display
             gtem.color = color
             self.update_marker(gtem)
+
+    def get_gtem_args(self, condition=lambda gtem:True):
+        gtem_args = []
+        for gtem in self:
+            if condition(gtem):
+                gtem_args.append(deepcopy(gtem.get_args()))
+        return gtem_args
+
+    def get_tf(self,to_link, Q, from_link="base_link"):
+        Q_dict = Q if isinstance(Q, dict) else list2dict(Q, self.joint_names)
+        return get_tf(to_link=to_link, joint_dict=Q_dict,
+                      urdf_content=self.urdf_content, from_link=from_link)
+
+    def get_children_links(self, link_name):
+        if link_name in self.urdf_content.child_map:
+            children = map(lambda x: x[1], self.urdf_content.child_map[link_name])
+            for child in children:
+                children += self.get_children_links(child)
+            return sorted(set(children))
+        else:
+            return []
+
 
 ##
 # @class GeometryItem
@@ -393,6 +438,8 @@ class GeometryItem(object):
     # @brief set dimension, update raidus and length for cylinder, capsule and sphere
     # @param dims tuple of 3 doubles in m scale.
     def set_dims(self, dims):
+        if dims is None:
+            return
         self.dims = dims
         self.radius = np.mean(dims[:2])/2 if self.gtype in [GEOTYPE.SPHERE, GEOTYPE.CAPSULE, GEOTYPE.CYLINDER] else 0
         self.length = dims[2]
@@ -444,7 +491,7 @@ class GeometryItem(object):
             self.center_child = center if center is not None else self.center_child
             ## @brief orientation matrix relative to attached link coordinate
             self.orientation_mat_child = orientation_mat if orientation_mat is not None else self.orientation_mat_child
-            ## @brief transformation matrix from geometry coordinate to attached link coordinate
+            ## @brief transformation matrix from parent geometry to attached link coordinate
             self.Toff_child = SE3(self.orientation_mat_child, self.center_child)
 
             ## @brief transformation matrix from geometry coordinate to attached link coordinate
@@ -550,7 +597,7 @@ class GeometryItem(object):
             raise(NotImplementedError("Permutation for {} is not implemented.".format(gtem.gtype)))
 
         gtem.set_offset_tf(orientation_mat=np.matmul(gtem.orientation_mat, Roff))
-        gtem.dims = tuple(np.abs(np.matmul(Roff.transpose(), gtem.dims)))
+        gtem.set_dims(tuple(np.abs(np.matmul(Roff.transpose(), gtem.dims))))
         
     def get_args(self):
         center = self.center if self.parent is None else self.center_child
@@ -585,3 +632,21 @@ class GeometryItem(object):
             Jac.append(Ji)
         Jac = np.array(Jac).transpose()
         return Jac
+
+def load_gtem_args(gscene, gtem_args):
+    gtem_remove = []
+    for gtem in gscene:
+        if ((gtem.link_name == "base_link" or not gtem.fixed)
+                and gtem.parent is None):
+            gtem_remove.append(gtem)
+    for gtem in gtem_remove:
+        gscene.remove(gtem)
+
+    gid_list = np.arange(len(gtem_args)).tolist()
+    for gidx in gid_list:
+        args = gtem_args[gidx]
+        if args['parent'] is not None:
+            if args['parent'] not in gscene.NAME_DICT:
+                gid_list.append(gidx)
+                continue
+        gscene.create_safe(**args)

@@ -28,6 +28,7 @@ class TaskRRT(TaskInterface):
         self.binding_sampler = binding_sampler
         self.redundancy_sampler = redundancy_sampler
         self.custom_rule = custom_rule
+        self.explicit_edges = {}
 
     ##
     # @brief build object-level node graph
@@ -48,7 +49,7 @@ class TaskRRT(TaskInterface):
             self.node_dict_full[node] = set(self.node_dict_full[node])
             self.node_parent_dict_full[node] = set(self.node_parent_dict_full[node])
 
-        self.unstoppable_subjects = [i_s for i_s, sname in enumerate(self.pscene.subject_name_list)
+        self.unstoppable_subjects = [sname for sname in self.pscene.subject_name_list
                                      if self.pscene.subject_dict[sname].unstoppable]
 
     ##
@@ -77,26 +78,31 @@ class TaskRRT(TaskInterface):
         self.reserved_attempt = False
 
         self.unstoppable_terminals = {}
-        for sub_i in self.unstoppable_subjects:
-            self.unstoppable_terminals[sub_i] = [self.initial_state.node[sub_i]]
+        for i_s, sname in enumerate(self.pscene.subject_name_list):
+            if sname not in self.unstoppable_subjects:
+                continue
+            self.unstoppable_terminals[sname] = [self.initial_state.node[i_s]]
             for goal in goal_nodes:
-                self.unstoppable_terminals[sub_i].append(goal[sub_i])
+                self.unstoppable_terminals[sname].append(goal[i_s])
 
         self.node_dict = {}
+        self.node_parent_dict = defaultdict(set)
         for node, leafs in self.node_dict_full.items():
-            ## unstoppable node should change or at terminal
-            leaf_list = [leaf
-                         for leaf in leafs
-                         if all([node[k] in terms or node[k] != leaf[k]
-                                 for k, terms in self.unstoppable_terminals.items()])]
-            self.node_dict[node] = set(leaf_list)
-
-        self.node_parent_dict = {}
-        for node, parents in self.node_parent_dict_full.items():
-            self.node_parent_dict[node] = set(
-                [parent for parent in parents ## unstoppable node should change or at terminal
-                 if all([node[k] in terms or node[k]!=parent[k]
-                         for k, terms in self.unstoppable_terminals.items()])])
+            ## goal node does not have child leaf
+            if node in goal_nodes:
+                self.node_dict[node] = set()
+                continue
+            if node in self.explicit_edges:
+                self.node_dict[node] = set(self.explicit_edges[node])
+            else:
+                ## unstoppable node should change or at terminal
+                leaf_list = [leaf
+                             for leaf in leafs
+                             if self.check_unstoppable_terminals(node, leaf)]
+                self.node_dict[node] = set(leaf_list)
+            for leaf in self.node_dict[node]:
+                self.node_parent_dict[leaf].add(node)
+        self.node_parent_dict = dict(self.node_parent_dict)
 
         if hasattr(self.new_node_sampler, "init"):
             self.new_node_sampler.init(self, self.multiprocess_manager)
@@ -111,7 +117,7 @@ class TaskRRT(TaskInterface):
         if hasattr(self.custom_rule, "init"):
             self.custom_rule.init(self, self.multiprocess_manager)
 
-        snode_root = self.make_search_node(None, initial_state, None, None)
+        snode_root = self.make_search_node(None, initial_state, None)
         self.connect(None, snode_root)
         self.update(None, snode_root, True)
 
@@ -121,7 +127,7 @@ class TaskRRT(TaskInterface):
     def sample(self):
         sample_fail = True
         fail_count = 0
-        parent_snode, from_state, to_state, redundancy_dict = None, None, None, None
+        parent_snode, from_state, to_state = None, None, None
         while sample_fail and fail_count<3:
             fail_count += 1
             self.reserved_attempt = False
@@ -156,7 +162,7 @@ class TaskRRT(TaskInterface):
                         print("ERROR sampling parent from : {} / parent nodes: {}".format(new_node, parent_nodes))
                     except:
                         print("ERROR sampling parent - Failed to get new_node or parent_nodes")
-                        # snode_root = self.make_search_node(None, self.initial_state, None, None)
+                        # snode_root = self.make_search_node(None, self.initial_state, None)
                         # self.connect(None, snode_root)
                         # self.update(None, snode_root, True)
                         time.sleep(0.5)
@@ -167,7 +173,9 @@ class TaskRRT(TaskInterface):
             from_state = parent_snode.state
             if isinstance(new_node, State):
                 to_state = new_node
-                redundancy_dict = deepcopy(parent_snode.redundancy_dict)
+            elif isinstance(new_node, int): # for copy and extend existing SearchNode, especially for RRT* extension
+                snode_tar = self.snode_dict[new_node]
+                to_state = snode_tar.state
             else:
                 available_binding_dict = self.pscene.get_available_binding_dict(from_state, new_node,
                                                                                 list2dict(from_state.Q, self.pscene.gscene.joint_names))
@@ -175,11 +183,11 @@ class TaskRRT(TaskInterface):
                     print("============== Non-available transition: sample again =====================")
                     sample_fail = True
                     continue
-                to_state, redundancy_dict = self.pscene.sample_leaf_state(from_state, available_binding_dict, new_node,
-                                                                          binding_sampler=self.binding_sampler,
-                                                                          redundancy_sampler=self.redundancy_sampler)
+                to_state = self.pscene.sample_leaf_state(from_state, available_binding_dict, new_node,
+                                                         binding_sampler=self.binding_sampler,
+                                                         redundancy_sampler=self.redundancy_sampler)
             sample_fail = False
-        return parent_snode, from_state, to_state, redundancy_dict, sample_fail
+        return parent_snode, from_state, to_state, sample_fail
 
     ##
     # @brief (prototype) update connection result to the searchng algorithm
@@ -194,7 +202,8 @@ class TaskRRT(TaskInterface):
         if connection_result:
             node_new = snode_new.state.node
             for leaf in self.node_dict[node_new]:
-                self.neighbor_nodes[leaf] = None
+                if leaf not in self.goal_nodes: # goal nodes are manually reached below when possible. no need for random access
+                    self.neighbor_nodes[leaf] = None
 
             with self.snode_dict_lock:
                 if snode_new.state.node not in self.node_snode_dict:
@@ -204,6 +213,7 @@ class TaskRRT(TaskInterface):
                         self.node_snode_dict[snode_new.state.node]+[snode_new.idx]
 
             if self.check_goal(snode_new.state):
+                print("Goal reached")
                 return True
 
         cres = False
@@ -246,3 +256,9 @@ class TaskRRT(TaskInterface):
     # @param state rnb-planning.src.pkg.planning.scene.State
     def check_goal(self, state):
         return state.node in self.goal_nodes
+
+    def check_unstoppable_terminals(self, node, leaf=None):
+        return all([(node[k] in self.unstoppable_terminals[sname] or
+                     (False if leaf is None else node[k] != leaf[k]))
+                    for k, sname in enumerate(self.pscene.subject_name_list)
+                    if sname in self.unstoppable_terminals])

@@ -41,6 +41,7 @@ class PlanningPipeline:
         ## @brief flag to stop multiprocess search
         self.stop_now =  None
         ## @brief PriorityQueueManager
+        self.execute_res = True
         self.manager = PriorityQueueManager()
         self.manager.start()
         self.counter_lock = self.manager.Lock()
@@ -83,7 +84,7 @@ class PlanningPipeline:
     # @param verbose boolean flag for printing intermediate process
     def search(self, initial_state, goal_nodes, multiprocess=False,
                      terminate_on_first=True, N_search=None, N_agents=None, wait_proc=True,
-                     display=False, dt_vis=0.01, verbose=False, timeout_loop=600, **kwargs):
+                     display=False, dt_vis=0.01, verbose=False, timeout_loop=600, looptime_extra=1, **kwargs):
         ## @brief runber of redundancy sampling
         self.t0 = time.time()
         self.DOF = len(initial_state.Q)
@@ -100,11 +101,17 @@ class PlanningPipeline:
                 self.search_counter = self.manager.Value('i', 0)
                 self.stop_now = self.manager.Value('i', 0)
                 self.tplan.initialize_memory(self.manager)
+                if self.mplan.flag_log:
+                    self.mplan.reset_log(flag_log=self.mplan.flag_log, manager=self.manager)
+                for mfilter in self.mplan.motion_filters:
+                    mfilter.prepare_multiprocess_lock(self.manager)
             else:
                 self.N_agents = 1
                 self.search_counter = SingleValue('i', 0)
                 self.stop_now =  SingleValue('i', 0)
                 self.tplan.initialize_memory(None)
+                for mfilter in self.mplan.motion_filters:
+                    mfilter.prepare_multiprocess_lock(None)
 
         with self.gtimer.block("init_search"):
             self.tplan.init_search(initial_state, goal_nodes)
@@ -116,29 +123,43 @@ class PlanningPipeline:
                     args=(id_agent, terminate_on_first, N_search, False, dt_vis, verbose, timeout_loop),
                     kwargs=kwargs) for id_agent in range(N_agents)]
                 for proc in self.proc_list:
+                    proc.daemon = True
                     proc.start()
 
             if wait_proc:
-                self.wait_procs(timeout_loop+3)
+                self.wait_procs(timeout_loop, looptime_extra)
         else:
             self.proc_list = []
             self.__search_loop(0, terminate_on_first, N_search, display, dt_vis, verbose, timeout_loop, **kwargs)
 
-    def wait_procs(self, timeout):
+    def wait_procs(self, timeout_loop, looptime_extra):
+        self.non_joineds = []
         self.gtimer.tic("wait_procs")
-        elapsed = self.gtimer.toc("wait_procs")/1000
-        for proc in self.proc_list:
-            while not self.stop_now.value:
-                proc.join(timeout=0.5)
-                elapsed = self.gtimer.toc("wait_procs")/1000
-                if elapsed > timeout:
-                    break
-            if elapsed > timeout:
-                break
+        elapsed = 0
+        while (not self.stop_now.value) and (elapsed<timeout_loop):
+            time.sleep(0.5)
+            elapsed = self.gtimer.toc("wait_procs") / 1000
+
+        self.gtimer.tic("wait_procs_extra")
+        all_stopped = False
+        while not all_stopped:
+            all_stopped = True
+            for proc in self.proc_list:
+                elapsed = self.gtimer.toc("wait_procs_extra") / 1000
+                proc_alive = proc.is_alive()
+                all_stopped = all_stopped and not proc_alive
+                if proc_alive:
+                    if elapsed > looptime_extra:
+                        proc.terminate()
+                        time.sleep(0.5)
+                        if not proc.is_alive():
+                            self.non_joineds.append(proc)
+                        continue
+                    proc.join(timeout=0.5)
 
     def __search_loop(self, ID, terminate_on_first, N_search,
                       display=False, dt_vis=None, verbose=False, timeout_loop=600,
-                      add_homing=True, post_optimize=False, **kwargs):
+                      add_homing=True, post_optimize=False, home_pose=None,  **kwargs):
         loop_counter = 0
         sample_fail_counter = 0
         sample_fail_max = 10
@@ -146,7 +167,7 @@ class PlanningPipeline:
         ret = False
         while (N_search is None or self.tplan.snode_counter.value < N_search) and (time.time() - self.t0) < timeout_loop and not self.stop_now.value:
             loop_counter += 1
-            snode, from_state, to_state, redundancy_dict, sample_fail = self.tplan.sample()
+            snode, from_state, to_state, sample_fail = self.tplan.sample()
             with self.counter_lock:
                 if not sample_fail:
                     sample_fail_counter = 0
@@ -161,11 +182,11 @@ class PlanningPipeline:
             if verbose:
                 print('try: {} - {}->{}'.format(snode.idx, from_state.node, to_state.node))
             self.gtimer.tic("test_connection")
-            traj, new_state, error, succ = self.test_connection(from_state, to_state, redundancy_dict=redundancy_dict,
+            traj, new_state, error, succ = self.test_connection(from_state, to_state,
                                                                 display=display, dt_vis=dt_vis, verbose=verbose,
                                                                 **kwargs)
             simtime = self.gtimer.toc("test_connection")
-            snode_new = self.tplan.make_search_node(snode, new_state, traj,  redundancy_dict)
+            snode_new = self.tplan.make_search_node(snode, new_state, traj)
             if succ:
                 snode_new = self.tplan.connect(snode, snode_new)
             ret = self.tplan.update(snode, snode_new, succ)
@@ -192,10 +213,12 @@ class PlanningPipeline:
             term_reason = "first answer acquired"
             if add_homing:
                 print("++ adding return motion to acquired answer ++")
+                home_state = self.tplan.snode_dict[0].copy(self.pscene)
+                home_state.Q = self.pscene.combined_robot.home_pose if home_pose is None else home_pose
                 if add_homing>1:
-                    self.add_return_motion(snode_new, try_count=add_homing)
+                    self.add_return_motion(snode_new, try_count=add_homing, initial_state=home_state)
                 else:
-                    self.add_return_motion(snode_new)
+                    self.add_return_motion(snode_new, initial_state=home_state)
             if post_optimize:
                 print("++ post-optimizing acquired answer ++")
                 self.post_optimize_schedule(snode_new)
@@ -212,19 +235,28 @@ class PlanningPipeline:
     # @brief test transition between states to connect
     # @param from_state         starting state (rnb-planning.src.pkg.planning.scene.State)
     # @param to_state           goal state (rnb-planning.src.pkg.planning.scene.State)
-    # @param redundancy_dict    redundancy in dictionary format {object name: {axis: value}}
     # @return Traj      Full trajectory as array of Q
     # @return end_state     new state at the end of transition (rnb-planning.src.pkg.planning.scene.State)
     # @return error     planning error
     # @return success   success/failure of planning result
-    def test_connection(self, from_state=None, to_state=None, redundancy_dict=None, display=False, dt_vis=1e-2,
+    def test_connection(self, from_state=None, to_state=None, display=False, dt_vis=1e-2,
                           error_skip=0, verbose=False, **kwargs):
-        Traj, LastQ, error, success, binding_list = \
-            self.mplan.plan_transition(from_state, to_state, redundancy_dict=redundancy_dict, verbose=verbose, **kwargs)
+        if display:
+            self.pscene.gscene.clear_highlight()
+            snames, change_ok = self.pscene.get_changing_subjects(from_state, to_state)
+            for sname in snames:
+                self.pscene.set_object_state(from_state)
+                self.pscene.gscene.update_markers_all()
+                self.pscene.gscene.show_pose(from_state.Q)
+                self.pscene.show_binding(to_state.binding_state[sname])
 
-        if success:
-            if display:
+        Traj, LastQ, error, success, binding_list = \
+            self.mplan.plan_transition(from_state, to_state, verbose=verbose, **kwargs)
+
+        if display:
+            if success:
                 self.pscene.gscene.show_motion(Traj, error_skip=error_skip, period=dt_vis)
+            self.pscene.gscene.clear_highlight()
 
         end_state = self.pscene.rebind_all(binding_list, LastQ)
         return Traj, end_state, error, success
@@ -262,6 +294,7 @@ class PlanningPipeline:
                     for _ in range(N_try)] for skey in snode_keys}
                 for proc_list in self.refine_proc_dict.values():
                     for proc in proc_list:
+                        proc.daemon = True
                         proc.start()
                 time_start = time.time()
                 timeout_max = np.max([v for k, v in kwargs.items() if "timeout" in k])*1.2
@@ -286,9 +319,8 @@ class PlanningPipeline:
     def __refine_trajectory(self, key, snode_from, snode_to, **kwargs):
         from_state = snode_from.state
         to_state = snode_to.state
-        redundancy_dict = snode_to.redundancy_dict
         Traj, LastQ, error, success, binding_list = \
-            self.mplan.plan_transition(from_state, to_state, redundancy_dict=redundancy_dict, **kwargs)
+            self.mplan.plan_transition(from_state, to_state, **kwargs)
 
         if success:
             if key in self.refine_success_dict and self.refine_success_dict[key]:
@@ -303,10 +335,11 @@ class PlanningPipeline:
 
     ##
     # @brief add return motion to a SearchNode schedule
-    def add_return_motion(self, snode_last, initial_state=None, timeout=5, try_count=5):
+    def add_return_motion(self, snode_last, initial_state=None, timeout=1, try_count=3):
         if initial_state is None:
             initial_state = self.initial_state
         state_last = snode_last.state
+        initial_state.Q = np.array(initial_state.Q)
         diffQ = initial_state.Q - state_last.Q
         diff_dict = {rname: np.sum(np.abs(diffQ[idx]))>1e-4
                      for rname, idx in self.pscene.combined_robot.idx_dict.items()}
@@ -319,11 +352,11 @@ class PlanningPipeline:
                 state_new = state_pre.copy(self.pscene)
                 state_new.Q[rbt_idx] = initial_state.Q[rbt_idx]
                 for _ in range(try_count):
-                    traj, state_next, error, succ = self.test_connection(state_pre, state_new, redundancy_dict=None,
-                                                                          display=False, timeout=timeout)
+                    traj, state_next, error, succ = self.test_connection(state_pre, state_new,
+                                                                         display=False, timeout=timeout)
                     if succ:
                         break
-                snode_next = self.tplan.make_search_node(snode_pre, state_next, traj, None)
+                snode_next = self.tplan.make_search_node(snode_pre, state_next, traj)
                 if succ:
                     snode_next = self.tplan.connect(snode_pre, snode_next)
                     self.tplan.update(snode_pre, snode_next, succ)
@@ -346,14 +379,16 @@ class PlanningPipeline:
             if snode.traj is not None:
                 state_new = state_pre.copy(self.pscene)
                 state_new.Q = snode.traj[-1]
-                diffs = np.where([bs1 != bs2
-                                  for bs1, bs2 in zip(state_pre.binding_state, snode.state.binding_state)])[0]
+                diffs = [sname for sname in self.pscene.subject_name_list
+                         if (state_pre.binding_state[sname].get_chain()
+                             != snode.state.binding_state[sname].get_chain())
+                         ]
                 post_opt = True
-                for i_stem in diffs:
-                    obj_name = self.pscene.subject_name_list[i_stem]
-                    binding_from = state_pre.binding_state[i_stem]
-                    binding_to = snode.state.binding_state[i_stem]
-                    constraints = self.pscene.subject_dict[obj_name].make_constraints(binding_from, binding_to)
+                for obj_name in diffs:
+                    btf_from = state_pre.binding_state[obj_name]
+                    btf_to = snode.state.binding_state[obj_name]
+                    constraints = self.pscene.subject_dict[obj_name].make_constraints(btf_from.get_chain(),
+                                                                                      btf_to.get_chain())
                     post_opt = post_opt and len(constraints) == 0  # no optimization for constrained motion
 
                 if post_opt:
@@ -373,7 +408,7 @@ class PlanningPipeline:
     # @param period play period
     def play_schedule(self, snode_schedule, period=0.01):
         snode_pre = snode_schedule[0]
-        for snode in snode_schedule:
+        for snode in snode_schedule[1:]:
             self.pscene.set_object_state(snode_pre.state)
             self.pscene.gscene.update_markers_all()
             print("{}->{}".format(snode_pre.state.node, snode.state.node))
@@ -381,9 +416,10 @@ class PlanningPipeline:
                 snode_pre = snode
                 continue
             self.pscene.gscene.clear_highlight()
-            for binding_pre, binding in zip(snode_pre.state.binding_state, snode.state.binding_state):
-                if not binding_pre == binding:
-                    self.pscene.show_binding(binding, redundancy_dict=snode.redundancy_dict)
+            for sname in self.pscene.subject_name_list:
+                btf_pre, btf = snode_pre.state.binding_state[sname], snode.state.binding_state[sname]
+                if btf_pre.get_chain() != btf.get_chain():
+                    self.pscene.show_binding(btf)
             if period<0.01:
                 self.pscene.gscene.show_motion(snode.traj[::int(0.01/period)], period=0.01)
             else:
@@ -399,8 +435,8 @@ class PlanningPipeline:
         for name in self.pscene.combined_robot.robot_names:
             grasp_dict[name] = False
 
-        for binding in state.binding_state:
-            oname, bpoint, binder, bgeo = binding
+        for btf in state.binding_state.values():
+            oname, bpoint, binder, bgeo = btf.get_chain()
             print("binder: {}".format(binder))
             if binder in self.pscene.actor_robot_dict:
                 rname = self.pscene.actor_robot_dict[binder]
@@ -413,7 +449,9 @@ class PlanningPipeline:
     ##
     # @brief execute schedule
     # @param mode_switcher ModeSwitcher class instance
-    def execute_schedule(self, snode_schedule, auto_stop=True, mode_switcher=None, one_by_one=False):
+    def execute_schedule(self, snode_schedule, auto_stop=True, mode_switcher=None, one_by_one=False, multiproc=False,
+                         error_stop_deg=10):
+        self.execute_res = False
         snode_pre = snode_schedule[0]
         for snode in snode_schedule:
             if snode.traj is None or len(snode.traj) == 0:
@@ -423,7 +461,22 @@ class PlanningPipeline:
                 switch_state = mode_switcher.switch_in(snode_pre, snode)
 
             self.pscene.set_object_state(snode_pre.state)
-            self.pscene.combined_robot.move_joint_traj(snode.traj, auto_stop=False, one_by_one=one_by_one)
+            if multiproc:
+                t_exe = Process(target=self.pscene.combined_robot.move_joint_traj,
+                                args = (snode.traj,),
+                                kwargs=dict(auto_stop=False, one_by_one=one_by_one, error_stop=error_stop_deg))
+                t_exe.daemon = True
+                t_exe.start()
+                t_exe.join()
+            else:
+                self.pscene.combined_robot.move_joint_traj(snode.traj, auto_stop=False, one_by_one=one_by_one)
+
+            if not self.pscene.combined_robot.wait_queue_empty(trajectory=[snode.traj[-1]], error_stop=error_stop_deg):
+                self.pscene.combined_robot.stop_tracking()
+                self.execute_res = False
+                print("=================== ERROR ===================")
+                print("====== Robot configuration not in sync ======")
+                return False
 
             if mode_switcher is not None:
                 mode_switcher.switch_out(switch_state, snode)
@@ -432,6 +485,8 @@ class PlanningPipeline:
 
         if auto_stop:
             self.pscene.combined_robot.stop_tracking()
+        self.execute_res = True
+        return True
 
     ##
     # @brief execute schedule
@@ -448,13 +503,12 @@ class PlanningPipeline:
 
             # slow down if constrained motion
             scale_tmp = 1
-            binding_list, success = self.pscene.get_slack_bindings(snode_pre.state, snode.state)
-            for binding in binding_list:
-                obj_name, ap_name, binder_name, binder_geometry_name = binding
-                binder_geometry_prev = snode_pre.state.binding_state[self.pscene.subject_name_list.index(obj_name)][
-                    -1]
-                if binder_geometry_prev == binder_geometry_name and \
-                        self.pscene.subject_dict[obj_name].constrained:
+            subject_list, success = self.pscene.get_changing_subjects(snode_pre.state, snode.state)
+            for sname in subject_list:
+                actor_root = snode.state.binding_state[sname].binding.actor_root_gname
+                actor_root_prev = snode_pre.state.binding_state[sname].binding.actor_root_gname
+                if actor_root_prev == actor_root and \
+                        self.pscene.subject_dict[sname].constrained:
                     scale_tmp = self.constrained_motion_scale
                     break
 
@@ -479,7 +533,7 @@ class PlanningPipeline:
         state_home.Q = np.array(self.pscene.combined_robot.home_pose)
         trajectory, Q_last, error, success, binding_list = self.mplan.plan_transition(state_fin, state_home)
         if success:
-            snode_home = SearchNode(0, state_home, [], [], depth=0, redundancy_dict=None)
+            snode_home = SearchNode(0, state_home, [], [], depth=0)
             snode_home.set_traj(trajectory, 0)
             snode_schedule.append(snode_home)
 
@@ -507,7 +561,7 @@ class PlanningPipeline:
                         POS_CUR = trajectory[i_q]
                         self.gtimer.tic("move_wait")
                         if on_rviz:
-                            self.pscene.combined_robot.wait_step(self.pscene.gscene.rate)
+                            self.pscene.combined_robot.wait_step(self.pscene.gscene.rate.sleep_dur.to_sec())
                             all_sent = True
                         else:
                             all_sent = mt.move_possible_joints_x4(POS_CUR)

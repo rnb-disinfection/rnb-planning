@@ -4,7 +4,6 @@ from ....utils.utils import *
 from ....utils.joint_utils import get_tf
 from ....utils.rotation_utils import *
 from ....geometry.geometry import GEOTYPE
-from ...constraint.constraint_common import calc_redundancy
 from ...constraint.constraint_subject import FramedPoint, DirectedPoint
 
 
@@ -279,8 +278,8 @@ Constraint{{
     return joint_constraints + error_statement
 
 def make_action_constraints(object, handle, effector,
-                            binding_from, binding_to, redundancy_values=None, activation=False):
-    if redundancy_values is None:
+                            btf_from, btf_to, activation=False):
+    if btf_to.redundancy is None:
         if isinstance(handle, FramedPoint):
             make_constraint_fun = make_oriented_point_constraint
         elif isinstance(handle, DirectedPoint):
@@ -289,16 +288,14 @@ def make_action_constraints(object, handle, effector,
             raise(NotImplementedError("non-implemented handle type"))
         const_txt = make_constraint_fun(handle, effector, handle.name_full, activation=activation)
     else:
-        point_add_handle, rpy_add_handle = redundancy_values[(object.oname, handle.name)]
-        point_add_effector, rpy_add_effector = redundancy_values[(object.oname, effector.name)]
-        T_add = np.matmul(SE3(Rot_rpy(rpy_add_effector), point_add_effector),
-                          SE3_inv(SE3(Rot_rpy(rpy_add_handle), point_add_handle)))
+        T_add = btf_to.T_add_ah
         point_add = T_add[:3,3]
         rpy_add = Rot2rpy(T_add[:3,:3])
         const_txt = make_oriented_point_constraint(handle, effector, handle.name_full,
                                                    point_add=point_add, rpy_add=rpy_add,
                                                    activation=activation)
-    constraints = object.make_constraints(binding_from, binding_to)
+    constraints = object.make_constraints(btf_from.get_chain(),
+                                          btf_to.get_chain())
     if constraints:
         for motion_constraint in constraints:
             const_txt += "\n" + make_motion_constraints(effector, motion_constraint, activation=activation)
