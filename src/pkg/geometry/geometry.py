@@ -375,6 +375,16 @@ class GeometryScene(list):
         return get_tf(to_link=to_link, joint_dict=Q_dict,
                       urdf_content=self.urdf_content, from_link=from_link)
 
+    def get_children_links(self, link_name):
+        if link_name in self.urdf_content.child_map:
+            children = map(lambda x: x[1], self.urdf_content.child_map[link_name])
+            for child in children:
+                children += self.get_children_links(child)
+            return sorted(set(children))
+        else:
+            return []
+
+
 ##
 # @class GeometryItem
 # @brief Instance of geometry item

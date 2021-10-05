@@ -40,11 +40,13 @@ class GraspChecker(MotionFilterInterface):
         for rname, chain_vals in self.chain_dict.items():
             tip_link = chain_vals['tip_link']
             robot_link_names = chain_vals['link_names']
+            children = self.gscene.get_children_links(self.pscene.combined_robot.get_robot_base_dict()[rname])
             self.end_link_couple_dict[tip_link] = [lname for lname in reversed(robot_link_names)
                                                    if lname in self.gscene.fixed_link_adjacency_map[tip_link]]
             index_arr = np.array([self.gscene.link_names.index(lname) for lname in robot_link_names])
             assert np.all((index_arr[1:]-index_arr[:-1])>0), "link_name should be ordered as same as chain order"
-            self.robot_ex_link_dict[rname] = [lname for lname in self.gscene.link_names if lname not in robot_link_names]
+            self.robot_ex_link_dict[rname] = [lname for lname in self.gscene.link_names
+                                              if lname not in children]
             for lname in robot_link_names:
                 self.link_robot_dict[lname] = rname
         # @brief set show_vertices=True to show collision vertices
@@ -98,12 +100,12 @@ class GraspChecker(MotionFilterInterface):
         for actor_vertice, actor_radius in actor_vertice_list:
             for object_vertice, object_radius in object_vertice_list:
                 dist_list.append(get_gjk_distance(actor_vertice, object_vertice) - actor_radius - object_radius)
-        res = np.min(dist_list) > + 1e-4
+        res = np.min(dist_list) > + 1e-6
+        print("res: {} ({})".format(res, round(np.min(dist_list), 4)))
+        if not res:
+            i_ac, i_ob = np.unravel_index(np.argmin(dist_list), (len(actor_vertinfo_list),len(object_vertinfo_list)))
+            print("{} - {}".format(actor_vertinfo_list[i_ac][0], object_vertinfo_list[i_ob][0]))
         if self.show_vertices:
-            print("res: {} ({})".format(res, round(np.min(dist_list), 4)))
-            if not res:
-                i_ac, i_ob = np.unravel_index(np.argmin(dist_list), (len(actor_vertinfo_list),len(object_vertinfo_list)))
-                print("{} - {}".format(actor_vertinfo_list[i_ac][0], object_vertinfo_list[i_ob][0]))
             T_bl= np.matmul(Tbol, T_loal)
             self.gscene.add_highlight_axis("gc_center", "Tloal", "base_link",
                                            center=T_bl[:3,3], orientation_mat=T_bl[:3,:3])
