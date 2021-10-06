@@ -152,3 +152,5 @@ log/
 **/Makefile
 **/CMakeCache.txt
 **/cmake_install.cmake
+
+lib/latticizer/latticizer-test

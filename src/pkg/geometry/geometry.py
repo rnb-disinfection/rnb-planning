@@ -474,6 +474,7 @@ class GeometryItem(object):
     # @param joint_dict joint values in dictionary format {name: radian value}
     # @param from_link name of reference link
     def get_tf(self, joint_dict, from_link='base_link'):
+        joint_dict = joint_dict if isinstance(joint_dict, dict) else list2dict(joint_dict, self.gscene.joint_names)
         T = get_tf(to_link=self.link_name, joint_dict=joint_dict, urdf_content=self.gscene.urdf_content, from_link=from_link)
         T = np.matmul(T, self.Toff)
         return T

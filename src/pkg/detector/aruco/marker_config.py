@@ -185,6 +185,11 @@ def get_aruco_map():
                          dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX, dims=(0.1, 0.1,0.1), color=(0.8,0.0,0.0,1),
                          _list=[
                              ObjectMarker('table', 226, 0.18, [0,0,0], (0,0,0))
+                         ]),
+        'test_target': MarkerSet('test_target',
+                         dlevel=DetectionLevel.MOVABLE, gtype=GEOTYPE.BOX, dims=(0.1, 0.1,0.01), color=(0.8,0.0,0.0,1),
+                         _list=[
+                             ObjectMarker('test_target', 220, 0.06, [0.0, 0.0, 0.0], (0, 0, 0))
                          ])
     })
     return aruco_map

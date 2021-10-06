@@ -89,20 +89,20 @@ def add_indy_tool_kiro(gscene, zoff=0, tool_link="indy0_tcp", face_name="brush_f
 
     gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="brushbase",
                        link_name=tool_link,
-                       center=(0.1885+zoff, 0, 0.121), dims=(0.08, 0.08, 0.015), rpy=(0, np.pi / 2, 0),
+                       center=(0.3+zoff, 0, 0.25), dims=(0.08, 0.08, 0.015), rpy=(0, np.pi / 2, 0),
                        color=(0.8, 0.8, 0.8, 1),
                        collision=False, fixed=True)
     gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="brushbase_col",
                        link_name=tool_link,
-                       center=(0.1885+zoff, 0, 0.121), dims=(0.12, 0.12, 0.015), rpy=(0, np.pi / 2, 0),
+                       center=(0.3+zoff, 0, 0.25), dims=(0.12, 0.12, 0.015), rpy=(0, np.pi / 2, 0),
                        color=(0.0, 0.8, 0.0, 0.5),
                        collision=True, fixed=True)
     brush_face = gscene.create_safe(gtype=GEOTYPE.BOX, name=face_name, link_name=tool_link,
-                       center=(0.207+zoff, 0, 0.121), dims=(0.037, 0.10, 0.34), rpy=(np.pi, 0, np.pi),
+                       center=(0.32+zoff, 0, 0.25), dims=(0.037, 0.10, 0.34), rpy=(np.pi, 0, np.pi),
                        color=(1.0, 1.0, 0.94, 1),
                        collision=False, fixed=True)
     gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_col".format(face_name), link_name=tool_link,
-                       center=(0.187+zoff, 0, 0.121), dims=(0.057, 0.10, 0.36), rpy=(np.pi, 0, np.pi),
+                       center=(0.3+zoff, 0, 0.25), dims=(0.057, 0.10, 0.36), rpy=(np.pi, 0, np.pi),
                        color=(0.0, 0.8, 0.0, 0.5),
                        collision=True, fixed=True)
     return brush_face
