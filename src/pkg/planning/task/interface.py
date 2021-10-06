@@ -188,6 +188,8 @@ class TaskInterface:
     def get_best_schedule(self, at_home=True):
         schedules = self.find_schedules(at_home=at_home)
         schedules_sorted = self.sort_schedule(schedules)
+        if len(schedules_sorted)==0:
+            return []
         snode_schedule = self.idxSchedule2SnodeScedule(schedules_sorted[0])
         return snode_schedule
 
