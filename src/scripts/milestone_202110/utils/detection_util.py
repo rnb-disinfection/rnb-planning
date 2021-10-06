@@ -13,6 +13,7 @@ import SharedArray as sa
 import time
 import random
 from pkg.geometry.geotype import GEOTYPE
+from pkg.utils.rotation_utils import *
 
 
 IMG_URI = "shm://color_img"
@@ -172,7 +173,7 @@ def execute_global_registration(source_down, target_down, source_fpfh,
 #     return result_icp.transformation
 
 
-def compute_ICP(model_mesh, pcd, initial_guess):
+def compute_ICP(model_mesh, pcd, initial_guess, visualize=False):
     # Compute ICP to align model(source) to obtained point clouds(target)
     target = copy.deepcopy(pcd)
     model_pcd = model_mesh.sample_points_uniformly(number_of_points=int(len(np.array(target.points)) * 0.9))
@@ -193,12 +194,13 @@ def compute_ICP(model_mesh, pcd, initial_guess):
     print(reg_p2p)
     print("Transformation is:")
     print(reg_p2p.transformation)
-    draw_registration_result(source, target, reg_p2p.transformation)
+    if visualize:
+        draw_registration_result(source, target, reg_p2p.transformation)
     ICP_result = reg_p2p.transformation
 
     return ICP_result
 
-def process_bed_detection():
+def process_bed_detection(visualize=False):
     # Load CAD model of bed
     bed_model = o3d.io.read_triangle_mesh(MODEL_DIR + '/bed/bed.STL')
     # bed_model = o3d.io.read_triangle_mesh(MODEL_DIR + '/bed/bed_floor_centered_m_scale.STL')
@@ -220,7 +222,8 @@ def process_bed_detection():
                                                                                                   cam_ppx, cam_ppy))
     # cl, ind = pcd_bed.remove_radius_outlier(nb_points=20, radius=0.07)
     # pcd_bed = cl
-    o3d.visualization.draw_geometries([pcd_bed])
+    if visualize:
+        o3d.visualization.draw_geometries([pcd_bed])
 
     voxel_size = 0.05
     source, target, source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(voxel_size, bed_model, pcd_bed)
@@ -230,10 +233,11 @@ def process_bed_detection():
                                                 voxel_size)
 
     print(result_ransac.transformation)
-    draw_registration_result(source_down, target_down,
-                             result_ransac.transformation)
+    if visualize:
+        draw_registration_result(source_down, target_down,
+                                 result_ransac.transformation)
 
-    ICP_result= compute_ICP(bed_model, pcd_bed, result_ransac.transformation)
+    ICP_result= compute_ICP(bed_model, pcd_bed, result_ransac.transformation, visualize=visualize)
     # ICP_result= compute_color_icp(bed_model, pcd_bed, result_ransac.transformation)
 
     return ICP_result
@@ -275,7 +279,7 @@ def remove_bed(pcd_original, pcd_bed):
     return p_inliers
 
 
-def check_location_top_table(color_path, depth_path, T_bc, T_bo):
+def check_location_top_table(color_path, depth_path, T_bc, T_bo, bed_dims, floor_margin=0.1, visualize=False):
     # Load total PCD of first view
     color = o3d.io.read_image(color_path)
     depth = o3d.io.read_image(depth_path)
@@ -288,11 +292,13 @@ def check_location_top_table(color_path, depth_path, T_bc, T_bo):
                                                                                                   cam_ppx, cam_ppy))
 
     pcd_total = pcd_total.uniform_down_sample(every_k_points=11)
-    o3d.visualization.draw_geometries([pcd_total])
+    if visualize:
+        o3d.visualization.draw_geometries([pcd_total])
 
+    pcd_outliers = pcd_total
     # Remove background(wall & ground plane)
     # First, Remove wall
-    pcd_outliers = remove_background(pcd_total, thres=0.067)
+    # pcd_outliers = remove_background(pcd_total, thres=0.067)
 
     # # Second, Remove ground
     # pcd_outliers_2 = remove_background(pcd_outliers)
@@ -308,16 +314,18 @@ def check_location_top_table(color_path, depth_path, T_bc, T_bo):
                                                                                                   cam_fy,
                                                                                                   cam_ppx, cam_ppy))
 
+
     # Remove bed
     pcd_top_table = o3d.geometry.PointCloud()
     pcd_top_table.points = o3d.utility.Vector3dVector(remove_bed(pcd_outliers, pcd_bed))
-    o3d.visualization.draw_geometries([pcd_top_table])
+    if visualize:
+        o3d.visualization.draw_geometries([pcd_top_table])
 
     # Remove other noise
     cl, ind = pcd_top_table.remove_radius_outlier(nb_points=25, radius=0.3)
     pcd_top_table = cl
-    # o3d.visualization.draw_geometries([pcd_top_table])
-
+    if visualize:
+        o3d.visualization.draw_geometries([pcd_top_table])
 
     # Determine rough location of top_table
     points = np.asarray(pcd_top_table.points)
@@ -334,6 +342,18 @@ def check_location_top_table(color_path, depth_path, T_bc, T_bo):
     for i in range(len(points_temp)):
         points_transformed.append(np.matmul(np.linalg.inv(T_bo), points_temp[i]))
 
+    points_transformed_np = np.array(points_transformed)[:,:3]
+
+
+    out_x = np.where(np.abs(points_transformed_np[:,0])>bed_dims[0]/2)[0]
+    out_y = np.where(np.abs(points_transformed_np[:,1])>bed_dims[1]/2+bed_dims[1])[0]
+    out_z = np.where(points_transformed_np[:,2]<floor_margin)[0]
+    out_all = sorted(set(out_x).union(out_y).union(out_z))
+    in_all = sorted(set(np.arange(len(points_transformed_np))) - set(out_all))
+    points_transformed = np.array(points_transformed)[in_all, :3]
+
+    if visualize:
+        vis_pointcloud_np(points_transformed)
 
     check_left = 0
     check_right = 0
@@ -348,6 +368,7 @@ def check_location_top_table(color_path, depth_path, T_bc, T_bo):
         TOP_TABLE_MODE = "LEFT"
     else:
         TOP_TABLE_MODE = "RIGHT"
+
     # top_table_center = pcd_top_table.get_center()
     # bed_center = pcd_bed.get_center()
     #
@@ -417,33 +438,76 @@ def save_intrinsic_as_json(filename):
 
 
 
-def process_top_table_detection():
+def process_top_table_detection(T_sc, bed_dims, z_ceiling = 2.3,
+                                initial_offset=[0.3,1.1,0.6], floor_margin=0.1, visualize=False):
+
     # Load CAD model of top table
     top_table_model = o3d.io.read_triangle_mesh(MODEL_DIR + '/top_table/top_table.STL')
     top_table_model.vertices = o3d.utility.Vector3dVector(
         np.asarray(top_table_model.vertices) * np.array([1 / 1000.0, 1 / 1000.0, 1 / 1000.0]))
 
-
     # Load PCD of top table (obtained from reconstruction)
     pcd_top_table = o3d.io.read_point_cloud(MILESTONE_DIR + "/pcd.ply")
     pcd_top_table = pcd_top_table.uniform_down_sample(every_k_points=11)
-    o3d.visualization.draw_geometries([pcd_top_table])
+    if visualize:
+        o3d.visualization.draw_geometries([pcd_top_table])
+    points = np.asarray(pcd_top_table.points)
+    points_transformed_np = np.matmul(T_sc[:3,:3], points.transpose()).transpose() + T_sc[:3,3]
 
-    pcd_top_table = remove_background(pcd_top_table, thres=0.03)
+    out_x = np.where(np.abs(points_transformed_np[:,0])>bed_dims[0]/2)[0]
+    out_y = np.where(np.abs(points_transformed_np[:,1])>bed_dims[1]/2+bed_dims[1])[0]
+    in_y = np.where(np.abs(points_transformed_np[:,1])<bed_dims[1]/2+0.3)[0]
+    out_z = np.where(points_transformed_np[:,2]<floor_margin)[0]
+    out_z2 = np.where(points_transformed_np[:,2]>z_ceiling)[0]
+    out_all = sorted(set(out_x).union(out_y).union(out_z).union(in_y).union(out_z2))
+    in_all = sorted(set(np.arange(len(points_transformed_np))) - set(out_all))
+    points_transformed = points_transformed_np[in_all, :]
+
+    if visualize:
+        vis = o3d.geometry.PointCloud()
+        vis.points = o3d.utility.Vector3dVector(points_transformed)
+        origin = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.2, origin=(0,0,0))
+        o3d.visualization.draw_geometries([vis, origin])
+
+    T_cs = SE3_inv(T_sc)
+
+    points_recovered = np.matmul(T_cs[:3,:3], points_transformed.transpose()).transpose() + T_cs[:3,3]
+
+    pcd_top_table = o3d.geometry.PointCloud()
+    pcd_top_table.points = o3d.utility.Vector3dVector(points_recovered)
+
+    R_cc = Rot_axis_series([2, 3], [-np.pi/2, np.pi])
+
+    P = np.median(points_recovered, axis=0)
+    P += initial_offset
+    T_cc = SE3(R_cc, P)
+
+
+
+    # pcd_top_table = remove_background(pcd_top_table, thres=0.03)
 
     voxel_size = 0.05  # means 5cm for the dataset
     source, target, source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(voxel_size, top_table_model,
                                                                                          pcd_top_table)
 
-    result_ransac = execute_global_registration(source_down, target_down,
-                                                source_fpfh, target_fpfh,
-                                                voxel_size)
+    # result_ransac = execute_global_registration(source_down, target_down,
+    #                                             source_fpfh, target_fpfh,
+    #                                             voxel_size)
 
-    print(result_ransac.transformation)
-    draw_registration_result(source_down, target_down,
-                             result_ransac.transformation)
+    if visualize:
+        draw_registration_result(source_down, target_down,
+                                 T_cc)
 
-    ICP_result = compute_ICP(top_table_model, pcd_top_table, result_ransac.transformation)
+
+
+    ICP_result = compute_ICP(top_table_model, pcd_top_table, T_cc, visualize=visualize)
     return ICP_result
 
+
+
+def vis_pointcloud_np(points):
+    vis = o3d.geometry.PointCloud()
+    vis.points = o3d.utility.Vector3dVector(points)
+    origin = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.2,origin=(0,0,0))
+    o3d.visualization.draw_geometries([vis, origin])
 
