@@ -27,7 +27,9 @@ class IndyTrajectoryClientNoSDK(IndyDCPClient, TrajectoryClient):
             self.set_task_blend_radius(0.1)
 
     def get_qcount(self):
-        raise(RuntimeError("get_qcount is not supported without indy sdk"))
+        # raise(RuntimeError("get_qcount is not supported without indy sdk"))
+        with self:
+            return not self.get_robot_status()['movedone']
 
     def get_qcur(self):
         with self:
