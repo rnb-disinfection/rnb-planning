@@ -61,7 +61,7 @@ def add_kiro_indytool_down(gscene, zoff=0, tool_link="indy1_tcp", face_name="bru
                        color=(1.0, 0.0, 0.0, 0.5),
                        collision=False, fixed=True)
     gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_col".format(face_name), link_name=tool_link,
-                       center=(0.275+zoff, 0, 0.236), dims=(0.36, 0.12, 0.08), rpy=(0, -np.pi/2, 0),
+                       center=(0.275+zoff, 0, 0.236), dims=(0.34, 0.10, 0.08), rpy=(0, -np.pi/2, 0),
                        color=(0.0, 0.8, 0.0, 0.5),
                        collision=True, fixed=True)
     return brush_face

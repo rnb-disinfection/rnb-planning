@@ -57,7 +57,8 @@ SWEEP_DAT_PATH = os.path.join(os.environ["RNB_PLANNING_DIR"], "data/sweep_reach"
 # @param ccheck CachedCollisionCheck
 # @param tip_dir None, up, down
 # @return {approach dir 0~3: {Tsm_key: [idx_div]}}, surface_div_centers
-def get_division_dict(surface, brush_face, robot_config, plane_val, tip_dir, TOOL_DIM, ccheck, resolution):
+def get_division_dict(surface, brush_face, robot_config, plane_val, tip_dir, TOOL_DIM, ccheck, resolution,
+                      sweep_margin=0):
     gcheck = ccheck.gcheck
     pscene = gcheck.pscene
     gscene = pscene.gscene
@@ -129,6 +130,13 @@ def get_division_dict(surface, brush_face, robot_config, plane_val, tip_dir, TOO
         idc_h_matchs = sorted(set(idc_h_matchs))
         sweep_min = sweep_min[idc_h_matchs]
         sweep_max = sweep_max[idc_h_matchs]
+
+    ## cut margins at the edge
+    sweep_max -= (np.max(TOOL_DIM)/2 + sweep_margin)
+    sweep_min += (np.max(TOOL_DIM)/2 + sweep_margin)
+    idx_ok = np.where(sweep_max>sweep_min)[0]
+    sweep_max = sweep_max[idx_ok]
+    sweep_min = sweep_min[idx_ok]
 
     ## get all sweep points
     swp_points_dict = {0: [], 1: []}
