@@ -104,6 +104,7 @@ def get_division_dict(surface, brush_face, robot_config, plane_val, tip_dir, TOO
     ax_swp = 1 # sweep axis in robot coord
     ax_step = [ax for ax in [0, 1, 2] if ax not in [ax_pln, ax_swp]][0] # step axis = not plane axis nor sweep axis
     if plane_val is not None:
+        print("Reference Height: {:.03}".format(plane_val))
         idx_pln = np.argmin(np.abs(sweep_max[:, ax_pln] - plane_val))
         val_pln = sweep_max[idx_pln, ax_pln]
         idc_pln = np.where(sweep_max[:, ax_pln] == val_pln)[0]
@@ -351,7 +352,7 @@ def test_base_divs(ppline, floor_gtem, Tsm, surface, swp_centers, WP_DIMS, TOOL_
 
 
 class TestBaseDivFunc:
-    def __init__(self, ppline, floor_ws, surface, WP_DIMS, TOOL_DIM, Q_dict, multiprocess=False,
+    def __init__(self, ppline, floor_ws, surface, WP_DIMS, TOOL_DIM, Q_dict, multiprocess=True,
                  highlight_color=(1, 1, 0, 0.5), tool_dir=1):
         self.ppline, self.floor_ws, self.surface = ppline, floor_ws, surface
         self.WP_DIMS, self.TOOL_DIM, self.Q_dict = WP_DIMS, TOOL_DIM, Q_dict
