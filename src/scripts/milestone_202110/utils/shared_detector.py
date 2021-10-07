@@ -40,14 +40,43 @@ class SharedDetector:
             # Inference object detection & segmentation
             result = inference_detector(self.model, self.color_img)
             boxes, masks = result[0], result[1]
+
+            detect_false = np.empty((720,1280), dtype=bool)
+            detect_false[:, :] = False
+
             # Index 59 means bed
-            mask_res = masks[59][0]
-            self.return_img[:] = mask_res
+            if len(masks[59]) != 0:
+                box = boxes[59][0]
+                left, top, right, bottom = box[0], box[1], box[2], box[3]
+                center_x = (left + right) / 2
+                center_y = (top + bottom) / 2
+                # check center position of bounding box of detected bed
+                if center_x < 330:
+                    self.return_img[:] = detect_false
+                elif center_x > 950:
+                    self.return_img[:] = detect_false
+                elif center_y < 175:
+                    self.return_img[:] = detect_false
+                elif center_y > 545:
+                    self.return_img[:] = detect_false
+                else:
+                    mask_res = masks[59][0]
+                    self.return_img[:] = mask_res
+            else:
+                self.return_img[:] = detect_false
             self.resp[:] = 1
 
     def __enter__(self):
+        try:
+            sa.delete(IMG_URI)
+            sa.delete(MASK_URI)
+            sa.delete(REQ_URI)
+            sa.delete(RESP_URI)
+        except Exception as e:
+            pass
         self.color_img = sa.create(IMG_URI, IMG_DIM, dtype=np.uint8)
-        self.return_img = sa.create(MASK_URI, IMG_DIM[:2], dtype=np.uint8)
+        self.return_img = sa.create(MASK_URI, IMG_DIM[:2])
+        # self.return_img = sa.create(MASK_URI, IMG_DIM[:2], dtype=np.uint8)
         self.request = sa.create(REQ_URI, (1,), dtype=np.uint8)
         self.resp = sa.create(RESP_URI, (1,), dtype=np.uint8)
         self.request[:] = 0
