@@ -114,7 +114,7 @@ def add_bed(gscene, bed_center, bed_rpy, COLOR_BED_COL):
                                  color=(0.8,0.8,0.8,1), display=True, fixed=True, collision=False,
                                  uri="package://my_mesh/meshes/stl/bed_floor_centered_m_scale.stl", scale=(1,1,1))
     bed_mat = gscene.create_safe(GEOTYPE.BOX, "bed_mat", link_name="base_link", 
-                                 dims=(1.86,0.91,0.13), center=(-0.025,0,0.6), rpy=(0,0,0),
+                                 dims=(1.80,0.91,0.13), center=(-0.025,0,0.6), rpy=(0,0,0),
                                  color=COLOR_BED_COL, fixed=True, collision=True, parent="bed_vis")
 
     gscene.create_safe(GEOTYPE.BOX, "bed_head", link_name="base_link", 

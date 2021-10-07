@@ -7,227 +7,10 @@ from collections import defaultdict
 
 DATASET_DIR = os.path.join(os.environ["RNB_PLANNING_DIR"], 'data/sweep_reach')
 try_mkdir(DATASET_DIR)
-# dataset = np.load('scripts/demo_202107/dataset.npy', allow_pickle=True)
-
-
-def load_sweep_data(robot_type_name):
-    return np.load(os.path.join(DATASET_DIR, robot_type_name+".npy"), allow_pickle=True)
-
-
-##
-# @return {depth list: (sweep_width, area, divisions, div_num)}
-def get_division_dict(match_range_dict, DEPTH_DIV, TABLE_DIMS, TOOL_DIM, DEPTH_MIN, DEPTH_MAX, MARGIN=0):
-    TABLE_DEPTH, TABLE_WIDTH, TABLE_HEIGHT = TABLE_DIMS
-    TOOL_DEPTH = TOOL_DIM[0]
-    print("== TOOL_DEPTH: {} ==".format(TOOL_DEPTH))
-    MOTION_DEPTH =TABLE_DEPTH - TOOL_DEPTH +MARGIN
-    print("== MOTION_DEPTH: {} ==".format(MOTION_DEPTH))
-    wipe_depth = MOTION_DEPTH/DEPTH_DIV
-    print("== WIPE_DEPTH: {} ==".format(wipe_depth))
-    depths = sorted([depth for depth in match_range_dict.keys() if DEPTH_MIN<=depth<=DEPTH_MAX])
-    division_dict = {}
-    for depth1, depth2 in combinations(depths, 2):
-        depth1, depth2 = sorted([depth1, depth2])
-        wdepth = depth2 - depth1
-        if wdepth >= wipe_depth:
-            depths_cur = [dp for dp in depths if depth1<=dp<=depth2]
-            min_swp = int(ceil(wipe_depth / TOOL_DEPTH))
-            for n_swp in range(min_swp, min_swp+2):
-                for depths_test in combinations(depths_cur, n_swp):
-                    if depths_test[-1]-depths_test[0] < wipe_depth: # total depth too shallow
-                        continue
-                    sweep_intervals = np.subtract(depths_test[1:], depths_test[:-1])
-                    if any(sweep_intervals>TOOL_DEPTH) : # too big step
-                        continue
-                    ranges_test = np.array([match_range_dict[dp_] for dp_ in depths_test])
-                    range_new = np.max(ranges_test[:,0]), np.min(ranges_test[:,1])
-                    sweep_width = -np.subtract(*range_new)-MARGIN
-                    if sweep_width <= 0: # no available sweep width
-                        continue
-                    area = sweep_width, np.max(depths_test)-np.min(depths_test)+TOOL_DEPTH
-                    divisions = (int(ceil(TABLE_WIDTH/sweep_width)), DEPTH_DIV)
-                    div_num = np.multiply(*divisions)
-                    division_dict[depths_test] = (sweep_width, area, range_new, divisions, div_num)
-    return division_dict
-
-
-def select_task_area(robot_config, TABLE_DIMS, TOOL_DIM, EE_DEPTH_OFF, EE_HEIGHT, ROBOT_Z_ANGLE,
-                     TOOL_DEPTH_MIN=0.6, TOOL_DEPTH_MAX=1.0, MARGIN=0, allow_back_approach=False):
-    print("reference height: {}".format(EE_HEIGHT))
-    if ROBOT_Z_ANGLE == np.pi:
-        flipper = -1
-    elif ROBOT_Z_ANGLE == 0:
-        flipper = 1
-    else:
-        raise (NotImplementedError("Unexpected robot orientation"))
-
-    sweep_data = load_sweep_data(robot_config.type.name).reshape((1,))[0]
-    range_list_dict, best_range_dict = sweep_data['range_list_dict'], sweep_data['best_range_dict']
-    heights = sorted(set([key[2] for key in best_range_dict.keys()]))
-    i_high = np.where(np.subtract(heights, EE_HEIGHT) >= 0)[0][0]
-    i_low = i_high - 1
-    h_high = heights[i_high]
-    h_low = heights[i_low]
-
-    match_range_dict_high = defaultdict(lambda: (-1e5, 1e5))
-    match_range_dict_low = defaultdict(lambda: (-1e5, 1e5))
-    match_range_all = {}
-    for key, brange in best_range_dict.items():
-        hkey = round(key[2], 4)
-        key_new = round(flipper * key[0], 4)
-        if hkey == h_low:  # get minimum range from the upper and lower layers
-            brange_new = tuple(reversed(np.multiply(flipper, brange)))
-            range_old = -np.subtract(*match_range_dict_low[key_new])
-            range_new = -np.subtract(*brange_new)
-            if range_new < range_old:
-                match_range_dict_low[key_new] = brange_new
-                match_range_all[key_new] = range_list_dict[key]
-        if hkey == h_high:  # get minimum range from the upper and lower layers
-            brange_new = tuple(reversed(np.multiply(flipper, brange)))
-            range_old = -np.subtract(*match_range_dict_high[key_new])
-            range_new = -np.subtract(*brange_new)
-            if range_new < range_old:
-                match_range_dict_high[key_new] = brange_new
-                match_range_all[key_new] = range_list_dict[key]
-
-    match_range_dict = {}
-    best_keys = set(match_range_dict_high.keys()).intersection(match_range_dict_low.keys())
-    for key in best_keys:
-        range_high = match_range_dict_high[key]
-        range_low = match_range_dict_high[key]
-        match_range_dict[key] = range_high if -np.subtract(*range_high) < -np.subtract(*range_low) else range_low
-    #
-    # # plot available area
-    # plt.figure(figsize=(15, 5))
-    # plt.subplot(1, 2, 1)
-    # plt.title("best only")
-    # for k, v in match_range_dict.items():
-    #     plt.plot(v, [k, k], '-s')
-    # plt.axis([-1, 1, 0.2, 1.1])
-    # plt.grid()
-    # plt.subplot(1, 2, 2)
-    # for k, v in match_range_all.items():
-    #     for vv in v:
-    #         plt.plot(vv, [k, k], '-o')
-    # plt.title("all ranges")
-    # plt.axis([-1, 1, 0.2, 1.1])
-    # plt.grid()
-
-    DEPTH_MIN = TOOL_DEPTH_MIN + EE_DEPTH_OFF
-    DEPTH_MAX = TOOL_DEPTH_MAX + EE_DEPTH_OFF
-    division_dict_1 = get_division_dict(match_range_dict, 1, TABLE_DIMS, TOOL_DIM,
-                                        DEPTH_MIN=DEPTH_MIN, DEPTH_MAX=DEPTH_MAX, MARGIN=MARGIN)
-    if allow_back_approach:
-        division_dict_2 = get_division_dict(match_range_dict, 2, TABLE_DIMS, TOOL_DIM,
-                                            DEPTH_MIN=DEPTH_MIN, DEPTH_MAX=DEPTH_MAX, MARGIN=MARGIN)
-    else:
-        division_dict_2 = {}
-
-    # divisions1_sorted = sorted(division_dict_1.items(), key=lambda item_: item_[1][-1])
-    # divisions2_sorted = sorted(division_dict_2.items(), key=lambda item_: item_[1][-1])
-    divisions_sorted = sorted(division_dict_1.items() + division_dict_2.items(), key=lambda item_: item_[1][-1])
-    assert len(divisions_sorted) > 0, "no available table division solution"
-
-    division_sol = divisions_sorted[0]
-    depths = division_sol[0]
-    sweep_width, (area_width, area_depth), width_range, divisions, div_num = division_sol[1]
-    corner_center = ((max(*depths) + min(*depths)) / 2 - EE_DEPTH_OFF, np.mean(width_range))
-    print("sweep depths: {}".format(depths))
-    print("divisions: {}".format(divisions))
-    return sweep_width, (area_width, area_depth), width_range, divisions, div_num, corner_center
 
 class Corners(Enum):
     Left = 0
     Right = 1
-
-
-CornerSequence = [Corners.Left, Corners.Right, Corners.Left, Corners.Right]
-RotationSequence = [np.identity(3), np.identity(3), Rot_axis(3, np.pi), np.identity(3)]
-
-corner_point_dirs = {Corners.Left: np.array([-1, 1, 1]),
-                     Corners.Right: np.array([-1, -1, 1])}
-
-def select_area(TABLE_HEIGHT, TABLE_DEPTH, TABLE_WIDTH):
-    TABLE_HEIGHT = np.round(TABLE_HEIGHT, 3)
-    len_dat = len(dataset)
-    for i in range(len_dat):
-        print(dataset[i][0])
-        if ((TABLE_HEIGHT >= dataset[i][0]) and
-                (TABLE_HEIGHT < dataset[i + 1][0] if i < len_dat - 1 else TABLE_HEIGHT < dataset[i][0] + 0.04)):
-            data = dataset[i]
-            break
-
-    height_goal, depth_criteria, opt_depth_sort, optimal_list, width_list, area_list = data
-
-    # reduce areas by sensor error margin
-    SENSOR_MARGIN = 0.1
-    optimal_list = [[pt1, pt2, round(width - SENSOR_MARGIN, 3), round(depth - SENSOR_MARGIN, 3)] for pt1, pt2, width, depth
-                    in optimal_list]
-    optimal_dict = {opt_tem[-1]: opt_tem for opt_tem in optimal_list}
-    # width_list = [width-width_list for width in width_list]
-    opt_depth_sort = np.round(np.subtract(opt_depth_sort, SENSOR_MARGIN), 3)
-
-    # select area depth based on table depth
-    if TABLE_DEPTH <= depth_criteria:
-        area_depth_obj = TABLE_DEPTH
-    else:
-        if TABLE_DEPTH > max(opt_depth_sort) * 2:
-            print("==========================================================")
-            print("=========== TOO DEEP TABLE! CAN'T FINISH WIPING TASK =============")
-            print("==========================================================")
-#             raise (RuntimeError("TOO DEEP TABLE! CAN'T FINISH WIPING TASK"))
-            area_depth_obj = max(opt_depth_sort)
-        else:
-            area_depth_obj = TABLE_DEPTH / 2
-
-    # select optimal item for the area depth
-    idx_depth = np.min(np.where(np.subtract(opt_depth_sort, area_depth_obj) >= 0)[0])
-    area_depth = opt_depth_sort[idx_depth]
-    area_corner1, area_corner2, area_width, _ = optimal_dict[area_depth]
-
-    # fit table width to table
-    if TABLE_WIDTH < area_width:
-        area_width = TABLE_WIDTH
-
-    # get area parameters
-    print("area_corner1: {}".format(area_corner1))
-    print("area_corner2: {}".format(area_corner2))
-    corner_center = [(area_corner1[0] + area_corner2[0]) / 2, (area_corner1[1] + area_corner2[1]) / 2]
-    corner_center = np.round(corner_center, 5)
-    area = area_depth * area_width
-    area = np.round(area, 5)
-
-    if area_depth_obj == depth_criteria:
-        area_depth = area_depth_obj
-    else:
-        if len(opt_depth_sort) == 1:
-            area_depth = opt_depth_sort[0]
-        else:
-            for j in range(len(opt_depth_sort) - 1):
-                if (area_depth_obj >= opt_depth_sort[j]) & (area_depth_obj < opt_depth_sort[j + 1]):
-                    area_depth = opt_depth_sort[j]
-                    break
-                else:
-                    area_depth = opt_depth_sort[len(opt_depth_sort) - 1]
-                    break
-    corner_center = [(area_corner1[0] + area_corner2[0]) / 2, (area_corner1[1] + area_corner2[1]) / 2]
-    corner_center = np.round(corner_center, 5)
-    area = area_depth * area_width
-    area = np.round(area, 5)
-
-    if area_depth < TABLE_DEPTH:
-        num_depth = 2
-    else:
-        num_depth = 1
-
-    num_width, rem = divmod(TABLE_WIDTH, area_width)
-    if not rem == 0:
-        num_width += 1
-    num_width = int(num_width)
-
-    num_area = num_width * num_depth
-
-    return corner_center, area_width, area_depth, height_goal, num_width, num_depth
 
 from pkg.planning.constraint.constraint_common import BindingTransform
 
@@ -265,76 +48,36 @@ SWEEP_DAT_PATH = os.path.join(os.environ["RNB_PLANNING_DIR"], "data/sweep_reach"
 
 
 ##
-# @brief get division dictionary
+# @brief    get division dictionary. the surface is divided into sections after subtracting max tool dimension. \n
+#           so when performing sweep, each sweep lines should be extended by max tool dimension. \n
+#           For computational efficiency, the surface and robot-reach data are discretized to divide the surface. \n
+#           Each sweep section coveres square area with side dimension same as the max tool dimension, \n
+#           but the section-to-section distance is smaller than the dimension of covered area.
 # @param plane_val value along the plane normal axis
 # @param ccheck CachedCollisionCheck
 # @param tip_dir None, up, down
 # @return {approach dir 0~3: {Tsm_key: [idx_div]}}, surface_div_centers
-def get_division_dict(surface, brush_face, robot_config, plane_val, tip_dir, TOOL_DIM, ccheck):
-    ## get data
-    rtype = robot_config.type.name
-    sweep_path = os.path.join(SWEEP_DAT_PATH, rtype if tip_dir is None else "{}-{}".format(rtype, tip_dir))
-    sweep_max = np.loadtxt(sweep_path+"-max.csv", delimiter=",")
-    sweep_min = np.loadtxt(sweep_path+"-min.csv", delimiter=",")
-
+def get_division_dict(surface, brush_face, robot_config, plane_val, tip_dir, TOOL_DIM, ccheck, resolution):
     gcheck = ccheck.gcheck
     pscene = gcheck.pscene
     gscene = pscene.gscene
     crob = pscene.combined_robot
 
     ## divide surface with squares
-    sqdiv_size_ref = np.max(TOOL_DIM)
-    surf_offset = 0.05
-    surface_dim_eff = np.subtract(surface.dims[:2],
-                                  sqdiv_size_ref)  # effective surface dims - except tool dimension to boundaries
-    div_close = np.ceil(surface_dim_eff[0] / sqdiv_size_ref).astype(np.int)
-    sqdiv_size = surface_dim_eff[0] / div_close  # reduce square size to fit the closed ends
-    div_num_ = np.ceil(surface_dim_eff / sqdiv_size).astype(np.int)
-    surface_dim_eff = np.round(sqdiv_size * div_num_, 5)  # enpand effective size of open ends
+    rect_div_size_ref = np.max(TOOL_DIM)
+    # effective surface dims - surface to divide, except most outside tool dimension
+    surface_dim_eff = np.clip(np.subtract(surface.dims[:2], rect_div_size_ref), 0, 1e5)
+
+    div_num_ = np.ceil(surface_dim_eff / rect_div_size_ref).astype(np.int)
+    div_num_denom = np.copy(div_num_)
+    if np.min(div_num_) == 0:
+        div_num_denom[np.where(div_num_==0)] = 1 # to resolve numerical singularity
+    rect_div_size = surface_dim_eff / div_num_denom  # reduce square size to fit the closed ends
+    if np.min(rect_div_size) == 0:
+        rect_div_size[np.where(rect_div_size==0)] = np.max(rect_div_size) # to resolve numerical singularity
     div_num = div_num_ + 1
-    surface_div_centers = [tuple(np.round(-surface_dim_eff / 2 + np.multiply(sqdiv_size, (i, j)), 5))
+    surface_div_centers = [tuple(np.round(-surface_dim_eff / 2 + np.multiply(rect_div_size, (i, j)), 5))
                            for i, j in product(range(div_num[0]), range(div_num[1]))]
-
-    ## set axes
-    ax_pln = 2 if tip_dir is None else 0
-    ax_swp = 1
-    if plane_val is not None:
-        idx_pln = np.argmin(np.abs(sweep_max[:, ax_pln] - plane_val))
-        val_pln = sweep_max[idx_pln, ax_pln]
-        idc_pln = np.where(sweep_max[:, ax_pln] == val_pln)[0]
-        sweep_max = sweep_max[idc_pln, :]
-        sweep_min = sweep_min[idc_pln, :]
-    else:
-        Tbs = surface.get_tf(crob.home_dict)
-        robot_base = crob.get_robot_base_dict()[robot_config.get_indexed_name()]
-        Tbr = gscene.get_tf(robot_base, crob.home_dict)
-        Trs = np.matmul(SE3_inv(Tbr), Tbs)
-        div_heights_r = np.matmul(Trs[:3, :2], np.transpose(surface_div_centers)).transpose()[:, 2] + Trs[2, 3]
-        idc_h_matchs = []
-        for div_rh in div_heights_r:
-            idx_min = np.argmin(np.abs(sweep_min[:, 2] - div_rh))
-            val_min = sweep_min[idx_min, 2]
-            idc_min = np.where(sweep_min[:, 2] == val_min)[0]
-            idc_h_matchs += list(idc_min)
-        idc_h_matchs = sorted(set(idc_h_matchs))
-        sweep_min = sweep_min[idc_h_matchs]
-        sweep_max = sweep_max[idc_h_matchs]
-    ax_step = [ax for ax in [0, 1, 2] if ax not in [ax_pln, ax_swp]][0]  # step axis = not plane axis nor sweep axis
-
-    ## get all sweep points
-    swp_points_all = []
-    for step_val, pln_val, min_val, max_val in zip(sweep_min[:, ax_step], sweep_min[:, ax_pln], sweep_min[:, ax_swp],
-                                                   sweep_max[:, ax_swp]):
-        diff_val = max_val - min_val
-        sweep_num = np.floor(diff_val / sqdiv_size).astype(np.int)
-        min_val_clip = (max_val + min_val) / 2 - (sweep_num * sqdiv_size / 2) + (sqdiv_size / 2)
-
-        swp_points = np.zeros((sweep_num, 3))
-        swp_points[:, ax_swp] = min_val_clip + np.arange(sweep_num) * sqdiv_size
-        swp_points[:, ax_step] = step_val
-        swp_points[:, ax_pln] = plane_val if plane_val is not None else pln_val
-        swp_points_all.append(np.round(swp_points, 3))
-    swp_points_all = np.concatenate(swp_points_all)
 
     ## make feasible base-div dictionary
     ROBOT_BASE = pscene.robot_chain_dict[robot_config.get_indexed_name()]["link_names"][0]
@@ -343,33 +86,94 @@ def get_division_dict(surface, brush_face, robot_config, plane_val, tip_dir, TOO
     Tmr = gcheck.gscene.get_tf(to_link=ROBOT_BASE, from_link=robot_config.root_on, Q=crob.home_dict)
     Trm = SE3_inv(Tmr)
     if tip_dir is None:
-        Rre = Rot_rpy([np.pi, np.pi / 2, 0])
+        Rre = Rot_rpy([np.pi, np.pi/2, 0])
     elif tip_dir == "up":
         Rre = Rot_rpy([0, 0, np.pi])
     elif tip_dir == "down":
         Rre = Rot_rpy([np.pi, 0, 0])
     else:
-        raise (RuntimeError("Not defined"))
+        raise(RuntimeError("Not defined"))
+    Tet = brush_face.get_tf_handle(crob.home_dict, from_link=TIP_LINK)
 
+    ## get data
+    rtype = robot_config.type.name
+    sweep_path = os.path.join(SWEEP_DAT_PATH, rtype if tip_dir is None else "{}-{}".format(rtype, tip_dir))
+    sweep_max = np.loadtxt(sweep_path+"-max.csv", delimiter=",")
+    sweep_min = np.loadtxt(sweep_path+"-min.csv", delimiter=",")
+
+    ## set axes and extract min max sweep range
+    ax_pln = 2 if tip_dir is None else 0 # plane axis in robot coord
+    ax_swp = 1 # sweep axis in robot coord
+    ax_step = [ax for ax in [0, 1, 2] if ax not in [ax_pln, ax_swp]][0] # step axis = not plane axis nor sweep axis
+    if plane_val is not None:
+        idx_pln = np.argmin(np.abs(sweep_max[:, ax_pln] - plane_val))
+        val_pln = sweep_max[idx_pln, ax_pln]
+        idc_pln = np.where(sweep_max[:, ax_pln] == val_pln)[0]
+        sweep_max = sweep_max[idc_pln, :]
+        sweep_min = sweep_min[idc_pln, :]
+    else: # plane_val is not fixed - this means height is not fixed and should be decided by each point
+        Tbs = surface.get_tf(crob.home_dict)
+        robot_base = crob.get_robot_base_dict()[robot_config.get_indexed_name()]
+        Tbr = gscene.get_tf(robot_base, crob.home_dict)
+        Trs = np.matmul(SE3_inv(Tbr), Tbs)
+        Hoff_et = np.matmul(Rre, Tet[:3,3])[2] # Rre*Pet
+        div_heights_r = np.matmul(Trs[:3, :2], np.transpose(surface_div_centers)).transpose()[:, 2] + Trs[2, 3]# Prt[2]
+        idc_h_matchs = []
+        for div_rh in div_heights_r: # for each division heights, collect according indices
+            h_diffs = np.abs(sweep_min[:, 2] + Hoff_et - div_rh) # sweep_min: Pre
+            idx_min = np.argmin(h_diffs)
+            if h_diffs[idx_min] > rect_div_size_ref*0.1:
+                continue
+            val_min = sweep_min[idx_min, 2]
+            idc_min = np.where(sweep_min[:, 2] == val_min)[0]
+            idc_h_matchs += list(idc_min)
+        idc_h_matchs = sorted(set(idc_h_matchs))
+        sweep_min = sweep_min[idc_h_matchs]
+        sweep_max = sweep_max[idc_h_matchs]
+
+    ## get all sweep points
+    swp_points_dict = {0: [], 1: []}
+    for step_val, pln_val, min_val, max_val in zip(sweep_min[:, ax_step], sweep_min[:, ax_pln],
+                                                   sweep_min[:, ax_swp], sweep_max[:, ax_swp]):
+        diff_val = max_val - min_val
+        for ax_swp_s in range(2):
+            sweep_num = np.floor(diff_val / (rect_div_size[ax_swp_s])).astype(np.int)
+            min_val_clip = (max_val + min_val) / 2 - (sweep_num * rect_div_size[ax_swp_s] / 2) + (rect_div_size[ax_swp_s] / 2)
+
+            swp_points = np.zeros((sweep_num, 3))
+            swp_points[:, ax_swp] = min_val_clip + np.arange(sweep_num) * rect_div_size[ax_swp_s]
+            swp_points[:, ax_step] = step_val
+            swp_points[:, ax_pln] = plane_val if plane_val is not None else pln_val
+            swp_points_dict[ax_swp_s].append(np.round(swp_points, 3))
+    for ax_swp_s in range(2):
+        swp_points_dict[ax_swp_s] = np.concatenate(swp_points_dict[ax_swp_s])
+    get_division_dict.swp_points_dict = swp_points_dict
+
+    ## get base-sweep combinations
     div_base_dict = defaultdict(lambda: defaultdict(list))
     Tbm_in_all = []
+    Tbm_float_all = []
     Tbm_fail_all = []
     Tbm_succ_all = []
-    for i_div, div_center in enumerate(surface_div_centers):
+    for i_div, div_center in enumerate(surface_div_centers):# for each division
             Tsc = SE3(np.identity(3), tuple(div_center)+(surface.dims[2]/2,))
             for i in range(4) if tip_dir is None else [0,2]:
                 Tct = SE3(Rot_axis(3, i * np.pi/2), [0, 0, 0])
                 Tst = matmul_series(Tsc, Tct)
-                for swp_point in swp_points_all:
+                Rsr = matmul_series(Tst[:3,:3], Tet[:3,:3].transpose(), Rre.transpose())
+                ax_swp_s = np.where(np.abs(Rsr[:3,ax_swp]) > 0.5)[0][0]
+                for swp_point in swp_points_dict[ax_swp_s]: # for each valid swp points from robot
                     Tre = SE3(Rre, swp_point)
-                    Tet = brush_face.get_tf_handle(crob.home_dict, from_link=TIP_LINK)
                     Trt = matmul_series(Tre, Tet)
                     Tsr = matmul_series(Tst, SE3_inv(Trt))
-                    Tsm = np.matmul(Tsr, Trm)
+                    Tsm = np.matmul(Tsr, Trm) # make base position for each valid swp points from robot
                     Tbm = np.matmul(Tbs, Tsm)
                     if (np.all(np.abs(Tsm[:2,3]) < np.divide(surface.dims[:2], 2))
                         or (np.abs(Tsm[0,3]) > np.divide(surface.dims[0], 2))): # mobile loc inside surface
                         Tbm_in_all.append(Tbm)
+                        continue
+                    if abs(Tbm[2,3]) > resolution:
+                        Tbm_float_all.append(Tbm)
                         continue
                     if ccheck(T_loal=Tbm, Q_dict=crob.home_dict): #check feasible
                         Tbm_succ_all.append(Tbm)
@@ -379,7 +183,7 @@ def get_division_dict(surface, brush_face, robot_config, plane_val, tip_dir, TOO
                     else:
                         Tbm_fail_all.append(Tbm)
     Tsm_keys = sorted(div_base_dict.keys())
-    return div_base_dict, Tsm_keys, surface_div_centers, sqdiv_size, div_num, (ax_step, ax_swp, ax_pln)
+    return div_base_dict, Tsm_keys, surface_div_centers, div_num, (ax_step, ax_swp, ax_pln)
 
 
 ## repeat selecting max-cover base
@@ -436,7 +240,6 @@ def select_max_cover_bases(div_base_dict, Tsm_keys, surface_div_centers, div_num
             to_remove = set([covereds[remove_idx]])
             for i_aproc in range(4):
                 idc_div = div_base_dict[Tsm_key][i_aproc]
-                print("remove {} from {}".format(to_remove, idc_div))
                 div_base_dict[Tsm_key][i_aproc] = sorted(set(idc_div) - to_remove)
             continue
         test_output_dict[idx_max] = test_output
@@ -448,11 +251,22 @@ def select_max_cover_bases(div_base_dict, Tsm_keys, surface_div_centers, div_num
     return idx_bases, idc_divs, covered_all, test_output_dict
 
 
-def get_min_max_sweep_points(sweep_centers, sqdiv_size, TOOL_DIM_SWEEP, ax_swp):
+##
+# @brief    get min/max sweep points for given sweep section centers. \n
+#           it is believed that sweep centers are on one sweep line. \n
+#           min/max points are expanded to cover edges. \n
+#           it is believed that edge margins of max tool dimension were subtracted when sweep centers are generated \n
+#           at the first place, in get_division_dict(). so the sweep length should be expanded by max tool dimension. \n
+#           for other line-ends inside the suface, there will be some needless expansions but it does not cause problem.
+def get_min_max_sweep_points(surface, sweep_centers, TOOL_DIM_MAX, TOOL_DIM_SWEEP, ax_swp):
     swp_min = np.min(sweep_centers, axis=0)
     swp_max = np.max(sweep_centers, axis=0)
-    swp_min[ax_swp] = swp_min[ax_swp]-sqdiv_size/2+TOOL_DIM_SWEEP
-    swp_max[ax_swp] = swp_max[ax_swp]+sqdiv_size/2-TOOL_DIM_SWEEP
+    swp_min[ax_swp] = swp_min[ax_swp]-TOOL_DIM_MAX/2+TOOL_DIM_SWEEP/2
+    swp_max[ax_swp] = swp_max[ax_swp]+TOOL_DIM_MAX/2-TOOL_DIM_SWEEP/2
+    if (swp_max[ax_swp]-swp_min[ax_swp] + TOOL_DIM_SWEEP)>surface.dims[ax_swp]:
+        swp_center = np.mean([swp_max[ax_swp], swp_min[ax_swp]])
+        swp_min[ax_swp] = swp_center - surface.dims[ax_swp]/2+TOOL_DIM_SWEEP/2
+        swp_max[ax_swp] = swp_center + surface.dims[ax_swp]/2-TOOL_DIM_SWEEP/2
     return swp_min, swp_max
 
 
@@ -470,11 +284,6 @@ def add_sweep_task(pscene, sweep_name, surface, swp_min, swp_max, Tsm, wp_dims,
     sweep_dim = list(wp_dims)
     sweep_dim[ax_swp_s] = np.subtract(swp_max, swp_min)[ax_swp] + wp_dims[ax_swp_s]
     sweep_dim = tuple(sweep_dim)
-    gscene.create_safe(gtype=GEOTYPE.BOX, name=sweep_name, link_name="base_link",
-                       dims=sweep_dim + (surface.dims[2],),
-                       center=tuple(np.mean([swp_min, swp_max], axis=0)) + (0,),
-                       rpy=Rot2rpy(Tsm[:3, :3]), color=color_sweep, display=True,
-                       collision=False, fixed=True, parent=surface.name)
 
     if np.matmul(Tsm[:2,:3].transpose(), swp_min)[ax_swp_s] < np.matmul(Tsm[:2,:3].transpose(), swp_max)[ax_swp_s]:
         swp_0 = swp_max
@@ -482,10 +291,21 @@ def add_sweep_task(pscene, sweep_name, surface, swp_min, swp_max, Tsm, wp_dims,
     else:
         swp_0 = swp_min
         swp_1 = swp_max
+
+    dir_swp_s = np.sign(swp_1-swp_0)
+    theta = np.arctan2(dir_swp_s[0], -dir_swp_s[1]) # get angle for y axis
+    Rsc = Rot_axis(3, theta)
+    theta = np.arctan2(dir_swp_s[0], -dir_swp_s[1]) # get angle for y axis
+
+    gscene.create_safe(gtype=GEOTYPE.BOX, name=sweep_name, link_name="base_link",
+                       dims=sweep_dim + (surface.dims[2],),
+                       center=tuple(np.mean([swp_0, swp_1], axis=0)) + (0,),
+                       rpy=Rot2rpy(Rsc), color=color_sweep, display=True,
+                       collision=False, fixed=True, parent=surface.name)
     for wp_idx, wp_pos in [(0, swp_0), (1, swp_1)]:
         wp_list.append(gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_wp_{}".format(sweep_name, wp_idx), link_name="base_link",
                                           dims=tuple(wp_dims[:2])+(surface.dims[2],), center=tuple(wp_pos)+(0,),
-                                          rpy=Rot2rpy(Tsm[:3,:3]), color=color_wp, display=True,
+                                          rpy=Rot2rpy(Rsc), color=color_wp, display=True,
                                           collision=False, fixed=True, parent=surface.name))
     sweep_task = pscene.create_subject(oname=sweep_name, gname=sweep_name, _type=SweepLineTask,
                                        action_points_dict={wp.name: SweepFrame(wp.name, wp, [0,0,wp.dims[2]/2], [0,0,0])
@@ -502,7 +322,7 @@ def add_waypoint_task(pscene, name, dims, center, rpy, parent, color=(1, 1, 0, 0
                                     action_points_dict={wp_hdl.name: wp_hdl})
     return wp_task, wp_hdl
 
-def set_base_sweep(pscene, floor_gtem, Tsm, surface, swp_centers, sqdiv_size, WP_DIMS, TOOL_DIM, Q_dict,
+def set_base_sweep(pscene, floor_gtem, Tsm, surface, swp_centers, WP_DIMS, TOOL_DIM, Q_dict,
                    ax_swp_tool=1, ax_swp_base=1):
     Tbf = floor_gtem.get_tf(Q_dict)
     Tbs = surface.get_tf(Q_dict)
@@ -512,16 +332,16 @@ def set_base_sweep(pscene, floor_gtem, Tsm, surface, swp_centers, sqdiv_size, WP
     wp_task, wp_hdl = add_waypoint_task(pscene, "waypoint", WP_DIMS, Tfm[:3,3], Rot2rpy(Tfm[:3,:3]),
                                         parent=floor_gtem.name)
 
-    TOOL_DIM_SWEEP = TOOL_DIM[ax_swp_tool]/2
+    TOOL_DIM_SWEEP = TOOL_DIM[ax_swp_tool]
     ax_swp_surf = np.where(np.abs(Tsm[:3,ax_swp_base])>0.5)[0][0]
-    swp_min, swp_max = get_min_max_sweep_points(swp_centers, sqdiv_size, TOOL_DIM_SWEEP, ax_swp_surf)
+    swp_min, swp_max = get_min_max_sweep_points(surface, swp_centers, np.max(TOOL_DIM), TOOL_DIM_SWEEP, ax_swp_surf)
     sweep_task = add_sweep_task(pscene, "sweep", surface, swp_min, swp_max, Tsm, wp_dims=TOOL_DIM)
 
-def test_base_divs(ppline, floor_gtem, Tsm, surface, swp_centers, sqdiv_size, WP_DIMS, TOOL_DIM, Q_dict,
+def test_base_divs(ppline, floor_gtem, Tsm, surface, swp_centers, WP_DIMS, TOOL_DIM, Q_dict,
                    timeout=0.3, timeout_loop=3, verbose=False, multiprocess=True, terminate_on_first=True):
     pscene = ppline.pscene
     gscene = pscene.gscene
-    set_base_sweep(pscene, floor_gtem, Tsm, surface, swp_centers, sqdiv_size, WP_DIMS, TOOL_DIM, Q_dict)
+    set_base_sweep(pscene, floor_gtem, Tsm, surface, swp_centers, WP_DIMS, TOOL_DIM, Q_dict)
 
     ppline.mplan.update_gscene()
     ppline.tplan.prepare()
@@ -535,19 +355,20 @@ def test_base_divs(ppline, floor_gtem, Tsm, surface, swp_centers, sqdiv_size, WP
 
 
 class TestBaseDivFunc:
-    def __init__(self, ppline, floor_ws, surface, sqdiv_size, WP_DIMS, TOOL_DIM, Q_dict,
+    def __init__(self, ppline, floor_ws, surface, WP_DIMS, TOOL_DIM, Q_dict, multiprocess=False,
                  highlight_color=(1, 1, 0, 0.5)):
         self.ppline, self.floor_ws, self.surface = ppline, floor_ws, surface
-        self.sqdiv_size, self.WP_DIMS, self.TOOL_DIM, self.Q_dict = sqdiv_size, WP_DIMS, TOOL_DIM, Q_dict
+        self.WP_DIMS, self.TOOL_DIM, self.Q_dict = WP_DIMS, TOOL_DIM, Q_dict
         self.pscene = self.ppline.pscene
         self.gscene = self.pscene.gscene
+        self.multiprocess = multiprocess
         self.highlight_color = highlight_color
         self.pass_count = 0
         self.highlights = []
 
     def __call__(self, Tsm, swp_centers):
         output = test_base_divs(self.ppline, self.floor_ws, Tsm, self.surface, swp_centers,
-                                self.sqdiv_size, self.WP_DIMS, self.TOOL_DIM, self.Q_dict)
+                                self.WP_DIMS, self.TOOL_DIM, self.Q_dict, multiprocess=self.multiprocess)
         if output:
             # leave highlight on cleared area
             swp_fin = self.gscene.copy_from(self.gscene.NAME_DICT["sweep"],
@@ -567,7 +388,7 @@ class TestBaseDivFunc:
 
 
 def refine_order_plan(ppline, snode_schedule_dict, idx_bases, idc_divs, Qcur,
-                      floor_gtem, wayframer, surface, Tsm_keys, surface_div_centers, sqdiv_size,
+                      floor_gtem, wayframer, surface, Tsm_keys, surface_div_centers,
                       WP_DIMS, TOOL_DIM, ROBOT_NAME, MOBILE_NAME, HOME_POSE_MOVE):
     pscene = ppline.pscene
     mplan = ppline.mplan
@@ -594,9 +415,9 @@ def refine_order_plan(ppline, snode_schedule_dict, idx_bases, idc_divs, Qcur,
         swp_centers = np.array(surface_div_centers)[idc_div]
         Tsm = T_xyzquat(Tsm_keys[i_b])
         Q_dict = list2dict(Qcur, gscene.joint_names)
-        set_base_sweep(pscene, floor_gtem, Tsm, surface, swp_centers, sqdiv_size, WP_DIMS, TOOL_DIM,
+        set_base_sweep(pscene, floor_gtem, Tsm, surface, swp_centers, WP_DIMS, TOOL_DIM,
                        Q_dict=Q_dict)
-        scene_args_list.append((pscene, floor_gtem, Tsm, surface, swp_centers, sqdiv_size, WP_DIMS, TOOL_DIM))
+        scene_args_list.append((pscene, floor_gtem, Tsm, surface, swp_centers, WP_DIMS, TOOL_DIM))
         scene_kwargs_list.append(dict(Q_dict=Q_dict))
 
         snode_schedule = snode_schedule_dict[i_b]
@@ -610,7 +431,7 @@ def refine_order_plan(ppline, snode_schedule_dict, idx_bases, idc_divs, Qcur,
         Traj, LastQ, error, success, binding_list = mplan.plan_transition(state_0, state_0_to, timeout=1)
         snode_schedule[1].set_traj(Traj)
         ## To re-plan completely
-        #     snode_schedule = test_base_divs(ppline, floor_gtem, Tsm, surface, swp_centers, sqdiv_size, WP_DIMS, TOOL_DIM,
+        #     snode_schedule = test_base_divs(ppline, floor_gtem, Tsm, surface, swp_centers, WP_DIMS, TOOL_DIM,
         #                                     list2dict(Qcur, gscene.joint_names))
         snode_last = snode_schedule[-1]
         ref_state = snode_last.state.copy(pscene)
