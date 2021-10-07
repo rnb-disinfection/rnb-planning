@@ -109,15 +109,15 @@ def add_closet(gscene, closet_center, closet_rpy, COLOR_CLOSET_COL = (0,1,0,0.3)
                                  color=(0.8,0.8,0.8,1), display=True, fixed=True, collision=False,
                                  uri="package://my_mesh/meshes/stl/top_table_centered_m_scale.stl", scale=(1,1,1))
 
-    closet_left = gscene.create_safe(GEOTYPE.BOX, "closet_left", link_name="base_link", 
-                                 dims=(2.2,0.255,0.6), center=(0,-0.145,1.1), rpy=(0,np.pi/2,0),
+    closet_leftup = gscene.create_safe(GEOTYPE.BOX, "closet_leftup", link_name="base_link",
+                                 dims=(1.3,0.255,0.6), center=(0.0,-0.145,1.48), rpy=(0,np.pi/2,0),
                                  color=COLOR_CLOSET_COL, fixed=True, collision=True, parent="closet_vis")
 
     closet_rightup = gscene.create_safe(GEOTYPE.BOX, "closet_rightup", link_name="base_link", 
-                                 dims=(0.62,0.24,0.465), center=(-0.065,0.105,1.89), rpy=(0,np.pi/2,0),
+                                 dims=(0.55,0.2,0.465), center=(-0.065,0.125,1.89), rpy=(0,np.pi/2,0),
                                  color=COLOR_CLOSET_COL, fixed=True, collision=True, parent="closet_vis")
-    closet_rightdown = gscene.create_safe(GEOTYPE.BOX, "closet_rightdown", link_name="base_link", 
-                                 dims=(0.86,0.24,0.6), center=(0,0.105,0.43), rpy=(0,np.pi/2,0),
+    closet_down = gscene.create_safe(GEOTYPE.BOX, "closet_down", link_name="base_link",
+                                 dims=(0.8,0.495,0.6), center=(0,-0.025,0.45), rpy=(0,np.pi/2,0),
                                  color=COLOR_CLOSET_COL, fixed=True, collision=True, parent="closet_vis")
     closet_shelf = gscene.create_safe(GEOTYPE.BOX, "closet_shelf", link_name="base_link", 
                                  dims=(0.02,0.24,0.465), center=(-0.065,0.105,1.24), rpy=(0,np.pi/2,0),
@@ -125,7 +125,7 @@ def add_closet(gscene, closet_center, closet_rpy, COLOR_CLOSET_COL = (0,1,0,0.3)
     closet_back = gscene.create_safe(GEOTYPE.BOX, "closet_back", link_name="base_link", 
                                  dims=(0.02,0.24,0.73), center=(-0.29,0.105,1.22), rpy=(0,0,0),
                                  color=COLOR_CLOSET_COL, fixed=True, collision=True, parent="closet_vis")
-    return closet_left, closet_rightup, closet_rightdown
+    return closet_leftup, closet_rightup, closet_down
 
 
 ##
