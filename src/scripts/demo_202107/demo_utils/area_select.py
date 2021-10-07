@@ -90,12 +90,10 @@ def get_division_dict(surface, brush_face, robot_config, plane_val, tip_dir, TOO
     elif tip_dir == "up":
         Rre = Rot_rpy([0, 0, np.pi])
     elif tip_dir == "down":
-        Rre = Rot_rpy([np.pi, 0, 0])
+        Rre = Rot_rpy([0, np.pi, 0])
     else:
         raise(RuntimeError("Not defined"))
-    Tet = brush_face.get_tf_handle(crob.home_dict, from_link=TIP_LINK)
-
-    ## get data
+    Tet = brush_face.get_tf_handle(crob.home_dict, from_link=TIP_LINK)## get data
     rtype = robot_config.type.name
     sweep_path = os.path.join(SWEEP_DAT_PATH, rtype if tip_dir is None else "{}-{}".format(rtype, tip_dir))
     sweep_max = np.loadtxt(sweep_path+"-max.csv", delimiter=",")
@@ -147,7 +145,6 @@ def get_division_dict(surface, brush_face, robot_config, plane_val, tip_dir, TOO
             swp_points_dict[ax_swp_s].append(np.round(swp_points, 3))
     for ax_swp_s in range(2):
         swp_points_dict[ax_swp_s] = np.concatenate(swp_points_dict[ax_swp_s])
-    get_division_dict.swp_points_dict = swp_points_dict
 
     ## get base-sweep combinations
     div_base_dict = defaultdict(lambda: defaultdict(list))
@@ -276,7 +273,7 @@ from pkg.planning.constraint.constraint_actor import *
 from pkg.planning.constraint.constraint_subject import *
 
 def add_sweep_task(pscene, sweep_name, surface, swp_min, swp_max, Tsm, wp_dims,
-                   color_sweep=(0.6, 0.0, 0.0, 0.3), color_wp=(0.6, 0.0, 0.0, 0.5)):
+                   color_sweep=(0.6, 0.0, 0.0, 0.3), color_wp=(0.6, 0.0, 0.0, 0.5), tool_dir=1):
     gscene = pscene.gscene
     wp_list = []
     ax_swp = np.where(swp_min!=swp_max)[0][0] # sweep axis
@@ -286,16 +283,15 @@ def add_sweep_task(pscene, sweep_name, surface, swp_min, swp_max, Tsm, wp_dims,
     sweep_dim = tuple(sweep_dim)
 
     if np.matmul(Tsm[:2,:3].transpose(), swp_min)[ax_swp_s] < np.matmul(Tsm[:2,:3].transpose(), swp_max)[ax_swp_s]:
-        swp_0 = swp_max
-        swp_1 = swp_min
+        swp_0 = swp_max if tool_dir > 0 else swp_min
+        swp_1 = swp_min if tool_dir > 0 else swp_max
     else:
-        swp_0 = swp_min
-        swp_1 = swp_max
+        swp_0 = swp_min if tool_dir > 0 else swp_max
+        swp_1 = swp_max if tool_dir > 0 else swp_min
 
     dir_swp_s = np.sign(swp_1-swp_0)
     theta = np.arctan2(dir_swp_s[0], -dir_swp_s[1]) # get angle for y axis
-    Rsc = Rot_axis(3, theta)
-    theta = np.arctan2(dir_swp_s[0], -dir_swp_s[1]) # get angle for y axis
+    Rsc = Rot_axis(3, theta if tool_dir else theta + np.pi)
 
     gscene.create_safe(gtype=GEOTYPE.BOX, name=sweep_name, link_name="base_link",
                        dims=sweep_dim + (surface.dims[2],),
@@ -323,7 +319,7 @@ def add_waypoint_task(pscene, name, dims, center, rpy, parent, color=(1, 1, 0, 0
     return wp_task, wp_hdl
 
 def set_base_sweep(pscene, floor_gtem, Tsm, surface, swp_centers, WP_DIMS, TOOL_DIM, Q_dict,
-                   ax_swp_tool=1, ax_swp_base=1):
+                   ax_swp_tool=1, ax_swp_base=1, tool_dir=1):
     Tbf = floor_gtem.get_tf(Q_dict)
     Tbs = surface.get_tf(Q_dict)
     Tbm = np.matmul(Tbs, Tsm)
@@ -335,13 +331,13 @@ def set_base_sweep(pscene, floor_gtem, Tsm, surface, swp_centers, WP_DIMS, TOOL_
     TOOL_DIM_SWEEP = TOOL_DIM[ax_swp_tool]
     ax_swp_surf = np.where(np.abs(Tsm[:3,ax_swp_base])>0.5)[0][0]
     swp_min, swp_max = get_min_max_sweep_points(surface, swp_centers, np.max(TOOL_DIM), TOOL_DIM_SWEEP, ax_swp_surf)
-    sweep_task = add_sweep_task(pscene, "sweep", surface, swp_min, swp_max, Tsm, wp_dims=TOOL_DIM)
+    sweep_task = add_sweep_task(pscene, "sweep", surface, swp_min, swp_max, Tsm, wp_dims=TOOL_DIM, tool_dir=tool_dir)
 
 def test_base_divs(ppline, floor_gtem, Tsm, surface, swp_centers, WP_DIMS, TOOL_DIM, Q_dict,
-                   timeout=0.3, timeout_loop=3, verbose=False, multiprocess=True, terminate_on_first=True):
+                   timeout=0.3, timeout_loop=3, verbose=False, multiprocess=True, terminate_on_first=True, tool_dir=1):
     pscene = ppline.pscene
     gscene = pscene.gscene
-    set_base_sweep(pscene, floor_gtem, Tsm, surface, swp_centers, WP_DIMS, TOOL_DIM, Q_dict)
+    set_base_sweep(pscene, floor_gtem, Tsm, surface, swp_centers, WP_DIMS, TOOL_DIM, Q_dict, tool_dir=tool_dir)
 
     ppline.mplan.update_gscene()
     ppline.tplan.prepare()
@@ -356,19 +352,21 @@ def test_base_divs(ppline, floor_gtem, Tsm, surface, swp_centers, WP_DIMS, TOOL_
 
 class TestBaseDivFunc:
     def __init__(self, ppline, floor_ws, surface, WP_DIMS, TOOL_DIM, Q_dict, multiprocess=False,
-                 highlight_color=(1, 1, 0, 0.5)):
+                 highlight_color=(1, 1, 0, 0.5), tool_dir=1):
         self.ppline, self.floor_ws, self.surface = ppline, floor_ws, surface
         self.WP_DIMS, self.TOOL_DIM, self.Q_dict = WP_DIMS, TOOL_DIM, Q_dict
         self.pscene = self.ppline.pscene
         self.gscene = self.pscene.gscene
         self.multiprocess = multiprocess
+        self.tool_dir = tool_dir
         self.highlight_color = highlight_color
         self.pass_count = 0
         self.highlights = []
 
     def __call__(self, Tsm, swp_centers):
         output = test_base_divs(self.ppline, self.floor_ws, Tsm, self.surface, swp_centers,
-                                self.WP_DIMS, self.TOOL_DIM, self.Q_dict, multiprocess=self.multiprocess)
+                                self.WP_DIMS, self.TOOL_DIM, self.Q_dict, multiprocess=self.multiprocess,
+                                tool_dir=self.tool_dir)
         if output:
             # leave highlight on cleared area
             swp_fin = self.gscene.copy_from(self.gscene.NAME_DICT["sweep"],
@@ -389,7 +387,7 @@ class TestBaseDivFunc:
 
 def refine_order_plan(ppline, snode_schedule_dict, idx_bases, idc_divs, Qcur,
                       floor_gtem, wayframer, surface, Tsm_keys, surface_div_centers,
-                      WP_DIMS, TOOL_DIM, ROBOT_NAME, MOBILE_NAME, HOME_POSE_MOVE):
+                      WP_DIMS, TOOL_DIM, ROBOT_NAME, MOBILE_NAME, HOME_POSE_MOVE, tool_dir=1):
     pscene = ppline.pscene
     mplan = ppline.mplan
     gscene = pscene.gscene
@@ -416,7 +414,7 @@ def refine_order_plan(ppline, snode_schedule_dict, idx_bases, idc_divs, Qcur,
         Tsm = T_xyzquat(Tsm_keys[i_b])
         Q_dict = list2dict(Qcur, gscene.joint_names)
         set_base_sweep(pscene, floor_gtem, Tsm, surface, swp_centers, WP_DIMS, TOOL_DIM,
-                       Q_dict=Q_dict)
+                       Q_dict=Q_dict, tool_dir=tool_dir)
         scene_args_list.append((pscene, floor_gtem, Tsm, surface, swp_centers, WP_DIMS, TOOL_DIM))
         scene_kwargs_list.append(dict(Q_dict=Q_dict))
 
@@ -430,9 +428,6 @@ def refine_order_plan(ppline, snode_schedule_dict, idx_bases, idc_divs, Qcur,
         mplan.update_gscene()
         Traj, LastQ, error, success, binding_list = mplan.plan_transition(state_0, state_0_to, timeout=1)
         snode_schedule[1].set_traj(Traj)
-        ## To re-plan completely
-        #     snode_schedule = test_base_divs(ppline, floor_gtem, Tsm, surface, swp_centers, WP_DIMS, TOOL_DIM,
-        #                                     list2dict(Qcur, gscene.joint_names))
         snode_last = snode_schedule[-1]
         ref_state = snode_last.state.copy(pscene)
         ref_state.Q[crob.idx_dict[ROBOT_NAME]] = HOME_POSE_MOVE
