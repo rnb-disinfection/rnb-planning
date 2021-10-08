@@ -300,12 +300,12 @@ def add_sweep_task(pscene, sweep_name, surface, swp_min, swp_max, Tsm, wp_dims,
     ax_swp = np.where(swp_min!=swp_max)[0][0] # sweep axis
     ax_swp_s = np.where(np.abs(Tsm[:3,ax_swp])>0.5)[0][0]
     sweep_dim = list(wp_dims)
-    print(sweep_dim)
-    print(swp_max)
-    print(swp_min)
-    print(ax_swp)
-    print(wp_dims)
-    print(ax_swp_s)
+    # print(sweep_dim)
+    # print(swp_max)
+    # print(swp_min)
+    # print(ax_swp)
+    # print(wp_dims)
+    # print(ax_swp_s)
     sweep_dim[ax_swp_s] = np.subtract(swp_max, swp_min)[ax_swp] + wp_dims[ax_swp_s]
     sweep_dim = tuple(sweep_dim)
 

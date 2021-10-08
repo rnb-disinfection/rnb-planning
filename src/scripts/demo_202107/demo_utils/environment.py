@@ -90,7 +90,7 @@ def add_bed(gscene, bed_center, bed_rpy, COLOR_BED_COL, add_back_wall=True):
                                  color=(0.8,0.8,0.8,1), display=True, fixed=True, collision=False,
                                  uri="package://my_mesh/meshes/stl/bed_floor_centered_m_scale.stl", scale=(1,1,1))
     bed_mat = gscene.create_safe(GEOTYPE.BOX, "bed_mat", link_name="base_link", 
-                                 dims=(1.80,0.91,0.13), center=(-0.025,0,0.6), rpy=(0,0,0),
+                                 dims=(1.60,0.91,0.13), center=(-0.025,0,0.6), rpy=(0,0,0),
                                  color=COLOR_BED_COL, fixed=True, collision=True, parent="bed_vis")
 
     gscene.create_safe(GEOTYPE.BOX, "bed_head", link_name="base_link", 
@@ -246,7 +246,12 @@ def get_relative_mobile_command(T_mm2, CONNECT_MOBILE, T_approach = SE3(np.ident
 def move_mobile_robot(sock_mobile, cur_xyzw, tar_xyzw_rd, tar_xyzw, MOBILE_IP, CONNECT_MOBILE, move_direct=False):
     delta_xyzw = np.subtract(tar_xyzw, cur_xyzw)
     if move_direct:
-        delta_xyzw[-2:] = 0
+        if np.linalg.norm(np.matmul(Rotation.from_quat([0,0] + list(cur_xyzw[-2:])).as_dcm().transpose(),
+                                    Rotation.from_quat([0,0] + list(tar_xyzw[-2:])).as_dcm())-np.identity(3))<1e-3:
+            delta_xyzw[-2:] = 0
+        else:
+            move_direct = False
+
     if move_direct and np.linalg.norm(delta_xyzw) < 2.0:
         move_steps = int(ceil(np.linalg.norm(delta_xyzw) / 0.7))
         xyzw_step = delta_xyzw / move_steps
@@ -265,8 +270,10 @@ def move_mobile_robot(sock_mobile, cur_xyzw, tar_xyzw_rd, tar_xyzw, MOBILE_IP, C
         if CONNECT_MOBILE:
             cur_xyzw = send_pose_wait(sock_mobile, tar_xyzw_rd, send_ip=MOBILE_IP)
         print("move to: {}".format(np.round(tar_xyzw, 2)))
-        if CONNECT_MOBILE:
-            cur_xyzw = send_pose_wait(sock_mobile, tar_xyzw, send_ip=MOBILE_IP)
+        for _ in range(3):
+            if CONNECT_MOBILE:
+                cur_xyzw = send_pose_wait(sock_mobile, tar_xyzw, send_ip=MOBILE_IP)
+        print("stop at: {}".format(np.round(cur_xyzw, 2)))
     return cur_xyzw
 # # Go view loc
 # cur_xyzw = send_pose_wait(sock_mobile, [2.77, 1.,   0.86, 0.51], send_ip=MOBILE_IP)
@@ -306,3 +313,27 @@ def calc_gaze_pose(cn_cur, mplan, table_front, viewpoint, indy, CONNECT_INDY, GA
 
     print("GAZE: {}".format(success))
     return gaze_traj, success
+
+
+def move_mobile_update_state(sock_mobile, MOBILE_IP, wayframer, from_Q, to_Q, D_APPROACH=0.3, CONNECT_MOBILE=True):
+    gscene = wayframer.geometry.gscene
+    Tbw0 = wayframer.get_tf_handle(list2dict(from_Q,
+                                             gscene.joint_names))
+    Tbw1 = wayframer.get_tf_handle(list2dict(to_Q,
+                                             gscene.joint_names))
+    print("move to VIEW_MOVED_EXT: {}".format(np.round(to_Q, 3)))
+    Tw0w1 = np.matmul(SE3_inv(Tbw0), Tbw1)
+    cur_xyzw, tar_xyzw_rd, tar_xyzw = get_relative_mobile_command(
+        Tw0w1, CONNECT_MOBILE, T_approach = SE3(np.identity(3), [-D_APPROACH, 0, 0]))
+    T_aw0 = T_xyzquat((cur_xyzw[:2] + (0,), (0, 0) + cur_xyzw[2:]))
+    cur_xyzw = move_mobile_robot(sock_mobile,
+                                 cur_xyzw, tar_xyzw_rd, tar_xyzw,
+                                 MOBILE_IP, CONNECT_MOBILE, move_direct=True)
+    T_aw1 = T_xyzquat((cur_xyzw[:2] + (0,), (0, 0) + cur_xyzw[2:]))
+    T_bw1 = matmul_series(Tbw0, SE3_inv(T_aw0), T_aw1)
+
+    new_Q = np.copy(to_Q)
+    new_Q[:2] = T_bw1[:2, 3]
+    new_Q[2] = Rot2axis(T_bw1[:3,:3], 3)
+    print("ended in VIEW_MOVED_EXT: {}".format(np.round(new_Q, 3)))
+    return new_Q

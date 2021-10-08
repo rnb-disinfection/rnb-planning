@@ -408,7 +408,7 @@ def process_top_table_detection(color_path, depth_path, T_sc, bed_dims, z_ceilin
 
     # Remove background based on bed_vis coord
     out_x = np.where(np.abs(points_transformed_np[:,0])>bed_dims[0]/2)[0]
-    out_y = np.where(np.abs(points_transformed_np[:,1])>bed_dims[1]/2+bed_dims[1])[0]
+    out_y = np.where(np.abs(points_transformed_np[:,1])>bed_dims[1]/2+bed_dims[1]*1.5)[0]
     in_y = np.where(np.abs(points_transformed_np[:,1])<bed_dims[1]/2+0.3)[0]
     out_z = np.where(points_transformed_np[:,2]<floor_margin)[0]
     out_z2 = np.where(points_transformed_np[:,2]>z_ceiling)[0]
@@ -509,22 +509,22 @@ def process_pillow_detection(T_sc, bed_dims, pcd_input, floor_margin=0.1, visual
 
 
 
-def reprocess_bed_detection(T_sc, bed_dims, floor_margin, T_toff_bed, pcd_input, visualize=False):
+def reprocess_bed_detection(T_sc, bed_dims, floor_margin, T_toff_bed, visualize=False):
     # Load CAD model of bed
     bed_model = o3d.io.read_triangle_mesh(MODEL_DIR + '/bed/bed.STL')
     bed_model.vertices = o3d.utility.Vector3dVector(
         np.asarray(bed_model.vertices) * np.array([1 / 1000.0, 1 / 1000.0, 1 / 1000.0]))
 
-    # # Load PCD of close view of bed for redetection
-    # color = o3d.io.read_image(SAVE_DIR + '/bed_close.jpg')
-    # depth = o3d.io.read_image(SAVE_DIR + '/bed_close.png')
-    # rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(color, depth, depth_scale = 1/__d_scale,
-    #                                                             depth_trunc = 10.0, convert_rgb_to_intensity = False)
-    # pcd_input = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image,
-    #                                                             o3d.camera.PinholeCameraIntrinsic(cam_width,
-    #                                                                                               cam_height, cam_fx,
-    #                                                                                               cam_fy,
-    #                                                                                               cam_ppx, cam_ppy))
+    # Load PCD of close view of bed for redetection
+    color = o3d.io.read_image(SAVE_DIR + '/bed_close.jpg')
+    depth = o3d.io.read_image(SAVE_DIR + '/bed_close.png')
+    rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(color, depth, depth_scale = 1/__d_scale,
+                                                                depth_trunc = 10.0, convert_rgb_to_intensity = False)
+    pcd_input = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image,
+                                                                o3d.camera.PinholeCameraIntrinsic(cam_width,
+                                                                                                  cam_height, cam_fx,
+                                                                                                  cam_fy,
+                                                                                                  cam_ppx, cam_ppy))
 
     # Remove background based on bed_vis coord
     points = np.asarray(pcd_input.points)
