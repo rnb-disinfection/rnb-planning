@@ -84,7 +84,7 @@ def add_kiro_indytool_up(gscene, zoff=0, tool_link="indy1_tcp", face_name="brush
                        collision=True, fixed=True)
     return brush_face
 
-def add_bed(gscene, bed_center, bed_rpy, COLOR_BED_COL):
+def add_bed(gscene, bed_center, bed_rpy, COLOR_BED_COL, add_back_wall=True):
     bed_vis = gscene.create_safe(GEOTYPE.MESH, "bed_vis", link_name="base_link",
                                  dims=(0.1,0.1,0.1), center=bed_center, rpy=bed_rpy,
                                  color=(0.8,0.8,0.8,1), display=True, fixed=True, collision=False,
@@ -100,6 +100,11 @@ def add_bed(gscene, bed_center, bed_rpy, COLOR_BED_COL):
     gscene.create_safe(GEOTYPE.BOX, "bed_foot", link_name="base_link", 
                                  dims=(0.2,1.0,1.10), center=(1.03,0,0.5), rpy=(0,0,0),
                                  color=COLOR_BED_COL, fixed=True, collision=True, parent="bed_vis")
+
+    if add_back_wall:
+        gscene.create_safe(GEOTYPE.BOX, "bed_wall", link_name="base_link",
+                           dims=(0.1,1.0,1.10), center=(-1.13,0,0.5), rpy=(0,0,0),
+                           color=COLOR_BED_COL, fixed=True, collision=True, parent="bed_vis")
     return bed_mat
 
 
