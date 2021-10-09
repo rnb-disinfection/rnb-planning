@@ -19,6 +19,7 @@ class IndyTrajectoryClientNoSDK(IndyDCPClient, TrajectoryClient):
         TrajectoryClient.__init__(self, server_ip=self.server_ip, **kwargs_otic)
         self.traj_vel = 1
         self.traj_blend = 5
+        self.grasp_ref = True
         with self:
             self.set_collision_level(5)
             self.set_joint_vel_level(5)
@@ -142,6 +143,7 @@ class IndyTrajectoryClientNoSDK(IndyDCPClient, TrajectoryClient):
     def grasp(self, grasp):
         with self:
             gstate = self.get_endtool_do(0)
+            grasp = self.grasp_ref if grasp else not self.grasp_ref
             if gstate != grasp:
                 self.set_endtool_do(0, grasp)
                 time.sleep(0.5)

@@ -76,6 +76,14 @@ def add_indy_gripper_asm3(gscene, robot_name):
                        link_name="{}_tcp".format(robot_name),
                        dims=(0.04, 0.04, 0.03), center=(0, -0.045, 0.12), rpy=(np.pi / 2, 0, 0),
                        color=(0.0, 0.8, 0.0, 0.5), display=True, fixed=True, collision=True)
+    gscene.create_safe(GEOTYPE.BOX, "{}_plug".format(robot_name),
+                       link_name="{}_tcp".format(robot_name),
+                       dims=(0.05,0.1,0.05), center=(0,0.07,-0.03), rpy=(0,0,0),
+                       color=(0.0,0.8,0.0,0.5), display=True, fixed=True, collision=True)
+    gscene.create_safe(GEOTYPE.BOX, "{}_plug2".format(robot_name),
+                       link_name="{}_tcp".format(robot_name),
+                       dims=(0.05,0.08,0.05), center=(0,0.07,0.01), rpy=(0,0,0),
+                       color=(0.0,0.8,0.0,0.5), display=True, fixed=True, collision=True)
 
 
 ##
@@ -111,6 +119,10 @@ def add_indy_sweep_tool(gscene, robot_name, face_name="brush_face", tool_offset=
     gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_col".format(face_name), link_name="{}_tcp".format(robot_name),
                        center=(0, 0, tool_offset-0.015), dims=(0.08, 0.15, 0.03), rpy=(0, 0, 0), color=(0.0, 0.8, 0.0, 0.5),
                        collision=True, fixed=True)
+    gscene.create_safe(GEOTYPE.BOX, "{}_plug".format(robot_name),
+                       link_name="{}_tcp".format(robot_name),
+                       dims=(0.05,0.1,0.05), center=(0,0.07,-0.03), rpy=(0,0,0),
+                       color=(0.0,0.8,0.0,0.5), display=True, fixed=True, collision=True)
 
 
 
