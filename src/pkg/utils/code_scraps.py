@@ -41,6 +41,42 @@ def add_indy_gripper_asm2(gscene, robot_name):
                        color=(0.0,0.8,0.0,0.5), display=True, fixed=True, collision=True)
     raise(DeprecationWarning("add_indy_gripper_asm2 is deprecated. Set RobotType to indy7gripper instead."))
 
+##
+# @brief add indy_gripper_asm2 mesh and collision boundary for the gripper, for neuromeka tech value eval demo
+# @param gscene     rnb-planning.src.pkg.geometry.geometry.GeometryScene
+# @param robot_name full indexed name of the robot
+def add_indy_gripper_asm3(gscene, robot_name):
+    gscene.create_safe(GEOTYPE.MESH, "{}_gripper_vis".format(robot_name),
+                       link_name="{}_tcp".format(robot_name),
+                       dims=(0.1,0.1,0.1), center=(0,0,0), rpy=(0,0,np.pi/2),
+                       color=(0.1,0.1,0.1,1), display=True, fixed=True, collision=False,
+                       uri="package://my_mesh/meshes/stl/indy_gripper_asm3_res.STL", scale=(1,1,1))
+
+    gscene.create_safe(GEOTYPE.BOX, "{}_gripper".format(robot_name),
+                       link_name="{}_tcp".format(robot_name),
+                       dims=(0.06,0.08,0.06), center=(0,0,0.04), rpy=(0,0,0),
+                       color=(0.0,0.8,0.0,0.5), display=True, fixed=True, collision=True)
+
+    gscene.create_safe(GEOTYPE.BOX, "{}_finger1".format(robot_name),
+                       link_name="{}_tcp".format(robot_name),
+                       dims=(0.04, 0.03, 0.07), center=(0, 0.045, 0.085), rpy=(0, 0, 0),
+                       color=(0.0, 0.8, 0.0, 0.5), display=True, fixed=True, collision=True)
+
+    gscene.create_safe(GEOTYPE.BOX, "{}_finger2".format(robot_name),
+                       link_name="{}_tcp".format(robot_name),
+                       dims=(0.04, 0.03, 0.07), center=(0, -0.045, 0.085), rpy=(0, 0, 0),
+                       color=(0.0, 0.8, 0.0, 0.5), display=True, fixed=True, collision=True)
+
+    gscene.create_safe(GEOTYPE.CYLINDER, "{}_fingertip1".format(robot_name),
+                       link_name="{}_tcp".format(robot_name),
+                       dims=(0.04, 0.04, 0.03), center=(0, 0.045, 0.12), rpy=(np.pi / 2, 0, 0),
+                       color=(0.0, 0.8, 0.0, 0.5), display=True, fixed=True, collision=True)
+
+    gscene.create_safe(GEOTYPE.CYLINDER, "{}_fingertip2".format(robot_name),
+                       link_name="{}_tcp".format(robot_name),
+                       dims=(0.04, 0.04, 0.03), center=(0, -0.045, 0.12), rpy=(np.pi / 2, 0, 0),
+                       color=(0.0, 0.8, 0.0, 0.5), display=True, fixed=True, collision=True)
+
 
 ##
 # @brief add add_sweep_tool to indy
