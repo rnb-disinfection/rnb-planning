@@ -1,6 +1,6 @@
 import time
 from .scene import State
-from ..utils.utils import SingleValue, list2dict, differentiate, GlobalTimer
+from ..utils.utils import SingleValue, list2dict, differentiate, GlobalTimer, TextColors
 from ..utils.joint_utils import apply_vel_acc_lims
 from ..controller.trajectory_client.trajectory_client import DEFAULT_TRAJ_FREQUENCY, MultiTracker
 from .task.interface import SearchNode
@@ -75,6 +75,7 @@ class PlanningPipeline:
     # @param multiprocess boolean flag for multiprocess search
     # @param N_redundant_sample number of redundancy sampling
     # @param terminate_on_first boolean flag for terminate on first answer
+    # @param max_solution_count number of maximum solution count
     # @param N_search maximum number of search for each thread
     # @param timeout_loop search timeout default = 600 sec
     # @param N_agents number of multiprocess agents, Default = cpu_count
@@ -83,12 +84,20 @@ class PlanningPipeline:
     # @param dt_vis display period
     # @param verbose boolean flag for printing intermediate process
     def search(self, initial_state, goal_nodes, multiprocess=False,
-                     terminate_on_first=True, N_search=None, N_agents=None, wait_proc=True,
-                     display=False, dt_vis=0.01, verbose=False, timeout_loop=600, looptime_extra=1, **kwargs):
+               max_solution_count=100, N_search=None, N_agents=None, wait_proc=True,
+               display=False, dt_vis=0.01, verbose=False, timeout_loop=600, looptime_extra=1,
+               terminate_on_first=False, **kwargs):
+        if terminate_on_first:
+            TextColors.RED.println("==========================================================")
+            TextColors.RED.println("terminate_on_first is deprecated. Use max_solution_count=1")
+            TextColors.RED.println("==========================================================")
+            max_solution_count = 1
+
         ## @brief runber of redundancy sampling
         self.t0 = time.time()
         self.DOF = len(initial_state.Q)
         self.initial_state = initial_state
+        self.max_solution_count = max_solution_count
         with self.gtimer.block("initialize_memory"):
             if multiprocess:
                 if display:
@@ -99,6 +108,7 @@ class PlanningPipeline:
                 self.N_agents = N_agents
                 print("Use {}/{} agents".format(N_agents, cpu_count()))
                 self.search_counter = self.manager.Value('i', 0)
+                self.solution_count = self.manager.Value('i', 0)
                 self.stop_now = self.manager.Value('i', 0)
                 self.tplan.initialize_memory(self.manager)
                 if self.mplan.flag_log:
@@ -108,6 +118,7 @@ class PlanningPipeline:
             else:
                 self.N_agents = 1
                 self.search_counter = SingleValue('i', 0)
+                self.solution_count = SingleValue('i', 0)
                 self.stop_now =  SingleValue('i', 0)
                 self.tplan.initialize_memory(None)
                 for mfilter in self.mplan.motion_filters:
@@ -120,7 +131,7 @@ class PlanningPipeline:
             with self.gtimer.block("start_process"):
                 self.proc_list = [Process(
                     target=self.__search_loop,
-                    args=(id_agent, terminate_on_first, N_search, False, dt_vis, verbose, timeout_loop),
+                    args=(id_agent, N_search, False, dt_vis, verbose, timeout_loop),
                     kwargs=kwargs) for id_agent in range(N_agents)]
                 for proc in self.proc_list:
                     proc.daemon = True
@@ -130,7 +141,7 @@ class PlanningPipeline:
                 self.wait_procs(timeout_loop, looptime_extra)
         else:
             self.proc_list = []
-            self.__search_loop(0, terminate_on_first, N_search, display, dt_vis, verbose, timeout_loop, **kwargs)
+            self.__search_loop(0, N_search, display, dt_vis, verbose, timeout_loop, **kwargs)
 
     def wait_procs(self, timeout_loop, looptime_extra):
         self.non_joineds = []
@@ -157,7 +168,7 @@ class PlanningPipeline:
                         continue
                     proc.join(timeout=0.5)
 
-    def __search_loop(self, ID, terminate_on_first, N_search,
+    def __search_loop(self, ID, N_search,
                       display=False, dt_vis=None, verbose=False, timeout_loop=600,
                       add_homing=True, post_optimize=False, home_pose=None,  **kwargs):
         loop_counter = 0
@@ -198,8 +209,11 @@ class PlanningPipeline:
                         len(traj), simtime,
                         error))
                     print('=' * 150)
-            if terminate_on_first and ret:
-                break
+            if ret:
+                sol_count = self.solution_count.value + 1
+                self.solution_count.value = sol_count
+                if sol_count > self.max_solution_count:
+                    break
 
         if no_queue_stop:
             term_reason = "node queue empty"
@@ -210,7 +224,7 @@ class PlanningPipeline:
             term_reason = "max iteration time reached ({}/{} s)".format(int(time.time()), self.t0)
             self.stop_now.value = 1
         elif ret:
-            term_reason = "first answer acquired"
+            term_reason = "required answers acquired"
             if add_homing:
                 print("++ adding return motion to acquired answer ++")
                 home_state = self.tplan.snode_dict[0].copy(self.pscene)
@@ -224,7 +238,7 @@ class PlanningPipeline:
                 self.post_optimize_schedule(snode_new)
             self.stop_now.value = 1
         elif self.stop_now.value:
-            term_reason = "first answer acquired from other agent"
+            term_reason = "required answers acquired from other agent"
         else:
             term_reason = "Unknown issue"
         print("=========================================================================================================")
