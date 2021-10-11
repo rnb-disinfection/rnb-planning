@@ -175,6 +175,8 @@ class MoveitPlanner(MotionInterface):
                 print("try joint motion") ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
             trajectory, success = planner.plan_joint_motion_py(
                 group_name, tuple(to_Q), tuple(from_Q), timeout=timeout_joint, **kwargs)
+            if success:
+                trajectory = np.concatenate([trajectory, [to_state.Q]], axis=0)
             if verbose:
                 print("joint motion tried: {}".format(success)) ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
 
