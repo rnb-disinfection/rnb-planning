@@ -3,6 +3,7 @@ from .trajectory_client.indy_trajectory_client_nosdk import *
 from .trajectory_client.panda_trajectory_client import *
 from .robot_config import *
 from collections import defaultdict
+import numpy as np
 
 
 JOINT_LIM_DICT = []
@@ -243,10 +244,11 @@ class CombinedRobot:
         if one_by_one:
             for rname, robot in robots_in_act:
                 robot.move_joint_traj(trajectory[:, self.idx_dict[rname]], auto_stop=auto_stop, wait_motion=wait_motion)
-                if np.sum(np.abs(np.subtract(trajectory[-1, self.idx_dict[rname]], robot.get_qcur())))\
-                        >np.deg2rad(error_stop):
-                    print("not in sync in {} deg: {}".format(error_stop, np.rad2deg(self.get_real_robot_pose())))
-                    return False
+                if error_stop is not None:
+                    if np.sum(np.abs(np.subtract(trajectory[-1, self.idx_dict[rname]], robot.get_qcur())))\
+                            >np.deg2rad(error_stop):
+                        print("not in sync in {} deg: {}".format(error_stop, np.rad2deg(self.get_real_robot_pose())))
+                        return False
         else:
             for Q in trajectory:
                 for rname, robot in robots_in_act:
