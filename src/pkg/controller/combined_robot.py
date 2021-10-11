@@ -311,14 +311,16 @@ class CombinedRobot:
         rnames = self.get_connected_robot_names()
         robots = [self.robot_dict[rname] for rname in rnames]
         robots_mask = sorted(np.concatenate([self.idx_dict[rname] for rname in rnames]))
-        while np.sum([robot.get_qcount() for robot in robots]) > 0:
-            if trajectory is not None:
+        if trajectory is not None:
+            while np.sum([robot.get_qcount() for robot in robots]) > 0:
                 if error_stop is not None:
                     if (np.min(np.sum(np.abs(np.subtract(trajectory, self.get_real_robot_pose())[:, robots_mask]), axis=1))
                             > np.deg2rad(error_stop)):
                         print("not in sync in {} deg: {}".format(error_stop, np.rad2deg(self.get_real_robot_pose())))
                         return False
-            self.wait_step(0.05)
+                    self.wait_step(0.05)
+                else:
+                    self.wait_step(0.5)
         return True
 
     def get_connected_robot_names(self):
