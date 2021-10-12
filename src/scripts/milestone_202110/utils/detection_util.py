@@ -621,7 +621,7 @@ def process_pillow_detection(T_sc, bed_dims, pcd_input, floor_margin=0.1, visual
         draw_registration_result(source_down, target_down,
                                  result_ransac.transformation)
 
-    ICP_result = compute_ICP(pillow_model, pcd_pillow, result_ransac.transformation, thres=0.04, visualize=visualize)
+    ICP_result = compute_ICP(pillow_model, pcd_pillow, result_ransac.transformation, thres=0.07, visualize=visualize)
 
     return ICP_result
 
@@ -663,14 +663,15 @@ def reprocess_bed_detection(T_sc, bed_dims, floor_margin, T_toff_bed, visualize=
     pcd_bed_close = make_pcd_np(points_recovered).uniform_down_sample(every_k_points=5)
 
 
-    bed_initial = np.matmul(T_cs, SE3_inv(T_toff_bed))
+    # bed_initial = np.matmul(T_cs, SE3_inv(T_toff_bed))
+    bed_initial = np.matmulT_cs, (SE3_inv(T_toff_bed))
 
     voxel_size = 0.03
     source, target, source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(voxel_size, bed_model,
                                                                                          pcd_bed_close)
     if visualize:
         draw_registration_result(source_down, target_down, bed_initial)
-    ICP_result= compute_close_ICP(bed_model, pcd_bed_close, bed_initial, thres=0.005, visualize=visualize)
+    ICP_result= compute_close_ICP(bed_model, pcd_bed_close, bed_initial, thres=0.08, visualize=visualize)
 
     return ICP_result
 
@@ -736,7 +737,7 @@ def reprocess_top_table_detection(T_sc, bed_dims, T_toff_closet, pcd_input,
     if visualize:
         draw_registration_result(source_down, target_down, closet_initial)
 
-    ICP_result = compute_close_ICP(top_table_model, pcd_top_table, closet_initial, thres=0.007, visualize=visualize)
+    ICP_result = compute_close_ICP(top_table_model, pcd_top_table, closet_initial, thres=0.08, visualize=visualize)
 
     return ICP_result
 
