@@ -385,7 +385,10 @@ class PlanningPipeline:
     ##
     # @brief    optimize a SearchNode schedule
     # @remark   MoveitPlanner should be set as the motion planner by set_motion_planner
-    def post_optimize_schedule(self, snode_last, timeout=5, **kwargs):
+    # @param    post_opt    set this value True to use post optimizer in OMPL (default), you need to install optimizer plugins
+    # @param    plannerconfig   set this keyword value to a optimal algorithm in PlannerConfig and set post_opt False to use optimal planning
+    # @param    reverse     set this value True to apply planning in reverse direction
+    def post_optimize_schedule(self, snode_last, timeout=5, post_opt=True, reverse=False, **kwargs):
         snode_pre = None
         state_pre = None
         snode_schedule = self.tplan.idxSchedule2SnodeScedule(snode_last.parents + [snode_last.idx])
@@ -393,26 +396,29 @@ class PlanningPipeline:
             if snode.traj is not None:
                 state_new = state_pre.copy(self.pscene)
                 state_new.Q = snode.traj[-1]
-                diffs = [sname for sname in self.pscene.subject_name_list
-                         if (state_pre.binding_state[sname].get_chain()
-                             != snode.state.binding_state[sname].get_chain())
-                         ]
-                post_opt = True
-                for obj_name in diffs:
-                    btf_from = state_pre.binding_state[obj_name]
-                    btf_to = snode.state.binding_state[obj_name]
-                    constraints = self.pscene.subject_dict[obj_name].make_constraints(btf_from.get_chain(),
-                                                                                      btf_to.get_chain())
-                    post_opt = post_opt and len(constraints) == 0  # no optimization for constrained motion
+                # no optimization for constrained motion
+                post_opt = self.pscene.is_constrained_transition(state_pre, snode.state, check_available=False)
 
                 if post_opt:
-                    Traj, LastQ, error, success, binding_list = self.mplan.plan_transition(state_pre, state_new,
-                                                                                           timeout=timeout,
-                                                                                           post_opt=True,
-                                                                                           **kwargs)
+                    print("Optimize {} - > {}:".format(snode_pre.state.node, snode.state.node))
+                    if reverse:
+                        Traj, LastQ, error, success, binding_list = self.mplan.plan_transition(state_new, state_pre,
+                                                                                               timeout=timeout,
+                                                                                               post_opt=post_opt,
+                                                                                               **kwargs)
+                        Traj = np.array(list(reversed(Traj)))
+                    else:
+                        Traj, LastQ, error, success, binding_list = self.mplan.plan_transition(state_pre, state_new,
+                                                                                               timeout=timeout,
+                                                                                               post_opt=post_opt,
+                                                                                               **kwargs)
                     if success:
+                        print("Success")
                         snode.set_traj(Traj, snode_pre.traj_tot)
                         snode.state.Q = Traj[-1]
+                        self.tplan.snode_dict[snode.idx] = snode
+                    else:
+                        print("Failure")
             snode_pre = snode
             state_pre = snode.state
 
@@ -464,9 +470,11 @@ class PlanningPipeline:
     # @brief execute schedule
     # @param mode_switcher ModeSwitcher class instance
     def execute_schedule(self, snode_schedule, auto_stop=True, mode_switcher=None, one_by_one=False, multiproc=False,
-                         error_stop_deg=10):
+                         error_stop_deg=10, auto_sync_robot_pose=False):
         self.execute_res = False
         snode_pre = snode_schedule[0]
+        if auto_sync_robot_pose:
+            self.pscene.combined_robot.joint_move_make_sure(snode_schedule[0].state.Q)
         for snode in snode_schedule:
             if snode.traj is None or len(snode.traj) == 0:
                 snode_pre = snode

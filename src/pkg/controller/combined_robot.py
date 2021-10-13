@@ -320,7 +320,7 @@ class CombinedRobot:
                         return False
                     self.wait_step(0.05)
                 else:
-                    self.wait_step(0.5)
+                    self.wait_step(0.2)
         return True
 
     def get_connected_robot_names(self):

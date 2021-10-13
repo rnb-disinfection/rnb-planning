@@ -1,6 +1,7 @@
 from .trajectory_client import *
 from .indy_utils.indydcp_client import IndyDCPClient
-from .indy_utils.indy_program_maker import JsonProgramComponent
+from .indy_utils.indy_program_maker import JsonProgramComponent, \
+    POLICY_KEEP_PAUSE, POLICY_RESUME_AFTER, POLICY_STOP_PROGRAM, POLICY_NO_COLLISION_DETECTION
 
 INDY_DOF = 6
 INDY_NAME = "NRMK-Indy7"
@@ -18,8 +19,9 @@ class IndyTrajectoryClientNoSDK(IndyDCPClient, TrajectoryClient):
         IndyDCPClient.__init__(self, *args, server_ip=server_ip, **kwargs_indy)
         TrajectoryClient.__init__(self, server_ip=self.server_ip, **kwargs_otic)
         self.traj_vel = 1
-        self.traj_blend = 5
+        self.traj_blend = 3
         self.grasp_ref = True
+        self.collision_policy = POLICY_NO_COLLISION_DETECTION
         with self:
             self.set_collision_level(5)
             self.set_joint_vel_level(5)

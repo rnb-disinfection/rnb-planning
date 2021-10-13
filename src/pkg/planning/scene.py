@@ -351,7 +351,7 @@ class PlanningScene:
     # @brief get exact bindings to transit
     # @param from_state State
     # @param to_state   State
-    def get_changing_subjects(self, from_state, to_state):
+    def get_changing_subjects(self, from_state, to_state, check_available=True):
         subject_list = []
         btf_list = []
         if to_state.binding_state is not None:
@@ -369,15 +369,27 @@ class PlanningScene:
                     pass
 
         success = True
-        for btf1 in btf_list:
-            if not self.actor_dict[btf1.binding.actor_name].check_available(
-                    list2dict(from_state.Q, self.gscene.joint_names)):
-                success = False
-        # else: # commenting out this because there's no need to filter out no-motion transitions
-        #     if from_state.Q is not None and to_state.Q is not None:
-        #         if np.sum(np.abs(from_state.Q - to_state.Q))<1e-3:
-        #             success = False
+        if check_available:
+            for btf1 in btf_list:
+                if not self.actor_dict[btf1.binding.actor_name].check_available(
+                        list2dict(from_state.Q, self.gscene.joint_names)):
+                    success = False
+            # else: # commenting out this because there's no need to filter out no-motion transitions
+            #     if from_state.Q is not None and to_state.Q is not None:
+            #         if np.sum(np.abs(from_state.Q - to_state.Q))<1e-3:
+            #             success = False
         return subject_list, success
+
+    def is_constrained_transition(self, from_state, to_state, check_available=True):
+        diffs, _ = self.get_changing_subjects(from_state, to_state, check_available=check_available)
+        for obj_name in diffs:
+            btf_from = from_state.binding_state[obj_name]
+            btf_to = to_state.binding_state[obj_name]
+            constraints = self.subject_dict[obj_name].make_constraints(btf_from.get_chain(),
+                                                                       btf_to.get_chain())
+            if len(constraints) > 0:
+                return True
+        return False
 
     ##
     # @brief get current scene state
