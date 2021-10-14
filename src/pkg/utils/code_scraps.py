@@ -69,12 +69,12 @@ def add_indy_gripper_asm3(gscene, robot_name):
 
     gscene.create_safe(GEOTYPE.CYLINDER, "{}_fingertip1".format(robot_name),
                        link_name="{}_tcp".format(robot_name),
-                       dims=(0.044, 0.046, 0.034), center=(0, 0.045, 0.12), rpy=(np.pi / 2, 0, 0),
+                       dims=(0.044, 0.044, 0.034), center=(0, 0.045, 0.12), rpy=(np.pi / 2, 0, 0),
                        color=(0.0, 0.8, 0.0, 0.5), display=True, fixed=True, collision=True)
 
     gscene.create_safe(GEOTYPE.CYLINDER, "{}_fingertip2".format(robot_name),
                        link_name="{}_tcp".format(robot_name),
-                       dims=(0.044, 0.046, 0.034), center=(0, -0.045, 0.12), rpy=(np.pi / 2, 0, 0),
+                       dims=(0.044, 0.044, 0.034), center=(0, -0.045, 0.12), rpy=(np.pi / 2, 0, 0),
                        color=(0.0, 0.8, 0.0, 0.5), display=True, fixed=True, collision=True)
     gscene.create_safe(GEOTYPE.BOX, "{}_plug".format(robot_name),
                        link_name="{}_tcp".format(robot_name),
