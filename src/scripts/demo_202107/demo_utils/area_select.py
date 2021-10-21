@@ -163,21 +163,68 @@ def get_division_dict(surface, brush_face, robot_config, plane_val, tip_dir, TOO
     sweep_max = sweep_max[idx_ok]
     sweep_min = sweep_min[idx_ok]
 
+    ## get valid step and plane values
+    stp_valid_dict = {}
+    pln_valid_dict = {}
+    for ax_swp_s in range(2):
+        div_size_nswp_hf = rect_div_size[(ax_swp_s+1)%2] / 2
+        stp_vals_valid = {}
+        for stp_val in sweep_min[:, ax_step]:
+            stp_grd = int(np.round(stp_val / div_size_nswp_hf))
+            if stp_grd not in stp_vals_valid:
+                stp_vals_valid[stp_grd] = stp_val
+            else:
+                stp_ref = stp_grd*div_size_nswp_hf
+                if abs(stp_val - stp_ref) < abs(stp_vals_valid[stp_grd] - stp_ref):
+                    stp_vals_valid[stp_grd] = stp_val
+        stp_vals_valid = sorted(set(np.round(stp_vals_valid.values(), 3)))
+        stp_valid_dict[ax_swp_s] = stp_vals_valid
+
+        pln_vals_valid = {}
+        for pln_val in sweep_min[:, ax_pln]:
+            pln_grd = int(np.round(pln_val / div_size_nswp_hf))
+            if pln_grd not in pln_vals_valid:
+                pln_vals_valid[stp_grd] = pln_val
+            else:
+                pln_ref = pln_grd*div_size_nswp_hf
+                if abs(pln_val - pln_ref) < abs(pln_vals_valid[pln_grd] - pln_ref):
+                    pln_vals_valid[pln_grd] = pln_val
+        pln_vals_valid = sorted(set(np.round(pln_vals_valid.values(), 3)))
+        pln_valid_dict[ax_swp_s] = pln_vals_valid
+
     ## get all sweep points
     swp_points_dict = {0: [], 1: []}
-    for step_val, pln_val, min_val, max_val in zip(sweep_min[:, ax_step], sweep_min[:, ax_pln],
+    for step_val, pln_val, min_val_ful, max_val_ful in zip(sweep_min[:, ax_step], sweep_min[:, ax_pln],
                                                    sweep_min[:, ax_swp], sweep_max[:, ax_swp]):
-        diff_val = max_val - min_val
         for ax_swp_s in range(2):
-            sweep_num = np.floor(diff_val / (rect_div_size[ax_swp_s])).astype(np.int)
-            min_val_clip = (max_val + min_val) / 2 - (sweep_num * rect_div_size[ax_swp_s] / 2) + (
-                        rect_div_size[ax_swp_s] / 2)
+            if step_val not in stp_valid_dict[ax_swp_s] or pln_val not in pln_valid_dict[ax_swp_s]:
+    #             pass
+                continue
+            div_size_swp = rect_div_size[ax_swp_s]
+            div_size_nswp_hf = rect_div_size[(ax_swp_s+1)%2] / 2
+            # div sweep range with grid size = div_size/2
+            min_grid, max_grid = (np.sign([min_val_ful, max_val_ful]) 
+                                  * np.floor(np.abs([min_val_ful, max_val_ful])/(div_size_swp/2))).astype(np.int)
+            diff_grid = max_grid - min_grid
+
+            if diff_grid % 2 != 0:  # cut the point with smaller margin if sweep range is not divided by div_size
+                if max_val_ful - (max_grid*div_size_swp/2) >= (min_grid*div_size_swp/2) - min_val_ful:
+                    max_grid -= 1
+                else:
+                    min_grid += 1
+                diff_grid = max_grid - min_grid
+            assert diff_grid % 2 == 0
+
+            min_val, max_val = np.multiply([min_grid, max_grid], div_size_swp/2)
+            diff_val = max_val - min_val
+            sweep_num = int(diff_grid / 2)
 
             swp_points = np.zeros((sweep_num, 3))
-            swp_points[:, ax_swp] = min_val_clip + np.arange(sweep_num) * rect_div_size[ax_swp_s]
-            swp_points[:, ax_step] = step_val
-            swp_points[:, ax_pln] = plane_val if plane_val is not None else pln_val
-            # swp_points[:, ax_pln] = pln_val
+            swp_points[:, ax_swp] = min_val + np.arange(sweep_num) * div_size_swp
+    #         swp_points[:, ax_step] = step_val
+    #         swp_points[:, ax_pln] = plane_val if plane_val is not None else pln_val
+            swp_points[:, ax_step] = step_val if plane_val is None else div_size_nswp_hf*np.round(step_val/div_size_nswp_hf)
+            swp_points[:, ax_pln] = plane_val if plane_val is not None else div_size_nswp_hf*np.round(pln_val/div_size_nswp_hf)
             swp_points_dict[ax_swp_s].append(np.round(swp_points, 3))
     for ax_swp_s in range(2):
         swp_points_dict[ax_swp_s] = np.concatenate(swp_points_dict[ax_swp_s])
