@@ -13,23 +13,35 @@ class Corners(Enum):
     Right = 1
     
 class SweepDirections(Enum):
-    front=None
+    front="front"
     up="up"
     down="down"
     
     @classmethod
     def get_dcm_re(cls, tip_dir):
-        if isinstance(tip_dir, SweepDirections):
+        if isinstance(tip_dir, cls):
             tip_dir = tip_dir.value
-        if tip_dir == SweepDirections.front.value:
-            Rre = Rot_rpy([np.pi, np.pi / 2, 0])
-        elif tip_dir == SweepDirections.up.value:
-            Rre = Rot_rpy([0, 0, np.pi])
-        elif tip_dir == SweepDirections.down.value:
-            Rre = Rot_rpy([0, np.pi, 0])
+        if tip_dir is None or tip_dir == cls.front.value:
+            Rre = Rot_rpy([0, np.pi/2, 0])
+        elif tip_dir == cls.up.value:
+            Rre = Rot_rpy([0, 0, 0])
+        elif tip_dir == cls.down.value:
+            Rre = Rot_rpy([0, np.pi, np.pi])
         else:
             raise (RuntimeError("Not defined"))
         return Rre
+    
+    @classmethod
+    def get_file_name(cls, rtype, tip_dir):
+        if not isinstance(rtype, str):
+            rtype = rtype.name
+        if isinstance(tip_dir, cls):
+            tip_dir = tip_dir.value
+        return rtype if tip_dir is None else "{}-{}".format(rtype, tip_dir)
+    
+    @classmethod
+    def check_fourway(cls, tip_dir):
+        return tip_dir is None or tip_dir==cls.front.name
 
 from pkg.planning.constraint.constraint_common import BindingTransform
 
@@ -46,7 +58,7 @@ class CachedCollisionCheck:
                tuple(np.round(xyzquat[1], 3)),
                tuple(np.round(
                    dict2list(Q_dict,
-                             self.gcheck.gscene.joint_names))))
+                             self.gcheck.gscene.joint_names), 3)))
         return key
 
     def __call__(self, T_loal, Q_dict):
@@ -108,12 +120,12 @@ def get_division_dict(surface, brush_face, robot_config, plane_val, tip_dir, TOO
     Rre = SweepDirections.get_dcm_re(tip_dir)
     Tet = brush_face.get_tf_handle(crob.home_dict, from_link=TIP_LINK)  ## get data
     rtype = robot_config.type.name
-    sweep_path = os.path.join(SWEEP_DAT_PATH, rtype if tip_dir is None else "{}-{}".format(rtype, tip_dir))
+    sweep_path = os.path.join(SWEEP_DAT_PATH, SweepDirections.get_file_name(rtype, tip_dir))
     sweep_max = np.loadtxt(sweep_path + "-max.csv", delimiter=",")
     sweep_min = np.loadtxt(sweep_path + "-min.csv", delimiter=",")
 
     ## set axes and extract min max sweep range
-    ax_pln = 2 if tip_dir is None else 0  # plane axis in robot coord
+    ax_pln = 2 if SweepDirections.check_fourway(tip_dir) else 0  # plane axis in robot coord
     ax_swp = 1  # sweep axis in robot coord
     ax_step = [ax for ax in [0, 1, 2] if ax not in [ax_pln, ax_swp]][0]  # step axis = not plane axis nor sweep axis
     if plane_val is not None:
@@ -178,7 +190,7 @@ def get_division_dict(surface, brush_face, robot_config, plane_val, tip_dir, TOO
     Tbm_succ_all = []
     for i_div, div_center in enumerate(surface_div_centers):  # for each division
         Tsc = SE3(np.identity(3), tuple(div_center) + (surface.dims[2] / 2,))
-        for i in range(4) if tip_dir is None else [0, 2]:
+        for i in range(4) if SweepDirections.check_fourway(tip_dir) else [0, 2]:
             Tct = SE3(Rot_axis(3, i * np.pi / 2), [0, 0, 0])
             Tst = matmul_series(Tsc, Tct)
             Rsr = matmul_series(Tst[:3, :3], Tet[:3, :3].transpose(), Rre.transpose())

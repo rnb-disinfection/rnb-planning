@@ -109,7 +109,7 @@ class GraspChecker(MotionFilterInterface):
             T_bl= np.matmul(Tbol, T_loal)
             self.gscene.add_highlight_axis("gc_center", "Tloal", "base_link",
                                            center=T_bl[:3,3], orientation_mat=T_bl[:3,:3])
-            raw_input("wait for key")
+            # raw_input("wait for key")
             self.gscene.clear_highlight(hl_keys=["gc_actor", "gc_object", "gc_center"])
 
 

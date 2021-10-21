@@ -37,9 +37,9 @@ class GeometryScene(list):
         self.joint_num = len(self.joint_names)
         self.__set_urdf(urdf_content, urdf_path)
         self.rviz = rviz
+        self.highlight_dict = defaultdict(dict)
+        self.marker_list = []
         if self.rviz:
-            self.marker_list = []
-            self.highlight_dict = defaultdict(dict)
             self.set_rviz()
 
     def __set_urdf(self, urdf_content, urdf_path):
@@ -174,7 +174,8 @@ class GeometryScene(list):
     ##
     # @brief add new marker (for internal use)
     def __add_marker(self, gtem):
-        self.marker_list += get_markers([gtem], self.joints, self.joint_names)
+        if self.rviz:
+            self.marker_list += get_markers([gtem], self.joints, self.joint_names)
 
     ##
     # @brief republish markers with last published position
@@ -233,7 +234,8 @@ class GeometryScene(list):
     # @brief show motion list
     # @param pose_list list of Q in radian numpy array
     def show_motion(self, pose_list, **kwargs):
-        show_motion(pose_list, self.marker_list, self.pub, self.joints, self.joint_names, **kwargs)
+        if self.rviz:
+            show_motion(pose_list, self.marker_list, self.pub, self.joints, self.joint_names, **kwargs)
 
     ##
     # @brief clear all highlights
@@ -260,7 +262,8 @@ class GeometryScene(list):
                             collision=False)
 
         self.highlight_dict[hl_key][htem.name] = htem
-        self.__add_marker(htem)
+        if self.rviz:
+            self.__add_marker(htem)
         self.add_highlight_axis(hname, "axis", gtem.link_name, center=gtem.center, orientation_mat=gtem.orientation_mat)
 
     ##
@@ -271,7 +274,8 @@ class GeometryScene(list):
                                   center=center, dims=(min(dims),)*3, rpy=(0,0,0),
                                   color=(0, 0, 0, 0.5) if color is None else color,
                                   collision=False)
-            self.__add_marker(ctem)
+            if self.rviz:
+                self.__add_marker(ctem)
             self.highlight_dict[hl_key][ctem.name] = ctem
             return
 
@@ -279,7 +283,8 @@ class GeometryScene(list):
             axtemx = self.create_safe(gtype=GEOTYPE.ARROW, name="axx_" + name, link_name=link_name,
                                   center=center, dims=dims, rpy=Rot2rpy(orientation_mat), color=(1, 0, 0, 0.5) if color is None else color,
                                   collision=False)
-            self.__add_marker(axtemx)
+            if self.rviz:
+                self.__add_marker(axtemx)
             self.highlight_dict[hl_key][axtemx.name] = axtemx
 
         if 'y' in axis:
@@ -287,7 +292,8 @@ class GeometryScene(list):
                                   center=center, dims=dims,
                                   rpy=Rot2rpy(np.matmul(orientation_mat, Rot_axis(3, np.pi / 2))), color=(0, 1, 0, 0.5) if color is None else color,
                                   collision=False)
-            self.__add_marker(axtemy)
+            if self.rviz:
+                self.__add_marker(axtemy)
             self.highlight_dict[hl_key][axtemy.name] = axtemy
 
         if 'z' in axis:
@@ -296,7 +302,8 @@ class GeometryScene(list):
                                   rpy=Rot2rpy(np.matmul(orientation_mat, Rot_axis(2, -np.pi / 2))),
                                   color=(0, 0, 1, 0.5) if color is None else color,
                                   collision=False)
-            self.__add_marker(axtemz)
+            if self.rviz:
+                self.__add_marker(axtemz)
             self.highlight_dict[hl_key][axtemz.name] = axtemz
 
     ##
