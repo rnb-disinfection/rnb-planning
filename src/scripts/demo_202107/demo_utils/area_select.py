@@ -11,6 +11,25 @@ try_mkdir(DATASET_DIR)
 class Corners(Enum):
     Left = 0
     Right = 1
+    
+class SweepDirections(Enum):
+    front=None
+    up="up"
+    down="down"
+    
+    @classmethod
+    def get_dcm_re(cls, tip_dir):
+        if isinstance(tip_dir, SweepDirections):
+            tip_dir = tip_dir.value
+        if tip_dir == SweepDirections.front.value:
+            Rre = Rot_rpy([np.pi, np.pi / 2, 0])
+        elif tip_dir == SweepDirections.up.value:
+            Rre = Rot_rpy([0, 0, np.pi])
+        elif tip_dir == SweepDirections.down.value:
+            Rre = Rot_rpy([0, np.pi, 0])
+        else:
+            raise (RuntimeError("Not defined"))
+        return Rre
 
 from pkg.planning.constraint.constraint_common import BindingTransform
 
@@ -86,14 +105,7 @@ def get_division_dict(surface, brush_face, robot_config, plane_val, tip_dir, TOO
     Tbs = surface.get_tf(crob.home_dict)
     Tmr = gcheck.gscene.get_tf(to_link=ROBOT_BASE, from_link=robot_config.root_on, Q=crob.home_dict)
     Trm = SE3_inv(Tmr)
-    if tip_dir is None:
-        Rre = Rot_rpy([np.pi, np.pi / 2, 0])
-    elif tip_dir == "up":
-        Rre = Rot_rpy([0, 0, np.pi])
-    elif tip_dir == "down":
-        Rre = Rot_rpy([0, np.pi, 0])
-    else:
-        raise (RuntimeError("Not defined"))
+    Rre = SweepDirections.get_dcm_re(tip_dir)
     Tet = brush_face.get_tf_handle(crob.home_dict, from_link=TIP_LINK)  ## get data
     rtype = robot_config.type.name
     sweep_path = os.path.join(SWEEP_DAT_PATH, rtype if tip_dir is None else "{}-{}".format(rtype, tip_dir))
