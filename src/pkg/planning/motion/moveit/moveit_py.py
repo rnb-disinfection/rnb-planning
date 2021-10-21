@@ -162,8 +162,8 @@ class MoveitCompactPlanner_BP(mpc.Planner):
         plan = self.plan_joint_motion(robot_name, JointState(len(goal_state), *goal_state),
                                            JointState(self.joint_num, *Q_init), plannerconfig, timeout,
                                       vel_scale, acc_scale, post_opt)
-        return np.array(
-            [spread(Q, self.joint_num) for Q in spread(plan.trajectory, len(plan.trajectory))]), plan.success
+        return np.array([spread(Q, self.joint_num) for Q in spread(plan.trajectory, len(plan.trajectory))]), \
+               plan.success
 
     ##
     # @brief search for plan that bring tool_link to goal_pose in coordinate of goal_link, with constraints

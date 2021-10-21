@@ -63,6 +63,8 @@ class MoveitPlanner(MotionInterface):
         self.incremental_constraint_motion = incremental_constraint_motion
         self.robot_names = self.combined_robot.robot_names
         self.chain_dict = pscene.robot_chain_dict
+        self.robot_links_all = np.concatenate(
+            [self.chain_dict[rname]['link_names'] for rname in self.robot_names]).tolist()
         binder_links = [self.chain_dict[rname]['tip_link'] for rname in self.robot_names]
         self.binder_link_robot_dict = {blink: rname for blink, rname in zip(binder_links, self.robot_names)}
         srdf_path = write_srdf(robot_names=self.robot_names, chain_dict=self.chain_dict,
@@ -83,6 +85,7 @@ class MoveitPlanner(MotionInterface):
 
     ##
     # @brief update changes in geometric scene and load collision boundaries to moveit planner
+    # @remark IMPORTANT! geometry items with link name in it are ignored, consdering they are auto-generated from urdf
     # @param dual_key key of target dual planner: root_robot_name_end_robot_name
     def update_gscene(self, dual_key=None, only_self_collision=False):
         self.gscene.update()
@@ -92,7 +95,7 @@ class MoveitPlanner(MotionInterface):
             obj_list = []
             for gtem in self.gscene:
                 if gtem.collision:
-                    if all([not mname in gtem.name for mname in self.robot_names]):
+                    if all([not lname in gtem.name for lname in self.robot_links_all]):
                         obj_list.append(ObjectMPC(
                             gtem.name, gtype_to_otype(gtem.gtype), gtem.link_name,
                             pose=tuple(gtem.center)+tuple(Rotation.from_dcm(gtem.orientation_mat).as_quat()),
@@ -107,7 +110,7 @@ class MoveitPlanner(MotionInterface):
                 obj_list = []
                 for gtem in dual_planner.gscene:
                     if gtem.collision:
-                        if all([not mname in gtem.name for mname in self.robot_names]):
+                        if all([not lname in gtem.name for lname in self.robot_links_all]):
                             obj_list.append(ObjectMPC(
                                 gtem.name, gtype_to_otype(gtem.gtype), gtem.link_name,
                                 pose=tuple(gtem.center)+tuple(Rotation.from_dcm(gtem.orientation_mat).as_quat()),
@@ -172,6 +175,8 @@ class MoveitPlanner(MotionInterface):
                 print("try joint motion") ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
             trajectory, success = planner.plan_joint_motion_py(
                 group_name, tuple(to_Q), tuple(from_Q), timeout=timeout_joint, **kwargs)
+            if success:
+                trajectory = np.concatenate([trajectory, [to_state.Q]], axis=0)
             if verbose:
                 print("joint motion tried: {}".format(success)) ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
 

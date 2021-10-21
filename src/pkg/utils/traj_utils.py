@@ -484,3 +484,53 @@ def bspline_schedule(pscene, snode_schedule, radii_deg=1):
             snode_cp.set_traj(traj_new)
     return snode_schedule_safe
 
+def subdivide_traj(from_Q, to_Q, dQ_ref=0.01):
+    diff = np.subtract(to_Q, from_Q)
+    diff_abs = np.linalg.norm(diff)
+    if diff_abs < 1e-6:
+        return np.array([from_Q, to_Q])
+    N_div = diff_abs/dQ_ref
+    dQ = diff / N_div
+    return np.arange(N_div+1)[:, np.newaxis]*dQ[np.newaxis, :] + from_Q
+
+def validate_simple_traj(mplan, traj_simple, dQ_ref=0.01):
+    res = True
+    for from_Q, to_Q in zip(traj_simple[:-1], traj_simple[1:]):
+        traj_div =subdivide_traj(from_Q, to_Q, dQ_ref=dQ_ref)
+        res = res and mplan.validate_trajectory(traj_div)
+    return res
+
+def recursive_shortcut(mplan, traj_simple):
+    traj_len = len(traj_simple)
+    if traj_len > 2:
+        traj_test = traj_simple[range(2, traj_len)]
+        traj_conseq = recursive_shortcut(mplan, traj_test)
+        traj_skip = np.concatenate([traj_simple[:1], traj_conseq], axis=0)
+        traj_full = np.concatenate([traj_simple[:2], traj_conseq], axis=0)
+        if validate_simple_traj(mplan, traj_skip):
+            return traj_skip
+        else:
+            return traj_full
+    return traj_simple
+
+def recursive_shortcut_snode_schedule(pscene, mplan, snode_schedule_simple):
+    snode_schedule_opt = [snode_schedule_simple[0].copy(pscene)]
+    for i_s, (snode_pre, snode) in enumerate(zip(snode_schedule_simple[:-1], snode_schedule_simple[1:])):
+        from_state = snode_pre.state
+        to_state = snode.state
+        traj = snode.traj
+        if pscene.is_constrained_transition(from_state, to_state, check_available=False):
+            print("{} connection {}-{} : skip constrained".format(i_s, snode_pre.idx, snode.idx))
+            snode_new = snode.copy(pscene)
+            snode_schedule_opt.append(snode_new)
+            continue
+        pscene.set_object_state(from_state)
+        traj_simple = simplify_traj(traj, step_fractions=[0, 1])
+        traj_short = recursive_shortcut(mplan, traj_simple)
+        print("{} connection {}-{} : {} -> {}".format( i_s,
+            snode_pre.idx, snode.idx, len(traj_simple), len(traj_short)))
+        snode_new = snode.copy(pscene)
+        snode_new.set_traj(traj_short)
+        snode_schedule_opt.append(snode_new)
+    return snode_schedule_opt
+
