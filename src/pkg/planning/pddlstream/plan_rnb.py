@@ -43,9 +43,9 @@ def pddlstream_from_problem_rnb(pscene, robot, body_names, Q_init, goal_pairs=[]
     assert tool_name is not None, "tool_name should be passed to pddlstream_from_problem"
     assert mplan is not None, "mplan should be passed to pddlstream_from_problem"
 
-    if len(checkers_ik)==0 and len(mplan.motion_filters)==0:
-        print("No predictors are assigned. Automatically set TIMED_COMPLETE=False")
-        TIMED_COMPLETE = False
+    # if len(checkers_ik)==0 and len(mplan.motion_filters)==0:
+    #     print("No predictors are assigned. Automatically set TIMED_COMPLETE=False")
+    #     TIMED_COMPLETE = False
 
     if TIMED_COMPLETE:
         domain_pddl = read(get_file_path(__file__, 'domain/domain_timed.pddl'))
@@ -133,7 +133,7 @@ def pddlstream_from_problem_rnb(pscene, robot, body_names, Q_init, goal_pairs=[]
     }
 
     if TIMED_COMPLETE:
-        stream_map.update({'stream-time': from_gen_fn(get_time_gen())})
+        stream_map.update({'stream-time': from_gen_fn(get_time_gen(timeout))})
 
     reset_checker_cache()
     return PDDLProblem(domain_pddl, constant_map, stream_pddl, stream_map, init, goal), ik_fun
@@ -158,7 +158,8 @@ def solve_in_pddlstream(pscene, mplan, ROBOT_NAME, TOOL_NAME, HOME_POSE, goal_pa
     gscene = pscene.gscene
 #     checkers_ik = [checker for checker in mplan.motion_filters if checker.BEFORE_IK]
     checkers_ik = [checker for checker in mplan.motion_filters]
-    mplan.motion_filters = [checker for checker in mplan.motion_filters if not checker.BEFORE_IK]
+    # mplan.motion_filters = [checker for checker in mplan.motion_filters if not checker.BEFORE_IK]
+    mplan.motion_filters = []
     checkers_ik_names = [checker.__class__.__name__ for checker in checkers_ik]
     checkers_mp_names = [checker.__class__.__name__ for checker in mplan.motion_filters]
     connect_notebook(use_gui=use_pybullet_gui)

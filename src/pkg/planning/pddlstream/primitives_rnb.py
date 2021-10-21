@@ -263,15 +263,20 @@ def get_free_motion_gen_rnb(mplan, body_subject_map, robot, tool, tool_link, app
     time_dict = {}
     returneds = set()
     def fn(conf1, conf2, time_=None, fluents=[]):
-        tkey = (conf1.index, conf2.index) + tuple([(fl[0], fl[1], fl[2].index) for fl in fluents])
-        if tkey in returneds:
-            return None
 
         skip_feas = False
         if time_ is not None:
+            tkey = (conf1.index, conf2.index)\
+                   + tuple([(fl[0], fl[1], fl[2].index) for fl in fluents])
+            if tkey in returneds:
+                return None
             firstcall = tkey not in time_dict
-            if not firstcall:
+            if firstcall:
+                time_dict[tkey] = time.time()
+            else:
                 skip_feas = time_.value - time_dict[tkey] > POSTPONE
+        if len(mplan.motion_filters) == 0:
+            skip_feas = True
 
         if (time_ is None # not timed domain (do feas-motion)
                 or firstcall # first call in timed domain (do feas-motion)
@@ -285,8 +290,9 @@ def get_free_motion_gen_rnb(mplan, body_subject_map, robot, tool, tool_link, app
                                          show_state=show_state, approach_vec=approach_vec,
                                          skip_feas=skip_feas)
 
-                if succ or skip_feas:
-                    returneds.add(tkey) # success returned on first call or postpone time passed - mark finished case
+                if time_ is not None:
+                    if succ or skip_feas:
+                        returneds.add(tkey) # success returned on first call or postpone time passed - mark finished case
                 if not succ:
                     if DEBUG_FAILURE: wait_if_gui('Free motion failed')
                     return None
@@ -302,15 +308,20 @@ def get_holding_motion_gen_rnb(mplan, body_subject_map, robot, tool, tool_link, 
     time_dict = {}
     returneds = set()
     def fn(conf1, conf2, body, grasp, time_=None, fluents=[]):
-        tkey = (conf1.index, conf2.index, body, grasp.index) + tuple([(fl[0], fl[1], fl[2].index) for fl in fluents])
-        if tkey in returneds:
-            return None
 
         skip_feas = False
         if time_ is not None:
+            tkey = (conf1.index, conf2.index, body, grasp.index)\
+                   + tuple([(fl[0], fl[1], fl[2].index) for fl in fluents])
+            if tkey in returneds:
+                return None
             firstcall = tkey not in time_dict
-            if not firstcall:
+            if firstcall:
+                time_dict[tkey] = time.time()
+            else:
                 skip_feas = time_.value - time_dict[tkey] > POSTPONE
+        if len(mplan.motion_filters) == 0:
+            skip_feas = True
 
         if (time_ is None # not timed domain (do feas-motion)
                 or firstcall # first call in timed domain (do feas-motion)
@@ -324,8 +335,9 @@ def get_holding_motion_gen_rnb(mplan, body_subject_map, robot, tool, tool_link, 
                                                show_state=show_state, approach_vec=approach_vec,
                                                skip_feas=skip_feas)
 
-                if succ or skip_feas:
-                    returneds.add(tkey) # success returned on first call or postpone time passed - mark finished case
+                if time_ is not None:
+                    if succ or skip_feas:
+                        returneds.add(tkey) # success returned on first call or postpone time passed - mark finished case
                 if not succ:
                     if DEBUG_FAILURE: wait_if_gui('Holding motion failed')
                     return None
@@ -505,9 +517,10 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
         glog["ik_fail_args"] = []
     def fn(body, pose, grasp, time_=None):
         with GlobalTimer.instance().block("ik_fn"):
-            tkey = (body, pose.index, grasp.index)
-            if tkey in returneds:
-                return None
+            if time_ is not None:
+                tkey = (body, pose.index, grasp.index)
+                if tkey in returneds:
+                    return None
 
             if show_state:
                 pscene.gscene.show_pose(dict2list(home_dict, pscene.gscene.joint_names))
@@ -520,7 +533,8 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
 
                 if not feas and not DEBUG_MODE_PRIM_RNB:
                     fn.checkout_count += 1
-                    time_dict[tkey] = time.time()
+                    if time_ is not None:
+                        time_dict[tkey] = time.time()
                     return None
 
                 if GLOBAL_LOG_ENABLED:
@@ -528,7 +542,8 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                     glog['ik_feas_reason'].append(run_checkers.reason)
             elif time_.value-time_dict[tkey] < POSTPONE:
                 return None
-            returneds.add(tkey)
+            if time_ is not None:
+                returneds.add(tkey)
 
             obstacles = [body] + fixed
             set_pose(body, pose.pose)
