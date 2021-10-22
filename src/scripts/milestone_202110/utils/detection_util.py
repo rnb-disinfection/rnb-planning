@@ -643,6 +643,9 @@ def reprocess_bed_detection(T_sc, bed_dims, floor_margin, T_toff_bed, visualize=
                                                                                                   cam_height, cam_fx,
                                                                                                   cam_fy,
                                                                                                   cam_ppx, cam_ppy))
+    # Remove other noise
+    cl, ind = pcd_input.remove_radius_outlier(nb_points=20, radius=0.07)
+    pcd_input = cl
 
     # Remove background based on bed_vis coord
     points = np.asarray(pcd_input.points)
