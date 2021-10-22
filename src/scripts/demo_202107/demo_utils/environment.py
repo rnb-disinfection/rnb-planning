@@ -28,7 +28,7 @@ def add_cam(gscene, tool_link="indy0_tcp"):
                        color=(0.0, 1, 0, 0.3), display=True, fixed=True, collision=True)
 
     viewpoint = gscene.create_safe(gtype=GEOTYPE.SPHERE, name="viewpoint", link_name=tool_link,
-                                   dims=(0.01, 0.01, 0.01), center=(0, 0, 0), rpy=(0, 0, -np.pi / 2),
+                                   dims=(0.01, 0.01, 0.01), center=(-0.013, 0, 0), rpy=(0, 0, -np.pi / 2),
                                    color=(1, 0, 0, 0.3), display=True, fixed=True, collision=False, parent="cam")
 
     gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="body", link_name=tool_link,
@@ -107,6 +107,11 @@ def add_bed(gscene, bed_center, bed_rpy, COLOR_BED_COL, add_back_wall=True):
                            color=COLOR_BED_COL, fixed=True, collision=True, parent="bed_vis")
     return bed_mat
 
+def move_bed(gscene, bed_center, bed_rpy):
+    bed_vis = gscene.NAME_DICT["bed_vis"]
+    bed_vis.set_offset_tf(center=bed_center, orientation_mat=Rot_rpy(bed_rpy))
+    gscene.update_markers_all()
+
 
 def add_closet(gscene, closet_center, closet_rpy, COLOR_CLOSET_COL = (0,1,0,0.3)):    
     closet_vis = gscene.create_safe(GEOTYPE.MESH, "closet_vis", link_name="base_link",
@@ -132,6 +137,10 @@ def add_closet(gscene, closet_center, closet_rpy, COLOR_CLOSET_COL = (0,1,0,0.3)
                                  color=COLOR_CLOSET_COL, fixed=True, collision=True, parent="closet_vis")
     return closet_leftup, closet_rightup, closet_down
 
+def move_closet(gscene, closet_center, closet_rpy):
+    closet_vis = gscene.NAME_DICT["closet_vis"]
+    closet_vis.set_offset_tf(center=closet_center, orientation_mat=Rot_rpy(closet_rpy))
+    gscene.update_markers_all()
 
 ##
 # @param Rtw_ref reference orientation matrix for waypoints in track coordinates

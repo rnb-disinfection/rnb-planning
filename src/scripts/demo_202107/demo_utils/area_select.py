@@ -41,7 +41,7 @@ class SweepDirections(Enum):
     
     @classmethod
     def check_fourway(cls, tip_dir):
-        return tip_dir is None or tip_dir==cls.front.name
+        return tip_dir is None or tip_dir==cls.front or tip_dir==cls.front.name
 
 from pkg.planning.constraint.constraint_common import BindingTransform
 

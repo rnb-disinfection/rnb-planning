@@ -199,7 +199,8 @@ def compute_ICP(model_mesh, pcd, initial_guess, ratio, thres, visualize=False):
 #     return ICP_result
 
 
-def compute_close_ICP(model_mesh, pcd, initial_guess, thres, visualize=False):
+def compute_close_ICP(model_mesh, pcd, initial_guess, thres, visualize=False,
+                      relative_fitness=1e-13, relative_rmse=1e-13, max_iteration=600000):
     # Compute ICP to align model(source) to obtained point clouds(target)
     target = copy.deepcopy(pcd)
     model_pcd = model_mesh.sample_points_uniformly(number_of_points=int(len(np.array(target.points)) * 0.3))
@@ -212,9 +213,10 @@ def compute_close_ICP(model_mesh, pcd, initial_guess, thres, visualize=False):
     threshold = thres
     reg_p2p = o3d.registration.registration_icp(source, target, threshold, trans_init,
                                                 o3d.registration.TransformationEstimationPointToPoint(),
-                                                o3d.registration.ICPConvergenceCriteria(relative_fitness=1e-13,
-                                                                                        relative_rmse=1e-13,
-                                                                                        max_iteration=600000))
+                                                o3d.registration.ICPConvergenceCriteria(relative_fitness=relative_fitness,
+                                                                                        relative_rmse=relative_rmse,
+                                                                                        max_iteration=max_iteration))
+    compute_close_ICP.reg_p2p = reg_p2p
     print(reg_p2p)
     print("Transformation is:")
     print(reg_p2p.transformation)
@@ -445,8 +447,9 @@ def save_intrinsic_as_json(filename):
             indent=8)
 
 
+
 def process_top_table_detection(color_path, depth_path, T_sc, bed_dims, z_ceiling = 2.3,
-                                initial_offset=[0.28,1.1,0.6], floor_margin=0.1, visualize=False):
+                                initial_offset=[0.28,1.1,0.6], floor_margin=0.1, bed_margin=0.1, visualize=False):
 
     # Load CAD model of top table
     top_table_model = o3d.io.read_triangle_mesh(MODEL_DIR + '/top_table/top_table.STL')
@@ -470,6 +473,9 @@ def process_top_table_detection(color_path, depth_path, T_sc, bed_dims, z_ceilin
                                                                                                cam_fy,
                                                                                                cam_ppx, cam_ppy))
 
+    pcd_top_table = pcd_top_table.uniform_down_sample(every_k_points=5)
+    # pcd_top_table = remove_background(pcd_top_table, thres=0.04)
+
     if visualize:
         vis_pointcloud(pcd_top_table)
 
@@ -479,12 +485,12 @@ def process_top_table_detection(color_path, depth_path, T_sc, bed_dims, z_ceilin
     points_transformed_np = np.matmul(T_sc[:3,:3], points.transpose()).transpose() + T_sc[:3,3]
 
     # Remove background based on bed_vis coord
-    # out_x = np.where(np.abs(points_transformed_np[:,0])>bed_dims[0]/2)[0]
+    out_x = np.where(np.abs(points_transformed_np[:,0])>bed_dims[0]/2)[0]
     out_x = np.where(points_transformed_np[:,0]>bed_dims[0]/2)[0]
-    out_x2 = np.where(points_transformed_np[:,0]<-bed_dims[0]/1.3)[0]
-    # out_y = np.where(np.abs(points_transformed_np[:,1])>bed_dims[1]/2+bed_dims[1]*1.5)[0]
-    out_y = np.where(np.abs(points_transformed_np[:,1])>bed_dims[1]/2+bed_dims[1]*1.7)[0]
-    in_y = np.where(np.abs(points_transformed_np[:,1])<bed_dims[1]/2+0.4)[0]
+    out_x2 = np.where(points_transformed_np[:,0]<-bed_dims[0]/2)[0]
+    out_y = np.where(np.abs(points_transformed_np[:,1])>bed_dims[1]/2+bed_dims[1]*1.5)[0]
+    # out_y = np.where(np.abs(points_transformed_np[:,1])>bed_dims[1]/2+bed_dims[1]*1.7)[0]
+    in_y = np.where(np.abs(points_transformed_np[:,1])<bed_dims[1]/2+bed_margin)[0]
     out_z = np.where(points_transformed_np[:,2]<floor_margin)[0]
     out_z2 = np.where(points_transformed_np[:,2]>z_ceiling)[0]
     out_all = sorted(set(out_x).union(out_x2).union(out_y).union(in_y).union(out_z).union(out_z2))
@@ -502,7 +508,7 @@ def process_top_table_detection(color_path, depth_path, T_sc, bed_dims, z_ceilin
     pcd_top_table.points = o3d.utility.Vector3dVector(points_recovered)
 
     # Remove other noise
-    cl, ind = pcd_top_table.remove_radius_outlier(nb_points=20, radius=0.05)
+    cl, ind = pcd_top_table.remove_radius_outlier(nb_points=20, radius=0.06)
     pcd_top_table = cl
 
     # pcd_top_table = pcd_top_table.uniform_down_sample(every_k_points=5)
@@ -551,9 +557,9 @@ def process_top_table_detection(color_path, depth_path, T_sc, bed_dims, z_ceilin
     #     initial_guess[:3,:3] = np.matmul(Rot_axis(2, np.pi), R_tmp)
     #
     # initial_guess = result_fgr.transformation
-    # if visualize:
-    draw_registration_result(source_down, target_down,
-                                 initial_guess)
+    if visualize:
+        draw_registration_result(source_down, target_down,
+                                     initial_guess)
     # if visualize:
     #     draw_registration_result(source_down, target_down, T_cc)
 
@@ -627,7 +633,8 @@ def process_pillow_detection(T_sc, bed_dims, pcd_input, floor_margin=0.1, visual
 
 
 
-def reprocess_bed_detection(T_sc, bed_dims, floor_margin, T_toff_bed, visualize=False):
+def reprocess_bed_detection(T_sc, bed_dims, floor_margin, T_toff_bed, visualize=False,
+                            relative_fitness=1e-13, relative_rmse=1e-13, max_iteration=600000):
     # Load CAD model of bed
     bed_model = o3d.io.read_triangle_mesh(MODEL_DIR + '/bed/bed.STL')
     bed_model.vertices = o3d.utility.Vector3dVector(
@@ -644,7 +651,7 @@ def reprocess_bed_detection(T_sc, bed_dims, floor_margin, T_toff_bed, visualize=
                                                                                                   cam_fy,
                                                                                                   cam_ppx, cam_ppy))
     # Remove other noise
-    cl, ind = pcd_input.remove_radius_outlier(nb_points=20, radius=0.07)
+    cl, ind = pcd_input.remove_radius_outlier(nb_points=20, radius=0.01)
     pcd_input = cl
 
     # Remove background based on bed_vis coord
@@ -667,14 +674,16 @@ def reprocess_bed_detection(T_sc, bed_dims, floor_margin, T_toff_bed, visualize=
 
 
     # bed_initial = np.matmul(T_cs, SE3_inv(T_toff_bed))
-    bed_initial = np.matmulT_cs, (SE3_inv(T_toff_bed))
+    bed_initial = np.matmul(T_cs, SE3_inv(T_toff_bed))
 
     voxel_size = 0.03
     source, target, source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(voxel_size, bed_model,
                                                                                          pcd_bed_close)
     if visualize:
         draw_registration_result(source_down, target_down, bed_initial)
-    ICP_result= compute_close_ICP(bed_model, pcd_bed_close, bed_initial, thres=0.08, visualize=visualize)
+    ICP_result= compute_close_ICP(bed_model, pcd_bed_close, bed_initial, thres=0.08, visualize=visualize,
+                                  relative_fitness=relative_fitness, relative_rmse=relative_rmse,
+                                  max_iteration=max_iteration)
 
     return ICP_result
 

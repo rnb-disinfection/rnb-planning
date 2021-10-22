@@ -30,12 +30,15 @@
 				<cylinder length="0.03" radius="0.06"/>
 			</geometry>
 		</collision>
-		<collision>
-			<origin xyz="0.525   0  0.525" rpy="0.  0.  0."/>
+
+	<!--<collision>
+			<origin xyz="0.625   0  0.525" rpy="0.  0.  0."/>
 			<geometry>
-				<box size="0.25 1.05 0.25"/>
+				<box size="0.05 1.05 0.1"/>
 			</geometry>
 		</collision>
+
+	-->
 		<collision>
 			<origin xyz="0   0  0.220" rpy="0.  0.  0."/>
 			<geometry>
