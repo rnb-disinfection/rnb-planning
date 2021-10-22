@@ -99,7 +99,7 @@ def preprocess_point_cloud(pcd, voxel_size):
 
 
 def prepare_dataset(voxel_size, model_mesh, target):
-    source = model_mesh.sample_points_uniformly(number_of_points=int(len(np.array(target.points)) * 0.9))
+    source = model_mesh.sample_points_uniformly(number_of_points=int(len(np.array(target.points)) * 0.6))
 
     print(":: Load two point clouds and disturb initial pose.")
     trans_init = np.identity(4)
@@ -115,13 +115,13 @@ def prepare_dataset(voxel_size, model_mesh, target):
 
 def execute_global_registration(source_down, target_down, source_fpfh,
                                 target_fpfh, voxel_size):
-    distance_threshold = voxel_size * 1.5
+    distance_threshold = voxel_size * 1.4
     print(":: RANSAC registration on downsampled point clouds.")
     print("   Since the downsampling voxel size is %.3f," % voxel_size)
     print("   we use a liberal distance threshold %.3f." % distance_threshold)
     result = o3d.registration.registration_ransac_based_on_feature_matching(
         source_down, target_down, source_fpfh, target_fpfh, distance_threshold,
-        o3d.registration.TransformationEstimationPointToPoint(True), 3, [
+        o3d.registration.TransformationEstimationPointToPoint(False), 3, [
             o3d.registration.CorrespondenceCheckerBasedOnEdgeLength(0.9),
             o3d.registration.CorrespondenceCheckerBasedOnDistance(
                 distance_threshold)
@@ -130,10 +130,22 @@ def execute_global_registration(source_down, target_down, source_fpfh,
 
 
 
-def compute_ICP(model_mesh, pcd, initial_guess, thres, visualize=False):
+def execute_fast_global_registration(source_down, target_down, source_fpfh,
+                                     target_fpfh, voxel_size):
+    distance_threshold = voxel_size * 0.5
+    print(":: Apply fast global registration with distance threshold %.3f" \
+            % distance_threshold)
+    result = o3d.registration.registration_fast_based_on_feature_matching(
+        source_down, target_down, source_fpfh, target_fpfh,
+        o3d.registration.FastGlobalRegistrationOption(
+            maximum_correspondence_distance=distance_threshold))
+    return result
+
+
+def compute_ICP(model_mesh, pcd, initial_guess, ratio, thres, visualize=False):
     # Compute ICP to align model(source) to obtained point clouds(target)
     target = copy.deepcopy(pcd)
-    model_pcd = model_mesh.sample_points_uniformly(number_of_points=int(len(np.array(target.points)) * 0.9))
+    model_pcd = model_mesh.sample_points_uniformly(number_of_points=int(len(np.array(target.points)) * ratio))
     source = copy.deepcopy(model_pcd)
 
     # Guess Initial Transformation
@@ -143,8 +155,8 @@ def compute_ICP(model_mesh, pcd, initial_guess, thres, visualize=False):
     threshold = thres
     reg_p2p = o3d.registration.registration_icp(source, target, threshold, trans_init,
                                                 o3d.registration.TransformationEstimationPointToPoint(),
-                                                o3d.registration.ICPConvergenceCriteria(relative_fitness=1e-9,
-                                                                                        relative_rmse=1e-9,
+                                                o3d.registration.ICPConvergenceCriteria(relative_fitness=1e-11,
+                                                                                        relative_rmse=1e-11,
                                                                                         max_iteration=500000))
     print(reg_p2p)
     print("Transformation is:")
@@ -156,10 +168,41 @@ def compute_ICP(model_mesh, pcd, initial_guess, thres, visualize=False):
     return ICP_result
 
 
+
+# def compute_ICP_plane(model_mesh, pcd, initial_guess, ratio, thres, visualize=False):
+#     # Compute ICP to align model(source) to obtained point clouds(target)
+#     target = copy.deepcopy(pcd)
+#     model_pcd = model_mesh.sample_points_uniformly(number_of_points=int(len(np.array(target.points)) * ratio))
+#     source = copy.deepcopy(model_pcd)
+#
+#     radius_normal = 0.05
+#     target.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=30))
+#     source.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=30))
+#
+#     # Guess Initial Transformation
+#     trans_init = initial_guess
+#
+#     print("Apply point-to-plane ICP")
+#     threshold = thres
+#     reg_p2p = o3d.registration.registration_icp(source, target, threshold, trans_init,
+#                                                 o3d.registration.TransformationEstimationPointToPlane(),
+#                                                 o3d.registration.ICPConvergenceCriteria(relative_fitness=0,
+#                                                                                         relative_rmse=0,
+#                                                                                         max_iteration=2000))
+#     print(reg_p2p)
+#     print("Transformation is:")
+#     print(reg_p2p.transformation)
+#     if visualize:
+#         draw_registration_result(source, target, reg_p2p.transformation)
+#     ICP_result = reg_p2p.transformation
+#
+#     return ICP_result
+
+
 def compute_close_ICP(model_mesh, pcd, initial_guess, thres, visualize=False):
     # Compute ICP to align model(source) to obtained point clouds(target)
     target = copy.deepcopy(pcd)
-    model_pcd = model_mesh.sample_points_uniformly(number_of_points=int(len(np.array(target.points)) * 0.5))
+    model_pcd = model_mesh.sample_points_uniformly(number_of_points=int(len(np.array(target.points)) * 0.3))
     source = copy.deepcopy(model_pcd)
 
     # Guess Initial Transformation
@@ -169,9 +212,9 @@ def compute_close_ICP(model_mesh, pcd, initial_guess, thres, visualize=False):
     threshold = thres
     reg_p2p = o3d.registration.registration_icp(source, target, threshold, trans_init,
                                                 o3d.registration.TransformationEstimationPointToPoint(),
-                                                o3d.registration.ICPConvergenceCriteria(relative_fitness=1e-9,
-                                                                                        relative_rmse=1e-9,
-                                                                                        max_iteration=500000))
+                                                o3d.registration.ICPConvergenceCriteria(relative_fitness=1e-13,
+                                                                                        relative_rmse=1e-13,
+                                                                                        max_iteration=600000))
     print(reg_p2p)
     print("Transformation is:")
     print(reg_p2p.transformation)
@@ -194,18 +237,19 @@ def process_bed_detection(visualize=False):
     color = o3d.io.read_image(CROP_DIR + '/bed_crop.jpg')
     depth = o3d.io.read_image(CROP_DIR + '/bed_crop.png')
     rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(color, depth, depth_scale = 1/__d_scale,
-                                                        depth_trunc = 10.0, convert_rgb_to_intensity = False)
+                                                        depth_trunc = 8.0, convert_rgb_to_intensity = False)
     pcd_bed = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image,
                                                                 o3d.camera.PinholeCameraIntrinsic(cam_width,
                                                                                                   cam_height, cam_fx,
                                                                                                   cam_fy,
                                                                                                   cam_ppx, cam_ppy))
-    # cl, ind = pcd_bed.remove_radius_outlier(nb_points=20, radius=0.07)
-    # pcd_bed = cl
+    # Remove other noise
+    cl, ind = pcd_bed.remove_radius_outlier(nb_points=20, radius=0.07)
+    pcd_bed = cl
     if visualize:
         o3d.visualization.draw_geometries([pcd_bed])
 
-    voxel_size = 0.05
+    voxel_size = 0.04
     source, target, source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(voxel_size, bed_model, pcd_bed)
 
     result_ransac = execute_global_registration(source_down, target_down,
@@ -217,7 +261,7 @@ def process_bed_detection(visualize=False):
         draw_registration_result(source_down, target_down,
                                  result_ransac.transformation)
 
-    ICP_result= compute_ICP(bed_model, pcd_bed, result_ransac.transformation, thres=0.07, visualize=visualize)
+    ICP_result= compute_ICP(bed_model, pcd_bed, result_ransac.transformation , ratio=0.6, thres=0.05, visualize=visualize)
 
     return ICP_result
 
@@ -236,6 +280,20 @@ def extract_outliers(pcd_points, inliers):
     return p_outliers
 
 
+def get_inliers(pcd_points, inliers):
+    temp = []
+
+    for i in range(len(pcd_points)):
+        idx = i
+        if idx in inliers:
+            temp.append(pcd_points[idx])
+
+    p_inliers = np.zeros((len(temp), 3))
+    for i in range(len(temp)):
+        p_inliers[i] = temp[i]
+    return p_inliers
+
+
 def remove_background(pcd_points, thres, visualize=False):
     plane_model, inliers = pcd_points.segment_plane(distance_threshold=thres,
                                                    ransac_n=5,
@@ -246,6 +304,19 @@ def remove_background(pcd_points, thres, visualize=False):
         vis_pointcloud(pcd_outliers)
 
     return pcd_outliers
+
+
+def get_plane(pcd_points, thres, visualize=False):
+    plane_model, inliers = pcd_points.segment_plane(distance_threshold=thres,
+                                                   ransac_n=5,
+                                                   num_iterations=1400)
+
+    pcd_inliers = o3d.geometry.PointCloud()
+    pcd_inliers.points = o3d.utility.Vector3dVector(get_inliers(np.asarray(pcd_points.points), inliers))
+    if visualize:
+        vis_pointcloud(pcd_inliers)
+
+    return pcd_inliers
 
 
 def remove_bed(pcd_original, pcd_bed):
@@ -265,7 +336,7 @@ def check_location_top_table(color_path, depth_path, T_bc, T_bo, bed_dims, floor
     color = o3d.io.read_image(color_path)
     depth = o3d.io.read_image(depth_path)
     rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(color, depth, depth_scale=1 / __d_scale,
-                                                            depth_trunc=10.0, convert_rgb_to_intensity = False)
+                                                            depth_trunc=8.0, convert_rgb_to_intensity = False)
     pcd_total = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image,
                                                                 o3d.camera.PinholeCameraIntrinsic(cam_width,
                                                                                                   cam_height, cam_fx,
@@ -280,7 +351,7 @@ def check_location_top_table(color_path, depth_path, T_bc, T_bo, bed_dims, floor
     color = o3d.io.read_image(CROP_DIR + '/bed_crop.jpg')
     depth = o3d.io.read_image(CROP_DIR + '/bed_crop.png')
     rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(color, depth, depth_scale = 1/__d_scale,
-                                                                depth_trunc = 10.0, convert_rgb_to_intensity = False)
+                                                                depth_trunc = 8.0, convert_rgb_to_intensity = False)
     pcd_bed = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image,
                                                                 o3d.camera.PinholeCameraIntrinsic(cam_width,
                                                                                                   cam_height, cam_fx,
@@ -375,7 +446,7 @@ def save_intrinsic_as_json(filename):
 
 
 def process_top_table_detection(color_path, depth_path, T_sc, bed_dims, z_ceiling = 2.3,
-                                initial_offset=[0.3,1.1,0.6], floor_margin=0.1, visualize=False):
+                                initial_offset=[0.28,1.1,0.6], floor_margin=0.1, visualize=False):
 
     # Load CAD model of top table
     top_table_model = o3d.io.read_triangle_mesh(MODEL_DIR + '/top_table/top_table.STL')
@@ -392,7 +463,7 @@ def process_top_table_detection(color_path, depth_path, T_sc, bed_dims, z_ceilin
     depth = o3d.io.read_image(depth_path)
 
     rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(color, depth, depth_scale=1 / __d_scale,
-                                                                    depth_trunc=10.0, convert_rgb_to_intensity=False)
+                                                                    depth_trunc=8.0, convert_rgb_to_intensity=False)
     pcd_top_table = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image,
                                                              o3d.camera.PinholeCameraIntrinsic(cam_width,
                                                                                                cam_height, cam_fx,
@@ -400,19 +471,23 @@ def process_top_table_detection(color_path, depth_path, T_sc, bed_dims, z_ceilin
                                                                                                cam_ppx, cam_ppy))
 
     if visualize:
-        o3d.visualization.draw_geometries([pcd_top_table])
+        vis_pointcloud(pcd_top_table)
+
 
     # Transform points w.r.t bed_vis coord
     points = np.asarray(pcd_top_table.points)
     points_transformed_np = np.matmul(T_sc[:3,:3], points.transpose()).transpose() + T_sc[:3,3]
 
     # Remove background based on bed_vis coord
-    out_x = np.where(np.abs(points_transformed_np[:,0])>bed_dims[0]/2)[0]
-    out_y = np.where(np.abs(points_transformed_np[:,1])>bed_dims[1]/2+bed_dims[1]*1.5)[0]
-    in_y = np.where(np.abs(points_transformed_np[:,1])<bed_dims[1]/2+0.3)[0]
+    # out_x = np.where(np.abs(points_transformed_np[:,0])>bed_dims[0]/2)[0]
+    out_x = np.where(points_transformed_np[:,0]>bed_dims[0]/2)[0]
+    out_x2 = np.where(points_transformed_np[:,0]<-bed_dims[0]/1.3)[0]
+    # out_y = np.where(np.abs(points_transformed_np[:,1])>bed_dims[1]/2+bed_dims[1]*1.5)[0]
+    out_y = np.where(np.abs(points_transformed_np[:,1])>bed_dims[1]/2+bed_dims[1]*1.7)[0]
+    in_y = np.where(np.abs(points_transformed_np[:,1])<bed_dims[1]/2+0.4)[0]
     out_z = np.where(points_transformed_np[:,2]<floor_margin)[0]
     out_z2 = np.where(points_transformed_np[:,2]>z_ceiling)[0]
-    out_all = sorted(set(out_x).union(out_y).union(out_z).union(in_y).union(out_z2))
+    out_all = sorted(set(out_x).union(out_x2).union(out_y).union(in_y).union(out_z).union(out_z2))
     in_all = sorted(set(np.arange(len(points_transformed_np))) - set(out_all))
     points_transformed = points_transformed_np[in_all, :]
 
@@ -426,20 +501,63 @@ def process_top_table_detection(color_path, depth_path, T_sc, bed_dims, z_ceilin
     pcd_top_table = o3d.geometry.PointCloud()
     pcd_top_table.points = o3d.utility.Vector3dVector(points_recovered)
 
+    # Remove other noise
+    cl, ind = pcd_top_table.remove_radius_outlier(nb_points=20, radius=0.05)
+    pcd_top_table = cl
+
+    # pcd_top_table = pcd_top_table.uniform_down_sample(every_k_points=5)
+    # radius_normal = 0.07
+    # pcd_top_table_plane = get_plane(pcd_top_table, 0.07, visualize=visualize)
+    # pcd_top_table_plane.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=30))
+    # n = np.asarray(pcd_top_table_plane.normals)
+    # normal_vec = np.sum(n, axis=0) / np.linalg.norm(np.sum(n, axis=0))
+
     # Initial guess of ICP
+    # q = np.arccos(np.dot(np.array([0,0,1]), normal_vec))
+    # R_cc = Rot_axis_series([2, 3], [-np.pi/2, np.pi])
     R_cc = Rot_axis_series([2, 3], [-np.pi/2, np.pi])
     P = np.median(points_recovered, axis=0)
     P += initial_offset
     T_cc = SE3(R_cc, P)
+    initial_guess = T_cc
 
 
-    voxel_size = 0.04
+    voxel_size = 0.03
     source, target, source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(voxel_size, top_table_model, pcd_top_table)
-    if visualize:
-        draw_registration_result(source_down, target_down, T_cc)
 
-    ICP_result = compute_ICP(top_table_model, pcd_top_table, T_cc, thres=0.06, visualize=visualize)
+    # result_fgr = execute_fast_global_registration(source_down, target_down,
+    #                                  source_fpfh, target_fpfh,
+    #                                  voxel_size)
 
+    # result_ransac = execute_global_registration(source_down, target_down,
+    #                                             source_fpfh, target_fpfh,
+    #                                             voxel_size)
+    # if visualize:
+    #     draw_registration_result(source_down, target_down,
+    #                              result_ransac.transformation)
+    #
+    # initial_guess = np.identity(4)
+    # initial_guess[:3,:3] = result_ransac.transformation[:3,:3]
+    # initial_guess[:3,3] = result_ransac.transformation[:3,3]
+
+    # q = np.arccos(np.dot(result_ransac.transformation[:3,0], normal_vec))
+    # print(q)
+    # initial_guess[:3,:3] = np.matmul(result_ransac.transformation[:3,:3], Rot_axis(2, q))
+
+    # if np.abs(np.dot(result_ransac.transformation[:3,2], np.array([0,0,1]))) > 0.5:
+    #     initial_guess[:3,:3] = np.matmul(result_ransac.transformation[:3,:3], Rot_axis(2, np.pi/2))
+    # if np.dot(result_ransac.transformation[:3,0], np.array([0,0,1])) > 0:
+    #     R_tmp = initial_guess[:3,:3]
+    #     initial_guess[:3,:3] = np.matmul(Rot_axis(2, np.pi), R_tmp)
+    #
+    # initial_guess = result_fgr.transformation
+    # if visualize:
+    draw_registration_result(source_down, target_down,
+                                 initial_guess)
+    # if visualize:
+    #     draw_registration_result(source_down, target_down, T_cc)
+
+    ICP_result = compute_ICP(top_table_model, pcd_top_table, initial_guess,  ratio=0.5, thres=0.1, visualize=visualize)
     return ICP_result
 
 
@@ -458,7 +576,7 @@ def process_pillow_detection(T_sc, bed_dims, pcd_input, floor_margin=0.1, visual
     # color = o3d.io.read_image(SAVE_DIR + '/bed_close.jpg')
     # depth = o3d.io.read_image(SAVE_DIR + '/bed_close.png')
     # rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(color, depth, depth_scale = 1/__d_scale,
-    #                                                             depth_trunc = 10.0, convert_rgb_to_intensity = False)
+    #                                                             depth_trunc = 8.0, convert_rgb_to_intensity = False)
     # pcd_input = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image,
     #                                                             o3d.camera.PinholeCameraIntrinsic(cam_width,
     #                                                                                               cam_height, cam_fx,
@@ -503,7 +621,7 @@ def process_pillow_detection(T_sc, bed_dims, pcd_input, floor_margin=0.1, visual
         draw_registration_result(source_down, target_down,
                                  result_ransac.transformation)
 
-    ICP_result = compute_ICP(pillow_model, pcd_pillow, result_ransac.transformation, thres=0.04, visualize=visualize)
+    ICP_result = compute_ICP(pillow_model, pcd_pillow, result_ransac.transformation, thres=0.07, visualize=visualize)
 
     return ICP_result
 
@@ -519,7 +637,7 @@ def reprocess_bed_detection(T_sc, bed_dims, floor_margin, T_toff_bed, visualize=
     color = o3d.io.read_image(SAVE_DIR + '/bed_close.jpg')
     depth = o3d.io.read_image(SAVE_DIR + '/bed_close.png')
     rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(color, depth, depth_scale = 1/__d_scale,
-                                                                depth_trunc = 10.0, convert_rgb_to_intensity = False)
+                                                                depth_trunc = 5.0, convert_rgb_to_intensity = False)
     pcd_input = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image,
                                                                 o3d.camera.PinholeCameraIntrinsic(cam_width,
                                                                                                   cam_height, cam_fx,
@@ -545,14 +663,15 @@ def reprocess_bed_detection(T_sc, bed_dims, floor_margin, T_toff_bed, visualize=
     pcd_bed_close = make_pcd_np(points_recovered).uniform_down_sample(every_k_points=5)
 
 
-    bed_initial = np.matmul(T_cs, SE3_inv(T_toff_bed))
+    # bed_initial = np.matmul(T_cs, SE3_inv(T_toff_bed))
+    bed_initial = np.matmulT_cs, (SE3_inv(T_toff_bed))
 
-    voxel_size = 0.04
+    voxel_size = 0.03
     source, target, source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(voxel_size, bed_model,
                                                                                          pcd_bed_close)
     if visualize:
         draw_registration_result(source_down, target_down, bed_initial)
-    ICP_result= compute_close_ICP(bed_model, pcd_bed_close, bed_initial, thres=0.01, visualize=visualize)
+    ICP_result= compute_close_ICP(bed_model, pcd_bed_close, bed_initial, thres=0.08, visualize=visualize)
 
     return ICP_result
 
@@ -570,7 +689,7 @@ def reprocess_top_table_detection(T_sc, bed_dims, T_toff_closet, pcd_input,
     # color = o3d.io.read_image(SAVE_DIR + '/top_table_close.jpg')
     # depth = o3d.io.read_image(SAVE_DIR + '/top_table_close.png')
     # rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(color, depth, depth_scale=1 / __d_scale,
-    #                                                                 depth_trunc=10.0, convert_rgb_to_intensity=False)
+    #                                                                 depth_trunc=5.0, convert_rgb_to_intensity=False)
     # pcd_input = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image,
     #                                                          o3d.camera.PinholeCameraIntrinsic(cam_width,
     #                                                                                            cam_height, cam_fx,
@@ -613,12 +732,12 @@ def reprocess_top_table_detection(T_sc, bed_dims, T_toff_closet, pcd_input,
     closet_initial = np.matmul(T_cs, SE3_inv(T_toff_closet))
 
 
-    voxel_size = 0.04
+    voxel_size = 0.03
     source, target, source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(voxel_size, top_table_model, pcd_top_table)
     if visualize:
         draw_registration_result(source_down, target_down, closet_initial)
 
-    ICP_result = compute_close_ICP(top_table_model, pcd_top_table, closet_initial, thres=0.06, visualize=visualize)
+    ICP_result = compute_close_ICP(top_table_model, pcd_top_table, closet_initial, thres=0.08, visualize=visualize)
 
     return ICP_result
 
@@ -640,7 +759,7 @@ def make_pcd_from_rgbd(color_instance, depth_instance):
     depth = o3d.geometry.Image(depth_instance)
 
     rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(color, depth, depth_scale = 1/__d_scale,
-                                                                depth_trunc = 10.0, convert_rgb_to_intensity = False)
+                                                                depth_trunc = 8.0, convert_rgb_to_intensity = False)
     pcd = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image,
                                                                 o3d.camera.PinholeCameraIntrinsic(cam_width,
                                                                                                   cam_height, cam_fx,
