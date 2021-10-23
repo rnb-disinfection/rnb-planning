@@ -82,6 +82,7 @@ class MoveitPlanner(MotionInterface):
         self.enable_dual = enable_dual
         if self.enable_dual:
             self.dual_planner_dict = get_dual_planner(pscene, binder_links)
+        self.debug_iterative_motion = False
 
     ##
     # @brief update changes in geometric scene and load collision boundaries to moveit planner
@@ -254,8 +255,8 @@ class MoveitPlanner(MotionInterface):
                                   from_link=target.geometry.link_name)
                     dT = np.subtract(T_tar_tool[:3, 3], Tcur[:3, 3]) # in target link
                     ref_link = self.chain_dict[group_name]["link_names"][0]
-                    Tref = self.gscene.get_tf(to_link=target.geometry.link_name, from_link=ref_link) # to ref_link
-                    dTref = np.matmul(Tref, dT) # in ref_link
+                    Tref = self.gscene.get_tf(Q=from_Q, to_link=target.geometry.link_name, from_link=ref_link) # to ref_link
+                    dTref = np.matmul(Tref[:3,:3], dT) # in ref_link
                     get_sweep_traj.args = (self, tool.geometry, dTref, from_Q)
                     get_sweep_traj.kwargs = dict(DP=0.01, ERROR_CUT=0.01, SINGULARITY_CUT = 0.01, VERBOSE=verbose,
                                                  ref_link=ref_link)
@@ -263,6 +264,9 @@ class MoveitPlanner(MotionInterface):
                                                          from_Q, DP=0.01, ERROR_CUT=0.01, SINGULARITY_CUT = 0.01,
                                                          VERBOSE=verbose,
                                                          ref_link=ref_link)
+                    if self.debug_iterative_motion:
+                        self.trajectory = trajectory
+                        self.gscene.show_motion(trajectory)
                 else:
                     ################################ Original planner ##############################
                     trajectory, success = planner.plan_constrained_py(
