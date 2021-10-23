@@ -252,13 +252,17 @@ class MoveitPlanner(MotionInterface):
                                          target.geometry.link_name, T_tar_tool)
                     Tcur = get_tf(tool.geometry.link_name, list2dict(from_Q, self.gscene.joint_names), self.gscene.urdf_content,
                                   from_link=target.geometry.link_name)
-                    get_sweep_traj.args = (self, tool.geometry, np.subtract(T_tar_tool[:3, 3], Tcur[:3, 3]), from_Q)
+                    dT = np.subtract(T_tar_tool[:3, 3], Tcur[:3, 3]) # in target link
+                    ref_link = self.chain_dict[group_name]["link_names"][0]
+                    Tref = self.gscene.get_tf(to_link=target.geometry.link_name, from_link=ref_link) # to ref_link
+                    dTref = np.matmul(Tref, dT) # in ref_link
+                    get_sweep_traj.args = (self, tool.geometry, dTref, from_Q)
                     get_sweep_traj.kwargs = dict(DP=0.01, ERROR_CUT=0.01, SINGULARITY_CUT = 0.01, VERBOSE=verbose,
-                                                 ref_link=self.chain_dict[group_name]["link_names"][0])
-                    trajectory, success = get_sweep_traj(self, tool.geometry, np.subtract(T_tar_tool[:3,3], Tcur[:3, 3]),
+                                                 ref_link=ref_link)
+                    trajectory, success = get_sweep_traj(self, tool.geometry, dTref,
                                                          from_Q, DP=0.01, ERROR_CUT=0.01, SINGULARITY_CUT = 0.01,
                                                          VERBOSE=verbose,
-                                                         ref_link=self.chain_dict[group_name]["link_names"][0])
+                                                         ref_link=ref_link)
                 else:
                     ################################ Original planner ##############################
                     trajectory, success = planner.plan_constrained_py(
