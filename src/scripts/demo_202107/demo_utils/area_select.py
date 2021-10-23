@@ -166,13 +166,13 @@ def get_division_dict(surface, brush_face, robot_config, plane_val, tip_dir, TOO
     ## apply median
     sweep_max[:, ax_swp] = moving_median(sweep_max[:, ax_swp])
     sweep_min[:, ax_swp] = moving_median(sweep_min[:, ax_swp])
-
+    
     ## get all sweep points
     swp_points_dict = {0: [], 1: []}
     for ax_swp_s in range(2):
         div_size_swp = rect_div_size[ax_swp_s]
-        div_size_nswp_hf = rect_div_size[(ax_swp_s+1)%2] / 2
-        step_points_dict = defaultdict(dict)
+        div_size_nswp_grid = rect_div_size[(ax_swp_s+1)%2] / 2
+        step_points_dict = defaultdict(lambda: defaultdict(list))
         for step_val, pln_val, min_val_ful, max_val_ful in zip(sweep_min[:, ax_step], sweep_min[:, ax_pln],
                                                    sweep_min[:, ax_swp], sweep_max[:, ax_swp]):
             # div sweep range with grid size = div_size/2
@@ -194,20 +194,22 @@ def get_division_dict(surface, brush_face, robot_config, plane_val, tip_dir, TOO
 
             swp_points = np.zeros((sweep_num, 3))
             swp_points[:, ax_swp] = min_val + np.arange(sweep_num) * div_size_swp
-            lv_stp = int(np.round(step_val/div_size_nswp_hf))
-            lv_pln = int(np.round(pln_val/div_size_nswp_hf))
-            off_vals = tuple(np.divide((step_val-lv_stp*div_size_nswp_hf, pln_val-lv_pln*div_size_nswp_hf), 
-                                       resolution).astype(np.int))
-            swp_points[:, ax_step] = step_val if plane_val is None else div_size_nswp_hf*lv_stp+off_vals[0]*resolution
-            swp_points[:, ax_pln] = plane_val if plane_val is not None else div_size_nswp_hf*lv_pln+off_vals[1]*resolution
-            if off_vals not in step_points_dict[off_vals]:
-                step_points_dict[off_vals][(lv_stp, lv_pln)] = swp_points
-            elif len(step_points_dict[off_vals][(lv_stp, lv_pln)])<len(swp_points):
-                step_points_dict[off_vals][(lv_stp, lv_pln)] = swp_points
+            lv_stp = int(np.round(step_val/div_size_nswp_grid))
+            lv_pln = int(np.round(pln_val/div_size_nswp_grid))
+            off_val = int(np.round((step_val-lv_stp*div_size_nswp_grid 
+                                    if plane_val is not None else
+                                    pln_val-lv_pln*div_size_nswp_grid) / resolution))
+            swp_points[:, ax_step] = step_val if plane_val is None else div_size_nswp_grid*lv_stp+off_val*resolution
+            swp_points[:, ax_pln] = plane_val if plane_val is not None else div_size_nswp_grid*lv_pln+off_val*resolution
+            if len(step_points_dict[off_val][(lv_stp, lv_pln)])<len(swp_points):
+                step_points_dict[off_val][(lv_stp, lv_pln)] = swp_points
+            else:
+                step_points_dict[off_val][(lv_stp, lv_pln)] = swp_points
         step_points_list = list(step_points_dict.values())
-        swp_points_dict[ax_swp_s]=max(step_points_list, key=lambda lv_dict: np.sum(map(len, lv_dict.values()))).values()
-    for ax_swp_s in range(2):
-        swp_points_dict[ax_swp_s] = np.concatenate(swp_points_dict[ax_swp_s])
+        if len(step_points_list)>0:
+            swp_points_dict[ax_swp_s] = np.concatenate(max(step_points_list, key=lambda lv_dict: np.sum(map(len, lv_dict.values()))).values())
+        else:
+            swp_points_dict[ax_swp_s] = []
 
     ## get base-sweep combinations
     div_base_dict = defaultdict(lambda: defaultdict(list))
