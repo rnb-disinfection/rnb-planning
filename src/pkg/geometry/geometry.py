@@ -268,7 +268,15 @@ class GeometryScene(list):
 
     ##
     # @brief add highlight axis
-    def add_highlight_axis(self, hl_key, name, link_name, center, orientation_mat, color=None, axis="xyz", dims=(0.10, 0.01, 0.01)):
+    def add_highlight_axis(self, hl_key, name, link_name, 
+                           center=None, orientation_mat=None, T=None,
+                           color=None, axis="xyz", dims=(0.10, 0.01, 0.01)):
+        assert center is not None or T is not None, "Either center, orientation or T should be given"
+        if center is None:
+            center, orientation_mat = T[:3,3], T[:3,:3]
+        elif orientation_mat is None:
+            orientation_mat = np.identity(3)
+            
         if axis == '' or axis == None:
             ctem = self.create_safe(gtype=GEOTYPE.SPHERE, name="cp_" + name, link_name=link_name,
                                   center=center, dims=(min(dims),)*3, rpy=(0,0,0),
