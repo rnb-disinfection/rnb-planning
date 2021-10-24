@@ -76,6 +76,7 @@ from enum import Enum
 class ImageType(Enum):
     FirstView = 1
     CloseView = 2
+    ReconstView = 3
 
 
 ##
@@ -107,5 +108,8 @@ def stream_capture_image(img_type, obj_type, host):
                 else:
                     cv2.imwrite(SAVE_DIR + '/bed_close.jpg', rdict['color'])
                     cv2.imwrite(SAVE_DIR + '/bed_close.png', rdict['depth'])
+            if img_type == ImageType.ReconstView:
+                cv2.imwrite(SAVE_DIR + '/top_table_close.jpg', rdict['color'])
+                cv2.imwrite(SAVE_DIR + '/top_table_close.png', rdict['depth'])
             break
     return rdict
