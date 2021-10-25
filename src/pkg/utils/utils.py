@@ -535,3 +535,14 @@ def compare_dict(dict1, dict2):
             return res
     return True
 
+def moving_median(values, window=3):
+    assert window>1, "window should be larger than 1"
+    assert window%2==1, "window should be odd number"
+    n = window
+    n1 = int((window-1)/2)
+    values_med = (list(values[:n1]) 
+                  + [np.median(values[i: i+n]) 
+                     for i in range(len(values)-n+1)] 
+                  + list(values[-n1:])
+                 )
+    return np.array(values_med)

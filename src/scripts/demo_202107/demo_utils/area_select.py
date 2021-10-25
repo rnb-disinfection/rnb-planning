@@ -163,45 +163,18 @@ def get_division_dict(surface, brush_face, robot_config, plane_val, tip_dir, TOO
     sweep_max = sweep_max[idx_ok]
     sweep_min = sweep_min[idx_ok]
 
-    ## get valid step and plane values
-    stp_valid_dict = {}
-    pln_valid_dict = {}
-    for ax_swp_s in range(2):
-        div_size_nswp_hf = rect_div_size[(ax_swp_s+1)%2] / 2
-        stp_vals_valid = {}
-        for stp_val in sweep_min[:, ax_step]:
-            stp_grd = int(np.round(stp_val / div_size_nswp_hf))
-            if stp_grd not in stp_vals_valid:
-                stp_vals_valid[stp_grd] = stp_val
-            else:
-                stp_ref = stp_grd*div_size_nswp_hf
-                if abs(stp_val - stp_ref) < abs(stp_vals_valid[stp_grd] - stp_ref):
-                    stp_vals_valid[stp_grd] = stp_val
-        stp_vals_valid = sorted(set(np.round(stp_vals_valid.values(), 3)))
-        stp_valid_dict[ax_swp_s] = stp_vals_valid
-
-        pln_vals_valid = {}
-        for pln_val in sweep_min[:, ax_pln]:
-            pln_grd = int(np.round(pln_val / div_size_nswp_hf))
-            if pln_grd not in pln_vals_valid:
-                pln_vals_valid[stp_grd] = pln_val
-            else:
-                pln_ref = pln_grd*div_size_nswp_hf
-                if abs(pln_val - pln_ref) < abs(pln_vals_valid[pln_grd] - pln_ref):
-                    pln_vals_valid[pln_grd] = pln_val
-        pln_vals_valid = sorted(set(np.round(pln_vals_valid.values(), 3)))
-        pln_valid_dict[ax_swp_s] = pln_vals_valid
-
+    ## apply median
+    sweep_max[:, ax_swp] = moving_median(sweep_max[:, ax_swp])
+    sweep_min[:, ax_swp] = moving_median(sweep_min[:, ax_swp])
+    
     ## get all sweep points
     swp_points_dict = {0: [], 1: []}
-    for step_val, pln_val, min_val_ful, max_val_ful in zip(sweep_min[:, ax_step], sweep_min[:, ax_pln],
+    for ax_swp_s in range(2):
+        div_size_swp = rect_div_size[ax_swp_s]
+        div_size_nswp_grid = rect_div_size[(ax_swp_s+1)%2] / 2
+        step_points_dict = defaultdict(lambda: defaultdict(list))
+        for step_val, pln_val, min_val_ful, max_val_ful in zip(sweep_min[:, ax_step], sweep_min[:, ax_pln],
                                                    sweep_min[:, ax_swp], sweep_max[:, ax_swp]):
-        for ax_swp_s in range(2):
-            if step_val not in stp_valid_dict[ax_swp_s] or pln_val not in pln_valid_dict[ax_swp_s]:
-    #             pass
-                continue
-            div_size_swp = rect_div_size[ax_swp_s]
-            div_size_nswp_hf = rect_div_size[(ax_swp_s+1)%2] / 2
             # div sweep range with grid size = div_size/2
             min_grid, max_grid = (np.sign([min_val_ful, max_val_ful]) 
                                   * np.floor(np.abs([min_val_ful, max_val_ful])/(div_size_swp/2))).astype(np.int)
@@ -221,13 +194,22 @@ def get_division_dict(surface, brush_face, robot_config, plane_val, tip_dir, TOO
 
             swp_points = np.zeros((sweep_num, 3))
             swp_points[:, ax_swp] = min_val + np.arange(sweep_num) * div_size_swp
-    #         swp_points[:, ax_step] = step_val
-    #         swp_points[:, ax_pln] = plane_val if plane_val is not None else pln_val
-            swp_points[:, ax_step] = step_val if plane_val is None else div_size_nswp_hf*np.round(step_val/div_size_nswp_hf)
-            swp_points[:, ax_pln] = plane_val if plane_val is not None else div_size_nswp_hf*np.round(pln_val/div_size_nswp_hf)
-            swp_points_dict[ax_swp_s].append(np.round(swp_points, 3))
-    for ax_swp_s in range(2):
-        swp_points_dict[ax_swp_s] = np.concatenate(swp_points_dict[ax_swp_s])
+            lv_stp = int(np.round(step_val/div_size_nswp_grid))
+            lv_pln = int(np.round(pln_val/div_size_nswp_grid))
+            off_val = int(np.round((step_val-lv_stp*div_size_nswp_grid 
+                                    if plane_val is not None else
+                                    pln_val-lv_pln*div_size_nswp_grid) / resolution))
+            swp_points[:, ax_step] = step_val if plane_val is None else div_size_nswp_grid*lv_stp+off_val*resolution
+            swp_points[:, ax_pln] = plane_val if plane_val is not None else div_size_nswp_grid*lv_pln+off_val*resolution
+            if len(step_points_dict[off_val][(lv_stp, lv_pln)])<len(swp_points):
+                step_points_dict[off_val][(lv_stp, lv_pln)] = swp_points
+            else:
+                step_points_dict[off_val][(lv_stp, lv_pln)] = swp_points
+        step_points_list = list(step_points_dict.values())
+        if len(step_points_list)>0:
+            swp_points_dict[ax_swp_s] = np.concatenate(max(step_points_list, key=lambda lv_dict: np.sum(map(len, lv_dict.values()))).values())
+        else:
+            swp_points_dict[ax_swp_s] = []
 
     ## get base-sweep combinations
     div_base_dict = defaultdict(lambda: defaultdict(list))
@@ -235,7 +217,7 @@ def get_division_dict(surface, brush_face, robot_config, plane_val, tip_dir, TOO
     Tbm_float_all = []
     Tbm_fail_all = []
     Tbm_succ_all = []
-    for i_div, div_center in enumerate(surface_div_centers):  # for each division
+    for i_div, div_center in list(enumerate(surface_div_centers)):  # for each division
         Tsc = SE3(np.identity(3), tuple(div_center) + (surface.dims[2] / 2,))
         for i in range(4) if SweepDirections.check_fourway(tip_dir) else [0, 2]:
             Tct = SE3(Rot_axis(3, i * np.pi / 2), [0, 0, 0])
@@ -243,9 +225,6 @@ def get_division_dict(surface, brush_face, robot_config, plane_val, tip_dir, TOO
             Rsr = matmul_series(Tst[:3, :3], Tet[:3, :3].transpose(), Rre.transpose())
             ax_swp_s = np.where(np.abs(Rsr[:3, ax_swp]) > 0.5)[0][0]
             Tbt = np.matmul(Tbs, Tst)
-            # gscene.add_highlight_axis("hl", "tbt_{}_{}".format(i_div, i),
-            #                           link_name="base_link",
-            #                           center=Tbt[:3, 3], orientation_mat=Tbt[:3, :3])
             for i_s, swp_point in enumerate(swp_points_dict[ax_swp_s]):  # for each valid swp points from robot
                 Tre = SE3(Rre, swp_point)
                 Trt = matmul_series(Tre, Tet)
@@ -266,12 +245,17 @@ def get_division_dict(surface, brush_face, robot_config, plane_val, tip_dir, TOO
                     Tsm_xq = T2xyzquat(Tsm)
                     Tsm_key = tuple(np.round(Tsm_xq[0], 3)), tuple(np.round(Tsm_xq[1], 3))
                     div_base_dict[Tsm_key][i].append(i_div)
-                    # gscene.add_highlight_axis("hl", "tbm_{}_{}_{}".format(i_div, i, i_s),
-                    #                           link_name="base_link",
-                    #                           center=Tbm[:3, 3], orientation_mat=Tbm[:3, :3])
+    #                 gscene.add_highlight_axis("hl", "tbt_{}_{}".format(i_div, i),
+    #                                           link_name="base_link",
+    #                                           center=Tbt[:3, 3], orientation_mat=Tbt[:3, :3])
+    #                 gscene.add_highlight_axis("hl", "tbm_{}_{}_{}".format(i_div, i, i_s),
+    #                                           link_name="base_link",
+    #                                           center=Tbm[:3, 3], orientation_mat=Tbm[:3, :3])
                 else:
                     Tbm_fail_all.append(Tbm)
-            # gscene.clear_highlight()
+    #     raise(RuntimeError("error"))
+    #     gscene.clear_highlight()
+    #     time.sleep(1)
     Tsm_keys = sorted(div_base_dict.keys())
     return div_base_dict, Tsm_keys, surface_div_centers, div_num, (ax_step, ax_swp, ax_pln)
 
@@ -432,7 +416,9 @@ def set_base_sweep(pscene, floor_gtem, Tsm, surface, swp_centers, WP_DIMS, TOOL_
     sweep_task = add_sweep_task(pscene, "sweep", surface, swp_min, swp_max, Tsm, wp_dims=TOOL_DIM, tool_dir=tool_dir)
 
 def test_base_divs(ppline, floor_gtem, Tsm, surface, swp_centers, WP_DIMS, TOOL_DIM, Q_dict,
-                   timeout=0.3, timeout_loop=3, verbose=False, multiprocess=True, terminate_on_first=True, tool_dir=1):
+                   timeout=0.3, timeout_loop=3, verbose=False, 
+                   multiprocess=True, terminate_on_first=True, 
+                   show_motion=False, tool_dir=1):
     pscene = ppline.pscene
     gscene = pscene.gscene
     set_base_sweep(pscene, floor_gtem, Tsm, surface, swp_centers, WP_DIMS, TOOL_DIM, Q_dict, tool_dir=tool_dir)
@@ -443,28 +429,34 @@ def test_base_divs(ppline, floor_gtem, Tsm, surface, swp_centers, WP_DIMS, TOOL_
 
     ppline.search(initial_state, [(2, 1)], verbose=verbose,
                   timeout=timeout, timeout_loop=timeout_loop, multiprocess=multiprocess,
-                  add_homing=False, terminate_on_first=terminate_on_first, post_optimize=False)
+                  add_homing=False, terminate_on_first=terminate_on_first, 
+                  display=show_motion, post_optimize=False)
     snode_schedule = ppline.tplan.get_best_schedule(at_home=False)
     return snode_schedule
 
 
 class TestBaseDivFunc:
-    def __init__(self, ppline, floor_ws, surface, WP_DIMS, TOOL_DIM, Q_dict, multiprocess=True,
-                 highlight_color=(1, 1, 0, 0.5), tool_dir=1):
+    def __init__(self, ppline, floor_ws, surface, WP_DIMS, TOOL_DIM, Q_dict, 
+                 multiprocess=True, terminate_on_first=True,
+                 show_motion=False, highlight_color=(1, 1, 0, 0.5), tool_dir=1, **kwargs):
         self.ppline, self.floor_ws, self.surface = ppline, floor_ws, surface
         self.WP_DIMS, self.TOOL_DIM, self.Q_dict = WP_DIMS, TOOL_DIM, Q_dict
         self.pscene = self.ppline.pscene
         self.gscene = self.pscene.gscene
         self.multiprocess = multiprocess
+        self.terminate_on_first = terminate_on_first
+        self.show_motion = show_motion
         self.tool_dir = tool_dir
         self.highlight_color = highlight_color
         self.pass_count = 0
         self.highlights = []
+        self.kwargs = kwargs
 
     def __call__(self, Tsm, swp_centers):
         output = test_base_divs(self.ppline, self.floor_ws, Tsm, self.surface, swp_centers,
-                                self.WP_DIMS, self.TOOL_DIM, self.Q_dict, multiprocess=self.multiprocess,
-                                tool_dir=self.tool_dir)
+                                self.WP_DIMS, self.TOOL_DIM, self.Q_dict, 
+                                multiprocess=self.multiprocess, terminate_on_first=self.terminate_on_first,
+                                show_motion=self.show_motion, tool_dir=self.tool_dir, **self.kwargs)
         if output:
             # leave highlight on cleared area
             swp_fin = self.gscene.copy_from(self.gscene.NAME_DICT["sweep"],
@@ -494,17 +486,20 @@ def refine_order_plan(ppline, snode_schedule_list_in, idx_bases, idc_divs, Qcur,
     base_div_dict = {idx: triple for idx, triple in enumerate(zip(snode_schedule_list_in, idx_bases, idc_divs))}
     idx_bases_remain = deepcopy(list(base_div_dict.keys()))
     snode_schedule_list = []
+    idx_bases_out = []
+    idc_divs_out = []
     scene_args_list = []
     scene_kwargs_list = []
     while idx_bases_remain:
         Tbm_cur = wayframer.get_tf_handle(list2dict(Qcur, gscene.joint_names))
         idx_sorted = sorted(
             idx_bases_remain,
-            key=lambda x: np.linalg.norm(np.matmul(Tbm_cur,
-                                                   SE3_inv(np.matmul(surface.get_tf(Qcur),
-                                                                     T_xyzquat(Tsm_keys[base_div_dict[x][1]])))
-                                                   ) - np.identity(4)
-                                         ))
+            key=lambda x: norm_SE3(np.matmul(SE3_inv(Tbm_cur),
+                                             np.matmul(surface.get_tf(Qcur),
+                                                       T_xyzquat(Tsm_keys[base_div_dict[x][1]]))
+                                            )
+                                  ))
+            
         snode_schedule, i_b, idc_div = base_div_dict[idx_sorted[0]]
         idx_bases_remain.remove(idx_sorted[0])
 
@@ -516,21 +511,104 @@ def refine_order_plan(ppline, snode_schedule_list_in, idx_bases, idc_divs, Qcur,
         scene_args_list.append((pscene, floor_gtem, Tsm, surface, swp_centers, WP_DIMS, TOOL_DIM))
         scene_kwargs_list.append(dict(Q_dict=Q_dict))
 
-        state_0 = snode_schedule[0].state
-        state_0_to = state_0.copy(pscene)
-        state_0_to.Q = np.copy(snode_schedule[1].state.Q)
-        state_0.Q = np.copy(state_0_to.Q)
-        state_0.Q[crob.idx_dict[MOBILE_NAME]] = Qcur[crob.idx_dict[MOBILE_NAME]]
-        pscene.set_object_state(state_0)
-        mplan.update_gscene()
-        Traj, LastQ, error, success, binding_list = mplan.plan_transition(state_0, state_0_to, timeout=1)
-        snode_schedule[1].set_traj(Traj)
+        snode0 = snode_schedule[0]
+        snode1 = snode_schedule[1]
+        Qcur_update = np.copy(Qcur)
+        to_update_list = []
+        to_update_list_all = []
+        for snode_pre, snode_nxt in zip(snode_schedule[:-1], snode_schedule[1:]):
+            Qpre_saved, Qnxt_saved = snode_pre.state.Q, snode_nxt.state.Q
+            rpairs = crob.get_robots_in_act(snode_nxt.traj, skip_not_connected=False)
+            idc_move = sorted(np.concatenate(map(lambda rpair: crob.idx_dict[rpair[0]], rpairs)))
+            idc_nomove = [i for i in range(gscene.joint_num) if i not in idc_move]
+            Qpre_new, Qnxt_new = np.copy(Qcur_update), np.copy(Qnxt_saved) # update Qpre with Qcur
+            Qnxt_new[idc_nomove] = Qpre_new[idc_nomove] # update non-moving part of Qnxt with Qcur
+            Qcur_update = np.copy(Qnxt_new)
+            if (np.sum(np.abs(Qpre_new - Qpre_saved)) > 1e-6 
+                    or np.sum(np.abs(Qnxt_new - Qnxt_saved)) > 1e-6): # to_update if new != saved
+                to_update_list.append((snode_pre, snode_nxt, Qpre_new, Qnxt_new))
+            else:
+                if to_update_list:
+                    to_update_list_all.append(to_update_list)
+                    to_update_list = []
+                    
+        for to_update_list in to_update_list_all:
+            for snode_pre, snode_nxt, Qpre_new, Qnxt_new in to_update_list:
+                state_0 = snode_pre.state
+                state_0.Q = Qpre_new
+                state_0_to = state_0.copy(pscene)
+                state_0_to.Q = Qnxt_new
+                pscene.set_object_state(state_0)
+                mplan.update_gscene()
+                Traj, LastQ, error, success, binding_list = mplan.plan_transition(state_0, state_0_to, timeout=1)
+                if success:
+                    print("update {}th motion".format(snode_schedule.index(snode_nxt)))
+                    snode_nxt.set_traj(Traj)
+                else:
+                    raise(RuntimeError("Fail to update {}".format(snode_schedule.index(snode_nxt))))
         snode_last = snode_schedule[-1]
         ref_state = snode_last.state.copy(pscene)
         ref_state.Q[crob.idx_dict[ROBOT_NAME]] = HOME_POSE_MOVE
         snode_schedule = snode_schedule + ppline.add_return_motion(snode_last, ref_state)
         snode_schedule_list.append(snode_schedule)
-        #     ppline.play_schedule(snode_schedule) ## To visualize on-refine
+        idx_bases_out.append(i_b)
+        idc_divs_out.append(idc_div)
+#             ppline.play_schedule(snode_schedule) ## To visualize on-refine
         Qcur = snode_schedule[-1].state.Q
         Qcur[3:6] = 0
-    return snode_schedule_list, scene_args_list, scene_kwargs_list
+    return snode_schedule_list, idx_bases_out, idc_divs_out, scene_args_list, scene_kwargs_list
+
+def show_base_div(gscene, surface, surface_div_centers, div_base_dict, Q):
+    Tbs = surface.get_tf(Q)
+    for i_tsm, (Tsm_key, div_base) in enumerate(div_base_dict.items()):
+        show_base_div_lines(gscene, surface, i_tsm, surface_div_centers, Q, Tbs, Tsm_key, div_base)
+
+##
+# @param sweep_axis on base
+def show_base_div_lines(gscene, surface, i_tsm, surface_div_centers, Q, Tbs, Tsm_key, div_base, sweep_axis="y"):
+    Tsm = T_xyzquat(Tsm_key)
+    Tbm = np.matmul(Tbs, Tsm)
+    gscene.add_highlight_axis("hl", "tbm_{:03}".format(i_tsm), link_name="base_link", center=Tbm[:3,3], orientation_mat=Tbm[:3,:3])
+    
+    idx_sax = "xyz".index("y".lower())
+    axis_swp = np.zeros(3, dtype=np.int)
+    axis_swp[idx_sax] = 1
+    
+    i_line = 0
+    for i, idc_div in div_base.items():
+        Tct = SE3(Rot_axis(3, i * np.pi / 2), [0, 0, 0])
+        P_list = []
+        for i_div in idc_div:
+            Tsc = SE3(np.identity(3), tuple(surface_div_centers[i_div]) + (surface.dims[2] / 2,))
+            Tbt = matmul_series(Tbs, Tsc, Tct)
+            P_list.append(Tbt[:3,3])
+            gscene.add_highlight_axis("hl", "tbt_{:03}_{}_{}".format(i_tsm, i, i_div), link_name="base_link", 
+                                      center=Tbt[:3,3], orientation_mat=Tbt[:3,:3], axis="x")            
+        while P_list:
+            P0 = P_list.pop(0)
+            P_list_ = [P0]
+            P_list_bak = []
+            while P_list:
+                P_ = P_list.pop(0)
+                if all([P_[i] == P0[i] for i in range(3) if i!=idx_sax]):
+                    P_list_.append(P_)
+                else:
+                    P_list_bak.append(P_)
+            P_list = P_list_bak
+            if len(P_list_)>1:
+                P1, P2 = P_list_[0], P_list_[-1]
+                dP = P2 - P1
+                rotvec = calc_rotvec_vecs(axis_swp, dP)
+                R = Rotation.from_rotvec(rotvec).as_dcm()
+                show_lines(gscene, [(P1, P2)], base_link="base_link", orientation_mat=R, 
+                           sweep_axis="y", key="line{:03}_{:02}".format(i_tsm, i_line))
+                i_line += 1
+
+def show_lines(gscene, lines, base_link="base_link", orientation_mat=None, sweep_axis="y", key="line"):
+    if orientation_mat is None:
+        orientation_mat = np.identity(3)
+    for i_s, (p_min, p_max) in enumerate(lines):
+        gscene.add_highlight_axis("hl", "{}_{}".format(key, i_s), link_name=base_link,
+                                 center=p_min, orientation_mat=orientation_mat, axis=sweep_axis,
+                                 dims=(np.linalg.norm(np.subtract(p_max, p_min)), 0.05,0.005))
+                

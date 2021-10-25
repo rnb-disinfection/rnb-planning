@@ -118,14 +118,15 @@ def add_closet(gscene, closet_center, closet_rpy, COLOR_CLOSET_COL = (0,1,0,0.3)
                                  dims=(0.1,0.1,0.1), center=closet_center, rpy=closet_rpy,
                                  color=(0.8,0.8,0.8,1), display=True, fixed=True, collision=False,
                                  uri="package://my_mesh/meshes/stl/top_table_centered_m_scale.stl", scale=(1,1,1))
-
+    
     closet_leftup = gscene.create_safe(GEOTYPE.BOX, "closet_leftup", link_name="base_link",
-                                 dims=(1.3,0.255,0.6), center=(0.0,-0.145,1.48), rpy=(0,np.pi/2,0),
-                                 color=COLOR_CLOSET_COL, fixed=True, collision=True, parent="closet_vis")
+                             dims=(1.3,0.255,0.6), center=(0.0,-0.145,1.52), rpy=(0,np.pi/2,0),
+                             color=COLOR_CLOSET_COL, fixed=True, collision=True, parent="closet_vis")
 
     closet_rightup = gscene.create_safe(GEOTYPE.BOX, "closet_rightup", link_name="base_link", 
-                                 dims=(0.55,0.2,0.465), center=(-0.065,0.125,1.89), rpy=(0,np.pi/2,0),
-                                 color=COLOR_CLOSET_COL, fixed=True, collision=True, parent="closet_vis")
+                             dims=(0.58,0.22,0.465), center=(-0.065,0.11,1.87), rpy=(0,np.pi/2,0),
+                             color=COLOR_CLOSET_COL, fixed=True, collision=True, parent="closet_vis")
+    
     closet_down = gscene.create_safe(GEOTYPE.BOX, "closet_down", link_name="base_link",
                                  dims=(0.8,0.495,0.6), center=(0,-0.025,0.45), rpy=(0,np.pi/2,0),
                                  color=COLOR_CLOSET_COL, fixed=True, collision=True, parent="closet_vis")

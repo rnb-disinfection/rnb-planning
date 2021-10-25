@@ -664,3 +664,33 @@ def remove_double_motion(ppline, snode_schedule, **kwargs):
             if succ:
                 reconnect_snodes(ppline.tplan.snode_dict, snode_parent, snode_cur)
     return ppline.tplan.idxSchedule2SnodeScedule(snode_schedule[-1].parents + [snode_schedule[-1].idx])
+
+
+from ..planning.motion.moveit.moveit_py import PlannerConfig
+
+##
+# @brief get looking motion to a target point. com_link to tip link distance is maintained.
+# @param target_point target point in global coords
+# @param view_dir     looking direction in tip link
+def get_look_motion(mplan, rname, from_Q, target_point, com_link, 
+                    view_dir=[0,0,1], timeout=1):
+    gscene = mplan.gscene
+    tip_link = mplan.chain_dict[rname]['tip_link']
+    ref_link = mplan.chain_dict[rname]['link_names'][0]
+    Trb = SE3_inv(gscene.get_tf(ref_link, from_Q))
+    target_point = np.matmul(Trb[:3,:3], target_point)+Trb[:3,3]
+    Tcur = gscene.get_tf(tip_link, from_Q, from_link=ref_link)
+    Tcom = gscene.get_tf(com_link, from_Q, from_link=ref_link)
+    cur_dir = np.matmul(Tcur[:3,:3], view_dir)
+    target_dir = target_point - Tcom[:3,3]
+    dR = Rotation.from_rotvec(calc_rotvec_vecs(cur_dir, target_dir)).as_dcm()
+    dRr = matmul_series(Tcom[:3,:3].transpose(), dR, Tcom[:3,:3])
+
+    Toc = np.matmul(SE3_inv(Tcom), Tcur)
+    Tot = np.matmul(SE3(dRr, (0,)*3), Toc)
+    Ttar = np.matmul(Tcom, Tot)
+    xyzquat = T2xyzquat(Ttar)
+    mplan.update_gscene()
+    traj, succ = mplan.planner.plan_py(rname, tip_link, xyzquat[0]+xyzquat[1], ref_link, from_Q, 
+                                       plannerconfig=PlannerConfig.RRTstarkConfigDefault, timeout=timeout)
+    return traj, succ

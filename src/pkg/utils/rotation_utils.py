@@ -206,8 +206,11 @@ def calc_rotvec_vecs(vec1, vec2):
     cross_vec = np.cross(vec1, vec2)
     dot_val = np.dot(vec1, vec2)
     cross_abs = np.linalg.norm(cross_vec)
-    cross_nm = cross_vec/cross_abs
-    rotvec = cross_nm * np.arctan2(cross_abs, dot_val)
+    if np.linalg.norm(cross_abs) < 1e-8:
+        rotvec = np.zeros(3)
+    else:
+        cross_nm = cross_vec/cross_abs
+        rotvec = cross_nm * np.arctan2(cross_abs, dot_val)
     return rotvec
 
 def calc_zvec_R(zvec):
@@ -289,3 +292,6 @@ def interpolate_T(T1, T2, POS_STEP=None, ROT_STEP=None, N_STEP=None):
     Rarr = np.array([np.matmul(R_cur, Rotation.from_rotvec(dRvec_tmp).as_dcm()) for dRvec_tmp in dRarr.transpose()])
 
     return [SE3(R, P) for R, P in zip(Rarr, Parr)]
+
+def norm_SE3(T, rot_scale=0.1):
+    return np.linalg.norm(T[:3,3]) + rot_scale*np.linalg.norm(Rotation.from_dcm(T[:3,:3]).as_rotvec())

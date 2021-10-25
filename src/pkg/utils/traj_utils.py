@@ -368,14 +368,13 @@ def mix_schedule(mplan, snode_schedule):
 ##
 # @brief calculate sweep trajectory
 # @param gtem GeometryItem
-# @param dP_tar target delta pos
+# @param dP_tar target delta pos in ref_link
 def get_sweep_traj(mplan, gtem, dP_tar, Q0, DP=0.01, ERROR_CUT=0.01, SINGULARITY_CUT = 0.01, VISUALIZE=False,
                    VERBOSE=False, ref_link="base_link"):
     gscene = gtem.gscene
     joint_limits = [(gscene.urdf_content.joint_map[jname].limit.lower,
                      gscene.urdf_content.joint_map[jname].limit.upper) for jname in gscene.joint_names]
     Q = Q0
-    dP_tar = np.matmul(gscene.get_tf(ref_link, Q)[:3, :3].transpose(), dP_tar)
     T0 = Tnew = gtem.get_tf(list2dict(Q0, gscene.joint_names), from_link=ref_link)
     P0 = T0[:3, 3]
     if VISUALIZE:
