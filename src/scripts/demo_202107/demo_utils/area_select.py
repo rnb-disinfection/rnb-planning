@@ -568,6 +568,29 @@ def refine_order_plan(ppline, snode_schedule_list_in, idx_bases, idc_divs, Qcur,
 #             ppline.play_schedule(snode_schedule) ## To visualize on-refine
         Qcur = np.copy(snode_schedule[-1].state.Q)
         Qcur[3:6] = 0
+
+    for i_ss, (snode_schedule_pre, snode_schedule_nxt) in enumerate(zip(snode_schedule_list[:-1], snode_schedule_list[1:])):
+        snode_last_pre = snode_schedule_pre[-2]
+        snode_first_nxt = snode_schedule_nxt[2]
+        base_shift = np.linalg.norm(np.subtract(snode_last_pre.state.Q[:6], snode_first_nxt.state.Q[:6]))
+        if base_shift < 1e-2:
+            print("can skip {}: {}".format(i_ss, round(base_shift, 4)))
+            state_0 = snode_last_pre.state
+            state_0_to = state_0.copy(pscene)
+            state_0_to.Q[6:] = np.copy(snode_first_nxt.state.Q[6:])
+            pscene.set_object_state(state_0)
+            mplan.update_gscene()
+            Traj, LastQ, error, success, binding_list = mplan.plan_transition(state_0, state_0_to, timeout=1)
+            if success:
+                print("skip success")
+                snode_first_nxt.set_traj(Traj)
+                del snode_schedule_pre[-1]
+                del snode_schedule_nxt[1]
+                snode_schedule_nxt[0].state.Q = np.copy(snode_last_pre.state.Q)
+        else:
+            print("no skip {}: {}".format(i_ss, round(base_shift, 4)))
+            TextColors.RED.println("Try mix")
+
     return snode_schedule_list, idx_bases_out, idc_divs_out, scene_args_list, scene_kwargs_list
 
 def show_base_div(gscene, surface, surface_div_centers, div_base_dict, Q):
