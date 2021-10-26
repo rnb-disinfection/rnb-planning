@@ -46,11 +46,6 @@ class IndyTrajectoryClientNoSDK(IndyDCPClient, TrajectoryClient):
         raise(RuntimeError("terminate_loop is not supported without indy sdk"))
 
     ##
-    # @brief Wait until the queue on the server is empty. This also means the trajectory motion is finished.
-    def wait_queue_empty(self):
-        raise(RuntimeError("wait_queue_empty is not supported without indy sdk"))
-
-    ##
     # @brief    Send target pose to the server and store the queue count.
     # @param online If this flag is set True, it will wait the queue on the server to sync the motion.
     def push_Q(self, Q, online=False):

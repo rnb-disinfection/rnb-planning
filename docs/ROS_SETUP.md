@@ -12,7 +12,8 @@
   && sudo rosdep init \
   && rosdep update \
   && sudo apt-get install python-rosinstall -y \
-  && sudo apt-get install ros-melodic-catkin python-catkin-tools -y
+  && sudo apt-get install ros-melodic-catkin python-catkin-tools -y \
+  && sudo apt-get install ros-melodic-move-base
   ```
   * **RESTART TERMINAL!**  
   

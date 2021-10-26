@@ -1,6 +1,7 @@
 from .trajectory_client.indy_trajectory_client import *
 from .trajectory_client.indy_trajectory_client_nosdk import *
 from .trajectory_client.panda_trajectory_client import *
+from .trajectory_client.kiro_mobile_client import *
 from .robot_config import *
 from collections import defaultdict
 import numpy as np
@@ -103,6 +104,8 @@ class CombinedRobot:
 
                 elif _type == RobotType.panda:
                     self.robot_dict[name] = PandaTrajectoryClient(*addr.split("/"))
+                elif _type == RobotType.kmb:
+                    self.robot_dict[name] = KiroMobileClient(addr)
             else:
                 if self.robot_dict[name] is not None:
                     self.robot_dict[name].disconnect()
