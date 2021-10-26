@@ -94,11 +94,11 @@ def add_bed(gscene, bed_center, bed_rpy, COLOR_BED_COL, add_back_wall=True):
                                  color=COLOR_BED_COL, fixed=True, collision=True, parent="bed_vis")
 
     gscene.create_safe(GEOTYPE.BOX, "bed_head", link_name="base_link", 
-                                 dims=(0.1,1.0,1.10), center=(-1.03,0,0.5), rpy=(0,0,0),
+                                 dims=(0.3,1.0,1.30), center=(-1.03,0,0.5), rpy=(0,0,0),
                                  color=COLOR_BED_COL, fixed=True, collision=True, parent="bed_vis")
 
     gscene.create_safe(GEOTYPE.BOX, "bed_foot", link_name="base_link", 
-                                 dims=(0.2,1.0,1.10), center=(1.03,0,0.5), rpy=(0,0,0),
+                                 dims=(0.4,1.0,1.30), center=(1.03,0,0.5), rpy=(0,0,0),
                                  color=COLOR_BED_COL, fixed=True, collision=True, parent="bed_vis")
 
     if add_back_wall:

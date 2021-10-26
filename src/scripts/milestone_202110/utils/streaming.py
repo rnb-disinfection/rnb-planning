@@ -76,7 +76,8 @@ from enum import Enum
 class ImageType(Enum):
     FirstView = 1
     CloseView = 2
-    ReconstView = 3
+    FullView = 3
+    # ReconstView = 3
 
 
 ##
@@ -108,39 +109,42 @@ def stream_capture_image(img_type, obj_type, host):
                 else:
                     cv2.imwrite(SAVE_DIR + '/bed_close.jpg', rdict['color'])
                     cv2.imwrite(SAVE_DIR + '/bed_close.png', rdict['depth'])
+            if img_type == ImageType.FullView:
+                cv2.imwrite(SAVE_DIR + '/full_view.jpg', rdict['color'])
+                cv2.imwrite(SAVE_DIR + '/full_view.png', rdict['depth'])
             break
     return rdict
 
 
-def stream_scan_image(img_type, obj_type, count, host):
-    # print("== press s to save image ==")
-    while True:
-        rdict = send_recv_demo_cam({1: 1}, host=host, port=PORT, buffer_len=1024)
-        cv2.imshow('ColorImage', rdict['color'])
-        cv2.imshow('DepthImage', rdict['depth'])
-
-        # key = cv2.waitKey(1)
-        key = 115
-        if (key == 27):
-            cv2.destroyAllWindows()
-            break
-        elif key == 115:
-            if img_type == ImageType.FirstView:
-                if obj_type == "closet":
-                    cv2.imwrite(SAVE_DIR + '/top_table.jpg', rdict['color'])
-                    cv2.imwrite(SAVE_DIR + '/top_table.png', rdict['depth'])
-                else:
-                    cv2.imwrite(SAVE_DIR + '/bed.jpg', rdict['color'])
-                    cv2.imwrite(SAVE_DIR + '/bed.png', rdict['depth'])
-            if img_type == ImageType.CloseView:
-                if obj_type == "closet":
-                    cv2.imwrite(SAVE_DIR + '/top_table_close.jpg', rdict['color'])
-                    cv2.imwrite(SAVE_DIR + '/top_table_close.png', rdict['depth'])
-                else:
-                    cv2.imwrite(SAVE_DIR + '/bed_close.jpg', rdict['color'])
-                    cv2.imwrite(SAVE_DIR + '/bed_close.png', rdict['depth'])
-            if img_type == ImageType.ReconstView:
-                cv2.imwrite(SAVE_DIR + '/top_table/color/top_table_close_{0:04d}.jpg'.format(count), rdict['color'])
-                cv2.imwrite(SAVE_DIR + '/top_table/depth/top_table_close_{0:04d}.png'.format(count), rdict['depth'])
-            break
-    return rdict
+# def stream_scan_image(img_type, obj_type, count, host):
+#     # print("== press s to save image ==")
+#     while True:
+#         rdict = send_recv_demo_cam({1: 1}, host=host, port=PORT, buffer_len=1024)
+#         cv2.imshow('ColorImage', rdict['color'])
+#         cv2.imshow('DepthImage', rdict['depth'])
+#
+#         # key = cv2.waitKey(1)
+#         key = 115
+#         if (key == 27):
+#             cv2.destroyAllWindows()
+#             break
+#         elif key == 115:
+#             if img_type == ImageType.FirstView:
+#                 if obj_type == "closet":
+#                     cv2.imwrite(SAVE_DIR + '/top_table.jpg', rdict['color'])
+#                     cv2.imwrite(SAVE_DIR + '/top_table.png', rdict['depth'])
+#                 else:
+#                     cv2.imwrite(SAVE_DIR + '/bed.jpg', rdict['color'])
+#                     cv2.imwrite(SAVE_DIR + '/bed.png', rdict['depth'])
+#             if img_type == ImageType.CloseView:
+#                 if obj_type == "closet":
+#                     cv2.imwrite(SAVE_DIR + '/top_table_close.jpg', rdict['color'])
+#                     cv2.imwrite(SAVE_DIR + '/top_table_close.png', rdict['depth'])
+#                 else:
+#                     cv2.imwrite(SAVE_DIR + '/bed_close.jpg', rdict['color'])
+#                     cv2.imwrite(SAVE_DIR + '/bed_close.png', rdict['depth'])
+#             if img_type == ImageType.ReconstView:
+#                 cv2.imwrite(SAVE_DIR + '/top_table/color/top_table_close_{0:04d}.jpg'.format(count), rdict['color'])
+#                 cv2.imwrite(SAVE_DIR + '/top_table/depth/top_table_close_{0:04d}.png'.format(count), rdict['depth'])
+#             break
+#     return rdict
