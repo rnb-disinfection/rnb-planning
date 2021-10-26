@@ -692,8 +692,10 @@ def reprocess_bed_detection(T_sc, bed_dims, floor_margin, T_toff_bed, visualize=
         np.asarray(bed_model.vertices) * np.array([1 / 1000.0, 1 / 1000.0, 1 / 1000.0]))
 
     # Load PCD of close view of bed for redetection
-    color = o3d.io.read_image(SAVE_DIR + '/bed_close.jpg')
-    depth = o3d.io.read_image(SAVE_DIR + '/bed_close.png')
+    # color = o3d.io.read_image(SAVE_DIR + '/bed_close.jpg')
+    # depth = o3d.io.read_image(SAVE_DIR + '/bed_close.png')
+    color = o3d.io.read_image(SAVE_DIR + '/full_view.jpg')
+    depth = o3d.io.read_image(SAVE_DIR + '/full_view.png')
     rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(color, depth, depth_scale = 1/__d_scale,
                                                                 depth_trunc = 5.0, convert_rgb_to_intensity = False)
     pcd_input = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image,
@@ -721,7 +723,7 @@ def reprocess_bed_detection(T_sc, bed_dims, floor_margin, T_toff_bed, visualize=
     # Reconvert points w.r.t camera coord
     T_cs = SE3_inv(T_sc)
     points_recovered = np.matmul(T_cs[:3, :3], points_transformed.transpose()).transpose() + T_cs[:3, 3]
-    pcd_bed_close = make_pcd_np(points_recovered).uniform_down_sample(every_k_points=5)
+    pcd_bed_full_view = make_pcd_np(points_recovered).uniform_down_sample(every_k_points=5)
 
 
     # bed_initial = np.matmul(T_cs, SE3_inv(T_toff_bed))
@@ -729,12 +731,14 @@ def reprocess_bed_detection(T_sc, bed_dims, floor_margin, T_toff_bed, visualize=
 
     voxel_size = 0.03
     source, target, source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(voxel_size, bed_model,
-                                                                                         pcd_bed_close)
+                                                                                         pcd_bed_full_view)
     if visualize:
         draw_registration_result(source_down, target_down, bed_initial)
-    ICP_result= compute_close_ICP(bed_model, pcd_bed_close, bed_initial, thres=0.08, visualize=visualize,
-                                  relative_fitness=relative_fitness, relative_rmse=relative_rmse,
-                                  max_iteration=max_iteration)
+
+    ICP_result, fitness = compute_ICP(bed_model, pcd_bed_full_view, bed_initial, ratio=0.7, thres=0.16, visualize=visualize)
+    # ICP_result= compute_close_ICP(bed_model, pcd_bed_close, bed_initial, thres=0.08, visualize=visualize,
+    #                               relative_fitness=relative_fitness, relative_rmse=relative_rmse,
+    #                               max_iteration=max_iteration)
 
     return ICP_result
 
