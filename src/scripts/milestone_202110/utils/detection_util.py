@@ -694,8 +694,10 @@ def reprocess_bed_detection(T_sc, bed_dims, floor_margin, T_toff_bed, visualize=
     # Load PCD of close view of bed for redetection
     # color = o3d.io.read_image(SAVE_DIR + '/bed_close.jpg')
     # depth = o3d.io.read_image(SAVE_DIR + '/bed_close.png')
-    color = o3d.io.read_image(SAVE_DIR + '/full_view.jpg')
-    depth = o3d.io.read_image(SAVE_DIR + '/full_view.png')
+    # color = o3d.io.read_image(SAVE_DIR + '/full_view.jpg')
+    # depth = o3d.io.read_image(SAVE_DIR + '/full_view.png')
+    color = o3d.io.read_image(CROP_DIR + '/full_view.jpg')
+    depth = o3d.io.read_image(CROP_DIR + '/full_view.png')
     rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(color, depth, depth_scale = 1/__d_scale,
                                                                 depth_trunc = 5.0, convert_rgb_to_intensity = False)
     pcd_input = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image,
@@ -704,7 +706,7 @@ def reprocess_bed_detection(T_sc, bed_dims, floor_margin, T_toff_bed, visualize=
                                                                                                   cam_fy,
                                                                                                   cam_ppx, cam_ppy))
     # Remove other noise
-    cl, ind = pcd_input.remove_radius_outlier(nb_points=20, radius=0.01)
+    cl, ind = pcd_input.remove_radius_outlier(nb_points=20, radius=0.07)
     pcd_input = cl
 
     # Remove background based on bed_vis coord
@@ -723,7 +725,7 @@ def reprocess_bed_detection(T_sc, bed_dims, floor_margin, T_toff_bed, visualize=
     # Reconvert points w.r.t camera coord
     T_cs = SE3_inv(T_sc)
     points_recovered = np.matmul(T_cs[:3, :3], points_transformed.transpose()).transpose() + T_cs[:3, 3]
-    pcd_bed_full_view = make_pcd_np(points_recovered).uniform_down_sample(every_k_points=5)
+    pcd_bed_full_view = make_pcd_np(points_recovered).uniform_down_sample(every_k_points=3)
 
 
     # bed_initial = np.matmul(T_cs, SE3_inv(T_toff_bed))
@@ -735,7 +737,7 @@ def reprocess_bed_detection(T_sc, bed_dims, floor_margin, T_toff_bed, visualize=
     if visualize:
         draw_registration_result(source_down, target_down, bed_initial)
 
-    ICP_result, fitness = compute_ICP(bed_model, pcd_bed_full_view, bed_initial, ratio=0.7, thres=0.16, visualize=visualize)
+    ICP_result, fitness = compute_ICP(bed_model, pcd_bed_full_view, bed_initial, ratio=0.7, thres=0.14, visualize=visualize)
     # ICP_result= compute_close_ICP(bed_model, pcd_bed_close, bed_initial, thres=0.08, visualize=visualize,
     #                               relative_fitness=relative_fitness, relative_rmse=relative_rmse,
     #                               max_iteration=max_iteration)

@@ -35,6 +35,7 @@ def select_put_dir(Robj, dir_vec_dict, ref_vec=[[0], [0], [-1]]):
 #           call reset_reference_coord -> create_gscene
 class SceneBuilder(Singleton):
     __rospy_initialized = False
+    autostart_roscore = True
     __roscore = None
 
     ##
@@ -67,7 +68,8 @@ class SceneBuilder(Singleton):
         custom_limits   = combined_robot.custom_limits
 
         if not SceneBuilder.__rospy_initialized:
-            SceneBuilder.__roscore = subprocess.Popen(['roscore'])
+            if self.autostart_roscore:
+                SceneBuilder.__roscore = subprocess.Popen(['roscore'])
             try:
                 rospy.init_node(node_name, anonymous=True, disable_signals=True)
             except:

@@ -9,6 +9,7 @@ from pkg.utils.utils import *
 from pkg.utils.rotation_utils import *
 from area_select import *
 from kiro_udp_send import *
+import time
 
 def add_env(gscene):
     mobile_base = gscene.create_safe(gtype=GEOTYPE.BOX, name="mobile_base", link_name="base_link", 
@@ -270,20 +271,25 @@ def move_mobile_robot(sock_mobile, cur_xyzw, tar_xyzw_rd, tar_xyzw, MOBILE_IP, C
                 tar_cur = tar_xyzw
             else:
                 tar_cur = np.add(cur_xyzw, xyzw_step * (i_stp + 1))
-            print("move to: {}".format(np.round(tar_cur, 2)))
+            print("move to: {} ({})".format(np.round(tar_cur, 2), time.time()))
             if CONNECT_MOBILE:
+                fix_delay = np.linalg.norm(np.subtract(cur_xyzw, tar_xyzw)) < 1e-1
                 cur_xyzw = send_pose_wait(sock_mobile,
                                           tar_cur,
-                                          send_ip=MOBILE_IP)
+                                          send_ip=MOBILE_IP, recv_delay=1, fix_delay=fix_delay)
     else:
-        print("move to: {}".format(np.round(tar_xyzw_rd, 2)))
+        print("approach to: {} ({})".format(np.round(tar_xyzw_rd, 2), time.time()))
         if CONNECT_MOBILE:
-            cur_xyzw = send_pose_wait(sock_mobile, tar_xyzw_rd, send_ip=MOBILE_IP)
-        print("move to: {}".format(np.round(tar_xyzw, 2)))
+            fix_delay = np.linalg.norm(np.subtract(cur_xyzw, tar_xyzw)) < 1e-1
+            cur_xyzw = send_pose_wait(sock_mobile, tar_xyzw_rd, send_ip=MOBILE_IP,
+                                      recv_delay=1, fix_delay=fix_delay)
+        print("move to: {} ({})".format(np.round(tar_xyzw, 2), time.time()))
         for _ in range(3):
+            fix_delay = np.linalg.norm(np.subtract(cur_xyzw, tar_xyzw)) < 1e-1
             if CONNECT_MOBILE:
-                cur_xyzw = send_pose_wait(sock_mobile, tar_xyzw, send_ip=MOBILE_IP)
-        print("stop at: {}".format(np.round(cur_xyzw, 2)))
+                cur_xyzw = send_pose_wait(sock_mobile, tar_xyzw, send_ip=MOBILE_IP,
+                                          recv_delay=0.5, fix_delay=fix_delay)
+        print("stop at: {} ({})".format(np.round(cur_xyzw, 2), time.time()))
     return cur_xyzw
 # # Go view loc
 # cur_xyzw = send_pose_wait(sock_mobile, [2.77, 1.,   0.86, 0.51], send_ip=MOBILE_IP)

@@ -13,6 +13,8 @@ UDP_PORT_SEND = 50305 # SEND PORT
 UDP_PORT_RECV = 50306 # RECV PORT
 
 gnGoalreached = 0
+on_motion = 0
+gnGoalreached_edge_up = 0
 
 cur_pose_x = 0.0
 cur_pose_y = 0.0
@@ -119,7 +121,8 @@ def on_press(key):
         sock.sendto(udp_send_data,(SEND_UDP_IP, UDP_PORT_SEND))
 
 def udp_server_thread_func(sock):    
-    global cur_pose_x, cur_pose_y, cur_pose_heading_q_z, cur_pose_heading_q_w, gnGoalreached
+    global cur_pose_x, cur_pose_y, cur_pose_heading_q_z, cur_pose_heading_q_w, \
+        gnGoalreached, gnGoalreached_edge_up
     print("[MOBILE ROBOT] Start UDP THREAD")
     # sock.settimeout(1)
     try:
@@ -132,7 +135,14 @@ def udp_server_thread_func(sock):
                 cur_pose_y = recive_udp_data[1]
                 cur_pose_heading_q_z = recive_udp_data[2]
                 cur_pose_heading_q_w = recive_udp_data[3]
-                gnGoalreached = recive_udp_data[4]
+                if gnGoalreached != recive_udp_data[4]:
+                    print("goal reach: {} -> {} ({})".format(gnGoalreached,
+                                                             recive_udp_data[4],
+                                                             time.time()))
+                    if (not gnGoalreached) and recive_udp_data[4]:
+                        print("goal reach signal edge up")
+                        gnGoalreached_edge_up = 1
+                    gnGoalreached = recive_udp_data[4]
                 time.sleep(0.05)
     #             print("send_addr:{}, x:{}, y:{}, quaternion_z:{}, quaternion_w:{}, Goal reached:{}".format(addr, round(cur_pose_x,4), round(cur_pose_y,4), round(cur_pose_heading_q_z,4), round(cur_pose_heading_q_w,4), gnGoalreached))
             except socket.timeout:
@@ -172,16 +182,25 @@ def get_reach_state():
 # @remark usage: cur_xyzw = send_pose_wait(tar_xyzw, send_ip=MOBILE_IP)
 # @param tar_xyzw tuple of 4 numbers to represent 2D location (x,y/qz,qw in xyzquat)
 # @param tool_angle tool angle
-def send_pose_wait(sock, tar_xyzw, tool_angle=0, send_ip=SEND_UDP_IP):
+def send_pose_wait(sock, tar_xyzw, tool_angle=0, send_ip=SEND_UDP_IP, recv_delay=2, fix_delay=False):
+    global gnGoalreached_edge_up
     assert len(tar_xyzw)==4, "tar_xyzw should be tuple of 4 floats"
     Packet_data=tuple(tar_xyzw)+tuple((tool_angle,))
     udp_send_data = struct.pack('>ffffi',*Packet_data)
     print(Packet_data)
+    gnGoalreached_edge_up = 0
     sock.sendto(udp_send_data,(send_ip, UDP_PORT_SEND))
-    time.sleep(1)
+    time.sleep(recv_delay)
+    if not fix_delay:
+        while not gnGoalreached_edge_up:
+            time.sleep(0.5)
+    gnGoalreached_edge_up = 0
+    return cur_pose_x, cur_pose_y, cur_pose_heading_q_z, cur_pose_heading_q_w
+
+def wait_goal_reached():
     while not gnGoalreached:
         time.sleep(0.5)
-    return cur_pose_x, cur_pose_y, cur_pose_heading_q_z, cur_pose_heading_q_w
+
     
     
 if __name__ == '__main__':

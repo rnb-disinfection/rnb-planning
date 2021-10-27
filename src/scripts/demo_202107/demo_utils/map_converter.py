@@ -38,3 +38,21 @@ def add_line_to_gscene(gscene, name, pt1, pt2, thickness, height, link_name="bas
                        dims=dims, center=center, rpy=rpy,
                        color=(1, 0, 0, 0.3), display=True,
                        collision=True, fixed=True)
+
+
+def add_px_points(gscene, gtype, points_px, resolution, T_bi, height, radius, sample_ratio):
+    rpy = Rot2rpy(T_bi[:3,:3])
+    gtem_list = []
+    for i_p, pt_px in list(enumerate(zip(*points_px)))[::sample_ratio]:
+        pt = np.multiply(pt_px, resolution)
+        pt_b = np.matmul(T_bi[:2,:2], pt) + T_bi[:2,3]
+        pt_b = tuple(pt_b) +(height/2,)
+        gtem = gscene.create_safe(gtype, "pt_{}".format(i_p),
+                                  link_name="base_link",
+                                  dims=(radius*2,) * 3,
+                                  center=pt_b, rpy=rpy,
+                                  color=(1, 0, 0, 0.3), display=True,
+                                  collision=True, fixed=True)
+        gtem_list.append(gtem)
+    return gtem_list
+

@@ -691,6 +691,6 @@ def get_look_motion(mplan, rname, from_Q, target_point, com_link,
     Ttar = np.matmul(Tcom, Tot)
     xyzquat = T2xyzquat(Ttar)
     mplan.update_gscene()
-    traj, succ = mplan.planner.plan_py(rname, tip_link, xyzquat[0]+xyzquat[1], ref_link, from_Q, 
-                                       plannerconfig=PlannerConfig.RRTstarkConfigDefault, timeout=timeout)
+    traj, succ = mplan.planner.plan_py(rname, tip_link, xyzquat[0]+xyzquat[1], ref_link, from_Q,
+                                       timeout=timeout)
     return traj, succ
