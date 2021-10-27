@@ -3,34 +3,15 @@
 * **TBD**  
   
 ## Deprecated features
-* **None (First release)**  
-  
-  
-## Dropped features
-* **None (First release)**  
-  
-  
-## Preparing features
-* **4-A.3 LatticedChecker**  
-  - pick, place
-    - single process
-    - *multi process is not supported with LatticedChecker, which uses GPU*
-    
-* **6. Web UI**
-  - save/load buttons
-  - auto page refresh
-  
-* **7.2 Using Tool to sweep**  
-  - script
-* **7.3 Multi Object Handing**  
-  - script
-  
+* **TBD**    
   
 ## Known issues
 * **WebUI **
   * 양쪽 창에 같은 탭을 띄울 경우 마지막에 띄운 탭의 버튼만 동작함.
 * **Setup**
   * moveit_interface_py 빌드 전 apt update && sudo apt-get dist-upgrade 필요 - repository 등 설정 꼬여있던 부분 문제일 수 있음, 확인 필요.
+* **BUG**
+  * GraspChecker - sphere에 대한 collision checking 이상
   
   
 ## Requirements
