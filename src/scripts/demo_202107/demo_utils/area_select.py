@@ -262,7 +262,7 @@ def get_division_dict(surface, brush_face, robot_config, plane_val, tip_dir, TOO
 
 ## repeat selecting max-cover base
 def select_max_cover_bases(div_base_dict, Tsm_keys, surface_div_centers, div_num, ax_step,
-                           test_fun=lambda Tsm, swp_centers:True):
+                           test_fun=lambda Tsm, swp_centers:True, lazy_base_thresh=0.1):
     covered_all = []
     idx_bases = []
     idc_divs = []
@@ -291,8 +291,8 @@ def select_max_cover_bases(div_base_dict, Tsm_keys, surface_div_centers, div_num
                     for i_div in idc_div:
                         i_div_rav = np.unravel_index(i_div, div_num)
                         div_c = surface_div_centers[i_div]
-                        div_base_mat[i_tsm, i_aproc, i_div] = count_dict[i_div_rav[ax_stp_]]*100 + len(idc_div) \
-                                                              + 1e-2*bonus_dict[Tsm_key] + 1e-4*i_div_rav[ax_stp_]
+                        div_base_mat[i_tsm, i_aproc, i_div] = count_dict[i_div_rav[ax_stp_]] + bonus_dict[Tsm_key]*0.1 \
+                                                              + 1e-2*len(idc_div) + 1e-4*i_div_rav[ax_stp_]
         ## Select best bases
         div_base_mat_max = np.max(div_base_mat, axis=1)
         div_marks = np.any(div_base_mat_max>0, axis=0)
@@ -301,26 +301,40 @@ def select_max_cover_bases(div_base_dict, Tsm_keys, surface_div_centers, div_num
         base_covers = np.max(div_base_mat_max, axis=1)  # max sweep length
         idx_max = np.argmax(base_covers)
         covereds = np.where(div_base_mat_max[idx_max] == base_covers[idx_max])[0]
+        swp_centers = np.array(surface_div_centers)[covereds]
 
         Tsm_key = Tsm_keys[idx_max]
-        Tsm = T_xyzquat(Tsm_key)
-        swp_centers = np.array(surface_div_centers)[covereds]
-        test_output = test_fun(Tsm, swp_centers)
-        if not test_output:
-            Tms = SE3_inv(Tsm)
-            swp_centers_m = np.round(np.matmul(Tms[:2, :2], swp_centers.transpose()) + Tms[:2, -1:], 3)
-            remove_idx = np.argsort(np.sum(np.abs(swp_centers_m), axis=0).transpose().tolist())[-1]  # select farthest
-            to_remove = set([covereds[remove_idx]])
-            for i_aproc in range(4):
-                idc_div = div_base_dict[Tsm_key][i_aproc]
-                div_base_dict[Tsm_key][i_aproc] = sorted(set(idc_div) - to_remove)
-            continue
+        xyzquat0 = tuple(Tsm_key[0]) + tuple(Tsm_key[1])
+        bonus_keys = np.array(sorted(bonus_dict.keys()))
+        bonus_dists = np.array(
+            map(lambda xyzquat: np.linalg.norm(np.subtract(tuple(xyzquat[0]) + tuple(xyzquat[1]), xyzquat0)),
+                bonus_keys))
+        idc_lazy = np.where(bonus_dists <= lazy_base_thresh)[0] # get near ones
+        bonus_dists, bonus_keys = bonus_dists[idc_lazy], bonus_keys[idc_lazy]
+        bonus_dists, bonus_keys = zip(*sorted(zip(bonus_dists, bonus_keys.tolist()))) # sort by nearest
+        if Tsm_key not in bonus_keys: # append Tsm_key if not already in
+            bonus_keys = list(bonus_keys)+[Tsm_key]
+            bonus_dists = list(bonus_dists)+[0]
+        for Tsm_key in bonus_keys:
+            Tsm_key = tuple(Tsm_key)
+            Tsm = T_xyzquat(Tsm_key)
+            test_output = test_fun(Tsm, swp_centers)
+            if not test_output:
+                Tms = SE3_inv(Tsm)
+                swp_centers_m = np.round(np.matmul(Tms[:2, :2], swp_centers.transpose()) + Tms[:2, -1:], 3)
+                remove_idx = np.argsort(np.sum(np.abs(swp_centers_m), axis=0).transpose().tolist())[-1]  # select farthest
+                to_remove = set([covereds[remove_idx]])
+                for i_aproc in range(4):
+                    idc_div = div_base_dict[Tsm_key][i_aproc]
+                    div_base_dict[Tsm_key][i_aproc] = sorted(set(idc_div) - to_remove)
+                continue
 
-        covered_all = sorted(np.concatenate([covered_all, covereds]).astype(np.int))
-        idx_bases.append(idx_max)
-        idc_divs.append(covereds)
-        bonus_dict[Tsm_key] += len(covereds)
-        test_outputs.append(test_output)
+            covered_all = sorted(np.concatenate([covered_all, covereds]).astype(np.int))
+            idx_bases.append(idx_max)
+            idc_divs.append(covereds)
+            bonus_dict[Tsm_key] += len(covereds)
+            test_outputs.append(test_output)
+            break
     return idx_bases, idc_divs, covered_all, test_outputs
 
 
@@ -511,8 +525,6 @@ def refine_order_plan(ppline, snode_schedule_list_in, idx_bases, idc_divs, Qcur,
         scene_args_list.append((pscene, floor_gtem, Tsm, surface, swp_centers, WP_DIMS, TOOL_DIM))
         scene_kwargs_list.append(dict(Q_dict=Q_dict))
 
-        snode0 = snode_schedule[0]
-        snode1 = snode_schedule[1]
         Qcur_update = np.copy(Qcur)
         to_update_list = []
         to_update_list_all = []
@@ -554,8 +566,31 @@ def refine_order_plan(ppline, snode_schedule_list_in, idx_bases, idc_divs, Qcur,
         idx_bases_out.append(i_b)
         idc_divs_out.append(idc_div)
 #             ppline.play_schedule(snode_schedule) ## To visualize on-refine
-        Qcur = snode_schedule[-1].state.Q
+        Qcur = np.copy(snode_schedule[-1].state.Q)
         Qcur[3:6] = 0
+
+    for i_ss, (snode_schedule_pre, snode_schedule_nxt) in enumerate(zip(snode_schedule_list[:-1], snode_schedule_list[1:])):
+        snode_last_pre = snode_schedule_pre[-2]
+        snode_first_nxt = snode_schedule_nxt[2]
+        base_shift = np.linalg.norm(np.subtract(snode_last_pre.state.Q[:6], snode_first_nxt.state.Q[:6]))
+        if base_shift < 1e-2:
+            print("can skip {}: {}".format(i_ss, round(base_shift, 4)))
+            state_0 = snode_last_pre.state
+            state_0_to = state_0.copy(pscene)
+            state_0_to.Q[6:] = np.copy(snode_first_nxt.state.Q[6:])
+            pscene.set_object_state(state_0)
+            mplan.update_gscene()
+            Traj, LastQ, error, success, binding_list = mplan.plan_transition(state_0, state_0_to, timeout=1)
+            if success:
+                print("skip success")
+                snode_first_nxt.set_traj(Traj)
+                del snode_schedule_pre[-1]
+                del snode_schedule_nxt[1]
+                snode_schedule_nxt[0].state.Q = np.copy(snode_last_pre.state.Q)
+        else:
+            print("no skip {}: {}".format(i_ss, round(base_shift, 4)))
+            TextColors.RED.println("Try mix")
+
     return snode_schedule_list, idx_bases_out, idc_divs_out, scene_args_list, scene_kwargs_list
 
 def show_base_div(gscene, surface, surface_div_centers, div_base_dict, Q):
