@@ -746,7 +746,7 @@ def reprocess_bed_detection(T_sc, bed_dims, floor_margin, T_toff_bed, visualize=
 
 
 def reprocess_top_table_detection(T_sc, T_cs_closet, bed_dims, T_toff_closet,
-                                initial_offset=[0.3,1.1,0.6], floor_margin=0.1, visualize=False):
+                                initial_offset=[0.3,1.1,0.6], floor_margin=0.1, visualize=False, bed_height=1.5):
 
     # Load CAD model of top table
     top_table_model = o3d.io.read_triangle_mesh(MODEL_DIR + '/top_table/top_table.STL')
@@ -774,11 +774,14 @@ def reprocess_top_table_detection(T_sc, T_cs_closet, bed_dims, T_toff_closet,
 
     # Remove background based on bed_vis coord
     out_x = np.where(np.abs(points_transformed_np[:,0])>bed_dims[0]/2)[0]
-    out_x2 = np.where(np.abs(points_transformed_np[:,0])<-bed_dims[0]/2)[0]
+    # out_x2 = np.where(np.abs(points_transformed_np[:,0])<-bed_dims[0]/2)[0]
     out_y = np.where(np.abs(points_transformed_np[:,1])>bed_dims[1]/2+bed_dims[1])[0]
-    in_y = np.where(np.abs(points_transformed_np[:,1])<bed_dims[1]/2+0.3)[0]
+    in_y = np.where(np.abs(points_transformed_np[:,1])<bed_dims[1]/2)[0]
+    # over_bed = np.where(np.abs(points_transformed_np[:,2])>bed_height)[0]
+    # in_y = set(in_y) - set(over_bed)
     out_z = np.where(points_transformed_np[:,2]<floor_margin)[0]
     out_all = sorted(set(out_x).union(out_y).union(out_z).union(in_y))
+    # out_all = sorted(set(out_y).union(out_z).union(in_y))
     in_all = sorted(set(np.arange(len(points_transformed_np))) - set(out_all))
     points_transformed = points_transformed_np[in_all, :]
 

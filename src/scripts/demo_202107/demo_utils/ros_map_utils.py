@@ -1,10 +1,14 @@
 from __future__ import print_function
 import os
 import sys
+
+import rospy
+
 sys.path.append(os.path.join(os.path.join(os.environ["RNB_PLANNING_DIR"], 'src')))
 sys.path.append(os.path.join(os.environ["RNB_PLANNING_DIR"], 'src/scripts/demo_202107'))
 from pkg.utils.ros_utils import *
 from demo_utils.map_converter import *
+from demo_utils.kiro_udp_send import start_mobile_udp_thread, get_xyzw_cur
 import time
 import cv2
 from enum import Enum
@@ -16,7 +20,7 @@ from demo_utils.map_converter import *
 import cv2
 import subprocess
 
-TIMEOUT_GET_MAP = 1
+TIMEOUT_GET_MAP = 3
 class GetMapResult(Enum):
     SUCCESS = 0
     TIMEOUT = 1
@@ -29,7 +33,7 @@ class KiroMobileMap:
     def update_map(self):
         output = subprocess.check_output(['sh', os.path.join(DEMO_UTIL_DIR, 'get_ros_map.sh'), self.master_ip, self.cur_ip],
                                  cwd=DEMO_UTIL_DIR)
-        if output == GetMapResult.SUCCESS.name:
+        if output.endswith(GetMapResult.SUCCESS.name):
             print("UPDATE MAP SUCCEEDED")
         else:
             TextColors.RED.println("==== UPDATE MAP FAILED ====")
@@ -54,7 +58,7 @@ class KiroMobileMap:
         T_io = T_xyzquat(self.origin)
 
         cur_xyzw = self.xyzw_view
-        Q_ref = [0]*len(gscene.joint_names)
+        Q_ref = np.array([0]*len(gscene.joint_names), dtype=np.float)
         Q_CUR = np.copy(Q_ref)
         Q_CUR[:2] = cur_xyzw[:2]
         Q_CUR[2] = Rot2axis(Rotation.from_quat((0,0,cur_xyzw[2], cur_xyzw[3])).as_dcm(), 3)
@@ -107,11 +111,13 @@ class KiroMobileMap:
         Ppx = (Pi / self.resolution).astype(np.int)
         return self.cost_im[Ppx[1], Ppx[0]] < cut
 
-def get_map_save_data():
+def get_map_save_data(ip_cur):
     try:
+        rospy.init_node("get_map_save_data")
+        sock_mobile, server_thread = start_mobile_udp_thread(recv_ip=ip_cur)
         # GET MAP
         map_listener = Listener(topic_name="/map", topic_type=OccupancyGrid)
-        cost_listener = Listener(topic_name="/move_base/global_costmap/costmap", 
+        cost_listener = Listener(topic_name="/move_base/global_costmap/costmap",
                                  topic_type=OccupancyGrid)
 
         map_data, cost_data = None, None
@@ -138,4 +144,4 @@ def get_map_save_data():
     
     
 if __name__ == "__main__":
-    get_map_save_data()
+    get_map_save_data(sys.argv[1])

@@ -313,10 +313,11 @@ class CombinedRobot:
     # @trajectory   trajectory that the robot is currently following.
     # @error_stop   max. error from the trajectory to stop the robot and return False (degree)
     def wait_queue_empty(self, trajectory=None, error_stop=10):
-        rnames = self.get_connected_robot_names()
-        robots = [self.robot_dict[rname] for rname in rnames]
-        robots_mask = sorted(np.concatenate([self.idx_dict[rname] for rname in rnames]))
         if trajectory is not None:
+            rpairs = self.get_robots_in_act(trajectory)
+            rnames = [rname for rname, robot in rpairs]
+            robots = [robot for rname, robot in rpairs]
+            robots_mask = sorted(np.concatenate([self.idx_dict[rname] for rname in rnames]))
             while np.sum([robot.get_qcount() for robot in robots]) > 0:
                 if error_stop is not None:
                     if (np.min(np.sum(np.abs(np.subtract(trajectory, self.get_real_robot_pose())[:, robots_mask]), axis=1))

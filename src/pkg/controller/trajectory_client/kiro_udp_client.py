@@ -5,7 +5,7 @@ sys.path.append(os.path.join(os.environ["RNB_PLANNING_DIR"], 'src/scripts/milest
 from .trajectory_client import *
 from ...utils.utils import *
 from ...utils.rotation_utils import *
-from demo_utils.kiro_udp_send import start_mobile_udp_thread, get_reach_state_edgeup, send_pose_udp
+from demo_utils.kiro_udp_send import start_mobile_udp_thread, get_reach_state_edgeup, send_pose_udp, get_xyzw_cur
 
 
 class KiroUDPClient(TrajectoryClient):
@@ -21,7 +21,7 @@ class KiroUDPClient(TrajectoryClient):
         self.kmm = None
 
     def xyzw2joints(self, xyzw):
-        Q_CUR = np.array([0] * 6)
+        Q_CUR = np.array([0] * 6, dtype=np.float)
         Q_CUR[:2] = xyzw[:2]
         Q_CUR[2] = Rot2axis(Rotation.from_quat((0, 0, xyzw[2], xyzw[3])).as_dcm(), 3)
         return Q_CUR
@@ -31,6 +31,7 @@ class KiroUDPClient(TrajectoryClient):
         return xyzw
 
     def get_qcount(self):
+        # print("kmb qcount: {}".format(not get_reach_state_edgeup()))
         return not get_reach_state_edgeup()
 
     def get_qcur(self):
@@ -93,7 +94,7 @@ class KiroUDPClient(TrajectoryClient):
     ##
     # @brief Make sure the joints move to Q using the indy DCP joint_move_to function.
     # @param Q radian
-    def joint_move_make_sure(self, Q, *args, **kwargs):
+    def joint_move_make_sure(self, Q, sure_count=5, *args, **kwargs):
         if self.kmm and not self.kmm.check_position(Q[:2]):
             Qapp = np.copy(Q)
             for _ in range(100):
@@ -105,12 +106,13 @@ class KiroUDPClient(TrajectoryClient):
                     break
             if not ret:
                 raise(RuntimeError("No available approach position"))
-            self.joint_move_make_sure(Qapp)
-
+            print("approach through: {}".format(Qapp[:3]))
+            self.joint_move_make_sure(Qapp, sure_count=0)
+        Q = np.copy(Q)
         Qcur = self.get_qcur()
         diff = np.subtract(Q[:3], Qcur[:3])
         diff[2] = Rot2axis(Rot_axis(3, diff[2]), 3)
-        if diff[2]<5e-2:
+        if abs(diff[2])<5e-2:
             diff[2] = 0
             Q[2] = Qcur[2]
         diff_nm = np.linalg.norm(diff)
@@ -118,12 +120,22 @@ class KiroUDPClient(TrajectoryClient):
         if self.dummy:
             self.xyzw_last = self.joints2xyzw(Q)
         else:
+            if diff_nm < 0.01:
+                return
             send_pose_udp(self.sock_mobile, self.joints2xyzw(Q),
                           tool_angle=0, send_ip=self.server_ip)
             if diff_nm < 0.1:
-                time.sleep((diff_nm / 0.1)*DURATION_SHORT_MOTION_REF)
+                time.sleep((diff_nm / 0.1)*self.DURATION_SHORT_MOTION_REF)
             else:
                 self.wait_queue_empty()
+        if sure_count>0:
+            Qadj = np.copy(Q)
+            Qcur = self.get_qcur()
+            diff = Qadj[:2] - Qcur[:2]
+            diff_nm = np.linalg.norm(diff)
+            if diff_nm > 1e-2:
+                Qadj[:2] = Qadj[:2] + diff/diff_nm*1e-2
+            self.joint_move_make_sure(Qadj, sure_count=sure_count-1)
 
     ##
     # @brief Surely move joints to Q using the indy DCP joint_move_to function.

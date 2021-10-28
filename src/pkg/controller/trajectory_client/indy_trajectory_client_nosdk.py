@@ -32,6 +32,7 @@ class IndyTrajectoryClientNoSDK(IndyDCPClient, TrajectoryClient):
     def get_qcount(self):
         # raise(RuntimeError("get_qcount is not supported without indy sdk"))
         with self:
+            # print("indy qcount: {}".format(not self.get_robot_status()['movedone']))
             return not self.get_robot_status()['movedone']
 
     def get_qcur(self):
@@ -113,7 +114,7 @@ class IndyTrajectoryClientNoSDK(IndyDCPClient, TrajectoryClient):
 
         # Joint Move
         with self:
-            prog = JsonProgramComponent(policy=0, resume_time=2)
+            prog = JsonProgramComponent(policy=self.collision_policy, resume_time=2)
             for Q in traj_wps:
                 prog.add_joint_move_to(np.rad2deg(Q).tolist(), vel=self.traj_vel, blend=self.traj_blend)
 

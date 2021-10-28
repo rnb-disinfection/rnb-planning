@@ -134,11 +134,14 @@ class KiroMobileClient(TrajectoryClient):
 
     ##
     # @brief Wait until the queue on the server is empty. This also means the trajectory motion is finished.
-    def wait_queue_empty(self):
+    def wait_queue_empty(self, max_dur=20):
+        time_start = time.time()
         while self.get_qcount()>0 \
                 or (self.pos_listener.last_dat.feedback.base_position.header.stamp
                     <= self.res_listener.last_dat.header.stamp):
             time.sleep(1.0/self.traj_freq)
+            if (time.time() - time_start) > max_dur:
+                break
         # print("pose_stamp: {}".format(self.pos_listener.last_dat.feedback.base_position.header.stamp))
         # print("res_stamp: {}".format(self.res_listener.last_dat.header.stamp))
         # print(self.pos_listener.last_dat.feedback.base_position.pose)

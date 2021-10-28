@@ -55,14 +55,14 @@ def add_kiro_indytool_down(gscene, zoff=0, tool_link="indy1_tcp", face_name="bru
                        display=True, color=(0.8,0.8,0.8,1), collision=False, fixed=True,
                        uri="package://my_mesh/meshes/stl/kiro_indytool_down_res.STL")
     gscene.create_safe(gtype=GEOTYPE.BOX, name="hinge_bar_col", link_name=tool_link,
-                       center=(0.1, 0, 0.12), dims=(0.05, 0.070, 0.35), rpy=(0, np.pi / 4, 0),
+                       center=(0.1, 0, 0.12), dims=(0.15, 0.15, 0.35), rpy=(0, np.pi / 4, 0),
                        display=True, color=(0.0, 0.8, 0.0, 0.5), collision=True, fixed=True)
     brush_face = gscene.create_safe(gtype=GEOTYPE.BOX, name=face_name, link_name=tool_link,
-                       center=(0.32+zoff, 0, 0.236), dims=(0.34, 0.10, 0.01), rpy=(0, -np.pi/2, 0),
+                       center=(0.32+zoff, 0, 0.236), dims=(0.34, 0.12, 0.01), rpy=(0, -np.pi/2, 0),
                        color=(1.0, 0.0, 0.0, 0.5),
                        collision=False, fixed=True)
     gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_col".format(face_name), link_name=tool_link,
-                       center=(0.275+zoff, 0, 0.236), dims=(0.34, 0.10, 0.08), rpy=(0, -np.pi/2, 0),
+                       center=(0.275+zoff/2, 0, 0.236), dims=(0.34, 0.12, 0.08+zoff), rpy=(0, -np.pi/2, 0),
                        color=(0.0, 0.8, 0.0, 0.5),
                        collision=True, fixed=True)
     return brush_face
@@ -73,14 +73,14 @@ def add_kiro_indytool_up(gscene, zoff=0, tool_link="indy1_tcp", face_name="brush
                        display=True, color=(0.8,0.8,0.8,1), collision=False, fixed=True,
                        uri="package://my_mesh/meshes/stl/kiro_indytool_up_res.STL")
     gscene.create_safe(gtype=GEOTYPE.BOX, name="hinge_bar_col", link_name=tool_link,
-                       center=(0.1, 0, 0.12), dims=(0.05, 0.070, 0.35), rpy=(0, np.pi / 4, 0),
+                       center=(0.1, 0, 0.12), dims=(0.15, 0.15, 0.35), rpy=(0, np.pi / 4, 0),
                        display=True, color=(0.0, 0.8, 0.0, 0.5), collision=True, fixed=True)
     brush_face = gscene.create_safe(gtype=GEOTYPE.BOX, name=face_name, link_name=tool_link,
-                       center=(0.18, 0, 0.345+zoff), dims=(0.34, 0.10, 0.01), rpy=(0, -np.pi, 0),
+                       center=(0.18, 0, 0.345+zoff), dims=(0.34, 0.12, 0.01), rpy=(0, -np.pi, 0),
                        color=(1.0, 0.0, 0.0, 0.5),
                        collision=False, fixed=True)
     gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_col".format(face_name), link_name=tool_link,
-                       center=(0.18, 0, 0.30+zoff), dims=(0.36, 0.12, 0.08), rpy=(0, -np.pi, 0),
+                       center=(0.18, 0, 0.30+zoff/2), dims=(0.36, 0.12, 0.08+zoff), rpy=(0, -np.pi, 0),
                        color=(0.0, 0.8, 0.0, 0.5),
                        collision=True, fixed=True)
     return brush_face
@@ -119,20 +119,28 @@ def add_closet(gscene, closet_center, closet_rpy, COLOR_CLOSET_COL = (0,1,0,0.3)
                                  dims=(0.1,0.1,0.1), center=closet_center, rpy=closet_rpy,
                                  color=(0.8,0.8,0.8,1), display=True, fixed=True, collision=False,
                                  uri="package://my_mesh/meshes/stl/top_table_centered_m_scale.stl", scale=(1,1,1))
-    
+
+    margin = 0.02
+    front_shift = 0.01
     closet_leftup = gscene.create_safe(GEOTYPE.BOX, "closet_leftup", link_name="base_link",
-                             dims=(1.3,0.255,0.6), center=(0.0,-0.145,1.52), rpy=(0,np.pi/2,0),
+                             dims=(1.3,0.255+margin*2,0.6), center=(front_shift,-0.145,1.52), rpy=(0,np.pi/2,0),
+                             color=COLOR_CLOSET_COL, fixed=True, collision=False, parent="closet_vis")
+    closet_leftup = gscene.create_safe(GEOTYPE.BOX, "closet_leftup_col", link_name="base_link",
+                             dims=(1.3,0.255+margin,0.6), center=(front_shift,-0.145-margin/2,1.52), rpy=(0,np.pi/2,0),
                              color=COLOR_CLOSET_COL, fixed=True, collision=True, parent="closet_vis")
 
     closet_rightup = gscene.create_safe(GEOTYPE.BOX, "closet_rightup", link_name="base_link", 
-                             dims=(0.58,0.22,0.465), center=(-0.065,0.11,1.87), rpy=(0,np.pi/2,0),
+                             dims=(0.58,0.22+margin,0.465), center=(-0.065+front_shift,0.12+margin/2,1.87), rpy=(0,np.pi/2,0),
+                             color=COLOR_CLOSET_COL, fixed=True, collision=False, parent="closet_vis")
+    closet_rightup = gscene.create_safe(GEOTYPE.BOX, "closet_rightup_col", link_name="base_link",
+                             dims=(0.58,0.22+margin,0.465), center=(-0.065+front_shift,0.12+margin/2,1.87), rpy=(0,np.pi/2,0),
                              color=COLOR_CLOSET_COL, fixed=True, collision=True, parent="closet_vis")
     
     closet_down = gscene.create_safe(GEOTYPE.BOX, "closet_down", link_name="base_link",
-                                 dims=(0.8,0.495,0.6), center=(0,-0.025,0.45), rpy=(0,np.pi/2,0),
+                                 dims=(0.8,0.495+margin*2,0.6), center=(0,-0.025,0.45), rpy=(0,np.pi/2,0),
                                  color=COLOR_CLOSET_COL, fixed=True, collision=True, parent="closet_vis")
     closet_shelf = gscene.create_safe(GEOTYPE.BOX, "closet_shelf", link_name="base_link", 
-                                 dims=(0.02,0.24,0.465), center=(-0.065,0.105,1.24), rpy=(0,np.pi/2,0),
+                                 dims=(0.02,0.24+margin*2,0.465), center=(-0.065,0.105,1.24), rpy=(0,np.pi/2,0),
                                  color=COLOR_CLOSET_COL, fixed=True, collision=True, parent="closet_vis")
     closet_back = gscene.create_safe(GEOTYPE.BOX, "closet_back", link_name="base_link", 
                                  dims=(0.02,0.24,0.73), center=(-0.29,0.105,1.22), rpy=(0,0,0),
