@@ -675,6 +675,8 @@ from ..planning.motion.moveit.moveit_py import PlannerConfig
 def get_look_motion(mplan, rname, from_Q, target_point, com_link, 
                     view_dir=[0,0,1], timeout=1):
     gscene = mplan.gscene
+    if isinstance(target_point, GeometryItem):
+        target_point = target_point.get_tf(from_Q)[:3,3]
     tip_link = mplan.chain_dict[rname]['tip_link']
     ref_link = mplan.chain_dict[rname]['link_names'][0]
     Trb = SE3_inv(gscene.get_tf(ref_link, from_Q))
@@ -688,9 +690,17 @@ def get_look_motion(mplan, rname, from_Q, target_point, com_link,
 
     Toc = np.matmul(SE3_inv(Tcom), Tcur)
     Tot = np.matmul(SE3(dRr, (0,)*3), Toc)
-    Ttar = np.matmul(Tcom, Tot)
-    xyzquat = T2xyzquat(Ttar)
+    Ttar_ref = np.matmul(Tcom, Tot)
+    retract_N = 10
+    retract_step = 0.05
     mplan.update_gscene()
-    traj, succ = mplan.planner.plan_py(rname, tip_link, xyzquat[0]+xyzquat[1], ref_link, from_Q,
-                                       timeout=timeout)
+    for i_ret in range(retract_N):
+        dP = np.multiply(view_dir, retract_step*i_ret)
+        Ttar = np.copy(Ttar_ref)
+        Ttar[:3,3] = Ttar_ref[:3,3] - np.matmul(Ttar_ref[:3,:3], dP)
+        xyzquat = T2xyzquat(Ttar)
+        traj, succ = mplan.planner.plan_py(rname, tip_link, xyzquat[0]+xyzquat[1], ref_link, from_Q,
+                                           timeout=timeout)
+        if succ:
+            break
     return traj, succ

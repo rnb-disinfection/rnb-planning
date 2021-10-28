@@ -330,7 +330,6 @@ def calc_gaze_pose(cn_cur, mplan, table_front, viewpoint, indy, CONNECT_INDY, GA
     print("GAZE: {}".format(success))
     return gaze_traj, success
 
-
 def move_mobile_update_state(sock_mobile, MOBILE_IP, wayframer, from_Q, to_Q, D_APPROACH=0.3, CONNECT_MOBILE=True):
     gscene = wayframer.geometry.gscene
     Tbw0 = wayframer.get_tf_handle(list2dict(from_Q,

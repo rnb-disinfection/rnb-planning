@@ -112,7 +112,7 @@ class KiroMobileClient(TrajectoryClient):
 
         #         self.joint_waypoint_clean()
         for Q in traj_wps:
-            self.joint_move_make_sure(qtar)
+            self.joint_move_make_sure(Q)
         return traj_wps, float(len(traj_wps)) / self.traj_freq
 
     ##

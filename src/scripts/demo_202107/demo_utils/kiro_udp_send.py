@@ -177,12 +177,15 @@ def get_xyzw_cur():
 def get_reach_state():
     return gnGoalreached
 
+def get_reach_state_edgeup():
+    return gnGoalreached_edge_up
+
 ##
 # @brief send target pose and wait until motion ends
 # @remark usage: cur_xyzw = send_pose_wait(tar_xyzw, send_ip=MOBILE_IP)
 # @param tar_xyzw tuple of 4 numbers to represent 2D location (x,y/qz,qw in xyzquat)
 # @param tool_angle tool angle
-def send_pose_wait(sock, tar_xyzw, tool_angle=0, send_ip=SEND_UDP_IP, recv_delay=2, fix_delay=False):
+def send_pose_udp(sock, tar_xyzw, tool_angle=0, send_ip=SEND_UDP_IP):
     global gnGoalreached_edge_up
     assert len(tar_xyzw)==4, "tar_xyzw should be tuple of 4 floats"
     Packet_data=tuple(tar_xyzw)+tuple((tool_angle,))
@@ -190,11 +193,17 @@ def send_pose_wait(sock, tar_xyzw, tool_angle=0, send_ip=SEND_UDP_IP, recv_delay
     print(Packet_data)
     gnGoalreached_edge_up = 0
     sock.sendto(udp_send_data,(send_ip, UDP_PORT_SEND))
+##
+# @brief send target pose and wait until motion ends
+# @remark usage: cur_xyzw = send_pose_wait(tar_xyzw, send_ip=MOBILE_IP)
+# @param tar_xyzw tuple of 4 numbers to represent 2D location (x,y/qz,qw in xyzquat)
+# @param tool_angle tool angle
+def send_pose_wait(sock, tar_xyzw, tool_angle=0, send_ip=SEND_UDP_IP, recv_delay=2, fix_delay=False):
+    send_pose_udp(sock, tar_xyzw, tool_angle, send_ip)
     time.sleep(recv_delay)
     if not fix_delay:
         while not gnGoalreached_edge_up:
             time.sleep(0.5)
-    gnGoalreached_edge_up = 0
     return cur_pose_x, cur_pose_y, cur_pose_heading_q_z, cur_pose_heading_q_w
 
 def wait_goal_reached():

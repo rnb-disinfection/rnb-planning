@@ -221,7 +221,7 @@ class PlanningPipeline:
             term_reason = "max search node count reached ({}/{})".format(self.tplan.snode_counter.value, N_search)
             self.stop_now.value = 1
         elif (time.time() - self.t0) >= timeout_loop:
-            term_reason = "max iteration time reached ({}/{} s)".format(int(time.time()), self.t0)
+            term_reason = "max iteration time reached ({}/{} s)".format(int(time.time()-self.t0), timeout_loop)
             self.stop_now.value = 1
         elif ret:
             term_reason = "required answers acquired"

@@ -57,7 +57,7 @@
 		<child link="kmb${robot_id}_link1"/>
 		<origin xyz="0 0 0" rpy="0 0 0"/>
 		<axis xyz="1 0 0"/>
-    	<limit effort="10000" lower="-5" upper="5" velocity="1.0"/>
+    	<limit effort="10000" lower="-10" upper="10" velocity="1.0"/>
 	</joint>
 
 	<joint name="kmb${robot_id}_joint1" type="prismatic">
@@ -65,7 +65,7 @@
 		<child link="kmb${robot_id}_link2"/>
 		<origin xyz="0 0 0" rpy="0 0 0"/>
 		<axis xyz="0 1 0"/>
-    	<limit effort="10000" lower="-5" upper="5" velocity="1.0"/>
+    	<limit effort="10000" lower="-10" upper="10" velocity="1.0"/>
 	</joint>
 
 	<joint name="kmb${robot_id}_joint2" type="continuous">
@@ -73,7 +73,7 @@
 		<child link="kmb${robot_id}_link3"/>
 		<origin xyz="0 0 0" rpy="0 0 0"/>
 		<axis xyz="0 0 1"/>
-    	<limit effort="10000" lower="-10000" upper="10000" velocity="1.5708"/>
+    	<limit effort="10000" lower="-15.708" upper="15.708" velocity="1.5708"/>
 	</joint>
 
 	<joint name="kmb${robot_id}_joint3" type="revolute">

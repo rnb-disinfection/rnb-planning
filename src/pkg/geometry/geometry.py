@@ -39,6 +39,7 @@ class GeometryScene(list):
         self.rviz = rviz
         self.highlight_dict = defaultdict(dict)
         self.marker_list = []
+        self.marker_list_fixed = []
         if self.rviz:
             self.set_rviz()
 
@@ -168,22 +169,28 @@ class GeometryScene(list):
             joint_pose = self.joints.position
         # prepare visualization markers
         self.__clear_markers()
-        self.marker_list = get_markers(self, self.joints, self.joint_names)
+        self.marker_list_fixed = get_markers([gtem for gtem in self if gtem.fixed_on_world], self.joints, self.joint_names)
+        self.marker_list = get_markers([gtem for gtem in self if not gtem.fixed_on_world], self.joints, self.joint_names)
         self.show_pose(joint_pose)
 
     ##
     # @brief add new marker (for internal use)
     def __add_marker(self, gtem):
         if self.rviz:
-            self.marker_list += get_markers([gtem], self.joints, self.joint_names)
+            markers = get_markers([gtem], self.joints, self.joint_names)
+            if gtem.fixed_on_world:
+                self.marker_list_fixed += markers
+            else:
+                self.marker_list += markers
 
     ##
     # @brief republish markers with last published position
     # @remark TODO: make [mk for mk in self.marker_list if mk.geometry == gtem] efficient
     def update_marker(self, gtem):
         if self.rviz:
+            marker_list = self.marker_list_fixed if gtem.fixed_on_world else self.marker_list
             joint_dict = {self.joints.name[i]: self.joints.position[i] for i in range(len(self.joint_names))}
-            marks = [mk for mk in self.marker_list if mk.geometry == gtem]
+            marks = [mk for mk in marker_list if mk.geometry == gtem]
             if gtem.display and len(marks)==0:
                 self.__add_marker(gtem)
             else:
@@ -196,9 +203,12 @@ class GeometryScene(list):
 
     ##
     # @brief republish all markers with last published position
-    def update_markers_all(self):
+    def update_markers_all(self, include_fixed=True):
         if self.rviz:
             joint_dict = {self.joints.name[i]: self.joints.position[i] for i in range(len(self.joint_names))}
+            if include_fixed:
+                for mk in self.marker_list_fixed:
+                    mk.set_marker(joint_dict, create=False)
             for mk in self.marker_list:
                 mk.set_marker(joint_dict, create=False)
 
@@ -206,18 +216,23 @@ class GeometryScene(list):
     # @brief remove marker for specific geometry item
     def __remove_marker(self, gtem, sleep=True):
         del_list = []
-        for marker in self.marker_list:
+        marker_list = self.marker_list_fixed if gtem.fixed_on_world else self.marker_list
+        for marker in marker_list:
             if marker.geometry == gtem:
                 del_list.append(marker)
         for marker in del_list:
             marker.delete(sleep=sleep)
-            self.marker_list.remove(marker)
+            marker_list.remove(marker)
 
     ##
     # @brief clear all markers
-    def __clear_markers(self):
+    def __clear_markers(self, include_fixed=True):
         for hl_key in self.highlight_dict.keys():
             self.clear_highlight(hl_key)
+        if include_fixed:
+            for mk in self.marker_list_fixed:
+                mk.delete()
+            self.marker_list_fixed = []
         for mk in self.marker_list:
             mk.delete()
         self.marker_list = []
@@ -442,6 +457,7 @@ class GeometryItem(object):
         self.display = display
         self.collision = collision
         self.fixed = fixed
+        self.fixed_on_world = fixed and link_name=="base_link"
         self.soft = soft
         self.online = online
         self.K_col = K_col
