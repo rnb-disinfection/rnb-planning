@@ -282,6 +282,15 @@ class GeometryScene(list):
         self.add_highlight_axis(hname, "axis", gtem.link_name, center=gtem.center, orientation_mat=gtem.orientation_mat)
 
     ##
+    # @param points (Nx3)
+    def show_point_cloud(self, points, prefix="cloud", link_name="base_link", sample_to=300, **kwargs):
+        sample_step = int(len(points) / sample_to)
+        if sample_step == 0:
+            sample_step = 1
+        for ip, pt in enumerate(points[::sample_step]):
+            self.add_highlight_axis("hl", prefix + "_{}".format(ip), link_name=link_name, center=pt, axis=None, **kwargs)
+
+    ##
     # @brief add highlight axis
     def add_highlight_axis(self, hl_key, name, link_name, 
                            center=None, orientation_mat=None, T=None,

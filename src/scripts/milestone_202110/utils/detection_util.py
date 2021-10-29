@@ -384,32 +384,10 @@ def remove_bed(pcd_original, pcd_bed):
     return p_inliers
 
 
-def check_location_top_table(color_path, depth_path, T_bc, T_bo, bed_dims, floor_margin=0.1, visualize=False):
-    # Load total PCD of first view
-    color = o3d.io.read_image(color_path)
-    depth = o3d.io.read_image(depth_path)
-    rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(color, depth, depth_scale=1 / __d_scale,
-                                                            depth_trunc=5.0, convert_rgb_to_intensity = False)
-    pcd_total = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image,
-                                                                o3d.camera.PinholeCameraIntrinsic(cam_width,
-                                                                                                  cam_height, cam_fx,
-                                                                                                  cam_fy,
-                                                                                                  cam_ppx, cam_ppy))
-
+def check_location_top_table(pcd_total, pcd_bed, T_bc, T_bo, bed_dims, floor_margin=0.1, visualize=False):
     pcd_total = pcd_total.uniform_down_sample(every_k_points=11)
     if visualize:
         o3d.visualization.draw_geometries([pcd_total])
-
-    # Load PCD of bed
-    color = o3d.io.read_image(CROP_DIR + '/bed_crop.jpg')
-    depth = o3d.io.read_image(CROP_DIR + '/bed_crop.png')
-    rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(color, depth, depth_scale = 1/__d_scale,
-                                                                depth_trunc = 5.0, convert_rgb_to_intensity = False)
-    pcd_bed = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image,
-                                                                o3d.camera.PinholeCameraIntrinsic(cam_width,
-                                                                                                  cam_height, cam_fx,
-                                                                                                  cam_fy,
-                                                                                                  cam_ppx, cam_ppy))
 
     # Remove bed
     pcd_top_table = o3d.geometry.PointCloud()
@@ -934,3 +912,257 @@ def Rodrigues_Rot_mat(axis, q):
     R = np.identity(3) + sin(q) * A + (1 - cos(q)) * np.matmul(A, A)
 
     return R
+
+
+import os
+import sys
+
+sys.path.append(os.path.join(os.path.join(os.environ["RNB_PLANNING_DIR"], 'src')))
+sys.path.append(os.path.join(os.environ["RNB_PLANNING_DIR"], 'src/scripts/milestone_202110'))
+from pkg.utils.rotation_utils import *
+from collections import namedtuple
+import open3d as o3d
+
+CamIntrins = namedtuple('CamIntrins', ['cam_width', 'cam_height', 'cam_fx', 'cam_fy', 'cam_ppx', 'cam_ppy'])
+
+##
+# @class ColorDepthMap
+# @param color numpy 8 bit array
+# @param depth numpy 16 bit array
+# @param intrins CamIntrins
+# @param depth_scale multiplier for depthymap
+ColorDepthMap = namedtuple('ColorDepthMap', ['color', 'depth', 'intrins', 'depth_scale'])
+
+
+##
+# @# param fname file apth except extension
+def load_rdict(obj_type,
+               intrins=[1280, 720,
+                        909.957763671875, 909.90283203125,
+                        638.3824462890625, 380.0085144042969],
+               depth_scale=1 / 3999.999810010204):
+    rdict = {}
+    rdict['color'] = cv2.imread(
+        os.path.join(SAVE_DIR, obj_type + '.jpg'), flags=cv2.IMREAD_UNCHANGED)
+    rdict['depth'] = cv2.imread(
+        os.path.join(SAVE_DIR, obj_type + '.png'), flags=cv2.IMREAD_UNCHANGED)
+    rdict['intrins'], rdict['depth_scale'] = intrins, depth_scale
+    return rdict
+
+
+def rdict2cdp(rdict):
+    return ColorDepthMap(**{k: rdict[k] for k in ColorDepthMap._fields})
+
+
+def apply_mask(cdp, mask):
+    mask_u8 = np.zeros_like(mask).astype(np.uint8)
+    mask_u8[np.where(mask)] = 255
+    color_masked = cv2.bitwise_and(
+        cdp.color, cdp.color, mask=mask_u8
+    ).astype(np.uint8)
+    depth_masked = cv2.bitwise_and(
+        cdp.depth, cdp.depth, mask=mask_u8
+    ).astype(np.uint16)
+    return ColorDepthMap(color_masked, depth_masked, cdp.intrins, cdp.depth_scale)
+
+def cdp2pcd(cdp, Tc=None, depth_trunc=5.0):
+    if Tc is None:
+        Tc = np.identity(4)
+    color = o3d.geometry.Image(cdp.color)
+    depth = o3d.geometry.Image(cdp.depth)
+    d_scale = cdp.depth_scale
+    rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(color, depth, depth_scale=1 / d_scale,
+                                                                    depth_trunc=depth_trunc,
+                                                                    convert_rgb_to_intensity=False)
+    pcd = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image,
+                                                         o3d.camera.PinholeCameraIntrinsic(
+                                                             *cdp.intrins), SE3_inv(Tc))
+    return pcd
+
+class MultiICP:
+
+    ##
+    # @param model open3d.geometry.TriangleMesh or file path
+    # @param Toff  GeometryItem coordinate in TriangleMesh coordinate. externally, we use geometry coordinate for all TFs
+    # @param scale scale multiplier if model is given as file path
+    def __init__(self, model, Toff, scale=1e-3):
+        if isinstance(model, o3d.geometry.TriangleMesh):
+            self.model = model
+        elif isinstance(model, str):
+            self.model = o3d.io.read_triangle_mesh(model)
+            self.model.vertices = o3d.utility.Vector3dVector(
+                np.asarray(self.model.vertices) * np.array([scale] * 3))
+        else:
+            raise (NotImplementedError("non available input for model : \n".format(model)))
+        self.set_Toff(Toff)
+        self.depth_trunc = 5.0
+        self.pcd = None
+        self.pcd_Tc_stack = []
+
+    ##
+    # @param Toff  GeometryItem coordinate in TriangleMesh coordinate. externally, we use geometry coordinate for all TFs
+    def set_Toff(self, Toff):
+        self.Toff = Toff
+        self.Toff_inv = SE3_inv(Toff)
+
+    ##
+    # @param cdp open3d.geometry.PointCloud
+    # @param Tc camera transformation matrix
+    def add_pointcloud(self, pcd, Tc=None):
+        if Tc is None:
+            pcd_cam = copy.deepcopy(pcd)
+            pcd = copy.deepcopy(pcd)
+            Tc= np.identity(4)
+        else:
+            pcd_cam = copy.deepcopy(pcd)
+            pcd = copy.deepcopy(pcd)
+
+            points = np.asarray(pcd_cam.points)
+            points4d = np.pad(points, ((0, 0), (0, 1)), 'constant', constant_values=1)
+            Tc_inv = SE3_inv(Tc)
+            points_c = np.matmul(points4d, Tc_inv.transpose())[:, :3]
+            pcd_cam.points = o3d.utility.Vector3dVector(points_c)
+
+        self.pcd_Tc_stack.append((pcd_cam, Tc))
+        if self.pcd is None:
+            self.pcd = pcd
+        else:
+            pass  # add
+            self.pcd += pcd
+        self.model_sampled = self.model.sample_points_uniformly(number_of_points=int(len(np.array(self.pcd.points))))
+        return self.pcd
+
+    ##
+    # @param cdp ColorDepthMap
+    # @param Tc camera transformation matrix
+    def add_image(self, cdp, Tc=None):
+        if Tc is None:
+            Tc= np.identity(4)
+        pcd_cam = cdp2pcd(cdp, depth_trunc=self.depth_trunc)
+        pcd = cdp2pcd(cdp, Tc=Tc, depth_trunc=self.depth_trunc)
+        self.pcd_Tc_stack.append((pcd_cam, Tc))
+        if self.pcd is None:
+            self.pcd = pcd
+        else:
+            pass  # add
+            self.pcd += pcd
+        self.model_sampled = self.model.sample_points_uniformly(number_of_points=int(len(np.array(self.pcd.points))))
+        return self.pcd
+
+    ##
+    # @param To    initial transformation matrix of geometry object in the intended icp origin coordinate
+    # @param thres max distance between corresponding points
+    def compute_ICP(self, To=None, thres=0.1,
+                    relative_fitness=1e-17, relative_rmse=1e-17, max_iteration=500000,
+                    voxel_size=0.05, visualize=False
+                    ):
+        if To is None:
+            To, fitness = self.auto_init(0, voxel_size)
+
+        target = copy.deepcopy(self.pcd)
+        source = copy.deepcopy(self.model_sampled)
+        if visualize:
+            self.draw(To)
+
+        To = np.matmul(To, self.Toff_inv)
+
+        # Guess Initial Transformation
+        trans_init = To
+
+        print("Apply point-to-point ICP")
+        threshold = thres
+        reg_p2p = o3d.registration.registration_icp(source, target, threshold, trans_init,
+                                                    o3d.registration.TransformationEstimationPointToPoint(),
+                                                    o3d.registration.ICPConvergenceCriteria(
+                                                        relative_fitness=relative_fitness,
+                                                        relative_rmse=relative_rmse,
+                                                        max_iteration=max_iteration))
+        print(reg_p2p)
+        print("Transformation is:")
+        print(reg_p2p.transformation)
+        ICP_result = reg_p2p.transformation
+
+        ICP_result = np.matmul(ICP_result, self.Toff)
+        if visualize:
+            self.draw(ICP_result)
+
+        return ICP_result, reg_p2p.fitness
+
+    def draw(self, To, source=None, target=None):
+        if source is None: source = self.model_sampled
+        if target is None: target = self.pcd
+        To = np.matmul(To, self.Toff_inv)
+        draw_registration_result_original_color(source, target, To)
+
+    def auto_init(self, init_idx=0, voxel_size=0.05):
+        pcd_cam, Tc = self.pcd_Tc_stack[init_idx]
+        Tc_inv = SE3_inv(Tc)
+        source_down, source_fpfh = preprocess_point_cloud(pcd_cam, voxel_size)
+        target_down, target_fpfh = preprocess_point_cloud(self.model_sampled, voxel_size)
+
+        distance_threshold = voxel_size * 1.4
+        result = o3d.registration.registration_ransac_based_on_feature_matching(
+            source_down, target_down, source_fpfh, target_fpfh, distance_threshold,
+            o3d.registration.TransformationEstimationPointToPoint(False), 3, [
+                o3d.registration.CorrespondenceCheckerBasedOnEdgeLength(0.9),
+                o3d.registration.CorrespondenceCheckerBasedOnDistance(
+                    distance_threshold)
+            ], o3d.registration.RANSACConvergenceCriteria(4000000, 500))
+
+        To = matmul_series(Tc, result.transformation, self.Toff)
+        return To, result.fitness
+
+    ##
+    # @param R orientation guess for geometry coord
+    # @param offset offset to add to the pcd center, in icp origin coordinate
+    def get_initial_by_center(self, R, offset):
+        # Get distance of pcd
+        center_p = self.pcd.get_center()
+        return SE3(R, center_p + offset)
+
+    ##
+    # @param R orientation guess for geometry coord
+    # @param offset offset to add to the pcd center, in icp origin coordinate
+    def get_initial_by_median(self, R, offset):
+        # Get distance of pcd
+        center_p = np.median(self.pcd.points, axis=0)
+        return SE3(R, center_p + offset)
+
+    def clear(self):
+        self.pcd = None
+        self.pcd_Tc_stack = []
+
+def draw_registration_result_original_color(source, target, transformation):
+    source_temp = copy.deepcopy(source)
+    source_temp.transform(transformation)
+    FOR_origin = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.15, origin=[0, 0, 0])
+
+    FOR_model = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.15, origin=[0, 0, 0])
+    FOR_model.transform(transformation)
+    FOR_model.translate(source_temp.get_center() - FOR_model.get_center())
+
+    FOR_target = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.15, origin=target.get_center())
+    o3d.visualization.draw_geometries([source_temp, target, FOR_origin, FOR_model, FOR_target])
+
+##
+# @param pcd        o3d.geometry.PointCloud
+# @param inside     if True, return points inside. if False, return points outside
+# @param merge_rule np.any or np.all
+def mask_boxes(pcd, boxes, Q, inside, merge_rule=np.all, link_ref="base_link"):
+    pcd = copy.deepcopy(pcd)
+    points = np.asarray(pcd.points)
+    points4d = np.pad(points, ((0,0), (0,1)), 'constant', constant_values=1)
+    mask_list = []
+    for box in boxes:
+        T_bx = box.get_tf(Q, from_link=link_ref)
+        T_xb = SE3_inv(T_bx)
+        abs_cuts = np.divide(box.dims, 2)
+        points_x = np.matmul(points4d, T_xb.transpose())[:,:3]
+        if inside:
+            mask = np.all(np.abs(points_x) < abs_cuts, axis=-1)
+        else:
+            mask = np.any(np.abs(points_x) > abs_cuts, axis=-1)
+        mask_list.append(mask)
+    idc = np.where(merge_rule(mask_list, axis=0))[0]
+    pcd.points = o3d.utility.Vector3dVector(points[idc])
+    return pcd

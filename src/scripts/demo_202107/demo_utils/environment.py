@@ -102,10 +102,22 @@ def add_bed(gscene, bed_center, bed_rpy, COLOR_BED_COL, add_back_wall=True):
                                  dims=(0.4,1.0,1.30), center=(1.03,0,0.5), rpy=(0,0,0),
                                  color=COLOR_BED_COL, fixed=True, collision=True, parent="bed_vis")
 
+    gscene.create_safe(GEOTYPE.BOX, "bed_box", link_name="base_link",
+                       dims=(2.5, 1.3, 1.3), center=(0.02, 0, 0.5), rpy=(0, 0, 0),
+                       color=(1, 1, 1, 0.1), fixed=True, collision=False, parent="bed_vis")
+
+    gscene.create_safe(GEOTYPE.BOX, "bed_left_space", link_name="base_link",
+                       dims=(2.5, 1, 3), center=(0.02, -0.9, 1), rpy=(0, 0, 0),
+                       color=(1, 1, 1, 0.05), fixed=True, collision=False, parent="bed_vis")
+
+    gscene.create_safe(GEOTYPE.BOX, "bed_right_space", link_name="base_link",
+                       dims=(2.5, 1, 3), center=(0.02, 0.9, 1), rpy=(0, 0, 0),
+                       color=(1, 1, 1, 0.05), fixed=True, collision=False, parent="bed_vis")
+
     if add_back_wall:
         gscene.create_safe(GEOTYPE.BOX, "bed_wall", link_name="base_link",
-                           dims=(0.1,1.0,1.10), center=(-1.13,0,0.5), rpy=(0,0,0),
-                           color=COLOR_BED_COL, fixed=True, collision=True, parent="bed_vis")
+                           dims=(0.5,7.0,3), center=(-1.27,0,1.5), rpy=(0,0,0),
+                           color=(1, 1, 1, 0.1), fixed=True, collision=True, parent="bed_vis")
     return bed_mat
 
 def move_bed(gscene, bed_center, bed_rpy):
@@ -145,6 +157,10 @@ def add_closet(gscene, closet_center, closet_rpy, COLOR_CLOSET_COL = (0,1,0,0.3)
     closet_back = gscene.create_safe(GEOTYPE.BOX, "closet_back", link_name="base_link", 
                                  dims=(0.02,0.24,0.73), center=(-0.29,0.105,1.22), rpy=(0,0,0),
                                  color=COLOR_CLOSET_COL, fixed=True, collision=True, parent="closet_vis")
+    gscene.create_safe(
+        gtype=GEOTYPE.BOX, name="closet_box", link_name="base_link",
+        dims=(1, 0.9, 2.3), center=(0, 0, 1.1), rpy=(0, 0, 0),
+        color=(0, 0, 0, 0.1), display=True, collision=False, fixed=True, parent="closet_vis")
     return closet_leftup, closet_rightup, closet_down
 
 def move_closet(gscene, closet_center, closet_rpy):

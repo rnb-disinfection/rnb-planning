@@ -190,7 +190,7 @@ def draw_registration_result_original_color(source, target, transformation):
     FOR_model.translate(source_temp.get_center() - FOR_model.get_center())
 
     FOR_target = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.15, origin=target.get_center())
-    o3d.visualization.draw_geometries([source_temp, target, FOR_origin])
+    o3d.visualization.draw_geometries([source_temp, target, FOR_origin, FOR_model, FOR_target])
 
 
 def compute_ICP(model_mesh, pcd, model_center_offset):
