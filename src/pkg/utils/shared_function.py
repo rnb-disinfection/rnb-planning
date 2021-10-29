@@ -21,8 +21,8 @@ if __name__ == "__main__":                                                      
 ## run separated process                                                                \n
 self.subp = subprocess.Popen(['python', 'test_module.py'])                              \n
                                                                                         \n
-## call function just as single process program                                         \n
-res = hi(1)                                                                             \n
+## call function just as single process program, but must call with kwargs              \n
+res = hi(arg1=1)                                                                        \n
 print(res)                                                                              \n
 ------------------------------------------------------                                  \n
                                                                                         \n
@@ -35,6 +35,7 @@ from collections import namedtuple
 from enum import Enum
 import numpy as np
 import copy
+from threading import Thread, Event
 
 ##
 # @brief flag to distinguish master and slave \n
@@ -52,7 +53,6 @@ SHARED_FUNC_ALL = []
 
 def shared_fun_uri(addr, identifier):
     return SHARED_FUN_URI_FORM.format(addr, identifier)
-
 
 ##
 # @brief get full name of given function including parent class
@@ -86,55 +86,81 @@ ResProb = namedtuple("ResProb", ["index", "shape", "etype"])
 # @class CallType
 # @brief flag for waiting for response (sync) or not (async)
 class CallType(Enum):
-    ASYNC = 0
-    SYNC = 1
+    ASYNC = 0       # wait and return response
+    SYNC = 1        # do not wait response, you can get response by check_response later
 
 
-def __to_dtype(etype):
-    if etype == None:
-        return None
-    if etype == bool:
-        return np.bool_
-    if etype == int:
-        return np.int64
-    if etype == float:
-        return np.float64
-    else:
-        return etype
 
-
-def get_shared_array(addr, shape, etype):
-    dtype = __to_dtype(etype)
-    sm_dict = {sm.name.decode(): sm for sm in sa.list()}
-    if addr in sm_dict:
-        ex_shape, ex_dtype = sm_dict[addr].dims, sm_dict[addr].dtype
-        if ex_shape == shape and ex_dtype == dtype:
-            return sa.attach("shm://" + addr)
+class ExtendedData:
+    def __init__(self, addr, shape, etype):
+        self.addr, self.shape, self.etype = addr, shape, etype
+        self.dtype = dtype = self.dtype(etype)
+        sm_dict = {sm.name.decode(): sm for sm in sa.list()}
+        if addr in sm_dict:
+            ex_shape, ex_dtype = sm_dict[addr].dims, sm_dict[addr].dtype
+            if ex_shape == shape and ex_dtype == self.dtype:
+                self.sm = sa.attach("shm://" + addr)
+            else:
+                raise (TypeError(
+                    "SharedArray {} exists but property does not match: ({}, {}) <- ({},{})".format(
+                        addr, ex_shape, ex_dtype, shape, dtype)))
         else:
-            raise (TypeError(
-                "SharedArray {} exists but property does not match: ({}, {}) <- ({},{})".format(
-                    addr, ex_shape, ex_dtype, shape, dtype)))
-    else:
-        return sa.create("shm://" + addr, shape=shape, dtype=dtype)
+            self.sm = sa.create("shm://" + addr, shape=shape, dtype=dtype)
 
+
+    def assign(self, data):
+        if self.etype == dict:
+            sjson = json.dumps(data, cls=NumpyEncoder, ensure_ascii=False)
+            self.sm[:len(sjson)] = map(ord, sjson)
+        elif self.etype == str:
+            self.sm[:len(data)] = map(ord, data)
+        else:
+            self.sm[:] = data
+
+    def read(self):
+        if self.etype == dict:
+            data = map(chr, self.sm[:])
+            sjson = "".join(data[:np.where(sm[:] == 0)[0][0]])
+            return json.loads(rjson)
+        elif self.etype == str:
+            data = map(chr, self.sm[:])
+            return "".join(data[:np.where(sm[:] == 0)[0][0]])
+        else:
+            return np.copy(self.sm)
+
+    @classmethod
+    def dtype(cls, etype):
+        if etype == bool:
+            return np.bool_
+        elif etype == int:
+            return np.int64
+        elif etype == float:
+            return np.float64
+        elif etype == dict:
+            return np.uint8
+        elif etype == str:
+            return np.uint8
+        else:
+            return etype
 
 def shared_fun(ctype, *var_props):
     def __decorator(func):
         SHARED_FUNC_ALL.append(func)
         fullname_fun = fullname(func)
-        func.request = get_shared_array(shared_fun_uri(fullname_fun, "__request__"), shape=(1,), etype=bool)
-        func.response = get_shared_array(shared_fun_uri(fullname_fun, "__request__"), shape=(1,), etype=bool)
+        func.request = ExtendedData(shared_fun_uri(fullname_fun, "__request__"), shape=(1,), etype=bool)
+        func.response = ExtendedData(shared_fun_uri(fullname_fun, "__request__"), shape=(1,), etype=bool)
         func.kwargs = {}
         func.returns = {}
+        func.ctype = ctype
         for var_prop in var_props:
             if isinstance(var_prop, ResProb):
                 addr = shared_fun_uri(fullname_fun, var_prop.index)
                 func.returns[var_prop.index] = \
-                    get_shared_array(addr, shape=var_prop.shape, etype=var_prop.etype)
+                    ExtendedData(addr, shape=var_prop.shape, etype=var_prop.etype)
             elif isinstance(var_prop, ArgProb):
                 addr = shared_fun_uri(fullname_fun, var_prop.name)
                 func.kwargs[var_prop.name] = \
-                    get_shared_array(addr, shape=var_prop.shape, etype=var_prop.etype)
+                    ExtendedData(addr, shape=var_prop.shape, etype=var_prop.etype)
             else:
                 raise (TypeError("arguments for shared_fun should be either ArgProb or ResProb"
                                  "but {} is given".format(type(var_prop))))
@@ -143,11 +169,11 @@ def shared_fun(ctype, *var_props):
         @wraps(func)
         def __wrapper(**kwargs):
             if SERVING:
-                __run_send_response(func)
+                res = __run_send_response(func)
             if ctype == CallType.ASYNC:
-                __send_request(func, **kwargs)
+                res = __send_request(func, **kwargs)
             elif ctype == CallType.SYNC:
-                __send_request_wait(func, **kwargs)
+                res = __send_request_wait(func, **kwargs)
             else:
                 raise (TypeError("ctype should be CallType member"))
             return res
@@ -156,30 +182,19 @@ def shared_fun(ctype, *var_props):
 
     return __decorator
 
-
-def assign_val(sm, val):
-    sm[:] = val
-    raise (NotImplementedError("Extend dtype"))
-
-
-def read_val(sm):
-    raise (NotImplementedError("Extend dtype"))
-    return sm
-
-
 def __run_send_response(func):
-    returns = func(**func.kwargs)
-    for tar, src in zip(func.returns, returns):
-        assign_val(tar, src)
-    assign_val(func.request, False)
-    assign_val(func.response, True)
+    returns = func(**{k: v.read() for k, v in func.kwargs.items()})
+    for edat, val in zip(func.returns, returns):
+        edat.assign(src)
+    func.request.assign(False)
+    func.response.assign(True)
 
 
 def __send_request(func, **kwargs):
     for k, val in kwargs.items():
-        assign_val(func.kwargs[k], val)
-    assign_val(func.response, False)
-    assign_val(func.request, True)
+        func.kwargs[k].assign(val)
+    func.response.assign(False)
+    func.request.assign(True)
 
 
 def __send_request_wait(func, **kwargs):
@@ -188,24 +203,38 @@ def __send_request_wait(func, **kwargs):
 
 
 ##
-# @breif get response from shared program. \n
-#        return None if not request is not finished and wait=False
-def check_response(func, wait=False):
-    if func.response[0]:
-        return [copy.deepcopy(val) for val in func.returns]
+# @breif    get response from shared program. \n
+#           return None if not request is not finished and wait=False
+def check_response(func, wait=False, timeout=None):
+    if func.response.read()[0]:
+        return get_return(func)
     elif wait:
-        while not func.response[0]:
+        time_start = 0
+        while not func.response.read()[0]:
             time.sleep(SF_PERIOD)
-        return [copy.deepcopy(val) for val in func.returns]
+            if time.time() - time_start > timeout:
+                break
+        if func.response.read()[0]:
+            return get_return(func)
+        else:
+            return None
     else:
         return None
+
+def get_return(func):
+    res = map(ExtendedData.read, func.returns)
+    if res is None or len(res) == 0:
+        res = None
+    elif len(res) == 1:
+        res = res[0]
+    return res
 
 
 ##
 # @brief check if a computation server is running with given server_id
 def check_paired(server_id="all"):
     pairing_uri = shared_fun_uri("server.{}".format(server_id), "paired")
-    paired = get_shared_array(pairing_uri, (1,), bool)
+    paired = ExtendedData(pairing_uri, (1,), bool)
     return paired
 
 
@@ -225,10 +254,9 @@ def serve_forever(shared_funcs=SHARED_FUNC_ALL, server_id="all"):
         for func in shared_funcs:
             print(" * {}".format(fullname(func)))
         print("=========================")
-        req_dict = {func.reqest: func for func in shared_funcs}
         while paired[0]:
-            for req, func in req_dict.items():
-                if req[0]: func()
+            for func in shared_funcs:
+                if func.request.read()[0]: func()
             time.sleep(SF_PERIOD)
     except Exception as e:
         print(e)
@@ -236,3 +264,11 @@ def serve_forever(shared_funcs=SHARED_FUNC_ALL, server_id="all"):
         assign_val(paired, False)
         time.sleep(0.1)
         sa.delete(pairing_uri)
+
+import json
+
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)

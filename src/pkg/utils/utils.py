@@ -93,7 +93,7 @@ class PeriodicTimer:
 
     ##
     # @brief    wait for next timer event
-    def wait(self): # Just waiting full period makes too much threading delay - make shorter loop
+    def wait(self):  # Just waiting full period makes too much threading delay - make shorter loop
         while not self.__tic.wait(self.period / 100):
             pass
         self.__tic.clear()
@@ -105,6 +105,24 @@ class PeriodicTimer:
 
     def __del__(self):
         self.stop()
+
+    def call_periodic(self, fun, N=None, timeout=None, args=[], kwargs={}):
+        i_call = 0
+        time_start = time.time()
+        while True:
+            self.wait()
+            fun(*args, **kwargs)
+            i_call += 1
+            if N is not None and i_call > N:
+                break
+            if timeout is not None and time.time() - time_start > timeout:
+                break
+
+    def call_in_thread(self, fun, N=None, timeout=None, args=[], kwargs={}):
+        kwargs_new = dict(fun=fun, N=N, timeout=timeout, **kwargs)
+        t = Thread(target=self.call_periodic, args=args, kwargs=kwargs_new)
+        t.daemon = True
+        t.start()
 
 
 ##
@@ -550,7 +568,7 @@ def moving_median(values, window=3):
 ##
 # @brief convert ascii int list to string text
 def ascii2str(ascii):
-    return "".join(map(chr, [83,90]))
+    return "".join(map(chr, ascii))
 
 ##
 # @brief convert string text to ascii int list
