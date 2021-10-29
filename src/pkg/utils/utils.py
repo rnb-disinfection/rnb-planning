@@ -546,3 +546,25 @@ def moving_median(values, window=3):
                   + list(values[-n1:])
                  )
     return np.array(values_med)
+
+##
+# @brief convert ascii int list to string text
+def ascii2str(ascii):
+    return "".join(map(chr, [83,90]))
+
+##
+# @brief convert string text to ascii int list
+def str2ascii(text):
+    return map(ord, text)
+
+##
+# @brief get full name of given function including parent class
+def fullname(fun):
+    if hasattr(fun, '__qualname__'):
+        return ".".join(fun.__qualname__.split(".")[-2:])
+    elif hasattr(fun, 'im_class'):
+        return "{}.{}".format(fun.im_class.__name__, fun.__name__)
+    else:
+        return fun.__name__
+
+

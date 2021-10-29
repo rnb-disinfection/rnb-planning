@@ -112,7 +112,7 @@ class KiroUDPClient(TrajectoryClient):
         Qcur = self.get_qcur()
         diff = np.subtract(Q[:3], Qcur[:3])
         diff[2] = Rot2axis(Rot_axis(3, diff[2]), 3)
-        if abs(diff[2])<5e-2:
+        if abs(diff[2])<1e-2:
             diff[2] = 0
             Q[2] = Qcur[2]
         diff_nm = np.linalg.norm(diff)
