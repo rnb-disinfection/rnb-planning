@@ -606,3 +606,35 @@ class PlanningPipeline:
             self.pscene.set_object_state(snode.state)
             if not on_rviz:
                 self.execute_grip(state_0)
+
+
+    def get_updated_schedule(self, snode_schedule, Q0, **kwargs):
+        snode_schedule_new = []
+        for snode in snode_schedule:
+            snode_schedule_new.append(snode.copy(self.pscene))
+        snode_schedule_new[0].state.Q = Q0
+
+        for snode_pre, snode_nxt in zip(snode_schedule_new[:-1], snode_schedule_new[1:]):
+            rnames = map(lambda x: x[0], self.pscene.combined_robot.get_robots_in_act(snode_nxt.traj))
+            rnames_new = map(lambda x: x[0], self.pscene.combined_robot.get_robots_in_act(
+                [snode_pre.state.Q, snode_nxt.state.Q]))
+            rnames_diff = list(set(rnames_new) - set(rnames))
+            if len(rnames_diff) == 0:
+                break
+            elif len(rnames_diff) > 1:
+                raise (RuntimeError("Too much difference"))
+            else:
+                rname = rnames_diff[0]
+                idx_fix = self.pscene.combined_robot.idx_dict[rname]
+                snode_nxt.state.Q[idx_fix] = snode_pre.state.Q[idx_fix]
+
+                traj, state_next, error, succ = \
+                    self.test_connection(from_state=snode_pre.state,
+                                           to_state=snode_nxt.state, **kwargs)
+                if succ:
+                    snode_nxt.set_traj(traj)
+                    snode_nxt.state = state_next
+                    print("Update success: {} -> {}".format(snode_pre.state.node, snode_nxt.state.node))
+                else:
+                    raise (RuntimeError("Update fail: {} -> {}".format(snode_pre.state.node, snode_nxt.state.node)))
+        return snode_schedule_new
