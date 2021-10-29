@@ -292,7 +292,7 @@ class GeometryScene(list):
 
     ##
     # @brief add highlight axis
-    def add_highlight_axis(self, hl_key, name, link_name, 
+    def add_highlight_axis(self, hl_key, name, link_name="base_link",
                            center=None, orientation_mat=None, T=None,
                            color=None, axis="xyz", dims=(0.10, 0.01, 0.01)):
         assert center is not None or T is not None, "Either center, orientation or T should be given"
