@@ -119,6 +119,8 @@ def get_map_save_data(ip_cur):
         map_listener = Listener(topic_name="/map", topic_type=OccupancyGrid)
         cost_listener = Listener(topic_name="/move_base/global_costmap/costmap",
                                  topic_type=OccupancyGrid)
+        lcost_listener = Listener(topic_name="/move_base/local_costmap/costmap",
+                                 topic_type=OccupancyGrid)
 
         map_data, cost_data = None, None
         time_start = time.time()
@@ -126,6 +128,7 @@ def get_map_save_data(ip_cur):
             time.sleep(0.5)
             map_data = map_listener.last_dat
             cost_data = cost_listener.last_dat
+            lcost_data = lcost_listener.last_dat
             if time.time() - time_start > TIMEOUT_GET_MAP:
                 break
 
@@ -134,6 +137,7 @@ def get_map_save_data(ip_cur):
 
             save_pickle(os.path.join(os.environ["RNB_PLANNING_DIR"],"data/map_data.pkl"), map_data)
             save_pickle(os.path.join(os.environ["RNB_PLANNING_DIR"],"data/cost_data.pkl"), cost_data)
+            save_pickle(os.path.join(os.environ["RNB_PLANNING_DIR"],"data/lcost_data.pkl"), lcost_data)
             save_pickle(os.path.join(os.environ["RNB_PLANNING_DIR"],"data/cur_xyzw_view.pkl"), cur_xyzw_view)
             print(GetMapResult.SUCCESS.name, end="")
         else:

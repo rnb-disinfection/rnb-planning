@@ -82,7 +82,7 @@ class ImageType(Enum):
 
 ##
 # @brief press s to save image
-def stream_capture_image(img_type, obj_type, host):
+def stream_capture_image(img_type, obj_type, host, crob):
     # print("== press s to save image ==")
     while True:
         rdict = send_recv_demo_cam({1: 1}, host=host, port=PORT, buffer_len=1024)
@@ -95,23 +95,10 @@ def stream_capture_image(img_type, obj_type, host):
             cv2.destroyAllWindows()
             break
         elif key == 115:
-            if img_type == ImageType.FirstView:
-                if obj_type == "closet":
-                    cv2.imwrite(SAVE_DIR + '/top_table.jpg', rdict['color'])
-                    cv2.imwrite(SAVE_DIR + '/top_table.png', rdict['depth'])
-                else:
-                    cv2.imwrite(SAVE_DIR + '/bed.jpg', rdict['color'])
-                    cv2.imwrite(SAVE_DIR + '/bed.png', rdict['depth'])
-            if img_type == ImageType.CloseView:
-                if obj_type == "closet":
-                    cv2.imwrite(SAVE_DIR + '/top_table_close.jpg', rdict['color'])
-                    cv2.imwrite(SAVE_DIR + '/top_table_close.png', rdict['depth'])
-                else:
-                    cv2.imwrite(SAVE_DIR + '/bed_close.jpg', rdict['color'])
-                    cv2.imwrite(SAVE_DIR + '/bed_close.png', rdict['depth'])
-            if img_type == ImageType.FullView:
-                cv2.imwrite(SAVE_DIR + '/full_view.jpg', rdict['color'])
-                cv2.imwrite(SAVE_DIR + '/full_view.png', rdict['depth'])
+            cv2.imwrite(SAVE_DIR + '/{}.jpg'.format(obj_type), rdict['color'])
+            cv2.imwrite(SAVE_DIR + '/{}.png'.format(obj_type), rdict['depth'])
+            Q = crob.get_real_robot_pose()
+            np.savetxt(SAVE_DIR + '/{}.csv'.format(obj_type), Q, delimiter=",")
             break
     return rdict
 

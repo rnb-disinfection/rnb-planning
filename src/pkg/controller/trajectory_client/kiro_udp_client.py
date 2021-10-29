@@ -9,7 +9,7 @@ from demo_utils.kiro_udp_send import start_mobile_udp_thread, get_reach_state_ed
 
 
 class KiroUDPClient(TrajectoryClient):
-    DURATION_SHORT_MOTION_REF = 2.0
+    DURATION_SHORT_MOTION_REF = 5.0
     def __init__(self, server_ip, ip_cur, dummy=False):
         TrajectoryClient.__init__(self, server_ip)
         self.server_ip, self.dummy = server_ip, dummy
@@ -127,7 +127,7 @@ class KiroUDPClient(TrajectoryClient):
             if diff_nm < 0.1:
                 time.sleep((diff_nm / 0.1)*self.DURATION_SHORT_MOTION_REF)
             else:
-                self.wait_queue_empty()
+                self.wait_queue_empty(20)
         if sure_count>0:
             Qadj = np.copy(Q)
             Qcur = self.get_qcur()

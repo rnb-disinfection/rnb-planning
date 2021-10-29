@@ -636,5 +636,6 @@ class PlanningPipeline:
                     snode_nxt.state = state_next
                     print("Update success: {} -> {}".format(snode_pre.state.node, snode_nxt.state.node))
                 else:
+                    TextColors.RED.println(("Update fail: {} -> {}".format(snode_pre.state.node, snode_nxt.state.node)))
                     raise (RuntimeError("Update fail: {} -> {}".format(snode_pre.state.node, snode_nxt.state.node)))
         return snode_schedule_new

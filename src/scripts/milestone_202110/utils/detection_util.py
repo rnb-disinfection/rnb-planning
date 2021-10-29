@@ -78,8 +78,15 @@ def draw_registration_result(source, target, transformation):
     target_temp.paint_uniform_color([0, 0.651, 0.929])
     source_temp.transform(transformation)
     FOR_origin = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.2, origin=[0, 0, 0])
-    o3d.visualization.draw_geometries([source_temp, target_temp, FOR_origin])
 
+    FOR_model = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.15, origin=[0, 0, 0])
+    FOR_model.transform(transformation)
+    FOR_model.translate(source_temp.get_center() - FOR_model.get_center())
+
+    FOR_target = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.15, origin=target.get_center())
+
+    o3d.visualization.draw_geometries([source_temp, target_temp,
+                                       FOR_origin, FOR_model, FOR_target])
 
 def preprocess_point_cloud(pcd, voxel_size):
     print(":: Downsample with a voxel size %.3f." % voxel_size)
@@ -947,7 +954,8 @@ def load_rdict(obj_type,
     rdict['depth'] = cv2.imread(
         os.path.join(SAVE_DIR, obj_type + '.png'), flags=cv2.IMREAD_UNCHANGED)
     rdict['intrins'], rdict['depth_scale'] = intrins, depth_scale
-    return rdict
+    Q = np.loadtxt(os.path.join(SAVE_DIR, obj_type + '.csv'), delimiter=",")
+    return rdict, np.array(Q)
 
 
 def rdict2cdp(rdict):
@@ -1058,9 +1066,10 @@ class MultiICP:
                     ):
         if To is None:
             To, fitness = self.auto_init(0, voxel_size)
-
         target = copy.deepcopy(self.pcd)
         source = copy.deepcopy(self.model_sampled)
+
+        # To Be Done - add front only option and cut backward surface here based on To
         if visualize:
             self.draw(To)
 
@@ -1092,7 +1101,7 @@ class MultiICP:
         if source is None: source = self.model_sampled
         if target is None: target = self.pcd
         To = np.matmul(To, self.Toff_inv)
-        draw_registration_result_original_color(source, target, To)
+        draw_registration_result(source, target, To)
 
     def auto_init(self, init_idx=0, voxel_size=0.05):
         pcd_cam, Tc = self.pcd_Tc_stack[init_idx]
