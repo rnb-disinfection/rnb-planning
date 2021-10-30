@@ -12,6 +12,8 @@ import os
 from enum import Enum
 
 def gtype_to_otype(gtype):
+    if gtype==GEOTYPE.MESH:
+        return ObjectType.MESH
     if gtype==GEOTYPE.BOX:
         return ObjectType.BOX
     if gtype==GEOTYPE.PLANE:
@@ -100,7 +102,8 @@ class MoveitPlanner(MotionInterface):
                         obj_list.append(ObjectMPC(
                             gtem.name, gtype_to_otype(gtem.gtype), gtem.link_name,
                             pose=tuple(gtem.center)+tuple(Rotation.from_dcm(gtem.orientation_mat).as_quat()),
-                            dims=get_mpc_dims(gtem), touch_links=gtem.adjacent_links)
+                            dims=get_mpc_dims(gtem), touch_links=gtem.adjacent_links,
+                            vertices=gtem.vertices, triangles=gtem.triangles)
                         )
             self.planner.set_scene(obj_list)
         else:
@@ -115,7 +118,8 @@ class MoveitPlanner(MotionInterface):
                             obj_list.append(ObjectMPC(
                                 gtem.name, gtype_to_otype(gtem.gtype), gtem.link_name,
                                 pose=tuple(gtem.center)+tuple(Rotation.from_dcm(gtem.orientation_mat).as_quat()),
-                                dims=get_mpc_dims(gtem), touch_links=gtem.adjacent_links)
+                                dims=get_mpc_dims(gtem), touch_links=gtem.adjacent_links,
+                                vertices=gtem.vertices, triangles=gtem.triangles)
                             )
                 dual_planner.planner.set_scene(obj_list)
 

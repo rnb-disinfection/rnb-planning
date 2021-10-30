@@ -447,8 +447,12 @@ class GeometryItem(object):
     # @param parent parent geometry, in case it is a child geometry
     def __init__(self, gscene, gtype, name, link_name, dims, center, rpy=(0,0,0), color=(0,1,0,1), display=True,
                  collision=True, fixed=False, soft=False, online=False, K_col=None, uri="", scale=(1,1,1), create=True,
-                 parent=None):
+                 parent=None, vertices=None, triangles=None):
         self.uri, self.scale = uri, scale
+        self.vertices=vertices
+        self.triangles=triangles
+        assert np.abs(np.mean([np.max(vertices, axis=0), np.min(vertices, axis=0)], axis=0)) <=1e-6, \
+            "vertices for mesh should be have center point (0,0,0)"
         self.children = []
         self.parent = parent
         self.name = name
@@ -569,7 +573,10 @@ class GeometryItem(object):
     ##
     # @brief get local vertice and maximum radius of the geometry
     def get_vertice_radius(self):
-        return np.multiply(DEFAULT_VERT_DICT[self.gtype], self.dims), (0 if self.gtype == GEOTYPE.CYLINDER else self.radius)
+        if self.gtype == GEOTYPE.MESH:
+            return self.vertices
+        else:
+            return np.multiply(DEFAULT_VERT_DICT[self.gtype], self.dims), (0 if self.gtype == GEOTYPE.CYLINDER else self.radius)
     ##
     # @brief get vertice from specific link
     def get_vertice_radius_from(self, joint_dict, from_link='base_link'):

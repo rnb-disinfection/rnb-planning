@@ -10,6 +10,7 @@ Geometry = mpc.Geometry
 GeometryList = mpc.GeometryList
 ObjectType = mpc.ObjectType
 Trajectory = mpc.Trajectory
+Vec3List = mpc.Vec3List
 ConstrainedSpaceType = mpc.ConstrainedSpaceType
 
 
@@ -82,7 +83,8 @@ def spread(bp_arr, size):
     return [bp_arr[i] for i in range(size)]
 
 class ObjectMPC:
-    def __init__(self, name, type, link_name, pose=None, dims=None, touch_links=None, attach=True):
+    def __init__(self, name, type, link_name, pose=None, dims=None, touch_links=None, attach=True,
+                 vertices=None, triangles=None):
         if pose is None:
             pose = [0]*7
         if dims is None:
@@ -91,6 +93,16 @@ class ObjectMPC:
             touch_links = []
         self.name, self.type, self.pose, self.dims, self.link_name, self.touch_links, self.attach = \
             name, type, pose, dims, link_name, touch_links, attach
+        if vertices is None or triangles is None:
+            self.vertices = vertices
+            self.triangles = triangles
+        else:
+            self.vertices = Vec3List()
+            self.triangles = Vec3List()
+            for vert in vertices:
+                self.vertices.append(Vec3(*vert))
+            for tri in triangles:
+                self.triangles.append(Vec3(*tri))
 
 ##
 # @class MoveitCompactPlanner_BP
@@ -120,6 +132,8 @@ class MoveitCompactPlanner_BP(mpc.Planner):
     def add_object(self, obj):
         if obj.attach:
             self.attached_dict[obj.name] = ObjectMPC(obj.name, obj.type, obj.link_name, attach=obj.attach)
+        if obj.type == ObjectType.MESH:
+            return self.add_mesh_py(obj)
         return self.process_object_py(obj, ObjectOperation.ADD.value)
 
     def remove_object(self, obj):
@@ -185,6 +199,12 @@ class MoveitCompactPlanner_BP(mpc.Planner):
         return self.process_object(
             str(obj.name), obj.type, CartPose(*obj.pose), Vec3(*obj.dims), str(obj.link_name),
             NameList(*obj.touch_links), obj.attach, action)
+
+    def add_mesh_py(self, obj):
+        return self.add_mesh(
+            str(obj.name), obj.type, CartPose(*obj.pose),
+            obj.vertices, obj.triangles,
+            str(obj.link_name), NameList(*obj.touch_links), obj.attach)
 
     ##
     # @brief get inverse kinematics solution
