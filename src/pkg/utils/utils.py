@@ -585,4 +585,18 @@ def fullname(fun):
     else:
         return fun.__name__
 
+def extract_attr_dict(msg, valid_types=(int, float, str, tuple, list, dict)):
+    if msg is None:
+        return None
+    if type(msg) in valid_types:
+        return msg
+    msg_dict = {}
+    for k in dir(msg):
+        if k.startswith('_'):
+            continue
+        submsg = getattr(msg, k)
+        if callable(submsg):
+            continue
+        msg_dict[k] = extract_attr_dict(submsg)
+    return msg_dict
 

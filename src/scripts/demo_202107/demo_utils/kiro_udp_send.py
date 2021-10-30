@@ -162,6 +162,7 @@ def udp_server_thread_func(sock):
 def start_mobile_udp_thread(recv_ip=RECV_UDP_IP):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
     sock.bind((recv_ip, UDP_PORT_RECV))
     print("[MOBILE ROBOT] bind: {}".format((recv_ip, UDP_PORT_RECV)))
     udp_server_thread = threading.Thread(target=udp_server_thread_func,args=(sock,))
