@@ -38,8 +38,8 @@ class GeometryScene(list):
         self.__set_urdf(urdf_content, urdf_path)
         self.rviz = rviz
         self.highlight_dict = defaultdict(dict)
-        self.marker_list = []
-        self.marker_list_fixed = []
+        self.marker_dict = defaultdict(list)
+        self.marker_dict_fixed = defaultdict(list)
         if self.rviz:
             self.set_rviz()
 
@@ -169,8 +169,8 @@ class GeometryScene(list):
             joint_pose = self.joints.position
         # prepare visualization markers
         self.__clear_markers()
-        self.marker_list_fixed = get_markers([gtem for gtem in self if gtem.fixed_on_world], self.joints, self.joint_names)
-        self.marker_list = get_markers([gtem for gtem in self if not gtem.fixed_on_world], self.joints, self.joint_names)
+        self.marker_dict_fixed = get_markers([gtem for gtem in self if gtem.fixed_on_world], self.joints, self.joint_names)
+        self.marker_dict = get_markers([gtem for gtem in self if not gtem.fixed_on_world], self.joints, self.joint_names)
         self.show_pose(joint_pose)
 
     ##
@@ -179,18 +179,17 @@ class GeometryScene(list):
         if self.rviz:
             markers = get_markers([gtem], self.joints, self.joint_names)
             if gtem.fixed_on_world:
-                self.marker_list_fixed += markers
+                self.marker_dict_fixed.update(markers)
             else:
-                self.marker_list += markers
+                self.marker_dict.update(markers)
 
     ##
     # @brief republish markers with last published position
-    # @remark TODO: make [mk for mk in self.marker_list if mk.geometry == gtem] efficient
     def update_marker(self, gtem):
         if self.rviz:
-            marker_list = self.marker_list_fixed if gtem.fixed_on_world else self.marker_list
+            marker_dict = self.marker_dict_fixed if gtem.fixed_on_world else self.marker_dict
             joint_dict = {self.joints.name[i]: self.joints.position[i] for i in range(len(self.joint_names))}
-            marks = [mk for mk in marker_list if mk.geometry == gtem]
+            marks = marker_dict[gtem.name]
             if gtem.display and len(marks)==0:
                 self.__add_marker(gtem)
             else:
@@ -207,22 +206,20 @@ class GeometryScene(list):
         if self.rviz:
             joint_dict = {self.joints.name[i]: self.joints.position[i] for i in range(len(self.joint_names))}
             if include_fixed:
-                for mk in self.marker_list_fixed:
+                for mks in self.marker_dict_fixed.values():
+                    for mk in mks:
+                        mk.set_marker(joint_dict, create=False)
+            for mks in self.marker_dict.values():
+                for mk in mks:
                     mk.set_marker(joint_dict, create=False)
-            for mk in self.marker_list:
-                mk.set_marker(joint_dict, create=False)
 
     ##
     # @brief remove marker for specific geometry item
     def __remove_marker(self, gtem, sleep=True):
-        del_list = []
-        marker_list = self.marker_list_fixed if gtem.fixed_on_world else self.marker_list
-        for marker in marker_list:
-            if marker.geometry == gtem:
-                del_list.append(marker)
-        for marker in del_list:
-            marker.delete(sleep=sleep)
-            marker_list.remove(marker)
+        marker_dict = self.marker_dict_fixed if gtem.fixed_on_world else self.marker_dict
+        if gtem.name in marker_dict:
+            for marker in marker_dict[gtem.name]:
+                marker.delete(sleep=sleep)
 
     ##
     # @brief clear all markers
@@ -230,27 +227,30 @@ class GeometryScene(list):
         for hl_key in self.highlight_dict.keys():
             self.clear_highlight(hl_key)
         if include_fixed:
-            for mk in self.marker_list_fixed:
+            for mks in self.marker_dict_fixed.values():
+                for mk in mks:
+                    mk.delete()
+            self.marker_dict_fixed = defaultdict(list)
+        for mks in self.marker_dict:
+            for mk in mks:
                 mk.delete()
-            self.marker_list_fixed = []
-        for mk in self.marker_list:
-            mk.delete()
-        self.marker_list = []
+        self.marker_dict = defaultdict(list)
 
     ##
     # @brief show pose
     # @param pose Q in radian numpy array
     def show_pose(self, pose, **kwargs):
-        if isinstance(pose, dict):
-            pose = dict2list(pose, self.joint_names)
-        show_motion([pose], self.marker_list, self.pub, self.joints, self.joint_names, **kwargs)
+        self.show_motion([pose], **kwargs)
 
     ##
     # @brief show motion list
     # @param pose_list list of Q in radian numpy array
     def show_motion(self, pose_list, **kwargs):
         if self.rviz:
-            show_motion(pose_list, self.marker_list, self.pub, self.joints, self.joint_names, **kwargs)
+            marker_list = []
+            for mks in self.marker_dict.values():
+                marker_list += mks
+            show_motion(pose_list, marker_list, self.pub, self.joints, self.joint_names, **kwargs)
 
     ##
     # @brief clear all highlights
@@ -447,12 +447,14 @@ class GeometryItem(object):
     # @param parent parent geometry, in case it is a child geometry
     def __init__(self, gscene, gtype, name, link_name, dims, center, rpy=(0,0,0), color=(0,1,0,1), display=True,
                  collision=True, fixed=False, soft=False, online=False, K_col=None, uri="", scale=(1,1,1), create=True,
-                 parent=None, vertices=None, triangles=None):
+                 parent=None, vertices=None, triangles=None, colors=None):
         self.uri, self.scale = uri, scale
         self.vertices=vertices
         self.triangles=triangles
-        assert np.abs(np.mean([np.max(vertices, axis=0), np.min(vertices, axis=0)], axis=0)) <=1e-6, \
-            "vertices for mesh should be have center point (0,0,0)"
+        self.colors = colors
+        if vertices is not None:
+            assert all(np.abs(np.mean([np.max(vertices, axis=0), np.min(vertices, axis=0)], axis=0)) <=1e-6), \
+                "vertices for mesh should be have center point (0,0,0)"
         self.children = []
         self.parent = parent
         self.name = name

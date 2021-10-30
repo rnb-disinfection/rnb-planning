@@ -184,8 +184,8 @@ def calc_T_list_simple(trajectory, vel_lims, acc_lims,
     for _ in range(1000):
         dT_list_pre = dT_list # between q, N-1
         vel_list = dq_list/dT_list[:,np.newaxis] # between q, N-1
-        vel_list = np.pad(vel_list, ((1,1),(0,0)), 'constant', constant_values=0) # between q and expand, N+1
-        dT_list = np.pad(dT_list, (1,1), 'constant', constant_values=0) # between q and expand, N+1
+        vel_list = np.pad(vel_list, ((1,1),(0,0)), 'constant') # between q and expand, N+1
+        dT_list = np.pad(dT_list, (1,1), 'constant') # between q and expand, N+1
         dv_list = vel_list[1:]- vel_list[:-1] # on q, N
         vel_mid_list = np.abs((vel_list[1:] + vel_list[:-1])/2) # on q, N
         vel_ratio_mid = np.max(vel_mid_list/(vel_lims*(1+vel_margin_ratio)), axis=-1) # on q, N
@@ -213,7 +213,7 @@ def calc_T_list_simple(trajectory, vel_lims, acc_lims,
         dT_list_mid_new[0] *= 2   # double first and last acc time as they are half-step
         dT_list_mid_new[-1] *= 2   # double first and last acc time as they are half-step
         dT_list = (dT_list_mid_new[:-1]+dT_list_mid_new[1:])/2 # between q, N-1
-    T_list = np.pad(dT_list, (0,1), 'constant', constant_values=0)
+    T_list = np.pad(dT_list, (0,1), 'constant')
     for idx in idx_skip:
         T_list = np.insert(T_list, idx, 0)
     return T_list

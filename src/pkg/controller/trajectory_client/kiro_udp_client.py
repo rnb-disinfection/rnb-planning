@@ -18,7 +18,7 @@ class KiroUDPClient(TrajectoryClient):
             self.sock_mobile, self.server_thread = start_mobile_udp_thread(recv_ip=ip_cur)
             time.sleep(1)
         self.xyzw_last = [0, 0, 0, 1]
-        self.kmm = None
+        self.validifier = None
 
     def xyzw2joints(self, xyzw):
         Q_CUR = np.array([0] * 6, dtype=np.float)
@@ -95,27 +95,29 @@ class KiroUDPClient(TrajectoryClient):
     # @brief Make sure the joints move to Q using the indy DCP joint_move_to function.
     # @param Q radian
     def joint_move_make_sure(self, Q, sure_count=5, *args, **kwargs):
-        if self.kmm and not self.kmm.check_position(Q[:2]):
-            Qapp = np.copy(Q)
-            for _ in range(100):
-                r, th = np.random.uniform([0, -np.pi], [0.35, np.pi])
-                x, y = np.matmul(Rot_axis(3, th)[:2, :2], [r, 0])
-                Qapp[:2] = Q[:2] + [x,y]
-                ret = self.kmm.check_position(Qapp[:2])
-                if ret:
-                    break
-            if not ret:
-                raise(RuntimeError("No available approach position"))
-            print("approach through: {}".format(Qapp[:3]))
-            self.joint_move_make_sure(Qapp, sure_count=0)
         Q = np.copy(Q)
         Qcur = self.get_qcur()
         diff = np.subtract(Q[:3], Qcur[:3])
         diff[2] = Rot2axis(Rot_axis(3, diff[2]), 3)
-        if abs(diff[2])<1e-2:
-            diff[2] = 0
-            Q[2] = Qcur[2]
+        diff_nm_p = np.linalg.norm(diff[:2])
         diff_nm = np.linalg.norm(diff)
+
+        NEAR_MOTION_RANGE = 0.4
+
+        if diff_nm_p > NEAR_MOTION_RANGE and self.validifier and not self.validifier(Q):
+            Qapp = np.copy(Q)
+            for _ in range(100):
+                r, th = np.random.uniform([0, -np.pi], [NEAR_MOTION_RANGE, np.pi])
+                x, y = np.matmul(Rot_axis(3, th)[:2, :2], [r, 0])
+                Qapp[:2] = Q[:2] + [x,y]
+                ret = self.validifier(Qapp)
+                if ret:
+                    break
+            if ret:
+                print("[INFO] Approach through: {} -> {}".format(Qapp[:3], Q[:3]))
+                self.joint_move_make_sure(Qapp, sure_count=0)
+            else:
+                TextColors.RED.prinln("[WARN] No available approach position. Try anyway")
 
         if self.dummy:
             self.xyzw_last = self.joints2xyzw(Q)
@@ -124,7 +126,7 @@ class KiroUDPClient(TrajectoryClient):
                 return
             send_pose_udp(self.sock_mobile, self.joints2xyzw(Q),
                           tool_angle=0, send_ip=self.server_ip)
-            if diff_nm < 0.1:
+            if diff_nm < 0.05:
                 time.sleep((diff_nm / 0.1)*self.DURATION_SHORT_MOTION_REF)
             else:
                 self.wait_queue_empty(20)

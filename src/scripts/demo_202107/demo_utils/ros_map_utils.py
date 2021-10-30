@@ -20,6 +20,7 @@ from pkg.utils.shared_function import shared_fun, CallType, ArgProb, ResProb, \
     set_serving, is_serving, serve_forever
 import cv2
 import subprocess
+import matplotlib.pyplot as plt
 
 TIMEOUT_GET_MAP = 3
 class GetMapResult(Enum):
@@ -34,7 +35,7 @@ class KiroMobileMap:
     def __init__(self, master_ip, cur_ip, connection_state=True):
         self.master_ip, self.cur_ip = master_ip, cur_ip
         self.connection_state = connection_state
-        self.gtem_list = []
+        self.cost_im, self.lcost_im = None, None
         if is_serving():
             if connection_state:
                 rospy.init_node("map_receiver")
@@ -88,55 +89,64 @@ class KiroMobileMap:
                                                                       (canny_ksize,canny_ksize)))
         self.lcost_canny = cv2.Canny(self.lcost_closed, 50, 150)
         self.T_bm = T_bm
+        self.T_bi = np.identity(4)       # global origin in base
+        T_lim = SE3(Rot_axis(3, np.pi), (0,) * 3)  # mobile in origin - assume origin=mobile
+        self.T_bil = np.matmul(T_bm, SE3_inv(T_lim))
 
-    @classmethod
-    def convert_im2scene(cls, img_bin, resolution, origin_on_base, T_bm, height):
-        if origin_on_base:
-            T_ib = np.identity(4)               # mobile in origin - assume origin=base
-            T_im = np.matmul(T_ib, T_bm)
-        else:
-            T_im = SE3(Rot_axis(3, np.pi), (0,)*3) # mobile in origin - assume origin=mobile
-            T_ib = np.matmul(T_im, SE3_inv(T_bm))    # origin in base
-
-        T_bi = SE3_inv(T_ib)
-
+    def convert_im2scene(self, img_bin, resolution, T_bi, img_cost=None):
         im_o = np.divide(img_bin.shape, 2)
-        points_px=list(reversed(np.subtract(np.where(img_bin), 
+        points_idc = np.where(img_bin)
+        points_px=list(reversed(np.subtract(points_idc,
                                             im_o[:, np.newaxis])))
-        pt_rpy = Rot2rpy(T_bi[:3,:3])
+        if img_cost is not None:
+            costs = img_cost[points_idc]
+        else:
+            costs = None
+
         pt_list = []
         for i_p, (x, y) in list(enumerate(zip(*points_px))):
             pt = np.multiply((x,y), resolution)
             pt_b = np.matmul(T_bi[:2,:2], pt) + T_bi[:2,3]
-            pt_b = tuple(pt_b) + (height,)
-            pt_list.append((pt_b, pt_rpy))
-        return pt_list
+            pt_b = tuple(pt_b) + (0,)
+            pt_list.append(pt_b)
+        return pt_list, costs
 
-    def add_to_scene(self, gscene, pt_list, gtype, radius, color=(1, 0, 0, 0.3), display=True, collision=True):
-        for i_p, (pt_b, pt_rpy) in enumerate(pt_list):
-            gtem = gscene.create_safe(gtype, "pt_{}".format(i_p),
-                                      link_name="base_link",
-                                      dims=(radius*2,) * 3,
-                                      center=pt_b, rpy=pt_rpy,
-                                      color=color, display=display,
-                                      collision=collision, fixed=True)
-            self.gtem_list.append(gtem)
-        return self.gtem_list
 
-    def set_collision(self, collision=True):
-        for gtem in self.gtem_list:
-            gtem.collision = collision
+    @classmethod
+    def add_to_scene(cls, name, gscene, pt_list, resolution, costs=None, colormap=None, color=(1,0,0,1)):
+        if colormap is None:
+            colormap = plt.get_cmap("YlOrRd")
 
-    def clear_from_scene(self, gscene):
-        for gtem in self.gtem_list:
-            if gtem in gscene:
-                gscene.remove(gtem)
-        self.gtem_list = []
+        if costs is not None:
+            colors = colormap(np.divide(costs.astype(float), np.max(costs)))
+        else:
+            colors = [color] * len(pt_list)
+        pt_center = np.mean([np.min(pt_list, axis=0), np.max(pt_list, axis=0)], axis=0)
+        pt_list = np.subtract(pt_list, pt_center)
+        mesh = gscene.create_safe(
+            gtype=GEOTYPE.MESH, name=name, link_name="base_link",
+            dims=(0.01,) * 3, center=pt_center, rpy=(0, 0, 0),
+            color=(1, 0, 0, 1), display=True,
+            collision=False, fixed=True, vertices=pt_list, scale=(resolution, resolution, 1),
+            colors=colors)
+        return mesh
 
-    def check_position(self, Pb, cut=50):
-        Pi = np.matmul(self.T_ib[:2, :2], Pb) + self.T_ib[:2, 3]
-        Ppx = (Pi / self.resolution).astype(np.int)
-        return self.cost_im[Ppx[1], Ppx[0]] < cut
+    @classmethod
+    def get_box_costs(cls, box, Q, T_bi, cost_im, resolution, scale=1.0):
+        if len(Q) < len(box.gscene.joint_names):
+            Q = np.pad(Q, (0,len(box.gscene.joint_names)-len(Q)), 'constant')
+        T_bm = box.get_tf(Q)
+        im_o = np.divide(cost_im.shape, 2)
+
+        T_im = np.matmul(SE3_inv(T_bi), T_bm)
+        verts_m = box.get_vertice_radius()[0][::2]*scale
+        verts_i = np.transpose(np.matmul(T_im[:3,:3], verts_m.transpose()) + T_im[:3,3:4])
+        points_px = np.round((verts_i[:,:2] / resolution)[:, [1,0]] + im_o).astype(int)
+
+        cost_vals = []
+        for pt in points_px:
+            cost_vals.append(cost_im[pt[0], pt[1]])
+        return cost_vals
 
 def get_map_save_data(ip_cur):
     try:

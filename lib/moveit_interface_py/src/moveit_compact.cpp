@@ -947,7 +947,7 @@ bool Planner::add_mesh(string name, const ObjectType type,
         pt.z = vert[2];
         mesh.vertices.push_back(pt);
     }
-    for(auto it_t=vertices.begin(); it_t<vertices.end(); it_t++){
+    for(auto it_t=triangles.begin(); it_t<triangles.end(); it_t++){
         Vec3 tri = *it_t;
         shape_msgs::MeshTriangle mt;
         mt.vertex_indices[0] = tri[0];
