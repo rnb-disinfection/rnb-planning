@@ -244,4 +244,4 @@ def add_px_points(gscene, gtype, points_px, resolution, T_bi, height, radius, sa
 if __name__ == "__main__":
     set_serving(True)
     kmm = KiroMobileMap(sys.argv[1], sys.argv[2], sys.argv[3]=='true')
-    serve_forever([kmm.get_maps], verbose=True)
+    serve_forever("KiroMobileMap", [kmm.get_maps], verbose=True)

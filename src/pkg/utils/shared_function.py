@@ -35,7 +35,6 @@ from collections import namedtuple
 from enum import Enum
 import numpy as np
 import copy
-from threading import Thread, Event
 import time
 
 ##
@@ -43,7 +42,7 @@ import time
 #        set __SERVING = True to run function body, as in serve_forever
 __SERVING = False
 
-def set_serving(serving):
+def set_serving(serving=True):
     global __SERVING
     __SERVING = serving
 
@@ -96,30 +95,30 @@ class ExtendedData:
             ex_shape, ex_dtype = sm_dict[addr].dims, sm_dict[addr].dtype
             if ex_shape == shape and ex_dtype == self.dtype:
                 self.sm = sa.attach("shm://" + addr)
+                return
             else:
-                raise (TypeError(
-                    "SharedArray {} exists but property does not match: ({}, {}) <- ({},{})".format(
-                        addr, ex_shape, ex_dtype, shape, dtype)))
-        else:
-            self.sm = sa.create("shm://" + addr, shape=shape, dtype=dtype)
+                print("[WARN] SharedArray {} exists but property does not match: ({}, {}) <- ({},{})".format(
+                        addr, ex_shape, ex_dtype, shape, dtype))
+                sa.delete("shm://" + addr)
+        self.sm = sa.create("shm://" + addr, shape=shape, dtype=dtype)
 
 
     def assign(self, data):
         if self.etype == dict:
             sjson = json.dumps(data, cls=NumpyEncoder, ensure_ascii=False)
-            self.sm[:len(sjson)] = map(ord, sjson)
+            self.sm[:len(sjson)+1] = list(map(ord, sjson))+[0]
         elif self.etype == str:
-            self.sm[:len(data)] = map(ord, data)
+            self.sm[:len(data)+1] = list(map(ord, data)) + [0]
         else:
             self.sm[:] = data
 
     def read(self):
         if self.etype == dict:
-            data = map(chr, self.sm[:])
+            data = list(map(chr, self.sm[:]))
             sjson = "".join(data[:np.where(self.sm[:] == 0)[0][0]])
             return json.loads(sjson)
         elif self.etype == str:
-            data = map(chr, self.sm[:])
+            data = list(map(chr, self.sm[:]))
             return "".join(data[:np.where(self.sm[:] == 0)[0][0]])
         else:
             return np.copy(self.sm)
@@ -162,10 +161,9 @@ def shared_fun(ctype, key, *var_props):
                 raise (TypeError("arguments for shared_fun should be either ArgProb or ResProb"
                                  "but {} is given".format(type(var_prop))))
 
-        @wraps(func)
-        def __wrapper(timeout=None, **kwargs):
+        def __wrapper(self=None, timeout=None, **kwargs):
             if is_serving():
-                res = __run_send_response(__wrapper)
+                res = __run_send_response(__wrapper, func, self)
             else:
                 if ctype == CallType.ASYNC:
                     res = __send_request(__wrapper, **kwargs)
@@ -176,7 +174,6 @@ def shared_fun(ctype, key, *var_props):
             return res
 
         __wrapper.ctype = ctype
-        __wrapper.func = func
         __wrapper.request = request
         __wrapper.response = response
         __wrapper.kwargs = kwargs_s
@@ -187,12 +184,26 @@ def shared_fun(ctype, key, *var_props):
         return __wrapper
     return __decorator
 
-def __run_send_response(wrapepd):
-    returns = wrapepd.func(**{k: v.read() for k, v in wrapepd.kwargs.items()})
-    for edat, val in zip(wrapepd.returns, returns):
-        edat.assign(val)
-    wrapepd.request.assign(False)
-    wrapepd.response.assign(True)
+def __run_send_response(wrapepd, func, self):
+    try:
+        kwargs = {k: v.read() for k, v in wrapepd.kwargs.items()}
+        if self is None:
+            returns = func(**kwargs)
+        else:
+            returns = func(self, **kwargs)
+
+        for edat, val in zip(wrapepd.returns, returns):
+            edat.assign(val)
+        wrapepd.request.assign(False)
+        wrapepd.response.assign(True)
+    except Exception as e:
+        error = get_error()
+        error.assign("[ERROR] executing function call {}\n{} ".format(wrapepd.fullname, e))
+        print(error.read())
+        wrapepd.request.assign(False)
+        wrapepd.response.assign(False)
+        returns = None
+    return returns
 
 
 def __send_request(wrapepd, **kwargs):
@@ -211,28 +222,31 @@ def __send_request_wait(wrapepd, timeout=None, **kwargs):
 # @breif    get response from shared program. \n
 #           return None if not request is not finished and wait=False
 def check_response(wrapepd, wait=False, timeout=None):
-    if wrapepd.response.read()[0]:
+    if not wrapepd.request.read()[0]:
         return get_return(wrapepd)
     elif wait:
         time_start = time.time()
-        while not wrapepd.response.read()[0]:
+        while wrapepd.request.read()[0]:
             time.sleep(SF_PERIOD)
             if timeout is not None and time.time() - time_start > timeout:
                 break
-        if wrapepd.response.read()[0]:
+        if not wrapepd.request.read()[0]:
             return get_return(wrapepd)
         else:
-            return None
+            raise(TimeoutError("Timeout during getting response - check last error state by get_error().read()"))
     else:
         return None
 
 def get_return(wrapepd):
-    res = map(ExtendedData.read, wrapepd.returns)
-    if res is None or len(res) == 0:
-        res = None
-    elif len(res) == 1:
-        res = res[0]
-    return res
+    if wrapepd.response.read()[0]:
+        res = map(ExtendedData.read, wrapepd.returns)
+        if res is None or len(res) == 0:
+            res = None
+        elif len(res) == 1:
+            res = res[0]
+        return res
+    else:
+        raise(RuntimeError(get_error().read()))
 
 
 ##
@@ -241,6 +255,13 @@ def get_pairing(server_id="all"):
     pairing_uri = shared_fun_uri("server.{}".format(server_id), "paired")
     paired = ExtendedData(pairing_uri, (1,), bool)
     return paired
+
+##
+# @brief check if a computation server is running with given server_id
+def get_error():
+    error_uri = shared_fun_uri("global", "error")
+    error = ExtendedData(error_uri, (10000,), str)
+    return error
 
 def super_clear_shared_memory(names=None):
     if names is None:
@@ -262,8 +283,9 @@ class NumpyEncoder(json.JSONEncoder):
 # @brief serve forever
 # @param shared_funs  list of all shared functions to be served
 # @param server_id    to prevent duplicated execution, use unique and consistent server_id
-def serve_forever(shared_funcs=SHARED_FUNC_ALL, server_id="all", daemon=True,
+def serve_forever(server_id, shared_funcs, daemon=True,
                   verbose=False):
+    assert isinstance(server_id, str), "server_id should be string instance"
     pairstate_onterm = not daemon
     if not is_serving():
         print("[WARN] set_serving(True) was not called before calling server_forever.")
@@ -271,11 +293,12 @@ def serve_forever(shared_funcs=SHARED_FUNC_ALL, server_id="all", daemon=True,
     set_serving(True)
     try:
         pairing = get_pairing(server_id)
+        error = get_error()
         if pairing.read()[0]:
             pairstate_onterm = True
-            raise(RuntimeError(
-                "[FATAL] Other server is already paired with {}. Shutting down this process".format(
-                    pairing.addr)))
+            error.assign("[FATAL] Other server is already paired with {}. Shutting down this process".format(
+                pairing.addr))
+            raise(RuntimeError(error.read()))
 
         pairing.assign(True)
         print("=========================")
@@ -288,12 +311,17 @@ def serve_forever(shared_funcs=SHARED_FUNC_ALL, server_id="all", daemon=True,
                 if func.request.read()[0]:
                     if verbose:
                         print("[INFO] {} requested".format(func.fullname))
-                    func()
-                    func.request.assign(False)
-                    print("[INFO] {} returned".format(func.fullname))
+                    try:
+                        func()
+                        if verbose:
+                            print("[INFO] {} returned".format(func.fullname))
+                    except Exception as e:
+                        error.assign("[ERROR] {} returned failed \n{}".format(func.fullname, e))
+                        print(error.read())
             time.sleep(SF_PERIOD)
     except Exception as e:
-        print(e)
+        error.assign("[ERROR] server {} terminated unexpectedly \n{}".format(server_id, e))
+        print(error.read())
     finally:
         pairing.assign(pairstate_onterm)
         time.sleep(0.1)

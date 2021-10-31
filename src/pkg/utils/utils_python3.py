@@ -18,6 +18,25 @@ def try_mkdir(path):
     try: os.mkdir(path)
     except: pass
 
+from enum import Enum
+
+##
+# @class TextColors
+# @brief color codes for terminal. use println to simply print colored message
+class TextColors(Enum):
+    HEADER = '\033[95m'
+    BLUE = '\033[94m'
+    CYAN = '\033[96m'
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    RED = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+    def println(self, msg):
+        print(self.value + str(msg) + self.ENDC.value)
+
 ##
 # @class    Singleton
 # @brief    Template to make a singleton class.
