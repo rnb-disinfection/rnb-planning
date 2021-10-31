@@ -10,6 +10,8 @@ from scipy.spatial.transform import Rotation
 import numpy as np
 import os
 from enum import Enum
+import random
+import copy
 
 def gtype_to_otype(gtype):
     if gtype==GEOTYPE.MESH:
@@ -85,6 +87,43 @@ class MoveitPlanner(MotionInterface):
         if self.enable_dual:
             self.dual_planner_dict = get_dual_planner(pscene, binder_links)
         self.debug_iterative_motion = False
+        self.reset_PRQdict(False)
+
+    def reset_PRQdict(self, enable_PRQ=True, radii=2e-2, kwargs={}):
+        self.enable_PRQ = enable_PRQ
+        self.radii = radii
+        self.Pos_Rotvec_Qset_dict = {rname: defaultdict(lambda: defaultdict(set)) for rname in self.robot_names}
+        self.pqr_kwargs = kwargs
+
+    def register_PRQ(self, rname, Pos_Rotvec_Qlist_dict, decimal=2):
+        for pos, RQ in Pos_Rotvec_Qlist_dict.items():
+            pos = tuple(np.round(pos, decimal))
+            for rotvec, Qlist in RQ.items():
+                rotvec = tuple(np.round(rotvec, decimal))
+                if len(Qlist) > 0:
+                    Qlist = {tuple(np.round(Q, decimal)) for Q in Qlist}
+                    self.Pos_Rotvec_Qset_dict[rname][pos][rotvec].update(Qlist)
+
+    def sample_PRQ(self, rname, Tre, radii=2e-2):
+        Pos_Rotvec_Qset_dict = self.Pos_Rotvec_Qset_dict[rname]
+        xyz, rvec = T2xyzrvec(Tre)
+        pkeys = filter(lambda x: np.linalg.norm(np.subtract(x, xyz)) < radii, Pos_Rotvec_Qset_dict.keys())
+        if not pkeys:
+            return None
+
+        random.shuffle(pkeys)
+        for pkey in pkeys:
+            Rotvec_Qset_dict = Pos_Rotvec_Qset_dict[pkey]
+            rkeys = filter(lambda x: np.linalg.norm(np.subtract(x, rvec)) < radii, Rotvec_Qset_dict.keys())
+            if rkeys:
+                random.shuffle(rkeys)
+                for rkey in rkeys:
+                    Qset = Rotvec_Qset_dict[rkey]
+                    if Qset:
+                        return random.choice(list(Qset))
+
+        return None
+
 
     ##
     # @brief update changes in geometric scene and load collision boundaries to moveit planner
@@ -280,11 +319,36 @@ class MoveitPlanner(MotionInterface):
                 if verbose:
                     print("constrained motion tried: {}".format(success)) ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
             else:
+                from_Q_tmp = np.copy(from_Q)
+                replan_joint = False
+                if self.enable_PRQ:
+                    T_rtar = self.gscene.get_tf(target.geometry.link_name, from_Q,
+                                                from_link=self.chain_dict[group_name]['link_names'][0])
+                    Tre = np.matmul(T_rtar, T_tar_tool)
+                    ####
+                    assert np.linalg.norm(np.matmul(T_be, SE3_inv(T_re)) - np.identity(4)) <1e-2
+                    ####
+                    Q = self.sample_PRQ(group_name, Tre, radii=self.radii)
+                    if Q is not None:
+                        from_Q_tmp[self.combined_robot.idx_dict[group_name]] = Q
+                        if self.validate_trajectory([from_Q_tmp], update_gscene=False):
+                            replan_joint = True
+                            print("use PRQ")
+                        else:
+                            from_Q_tmp = from_Q
+
                 if verbose:
                     print("try transition motion") ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
-                trajectory, success = planner.plan_py(
-                    group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q),
+                trajectory, success = self.planner.plan_py(
+                    group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q_tmp),
                     timeout=timeout, **kwargs)
+
+                if success and replan_joint:
+                    kwargs = copy.deepcopy(kwargs)
+                    kwargs.update(self.pqr_kwargs)
+                    to_Q = trajectory[-1][self.combined_robot.idx_dict[group_name]]
+                    trajectory, success = self.planner.plan_joint_motion_py(
+                        group_name, tuple(to_Q), tuple(from_Q), timeout=timeout_joint, **kwargs)
 
                 if verbose:
                     print("transition motion tried: {}".format(success)) ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
@@ -344,10 +408,11 @@ class MoveitPlanner(MotionInterface):
 
     ##
     # @brief check collision in a given trajectory
-    def validate_trajectory(self, trajectory):
-        self.planner.clear_context_cache()
-        self.planner.clear_manifolds()
-        self.update_gscene()
+    def validate_trajectory(self, trajectory, update_gscene=True):
+        if update_gscene:
+            self.planner.clear_context_cache()
+            self.planner.clear_manifolds()
+            self.update_gscene()
         if self.need_mapping:
             trajectory = trajectory[:, self.idx_pscene_to_mpc]
         traj_c = Trajectory()
