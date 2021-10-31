@@ -30,6 +30,7 @@ class GetMapResult(Enum):
 DEMO_UTIL_DIR = os.path.join(RNB_PLANNING_DIR, "src/scripts/demo_202107/demo_utils")
 
 GMAP_SIZE = (384, 384)
+SERVER_ID = "KiroMobileMap"
 
 class KiroMobileMap:
     def __init__(self, master_ip, cur_ip, connection_state=True):
@@ -51,13 +52,11 @@ class KiroMobileMap:
                                        self.master_ip, self.cur_ip,
                                        str(connection_state).lower()],
                                      cwd=DEMO_UTIL_DIR)
-        self.get_maps = \
-            shared_fun(CallType.SYNC, "KiroMobileMap",
-                       ResProb(0, (1000000,), dict),
-                       ResProb(1, (1000000,), dict),
-                       ResProb(2, (1000000,), dict))\
-                (self.get_maps)
 
+    @shared_fun(CallType.SYNC, SERVER_ID,
+                ResProb(0, (1000000,), dict),
+                ResProb(1, (1000000,), dict),
+                ResProb(2, (1000000,), dict))
     def get_maps(self):
         if self.connection_state:
             lcost_dict = extract_attr_dict(self.lcost_listener.get_data())
@@ -244,4 +243,4 @@ def add_px_points(gscene, gtype, points_px, resolution, T_bi, height, radius, sa
 if __name__ == "__main__":
     set_serving(True)
     kmm = KiroMobileMap(sys.argv[1], sys.argv[2], sys.argv[3]=='true')
-    serve_forever("KiroMobileMap", [kmm.get_maps], verbose=True)
+    serve_forever(SERVER_ID, [kmm.get_maps], verbose=True)

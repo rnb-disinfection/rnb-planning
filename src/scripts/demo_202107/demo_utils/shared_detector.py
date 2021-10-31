@@ -22,6 +22,8 @@ RESP_URI = "shm://response"
 
 IMG_DIM = (720, 1280, 3)
 
+FILE_PATH = os.path.join(RNB_PLANNING_DIR, 'src/scripts/demo_202107/demo_utils/shared_detector.py')
+
 
 class SharedDetector:
     def __init__(self):
@@ -43,10 +45,7 @@ class SharedDetector:
                 TextColors.RED.println("[ERROR] Could not initialize detector")
                 print(e)
         else:
-            print("Popen: {} on {}".format(
-                " ".join(['python3', __file__]), os.path.dirname(__file__)))
-            output = subprocess.Popen(['python3', os.path.basename(__file__)],
-                                      cwd=os.path.dirname(__file__))
+            output = subprocess.Popen(['python3', FILE_PATH], cwd=os.path.dirname(FILE_PATH))
 
 
     @shared_fun(CallType.SYNC, "SharedDetector",
