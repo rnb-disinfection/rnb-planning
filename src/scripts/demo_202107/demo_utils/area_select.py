@@ -37,7 +37,10 @@ class SweepDirections(Enum):
         Xtool = np.where(np.abs(Rre[:, 0]).astype(int))[0][0]
         Ytool = np.where(np.abs(Rre[:, 1]).astype(int))[0][0]
         Ztool = np.where(np.abs(Rre[:, 2]).astype(int))[0][0]
-        step_ax = list({Ytool, Ztool} - {sweep_ax})[0]
+        step_axes = [Ytool, Ztool]
+        if sweep_ax in step_axes:
+            step_axes.remove(sweep_ax)
+        step_ax = step_axes[0]
         level_ax = list({0, 1, 2} - {sweep_ax, step_ax})[0]
         return Rre, step_ax, level_ax
     
