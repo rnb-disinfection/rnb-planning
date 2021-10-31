@@ -1,31 +1,49 @@
 """@package shared_function
-This package is a helper to make function runs in a totally separatedshared process,    \n
-just as single process                                                                  \n
-                                                                                        \n
-###### EXAMPLE USAGE #####                                                              \n
------------------- test_module.py -------------------                                   \n
-import shared_function                                                                  \n
-import subprocess                                                                       \n
-                                                                                        \n
-@shared_function.shared_fun(                                                            \n
-    CallType.SYNC, ResProb(1, (1,), bool), ArgProb("arg1", (1,), float))                \n
-def hi(arg1):                                                                           \n
-    return [arg1[0]>0]                                                                  \n
-                                                                                        \n
-## add server initialization on main so that created subprocess can start server        \n
-if __name__ == "__main__":                                                              \n
-    shared_function.serve_forever()                                                     \n
-------------------------------------------------------                                  \n
-                                                                                        \n
---------------- Your main procedure ------------------                                  \n
-## run separated process                                                                \n
-self.subp = subprocess.Popen(['python', 'test_module.py'])                              \n
-                                                                                        \n
-## call function just as single process program, but must call with kwargs              \n
-res = hi(arg1=1)                                                                        \n
-print(res)                                                                              \n
-------------------------------------------------------                                  \n
-                                                                                        \n
+This package is a helper to make function runs in a totally separatedshared process,        \n
+just as single process.                                                                     \n
+                                                                                            \n
+###### EXAMPLE USAGE #####                                                                  \n
+------------------ test_module.py -------------------                                       \n
+from shared_function import shared_fun, CallType, ArgSpec, ResSpec, \                       \n
+                      serve_forever                                                         \n
+import subprocess                                                                           \n
+                                                                                            \n
+# decorate your function with shared_fun.                                                   \n
+# you should setserver id for your function.                                                \n
+# you should by CallType you can state this function will wait for response when called.    \n
+# you should specify argument and result spec with ArgSpec and ResSpec.                     \n
+@shared_fun("ServerID", CallType.SYNC,                                                      \n
+    ArgSpec("kwarg1", (1,), float),                                                         \n
+    ResSpec(1, (1,), bool))                                                                 \n
+def positive(kwargA):                                                                       \n
+    return [kwarg1[0]>0]                                                                    \n
+                                                                                            \n
+class TestClass:                                                                            \n
+    @shared_fun("ServerID", CallType.SYNC,                                                  \n
+        ArgSpec("kwarg1", (1,), float),                                                     \n
+        ResSpec(1, (1,), bool))                                                             \n
+    def negative(kwargA):                                                                   \n
+        return [kwarg1[0]<0]                                                                \n
+                                                                                            \n
+if __name__ == "__main__":                                                                  \n
+    tc = TestClass()                                                                        \n
+    ## add server initialization on main so that created subprocess can start server        \n
+    shared_function.serve_forever("ServerID", [positive, tc.negative])                      \n
+else:                                                                                       \n
+    ## create server subprocess when imported as module                                     \n
+    subprocess.Popen(['python', 'test_module.py'])                                          \n
+------------------------------------------------------                                      \n
+                                                                                            \n
+--------------- Your main procedure ------------------                                      \n
+import test_module                                                                          \n
+                                                                                            \n
+## call function just as single process program, but must call with kwargs                  \n
+res = postive(kwarg1=1)                                                                     \n
+print(res)                                                                                  \n
+tc = TestClass()                                                                            \n
+res = tc.negative(kwarg1=-1)                                                                \n
+print(res)                                                                                  \n
+------------------------------------------------------                                      \n
 """
 
 import SharedArray as sa
@@ -62,20 +80,20 @@ def shared_fun_uri(addr, identifier):
     return SHARED_FUN_URI_FORM.format(addr, identifier)
 
 ##
-# @class ArgProb
+# @class ArgSpec
 # @brief properties for shared memory variable
 # @param name   name of function argument
 # @param shape tuple
 # @param etype extended data type,
 #              basic data type in SharedArray is any subtype of bool, int, float but not other object s.t. str
 #              extended data type support str and json
-ArgProb = namedtuple("ArgProb", ["name", "shape", "etype"])
+ArgSpec = namedtuple("ArgSpec", ["name", "shape", "etype"])
 
 ##
-# @class ResProb
+# @class ResSpec
 # @brief same as VarProb but for results
 # @param index return value is distinguished by index
-ResProb = namedtuple("ResProb", ["index", "shape", "etype"])
+ResSpec = namedtuple("ResSpec", ["index", "shape", "etype"])
 
 
 ##
@@ -149,16 +167,16 @@ def shared_fun(ctype, key, *var_props):
         kwargs_s = {}
         returns_s = {}
         for var_prop in var_props:
-            if isinstance(var_prop, ResProb):
+            if isinstance(var_prop, ResSpec):
                 addr = shared_fun_uri(fullname_fun, var_prop.index)
                 returns_s[var_prop.index] = \
                     ExtendedData(addr, shape=var_prop.shape, etype=var_prop.etype)
-            elif isinstance(var_prop, ArgProb):
+            elif isinstance(var_prop, ArgSpec):
                 addr = shared_fun_uri(fullname_fun, var_prop.name)
                 kwargs_s[var_prop.name] = \
                     ExtendedData(addr, shape=var_prop.shape, etype=var_prop.etype)
             else:
-                raise (TypeError("arguments for shared_fun should be either ArgProb or ResProb"
+                raise (TypeError("arguments for shared_fun should be either ArgSpec or ResSpec"
                                  "but {} is given".format(type(var_prop))))
 
         def __wrapper(self=None, timeout=None, **kwargs):

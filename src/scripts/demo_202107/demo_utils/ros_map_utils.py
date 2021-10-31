@@ -16,7 +16,7 @@ from pkg.global_config import RNB_PLANNING_DIR
 from pkg.utils.ros_utils import *
 from pkg.utils.rotation_utils import *
 from pkg.utils.utils import *
-from pkg.utils.shared_function import shared_fun, CallType, ArgProb, ResProb, \
+from pkg.utils.shared_function import shared_fun, CallType, ArgSpec, ResSpec, \
     set_serving, is_serving, serve_forever
 import cv2
 import subprocess
@@ -54,9 +54,9 @@ class KiroMobileMap:
                                      cwd=DEMO_UTIL_DIR)
 
     @shared_fun(CallType.SYNC, SERVER_ID,
-                ResProb(0, (1000000,), dict),
-                ResProb(1, (1000000,), dict),
-                ResProb(2, (1000000,), dict))
+                ResSpec(0, (1000000,), dict),
+                ResSpec(1, (1000000,), dict),
+                ResSpec(2, (1000000,), dict))
     def get_maps(self):
         if self.connection_state:
             lcost_dict = extract_attr_dict(self.lcost_listener.get_data())

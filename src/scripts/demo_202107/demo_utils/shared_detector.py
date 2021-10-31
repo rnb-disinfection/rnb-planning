@@ -13,7 +13,7 @@ if sys.version.startswith("3"):
 elif sys.version.startswith("2"):
     from pkg.utils.utils import *
 
-from pkg.utils.shared_function import shared_fun, CallType, ArgProb, ResProb, set_serving, is_serving, serve_forever, SHARED_FUNC_ALL
+from pkg.utils.shared_function import shared_fun, CallType, ArgSpec, ResSpec, set_serving, is_serving, serve_forever, SHARED_FUNC_ALL
 
 IMG_URI = "shm://color_img"
 MASK_URI = "shm://mask_img"
@@ -44,13 +44,11 @@ class SharedDetector:
             except Exception as e:
                 TextColors.RED.println("[ERROR] Could not initialize detector")
                 print(e)
-        else:
-            output = subprocess.Popen(['python3', FILE_PATH], cwd=os.path.dirname(FILE_PATH))
 
 
     @shared_fun(CallType.SYNC, "SharedDetector",
-                ArgProb("color_img", IMG_DIM, np.uint8),
-                ResProb(0, IMG_DIM[:2], float))
+                ArgSpec("color_img", IMG_DIM, np.uint8),
+                ResSpec(0, IMG_DIM[:2], float))
     def inference(self, color_img):
         # Inference object detection & segmentation
         result = inference_detector(self.model, color_img)
@@ -68,3 +66,5 @@ if __name__ == "__main__":
     sdet = SharedDetector()
     set_serving(True)
     serve_forever("SharedDetector", [sdet.inference], verbose=True)
+else:
+    output = subprocess.Popen(['python3', FILE_PATH], cwd=os.path.dirname(FILE_PATH))
