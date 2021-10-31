@@ -30,6 +30,16 @@ class SweepDirections(Enum):
         else:
             raise (RuntimeError("Not defined"))
         return Rre
+
+    @classmethod
+    def get_Re_step_level(cls, tip_dir, sweep_ax):
+        Rre = cls.get_dcm_re(tip_dir)
+        Xtool = np.where(np.abs(Rre[:, 0]).astype(int))[0][0]
+        Ytool = np.where(np.abs(Rre[:, 1]).astype(int))[0][0]
+        Ztool = np.where(np.abs(Rre[:, 2]).astype(int))[0][0]
+        step_ax = list({Ytool, Ztool} - {sweep_ax})[0]
+        level_ax = list({0, 1, 2} - {sweep_ax, step_ax})[0]
+        return Rre, step_ax, level_ax
     
     @classmethod
     def get_file_name(cls, rtype, tip_dir):
