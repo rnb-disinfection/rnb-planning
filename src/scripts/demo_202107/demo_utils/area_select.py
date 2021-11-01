@@ -228,7 +228,8 @@ def get_division_dict(surface, brush_face, robot_config, plane_val, tip_dir, swe
                 swp_points[:, ax_swp] = min_val + np.arange(sweep_num) * div_size_swp
             else:
                 h_in_range = div_heights_r[
-                    np.where(np.logical_and(min_val_ful< div_heights_r, div_heights_r < max_val_ful))]
+                    np.where(np.logical_and(min_val_ful+Hoff_et< div_heights_r,
+                                            div_heights_r < max_val_ful+Hoff_et))]-Hoff_et
                 if len(h_in_range)==0:
                     continue
                 swp_points = np.zeros((len(h_in_range), 3))
@@ -257,6 +258,7 @@ def get_division_dict(surface, brush_face, robot_config, plane_val, tip_dir, swe
     Tbm_float_all = []
     Tbm_fail_all = []
     Tbm_succ_all = []
+    Tsm_swp_pairs = []
     for i_div, div_center in list(enumerate(surface_div_centers)):  # for each division
         Tsc = SE3(np.identity(3), tuple(div_center) + (surface.dims[2] / 2,))
         for i in range(4) if SweepDirections.check_fourway(tip_dir) else [0, 2]:
@@ -281,6 +283,7 @@ def get_division_dict(surface, brush_face, robot_config, plane_val, tip_dir, swe
                     continue
                 Tbm[2, 3] = 0
                 if ccheck(T_loal=Tbm, Q_dict=crob.home_dict):  # check feasible
+                    Tsm_swp_pairs.append((Tsm, swp_point))
                     Tbm_succ_all.append(Tbm)
                     Tsm_xq = T2xyzquat(Tsm)
                     Tsm_key = tuple(np.round(Tsm_xq[0], 3)), tuple(np.round(Tsm_xq[1], 3))
@@ -413,19 +416,23 @@ def add_sweep_task(pscene, sweep_name, surface, swp_min, swp_max, Tsm, ax_swp_t,
     sweep_dim[ax_swp_t] = np.subtract(swp_max, swp_min)[ax_swp_s] + wp_dims[ax_swp_t]
     sweep_dim = tuple(sweep_dim)
 
-    if np.matmul(Tsm[:2, :3].transpose(), swp_min)[ax_swp_s] < np.matmul(Tsm[:2, :3].transpose(), swp_max)[ax_swp_s]:
-        swp_0 = swp_max if tool_dir > 0 else swp_min
-        swp_1 = swp_min if tool_dir > 0 else swp_max
+    if np.matmul(Tsm[:2, :3].transpose(), swp_min)[ax_swp] < np.matmul(Tsm[:2, :3].transpose(), swp_max)[ax_swp]:
+        swp_0 = swp_max # if tool_dir > 0 else swp_min
+        swp_1 = swp_min # if tool_dir > 0 else swp_max
     else:
-        swp_0 = swp_min if tool_dir > 0 else swp_max
-        swp_1 = swp_max if tool_dir > 0 else swp_min
+        swp_0 = swp_min # if tool_dir > 0 else swp_max
+        swp_1 = swp_max # if tool_dir > 0 else swp_min
 
     dir_swp_s = np.sign(swp_1 - swp_0)
-
     dir_swp_t = np.zeros(2)
     dir_swp_t[ax_swp_t] = tool_dir
-    theta = calc_rotvec_vecs(dir_swp_s, dir_swp_t) + np.pi  # get angle for tool sweep axis
+
+    theta = calc_rotvec_vecs(dir_swp_t, dir_swp_s) + np.pi  # get angle for tool sweep axis
     Rsc = Rot_axis(3, theta)
+
+    print("dir_swp_s", dir_swp_s)
+    print("dir_swp_t", dir_swp_t)
+    print("theta", theta)
 
     gscene.create_safe(gtype=GEOTYPE.BOX, name=sweep_name, link_name="base_link",
                        dims=sweep_dim + (surface.dims[2],),
@@ -535,7 +542,8 @@ class TestBaseDivFunc:
 
 def refine_order_plan(ppline, snode_schedule_list_in, idx_bases, idc_divs, Qcur,
                       floor_gtem, wayframer, surface, Tsm_keys, surface_div_centers,
-                      WP_DIMS, TOOL_DIM, ROBOT_NAME, MOBILE_NAME, HOME_POSE_MOVE, tool_dir=1):
+                      WP_DIMS, TOOL_DIM, ROBOT_NAME, MOBILE_NAME, HOME_POSE_MOVE,
+                      ax_swp_tool, ax_swp_base, tool_dir=1):
     pscene = ppline.pscene
     mplan = ppline.mplan
     gscene = pscene.gscene
@@ -564,10 +572,11 @@ def refine_order_plan(ppline, snode_schedule_list_in, idx_bases, idc_divs, Qcur,
         swp_centers = np.array(surface_div_centers)[idc_div]
         Tsm = T_xyzquat(Tsm_keys[i_b])
         Q_dict = list2dict(Qcur, gscene.joint_names)
-        set_base_sweep(pscene, floor_gtem, Tsm, surface, swp_centers, WP_DIMS, TOOL_DIM,
-                       Q_dict=Q_dict, tool_dir=tool_dir)
-        scene_args_list.append((pscene, floor_gtem, Tsm, surface, swp_centers, WP_DIMS, TOOL_DIM))
-        scene_kwargs_list.append(dict(Q_dict=Q_dict))
+        set_base_sweep(pscene, floor_gtem, Tsm, surface, swp_centers, ax_swp_tool, ax_swp_base,
+                       WP_DIMS, TOOL_DIM, Q_dict=Q_dict, tool_dir=tool_dir)
+        scene_args_list.append((pscene, floor_gtem, Tsm, surface, swp_centers,
+                                ax_swp_tool, ax_swp_base, WP_DIMS, TOOL_DIM))
+        scene_kwargs_list.append(dict(Q_dict=Q_dict, tool_dir=tool_dir))
 
         Qcur_update = np.copy(Qcur)
         to_update_list = []
