@@ -19,6 +19,7 @@ class KiroUDPClient(TrajectoryClient):
             time.sleep(1)
         self.xyzw_last = [0, 0, 0, 1]
         self.validifier = None
+        self.tool_angle = 0
 
     def xyzw2joints(self, xyzw):
         Q_CUR = np.array([0] * 6, dtype=np.float)
@@ -125,7 +126,7 @@ class KiroUDPClient(TrajectoryClient):
             if diff_nm < 0.01:
                 return
             send_pose_udp(self.sock_mobile, self.joints2xyzw(Q),
-                          tool_angle=0, send_ip=self.server_ip)
+                          tool_angle=self.tool_angle, send_ip=self.server_ip)
             if diff_nm < 0.05:
                 time.sleep((diff_nm / 0.1)*self.DURATION_SHORT_MOTION_REF)
             else:

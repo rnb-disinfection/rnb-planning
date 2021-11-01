@@ -330,7 +330,8 @@ class MoveitPlanner(MotionInterface):
                         from_Q_tmp[self.combined_robot.idx_dict[group_name]] = Q
                         if self.validate_trajectory([from_Q_tmp], update_gscene=False):
                             replan_joint = True
-                            print("use PRQ")
+                            if verbose:
+                                print("use PRQ")
                         else:
                             from_Q_tmp = from_Q
 

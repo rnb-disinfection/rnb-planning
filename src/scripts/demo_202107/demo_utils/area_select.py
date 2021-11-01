@@ -430,10 +430,6 @@ def add_sweep_task(pscene, sweep_name, surface, swp_min, swp_max, Tsm, ax_swp_t,
     theta = calc_rotvec_vecs(dir_swp_t, dir_swp_s) + np.pi  # get angle for tool sweep axis
     Rsc = Rot_axis(3, theta)
 
-    print("dir_swp_s", dir_swp_s)
-    print("dir_swp_t", dir_swp_t)
-    print("theta", theta)
-
     gscene.create_safe(gtype=GEOTYPE.BOX, name=sweep_name, link_name="base_link",
                        dims=sweep_dim + (surface.dims[2],),
                        center=tuple(np.mean([swp_0, swp_1], axis=0)) + (0,),
