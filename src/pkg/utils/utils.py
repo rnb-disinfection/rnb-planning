@@ -93,7 +93,7 @@ class PeriodicTimer:
 
     ##
     # @brief    wait for next timer event
-    def wait(self): # Just waiting full period makes too much threading delay - make shorter loop
+    def wait(self):  # Just waiting full period makes too much threading delay - make shorter loop
         while not self.__tic.wait(self.period / 100):
             pass
         self.__tic.clear()
@@ -105,6 +105,24 @@ class PeriodicTimer:
 
     def __del__(self):
         self.stop()
+
+    def call_periodic(self, fun, N=None, timeout=None, args=[], kwargs={}):
+        i_call = 0
+        time_start = time.time()
+        while True:
+            self.wait()
+            fun(*args, **kwargs)
+            i_call += 1
+            if N is not None and i_call > N:
+                break
+            if timeout is not None and time.time() - time_start > timeout:
+                break
+
+    def call_in_thread(self, fun, N=None, timeout=None, args=[], kwargs={}):
+        kwargs_new = dict(fun=fun, N=N, timeout=timeout, **kwargs)
+        t = Thread(target=self.call_periodic, args=args, kwargs=kwargs_new)
+        t.daemon = True
+        t.start()
 
 
 ##
@@ -546,3 +564,39 @@ def moving_median(values, window=3):
                   + list(values[-n1:])
                  )
     return np.array(values_med)
+
+##
+# @brief convert ascii int list to string text
+def ascii2str(ascii):
+    return "".join(map(chr, ascii))
+
+##
+# @brief convert string text to ascii int list
+def str2ascii(text):
+    return map(ord, text)
+
+##
+# @brief get full name of given function including parent class
+def fullname(fun):
+    if hasattr(fun, '__qualname__'):
+        return ".".join(fun.__qualname__.split(".")[-2:])
+    elif hasattr(fun, 'im_class'):
+        return "{}.{}".format(fun.im_class.__name__, fun.__name__)
+    else:
+        return fun.__name__
+
+def extract_attr_dict(msg, valid_types=(int, float, str, tuple, list, dict)):
+    if msg is None:
+        return None
+    if type(msg) in valid_types:
+        return msg
+    msg_dict = {}
+    for k in dir(msg):
+        if k.startswith('_'):
+            continue
+        submsg = getattr(msg, k)
+        if callable(submsg):
+            continue
+        msg_dict[k] = extract_attr_dict(submsg)
+    return msg_dict
+

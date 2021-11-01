@@ -846,7 +846,6 @@ bool Planner::process_object(string name, const ObjectType type, CartPose pose, 
     moveit_msgs::AttachedCollisionObject att_object;
     moveit_msgs::CollisionObject object;
     geometry_msgs::Pose _pose;
-    shape_msgs::SolidPrimitive primitive;
 
     /* A default pose */
     _pose.position.x = pose[0];
@@ -857,34 +856,38 @@ bool Planner::process_object(string name, const ObjectType type, CartPose pose, 
     _pose.orientation.z = pose[5];
     _pose.orientation.w = pose[6];
 
-    /* Define a box to be attached */
-    primitive.type = type;
-    switch(type){
-        case ObjectType::BOX:
-            primitive.dimensions.resize(3);
-            primitive.dimensions[0] = dims[0];
-            primitive.dimensions[1] = dims[1];
-            primitive.dimensions[2] = dims[2];
+    shape_msgs::SolidPrimitive primitive;
+    if(type != ObjectType::MESH){
+        /* Define a box to be attached */
+        primitive.type = type;
+        switch(type){
+            case ObjectType::BOX:
+                primitive.dimensions.resize(3);
+                primitive.dimensions[0] = dims[0];
+                primitive.dimensions[1] = dims[1];
+                primitive.dimensions[2] = dims[2];
 #ifdef PRINT_DEBUG
-            printf("BOX: %f, %f, %f \n", dims[0], dims[1], dims[2]);
+                printf("BOX: %f, %f, %f \n", dims[0], dims[1], dims[2]);
 #endif
-            break;
-        case ObjectType::SPHERE:
-            primitive.dimensions.resize(1);
-            primitive.dimensions[0] = dims[0];
+                break;
+            case ObjectType::SPHERE:
+                primitive.dimensions.resize(1);
+                primitive.dimensions[0] = dims[0];
 #ifdef PRINT_DEBUG
-            printf("SPHERE: %f \n", dims[0]);
+                printf("SPHERE: %f \n", dims[0]);
 #endif
-            break;
-        case ObjectType::CYLINDER:
-            primitive.dimensions.resize(2);
-            primitive.dimensions[0] = dims[0];
-            primitive.dimensions[1] = dims[1];
+                break;
+            case ObjectType::CYLINDER:
+                primitive.dimensions.resize(2);
+                primitive.dimensions[0] = dims[0];
+                primitive.dimensions[1] = dims[1];
 #ifdef PRINT_DEBUG
-            printf("CYLINDER: %f, %f \n", dims[0], dims[1]);
+                printf("CYLINDER: %f, %f \n", dims[0], dims[1]);
 #endif
-            break;
+                break;
+        }
     }
+
 
     if (attach) {
         att_object.link_name = link_name;
@@ -912,9 +915,74 @@ bool Planner::process_object(string name, const ObjectType type, CartPose pose, 
 }
 
 bool Planner::add_object(string name, const ObjectType type,
-                             CartPose pose, Vec3 dims,
-                             string link_name, NameList touch_links, bool attach){
+                         CartPose pose, Vec3 dims,
+                         string link_name, NameList touch_links, bool attach){
     return process_object(name, type, pose, dims, link_name, touch_links, attach, moveit_msgs::CollisionObject::ADD);
+}
+
+bool Planner::add_mesh(string name, const ObjectType type,
+                       CartPose pose, Vec3List vertices, Vec3List triangles,
+                       string link_name, NameList touch_links, bool attach){
+    bool res = false;
+
+    moveit_msgs::AttachedCollisionObject att_object;
+    moveit_msgs::CollisionObject object;
+    geometry_msgs::Pose _pose;
+
+    /* A default pose */
+    _pose.position.x = pose[0];
+    _pose.position.y = pose[1];
+    _pose.position.z = pose[2];
+    _pose.orientation.x = pose[3];
+    _pose.orientation.y = pose[4];
+    _pose.orientation.z = pose[5];
+    _pose.orientation.w = pose[6];
+
+    shape_msgs::Mesh mesh;
+    for(auto it_v=vertices.begin(); it_v<vertices.end(); it_v++){
+        Vec3 vert = *it_v;
+        geometry_msgs::Point pt;
+        pt.x = vert[0];
+        pt.y = vert[1];
+        pt.z = vert[2];
+        mesh.vertices.push_back(pt);
+    }
+    for(auto it_t=triangles.begin(); it_t<triangles.end(); it_t++){
+        Vec3 tri = *it_t;
+        shape_msgs::MeshTriangle mt;
+        mt.vertex_indices[0] = tri[0];
+        mt.vertex_indices[1] = tri[1];
+        mt.vertex_indices[2] = tri[2];
+        mesh.triangles.push_back(mt);
+    }
+
+    if (attach) {
+        att_object.link_name = link_name;
+        /* The header must contain a valid TF frame*/
+        att_object.object.header.frame_id = link_name;
+        /* The id of the object */
+        att_object.object.id = name;
+        att_object.object.meshes.push_back(mesh);
+        att_object.object.primitive_poses.push_back(_pose);
+        att_object.object.operation = moveit_msgs::CollisionObject::ADD;
+        att_object.touch_links = touch_links;
+        res = planning_scene_->processAttachedCollisionObjectMsg(att_object);
+    }
+    else {
+        object.header.frame_id = link_name;
+        /* The id of the object */
+        object.id = name;
+        if(type == ObjectType::MESH) {
+        }
+        else{
+            object.meshes.push_back(mesh);
+            object.mesh_poses.push_back(_pose);
+        }
+        object.operation = moveit_msgs::CollisionObject::ADD;
+        res = planning_scene_->processCollisionObjectMsg(object);
+    }
+
+    return res;
 }
 
 void Planner::clear_all_objects(){

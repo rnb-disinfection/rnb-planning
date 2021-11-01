@@ -170,13 +170,19 @@ def T2xyzrpy(T):
 
 ##
 # @return tuple(xyz, rotvec)
-def T2xyzrvec(T):
-    return T[:3,3].tolist(), Rotation.from_dcm(T[:3,:3]).as_rotvec().tolist()
+def T2xyzrvec(T, decimals=None):
+    if decimals is None:
+        return T[:3,3].tolist(), Rotation.from_dcm(T[:3,:3]).as_rotvec().tolist()
+    else:
+        return tuple(np.round(T[:3,3], decimals)), tuple(Rotation.from_dcm(T[:3,:3]).as_rotvec())
 
 ##
 # @return tuple(xyz, quaternion)
-def T2xyzquat(T):
-    return T[:3,3].tolist(), Rotation.from_dcm(T[:3,:3]).as_quat().tolist()
+def T2xyzquat(T, decimals=None):
+    if decimals is None:
+        return T[:3,3].tolist(), Rotation.from_dcm(T[:3,:3]).as_quat().tolist()
+    else:
+        return tuple(np.round(T[:3,3], decimals)), tuple(np.round(Rotation.from_dcm(T[:3,:3]).as_quat(), decimals))
 
 ##
 # @param xyzrpy tuple(xyz, rpy(rad))
@@ -187,6 +193,11 @@ def T_xyzrpy(xyzrpy):
 # @param xyzrpy tuple(xyz, quaternion)
 def T_xyzquat(xyzquat):
     return SE3(Rotation.from_quat(xyzquat[1]).as_dcm(), xyzquat[0])
+
+##
+# @param xyzrpy tuple(xyz, quaternion)
+def T_xyzrvec(xyzrvec):
+    return SE3(Rotation.from_rotvec(xyzrvec[1]).as_dcm(), xyzrvec[0])
 
 def matmul_series(*Tlist):
     T = Tlist[0]
@@ -207,7 +218,15 @@ def calc_rotvec_vecs(vec1, vec2):
     dot_val = np.dot(vec1, vec2)
     cross_abs = np.linalg.norm(cross_vec)
     if np.linalg.norm(cross_abs) < 1e-8:
-        rotvec = np.zeros(3)
+        if len(vec1)==2:
+            if dot_val>=0:
+                rotvec = 0
+            else:
+                rotvec = np.pi
+        elif len(vec1)==3:
+            rotvec = np.zeros(3)
+            if dot_val<0:
+                rotvec[2] = np.pi
     else:
         cross_nm = cross_vec/cross_abs
         rotvec = cross_nm * np.arctan2(cross_abs, dot_val)
