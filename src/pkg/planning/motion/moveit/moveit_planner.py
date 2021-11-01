@@ -325,9 +325,6 @@ class MoveitPlanner(MotionInterface):
                     T_rtar = self.gscene.get_tf(target.geometry.link_name, from_Q,
                                                 from_link=self.chain_dict[group_name]['link_names'][0])
                     Tre = np.matmul(T_rtar, T_tar_tool)
-                    ####
-                    assert np.linalg.norm(np.matmul(T_be, SE3_inv(T_re)) - np.identity(4)) <1e-2
-                    ####
                     Q = self.sample_PRQ(group_name, Tre, radii=self.radii)
                     if Q is not None:
                         from_Q_tmp[self.combined_robot.idx_dict[group_name]] = Q

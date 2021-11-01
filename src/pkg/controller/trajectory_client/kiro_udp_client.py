@@ -117,7 +117,7 @@ class KiroUDPClient(TrajectoryClient):
                 print("[INFO] Approach through: {} -> {}".format(Qapp[:3], Q[:3]))
                 self.joint_move_make_sure(Qapp, sure_count=0)
             else:
-                TextColors.RED.prinln("[WARN] No available approach position. Try anyway")
+                TextColors.RED.println("[WARN] No available approach position. Try anyway")
 
         if self.dummy:
             self.xyzw_last = self.joints2xyzw(Q)

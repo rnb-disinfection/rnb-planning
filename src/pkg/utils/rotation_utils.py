@@ -218,7 +218,10 @@ def calc_rotvec_vecs(vec1, vec2):
     dot_val = np.dot(vec1, vec2)
     cross_abs = np.linalg.norm(cross_vec)
     if np.linalg.norm(cross_abs) < 1e-8:
-        rotvec = np.zeros(3)
+        if len(vec1)==2:
+            rotvec = 0
+        elif len(vec1)==3:
+            rotvec = np.zeros(3)
     else:
         cross_nm = cross_vec/cross_abs
         rotvec = cross_nm * np.arctan2(cross_abs, dot_val)
