@@ -2,10 +2,18 @@ import SharedArray as sa
 import numpy as np
 import cv2
 import time
-from mmdet.apis import init_detector, inference_detector
 import os
-os.chdir(os.path.join(os.environ["RNB_PLANNING_DIR"], 'src'))
+import sys
+import subprocess
 RNB_PLANNING_DIR = os.environ["RNB_PLANNING_DIR"]
+sys.path.append(os.path.join(os.path.join(RNB_PLANNING_DIR, 'src')))
+sys.path.append(os.path.join(RNB_PLANNING_DIR, 'src/scripts/milestone_202110'))
+if sys.version.startswith("3"):
+    from pkg.utils.utils_python3 import *
+elif sys.version.startswith("2"):
+    from pkg.utils.utils import *
+
+from pkg.utils.shared_function import shared_fun, CallType, ArgSpec, ResSpec, set_serving, is_serving, serve_forever, SHARED_FUNC_ALL
 
 IMG_URI = "shm://color_img"
 MASK_URI = "shm://mask_img"
@@ -14,36 +22,42 @@ RESP_URI = "shm://response"
 
 IMG_DIM = (720, 1280, 3)
 
+FILE_PATH = os.path.join(RNB_PLANNING_DIR, 'src/scripts/demo_202107/demo_utils/shared_detector.py')
 
 class SharedDetector:
-    def __init__(self):
-        # Load config, checkpoint file of cascade mask rcnn swin based
-        config_file = os.path.join(RNB_PLANNING_DIR,
-                                   'src/scripts/milestone_202110/utils/configs/swin/cascade_mask_rcnn_swin_base_patch4_window7_mstrain_480-800_giou_4conv1f_adamw_3x_coco.py')
-        checkpoint_file = os.path.join(RNB_PLANNING_DIR,
-                                       'src/scripts/milestone_202110/utils/cascade_mask_rcnn_swin_base_patch4_window7.pth')
+    def __init__(self):        self.initizlied = False
 
-        device = 'cuda:0'
+    @shared_fun(CallType.SYNC, "SharedDetector")
+    def init(self):
+        if not self.initizlied:
+            self.initizlied = True
+            # Load config, checkpoint file of cascade mask rcnn swin based
+            config_file = os.path.join(RNB_PLANNING_DIR,
+                                       'src/scripts/demo_202107/demo_utils/configs/swin/cascade_mask_rcnn_swin_base_patch4_window7_mstrain_480-800_giou_4conv1f_adamw_3x_coco.py')
+            checkpoint_file = os.path.join(RNB_PLANNING_DIR,
+                                           'src/scripts/demo_202107/demo_utils/cascade_mask_rcnn_swin_base_patch4_window7.pth')
 
-        # Initiate model(object detector)
-        self.model = init_detector(config_file, checkpoint_file, device=device)
+            # config_file = '/home/jhkim/Swin-Transformer-Object-Detection/configs/swin/cascade_mask_rcnn_swin_base_patch4_window7_mstrain_480-800_giou_4conv1f_adamw_3x_coco.py'
+            # checkpoint_file = '/home/jhkim/Swin-Transformer-Object-Detection/cascade_mask_rcnn_swin_base_patch4_window7.pth'
+            device = 'cuda:0'
+            try:
+                self.model = init_detector(config_file, checkpoint_file, device=device)
+            except Exception as e:
+                TextColors.RED.println("[ERROR] Could not initialize detector")
+                raise(e)
 
-    def serve_forever(self):
-        self.request[:] = 0
-        self.resp[:] = 0
-        print("===== Ready Inference Server =====")
-        while True:
-            while not self.request[:]:
-                time.sleep(0.01)
-            self.request[:] = 0
-            self.resp[:] = 0
-            # Inference object detection & segmentation
-            result = inference_detector(self.model, self.color_img)
-            boxes, masks = result[0], result[1]
+    @shared_fun(CallType.SYNC, "SharedDetector",
+                ArgSpec("color_img", IMG_DIM, np.uint8),
+                ResSpec(0, IMG_DIM[:2], float))
+    def inference(self, color_img):
+        if self.initizlied:
+            result = inference_detector(self.model, color_img)
+            boxes, masks = result   [0], result[1]
 
             detect_false = np.empty((720,1280), dtype=bool)
             detect_false[:, :] = False
 
+            return_img = np.zeros(IMG_DIM[:2])
             # Index 59 means bed
             if len(masks[59]) != 0:
                 box = boxes[59][0]
@@ -52,44 +66,31 @@ class SharedDetector:
                 center_y = (top + bottom) / 2
                 # check center position of bounding box of detected bed
                 if center_x < 330:
-                    self.return_img[:] = detect_false
+                    return_img[:] = detect_false
                 elif center_x > 950:
-                    self.return_img[:] = detect_false
+                    return_img[:] = detect_false
                 elif center_y < 175:
-                    self.return_img[:] = detect_false
+                    return_img[:] = detect_false
                 elif center_y > 545:
-                    self.return_img[:] = detect_false
+                    return_img[:] = detect_false
                 else:
                     mask_res = masks[59][0]
-                    self.return_img[:] = mask_res
+                    return_img[:] = mask_res
             else:
-                self.return_img[:] = detect_false
-            self.resp[:] = 1
-
-    def __enter__(self):
-        try:
-            sa.delete(IMG_URI)
-            sa.delete(MASK_URI)
-            sa.delete(REQ_URI)
-            sa.delete(RESP_URI)
-        except Exception as e:
-            pass
-        self.color_img = sa.create(IMG_URI, IMG_DIM, dtype=np.uint8)
-        self.return_img = sa.create(MASK_URI, IMG_DIM[:2])
-        # self.return_img = sa.create(MASK_URI, IMG_DIM[:2], dtype=np.uint8)
-        self.request = sa.create(REQ_URI, (1,), dtype=np.uint8)
-        self.resp = sa.create(RESP_URI, (1,), dtype=np.uint8)
-        self.request[:] = 0
-        self.resp[:] = 0
-
-    def __exit__(self, type, value, traceback):
-        sa.delete(IMG_URI)
-        sa.delete(MASK_URI)
-        sa.delete(REQ_URI)
-        sa.delete(RESP_URI)
+                return_img[:] = detect_false
+            return return_img
+        else:
+            raise(RuntimeError("[Error] Not initilized"))
 
 
 if __name__ == "__main__":
+    try:
+        from mmdet.apis import init_detector, inference_detector
+    except Exception as e:
+        print(TextColors.RED.println("[ERROR] Could not import mmdat"))
+        print(e)
     sdet = SharedDetector()
-    with sdet:
-        sdet.serve_forever()
+    set_serving(True)
+    serve_forever("SharedDetector", [sdet.inference, sdet.init], verbose=True)
+else:
+    output = subprocess.Popen(['python3', FILE_PATH], cwd=os.path.dirname(FILE_PATH))

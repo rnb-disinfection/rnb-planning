@@ -209,9 +209,12 @@ def __run_send_response(wrapepd, func, self):
             returns = func(**kwargs)
         else:
             returns = func(self, **kwargs)
-
-        for edat, val in zip(wrapepd.returns, returns):
-            edat.assign(val)
+        if returns is not None:
+            if len(wrapepd.returns) == 1:
+                wrapepd.returns[0].assign(returns)
+            else:
+                for edat, val in zip(wrapepd.returns, returns):
+                    edat.assign(val)
         wrapepd.request.assign(False)
         wrapepd.response.assign(True)
     except Exception as e:
@@ -251,18 +254,21 @@ def check_response(wrapepd, wait=False, timeout=None):
         if not wrapepd.request.read()[0]:
             return get_return(wrapepd)
         else:
-            raise(TimeoutError("Timeout during getting response - check last error state by get_error().read()"))
+            raise(RuntimeError("Timeout during getting response - check last error state by get_error().read()"))
     else:
         return None
 
 def get_return(wrapepd):
     if wrapepd.response.read()[0]:
-        res = map(ExtendedData.read, wrapepd.returns)
-        if res is None or len(res) == 0:
-            res = None
-        elif len(res) == 1:
-            res = res[0]
-        return res
+        if len(wrapepd.returns) > 0:
+            res = map(ExtendedData.read, wrapepd.returns)
+            if res is None or len(res) == 0:
+                res = None
+            elif len(res) == 1:
+                res = res[0]
+            return res
+        else:
+            return None
     else:
         raise(RuntimeError(get_error().read()))
 
@@ -286,8 +292,12 @@ def super_clear_shared_memory(names=None):
         names = []
         for desc in sa.list():
             names.append(desc.name)
+
     for name in names:
-        sa.delete(name)
+        try:
+            sa.delete(name)
+        except:
+            pass
 
 import json
 

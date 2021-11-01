@@ -222,6 +222,60 @@ def compute_close_ICP(model_mesh, pcd, initial_guess, thres, visualize=False,
     return ICP_result
 
 
+def compute_front_ICP(model_type, pcd, initial_guess, T_off, thres, visualize=False,
+                      relative_fitness=1e-13, relative_rmse=1e-13, max_iteration=600000):
+    # Compute ICP to align model(source) to obtained point clouds(target)
+    target = copy.deepcopy(pcd)
+    if model_type=="bed":
+        model_mesh = o3d.io.read_triangle_mesh(MODEL_DIR + '/bed/bed.STL')
+        model_mesh.vertices = o3d.utility.Vector3dVector(
+            np.asarray(model_mesh.vertices) * np.array([1 / 1000.0, 1 / 1000.0, 1 / 1000.0]))
+        model_pcd = model_mesh.sample_points_uniformly(number_of_points=int(len(np.array(target.points)) * 0.7))
+        max_dist = model_pcd.get_center()[2] * 1.6
+    elif model_type=="closet":
+        model_mesh = o3d.io.read_triangle_mesh(MODEL_DIR + '/top_table/top_table.STL')
+        model_mesh.vertices = o3d.utility.Vector3dVector(
+            np.asarray(model_mesh.vertices) * np.array([1 / 1000.0, 1 / 1000.0, 1 / 1000.0]))
+        model_pcd = model_mesh.sample_points_uniformly(number_of_points=int(len(np.array(target.points)) * 0.7))
+        max_dist = model_pcd.get_center()[0] * 1.5
+
+    model_pcd_bed = np.asarray(model_pcd.points)
+    idx = []
+    for i in range(len(model_pcd_bed)):
+        if model_pcd_bed[i, 2] > max_dist:
+            idx.append(i)
+
+    pts = np.zeros((len(idx), 3))
+    for i in range(len(idx)):
+        pts[i] = model_pcd_bed[idx[i]]
+
+    front_pcd = o3d.geometry.PointCloud()
+    front_pcd.points = o3d.utility.Vector3dVector(pts)
+    source = copy.deepcopy(front_pcd)
+    if visualize:
+        vis_pointcloud(source)
+
+    # Guess Initial Transformation
+    trans_init = initial_guess
+
+    print("Apply point-to-point ICP")
+    threshold = thres
+    reg_p2p = o3d.registration.registration_icp(source, target, threshold, trans_init,
+                                                o3d.registration.TransformationEstimationPointToPoint(),
+                                                o3d.registration.ICPConvergenceCriteria(relative_fitness=relative_fitness,
+                                                                                        relative_rmse=relative_rmse,
+                                                                                        max_iteration=max_iteration))
+    compute_close_ICP.reg_p2p = reg_p2p
+    print(reg_p2p)
+    print("Transformation is:")
+    print(reg_p2p.transformation)
+    if visualize:
+        draw_registration_result(source, target, reg_p2p.transformation)
+    ICP_result = reg_p2p.transformation
+
+    return np.matmul(ICP_result, T_off)
+
+
 def process_bed_detection_front(T_bc, visualize=False):
     # Load CAD model of bed
     bed_model = o3d.io.read_triangle_mesh(MODEL_DIR + '/bed/bed.STL')
@@ -1037,7 +1091,8 @@ class MultiICP:
         else:
             pass  # add
             self.pcd += pcd
-        self.model_sampled = self.model.sample_points_uniformly(number_of_points=int(len(np.array(self.pcd.points))))
+            self.pcd = self.pcd.uniform_down_sample(every_k_points=16)
+        self.model_sampled = self.model.sample_points_uniformly(number_of_points=int(len(np.array(self.pcd.points))*0.6))
         return self.pcd
 
     ##
@@ -1054,15 +1109,16 @@ class MultiICP:
         else:
             pass  # add
             self.pcd += pcd
-        self.model_sampled = self.model.sample_points_uniformly(number_of_points=int(len(np.array(self.pcd.points))))
+            self.pcd = self.pcd.uniform_down_sample(every_k_points=16)
+        self.model_sampled = self.model.sample_points_uniformly(number_of_points=int(len(np.array(self.pcd.points)*0.6)))
         return self.pcd
 
     ##
     # @param To    initial transformation matrix of geometry object in the intended icp origin coordinate
     # @param thres max distance between corresponding points
     def compute_ICP(self, To=None, thres=0.1,
-                    relative_fitness=1e-17, relative_rmse=1e-17, max_iteration=500000,
-                    voxel_size=0.05, visualize=False
+                    relative_fitness=1e-15, relative_rmse=1e-15, max_iteration=500000,
+                    voxel_size=0.04, visualize=False
                     ):
         if To is None:
             To, fitness = self.auto_init(0, voxel_size)
@@ -1097,13 +1153,75 @@ class MultiICP:
 
         return ICP_result, reg_p2p.fitness
 
+
+        ##
+        # @param To    initial transformation matrix of geometry object in the intended icp origin coordinate
+        # @param thres max distance between corresponding points
+    def compute_front_ICP(self, model_type, To=None, thres=0.1,
+                    relative_fitness=1e-15, relative_rmse=1e-15, max_iteration=500000,
+                    voxel_size=0.04, visualize=False
+                    ):
+        if To is None:
+            To, fitness = self.auto_init(0, voxel_size)
+        target = copy.deepcopy(self.pcd)
+
+        idx = []
+        if model_type == "bed":
+            max_dist = self.model_sampled.get_center()[2] * 1.6
+            front_model = np.asarray(self.model_sampled.points)
+            for i in range(len(front_model)):
+                if front_model[i, 2] > max_dist:
+                    idx.append(i)
+        elif model_type == "closet":
+            max_dist = self.model_sampled.get_center()[0] * 1.5
+            front_model = np.asarray(self.model_sampled.points)
+            for i in range(len(front_model)):
+                if front_model[i, 0] > max_dist:
+                    idx.append(i)
+
+        pts = np.zeros((len(idx), 3))
+        for i in range(len(idx)):
+            pts[i] = front_model[idx[i]]
+
+        front_pcd = o3d.geometry.PointCloud()
+        front_pcd.points = o3d.utility.Vector3dVector(pts)
+        source = copy.deepcopy(front_pcd)
+
+        # To Be Done - add front only option and cut backward surface here based on To
+        if visualize:
+            self.draw(To, source, target)
+
+        To = np.matmul(To, self.Toff_inv)
+
+        # Guess Initial Transformation
+        trans_init = To
+
+        print("Apply point-to-point ICP")
+        threshold = thres
+        reg_p2p = o3d.registration.registration_icp(source, target, threshold, trans_init,
+                                                    o3d.registration.TransformationEstimationPointToPoint(),
+                                                    o3d.registration.ICPConvergenceCriteria(
+                                                        relative_fitness=relative_fitness,
+                                                        relative_rmse=relative_rmse,
+                                                        max_iteration=max_iteration))
+        print(reg_p2p)
+        print("Transformation is:")
+        print(reg_p2p.transformation)
+        ICP_result = reg_p2p.transformation
+
+        ICP_result = np.matmul(ICP_result, self.Toff)
+        if visualize:
+            self.draw(ICP_result, source, target)
+
+        return ICP_result, reg_p2p.fitness
+
     def draw(self, To, source=None, target=None):
         if source is None: source = self.model_sampled
         if target is None: target = self.pcd
         To = np.matmul(To, self.Toff_inv)
         draw_registration_result(source, target, To)
 
-    def auto_init(self, init_idx=0, voxel_size=0.05):
+    def auto_init(self, init_idx=0, voxel_size=0.04):
         pcd_cam, Tc = self.pcd_Tc_stack[init_idx]
         Tc_inv = SE3_inv(Tc)
         source_down, source_fpfh = preprocess_point_cloud(pcd_cam, voxel_size)
