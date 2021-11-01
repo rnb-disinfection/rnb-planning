@@ -1,17 +1,24 @@
 import os
 import sys
+import time
+
+sys.path.append(os.path.join(os.environ["RNB_PLANNING_DIR"], 'src'))
 sys.path.append(os.path.join(os.environ["RNB_PLANNING_DIR"], 'src/scripts/milestone_202110'))
 
-from .trajectory_client import *
-from ...utils.utils import *
-from ...utils.rotation_utils import *
+
+from pkg.controller.trajectory_client.trajectory_client  import TrajectoryClient
+from pkg.utils.utils import *
+from pkg.utils.rotation_utils import *
+# from .trajectory_client import TrajectoryClient
+# from ...utils.utils import *
+# from ...utils.rotation_utils import *
 from demo_utils.kiro_udp_send import start_mobile_udp_thread, get_reach_state_edgeup, send_pose_udp, get_xyzw_cur
 
 
 class KiroUDPClient(TrajectoryClient):
-    DURATION_SHORT_MOTION_REF = 5.0
+    DURATION_SHORT_MOTION_REF = 10
     def __init__(self, server_ip, ip_cur, dummy=False):
-        TrajectoryClient.__init__(self, server_ip)
+        TrajectoryClient.__init__(self, server_ip, traj_freq=10)
         self.server_ip, self.dummy = server_ip, dummy
         self.teleport = True
         if not dummy:
@@ -95,7 +102,7 @@ class KiroUDPClient(TrajectoryClient):
     ##
     # @brief Make sure the joints move to Q using the indy DCP joint_move_to function.
     # @param Q radian
-    def joint_move_make_sure(self, Q, sure_count=5, *args, **kwargs):
+    def joint_move_make_sure(self, Q, sure_count=5, Qorigin=None, *args, **kwargs):
         Q = np.copy(Q)
         Qcur = self.get_qcur()
         diff = np.subtract(Q[:3], Qcur[:3])
@@ -130,15 +137,19 @@ class KiroUDPClient(TrajectoryClient):
             if diff_nm < 0.05:
                 time.sleep((diff_nm / 0.1)*self.DURATION_SHORT_MOTION_REF)
             else:
-                self.wait_queue_empty(20)
-        if sure_count>0:
-            Qadj = np.copy(Q)
-            Qcur = self.get_qcur()
-            diff = Qadj[:2] - Qcur[:2]
-            diff_nm = np.linalg.norm(diff)
-            if diff_nm > 1e-2:
-                Qadj[:2] = Qadj[:2] + diff/diff_nm*1e-2
-            self.joint_move_make_sure(Qadj, sure_count=sure_count-1)
+                self.wait_queue_empty(60)
+            time.sleep(1)
+        # if sure_count>0:
+        #     if Qorigin is None:
+        #         Qadj = np.copy(Q)
+        #     else:
+        #         Qadj = np.copy(Qorigin)
+        #     Qcur = self.get_qcur()
+        #     diff = Qadj[:2] - Qcur[:2]
+        #     diff_nm = np.linalg.norm(diff)
+        #     if diff_nm > 2e-2:
+        #         Qadj[:2] = Qadj[:2] + diff/diff_nm*2e-2
+        #     self.joint_move_make_sure(Qadj, sure_count=sure_count-1, Qorigin=Qorigin)
 
     ##
     # @brief Surely move joints to Q using the indy DCP joint_move_to function.
@@ -160,3 +171,10 @@ class KiroUDPClient(TrajectoryClient):
     #           If reset_robot is not called, it will immediately move to the original reference pose.
     def stop_tracking(self):
         return {}
+
+if __name__ == "__main__":
+    kmb = KiroUDPClient('192.168.0.102', '192.168.0.8')
+    while True:
+        print(get_xyzw_cur())
+        time.sleep(0.5)
+

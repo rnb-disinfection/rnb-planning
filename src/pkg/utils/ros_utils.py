@@ -14,12 +14,12 @@ class Listener:
         else:
             self.callback = self.__callback
         rospy.Subscriber(self.topic_name, self.topic_type, self.callback)
-        self.data_stack = deque([], maxlen=maxlen)
+        # self.data_stack = deque([], maxlen=maxlen)
         self.last_dat = None
         self.verbose_log = verbose_log
 
     def __callback(self, data):
-        self.data_stack.append(data)
+        # self.data_stack.append(data)
         self.last_dat = data
         if self.verbose_log:
             rospy.loginfo(rospy.get_caller_id() + "I heard %s", data)

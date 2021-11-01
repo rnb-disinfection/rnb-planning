@@ -37,21 +37,26 @@ class KiroMobileMap:
         self.master_ip, self.cur_ip = master_ip, cur_ip
         self.connection_state = connection_state
         self.cost_im, self.lcost_im = None, None
-        if is_serving():
-            if connection_state:
-                rospy.init_node("map_receiver")
-                # GET MAP
-                self.map_listener = Listener(topic_name="/map", topic_type=OccupancyGrid)
-                self.cost_listener = Listener(topic_name="/move_base/global_costmap/costmap",
-                                              topic_type=OccupancyGrid)
-                self.lcost_listener = Listener(topic_name="/move_base/local_costmap/costmap",
-                                               topic_type=OccupancyGrid)
-        else:
+        if not is_serving():
             output = subprocess.Popen(['sh',
                                        os.path.join(DEMO_UTIL_DIR, 'get_ros_map.sh'),
                                        self.master_ip, self.cur_ip,
                                        str(connection_state).lower()],
                                      cwd=DEMO_UTIL_DIR)
+
+    @shared_fun(CallType.SYNC, SERVER_ID)
+    def init_node(self):
+        if self.connection_state:
+            rospy.init_node("map_receiver")
+            print("map_receiver: node initialized")
+            # GET MAP
+            self.map_listener = Listener(topic_name="/map", topic_type=OccupancyGrid)
+            self.cost_listener = Listener(topic_name="/move_base/global_costmap/costmap",
+                                          topic_type=OccupancyGrid)
+            self.lcost_listener = Listener(topic_name="/move_base/local_costmap/costmap",
+                                           topic_type=OccupancyGrid)
+
+            print("map_receiver: listener ready")
 
     @shared_fun(CallType.SYNC, SERVER_ID,
                 ResSpec(0, (1000000,), dict),
@@ -59,9 +64,14 @@ class KiroMobileMap:
                 ResSpec(2, (1000000,), dict))
     def get_maps(self):
         if self.connection_state:
-            lcost_dict = extract_attr_dict(self.lcost_listener.get_data())
-            cost_dict = extract_attr_dict(self.cost_listener.last_dat)
+            while self.map_listener.last_dat is None \
+                    or self.cost_listener.last_dat is None \
+                    or self.lcost_listener.last_dat is None :
+                time.sleep(0.1)
             map_dict = extract_attr_dict(self.map_listener.last_dat)
+            cost_dict = extract_attr_dict(self.cost_listener.last_dat)
+            lcost_dict = extract_attr_dict(self.lcost_listener.last_dat)
+            self.map_listener.last_dat = self.cost_listener.last_dat = self.lcost_listener.last_dat = None
         else:
             map_data = load_pickle(os.path.join(os.environ["RNB_PLANNING_DIR"],"data/map_data.pkl"))
             cost_data = load_pickle(os.path.join(os.environ["RNB_PLANNING_DIR"],"data/cost_data.pkl"))
@@ -89,8 +99,9 @@ class KiroMobileMap:
         self.lcost_canny = cv2.Canny(self.lcost_closed, 50, 150)
         self.T_bm = T_bm
         self.T_bi = np.identity(4)       # global origin in base
-        T_lim = SE3(Rot_axis(3, np.pi), (0,) * 3)  # mobile in origin - assume origin=mobile
+        T_lim = SE3(Rot_axis(3, 0), (0,) * 3)  # mobile in origin - assume origin=mobile
         self.T_bil = np.matmul(T_bm, SE3_inv(T_lim))
+        self.T_bil[:3, :3] = self.T_bi[:3, :3]
 
     def convert_im2scene(self, img_bin, resolution, T_bi, img_cost=None):
         im_o = np.divide(img_bin.shape, 2)
@@ -243,4 +254,4 @@ def add_px_points(gscene, gtype, points_px, resolution, T_bi, height, radius, sa
 if __name__ == "__main__":
     set_serving(True)
     kmm = KiroMobileMap(sys.argv[1], sys.argv[2], sys.argv[3]=='true')
-    serve_forever(SERVER_ID, [kmm.get_maps], verbose=True)
+    serve_forever(SERVER_ID, [kmm.get_maps, kmm.init_node], verbose=True)
