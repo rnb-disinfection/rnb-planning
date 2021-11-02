@@ -1091,8 +1091,11 @@ class MultiICP:
         else:
             pass  # add
             self.pcd += pcd
-            self.pcd = self.pcd.uniform_down_sample(every_k_points=16)
-        self.model_sampled = self.model.sample_points_uniformly(number_of_points=int(len(np.array(self.pcd.points))*0.6))
+            self.pcd = self.pcd.uniform_down_sample(every_k_points=10)
+        # self.model_sampled = self.model.sample_points_uniformly(number_of_points=int(len(np.array(self.pcd.points))*0.6))\
+        self.model.compute_vertex_normals()
+        self.model_sampled = self.model.sample_points_poisson_disk(
+                                                    number_of_points=int(len(np.array(self.pcd.points) * 0.4)))
         return self.pcd
 
     ##
@@ -1109,8 +1112,11 @@ class MultiICP:
         else:
             pass  # add
             self.pcd += pcd
-            self.pcd = self.pcd.uniform_down_sample(every_k_points=16)
-        self.model_sampled = self.model.sample_points_uniformly(number_of_points=int(len(np.array(self.pcd.points)*0.6)))
+            self.pcd = self.pcd.uniform_down_sample(every_k_points=10)
+        # self.model_sampled = self.model.sample_points_uniformly(number_of_points=int(len(np.array(self.pcd.points)*0.6)))
+        self.model.compute_vertex_normals()
+        self.model_sampled = self.model.sample_points_poisson_disk(
+                                                    number_of_points=int(len(np.array(self.pcd.points) * 0.4)))
         return self.pcd
 
     ##
@@ -1157,7 +1163,80 @@ class MultiICP:
         ##
         # @param To    initial transformation matrix of geometry object in the intended icp origin coordinate
         # @param thres max distance between corresponding points
-    def compute_front_ICP(self, model_type, To=None, thres=0.1,
+    def compute_front_ICP(self, model_type, T_bc=None, To=None, thres=0.1,
+                    relative_fitness=1e-15, relative_rmse=1e-15, max_iteration=500000,
+                    voxel_size=0.04, visualize=False
+                    ):
+        if To is None:
+            To, fitness = self.auto_init(0, voxel_size)
+
+        if T_bc is None:
+            T_bc = SE3(np.identity(3), (0, 0, 0))
+
+        target = copy.deepcopy(self.pcd)
+
+        T_cb = SE3_inv(T_bc)
+        T_co = np.matmul(np.matmul(T_cb, To), self.Toff_inv)
+        # model_mesh = self.model.compute_vertex_normals()
+        model_pcd = self.model_sampled
+
+        normals = np.asarray(model_pcd.normals)
+        points = np.asarray(model_pcd.points)
+        # point_normals = normals
+        # view_vec = SE3_inv(Tguess)[:3,2]
+        point_normals = np.matmul(T_co[:3, :3], normals.T).T
+        view_vec = (0, 0, 1)
+        idx = []
+        for i in range(len(point_normals)):
+            if np.dot(view_vec, point_normals[i]) < 0:
+                idx.append(i)
+
+        pts = np.zeros((len(idx), 3))
+        for i in range(len(idx)):
+            pts[i] = points[idx[i]]
+
+        front_pcd = o3d.geometry.PointCloud()
+        front_pcd.points = o3d.utility.Vector3dVector(pts)
+        if visualize:
+            vis_pointcloud(front_pcd)
+        source = copy.deepcopy(front_pcd)
+
+        # To Be Done - add front only option and cut backward surface here based on To
+        if model_type=="bed":
+            To = np.matmul(T_cb, To)
+
+        if visualize:
+            self.draw(To, source, target)
+
+        To = np.matmul(To, self.Toff_inv)
+
+        # Guess Initial Transformation
+        trans_init = To
+
+        print("Apply point-to-point ICP")
+        threshold = thres
+        reg_p2p = o3d.registration.registration_icp(source, target, threshold, trans_init,
+                                                    o3d.registration.TransformationEstimationPointToPoint(),
+                                                    o3d.registration.ICPConvergenceCriteria(
+                                                        relative_fitness=relative_fitness,
+                                                        relative_rmse=relative_rmse,
+                                                        max_iteration=max_iteration))
+        print(reg_p2p)
+        print("Transformation is:")
+        print(reg_p2p.transformation)
+        ICP_result = reg_p2p.transformation
+
+        ICP_result = np.matmul(ICP_result, self.Toff)
+        if visualize:
+            self.draw(ICP_result, source, target)
+
+        return ICP_result, reg_p2p.fitness
+
+
+        ##
+        # @param To    initial transformation matrix of geometry object in the intended icp origin coordinate
+        # @param thres max distance between corresponding points
+    def compute_front_cut_ICP(self, model_type, To=None, thres=0.1,
                     relative_fitness=1e-15, relative_rmse=1e-15, max_iteration=500000,
                     voxel_size=0.04, visualize=False
                     ):
@@ -1173,7 +1252,7 @@ class MultiICP:
                 if front_model[i, 2] > max_dist:
                     idx.append(i)
         elif model_type == "closet":
-            max_dist = self.model_sampled.get_center()[0] * 1.5
+            max_dist = self.model_sampled.get_center()[0] * 1.4
             front_model = np.asarray(self.model_sampled.points)
             for i in range(len(front_model)):
                 if front_model[i, 0] > max_dist:
@@ -1214,6 +1293,7 @@ class MultiICP:
             self.draw(ICP_result, source, target)
 
         return ICP_result, reg_p2p.fitness
+
 
     def draw(self, To, source=None, target=None):
         if source is None: source = self.model_sampled
