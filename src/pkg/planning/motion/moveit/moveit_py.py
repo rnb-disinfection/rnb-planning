@@ -96,6 +96,11 @@ class ObjectMPC:
         if vertices is None or triangles is None:
             self.vertices = vertices
             self.triangles = triangles
+        elif triangles is None:
+            raise(RuntimeError(
+                "[Error] Only triangle mesh is implemented for MoveIt interpreter now. "
+                "Try to convert the point cloud to a triangle mesh or "
+                "implement adding point cloud object to the moveit_interface_py library in the project."))
         else:
             self.vertices = Vec3List()
             self.triangles = Vec3List()
@@ -134,7 +139,8 @@ class MoveitCompactPlanner_BP(mpc.Planner):
             self.attached_dict[obj.name] = ObjectMPC(obj.name, obj.type, obj.link_name, attach=obj.attach)
         if obj.type == ObjectType.MESH:
             return self.add_mesh_py(obj)
-        return self.process_object_py(obj, ObjectOperation.ADD.value)
+        else:
+            return self.process_object_py(obj, ObjectOperation.ADD.value)
 
     def remove_object(self, obj):
         if obj.attach:
