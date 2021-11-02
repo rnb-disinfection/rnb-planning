@@ -1092,8 +1092,8 @@ class MultiICP:
             pass  # add
             self.pcd += pcd
             self.pcd = self.pcd.uniform_down_sample(every_k_points=10)
-        # self.model_sampled = self.model.sample_points_uniformly(number_of_points=int(len(np.array(self.pcd.points))*0.6))\
         self.model.compute_vertex_normals()
+        # self.model_sampled = self.model.sample_points_uniformly(number_of_points=int(len(np.array(self.pcd.points)*0.6)))
         self.model_sampled = self.model.sample_points_poisson_disk(
                                                     number_of_points=int(len(np.array(self.pcd.points) * 0.4)))
         return self.pcd
@@ -1113,8 +1113,8 @@ class MultiICP:
             pass  # add
             self.pcd += pcd
             self.pcd = self.pcd.uniform_down_sample(every_k_points=10)
-        # self.model_sampled = self.model.sample_points_uniformly(number_of_points=int(len(np.array(self.pcd.points)*0.6)))
         self.model.compute_vertex_normals()
+        # self.model_sampled = self.model.sample_points_uniformly(number_of_points=int(len(np.array(self.pcd.points)*0.6)))
         self.model_sampled = self.model.sample_points_poisson_disk(
                                                     number_of_points=int(len(np.array(self.pcd.points) * 0.4)))
         return self.pcd
