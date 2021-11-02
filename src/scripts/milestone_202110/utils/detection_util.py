@@ -71,7 +71,7 @@ def set_cam_params(cam_intrins_, d_scale):
     __d_scale = d_scale
 
 
-def draw_registration_result(source, target, transformation):
+def draw_registration_result(source, target, transformation, option_geos=[]):
     source_temp = copy.deepcopy(source)
     target_temp = copy.deepcopy(target)
     source_temp.paint_uniform_color([1, 0.706, 0])
@@ -86,7 +86,7 @@ def draw_registration_result(source, target, transformation):
     FOR_target = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.15, origin=target.get_center())
 
     o3d.visualization.draw_geometries([source_temp, target_temp,
-                                       FOR_origin, FOR_model, FOR_target])
+                                       FOR_origin, FOR_model, FOR_target]+option_geos)
 
 def preprocess_point_cloud(pcd, voxel_size):
     print(":: Downsample with a voxel size %.3f." % voxel_size)
@@ -1070,7 +1070,7 @@ class MultiICP:
     ##
     # @param cdp open3d.geometry.PointCloud
     # @param Tc camera transformation matrix
-    def add_pointcloud(self, pcd, Tc=None):
+    def add_pointcloud(self, pcd, Tc=None, ratio=0.5):
         if Tc is None:
             pcd_cam = copy.deepcopy(pcd)
             pcd = copy.deepcopy(pcd)
@@ -1086,37 +1086,47 @@ class MultiICP:
             pcd_cam.points = o3d.utility.Vector3dVector(points_c)
 
         self.pcd_Tc_stack.append((pcd_cam, Tc))
+        # self.pcd = self.pcd_Tc_stack[0][0]
+        # for _pcd in self.pcd_Tc_stack[1:]:
+        #     self.pcd += _pcd[0]
+        # if len(self.pcd_Tc_stack) > 1:
+        #     self.pcd = self.pcd.uniform_down_sample(every_k_points=len(self.pcd_Tc_stack))
         if self.pcd is None:
-            self.pcd = pcd
+            self.pcd.uniform_down_sample(every_k_points=2)
         else:
             pass  # add
-            self.pcd += pcd
-            self.pcd = self.pcd.uniform_down_sample(every_k_points=10)
+            self.pcd += pcd.uniform_down_sample(every_k_points=2)
         self.model.compute_vertex_normals()
-        # self.model_sampled = self.model.sample_points_uniformly(number_of_points=int(len(np.array(self.pcd.points)*0.6)))
-        self.model_sampled = self.model.sample_points_poisson_disk(
-                                                    number_of_points=int(len(np.array(self.pcd.points) * 0.4)))
+        self.model_sampled = self.model.sample_points_uniformly(
+            number_of_points=int(len(np.array(self.pcd.points))*ratio))
+        # self.model_sampled = self.model.sample_points_poisson_disk(
+        #                                             number_of_points=int(len(np.array(self.pcd.points) * ratio)))
         return self.pcd
 
     ##
     # @param cdp ColorDepthMap
     # @param Tc camera transformation matrix
-    def add_image(self, cdp, Tc=None):
+    def add_image(self, cdp, Tc=None, ratio=0.5):
         if Tc is None:
-            Tc= np.identity(4)
+            Tc = np.identity(4)
         pcd_cam = cdp2pcd(cdp, depth_trunc=self.depth_trunc)
         pcd = cdp2pcd(cdp, Tc=Tc, depth_trunc=self.depth_trunc)
         self.pcd_Tc_stack.append((pcd_cam, Tc))
+        # self.pcd = self.pcd_Tc_stack[0][0]
+        # for _pcd in self.pcd_Tc_stack[1:]:
+        #     self.pcd += _pcd[0]
+        # if len(self.pcd_Tc_stack) > 1:
+        #     self.pcd = self.pcd.uniform_down_sample(every_k_points=len(self.pcd_Tc_stack))
         if self.pcd is None:
             self.pcd = pcd
         else:
             pass  # add
-            self.pcd += pcd
-            self.pcd = self.pcd.uniform_down_sample(every_k_points=10)
+            self.pcd += pcd.uniform_down_sample(every_k_points=2)
         self.model.compute_vertex_normals()
-        # self.model_sampled = self.model.sample_points_uniformly(number_of_points=int(len(np.array(self.pcd.points)*0.6)))
-        self.model_sampled = self.model.sample_points_poisson_disk(
-                                                    number_of_points=int(len(np.array(self.pcd.points) * 0.4)))
+        self.model_sampled = self.model.sample_points_uniformly(
+            number_of_points=int(len(np.array(self.pcd.points)) * ratio))
+        # self.model_sampled = self.model.sample_points_poisson_disk(
+        #                                             number_of_points=int(len(np.array(self.pcd.points) * ratio)))
         return self.pcd
 
     ##
@@ -1161,21 +1171,22 @@ class MultiICP:
 
 
         ##
+        # @param Tc_cur this is new camera transformation in pcd origin
         # @param To    initial transformation matrix of geometry object in the intended icp origin coordinate
         # @param thres max distance between corresponding points
-    def compute_front_ICP(self, model_type, T_bc=None, To=None, thres=0.1,
+    def compute_front_ICP(self, Tc_cur=None, To=None, thres=0.1,
                     relative_fitness=1e-15, relative_rmse=1e-15, max_iteration=500000,
                     voxel_size=0.04, visualize=False
                     ):
         if To is None:
             To, fitness = self.auto_init(0, voxel_size)
 
-        if T_bc is None:
-            T_bc = SE3(np.identity(3), (0, 0, 0))
+        if Tc_cur is None:
+            Tc_cur = SE3(np.identity(3), (0, 0, 0))
 
         target = copy.deepcopy(self.pcd)
 
-        T_cb = SE3_inv(T_bc)
+        T_cb = SE3_inv(Tc_cur) # base here is the point cloud base defined when added
         T_co = np.matmul(np.matmul(T_cb, To), self.Toff_inv)
         # model_mesh = self.model.compute_vertex_normals()
         model_pcd = self.model_sampled
@@ -1197,16 +1208,12 @@ class MultiICP:
 
         front_pcd = o3d.geometry.PointCloud()
         front_pcd.points = o3d.utility.Vector3dVector(pts)
-        if visualize:
-            vis_pointcloud(front_pcd)
         source = copy.deepcopy(front_pcd)
 
-        # To Be Done - add front only option and cut backward surface here based on To
-        if model_type=="bed":
-            To = np.matmul(T_cb, To)
-
         if visualize:
-            self.draw(To, source, target)
+            cam_coord = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.15, origin=[0, 0, 0])
+            cam_coord.transform(Tc_cur)
+            self.draw(To, source, target, [cam_coord])
 
         To = np.matmul(To, self.Toff_inv)
 
@@ -1295,11 +1302,11 @@ class MultiICP:
         return ICP_result, reg_p2p.fitness
 
 
-    def draw(self, To, source=None, target=None):
+    def draw(self, To, source=None, target=None, option_geos=[]):
         if source is None: source = self.model_sampled
         if target is None: target = self.pcd
         To = np.matmul(To, self.Toff_inv)
-        draw_registration_result(source, target, To)
+        draw_registration_result(source, target, To, option_geos)
 
     def auto_init(self, init_idx=0, voxel_size=0.04):
         pcd_cam, Tc = self.pcd_Tc_stack[init_idx]
