@@ -448,13 +448,15 @@ class GeometryItem(object):
     # @param vertices (Nx3) points of mesh if you put vertices directly
     # @param triangles (Nx3) indeces of points for triangles
     # @param colors colors of points or triangles, in case of mesh with them
+    # @param in_urdf for geometries that are already in urdf file - e.g. no need to add to move it scene
     def __init__(self, gscene, gtype, name, link_name, dims, center, rpy=(0,0,0), color=(0,1,0,1), display=True,
                  collision=True, fixed=False, soft=False, online=False, K_col=None, uri="", scale=(1,1,1), create=True,
-                 parent=None, vertices=None, triangles=None, colors=None):
+                 parent=None, vertices=None, triangles=None, colors=None, in_urdf=False):
         self.uri, self.scale = uri, scale
         self.vertices=vertices
         self.triangles=triangles
         self.colors = colors
+        self.in_urdf = in_urdf
         if vertices is not None:
             if not all(np.abs(np.mean([np.max(vertices, axis=0), np.min(vertices, axis=0)], axis=0)) <=1e-6):
                 TextColors.YELLOW.println(

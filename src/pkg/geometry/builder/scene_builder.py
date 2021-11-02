@@ -212,7 +212,7 @@ class SceneBuilder(Singleton):
                         gscene.create_safe(
                             name=gname, link_name=link.name, gtype=GEOTYPE.CYLINDER,
                             center=xyz, dims=(geometry.radius * 2, geometry.radius * 2, geometry.length), rpy=rpy,
-                            color=color, display=display, collision=collision, fixed=True)
+                            color=color, display=display, collision=collision, fixed=True, in_urdf=True)
                     )
                 elif geotype == 'Box':
                     gname = "{}_{}_{}".format(link.name, geotype, id_dict[link.name])
@@ -220,7 +220,7 @@ class SceneBuilder(Singleton):
                         gscene.create_safe(
                             name=gname, link_name=link.name, gtype=GEOTYPE.BOX,
                             center=xyz, dims=geometry.size, rpy=rpy,
-                            color=color, display=display, collision=collision, fixed=True)
+                            color=color, display=display, collision=collision, fixed=True, in_urdf=True)
                     )
                 elif geotype == 'Sphere':
                     gname = "{}_{}_{}".format(link.name, geotype, id_dict[link.name])
@@ -228,7 +228,7 @@ class SceneBuilder(Singleton):
                         gscene.create_safe(
                             name=gname, link_name=link.name, gtype=GEOTYPE.SPHERE,
                             center=xyz, dims=[geometry.radius * 2] * 3, rpy=rpy,
-                            color=color, display=display, collision=collision, fixed=True)
+                            color=color, display=display, collision=collision, fixed=True, in_urdf=True)
                     )
                 elif geotype == 'Mesh':
                     raise (NotImplementedError("Mesh collision boundary is not supported"))
