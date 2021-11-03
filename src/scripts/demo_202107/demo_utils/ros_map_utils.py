@@ -2,23 +2,15 @@ from __future__ import print_function
 import os
 import sys
 
-import rospy
-
 sys.path.append(os.path.join(os.path.join(os.environ["RNB_PLANNING_DIR"], 'src')))
 sys.path.append(os.path.join(os.environ["RNB_PLANNING_DIR"], 'src/scripts/demo_202107'))
-from pkg.utils.ros_utils import *
 from demo_utils.map_converter import *
-from demo_utils.kiro_udp_send import start_mobile_udp_thread, get_xyzw_cur
-import time
-import cv2
-from enum import Enum
+from pkg.controller.trajectory_client.kiro_udp_send import start_mobile_udp_thread, get_xyzw_cur
 from pkg.global_config import RNB_PLANNING_DIR
 from pkg.utils.ros_utils import *
-from pkg.utils.rotation_utils import *
 from pkg.utils.utils import *
-from pkg.utils.shared_function import shared_fun, CallType, ArgSpec, ResSpec, \
+from pkg.utils.shared_function import shared_fun, CallType, ResSpec, \
     set_serving, is_serving, serve_forever
-import cv2
 import subprocess
 import matplotlib.pyplot as plt
 

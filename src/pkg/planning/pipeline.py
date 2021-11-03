@@ -607,8 +607,7 @@ class PlanningPipeline:
             if not on_rviz:
                 self.execute_grip(state_0)
 
-
-    def get_updated_schedule(self, snode_schedule, Q0, **kwargs):
+    def get_updated_schedule(self, snode_schedule, Q0, stype_overwrite_on_conflict=None, **kwargs):
         snode_schedule_new = []
         for snode in snode_schedule:
             snode_schedule_new.append(snode.copy(self.pscene))
@@ -628,9 +627,23 @@ class PlanningPipeline:
                 idx_fix = self.pscene.combined_robot.idx_dict[rname]
                 snode_nxt.state.Q[idx_fix] = snode_pre.state.Q[idx_fix]
 
+                if np.sum([n0 != n1
+                           for n0, n1
+                           in zip(snode_pre.state.node, snode_nxt.state.node)]
+                          ) > 1:
+                    wtask_name = [sname
+                                  for sname, stype
+                                  in zip(pscene.subject_name_list,
+                                         pscene.subject_type_list)
+                                  if stype == stype_overwrite_on_conflict][0]
+
+                    snode_pre.state.binding_state[wtask_name] = \
+                        snode_nxt.state.binding_state[wtask_name]
+                    snode_pre.state.set_binding_state(snode_pre.state.binding_state, pscene)
+
                 traj, state_next, error, succ = \
                     self.test_connection(from_state=snode_pre.state,
-                                           to_state=snode_nxt.state, **kwargs)
+                                         to_state=snode_nxt.state, **kwargs)
                 if succ:
                     snode_nxt.set_traj(traj)
                     snode_nxt.state = state_next

@@ -453,7 +453,7 @@ def add_waypoint_task(pscene, name, dims, center, rpy, parent, color=(1, 1, 0, 0
                                dims=dims, center=center, rpy=rpy,
                                color=color, display=True, collision=False, fixed=True, parent=parent)
     wp_hdl = WayFrame(wp.name, wp, [0, 0, dims[2] / 2], [0, 0, 0])
-    wp_task = pscene.create_subject(oname="waypoints", gname="floor_ws", _type=WayopintTask,
+    wp_task = pscene.create_subject(oname="waypoints", gname="floor_ws", _type=WaypointTask,
                                     action_points_dict={wp_hdl.name: wp_hdl})
     return wp_task, wp_hdl
 
@@ -610,7 +610,7 @@ def refine_order_plan(ppline, snode_schedule_list_in, idx_bases, idc_divs, Qcur,
         snode_last = snode_schedule[-1]
         ref_state = snode_last.state.copy(pscene)
         ref_state.Q[crob.idx_dict[ROBOT_NAME]] = HOME_POSE_MOVE
-        snode_schedule = snode_schedule + ppline.add_return_motion(snode_last, ref_state)
+        snode_schedule = snode_schedule + ppline.add_return_motion(snode_last, ref_state, timeout=5, try_count=5)
         snode_schedule_list.append(snode_schedule)
         idx_bases_out.append(i_b)
         idc_divs_out.append(idc_div)

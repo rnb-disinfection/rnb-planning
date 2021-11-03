@@ -1,6 +1,5 @@
 import os
 import sys
-import time
 
 sys.path.append(os.path.join(os.environ["RNB_PLANNING_DIR"], 'src'))
 sys.path.append(os.path.join(os.environ["RNB_PLANNING_DIR"], 'src/scripts/milestone_202110'))
@@ -12,11 +11,11 @@ from pkg.utils.rotation_utils import *
 # from .trajectory_client import TrajectoryClient
 # from ...utils.utils import *
 # from ...utils.rotation_utils import *
-from demo_utils.kiro_udp_send import start_mobile_udp_thread, get_reach_state_edgeup, send_pose_udp, get_xyzw_cur
+from kiro_udp_send import start_mobile_udp_thread, get_reach_state_edgeup, send_pose_udp, get_xyzw_cur
 
 
 class KiroUDPClient(TrajectoryClient):
-    DURATION_SHORT_MOTION_REF = 10
+    DURATION_SHORT_MOTION_REF = 5
     def __init__(self, server_ip, ip_cur, dummy=False):
         TrajectoryClient.__init__(self, server_ip, traj_freq=10)
         self.server_ip, self.dummy = server_ip, dummy
@@ -27,6 +26,8 @@ class KiroUDPClient(TrajectoryClient):
         self.xyzw_last = [0, 0, 0, 1]
         self.validifier = None
         self.tool_angle = 0
+        self.sure_count_default = 0
+        self.allowance = 2e-2
 
     def xyzw2joints(self, xyzw):
         Q_CUR = np.array([0] * 6, dtype=np.float)
@@ -102,7 +103,9 @@ class KiroUDPClient(TrajectoryClient):
     ##
     # @brief Make sure the joints move to Q using the indy DCP joint_move_to function.
     # @param Q radian
-    def joint_move_make_sure(self, Q, sure_count=5, Qorigin=None, *args, **kwargs):
+    def joint_move_make_sure(self, Q, sure_count=None, Qorigin=None, *args, **kwargs):
+        if sure_count is None:
+            sure_count = self.sure_count_default
         Q = np.copy(Q)
         Qcur = self.get_qcur()
         diff = np.subtract(Q[:3], Qcur[:3])
@@ -130,26 +133,34 @@ class KiroUDPClient(TrajectoryClient):
         if self.dummy:
             self.xyzw_last = self.joints2xyzw(Q)
         else:
-            if diff_nm < 0.01:
+            if diff_nm <= self.allowance:
                 return
+
             send_pose_udp(self.sock_mobile, self.joints2xyzw(Q),
                           tool_angle=self.tool_angle, send_ip=self.server_ip)
-            if diff_nm < 0.05:
-                time.sleep((diff_nm / 0.1)*self.DURATION_SHORT_MOTION_REF)
+            print("Distance={} ({})".format(diff_nm, np.round(diff, 3)))
+            if diff_nm < 0.1:
+                timeout_short = (diff_nm / 0.1) * self.DURATION_SHORT_MOTION_REF
+                TextColors.YELLOW.println("[WARN] TOO SMALL VARIANCE, REDUCE TIMEOUT to {:.3}".format(timeout_short))
+                self.wait_queue_empty(timeout_short)
             else:
                 self.wait_queue_empty(60)
+            Qcur = self.get_qcur()
+            print("End up at={}".format(np.round(Qcur[:3], 3)))
             time.sleep(1)
-        # if sure_count>0:
-        #     if Qorigin is None:
-        #         Qadj = np.copy(Q)
-        #     else:
-        #         Qadj = np.copy(Qorigin)
-        #     Qcur = self.get_qcur()
-        #     diff = Qadj[:2] - Qcur[:2]
-        #     diff_nm = np.linalg.norm(diff)
-        #     if diff_nm > 2e-2:
-        #         Qadj[:2] = Qadj[:2] + diff/diff_nm*2e-2
-        #     self.joint_move_make_sure(Qadj, sure_count=sure_count-1, Qorigin=Qorigin)
+        if sure_count>0:
+            print("sure_count={}".format(sure_count))
+            if Qorigin is None:
+                Qorigin = np.copy(Q)
+            Qadj = np.copy(Q)
+            diff_origin = Qorigin[:2] - Qcur[:2]
+            diff_nm_origin = np.linalg.norm(diff_origin)
+            diff_cur = Q[:2] - Qcur[:2]
+            diff_nm_cur = np.linalg.norm(diff_cur)
+            if diff_nm_origin > self.allowance: # if distance from original goal > alpha
+                Qadj[:2] = Qadj[:2] + diff_cur/diff_nm_cur*self.allowance # add alpha distance to current difference
+                time.sleep(0.5)
+                self.joint_move_make_sure(Qadj, sure_count=sure_count-1, Qorigin=Qorigin)
 
     ##
     # @brief Surely move joints to Q using the indy DCP joint_move_to function.

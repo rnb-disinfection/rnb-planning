@@ -1085,17 +1085,12 @@ class MultiICP:
             points_c = np.matmul(points4d, Tc_inv.transpose())[:, :3]
             pcd_cam.points = o3d.utility.Vector3dVector(points_c)
 
-        self.pcd_Tc_stack.append((pcd_cam, Tc))
-        # self.pcd = self.pcd_Tc_stack[0][0]
-        # for _pcd in self.pcd_Tc_stack[1:]:
-        #     self.pcd += _pcd[0]
-        # if len(self.pcd_Tc_stack) > 1:
-        #     self.pcd = self.pcd.uniform_down_sample(every_k_points=len(self.pcd_Tc_stack))
-        if self.pcd is None:
-            self.pcd.uniform_down_sample(every_k_points=2)
-        else:
-            pass  # add
-            self.pcd += pcd.uniform_down_sample(every_k_points=2)
+        self.pcd_Tc_stack.append((pcd_cam, Tc, pcd))
+        self.pcd = self.pcd_Tc_stack[0][2]
+        for _pcd in self.pcd_Tc_stack[1:]:
+            self.pcd += _pcd[2]
+        if len(self.pcd_Tc_stack) > 1:
+            self.pcd = self.pcd.uniform_down_sample(every_k_points=len(self.pcd_Tc_stack))
         self.model.compute_vertex_normals()
         self.model_sampled = self.model.sample_points_uniformly(
             number_of_points=int(len(np.array(self.pcd.points))*ratio))
@@ -1111,17 +1106,13 @@ class MultiICP:
             Tc = np.identity(4)
         pcd_cam = cdp2pcd(cdp, depth_trunc=self.depth_trunc)
         pcd = cdp2pcd(cdp, Tc=Tc, depth_trunc=self.depth_trunc)
-        self.pcd_Tc_stack.append((pcd_cam, Tc))
-        # self.pcd = self.pcd_Tc_stack[0][0]
-        # for _pcd in self.pcd_Tc_stack[1:]:
-        #     self.pcd += _pcd[0]
-        # if len(self.pcd_Tc_stack) > 1:
-        #     self.pcd = self.pcd.uniform_down_sample(every_k_points=len(self.pcd_Tc_stack))
-        if self.pcd is None:
-            self.pcd = pcd
-        else:
-            pass  # add
-            self.pcd += pcd.uniform_down_sample(every_k_points=2)
+
+        self.pcd_Tc_stack.append((pcd_cam, Tc, pcd))
+        self.pcd = self.pcd_Tc_stack[0][2]
+        for _pcd in self.pcd_Tc_stack[1:]:
+            self.pcd += _pcd[2]
+        if len(self.pcd_Tc_stack) > 1:
+            self.pcd = self.pcd.uniform_down_sample(every_k_points=len(self.pcd_Tc_stack))
         self.model.compute_vertex_normals()
         self.model_sampled = self.model.sample_points_uniformly(
             number_of_points=int(len(np.array(self.pcd.points)) * ratio))
@@ -1309,7 +1300,7 @@ class MultiICP:
         draw_registration_result(source, target, To, option_geos)
 
     def auto_init(self, init_idx=0, voxel_size=0.04):
-        pcd_cam, Tc = self.pcd_Tc_stack[init_idx]
+        pcd_cam, Tc, _ = self.pcd_Tc_stack[init_idx]
         Tc_inv = SE3_inv(Tc)
         source_down, source_fpfh = preprocess_point_cloud(pcd_cam, voxel_size)
         target_down, target_fpfh = preprocess_point_cloud(self.model_sampled, voxel_size)

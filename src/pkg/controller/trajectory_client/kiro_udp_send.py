@@ -5,6 +5,7 @@ import socket
 import struct
 import threading
 import time
+import numpy as np
 # from pynput import keyboard
 
 SEND_UDP_IP = "192.168.0.102" # Robot IP
@@ -190,7 +191,7 @@ def send_pose_udp(sock, tar_xyzw, tool_angle=0, send_ip=SEND_UDP_IP):
     assert len(tar_xyzw)==4, "tar_xyzw should be tuple of 4 floats"
     Packet_data=tuple(tar_xyzw)+tuple((tool_angle,))
     udp_send_data = struct.pack('>ffffi',*Packet_data)
-    print(Packet_data)
+    print("Send to mobile: {} -> {}".format(np.round(get_xyzw_cur(), 3), np.round(Packet_data, 3)))
     gnGoalreached_edge_up = 0
     sock.sendto(udp_send_data,(send_ip, UDP_PORT_SEND))
 ##
