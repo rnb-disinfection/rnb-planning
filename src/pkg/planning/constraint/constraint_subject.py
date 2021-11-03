@@ -303,11 +303,11 @@ class AbstractTask(Subject):
 
 
 ##
-# @class WayopintTask
+# @class WaypointTask
 # @brief sweep action points in alphabetical order
 # @remark   state_param: boolean vector of which each element represents if each waypoint is covered or not
 #           node_item: number of covered waypoints
-class WayopintTask(AbstractTask):
+class WaypointTask(AbstractTask):
     constrained = False
     ##
     # @param oname object's name
@@ -426,7 +426,7 @@ class WayopintTask(AbstractTask):
 # @brief sweep action points in alphabetical order
 # @remark   state_param: boolean vector of which each element represents if each waypoint is covered or not
 #           node_item: number of covered waypoints
-class SweepTask(WayopintTask):
+class SweepTask(WaypointTask):
     constrained = True
 
     ##

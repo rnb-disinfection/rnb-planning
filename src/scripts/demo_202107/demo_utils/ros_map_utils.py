@@ -2,25 +2,18 @@ from __future__ import print_function
 import os
 import sys
 
-import rospy
-
 sys.path.append(os.path.join(os.path.join(os.environ["RNB_PLANNING_DIR"], 'src')))
 sys.path.append(os.path.join(os.environ["RNB_PLANNING_DIR"], 'src/scripts/demo_202107'))
-from pkg.utils.ros_utils import *
 from demo_utils.map_converter import *
-from demo_utils.kiro_udp_send import start_mobile_udp_thread, get_xyzw_cur
-import time
-import cv2
-from enum import Enum
+from pkg.controller.trajectory_client.kiro_udp_send import start_mobile_udp_thread, get_xyzw_cur
 from pkg.global_config import RNB_PLANNING_DIR
 from pkg.utils.ros_utils import *
-from pkg.utils.rotation_utils import *
 from pkg.utils.utils import *
-from pkg.utils.shared_function import shared_fun, CallType, ArgSpec, ResSpec, \
+from pkg.utils.shared_function import shared_fun, CallType, ResSpec, \
     set_serving, is_serving, serve_forever
-import cv2
 import subprocess
 import matplotlib.pyplot as plt
+from tf2_msgs.msg import TFMessage
 
 TIMEOUT_GET_MAP = 3
 class GetMapResult(Enum):
@@ -61,30 +54,49 @@ class KiroMobileMap:
     @shared_fun(CallType.SYNC, SERVER_ID,
                 ResSpec(0, (1000000,), dict),
                 ResSpec(1, (1000000,), dict),
-                ResSpec(2, (1000000,), dict))
+                ResSpec(2, (1000000,), dict),
+                ResSpec(3, (1000000,), dict))
     def get_maps(self):
         if self.connection_state:
             while self.map_listener.last_dat is None \
                     or self.cost_listener.last_dat is None \
-                    or self.lcost_listener.last_dat is None :
+                    or self.lcost_listener.last_dat is None:
                 time.sleep(0.1)
-            map_dict = extract_attr_dict(self.map_listener.last_dat)
-            cost_dict = extract_attr_dict(self.cost_listener.last_dat)
-            lcost_dict = extract_attr_dict(self.lcost_listener.last_dat)
-            self.map_listener.last_dat = self.cost_listener.last_dat = self.lcost_listener.last_dat = None
+            map_data = self.map_listener.last_dat
+            cost_data = self.cost_listener.last_dat
+            lcost_data = self.lcost_listener.last_dat
+            save_pickle(os.path.join(os.environ["RNB_PLANNING_DIR"],"data/map_data.pkl"), map_data)
+            save_pickle(os.path.join(os.environ["RNB_PLANNING_DIR"],"data/cost_data.pkl"), cost_data)
+            save_pickle(os.path.join(os.environ["RNB_PLANNING_DIR"],"data/lcost_data.pkl"), lcost_data)
+            for i_tf in range(100):
+                self.tf_listener = Listener(topic_name="/tf",
+                                               topic_type=TFMessage)
+                while self.tf_listener.last_dat is None:
+                    time.sleep(0.1)
+                tf_data = self.tf_listener.last_dat
+                save_pickle(os.path.join(os.environ["RNB_PLANNING_DIR"],"data/tf_data_{}.pkl".format(i_tf)), tf_data)
+
+            map_dict = extract_attr_dict(map_data)
+            cost_dict = extract_attr_dict(cost_data)
+            lcost_dict = extract_attr_dict(lcost_data)
+            tf_dict = extract_attr_dict(tf_data)
+            self.map_listener.last_dat = self.cost_listener.last_dat = self.lcost_listener.last_dat = self.tf_listener.last_dat = None
         else:
             map_data = load_pickle(os.path.join(os.environ["RNB_PLANNING_DIR"],"data/map_data.pkl"))
             cost_data = load_pickle(os.path.join(os.environ["RNB_PLANNING_DIR"],"data/cost_data.pkl"))
             lcost_data = load_pickle(os.path.join(os.environ["RNB_PLANNING_DIR"],"data/lcost_data.pkl"))
+            tf_data = load_pickle(os.path.join(os.environ["RNB_PLANNING_DIR"],"data/tf_data.pkl"))
             lcost_dict = extract_attr_dict(lcost_data)
             cost_dict = extract_attr_dict(cost_data)
             map_dict = extract_attr_dict(map_data)
-        return lcost_dict, cost_dict, map_dict
+            tf_dict = extract_attr_dict(tf_data)
+        return lcost_dict, cost_dict, map_dict, tf_dict
 
-    def set_maps(self, lcost_dict, cost_dict, map_dict, T_bm, canny_ksize=10):
+    def set_maps(self, lcost_dict, cost_dict, map_dict, tf_dict, T_bm, canny_ksize=10):
         self.lcost_im, self.lresolution = convert_map(lcost_dict)
         self.map_im, self.resolution = convert_map(map_dict)
         self.cost_im, self.resolution = convert_map(cost_dict)
+        self.tf_dict = tf_dict
         
         ret, self.cost_bin = cv2.threshold(self.cost_im, 100, 255, cv2.THRESH_BINARY)
         self.cost_closed = cv2.morphologyEx(self.cost_bin, cv2.MORPH_CLOSE,

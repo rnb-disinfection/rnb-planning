@@ -589,6 +589,8 @@ def extract_attr_dict(msg, valid_types=(int, float, str, tuple, list, dict)):
     if msg is None:
         return None
     if type(msg) in valid_types:
+        if type(msg) == list:
+            return [extract_attr_dict(submsg) for submsg in msg]
         return msg
     msg_dict = {}
     for k in dir(msg):
