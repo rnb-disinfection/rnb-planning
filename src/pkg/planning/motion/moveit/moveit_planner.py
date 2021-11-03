@@ -136,14 +136,13 @@ class MoveitPlanner(MotionInterface):
         if dual_key is None:
             obj_list = []
             for gtem in self.gscene:
-                if gtem.collision:
-                    if all([not lname in gtem.name for lname in self.robot_links_all]):
-                        obj_list.append(ObjectMPC(
-                            gtem.name, gtype_to_otype(gtem.gtype), gtem.link_name,
-                            pose=tuple(gtem.center)+tuple(Rotation.from_dcm(gtem.orientation_mat).as_quat()),
-                            dims=get_mpc_dims(gtem), touch_links=gtem.adjacent_links,
-                            vertices=gtem.vertices, triangles=gtem.triangles)
-                        )
+                if gtem.collision and not gtem.in_urdf:
+                    obj_list.append(ObjectMPC(
+                        gtem.name, gtype_to_otype(gtem.gtype), gtem.link_name,
+                        pose=tuple(gtem.center)+tuple(Rotation.from_dcm(gtem.orientation_mat).as_quat()),
+                        dims=get_mpc_dims(gtem), touch_links=gtem.adjacent_links,
+                        vertices=gtem.vertices, triangles=gtem.triangles)
+                    )
             self.planner.set_scene(obj_list)
         else:
             if self.enable_dual:
@@ -152,14 +151,13 @@ class MoveitPlanner(MotionInterface):
                 dual_planner.gscene.update()
                 obj_list = []
                 for gtem in dual_planner.gscene:
-                    if gtem.collision:
-                        if all([not lname in gtem.name for lname in self.robot_links_all]):
-                            obj_list.append(ObjectMPC(
-                                gtem.name, gtype_to_otype(gtem.gtype), gtem.link_name,
-                                pose=tuple(gtem.center)+tuple(Rotation.from_dcm(gtem.orientation_mat).as_quat()),
-                                dims=get_mpc_dims(gtem), touch_links=gtem.adjacent_links,
-                                vertices=gtem.vertices, triangles=gtem.triangles)
-                            )
+                    if gtem.collision and not gtem.in_urdf:
+                        obj_list.append(ObjectMPC(
+                            gtem.name, gtype_to_otype(gtem.gtype), gtem.link_name,
+                            pose=tuple(gtem.center)+tuple(Rotation.from_dcm(gtem.orientation_mat).as_quat()),
+                            dims=get_mpc_dims(gtem), touch_links=gtem.adjacent_links,
+                            vertices=gtem.vertices, triangles=gtem.triangles)
+                        )
                 dual_planner.planner.set_scene(obj_list)
 
     ##

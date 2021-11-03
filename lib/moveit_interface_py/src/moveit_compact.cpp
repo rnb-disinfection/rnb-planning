@@ -963,7 +963,7 @@ bool Planner::add_mesh(string name, const ObjectType type,
         /* The id of the object */
         att_object.object.id = name;
         att_object.object.meshes.push_back(mesh);
-        att_object.object.primitive_poses.push_back(_pose);
+        att_object.object.mesh_poses.push_back(_pose);
         att_object.object.operation = moveit_msgs::CollisionObject::ADD;
         att_object.touch_links = touch_links;
         res = planning_scene_->processAttachedCollisionObjectMsg(att_object);
@@ -972,12 +972,8 @@ bool Planner::add_mesh(string name, const ObjectType type,
         object.header.frame_id = link_name;
         /* The id of the object */
         object.id = name;
-        if(type == ObjectType::MESH) {
-        }
-        else{
-            object.meshes.push_back(mesh);
-            object.mesh_poses.push_back(_pose);
-        }
+        object.meshes.push_back(mesh);
+        object.mesh_poses.push_back(_pose);
         object.operation = moveit_msgs::CollisionObject::ADD;
         res = planning_scene_->processCollisionObjectMsg(object);
     }

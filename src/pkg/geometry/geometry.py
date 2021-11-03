@@ -4,7 +4,7 @@ from .ros_rviz import show_motion, get_markers, get_publisher
 from .geotype import GEOTYPE
 from ..utils.rotation_utils import *
 from ..utils.joint_utils import get_tf, get_link_adjacency_map, get_min_distance_map, get_link_control_dict
-from ..utils.utils import list2dict, dict2list
+from ..utils.utils import list2dict, dict2list, TextColors
 from collections import defaultdict
 from copy import deepcopy
 
@@ -442,19 +442,29 @@ class GeometryItem(object):
     # @param fixed flag that the object is fixed to the attached link (transferring is not considered)
     # @param online flag that the object should be detected online
     # @param K_col collision weighting for soft collision boundary of eTaSL
-    # @param uri mesh uri in case of mesh geometry
-    # @param scale scale in case of mesh geometry
+    # @param uri mesh uri in case of mesh geometry using file resource
+    # @param scale scale of the obejct in case of mesh geometry. In case of points, scale[0:2] are points' widths and heights
     # @param parent parent geometry, in case it is a child geometry
+    # @param vertices (Nx3) points of mesh if you put vertices directly
+    # @param triangles (Nx3) indeces of points for triangles
+    # @param colors colors of points or triangles, in case of mesh with them
+    # @param in_urdf for geometries that are already in urdf file - e.g. no need to add to move it scene
     def __init__(self, gscene, gtype, name, link_name, dims, center, rpy=(0,0,0), color=(0,1,0,1), display=True,
                  collision=True, fixed=False, soft=False, online=False, K_col=None, uri="", scale=(1,1,1), create=True,
-                 parent=None, vertices=None, triangles=None, colors=None):
+                 parent=None, vertices=None, triangles=None, colors=None, in_urdf=False):
         self.uri, self.scale = uri, scale
         self.vertices=vertices
         self.triangles=triangles
         self.colors = colors
+        self.in_urdf = in_urdf
         if vertices is not None:
-            assert all(np.abs(np.mean([np.max(vertices, axis=0), np.min(vertices, axis=0)], axis=0)) <=1e-6), \
-                "vertices for mesh should be have center point (0,0,0)"
+            if not all(np.abs(np.mean([np.max(vertices, axis=0), np.min(vertices, axis=0)], axis=0)) <=1e-6):
+                TextColors.YELLOW.println(
+                    "[WARN] Vertices for mesh should be have center point (0,0,0). Auto adjusting.")
+                vertices = np.copy(vertices)
+                point_ct = np.mean([np.max(vertices, axis=0), np.min(vertices, axis=0)], axis=0)
+                self.vertices = vertices - point_ct
+                center += np.matmul(Rot_rpy(rpy), point_ct)
         self.children = []
         self.parent = parent
         self.name = name
