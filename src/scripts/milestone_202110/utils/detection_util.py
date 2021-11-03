@@ -939,10 +939,15 @@ def vis_pointcloud_np(points):
 
 
 def make_pcd_from_rgbd(color_instance, depth_instance):
+    cam_width,cam_height, cam_fx,cam_fy, cam_ppx, cam_ppy = [1280, 720,
+                                                            909.957763671875, 909.90283203125,
+                                                            638.3824462890625, 380.0085144042969]
+    depth_scale = 1 / 3999.999810010204
+
     color = o3d.geometry.Image(color_instance)
     depth = o3d.geometry.Image(depth_instance)
 
-    rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(color, depth, depth_scale = 1/__d_scale,
+    rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(color, depth, depth_scale = 1/depth_scale,
                                                                 depth_trunc = 8.0, convert_rgb_to_intensity = False)
     pcd = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image,
                                                                 o3d.camera.PinholeCameraIntrinsic(cam_width,
@@ -1161,10 +1166,10 @@ class MultiICP:
         return ICP_result, reg_p2p.fitness
 
 
-        ##
-        # @param Tc_cur this is new camera transformation in pcd origin
-        # @param To    initial transformation matrix of geometry object in the intended icp origin coordinate
-        # @param thres max distance between corresponding points
+    ##
+    # @param Tc_cur this is new camera transformation in pcd origin
+    # @param To    initial transformation matrix of geometry object in the intended icp origin coordinate
+    # @param thres max distance between corresponding points
     def compute_front_ICP(self, Tc_cur=None, To=None, thres=0.1,
                     relative_fitness=1e-15, relative_rmse=1e-15, max_iteration=500000,
                     voxel_size=0.04, visualize=False
@@ -1231,9 +1236,9 @@ class MultiICP:
         return ICP_result, reg_p2p.fitness
 
 
-        ##
-        # @param To    initial transformation matrix of geometry object in the intended icp origin coordinate
-        # @param thres max distance between corresponding points
+    ##
+    # @param To    initial transformation matrix of geometry object in the intended icp origin coordinate
+    # @param thres max distance between corresponding points
     def compute_front_cut_ICP(self, model_type, To=None, thres=0.1,
                     relative_fitness=1e-15, relative_rmse=1e-15, max_iteration=500000,
                     voxel_size=0.04, visualize=False
@@ -1291,6 +1296,37 @@ class MultiICP:
             self.draw(ICP_result, source, target)
 
         return ICP_result, reg_p2p.fitness
+
+    ##
+    # @param cdp    ColorDepthMap class
+    # @param T_bc   camera coordinate w.r.t global coordinate
+    def extract_mesh(self, cdp, voxel_lenght=4.0 / 512.0, sdf_trunc=0.04,
+                     T_bc=None, visualize=False
+                     ):
+        color = o3d.geometry.Image(cdp.color)
+        depth = o3d.geometry.Image(cdp.depth)
+        depth_scale = cdp.depth_scale
+
+        rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(color, depth, depth_scale = 1/depth_scale,
+                                                    depth_trunc = self.depth_trunc, convert_rgb_to_intensity = False)
+
+        # If T_bc is not given, then the mesh coordinate is camera coordinate
+        if T_bc == None:
+            T_bc = SE3(np.identity(3), (0,0,0))
+
+        volume = o3d.integration.ScalableTSDFVolume(voxel_length=4.0 / 512.0, sdf_trunc=0.04,
+                                                    color_type=o3d.integration.TSDFVolumeColorType.RGB8)
+        volume.integrate(rgbd_image,
+                         o3d.camera.PinholeCameraIntrinsic(*cdp.intrins), SE3_inv(T_bc))
+
+        mesh = volume.extract_triangle_mesh()
+        mesh.compute_vertex_normals()
+
+        if visualize:
+            origin = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.2, origin=(0,0,0))
+            o3d.visualization.draw_geometries([mesh, origin])
+
+        return mesh
 
 
     def draw(self, To, source=None, target=None, option_geos=[]):
