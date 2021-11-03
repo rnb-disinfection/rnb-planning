@@ -42,14 +42,6 @@ class KiroMobileMap:
         if self.connection_state:
             rospy.init_node("map_receiver")
             print("map_receiver: node initialized")
-            # GET MAP
-            self.map_listener = Listener(topic_name="/map", topic_type=OccupancyGrid)
-            self.cost_listener = Listener(topic_name="/move_base/global_costmap/costmap",
-                                          topic_type=OccupancyGrid)
-            self.lcost_listener = Listener(topic_name="/move_base/local_costmap/costmap",
-                                           topic_type=OccupancyGrid)
-
-            print("map_receiver: listener ready")
 
     @shared_fun(CallType.SYNC, SERVER_ID,
                 ResSpec(0, (1000000,), dict),
@@ -58,6 +50,13 @@ class KiroMobileMap:
                 ResSpec(3, (1000000,), dict))
     def get_maps(self):
         if self.connection_state:
+            # GET MAP
+            self.map_listener = Listener(topic_name="/map", topic_type=OccupancyGrid)
+            self.cost_listener = Listener(topic_name="/move_base/global_costmap/costmap",
+                                          topic_type=OccupancyGrid)
+            self.lcost_listener = Listener(topic_name="/move_base/local_costmap/costmap",
+                                           topic_type=OccupancyGrid)
+
             while self.map_listener.last_dat is None \
                     or self.cost_listener.last_dat is None \
                     or self.lcost_listener.last_dat is None:
@@ -68,7 +67,7 @@ class KiroMobileMap:
             save_pickle(os.path.join(os.environ["RNB_PLANNING_DIR"],"data/map_data.pkl"), map_data)
             save_pickle(os.path.join(os.environ["RNB_PLANNING_DIR"],"data/cost_data.pkl"), cost_data)
             save_pickle(os.path.join(os.environ["RNB_PLANNING_DIR"],"data/lcost_data.pkl"), lcost_data)
-            for i_tf in range(100):
+            for i_tf in range(10):
                 self.tf_listener = Listener(topic_name="/tf",
                                                topic_type=TFMessage)
                 while self.tf_listener.last_dat is None:
@@ -80,7 +79,8 @@ class KiroMobileMap:
             cost_dict = extract_attr_dict(cost_data)
             lcost_dict = extract_attr_dict(lcost_data)
             tf_dict = extract_attr_dict(tf_data)
-            self.map_listener.last_dat = self.cost_listener.last_dat = self.lcost_listener.last_dat = self.tf_listener.last_dat = None
+            self.map_listener.last_dat = self.cost_listener.last_dat = \
+                    self.lcost_listener.last_dat = self.tf_listener.last_dat = None
         else:
             map_data = load_pickle(os.path.join(os.environ["RNB_PLANNING_DIR"],"data/map_data.pkl"))
             cost_data = load_pickle(os.path.join(os.environ["RNB_PLANNING_DIR"],"data/cost_data.pkl"))
@@ -93,33 +93,34 @@ class KiroMobileMap:
         return lcost_dict, cost_dict, map_dict, tf_dict
 
     def set_maps(self, lcost_dict, cost_dict, map_dict, tf_dict, T_bm, canny_ksize=10):
+        self.lcost_dict = lcost_dict
+        self.map_dict = map_dict
+        self.cost_dict = cost_dict
         self.lcost_im, self.lresolution = convert_map(lcost_dict)
         self.map_im, self.resolution = convert_map(map_dict)
         self.cost_im, self.resolution = convert_map(cost_dict)
         self.tf_dict = tf_dict
-        
+
         ret, self.cost_bin = cv2.threshold(self.cost_im, 100, 255, cv2.THRESH_BINARY)
         self.cost_closed = cv2.morphologyEx(self.cost_bin, cv2.MORPH_CLOSE,
                                             cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
-                                                                      (canny_ksize,canny_ksize)))
+                                                                      (canny_ksize, canny_ksize)))
         self.cost_canny = cv2.Canny(self.cost_closed, 50, 150)
 
         ret, self.lcost_bin = cv2.threshold(self.lcost_im, 100, 255, cv2.THRESH_BINARY)
         self.lcost_closed = cv2.morphologyEx(self.lcost_bin, cv2.MORPH_CLOSE,
-                                            cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
-                                                                      (canny_ksize,canny_ksize)))
+                                             cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
+                                                                       (canny_ksize, canny_ksize)))
         self.lcost_canny = cv2.Canny(self.lcost_closed, 50, 150)
         self.T_bm = T_bm
-        self.T_bi = np.identity(4)       # global origin in base
-        T_lim = SE3(Rot_axis(3, 0), (0,) * 3)  # mobile in origin - assume origin=mobile
-        self.T_bil = np.matmul(T_bm, SE3_inv(T_lim))
-        self.T_bil[:3, :3] = self.T_bi[:3, :3]
+
+        origin = self.cost_dict['info']['origin']
+        self.T_bi = T_xyzquat(([origin['position'][k] for k in "xyz"],
+                                [origin['orientation'][k] for k in "xyzw"]))
 
     def convert_im2scene(self, img_bin, resolution, T_bi, img_cost=None):
-        im_o = np.divide(img_bin.shape, 2)
         points_idc = np.where(img_bin)
-        points_px=list(reversed(np.subtract(points_idc,
-                                            im_o[:, np.newaxis])))
+        points_px = list(reversed(points_idc))
         if img_cost is not None:
             costs = img_cost[points_idc]
         else:
@@ -127,9 +128,8 @@ class KiroMobileMap:
 
         pt_list = []
         for i_p, (x, y) in list(enumerate(zip(*points_px))):
-            pt = np.multiply((x,y), resolution)
-            pt_b = np.matmul(T_bi[:2,:2], pt) + T_bi[:2,3]
-            pt_b = tuple(pt_b) + (0,)
+            pt_i = tuple(np.multiply((x, y), resolution)) + (0,)
+            pt_b = np.matmul(T_bi[:3, :3], pt_i) + T_bi[:3, 3]
             pt_list.append(pt_b)
         return pt_list, costs
 
@@ -143,11 +143,9 @@ class KiroMobileMap:
             colors = colormap(np.divide(costs.astype(float), np.max(costs)))
         else:
             colors = [color] * len(pt_list)
-        pt_center = np.mean([np.min(pt_list, axis=0), np.max(pt_list, axis=0)], axis=0)
-        pt_list = np.subtract(pt_list, pt_center)
         mesh = gscene.create_safe(
             gtype=GEOTYPE.MESH, name=name, link_name="base_link",
-            dims=(0.01,) * 3, center=pt_center, rpy=(0, 0, 0),
+            dims=(0.01,) * 3, center=(0, 0, 0), rpy=(0, 0, 0),
             color=(1, 0, 0, 1), display=True,
             collision=False, fixed=True, vertices=pt_list, scale=(resolution, resolution, 1),
             colors=colors)
