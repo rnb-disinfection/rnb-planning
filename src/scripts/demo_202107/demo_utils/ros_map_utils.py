@@ -152,16 +152,46 @@ class KiroMobileMap:
         return mesh
 
     @classmethod
+    def add_pixel_poles(cls, name, gscene, pt_list, resolution, height=2.0, color=(1, 0, 0, 0.1)):
+        pt_list = np.add(pt_list, [0, 0, height / 2])
+        poles = []
+        for i_p, pt in enumerate(pt_list):
+            poles.append(
+                gscene.create_safe(GEOTYPE.BOX, "{}_{}".format(name, i_p),
+                               link_name="base_link",
+                               dims=(resolution, resolution, height),
+                               center=pt, rpy=(0, 0, 0),
+                               color=color, fixed=True, collision=True,
+                               )
+            )
+        return poles
+
+    @classmethod
+    def remove_poles_by_box(cls, gscene, box, pt_list, Q, inside=True):
+        T_bx = box.get_tf(Q)
+        T_xb = SE3_inv(T_bx)
+        box_dims = box.dims
+        pt_list_remain = []
+        for pt in pt_list:
+            P_xp = np.matmul(T_xb[:3, :3], pt) + T_xb[:3, 3]
+            if inside:
+                res = all(np.abs(P_xp[:2]) < np.divide(box_dims[:2], 2))
+            else:
+                res = any(np.abs(P_xp[:2]) > np.divide(box_dims[:2], 2))
+            if not res:
+                pt_list_remain.append(pt)
+        return pt_list_remain
+
+    @classmethod
     def get_box_costs(cls, box, Q, T_bi, cost_im, resolution, scale=1.0):
         if len(Q) < len(box.gscene.joint_names):
-            Q = np.pad(Q, (0,len(box.gscene.joint_names)-len(Q)), 'constant')
+            Q = np.pad(Q, (0, len(box.gscene.joint_names) - len(Q)), 'constant')
         T_bm = box.get_tf(Q)
-        im_o = np.divide(cost_im.shape, 2)
 
         T_im = np.matmul(SE3_inv(T_bi), T_bm)
-        verts_m = box.get_vertice_radius()[0][::2]*scale
-        verts_i = np.transpose(np.matmul(T_im[:3,:3], verts_m.transpose()) + T_im[:3,3:4])
-        points_px = np.round((verts_i[:,:2] / resolution)[:, [1,0]] + im_o).astype(int)
+        verts_m = box.get_vertice_radius()[0][::2] * scale
+        verts_i = np.transpose(np.matmul(T_im[:3, :3], verts_m.transpose()) + T_im[:3, 3:4])
+        points_px = np.round((verts_i[:, :2] / resolution)[:, [1, 0]]).astype(int)
 
         cost_vals = []
         for pt in points_px:

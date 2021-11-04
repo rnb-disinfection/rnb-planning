@@ -1297,38 +1297,6 @@ class MultiICP:
 
         return ICP_result, reg_p2p.fitness
 
-    ##
-    # @param cdp    ColorDepthMap class
-    # @param T_bc   camera coordinate w.r.t global coordinate
-    def extract_mesh(self, cdp, voxel_lenght=4.0 / 512.0, sdf_trunc=0.04,
-                     T_bc=None, visualize=False
-                     ):
-        color = o3d.geometry.Image(cdp.color)
-        depth = o3d.geometry.Image(cdp.depth)
-        depth_scale = cdp.depth_scale
-
-        rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(color, depth, depth_scale = 1/depth_scale,
-                                                    depth_trunc = self.depth_trunc, convert_rgb_to_intensity = False)
-
-        # If T_bc is not given, then the mesh coordinate is camera coordinate
-        if T_bc == None:
-            T_bc = SE3(np.identity(3), (0,0,0))
-
-        volume = o3d.integration.ScalableTSDFVolume(voxel_length=4.0 / 512.0, sdf_trunc=0.04,
-                                                    color_type=o3d.integration.TSDFVolumeColorType.RGB8)
-        volume.integrate(rgbd_image,
-                         o3d.camera.PinholeCameraIntrinsic(*cdp.intrins), SE3_inv(T_bc))
-
-        mesh = volume.extract_triangle_mesh()
-        mesh.compute_vertex_normals()
-
-        if visualize:
-            origin = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.2, origin=(0,0,0))
-            o3d.visualization.draw_geometries([mesh, origin])
-
-        return mesh
-
-
     def draw(self, To, source=None, target=None, option_geos=[]):
         if source is None: source = self.model_sampled
         if target is None: target = self.pcd
@@ -1407,3 +1375,82 @@ def mask_boxes(pcd, boxes, Q, inside, merge_rule=np.all, link_ref="base_link"):
     idc = np.where(merge_rule(mask_list, axis=0))[0]
     pcd.points = o3d.utility.Vector3dVector(points[idc])
     return pcd
+
+##
+# @param cdp    ColorDepthMap class
+# @param T_bc   camera coordinate w.r.t global coordinate
+def extract_mesh(cdp, voxel_lenght=4.0 / 512.0, sdf_trunc=0.04,
+                 T_bc=None, visualize=False, depth_trunc=5.0
+                 ):
+    color = o3d.geometry.Image(cdp.color)
+    depth = o3d.geometry.Image(cdp.depth)
+    depth_scale = cdp.depth_scale
+
+    rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(color, depth, depth_scale = 1/depth_scale,
+                                                                    depth_trunc=depth_trunc, convert_rgb_to_intensity = False)
+
+    # If T_bc is not given, then the mesh coordinate is camera coordinate
+    if T_bc is None:
+        T_bc = SE3(np.identity(3), (0,0,0))
+
+    volume = o3d.integration.ScalableTSDFVolume(voxel_length=2.0 / 100.0, sdf_trunc=0.04,
+                                                color_type=o3d.integration.TSDFVolumeColorType.RGB8)
+    volume.integrate(rgbd_image,
+                     o3d.camera.PinholeCameraIntrinsic(*cdp.intrins), SE3_inv(T_bc))
+
+    mesh = volume.extract_triangle_mesh()
+    mesh.compute_vertex_normals()
+
+    if visualize:
+        origin = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.2, origin=(0,0,0))
+        o3d.visualization.draw_geometries([mesh, origin])
+
+    return mesh
+
+##
+# @param mesh       o3d.geometry.TriangleMesh
+# @param inside     if True, return points inside. if False, return points outside
+# @param merge_rule np.any or np.all
+def mask_boxes_mesh(mesh, boxes, Q, inside, merge_rule=np.all, link_ref="base_link"):
+    mesh = copy.deepcopy(mesh)
+    points = np.asarray(mesh.vertices)
+    colors = np.asarray(mesh.vertex_colors)
+    normals = np.asarray(mesh.vertex_normals)
+    points4d = np.pad(points, ((0, 0), (0, 1)), 'constant', constant_values=1)
+    mask_list = []
+    for box in boxes:
+        T_bx = box.get_tf(Q, from_link=link_ref)
+        T_xb = SE3_inv(T_bx)
+        abs_cuts = np.divide(box.dims, 2)
+        points_x = np.matmul(points4d, T_xb.transpose())[:, :3]
+        if inside:
+            mask = np.all(np.abs(points_x) < abs_cuts, axis=-1)
+        else:
+            mask = np.any(np.abs(points_x) > abs_cuts, axis=-1)
+        mask_list.append(mask)
+    idc = np.where(merge_rule(mask_list, axis=0))[0]
+    mesh.vertices = o3d.utility.Vector3dVector(points[idc])
+    mesh.vertex_colors = o3d.utility.Vector3dVector(colors[idc])
+    mesh.vertex_normals = o3d.utility.Vector3dVector(normals[idc])
+
+    triangles = np.asarray(mesh.triangles)
+    t_normals = np.asarray(mesh.triangle_normals)
+
+    idc_cvt = {i_old: i_new for i_new, i_old in enumerate(idc)}
+
+    idc_vt = []
+    triangles_new = []
+    for i_t, trig in enumerate(triangles):
+        if all([tp in idc for tp in trig]):
+            idc_vt.append(i_t)
+            triangles_new.append([idc_cvt[i_v] for i_v in trig])
+    mesh.triangles = o3d.utility.Vector3iVector(triangles_new)
+    mesh.triangle_normals = o3d.utility.Vector3dVector(t_normals[idc_vt])
+
+    colors_old = np.asarray(mesh.vertex_colors)
+    colors = []
+    for trig in mesh.triangles:
+        colors.append(np.mean(colors_old[trig], axis=0))
+    return mesh, np.asarray(colors)
+
+

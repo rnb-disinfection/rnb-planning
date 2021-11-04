@@ -625,6 +625,64 @@ class PlanningPipeline:
             else:
                 rname = rnames_diff[0]
                 idx_fix = self.pscene.combined_robot.idx_dict[rname]
+
+                print("Try Update {} -> {}".format(rname, snode_pre.state.node, snode_nxt.state.node))
+                print("{}: {} -> {}".format(rname,
+                                            np.round(snode_pre.state.Q[idx_fix], 3),
+                                            np.round(snode_nxt.state.Q[idx_fix], 3)))
+
+                snode_nxt.state.Q[idx_fix] = snode_pre.state.Q[idx_fix]
+
+                if np.sum([n0 != n1
+                           for n0, n1
+                           in zip(snode_pre.state.node, snode_nxt.state.node)]
+                          ) > 1:
+                    wtask_name = [sname
+                                  for sname, stype
+                                  in zip(pscene.subject_name_list,
+                                         pscene.subject_type_list)
+                                  if stype == stype_overwrite_on_conflict][0]
+
+                    snode_pre.state.binding_state[wtask_name] = \
+                        snode_nxt.state.binding_state[wtask_name]
+                    snode_pre.state.set_binding_state(snode_pre.state.binding_state, pscene)
+
+                traj, state_next, error, succ = \
+                    self.test_connection(from_state=snode_pre.state,
+                                         to_state=snode_nxt.state, **kwargs)
+                if succ:
+                    snode_nxt.set_traj(traj)
+                    snode_nxt.state = state_next
+                    print("Update success: {} -> {}".format(snode_pre.state.node, snode_nxt.state.node))
+                else:
+                    TextColors.RED.println(("Update fail: {} -> {}".format(snode_pre.state.node, snode_nxt.state.node)))
+                    raise (RuntimeError("Update fail: {} -> {}".format(snode_pre.state.node, snode_nxt.state.node)))
+        return snode_schedule_new
+
+    def replan_schedule(self, snode_schedule, Q0, stype_overwrite_on_conflict=None, **kwargs):
+        snode_schedule_new = []
+        for snode in snode_schedule:
+            snode_schedule_new.append(snode.copy(self.pscene))
+        snode_schedule_new[0].state.Q = Q0
+
+        for snode_pre, snode_nxt in zip(snode_schedule_new[:-1], snode_schedule_new[1:]):
+            rnames = map(lambda x: x[0], self.pscene.combined_robot.get_robots_in_act(snode_nxt.traj))
+            rnames_new = map(lambda x: x[0], self.pscene.combined_robot.get_robots_in_act(
+                [snode_pre.state.Q, snode_nxt.state.Q]))
+            rnames_diff = list(set(rnames_new) - set(rnames))
+            if len(rnames_diff) == 0:
+                break
+            elif len(rnames_diff) > 1:
+                raise (RuntimeError("Too much difference"))
+            else:
+                rname = rnames_diff[0]
+                idx_fix = self.pscene.combined_robot.idx_dict[rname]
+
+                print("Try Update {} -> {}".format(rname, snode_pre.state.node, snode_nxt.state.node))
+                print("{}: {} -> {}".format(rname,
+                                            np.round(snode_pre.state.Q[idx_fix], 3),
+                                            np.round(snode_nxt.state.Q[idx_fix], 3)))
+
                 snode_nxt.state.Q[idx_fix] = snode_pre.state.Q[idx_fix]
 
                 if np.sum([n0 != n1

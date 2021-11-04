@@ -185,8 +185,8 @@ class TaskInterface:
     ##
     # @brief find schedule with shortest path
     # @returnlist of SearchNode instances
-    def get_best_schedule(self, at_home=True):
-        schedules = self.find_schedules(at_home=at_home)
+    def get_best_schedule(self, at_home=True, home_pose=None):
+        schedules = self.find_schedules(at_home=at_home, home_pose=home_pose)
         schedules_sorted = self.sort_schedule(schedules)
         if len(schedules_sorted)==0:
             return []

@@ -695,4 +695,66 @@ def show_lines(gscene, lines, base_link="base_link", orientation_mat=None, sweep
         gscene.add_highlight_axis("hl", "{}_{}".format(key, i_s), link_name=base_link,
                                  center=p_min, orientation_mat=orientation_mat, axis=sweep_axis,
                                  dims=(np.linalg.norm(np.subtract(p_max, p_min)), 0.05,0.005))
-                
+
+
+class ToolDir(Enum):
+    down = 0
+    up = 1
+
+
+def make_plan_fun(ppline, ccheck, surface, brush_face, tool_dim, wp_dims, mobile_name,
+                  robot_config, Q_CUR, tip_dir, sweep_dir, tool_dir, plane_val,
+                  planning_multiproc=True, xout_cut=False, covered_pre=[], timeout=0.5, timeout_loop=5):
+    gscene = brush_face.geometry.gscene
+    robot_name = robot_config.get_indexed_name()
+    floor_ws = gscene.NAME_DICT["floor_ws"]
+    wayframer = ppline.pscene.actor_dict["wayframer"]
+    ccheck.clear()
+    div_base_dict, Tsm_keys, surface_div_centers, div_num, (ax_step, ax_swp, ax_pln) = \
+        get_division_dict(surface, brush_face, robot_config,
+                          plane_val=plane_val, tip_dir=tip_dir, sweep_dir=sweep_dir,
+                          TOOL_DIM=tool_dim, ccheck=ccheck,
+                          resolution=0.02, xout_cut=xout_cut)
+
+    covered_pre = set(covered_pre)
+    remains = set(range(len(surface_div_centers))) - covered_pre
+
+    if covered_pre:
+        if remains:
+            div_base_dict_remains = defaultdict(lambda: defaultdict(list))
+            for k, div_dict in div_base_dict.items():
+                for i, divs in div_dict.items():
+                    divs = list(set(divs) - covered_pre)
+                    if divs:
+                        div_base_dict_remains[k][i] = divs
+            div_base_dict = div_base_dict_remains
+            Tsm_keys = [tkey for tkey in Tsm_keys if tkey in div_base_dict]
+        else:
+            return [], [], [], Q_CUR, None, div_num, []
+
+    ax_swp_base = ax_swp
+    Rre = SweepDirections.get_dcm_re(tip_dir)
+    Tet = brush_face.get_tf_handle(Q_CUR, from_link=brush_face.geometry.link_name)  ## get data
+    Rrt = np.matmul(Rre, Tet[:3, :3])
+    ax_swp_tool = np.where(np.abs(Rrt.transpose()[:, ax_swp_base]).astype(np.int))[0][0]
+
+    HOME_POSE_MOVE = np.copy(Q_CUR[6:])
+    test_fun = TestBaseDivFunc(ppline, floor_ws, surface, ax_swp_tool, ax_swp_base,
+                               wp_dims, tool_dim, list2dict(Q_CUR, gscene.joint_names),
+                               tool_dir=tool_dir, multiprocess=planning_multiproc,
+                               timeout=timeout, timeout_loop=timeout_loop)
+    test_fun.clear()
+
+    idx_bases, idc_divs, covered_all, snode_schedule_list = select_max_cover_bases(
+        div_base_dict, Tsm_keys, surface_div_centers, div_num, ax_step,
+        test_fun=test_fun, lazy_base_thresh=np.max(tool_dim) / 2)
+
+    snode_schedule_list, idx_bases, idc_divs, scene_args_list, scene_kwargs_list = refine_order_plan(
+        ppline, snode_schedule_list, idx_bases, idc_divs, Q_CUR,
+        floor_ws, wayframer, surface, Tsm_keys, surface_div_centers,
+        wp_dims, tool_dim, robot_name, mobile_name, HOME_POSE_MOVE,
+        ax_swp_tool, ax_swp_base, tool_dir=1)
+    test_fun.clear()
+    if len(snode_schedule_list) > 0:
+        Q_CUR = snode_schedule_list[-1][-1].state.Q
+    return snode_schedule_list, scene_args_list, scene_kwargs_list, Q_CUR, test_fun, covered_all

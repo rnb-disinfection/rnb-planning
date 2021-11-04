@@ -16,6 +16,7 @@ from kiro_udp_send import start_mobile_udp_thread, get_reach_state_edgeup, send_
 
 class KiroUDPClient(TrajectoryClient):
     DURATION_SHORT_MOTION_REF = 5
+    SHORT_MOTION_RANGE = 0.04
     def __init__(self, server_ip, ip_cur, dummy=False):
         TrajectoryClient.__init__(self, server_ip, traj_freq=10)
         self.server_ip, self.dummy = server_ip, dummy
@@ -115,6 +116,8 @@ class KiroUDPClient(TrajectoryClient):
 
         NEAR_MOTION_RANGE = 0.4
 
+        if Qorigin is None:
+            Qorigin = np.copy(Q)
         if diff_nm_p > NEAR_MOTION_RANGE and self.validifier and not self.validifier(Q):
             Qapp = np.copy(Q)
             for _ in range(100):
@@ -139,19 +142,19 @@ class KiroUDPClient(TrajectoryClient):
             send_pose_udp(self.sock_mobile, self.joints2xyzw(Q),
                           tool_angle=self.tool_angle, send_ip=self.server_ip)
             print("Distance={} ({})".format(diff_nm, np.round(diff, 3)))
-            if diff_nm < 0.1:
-                timeout_short = (diff_nm / 0.1) * self.DURATION_SHORT_MOTION_REF
+            if diff_nm < self.SHORT_MOTION_RANGE:
+                timeout_short = (diff_nm / self.SHORT_MOTION_RANGE) * self.DURATION_SHORT_MOTION_REF
                 TextColors.YELLOW.println("[WARN] TOO SMALL VARIANCE, REDUCE TIMEOUT to {:.3}".format(timeout_short))
                 self.wait_queue_empty(timeout_short)
             else:
                 self.wait_queue_empty(60)
-            Qcur = self.get_qcur()
-            print("End up at={}".format(np.round(Qcur[:3], 3)))
             time.sleep(1)
+            Qcur = self.get_qcur()
+            print("End up at={} ({:.3} / {:.3})".format(np.round(Qcur[:3], 3),
+                                                  np.linalg.norm(Qcur[:3]-Q[:3]),
+                                                  np.linalg.norm(Qcur[:3]-Qorigin[:3])))
         if sure_count>0:
             print("sure_count={}".format(sure_count))
-            if Qorigin is None:
-                Qorigin = np.copy(Q)
             Qadj = np.copy(Q)
             diff_origin = Qorigin[:2] - Qcur[:2]
             diff_nm_origin = np.linalg.norm(diff_origin)

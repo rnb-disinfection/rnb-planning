@@ -586,9 +586,10 @@ class GeometryItem(object):
     # @brief get local vertice and maximum radius of the geometry
     def get_vertice_radius(self):
         if self.gtype == GEOTYPE.MESH:
-            return self.vertices
+            return self.vertices, 0
         else:
-            return np.multiply(DEFAULT_VERT_DICT[self.gtype], self.dims), (0 if self.gtype == GEOTYPE.CYLINDER else self.radius)
+            return np.multiply(DEFAULT_VERT_DICT[self.gtype], self.dims), \
+                   (0 if self.gtype == GEOTYPE.CYLINDER else self.radius)
     ##
     # @brief get vertice from specific link
     def get_vertice_radius_from(self, joint_dict, from_link='base_link'):
