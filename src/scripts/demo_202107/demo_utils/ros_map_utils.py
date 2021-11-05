@@ -30,6 +30,7 @@ class KiroMobileMap:
         self.master_ip, self.cur_ip = master_ip, cur_ip
         self.connection_state = connection_state
         self.cost_im, self.lcost_im = None, None
+        self.pole_scale = 2
         if not is_serving():
             output = subprocess.Popen(['sh',
                                        os.path.join(DEMO_UTIL_DIR, 'get_ros_map.sh'),
@@ -197,6 +198,47 @@ class KiroMobileMap:
         for pt in points_px:
             cost_vals.append(cost_im[pt[0], pt[1]])
         return cost_vals
+
+    def update_map(self, gscene, crob, mobile_base, timeout=100, try_num=5, time_wait=0, update_poles=False):
+        time.sleep(time_wait)
+        maps = None
+        for i in range(try_num):
+            maps = self.get_maps(timeout=timeout)
+            self.maps = maps
+            if self.connection_state:
+                Q_map = crob.get_real_robot_pose()
+                save_pickle(
+                    os.path.join(RNB_PLANNING_DIR, "data/Q_map.pkl"),
+                    Q_map)
+            else:
+                Q_map = load_pickle(
+                    os.path.join(RNB_PLANNING_DIR, "data/Q_map.pkl"))
+            Tbm_map = gscene.get_tf(mobile_base, Q_map)
+            self.set_maps(*maps, T_bm=Tbm_map, canny_ksize=10)
+
+            gscene.show_pose(Q_map)
+            pt_list, costs = self.convert_im2scene(self.cost_im > 0, self.resolution, self.T_bi, img_cost=self.cost_im)
+            pt_list = np.subtract(pt_list, (0, 0, self.resolution))
+            YlOrRd = plt.get_cmap("YlOrRd")
+            gcost_mesh = self.add_to_scene("global_cost", gscene, pt_list, self.resolution / 2, costs,
+                                          colormap=lambda x: YlOrRd(x / 2))
+
+            cost_canny_res = cv2.resize(self.cost_canny,
+                                        dsize=(0, 0),
+                                        fx=1.0 / self.pole_scale,
+                                        fy=1.0 / self.pole_scale)
+            pole_res = self.resolution * self.pole_scale
+            pole_pt_list, costs = self.convert_im2scene(
+                cost_canny_res > 10, pole_res, self.T_bi,
+                img_cost=cost_canny_res)
+            #         lpt_list, lcosts = self.convert_im2scene(self.lcost_im>0, 
+            #                                           self.lresolution, self.T_bil, img_cost=self.lcost_im)
+            #         lpt_list = np.subtract(lpt_list, (0,0,self.resolution*2))
+            #         lcost_mesh = self.add_to_scene("local_cost", gscene, lpt_list, self.lresolution, lcosts)
+            #         lcost_mesh = self.add_to_scene("local_cost", gscene, lpt_list, self.lresolution, lcosts)
+            if maps is not None:
+                break
+        return pole_pt_list, pole_res
 
 def get_map_save_data(ip_cur):
     try:

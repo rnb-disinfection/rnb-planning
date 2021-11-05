@@ -602,3 +602,8 @@ def extract_attr_dict(msg, valid_types=(int, float, str, tuple, list, dict)):
         msg_dict[k] = extract_attr_dict(submsg)
     return msg_dict
 
+from itertools import chain, combinations
+
+def powerset(iterable):
+    s = list(iterable)
+    return chain.from_iterable(combinations(s, r) for r in range(len(s)+1))

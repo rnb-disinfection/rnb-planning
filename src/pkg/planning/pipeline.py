@@ -492,6 +492,9 @@ class PlanningPipeline:
                 t_exe.join()
             else:
                 self.pscene.combined_robot.move_joint_traj(snode.traj, auto_stop=False, one_by_one=one_by_one)
+                if len(self.pscene.combined_robot.get_robots_in_act(snode.traj)) == 0:
+                    print("No motion for connected robot - playing motion in RVIZ")
+                    self.pscene.gscene.show_motion(snode.traj)
             if not one_by_one:
                 if not self.pscene.combined_robot.wait_queue_empty(
                         trajectory=[snode.traj[0], snode.traj[-1]], error_stop=error_stop_deg):

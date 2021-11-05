@@ -597,7 +597,8 @@ brush_face = pscene.create_binder(bname=TOOL_NAME, gname=TOOL_NAME, _type=SweepF
 
 def make_plan_fun(surface, Q_CUR, tip_dir, sweep_dir, tool_dir, plane_val, xout_cut=False):
     ccheck.clear()
-    div_base_dict, Tsm_keys, surface_div_centers, div_num, (ax_step, ax_swp, ax_pln) =                             get_division_dict(surface, brush_face, robot_config, 
+    div_base_dict, Tsm_keys, surface_div_centers, div_num, (ax_step, ax_swp, ax_pln) = \
+        get_division_dict(surface, brush_face, robot_config,
                                               plane_val=plane_val, tip_dir=tip_dir, sweep_dir=sweep_dir,
                                               TOOL_DIM=TOOL_DIM, ccheck=ccheck, 
                                               resolution=0.02, xout_cut=xout_cut)
