@@ -114,7 +114,7 @@ class KiroUDPClient(TrajectoryClient):
         diff_nm_p = np.linalg.norm(diff[:2])
         diff_nm = np.linalg.norm(diff)
 
-        NEAR_MOTION_RANGE = 0.4
+        NEAR_MOTION_RANGE = 0.5
 
         if Qorigin is None:
             Qorigin = np.copy(Q)
