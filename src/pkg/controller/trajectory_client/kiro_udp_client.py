@@ -153,17 +153,17 @@ class KiroUDPClient(TrajectoryClient):
             print("End up at={} ({:.3} / {:.3})".format(np.round(Qcur[:3], 3),
                                                   np.linalg.norm(Qcur[:3]-Q[:3]),
                                                   np.linalg.norm(Qcur[:3]-Qorigin[:3])))
-        if sure_count>0:
-            print("sure_count={}".format(sure_count))
-            Qadj = np.copy(Q)
-            diff_origin = Qorigin[:2] - Qcur[:2]
-            diff_nm_origin = np.linalg.norm(diff_origin)
-            diff_cur = Q[:2] - Qcur[:2]
-            diff_nm_cur = np.linalg.norm(diff_cur)
-            if diff_nm_origin > self.allowance: # if distance from original goal > alpha
-                Qadj[:2] = Qadj[:2] + diff_cur/diff_nm_cur*self.allowance # add alpha distance to current difference
-                time.sleep(0.5)
-                self.joint_move_make_sure(Qadj, sure_count=sure_count-1, Qorigin=Qorigin)
+            if sure_count>0:
+                print("sure_count={}".format(sure_count))
+                Qadj = np.copy(Q)
+                diff_origin = Qorigin[:2] - Qcur[:2]
+                diff_nm_origin = np.linalg.norm(diff_origin)
+                diff_cur = Q[:2] - Qcur[:2]
+                diff_nm_cur = np.linalg.norm(diff_cur)
+                if diff_nm_origin > self.allowance: # if distance from original goal > alpha
+                    Qadj[:2] = Qadj[:2] + diff_cur/diff_nm_cur*self.allowance # add alpha distance to current difference
+                    time.sleep(0.5)
+                    self.joint_move_make_sure(Qadj, sure_count=sure_count-1, Qorigin=Qorigin)
 
     ##
     # @brief Surely move joints to Q using the indy DCP joint_move_to function.

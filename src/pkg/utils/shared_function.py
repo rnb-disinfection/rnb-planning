@@ -299,6 +299,18 @@ def super_clear_shared_memory(names=None):
         except:
             pass
 
+def clear_channels_on(server_name):
+    server_name = server_name.lower()
+    snames = [sm.name for sm in sa.list()]
+    for sname in snames:
+        sname_split = sname.split(".")
+        if len(sname_split)>=2 and sname_split[-2]==server_name:
+            try:
+                sa.delete(sname)
+            except Exception as e:
+                print("Error on deleting shared memory {}".format(sname))
+                print(e)
+
 import json
 
 class NumpyEncoder(json.JSONEncoder):
@@ -314,6 +326,7 @@ class NumpyEncoder(json.JSONEncoder):
 def serve_forever(server_id, shared_funcs, daemon=True,
                   verbose=False):
     assert isinstance(server_id, str), "server_id should be string instance"
+    server_id = server_id.lower()
     pairstate_onterm = not daemon
     if not is_serving():
         print("[WARN] set_serving(True) was not called before calling server_forever.")

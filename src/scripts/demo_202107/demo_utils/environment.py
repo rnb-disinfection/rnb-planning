@@ -17,7 +17,7 @@ def add_cam(gscene, tool_link="indy0_tcp"):
 
     gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="cam_col", link_name=tool_link,
                        dims=(0.081, 0.081, 0.046), center=(-0.0785, 0, 0.013), rpy=(0, 0, 0),
-                       color=(0.0, 1, 0, 0.3), display=True, fixed=True, collision=True)
+                       color=(0.8, 0.8, 0.8, 0.2), display=True, fixed=True, collision=True)
 
     viewpoint = gscene.create_safe(gtype=GEOTYPE.SPHERE, name="viewpoint", link_name=tool_link,
                                    dims=(0.01, 0.01, 0.01), center=(-0.013, 0, 0), rpy=(0, 0, -np.pi / 2),
@@ -29,7 +29,7 @@ def add_cam(gscene, tool_link="indy0_tcp"):
 
     gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="body_col", link_name=tool_link,
                        dims=(0.087, 0.087, 0.0535), center=(-0.0785, 0, -0.01675), rpy=(0, 0, 0),
-                       color=(0.0, 1, 0, 0.3), display=True, fixed=True, collision=True)
+                       color=(0.8, 0.8, 0.8, 0.2), display=True, fixed=True, collision=True)
 
     gscene.create_safe(gtype=GEOTYPE.SPHERE, name="backhead", link_name=tool_link,
                        dims=(0.067, 0.067, 0.067), center=(-0.0785, 0, -0.0335), rpy=(0, 0, 0),
@@ -37,7 +37,7 @@ def add_cam(gscene, tool_link="indy0_tcp"):
 
     gscene.create_safe(gtype=GEOTYPE.SPHERE, name="backhead_col", link_name=tool_link,
                        dims=(0.087, 0.087, 0.087), center=(-0.0785, 0, -0.0335), rpy=(0, 0, 0),
-                       color=(0.0, 1, 0, 0.3), display=True, fixed=True, collision=True)
+                       color=(0.8, 0.8, 0.8, 0.2), display=True, fixed=True, collision=True)
     return viewpoint
 
 def add_kiro_indytool_down(gscene, zoff=0, tool_link="indy1_tcp", face_name="brush_face"):
@@ -45,16 +45,16 @@ def add_kiro_indytool_down(gscene, zoff=0, tool_link="indy1_tcp", face_name="bru
                        dims=(0.1,0.1,0.1), center=(0,0,0), rpy=(0,0,0),
                        display=True, color=(0.8,0.8,0.8,1), collision=False, fixed=True,
                        uri="package://my_mesh/meshes/stl/kiro_indytool_down_res.stl")
-    gscene.create_safe(gtype=GEOTYPE.BOX, name="hinge_bar_col", link_name=tool_link,
-                       center=(0.1, 0, 0.12), dims=(0.12, 0.12, 0.35), rpy=(0, np.pi / 4, 0),
-                       display=True, color=(0.0, 0.8, 0.0, 0.5), collision=True, fixed=True)
+    gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="hinge_bar_col", link_name=tool_link,
+                       center=(0.12, 0, 0.12), dims=(0.1, 0.1, 0.35), rpy=(0, np.pi / 4, 0),
+                       display=True, color=(0.8, 0.8, 0.8, 0.7), collision=True, fixed=True)
     brush_face = gscene.create_safe(gtype=GEOTYPE.BOX, name=face_name, link_name=tool_link,
                        center=(0.32+zoff, 0, 0.236), dims=(0.12, 0.34, 0.01), rpy=(0, -np.pi/2, 0),
                        color=(1.0, 0.0, 0.0, 0.5),
                        collision=False, fixed=True)
     gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_col".format(face_name), link_name=tool_link,
                        center=(0.275+zoff/2, 0, 0.236), dims=(0.12, 0.34, 0.08+zoff), rpy=(0, -np.pi/2, 0),
-                       color=(0.0, 0.8, 0.0, 0.5),
+                       color=(0.8, 0.8, 0.8, 0.8),
                        collision=True, fixed=True)
     return brush_face
 
@@ -63,16 +63,16 @@ def add_kiro_indytool_up(gscene, zoff=0, tool_link="indy1_tcp", face_name="brush
                        dims=(0.1,0.1,0.1), center=(0,0,0), rpy=(0,0,0),
                        display=True, color=(0.8,0.8,0.8,1), collision=False, fixed=True,
                        uri="package://my_mesh/meshes/stl/kiro_indytool_up_res.stl")
-    gscene.create_safe(gtype=GEOTYPE.BOX, name="hinge_bar_col", link_name=tool_link,
-                       center=(0.1, 0, 0.12), dims=(0.12, 0.12, 0.35), rpy=(0, np.pi / 4, 0),
-                       display=True, color=(0.0, 0.8, 0.0, 0.5), collision=True, fixed=True)
+    gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="hinge_bar_col", link_name=tool_link,
+                       center=(0.12, 0, 0.12), dims=(0.1, 0.1, 0.35), rpy=(0, np.pi / 4, 0),
+                       display=True, color=(0.8, 0.8, 0.8, 0.7), collision=True, fixed=True)
     brush_face = gscene.create_safe(gtype=GEOTYPE.BOX, name=face_name, link_name=tool_link,
                        center=(0.18, 0, 0.345+zoff), dims=(0.12, 0.34, 0.01), rpy=(0, -np.pi, 0),
                        color=(1.0, 0.0, 0.0, 0.5),
                        collision=False, fixed=True)
     gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_col".format(face_name), link_name=tool_link,
                        center=(0.18, 0, 0.30+zoff/2), dims=(0.12, 0.34, 0.08+zoff), rpy=(0, -np.pi, 0),
-                       color=(0.0, 0.8, 0.0, 0.5),
+                       color=(0.8, 0.8, 0.8, 0.8),
                        collision=True, fixed=True)
     return brush_face
 
@@ -82,20 +82,20 @@ def add_bed(gscene, bed_center, bed_rpy, COLOR_BED_COL, add_back_wall=True):
                                  color=(0.8,0.8,0.8,1), display=True, fixed=True, collision=False,
                                  uri="package://my_mesh/meshes/stl/bed_floor_centered_m_scale.stl", scale=(1,1,1))
     bed_mat = gscene.create_safe(GEOTYPE.BOX, "bed_mat", link_name="base_link", 
-                                 dims=(1.70,0.91,0.13), center=(0.05,0,0.6), rpy=(0,0,0),
+                                 dims=(1.70,0.91,0.01), center=(0.05,0,0.66), rpy=(0,0,0),
                                  color=COLOR_BED_COL, fixed=True, collision=False, parent="bed_vis")
 
     bed_mat_col = gscene.create_safe(GEOTYPE.BOX, "bed_mat_col", link_name="base_link",
                                  dims=(1.80,1.0,0.13), center=(0.025,0,0.6), rpy=(0,0,0),
-                                 color=COLOR_BED_COL, fixed=True, collision=True, parent="bed_vis")
+                                 color=(1, 1, 1, 0.1), fixed=True, collision=True, parent="bed_vis")
 
     gscene.create_safe(GEOTYPE.BOX, "bed_head", link_name="base_link", 
                                  dims=(0.3,1.0,1.30), center=(-1.03,0,0.5), rpy=(0,0,0),
-                                 color=COLOR_BED_COL, fixed=True, collision=True, parent="bed_vis")
+                                 color=(1, 1, 1, 0.1), fixed=True, collision=True, parent="bed_vis")
 
     gscene.create_safe(GEOTYPE.BOX, "bed_foot", link_name="base_link", 
                                  dims=(0.3,1.0,1.30), center=(1.08,0,0.5), rpy=(0,0,0),
-                                 color=COLOR_BED_COL, fixed=True, collision=True, parent="bed_vis")
+                                 color=(1, 1, 1, 0.1), fixed=True, collision=True, parent="bed_vis")
 
     gscene.create_safe(GEOTYPE.BOX, "bed_box", link_name="base_link",
                        dims=(3, 1.6, 1.3), center=(0.02, 0, 0.5), rpy=(0, 0, 0),
@@ -135,31 +135,31 @@ def add_closet(gscene, closet_center, closet_rpy, COLOR_CLOSET_COL = (0,1,0,0.3)
     front_shift = 0.01
     margin_col = 0.06
     closet_leftup = gscene.create_safe(GEOTYPE.BOX, "closet_leftup", link_name="base_link",
-                             dims=(1.3,0.255+margin*2,0.6), center=(front_shift,-0.145,1.52), rpy=(0,np.pi/2,0),
+                             dims=(1.3,0.255+margin*2,0.02), center=(0.29+front_shift,-0.145,1.52), rpy=(0,np.pi/2,0),
                              color=COLOR_CLOSET_COL, fixed=True, collision=False, parent="closet_vis")
     closet_leftup_col = gscene.create_safe(GEOTYPE.BOX, "closet_leftup_col", link_name="base_link",
                              dims=(1.3,0.255+margin_col,0.6), center=(front_shift,-0.145-margin_col/2,1.52), rpy=(0,np.pi/2,0),
                              color=(0, 0, 0, 0.1), fixed=True, collision=True, parent="closet_vis")
 
     closet_rightup = gscene.create_safe(GEOTYPE.BOX, "closet_rightup", link_name="base_link", 
-                             dims=(0.58,0.32,0.465), center=(-0.065+front_shift,0.19,1.87), rpy=(0,np.pi/2,0),
+                             dims=(0.58,0.32,0.025), center=(0.22-0.065+front_shift,0.19,1.87), rpy=(0,np.pi/2,0),
                              color=COLOR_CLOSET_COL, fixed=True, collision=False, parent="closet_vis")
     closet_rightup_col = gscene.create_safe(GEOTYPE.BOX, "closet_rightup_col", link_name="base_link",
                              dims=(0.58,0.22+margin_col,0.465), center=(-0.065+front_shift,0.12 +margin_col/2,1.87), rpy=(0,np.pi/2,0),
                              color=(0, 0, 0, 0.1), fixed=True, collision=True, parent="closet_vis")
     
     closet_down = gscene.create_safe(GEOTYPE.BOX, "closet_down", link_name="base_link",
-                                 dims=(0.8,0.495+margin*2,0.64), center=(0,-0.025,0.47), rpy=(0,np.pi/2,0),
+                                 dims=(0.8,0.495+margin*2,0.02), center=(0.31,-0.025,0.47), rpy=(0,np.pi/2,0),
                                  color=COLOR_CLOSET_COL, fixed=True, collision=False, parent="closet_vis")
     closet_down_col = gscene.create_safe(GEOTYPE.BOX, "closet_down_col", link_name="base_link",
                                  dims=(0.8,0.495+margin_col*2,0.64), center=(0,-0.025,0.47), rpy=(0,np.pi/2,0),
                                  color=(0, 0, 0, 0.1), fixed=True, collision=True, parent="closet_vis")
     closet_shelf = gscene.create_safe(GEOTYPE.BOX, "closet_shelf", link_name="base_link", 
                                  dims=(0.02,0.24+margin*2,0.465), center=(-0.065,0.105,1.24), rpy=(0,np.pi/2,0),
-                                 color=COLOR_CLOSET_COL, fixed=True, collision=True, parent="closet_vis")
+                                 color=(0, 0, 0, 0.1), fixed=True, collision=True, parent="closet_vis")
     closet_back = gscene.create_safe(GEOTYPE.BOX, "closet_back", link_name="base_link", 
                                  dims=(0.02,0.24,0.73), center=(-0.29,0.105,1.22), rpy=(0,0,0),
-                                 color=COLOR_CLOSET_COL, fixed=True, collision=True, parent="closet_vis")
+                                 color=(0, 0, 0, 0.1), fixed=True, collision=True, parent="closet_vis")
     gscene.create_safe(
         gtype=GEOTYPE.BOX, name="closet_box", link_name="base_link",
         dims=(1, 0.9, 2.3), center=(0, 0, 1.1), rpy=(0, 0, 0),
@@ -386,3 +386,77 @@ def move_mobile_update_state(sock_mobile, MOBILE_IP, wayframer, from_Q, to_Q, D_
     new_Q[2] = Rot2axis(T_bw1[:3,:3], 3)
     print("ended in VIEW_MOVED_EXT: {}".format(np.round(new_Q, 3)))
     return new_Q
+
+class ToolDir(Enum):
+    down = 0
+    up = 1
+
+def change_tool(pscene, kmb, command, zoff, tool_link, tool_name, SweepFramer, clearance=1e-3):
+    gscene = pscene.gscene
+    if command==ToolDir.up:
+        kmb.tool_angle = 1
+        brush_face = add_kiro_indytool_up(gscene, zoff=zoff, tool_link=tool_link, face_name=tool_name)
+        brush_face = pscene.create_binder(bname=tool_name, gname=tool_name, _type=SweepFramer,
+                                          point=(0,0,-brush_face.dims[2]/2-clearance), rpy=(0,0,0))
+        print("Tool UP")
+    elif command==ToolDir.down:
+        kmb.tool_angle = 0
+        brush_face = add_kiro_indytool_down(gscene, zoff=zoff, tool_link=tool_link, face_name=tool_name)
+        brush_face = pscene.create_binder(bname=tool_name, gname=tool_name, _type=SweepFramer,
+                                          point=(0,0,-brush_face.dims[2]/2-clearance), rpy=(0,0,0))
+        print("Tool Down")
+    else:
+        raise(RuntimeError("command unknown"))
+    return brush_face
+
+
+class SwitchState(Enum):
+    NONE = 0
+    BASE_MOVED = 1
+    SWEEP_APPROACH = 2
+    SWEEP_RETRACT = 3
+    SWEEPING = 4
+
+
+class ModeSwitcherKMB:
+    def __init__(self, pscene, push_dist=0.05):
+        self.pscene = pscene
+        self.gscene = pscene.gscene
+        self.crob = pscene.combined_robot
+        mobile_name = \
+        [rconfig.get_indexed_name() for rconfig in self.crob.robots_on_scene if rconfig.type == rconfig.type.kmb][0]
+        self.kmb = self.crob.robot_dict[mobile_name]
+        self.mobile_link = self.crob.get_robot_tip_dict()[mobile_name]
+        self.push_dist = push_dist
+        self.Q_before_push = None
+
+    def switch_in(self, snode_pre, snode_new):
+        switch_state = SwitchState.NONE
+        snode_pre_cp = snode_pre.copy(self.pscene)
+        snode_pre_cp.traj = None
+        #         ppline.play_schedule([snode_pre_cp, snode_new])
+
+        from_state = snode_pre.state
+        to_state = snode_new.state
+        subjects, ok = self.pscene.get_changing_subjects(from_state, to_state)
+        if from_state.node[0] == 1 and to_state.node[0] == 2:
+            switch_state = SwitchState.SWEEP_APPROACH
+        elif from_state.node[0] == 2 and to_state.node[
+            0] == 2:  # joint motion: quit sweep and homing - retract before motion
+            if self.Q_before_push is not None:
+                print("[MODE] RETRACT BEFORE HOMING")
+                switch_state = SwitchState.SWEEP_RETRACT
+                self.kmb.joint_move_make_sure(self.Q_before_push)
+                self.Q_before_push = None
+        return switch_state
+
+    def switch_out(self, switch_state, snode_new):
+        if switch_state == SwitchState.SWEEP_APPROACH:  # move forward
+            if self.push_dist > 1e-6:
+                print("[MODE] PUSH FOWARD")
+                Qcur = self.kmb.get_qcur()
+                Tbm = self.gscene.get_tf(self.mobile_link, Qcur)
+                Tbm2 = np.matmul(Tbm, SE3(np.identity(3), [self.push_dist, 0, 0]))
+                Qpush = list(Tbm2[:2, 3]) + [Rot2axis(Tbm2[:3, :3], 3), 0, 0, 0]
+                self.kmb.joint_move_make_sure(Qpush)
+                self.Q_before_push = Qcur

@@ -4,6 +4,7 @@ from demo_config import *
 from pkg.utils.utils import *
 from pkg.utils.rotation_utils import *
 from collections import defaultdict
+import copy
 
 DATASET_DIR = os.path.join(os.environ["RNB_PLANNING_DIR"], 'data/sweep_reach')
 try_mkdir(DATASET_DIR)
@@ -60,28 +61,24 @@ class SweepDirections(Enum):
 from pkg.planning.constraint.constraint_common import BindingTransform
 
 class CachedCollisionCheck:
-    def __init__(self, gcheck, wp_task, wp_hdl, wayframer):
-        self.gcheck = gcheck
-        self.wp_task, self.wp_hdl, self.wayframer = \
-            wp_task, wp_hdl, wayframer
+    def __init__(self, mplan, mobile_name, Q_ref):
+        self.mplan = mplan
+        self.Q_ref = Q_ref
+        self.mobile_name = mobile_name
+        self.idx_mb = np.array(self.mplan.combined_robot.idx_dict[mobile_name])
         self.cache = {}
 
-    def get_cache_key(self, T_loal, Q_dict):
-        xyzquat = T2xyzquat(T_loal)
-        key = (tuple(np.round(xyzquat[0], 3)),
-               tuple(np.round(xyzquat[1], 3)),
-               tuple(np.round(
-                   dict2list(Q_dict,
-                             self.gcheck.gscene.joint_names), 3)))
-        return key
+    def get_Q(self, T_loal):
+        return np.array(list(T_loal[:2, 3]) + [Rot2axis(T_loal[:3,:3], 3)])
 
-    def __call__(self, T_loal, Q_dict):
-        key = self.get_cache_key(T_loal, Q_dict)
+    def __call__(self, T_loal):
+        Qxyw = self.get_Q(T_loal)
+        key = tuple(np.round(Qxyw, 3))
         if key in self.cache:
             return self.cache[key]
-        res = self.gcheck.check(
-            BindingTransform(self.wp_task, self.wp_hdl, self.wayframer,
-                             T_loal=T_loal), Q_dict)
+        Qtest = np.copy(self.Q_ref)
+        Qtest[self.idx_mb[:3]] = Qxyw
+        res = self.mplan.validate_trajectory([Qtest])
         self.cache[key] = res
         return res
 
@@ -102,10 +99,8 @@ SWEEP_DAT_PATH = os.path.join(os.environ["RNB_PLANNING_DIR"], "data/sweep_reach"
 # @param ccheck CachedCollisionCheck
 # @param tip_dir None, up, down
 # @return {approach dir 0~3: {Tsm_key: [idx_div]}}, surface_div_centers
-def get_division_dict(surface, brush_face, robot_config, plane_val, tip_dir, sweep_dir, TOOL_DIM, ccheck, resolution,
+def get_division_dict(pscene, surface, brush_face, robot_config, plane_val, tip_dir, sweep_dir, TOOL_DIM, ccheck, resolution,
                       sweep_margin=0, io_margin=0.2, xout_cut=False, div_num=None):
-    gcheck = ccheck.gcheck
-    pscene = gcheck.pscene
     gscene = pscene.gscene
     crob = pscene.combined_robot
 
@@ -133,7 +128,7 @@ def get_division_dict(surface, brush_face, robot_config, plane_val, tip_dir, swe
     ROBOT_BASE = pscene.robot_chain_dict[robot_config.get_indexed_name()]["link_names"][0]
     TIP_LINK = brush_face.geometry.link_name
     Tbs = surface.get_tf(crob.home_dict)
-    Tmr = gcheck.gscene.get_tf(to_link=ROBOT_BASE, from_link=robot_config.root_on, Q=crob.home_dict)
+    Tmr = gscene.get_tf(to_link=ROBOT_BASE, from_link=robot_config.root_on, Q=crob.home_dict)
     Trm = SE3_inv(Tmr)
     Rre = SweepDirections.get_dcm_re(tip_dir)
     Tet = brush_face.get_tf_handle(crob.home_dict, from_link=TIP_LINK)  ## get data
@@ -253,7 +248,7 @@ def get_division_dict(surface, brush_face, robot_config, plane_val, tip_dir, swe
             swp_points_dict[ax_swp_s] = []
 
     ## get base-sweep combinations
-    div_base_dict = defaultdict(lambda: defaultdict(list))
+    div_base_dict = defaultdict(lambda: defaultdict(set))
     Tbm_in_all = []
     Tbm_float_all = []
     Tbm_fail_all = []
@@ -282,12 +277,12 @@ def get_division_dict(surface, brush_face, robot_config, plane_val, tip_dir, swe
                     Tbm_float_all.append(Tbm)
                     continue
                 Tbm[2, 3] = 0
-                if ccheck(T_loal=Tbm, Q_dict=crob.home_dict):  # check feasible
+                if ccheck(T_loal=Tbm):  # check feasible
                     Tsm_swp_pairs.append((Tsm, swp_point))
                     Tbm_succ_all.append(Tbm)
                     Tsm_xq = T2xyzquat(Tsm)
                     Tsm_key = tuple(np.round(Tsm_xq[0], 3)), tuple(np.round(Tsm_xq[1], 3))
-                    div_base_dict[Tsm_key][i].append(i_div)
+                    div_base_dict[Tsm_key][i].add(i_div)
     #                 gscene.add_highlight_axis("hl", "tbt_{}_{}".format(i_div, i),
     #                                           link_name="base_link",
     #                                           center=Tbt[:3, 3], orientation_mat=Tbt[:3, :3])
@@ -300,6 +295,9 @@ def get_division_dict(surface, brush_face, robot_config, plane_val, tip_dir, swe
     #     gscene.clear_highlight()
     #     time.sleep(1)
     Tsm_keys = sorted(div_base_dict.keys())
+    for k, v in div_base_dict.items():
+        for kk, vv in v.items():
+            div_base_dict[k][kk] = list(sorted(vv))
     return div_base_dict, Tsm_keys, surface_div_centers, div_num, (ax_step, ax_swp, ax_pln)
 
 
@@ -457,36 +455,28 @@ def add_waypoint_task(pscene, name, dims, center, rpy, parent, color=(1, 1, 0, 0
                                     action_points_dict={wp_hdl.name: wp_hdl})
     return wp_task, wp_hdl
 
-def set_base_sweep(pscene, floor_gtem, Tsm, surface, swp_centers, ax_swp_tool, ax_swp_base,
-                   WP_DIMS, TOOL_DIM, Q_dict, tool_dir=1):
-    Tbf = floor_gtem.get_tf(Q_dict)
-    Tbs = surface.get_tf(Q_dict)
-    Tbm = np.matmul(Tbs, Tsm)
-    Tfm = np.matmul(SE3_inv(Tbf), Tbm)
-    Tfm[2,3] = 0
-    wp_task, wp_hdl = add_waypoint_task(pscene, "waypoint", WP_DIMS, Tfm[:3,3], Rot2rpy(Tfm[:3,:3]),
-                                        parent=floor_gtem.name)
-
+def set_sweep(pscene, surface, Tsm, swp_centers, ax_swp_tool, ax_swp_base,
+                   TOOL_DIM, tool_dir=1):
     TOOL_DIM_SWEEP = TOOL_DIM[ax_swp_tool]
     ax_swp_surf = np.where(np.abs(Tsm[:3,ax_swp_base])>0.5)[0][0]
     swp_min, swp_max = get_min_max_sweep_points(surface, swp_centers, np.max(TOOL_DIM), TOOL_DIM_SWEEP, ax_swp_surf)
     sweep_task = add_sweep_task(pscene, "sweep", surface, swp_min, swp_max, Tsm, ax_swp_tool, wp_dims=TOOL_DIM, tool_dir=tool_dir)
 
-def test_base_divs(ppline, floor_gtem, Tsm, surface, swp_centers,
-                   ax_swp_tool, ax_swp_base, WP_DIMS, TOOL_DIM, Q_dict,
+def test_base_divs(ppline, surface, Tsm, swp_centers,
+                   ax_swp_tool, ax_swp_base, TOOL_DIM, Q_dict,
                    timeout=0.3, timeout_loop=3, verbose=False,
                    multiprocess=True, terminate_on_first=True,
                    show_motion=False, tool_dir=1):
     pscene = ppline.pscene
     gscene = pscene.gscene
-    set_base_sweep(pscene, floor_gtem, Tsm, surface, swp_centers, ax_swp_tool, ax_swp_base,
-                   WP_DIMS, TOOL_DIM, Q_dict, tool_dir=tool_dir)
+    set_sweep(pscene, surface, Tsm, swp_centers, ax_swp_tool, ax_swp_base,
+                   TOOL_DIM, tool_dir=tool_dir)
 
     ppline.mplan.update_gscene()
     ppline.tplan.prepare()
     initial_state = pscene.initialize_state(dict2list(Q_dict, gscene.joint_names))
 
-    ppline.search(initial_state, [(2, 1)], verbose=verbose,
+    ppline.search(initial_state, [(2,)], verbose=verbose,
                   timeout=timeout, timeout_loop=timeout_loop, multiprocess=multiprocess,
                   add_homing=False, terminate_on_first=terminate_on_first, 
                   display=show_motion, post_optimize=False)
@@ -495,12 +485,12 @@ def test_base_divs(ppline, floor_gtem, Tsm, surface, swp_centers,
 
 
 class TestBaseDivFunc:
-    def __init__(self, ppline, floor_ws, surface, ax_swp_tool, ax_swp_base,
-                 WP_DIMS, TOOL_DIM, Q_dict,
+    def __init__(self, ppline, surface, ax_swp_tool, ax_swp_base,
+                 TOOL_DIM, Q_dict,
                  multiprocess=True, terminate_on_first=True,
                  show_motion=False, highlight_color=(1, 1, 0, 0.5), tool_dir=1, **kwargs):
-        self.ppline, self.floor_ws, self.surface = ppline, floor_ws, surface
-        self.WP_DIMS, self.TOOL_DIM, self.Q_dict = WP_DIMS, TOOL_DIM, Q_dict
+        self.ppline, self.surface = ppline, surface
+        self.TOOL_DIM, self.Q_dict = TOOL_DIM, Q_dict
         self.pscene = self.ppline.pscene
         self.gscene = self.pscene.gscene
         self.multiprocess = multiprocess
@@ -514,8 +504,8 @@ class TestBaseDivFunc:
         self.ax_swp_tool, self.ax_swp_base = ax_swp_tool, ax_swp_base,
 
     def __call__(self, Tsm, swp_centers):
-        output = test_base_divs(self.ppline, self.floor_ws, Tsm, self.surface, swp_centers,
-                                self.ax_swp_tool, self.ax_swp_base, self.WP_DIMS, self.TOOL_DIM, self.Q_dict,
+        output = test_base_divs(self.ppline, self.surface, Tsm, swp_centers,
+                                self.ax_swp_tool, self.ax_swp_base, self.TOOL_DIM, self.Q_dict,
                                 multiprocess=self.multiprocess, terminate_on_first=self.terminate_on_first,
                                 show_motion=self.show_motion, tool_dir=self.tool_dir, **self.kwargs)
         if output:
@@ -697,9 +687,6 @@ def show_lines(gscene, lines, base_link="base_link", orientation_mat=None, sweep
                                  dims=(np.linalg.norm(np.subtract(p_max, p_min)), 0.05,0.005))
 
 
-class ToolDir(Enum):
-    down = 0
-    up = 1
 
 
 def make_plan_fun(ppline, ccheck, surface, brush_face, tool_dim, wp_dims, mobile_name,
@@ -758,3 +745,219 @@ def make_plan_fun(ppline, ccheck, surface, brush_face, tool_dim, wp_dims, mobile
     if len(snode_schedule_list) > 0:
         Q_CUR = snode_schedule_list[-1][-1].state.Q
     return snode_schedule_list, scene_args_list, scene_kwargs_list, Q_CUR, test_fun, covered_all
+
+
+class GreedyExecuter:
+    def __init__(self, ppline, brush_face, tool_dim, Qhome=None):
+        self.ppline, self.brush_face, self.tool_dim = ppline, brush_face, tool_dim
+        self.pscene = self.ppline.pscene
+        self.gscene = self.pscene.gscene
+        self.mplan = self.ppline.mplan
+        self.crob = self.pscene.combined_robot
+        if Qhome is not None:
+            self.Qhome = Qhome
+        else:
+            self.Qhome = self.crob.get_real_robot_pose()
+        for rconfig in self.crob.robots_on_scene:
+            if rconfig.type == rconfig.type.kmb:
+                self.mobile_config = rconfig
+            else:
+                self.robot_config = rconfig
+        self.robot_name = self.robot_config.get_indexed_name()
+        self.mobile_name = self.mobile_config.get_indexed_name()
+        self.mobile_link = self.robot_config.root_on
+        self.kmb = self.crob.robot_dict[self.mobile_name]
+        self.idx_rb = self.crob.idx_dict[self.robot_name]
+        self.idx_mb = self.crob.idx_dict[self.mobile_name]
+        self.ccheck = CachedCollisionCheck(self.mplan, self.mobile_name, Qhome)
+        self.pass_count = 0
+        self.highlights = []
+
+    def get_division_dict(self, surface, tip_dir, sweep_dir, plane_val,
+                          xout_cut=False, resolution=0.02, div_num=None):
+        self.surface = surface
+        self.tip_dir, self.sweep_dir, self.plane_val = tip_dir, sweep_dir, plane_val
+        self.div_base_dict, self.Tsm_keys, self.surface_div_centers, self.div_num, \
+        (self.ax_step, self.ax_swp, self.ax_pln) = \
+            get_division_dict(self.pscene, self.surface, self.brush_face, self.robot_config,
+                              plane_val=plane_val, tip_dir=tip_dir, sweep_dir=sweep_dir,
+                              TOOL_DIM=self.tool_dim, ccheck=self.ccheck,
+                              resolution=resolution, xout_cut=xout_cut, div_num=div_num)
+
+        self.ax_swp_base = self.ax_swp
+        self.Rre = SweepDirections.get_dcm_re(tip_dir)
+        self.Tet = self.brush_face.get_tf_handle(self.Qhome, from_link=self.brush_face.geometry.link_name)
+        self.Rrt = np.matmul(self.Rre, self.Tet[:3, :3])
+        self.ax_swp_tool = np.where(np.abs(self.Rrt.transpose()[:, self.ax_swp_base]).astype(np.int))[0][0]
+
+    def remove_covered(self, covered):
+        self.covered = set(covered)
+        self.remains = set(range(len(self.surface_div_centers))) - self.covered
+
+        if self.covered and self.remains:
+            div_base_dict_remains = defaultdict(lambda: defaultdict(list))
+            for k, div_dict in self.div_base_dict.items():
+                for i, divs in div_dict.items():
+                    divs = list(set(divs) - self.covered)
+                    if divs:
+                        div_base_dict_remains[k][i] = divs
+            self.div_base_dict = div_base_dict_remains
+            self.Tsm_keys = sorted([tkey for tkey in self.Tsm_keys if tkey in self.div_base_dict])
+
+    def set_test_kwargs(self, **kwargs):
+        self.test_kwargs = kwargs
+        self.test_clear()
+
+    def test_clear(self):
+        self.pass_count = 0
+        for htem in self.highlights:
+            self.gscene.remove(htem)
+        self.highlights = []
+
+    def test_base_divs(self, Qcur, Tsm, swp_centers, tool_dir):
+        if not isinstance(Qcur, dict):
+            Qcur = list2dict(Qcur, self.gscene.joint_names)
+        output = test_base_divs(self.ppline, self.surface, Tsm, swp_centers,
+                                self.ax_swp_tool, self.ax_swp_base, self.tool_dim, Qcur,
+                                tool_dir=tool_dir, **self.test_kwargs)
+        if output:
+            # leave highlight on cleared area
+            swp_fin = self.gscene.copy_from(self.gscene.NAME_DICT["sweep"],
+                                            new_name="sweep_tested_{}".format(self.pass_count),
+                                            color=(1, 1, 0, 0.5))
+            swp_fin.dims = (swp_fin.dims[0], swp_fin.dims[1], swp_fin.dims[2] + 0.002)
+            self.gscene.update_marker(swp_fin)
+            self.highlights.append(swp_fin)
+            self.pass_count += 1
+        return output
+
+    def init_base_divs(self, Qcur):
+        Tms0 = self.surface.get_tf(Qcur, from_link=self.mobile_link)
+        self.div_dists = np.array(
+            [np.linalg.norm(np.matmul(Tms0[:3, :2], ct) + Tms0[:3, 3]) for ct in self.surface_div_centers])
+        Tsm_key_len = len(self.Tsm_keys)
+        div_len = len(self.surface_div_centers)
+        self.div_base_mat = np.zeros((Tsm_key_len, 4, div_len), dtype=np.float32)
+        for i_t, tkey in enumerate(self.Tsm_keys):
+            for i_ap, idc_divs in self.div_base_dict[tkey].items():
+                self.div_base_mat[i_t, i_ap, idc_divs] = 100 # - self.div_dists[idc_divs]*0.1
+
+    def get_best_base_divs(self, Qcur):
+        Tbs = self.surface.get_tf(Qcur)
+        dist_scores = np.linalg.norm(
+            np.array([np.matmul(Tbs, T_xyzquat(tkey))[:2,3] for tkey in self.Tsm_keys]) - Qcur[:2],
+            axis=-1)*0.2
+        score_mat = np.sum(self.div_base_mat, axis=-1)
+        score_mat -= dist_scores[:, np.newaxis]
+        max_score = np.max(score_mat)
+        if max_score < 1e-5:
+            return None, None, []
+        i_t, i_ap = np.transpose(np.where(score_mat == max_score))[0]
+        tkey = self.Tsm_keys[i_t]
+        return tkey, i_ap, self.div_base_dict[tkey][i_ap]
+
+    def mark_tested(self, tkey, i_ap, idc_succs, idc_fails):
+        i_t = self.Tsm_keys.index(tkey)
+        self.div_base_mat[:, :, idc_succs] = 0
+        self.div_base_mat[i_t, i_ap, idc_fails] = 0
+
+    def get_mobile_Q(self, tkey, Qcur):
+        Tbs = self.surface.get_tf(Qcur)
+        Tsm = T_xyzquat(tkey)
+        Tbm = np.matmul(Tbs, Tsm)
+        Qmob = list(Tbm[:2, 3]) + [Rot2axis(Tbm[:3, :3], 3), 0, 0, 0]
+        return Qmob
+
+    def force_add_return(self, snode_schedule):
+        # add return motion and execute
+        homing = self.ppline.add_return_motion(snode_schedule[-1],
+                                               initial_state=snode_schedule[0].state,
+                                               timeout=1, try_count=3)
+        if len(homing) > 0:
+            snode_schedule += homing
+        else:
+            back_traj = np.concatenate([list(reversed(snode.traj))
+                                        for snode in reversed(snode_schedule)
+                                        if snode.traj is not None], axis=0)
+            snode_homing = snode_schedule[-1].copy(self.pscene)
+            snode_homing.traj = back_traj
+            snode_schedule.append(snode_homing)
+        return snode_schedule
+
+    def greedy_execute(self, Qcur, tool_dir, mode_switcher, offset_fun):
+        Qcur = np.copy(Qcur)
+        # # MAKE LOOP BELOW
+        snode_schedule_list = []
+        covereds = []
+        while True:
+            # get current base base
+            tkey, i_ap, idc_divs = self.get_best_base_divs(Qcur)
+
+            idc_divs = list(set(idc_divs) - set(covereds))
+
+            if tkey is None or len(idc_divs) == 0:
+                break
+
+            # move base and get real pose
+            Qmob = self.get_mobile_Q(tkey, Qcur)
+            self.kmb.joint_move_make_sure(Qmob)
+            Qcur, Qtar = offset_fun(self, self.crob, self.mplan, self.robot_name,
+                                                list(Qmob) + list(Qcur[self.idx_rb]))
+
+            if self.kmb.dummy:
+                Qcur[self.idx_mb] = Qmob + np.random.uniform([-0.05, -0.05, -0.05, 0, 0, 0],
+                                                             [0.05, 0.05, 0.05, 0, 0, 0])
+
+            snode_schedule_all = []
+            idc_succs = []
+            idc_fails = []
+
+            Tsm = T_xyzquat(tkey)
+            vec_stp = np.identity(3)[:, self.ax_step]  # in robot coords
+            vec_stp = np.matmul(Tsm[:3, :3], vec_stp)  # in surface coords
+            ax_stp_ = np.where(np.abs(vec_stp) > 0.5)[0][0]  # in surface coords
+            idc_div_rav = np.array(np.unravel_index(idc_divs, self.div_num))
+            u_list, c_list = np.unique(idc_div_rav[ax_stp_, :],
+                                       return_counts=True)  # ax_stp_: which axis is step in ravel? 0:x, 1:y
+            for uval in u_list:
+                i_line = np.where(idc_div_rav[ax_stp_] == uval)[0]
+                idc_line = list(np.asarray(idc_divs)[i_line])
+                print("[PLAN] Line idc {}".format(idc_line))
+                idc_divs_remain = copy.deepcopy(idc_line)
+                snode_schedule = []
+                while len(idc_divs_remain) > 0:
+                    for idc_select in reversed(list(powerset(idc_divs_remain))):
+                        if len(idc_select) == 0:
+                            # no area
+                            break
+                        idc_divs_remain_ = list(set(idc_divs_remain)-set(idc_select))
+                        if np.any(np.logical_and(np.min(idc_select) < idc_divs_remain_,
+                                                 idc_divs_remain_ < np.max(idc_select))):
+                            # non-connected areas
+                            continue
+                        print("[PLAN] Try idc {}".format(idc_select))
+                        snode_schedule = self.test_base_divs(Qcur, Tsm,
+                                                             swp_centers=[self.surface_div_centers[i_div] for i_div in
+                                                                          idc_select],
+                                                             tool_dir=tool_dir)
+                        if len(snode_schedule) > 0:
+                            idc_divs_remain = sorted(set(idc_divs_remain) - set(idc_select))
+                            idc_succs += idc_select
+                            snode_schedule_all += snode_schedule
+                            break
+                    if len(snode_schedule) == 0:  # no more available case in idc_idvs_remain
+                        idc_fails += idc_divs_remain
+                        break
+
+            self.mark_tested(tkey, i_ap, idc_succs, idc_fails)
+            covereds += idc_succs
+
+            if len(snode_schedule_all) > 0:  # no more available case in idc_idvs_remain
+                snode_schedule_all = self.force_add_return(snode_schedule_all)
+                self.ppline.execute_schedule(snode_schedule_all, one_by_one=True, mode_switcher=mode_switcher)
+                snode_schedule_list.append(snode_schedule_all)
+        if len(snode_schedule_list)>0:
+            if len(snode_schedule_list[-1])>0:
+                Qcur = snode_schedule_list[-1][-1].traj[-1]
+        return snode_schedule_list, Qcur, covereds
+
