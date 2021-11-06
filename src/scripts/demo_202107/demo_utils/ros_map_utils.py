@@ -57,24 +57,21 @@ class KiroMobileMap:
                                           topic_type=OccupancyGrid)
             self.lcost_listener = Listener(topic_name="/move_base/local_costmap/costmap",
                                            topic_type=OccupancyGrid)
+            self.tf_listener = Listener(topic_name="/tf", topic_type=TFMessage)
 
             while self.map_listener.last_dat is None \
                     or self.cost_listener.last_dat is None \
-                    or self.lcost_listener.last_dat is None:
+                    or self.lcost_listener.last_dat is None \
+                    or self.tf_listener.last_dat:
                 time.sleep(0.1)
             map_data = self.map_listener.last_dat
             cost_data = self.cost_listener.last_dat
             lcost_data = self.lcost_listener.last_dat
+            tf_data = self.tf_listener.last_dat
             save_pickle(os.path.join(os.environ["RNB_PLANNING_DIR"],"data/map_data.pkl"), map_data)
             save_pickle(os.path.join(os.environ["RNB_PLANNING_DIR"],"data/cost_data.pkl"), cost_data)
             save_pickle(os.path.join(os.environ["RNB_PLANNING_DIR"],"data/lcost_data.pkl"), lcost_data)
-            for i_tf in range(10):
-                self.tf_listener = Listener(topic_name="/tf",
-                                               topic_type=TFMessage)
-                while self.tf_listener.last_dat is None:
-                    time.sleep(0.1)
-                tf_data = self.tf_listener.last_dat
-                save_pickle(os.path.join(os.environ["RNB_PLANNING_DIR"],"data/tf_data_{}.pkl".format(i_tf)), tf_data)
+            save_pickle(os.path.join(os.environ["RNB_PLANNING_DIR"],"data/tf_data.pkl"), tf_data)
 
             map_dict = extract_attr_dict(map_data)
             cost_dict = extract_attr_dict(cost_data)

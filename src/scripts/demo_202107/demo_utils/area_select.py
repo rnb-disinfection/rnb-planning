@@ -913,19 +913,22 @@ class GreedyExecuter:
             Qmob = self.get_mobile_Q(tkey, Qcur)
             Qref = list(Qmob) + list(Qcur[self.idx_rb])
             if ((not self.ccheck(T_loal=self.gscene.get_tf(self.mobile_link, Qref)))
-                    or (not self.ccheck(T_loal=self.gscene.get_tf(self.mobile_link, Qref+self.drift)))):
-                print("Skip {} - collision base position".format(tkey))
+                    or (not self.ccheck(T_loal=self.gscene.get_tf(self.mobile_link, np.add(Qref, self.drift))))):
+                self.mark_tested(tkey, i_ap, [], idc_divs)
+                TextColors.RED.println("[PLAN] Skip {} - collision base position".format(tkey))
                 print("Drift = {}".format(np.round(self.drift, 2)))
                 continue
-            self.kmb.joint_move_make_sure(Qmob - (self.drift[self.idx_mb] / 2))
+            self.kmb.joint_move_make_sure(np.subtract(Qmob, (self.drift[self.idx_mb] / 2)))
             try:
                 Qcur, Qtar = offset_fun(self, self.crob, self.mplan, self.robot_name, Qref)
             except Exception as e:
                 TextColors.RED.println("[PLAN] Error in offset fun")
+                print("Drift = {}".format(np.round(self.drift, 2)))
                 print(e)
                 continue
             self.drift = np.mean([np.subtract(Qcur, Qref), self.drift], axis=0)
-            self.drift[2] = (self.drift[2] + np.pi) % (np.pi * 2) - np.pi
+            self.drift[self.idx_mb[2]] = (self.drift[2] + np.pi) % (np.pi * 2) - np.pi
+            self.drift[self.idx_rb] = 0
 
             Tbm_cur = self.gscene.get_tf(self.mobile_link, Qcur)
             Tbs = self.surface.get_tf(Qcur)
@@ -940,13 +943,14 @@ class GreedyExecuter:
             i_min = np.argmin(Tdiff_list)
             tkey_cur = self.Tsm_keys[i_min]
             if tkey_cur != tkey:
-                TextColors.YELLOW.println(
+                TextColors.RED.println(
                     "[PLAN] Current position is closer to other Tsm_key. Try switch {} ({}) -> {} ({})".format(
                         tkey, i_ap, tkey_cur, i_ap))
+                print("Drift = {}".format(np.round(self.drift, 2)))
                 idc_divs_cur = self.div_base_dict[tkey_cur][i_ap]
                 idc_divs_cur = list(set(idc_divs_cur) - set(covereds))
                 if len(idc_divs_cur) == 0:
-                    TextColors.YELLOW.println("[PLAN] Switched location has no divs. Try adjust once more.")
+                    TextColors.BLUE.println("[PLAN] Switched location has no divs. Try adjust once more.")
                     Qmob_new = np.copy(Qmob)
                     Qmob_new[:2] = Qtar[:2]
                     self.kmb.joint_move_make_sure(Qmob_new)
@@ -962,10 +966,6 @@ class GreedyExecuter:
 
             # self.kmb.joint_move_make_sure(Qtar)
             # Qcur, Qtar = offset_fun(self, self.crob, self.mplan, self.robot_name, Qref)
-
-            if self.kmb.dummy:
-                Qcur[self.idx_mb] = Qmob + np.random.uniform([-0.05, -0.05, -0.05, 0, 0, 0],
-                                                             [0.05, 0.05, 0.05, 0, 0, 0])
 
             snode_schedule_all = []
             idc_succs = []

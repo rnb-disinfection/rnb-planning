@@ -17,6 +17,8 @@ from kiro_udp_send import start_mobile_udp_thread, get_reach_state_edgeup, send_
 class KiroUDPClient(TrajectoryClient):
     DURATION_SHORT_MOTION_REF = 5
     SHORT_MOTION_RANGE = 0.04
+    NEAR_MOTION_RANGE = 0.4
+
     def __init__(self, server_ip, ip_cur, dummy=False):
         TrajectoryClient.__init__(self, server_ip, traj_freq=10)
         self.server_ip, self.dummy = server_ip, dummy
@@ -25,7 +27,8 @@ class KiroUDPClient(TrajectoryClient):
             self.sock_mobile, self.server_thread = start_mobile_udp_thread(recv_ip=ip_cur)
             time.sleep(1)
         self.xyzw_last = [0, 0, 0, 1]
-        self.validifier = None
+        self.coster = None
+        self.cost_cut = 0
         self.tool_angle = 0
         self.sure_count_default = 0
         self.allowance = 2e-2
@@ -101,12 +104,26 @@ class KiroUDPClient(TrajectoryClient):
             TextColors.RED.println("KiroUDPClient always wait for motion")
         self.move_joint_wp(trajectory)
 
+    def check_valid(self, Q):
+        return self.coster is None or self.coster(Q) < self.cost_cut
+
+    def get_best_near_point(self, Q):
+        Qnear = np.copy(Q)
+        min_val = 10000
+        min_Q = None
+        for _ in range(100):
+            r, th = np.random.uniform([0, -np.pi], [self.NEAR_MOTION_RANGE, np.pi])
+            x, y = np.matmul(Rot_axis(3, th)[:2, :2], [r, 0])
+            Qnear[:2] = Q[:2] + [x,y]
+            ret = self.coster(Qnear)
+            if ret < min_val:
+                min_val, min_Q = ret, np.copy(Qnear)
+        return min_Q, min_val
+
     ##
     # @brief Make sure the joints move to Q using the indy DCP joint_move_to function.
     # @param Q radian
-    def joint_move_make_sure(self, Q, sure_count=None, Qorigin=None, *args, **kwargs):
-        if sure_count is None:
-            sure_count = self.sure_count_default
+    def joint_move_make_sure(self, Q, sure_count=None, Qfinal=None, check_valid=2, *args, **kwargs):
         Q = np.copy(Q)
         Qcur = self.get_qcur()
         diff = np.subtract(Q[:3], Qcur[:3])
@@ -114,24 +131,26 @@ class KiroUDPClient(TrajectoryClient):
         diff_nm_p = np.linalg.norm(diff[:2])
         diff_nm = np.linalg.norm(diff)
 
-        NEAR_MOTION_RANGE = 0.5
+        if Qfinal is None:
+            Qfinal = np.copy(Q)
 
-        if Qorigin is None:
-            Qorigin = np.copy(Q)
-        if diff_nm_p > NEAR_MOTION_RANGE and self.validifier and not self.validifier(Q):
-            Qapp = np.copy(Q)
-            for _ in range(100):
-                r, th = np.random.uniform([0, -np.pi], [NEAR_MOTION_RANGE, np.pi])
-                x, y = np.matmul(Rot_axis(3, th)[:2, :2], [r, 0])
-                Qapp[:2] = Q[:2] + [x,y]
-                ret = self.validifier(Qapp)
-                if ret:
-                    break
-            if ret:
-                print("[INFO] Approach through: {} -> {}".format(Qapp[:3], Q[:3]))
-                self.joint_move_make_sure(Qapp, sure_count=0)
-            else:
-                TextColors.RED.println("[WARN] No available approach position. Try anyway")
+        if sure_count is None: # default call
+            sure_count = self.sure_count_default # need to adjust finely
+
+        if check_valid:
+            if diff_nm > self.NEAR_MOTION_RANGE and not self.check_valid(Qcur):
+                cur_val = self.coster(Qcur)
+                min_Q, min_val = self.get_best_near_point(Qcur)
+                TextColors.BLUE.println("[INFO] Depart via: {} ({}) <- {} ({})".format(
+                    np.round(min_Q[:3], 2), min_val, np.round(Qcur[:3], 2), cur_val))
+                self.joint_move_make_sure(min_Q, sure_count=0, check_valid=check_valid-1)
+
+            if diff_nm > self.NEAR_MOTION_RANGE and not self.check_valid(Q):
+                cur_val = self.coster(Q)
+                min_Q, min_val = self.get_best_near_point(Q)
+                TextColors.BLUE.println("[INFO] Approach through: {} ({}) -> {} ({})".format(
+                    np.round(min_Q[:3], 2), min_val, np.round(Q[:3], 2), cur_val))
+                self.joint_move_make_sure(min_Q, sure_count=0, check_valid=check_valid-1)
 
         if self.dummy:
             self.xyzw_last = self.joints2xyzw(Q)
@@ -149,21 +168,22 @@ class KiroUDPClient(TrajectoryClient):
             else:
                 self.wait_queue_empty(60)
             time.sleep(1)
-            Qcur = self.get_qcur()
-            print("End up at={} ({:.3} / {:.3})".format(np.round(Qcur[:3], 3),
-                                                  np.linalg.norm(Qcur[:3]-Q[:3]),
-                                                  np.linalg.norm(Qcur[:3]-Qorigin[:3])))
-            if sure_count>0:
-                print("sure_count={}".format(sure_count))
-                Qadj = np.copy(Q)
-                diff_origin = Qorigin[:2] - Qcur[:2]
-                diff_nm_origin = np.linalg.norm(diff_origin)
-                diff_cur = Q[:2] - Qcur[:2]
-                diff_nm_cur = np.linalg.norm(diff_cur)
-                if diff_nm_origin > self.allowance: # if distance from original goal > alpha
-                    Qadj[:2] = Qadj[:2] + diff_cur/diff_nm_cur*self.allowance # add alpha distance to current difference
-                    time.sleep(0.5)
-                    self.joint_move_make_sure(Qadj, sure_count=sure_count-1, Qorigin=Qorigin)
+
+        Qcur = self.get_qcur()
+        print("End up at={} ({:.3} / {:.3})".format(np.round(Qcur[:3], 3),
+                                              np.linalg.norm(Qcur[:3]-Q[:3]),
+                                              np.linalg.norm(Qcur[:3]-Qfinal[:3])))
+        if sure_count>0:
+            print("sure_count={}".format(sure_count))
+            Qadj = np.copy(Q)
+            diff_origin = Qfinal[:2] - Qcur[:2]
+            diff_nm_origin = np.linalg.norm(diff_origin)
+            diff_cur = Q[:2] - Qcur[:2]
+            diff_nm_cur = np.linalg.norm(diff_cur)
+            if diff_nm_origin > self.allowance: # if distance from original goal > alpha
+                Qadj[:2] = Qadj[:2] + diff_cur/diff_nm_cur*self.allowance # add alpha distance to current difference
+                time.sleep(0.5)
+                self.joint_move_make_sure(Qadj, sure_count=sure_count-1, Qfinal=Qfinal, check_valid=0)
 
     ##
     # @brief Surely move joints to Q using the indy DCP joint_move_to function.
