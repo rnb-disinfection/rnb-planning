@@ -369,7 +369,10 @@ class GeometryScene(list):
 
     def clear_virtuals(self):
         for virtual in self.virtuals:
-            self.remove(virtual)
+            try:
+                self.remove(virtual)
+            except:
+                pass
         self.virtuals = []
 
     ##
@@ -440,6 +443,14 @@ class GeometryScene(list):
             return sorted(set(children))
         else:
             return []
+
+    def get_joint_tf(self, jname, Q_dict, ref_link="base_link"):
+        joint = self.urdf_content.joint_map[jname]
+        Tj = T_xyzrpy((joint.origin.xyz, joint.origin.rpy))
+        T_link = self.get_tf(joint.parent, Q_dict, from_link=ref_link)
+        T_bj = np.matmul(T_link, Tj)
+        zi = np.matmul(T_bj[:3, :3], joint.axis)
+        return T_bj, zi
 
 
 ##
@@ -699,18 +710,25 @@ class GeometryItem(object):
             if jname not in chain:
                 Jac.append(np.zeros(6))
                 continue
-            joint = self.gscene.urdf_content.joint_map[jname]
-            Tj = T_xyzrpy((joint.origin.xyz, joint.origin.rpy))
-            T_link = get_tf(joint.parent, Q_dict, self.gscene.urdf_content, from_link=ref_link)
-            T_bj = np.matmul(T_link, Tj)
-            zi = np.matmul(T_bj[:3, :3], joint.axis)
-            T_p = self.get_tf(Q_dict)
+            T_bj, zi = self.gscene.get_joint_tf(jname, Q_dict, ref_link)
+            T_p = self.get_tf(Q_dict, ref_link)
             dpi = T_p[:3, 3] - T_bj[:3, 3]
             zp = np.cross(zi, dpi)
             Ji = np.concatenate([zp, zi])
             Jac.append(Ji)
         Jac = np.array(Jac).transpose()
         return Jac
+
+    ##
+    # @param dVW twist on base coord = concat(w, v)
+    def get_joint_increment(self, Q0, twist, ref_link="base_link", Jac=None, Tcur=None):
+        if Jac is None:
+            Jac = self.get_jacobian(Q0, ref_link)
+        if Tcur is None:
+            Tcur = self.get_tf(Q0, ref_link)
+        Jinv = np.linalg.pinv(Jac)
+        dQ = np.matmul(Jinv, np.asarray(twist)[[3, 4, 5, 0, 1, 2]])
+        return np.add(Q0, dQ)
 
 def load_gtem_args(gscene, gtem_args):
     gtem_remove = []

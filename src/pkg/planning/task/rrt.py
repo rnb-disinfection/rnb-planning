@@ -20,7 +20,7 @@ class TaskRRT(TaskInterface):
     # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
     def __init__(self, pscene,
                  new_node_sampler=random.choice, parent_node_sampler=random.choice, parent_snode_sampler=random.choice,
-                 binding_sampler=random.choice, redundancy_sampler=random.uniform, custom_rule=None):
+                 binding_sampler=random.choice, redundancy_sampler=random.uniform, custom_rule=None, node_trial_max=1e2):
         TaskInterface.__init__(self, pscene)
         self.new_node_sampler = new_node_sampler
         self.parent_node_sampler = parent_node_sampler
@@ -29,6 +29,7 @@ class TaskRRT(TaskInterface):
         self.redundancy_sampler = redundancy_sampler
         self.custom_rule = custom_rule
         self.explicit_edges = {}
+        self.node_trial_max = node_trial_max
 
     ##
     # @brief build object-level node graph
@@ -60,12 +61,16 @@ class TaskRRT(TaskInterface):
         if multiprocess_manager is not None:
             self.neighbor_nodes = multiprocess_manager.dict()  # keys of dict is used as set, as set is not in multiprocess
             self.node_snode_dict = multiprocess_manager.dict()
+            self.node_trial_dict = multiprocess_manager.dict()
+            self.neighbor_node_lock = multiprocess_manager.Lock()
             self.snode_dict_lock = multiprocess_manager.Lock()
             self.attempts_reseved = multiprocess_manager.Queue()
             self.reserve_lock = multiprocess_manager.Lock()
         else:
             self.neighbor_nodes = dict()
             self.node_snode_dict = dict()
+            self.node_trial_dict = dict()
+            self.neighbor_node_lock = DummyBlock()
             self.snode_dict_lock = DummyBlock()
             self.attempts_reseved = Queue()
             self.reserve_lock = DummyBlock()
@@ -88,6 +93,7 @@ class TaskRRT(TaskInterface):
         self.node_dict = {}
         self.node_parent_dict = defaultdict(set)
         for node, leafs in self.node_dict_full.items():
+            self.node_trial_dict[node] = self.node_trial_max
             ## goal node does not have child leaf
             if node in goal_nodes:
                 self.node_dict[node] = set()
@@ -143,11 +149,18 @@ class TaskRRT(TaskInterface):
                         pass
             if not self.reserved_attempt:
                 try:
-                    if len(self.neighbor_nodes.keys())>0:
-                        new_node = self.new_node_sampler(self.neighbor_nodes.keys())
+                    node_keys = self.neighbor_nodes.keys()
+                    if len(node_keys)>0:
+                        new_node = self.new_node_sampler(node_keys)
+                        node_trial = self.node_trial_dict[new_node]
+                        node_trial -= 1
+                        self.node_trial_dict[new_node] = node_trial
+                        if node_trial <= 0:
+                            with self.neighbor_node_lock:
+                                self.neighbor_nodes.pop(new_node)
                     else:
-                        print("ERROR sampling parent - NO SAMPLE REMAINED! Re-Start with initial state")
-                        new_node = self.new_node_sampler(list(self.node_dict[self.initial_state.node]))
+                        # print("ERROR sampling parent - NO SAMPLE REMAINED! Return None to stop")
+                        return None, None, None, True
                     parent_nodes = self.node_parent_dict[new_node]
                     parent_node = self.parent_node_sampler(list(parent_nodes.intersection(self.node_snode_dict.keys())))
                     parent_sidx = self.parent_snode_sampler(self.node_snode_dict[parent_node])
@@ -203,7 +216,8 @@ class TaskRRT(TaskInterface):
             node_new = snode_new.state.node
             for leaf in self.node_dict[node_new]:
                 if leaf not in self.goal_nodes: # goal nodes are manually reached below when possible. no need for random access
-                    self.neighbor_nodes[leaf] = None
+                    if self.node_trial_dict[leaf]:
+                        self.neighbor_nodes[leaf] = None
 
             with self.snode_dict_lock:
                 if snode_new.state.node not in self.node_snode_dict:

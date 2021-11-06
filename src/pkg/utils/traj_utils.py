@@ -364,60 +364,19 @@ def mix_schedule(mplan, snode_schedule):
 
     return snode_schedule_mixed
 
+def calc_wv(T0, T1):
+    R0, P0 = T0[:3, :3], T0[:3, 3]
+    R1, P1 = T1[:3, :3], T1[:3, 3]
+    dP_b = P1 - P0
+    dR_b = Rotation.from_dcm(np.matmul(R1, R0.transpose())).as_rotvec()
+    return np.concatenate([dR_b, dP_b])
 
-##
-# @brief calculate sweep trajectory
-# @param gtem GeometryItem
-# @param dP_tar target delta pos in ref_link
-def get_sweep_traj(mplan, gtem, dP_tar, Q0, DP=0.01, ERROR_CUT=0.01, SINGULARITY_CUT = 0.01, VISUALIZE=False,
-                   VERBOSE=False, ref_link="base_link"):
-    gscene = gtem.gscene
-    joint_limits = [(gscene.urdf_content.joint_map[jname].limit.lower,
-                     gscene.urdf_content.joint_map[jname].limit.upper) for jname in gscene.joint_names]
-    Q = Q0
-    T0 = Tnew = gtem.get_tf(list2dict(Q0, gscene.joint_names), from_link=ref_link)
-    P0 = T0[:3, 3]
-    if VISUALIZE:
-        gscene.show_pose(Q)
-    Traj = []
-    dPnorm = np.linalg.norm(dP_tar)
-    DIR = np.concatenate([np.divide(dP_tar, dPnorm), [0, 0, 0]])
-    P0 = np.concatenate([P0, [0, 0, 0]])
-    reason = "end"
-    singularity = False
-    for dP_cur in np.arange(0, dPnorm + DP / 2, DP):
-        Jac = gtem.get_jacobian(Q, ref_link=ref_link)
-        if np.min(np.abs(np.real(np.linalg.svd(Jac)[1]))) <= SINGULARITY_CUT:
-            singularity = True
-            reason = "singular"
-            break
-        Jinv = np.linalg.pinv(Jac)
-        Ptar = np.multiply(DIR, dP_cur) + P0
-        Pcur = np.concatenate([Tnew[:3, 3], [0, 0, 0]])
-        dQ = np.matmul(Jinv, Ptar - Pcur)
-        Q = Q + dQ
-        if VISUALIZE:
-            gscene.show_pose(Q)
-        dlim = np.subtract(joint_limits, Q[:, np.newaxis])[np.where(np.sum(np.abs(Jac), axis=0) > 1e-6)[0], :]
-        if np.any(dlim[:, 0] > 0):
-            reason = "joint min"
-            break
-        if np.any(dlim[:, 1] < 0):
-            reason = "joint max"
-            break
-        if not mplan.validate_trajectory([Q]):
-            reason = "collision"
-            break
-        Tnew = gtem.get_tf(list2dict(Q, gscene.joint_names), from_link=ref_link)
-        dPcalc = Tnew[:3, 3] - T0[:3, 3]
-        dRcalc = Rotation.from_dcm(np.matmul(Tnew[:3, :3], T0[:3, :3].transpose())).as_rotvec()
-        if np.abs(np.linalg.norm(dPcalc) - np.dot(dPcalc, DIR[:3])) > ERROR_CUT:
-            reason = "error off"
-            break
-        Traj.append(Q)
-    if VERBOSE:
-        print(reason)
-    return np.array(Traj), reason=="end"
+def apply_wv(T0, wv):
+    dP = wv[3:]
+    dR = Rotation.from_rotvec(wv[:3]).as_dcm()
+    P1 = dP + T0[:3,3]
+    R1 = np.matmul(dR, T0[:3,:3])
+    return SE3(R1, P1)
 
 
 from scipy.interpolate import splprep, splev

@@ -417,7 +417,7 @@ gtimer.tic("plan")
 ppline.search(initial_state, goal_nodes, verbose=True, display=False, dt_vis=0.01,
               timeout_loop=MAX_TIME, multiprocess=multiproc, timeout=TIMEOUT_MOTION,
               N_agents=PROC_COUNT, add_homing=False)
-elapsed = gtimer.toc("plan") / 1000
+elapsed = gtimer.toc("plan") / gtimer.scale
 
 if multiproc:
     last_proc = len(ppline.proc_list) - 1
