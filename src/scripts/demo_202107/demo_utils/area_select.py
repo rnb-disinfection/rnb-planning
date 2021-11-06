@@ -748,7 +748,7 @@ def make_plan_fun(ppline, ccheck, surface, brush_face, tool_dim, wp_dims, mobile
 
 
 class GreedyExecuter:
-    def __init__(self, ppline, brush_face, tool_dim, Qhome=None):
+    def __init__(self, ppline, brush_face, tool_dim, Qhome=None, drift=None):
         self.ppline, self.brush_face, self.tool_dim = ppline, brush_face, tool_dim
         self.pscene = self.ppline.pscene
         self.gscene = self.pscene.gscene
@@ -772,6 +772,10 @@ class GreedyExecuter:
         self.ccheck = CachedCollisionCheck(self.mplan, self.mobile_name, Qhome)
         self.pass_count = 0
         self.highlights = []
+        if drift is None:
+            self.drift = np.zeros(len(self.gscene.joint_names))
+        else:
+            self.drift = drift
 
     def get_division_dict(self, surface, tip_dir, sweep_dir, plane_val,
                           xout_cut=False, resolution=0.02, div_num=None):
@@ -870,18 +874,25 @@ class GreedyExecuter:
 
     def force_add_return(self, snode_schedule):
         # add return motion and execute
-        homing = self.ppline.add_return_motion(snode_schedule[-1],
-                                               initial_state=snode_schedule[0].state,
-                                               timeout=1, try_count=3)
-        if len(homing) > 0:
-            snode_schedule += homing
-        else:
-            back_traj = np.concatenate([list(reversed(snode.traj))
-                                        for snode in reversed(snode_schedule)
-                                        if snode.traj is not None], axis=0)
-            snode_homing = snode_schedule[-1].copy(self.pscene)
-            snode_homing.traj = back_traj
-            snode_schedule.append(snode_homing)
+        homing_stack = []
+        for i in range(1, len(snode_schedule)):
+            snode_cur = snode_schedule[-i]
+            homing = self.ppline.add_return_motion(snode_cur,
+                                                   initial_state=snode_schedule[0].state,
+                                                   timeout=1, try_count=3)
+            if len(homing) > 0:
+                for hnode in homing:
+                    homing_stack += list(hnode.traj)
+                    homing_stack = np.array(homing_stack)
+                self.homing_stack = homing_stack
+                hnode_full = snode_schedule[-1].copy(self.pscene)
+                hnode_full.set_traj(homing_stack)
+                hnode_full.state.Q = homing_stack[-1]
+                self.hnode_full = hnode_full
+                snode_schedule.append(hnode_full)
+                break
+            else:
+                homing_stack += list(reversed(snode_cur.traj))
         return snode_schedule
 
     def greedy_execute(self, Qcur, tool_dir, mode_switcher, offset_fun):
@@ -900,9 +911,57 @@ class GreedyExecuter:
 
             # move base and get real pose
             Qmob = self.get_mobile_Q(tkey, Qcur)
-            self.kmb.joint_move_make_sure(Qmob)
-            Qcur, Qtar = offset_fun(self, self.crob, self.mplan, self.robot_name,
-                                                list(Qmob) + list(Qcur[self.idx_rb]))
+            Qref = list(Qmob) + list(Qcur[self.idx_rb])
+            if ((not self.ccheck(T_loal=self.gscene.get_tf(self.mobile_link, Qref)))
+                    or (not self.ccheck(T_loal=self.gscene.get_tf(self.mobile_link, Qref+self.drift)))):
+                print("Skip {} - collision base position".format(tkey))
+                print("Drift = {}".format(np.round(self.drift, 2)))
+                continue
+            self.kmb.joint_move_make_sure(Qmob - (self.drift[self.idx_mb] / 2))
+            try:
+                Qcur, Qtar = offset_fun(self, self.crob, self.mplan, self.robot_name, Qref)
+            except Exception as e:
+                TextColors.RED.println("[PLAN] Error in offset fun")
+                print(e)
+                continue
+            self.drift = np.mean([np.subtract(Qcur, Qref), self.drift], axis=0)
+            self.drift[2] = (self.drift[2] + np.pi) % (np.pi * 2) - np.pi
+
+            Tbm_cur = self.gscene.get_tf(self.mobile_link, Qcur)
+            Tbs = self.surface.get_tf(Qcur)
+            Tsm_cur = np.matmul(SE3_inv(Tbs), Tbm_cur)
+            Tdiff_list = []
+            for i_t, tkey in enumerate(self.Tsm_keys):
+                Tsm = T_xyzquat(tkey)
+                Tdiff = np.linalg.norm(np.matmul(SE3_inv(Tsm_cur), Tsm) - np.identity(4))
+                if np.sum(self.div_base_mat[i_t][i_ap]) < 1:
+                    Tdiff = 100
+                Tdiff_list.append(Tdiff)
+            i_min = np.argmin(Tdiff_list)
+            tkey_cur = self.Tsm_keys[i_min]
+            if tkey_cur != tkey:
+                TextColors.YELLOW.println(
+                    "[PLAN] Current position is closer to other Tsm_key. Try switch {} ({}) -> {} ({})".format(
+                        tkey, i_ap, tkey_cur, i_ap))
+                idc_divs_cur = self.div_base_dict[tkey_cur][i_ap]
+                idc_divs_cur = list(set(idc_divs_cur) - set(covereds))
+                if len(idc_divs_cur) == 0:
+                    TextColors.YELLOW.println("[PLAN] Switched location has no divs. Try adjust once more.")
+                    Qmob_new = np.copy(Qmob)
+                    Qmob_new[:2] = Qtar[:2]
+                    self.kmb.joint_move_make_sure(Qmob_new)
+                    try:
+                        Qcur, Qtar = offset_fun(self, self.crob, self.mplan, self.robot_name, Qref)
+                    except Exception as e:
+                        TextColors.RED.println("[PLAN] Error in offset fun")
+                        print(e)
+                        continue
+                else:
+                    tkey, i_ap, idc_divs = tkey_cur, i_ap, idc_divs_cur
+
+
+            # self.kmb.joint_move_make_sure(Qtar)
+            # Qcur, Qtar = offset_fun(self, self.crob, self.mplan, self.robot_name, Qref)
 
             if self.kmb.dummy:
                 Qcur[self.idx_mb] = Qmob + np.random.uniform([-0.05, -0.05, -0.05, 0, 0, 0],
@@ -944,6 +1003,7 @@ class GreedyExecuter:
                             idc_divs_remain = sorted(set(idc_divs_remain) - set(idc_select))
                             idc_succs += idc_select
                             snode_schedule_all += snode_schedule
+                            Qcur = snode_schedule[-1].state.Q
                             break
                     if len(snode_schedule) == 0:  # no more available case in idc_idvs_remain
                         idc_fails += idc_divs_remain
@@ -954,6 +1014,7 @@ class GreedyExecuter:
 
             if len(snode_schedule_all) > 0:  # no more available case in idc_idvs_remain
                 snode_schedule_all = self.force_add_return(snode_schedule_all)
+                Qcur = snode_schedule_all[-1].state.Q
                 self.ppline.execute_schedule(snode_schedule_all, one_by_one=True, mode_switcher=mode_switcher)
                 snode_schedule_list.append(snode_schedule_all)
         if len(snode_schedule_list)>0:

@@ -40,6 +40,7 @@ class GeometryScene(list):
         self.highlight_dict = defaultdict(dict)
         self.marker_dict = defaultdict(list)
         self.marker_dict_fixed = defaultdict(list)
+        self.virtuals = []
         if self.rviz:
             self.set_rviz()
 
@@ -366,24 +367,41 @@ class GeometryScene(list):
                          ((XMAX + XMIN) / 2, YMAX+thickness/2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
                          color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
 
+    def clear_virtuals(self):
+        for virtual in self.virtuals:
+            self.remove(virtual)
+        self.virtuals = []
+
     ##
     # @brief set workspace boundary
-    def add_virtual_guardrail(self, plane_gtem, HEIGHT=0.05):
+    def add_virtual_guardrail(self, plane_gtem, HEIGHT=0.05, margin=0.01, axis="y"):
         gname = plane_gtem.name
         dims = plane_gtem.dims
         XMIN, XMAX, YMIN, YMAX, ZMIN, ZMAX = -dims[0]/2, dims[0]/2, -dims[1]/2, dims[1]/2, 0, HEIGHT
-        self.create_safe(GEOTYPE.BOX, "{}_front_gr".format(gname), "base_link", (0.01, YMAX - YMIN, ZMAX - ZMIN),
-                         (XMAX, (YMAX + YMIN) / 2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
-                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent=gname)
-        self.create_safe(GEOTYPE.BOX, "{}_back_gr".format(gname), "base_link", (0.01, YMAX - YMIN, ZMAX - ZMIN),
-                         (XMIN, (YMAX + YMIN) / 2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
-                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent=gname)
-        self.create_safe(GEOTYPE.BOX, "{}_left_gr".format(gname), "base_link", (XMAX - XMIN, 0.01, ZMAX - ZMIN),
-                         ((XMAX + XMIN) / 2, YMIN, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
-                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent=gname)
-        self.create_safe(GEOTYPE.BOX, "{}_right_gr".format(gname), "base_link", (XMAX - XMIN, 0.01, ZMAX - ZMIN),
-                         ((XMAX + XMIN) / 2, YMAX, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
-                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent=gname)
+        if "x" in axis.lower():
+            gtem0 = self.create_safe(GEOTYPE.BOX, "{}_front_gr".format(gname), "base_link", (0.01, YMAX - YMIN, ZMAX - ZMIN),
+                             (XMAX + margin, (YMAX + YMIN) / 2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
+                             color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent=gname)
+            gtem1 = self.create_safe(GEOTYPE.BOX, "{}_back_gr".format(gname), "base_link", (0.01, YMAX - YMIN, ZMAX - ZMIN),
+                             (XMIN - margin, (YMAX + YMIN) / 2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
+                             color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent=gname)
+            virtuals = []
+            for virtual in self.virtuals:
+                if virtual.name not in [gtem0.name, gtem1.name]:
+                    virtuals.append(virtual)
+            self.virtuals = virtuals + [gtem0, gtem1]
+        if "y" in axis.lower():
+            gtem0 = self.create_safe(GEOTYPE.BOX, "{}_left_gr".format(gname), "base_link", (XMAX - XMIN, 0.01, ZMAX - ZMIN),
+                             ((XMAX + XMIN) / 2, YMIN - margin, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
+                             color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent=gname)
+            gtem1 = self.create_safe(GEOTYPE.BOX, "{}_right_gr".format(gname), "base_link", (XMAX - XMIN, 0.01, ZMAX - ZMIN),
+                             ((XMAX + XMIN) / 2, YMAX + margin, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
+                             color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent=gname)
+            virtuals = []
+            for virtual in self.virtuals:
+                if virtual.name not in [gtem0.name, gtem1.name]:
+                    virtuals.append(virtual)
+            self.virtuals = virtuals + [gtem0, gtem1]
 
     def highlight_robot(self, color=(1,0,0,0.5)):
         vis_bak = {}
