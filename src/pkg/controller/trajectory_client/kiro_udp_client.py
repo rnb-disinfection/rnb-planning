@@ -104,8 +104,10 @@ class KiroUDPClient(TrajectoryClient):
             TextColors.RED.println("KiroUDPClient always wait for motion")
         self.move_joint_wp(trajectory)
 
-    def check_valid(self, Q):
-        return self.coster is None or self.coster(Q) < self.cost_cut
+    def check_valid(self, Q, cost_cut=None):
+        if cost_cut is None:
+            cost_cut = self.cost_cut
+        return self.coster is None or self.coster(Q) < cost_cut
 
     def get_best_near_point(self, Q):
         Qnear = np.copy(Q)
@@ -123,7 +125,7 @@ class KiroUDPClient(TrajectoryClient):
     ##
     # @brief Make sure the joints move to Q using the indy DCP joint_move_to function.
     # @param Q radian
-    def joint_move_make_sure(self, Q, sure_count=None, Qfinal=None, check_valid=2, *args, **kwargs):
+    def joint_move_make_sure(self, Q, sure_count=None, Qfinal=None, check_valid=3, *args, **kwargs):
         Q = np.copy(Q)
         Qcur = self.get_qcur()
         diff = np.subtract(Q[:3], Qcur[:3])

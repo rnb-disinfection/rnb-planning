@@ -62,7 +62,7 @@ class KiroMobileMap:
             while self.map_listener.last_dat is None \
                     or self.cost_listener.last_dat is None \
                     or self.lcost_listener.last_dat is None \
-                    or self.tf_listener.last_dat:
+                    or self.tf_listener.last_dat is None:
                 time.sleep(0.1)
             map_data = self.map_listener.last_dat
             cost_data = self.cost_listener.last_dat
@@ -100,6 +100,7 @@ class KiroMobileMap:
         self.tf_dict = tf_dict
 
         ret, self.cost_bin = cv2.threshold(self.cost_im, 100, 255, cv2.THRESH_BINARY)
+        self.cost_im = self.cost_im + cv2.distanceTransform(np.array(self.cost_im>=100, dtype=np.uint8), cv2.DIST_L2, 5)
         self.cost_closed = cv2.morphologyEx(self.cost_bin, cv2.MORPH_CLOSE,
                                             cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
                                                                       (canny_ksize, canny_ksize)))
@@ -196,7 +197,7 @@ class KiroMobileMap:
             cost_vals.append(cost_im[pt[0], pt[1]])
         return cost_vals
 
-    def update_map(self, gscene, crob, mobile_base, timeout=100, try_num=5, time_wait=0, update_poles=False):
+    def update_map(self, gscene, crob, mobile_base, timeout=100, try_num=1, time_wait=0, update_poles=False):
         time.sleep(time_wait)
         maps = None
         for i in range(try_num):

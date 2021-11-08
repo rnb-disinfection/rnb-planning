@@ -874,13 +874,15 @@ class GreedyExecuter:
         Qmob = list(Tbm[:2, 3]) + [Rot2axis(Tbm[:3, :3], 3), 0, 0, 0]
         return Qmob
 
-    def force_add_return(self, snode_schedule):
+    def force_add_return(self, snode_schedule, Qhome=None):
         # add return motion and execute
         homing_stack = []
         for i in range(1, len(snode_schedule)):
             snode_cur = snode_schedule[-i]
+            initial_state = snode_schedule[0].state.copy(self.pscene)
+            initial_state.Q[self.idx_rb] = Qhome[self.idx_rb]
             homing = self.ppline.add_return_motion(snode_cur,
-                                                   initial_state=snode_schedule[0].state,
+                                                   initial_state=,
                                                    timeout=1, try_count=3)
             if len(homing) > 0:
                 for hnode in homing:
@@ -897,9 +899,10 @@ class GreedyExecuter:
                 homing_stack += list(reversed(snode_cur.traj))
         return snode_schedule
 
-    def greedy_execute(self, Qcur, tool_dir, mode_switcher, offset_fun, auto_clear_subject=True):
+    def greedy_execute(self, Qcur, tool_dir, mode_switcher, offset_fun, auto_clear_subject=True, cost_cut=105):
         gtimer = GlobalTimer.instance()
         Qcur = np.copy(Qcur)
+        Qhome = np.copy(Qcur)
         # # MAKE LOOP BELOW
         snode_schedule_list = []
         covereds = []
@@ -913,17 +916,19 @@ class GreedyExecuter:
 
                 # move base and get real pose
                 Qmob = self.get_mobile_Q(tkey, Qcur)
-                Qref = list(Qmob) + list(Qcur[self.idx_rb])
-                if ((not self.ccheck(T_loal=self.gscene.get_tf(self.mobile_link, Qref)))
-                        or (not self.ccheck(T_loal=self.gscene.get_tf(self.mobile_link, np.add(Qref, self.drift))))):
+                Qref = np.array(list(Qmob) + list(Qcur[self.idx_rb]))
+                T_bm = self.gscene.get_tf(self.mobile_link, Qref)
+                if ((not self.ccheck(T_loal=T_bm))
+                        or (not self.ccheck(T_loal=self.gscene.get_tf(self.mobile_link, np.add(Qref, self.drift))))
+                        or (not self.kmb.check_valid(Qref, cost_cut))):
                     self.mark_tested(tkey, i_ap, [], idc_divs)
-                    TextColors.RED.println("[PLAN] Skip {} - collision base position".format(tkey))
+                    TextColors.RED.println("[PLAN] Skip {} - collision base position ({} / {})".format(
+                        tkey, np.round(self.kmb.coster(Qref)), cost_cut))
                     print("Drift = {}".format(np.round(self.drift, 2)))
                     continue
 
             with gtimer.block("move_base"):
                 self.kmb.joint_move_make_sure(np.subtract(Qmob, (self.drift[self.idx_mb] / 2)))
-
 
             with gtimer.block("offset_fun"):
                 try:
@@ -933,17 +938,47 @@ class GreedyExecuter:
                     print("Drift = {}".format(np.round(self.drift, 2)))
                     print(e)
                     continue
+
                 self.drift = np.mean([np.subtract(Qcur, Qref), self.drift], axis=0)
                 self.drift[self.idx_mb[2]] = (self.drift[2] + np.pi) % (np.pi * 2) - np.pi
                 self.drift[self.idx_rb] = 0
-
-            with gtimer.block("update_base_offset"):
                 Tbm_cur = self.gscene.get_tf(self.mobile_link, Qcur)
                 Tbs = self.surface.get_tf(Qcur)
                 Tsm_cur = np.matmul(SE3_inv(Tbs), Tbm_cur)
+                tkey_cur_exact = T2xyzquat(Tsm_cur, decimals=2)
+                tkey_cur_exact = (tkey_cur_exact[0], tkey_cur_exact[1][2:])
+
+            with gtimer.block("adjust_once"):
+                TextColors.BLUE.println("[PLAN] Adjust base once. {} / {}".format(tkey, tkey_cur_exact))
+                TextColors.BLUE.println("[PLAN] Qcur: {}".format(np.round(Qcur[:3], 3)))
+                TextColors.BLUE.println("[PLAN] Qref: {}".format(np.round(Qref[:3], 3)))
+                TextColors.BLUE.println("[PLAN] tar: {}".format(np.round(Qtar[:3], 3)))
+                Qmob_new = np.copy(Qmob)
+                Qmob_new[:2] = Qtar[:2]
+                self.kmb.joint_move_make_sure(Qmob_new)
+
+            with gtimer.block("update_adjusted_offset"):
+                try:
+                    Qref[self.idx_rb] = Qcur[self.idx_rb]
+                    Qcur, Qtar = offset_fun(self, self.crob, self.mplan, self.robot_name, Qref)
+
+                    self.drift = np.mean([np.subtract(Qcur, Qref), self.drift], axis=0)
+                    self.drift[self.idx_mb[2]] = (self.drift[2] + np.pi) % (np.pi * 2) - np.pi
+                    self.drift[self.idx_rb] = 0
+                    Tbm_cur = self.gscene.get_tf(self.mobile_link, Qcur)
+                    Tbs = self.surface.get_tf(Qcur)
+                    Tsm_cur = np.matmul(SE3_inv(Tbs), Tbm_cur)
+                    tkey_cur_exact = T2xyzquat(Tsm_cur, decimals=2)
+                    tkey_cur_exact = (tkey_cur_exact[0], tkey_cur_exact[1][2:])
+                except Exception as e:
+                    TextColors.RED.println("[PLAN] Error in offset fun")
+                    print(e)
+                    continue
+
+            with gtimer.block("update_base_offset"):
                 Tdiff_list = []
-                for i_t, tkey in enumerate(self.Tsm_keys):
-                    Tsm = T_xyzquat(tkey)
+                for i_t, _tkey in enumerate(self.Tsm_keys):
+                    Tsm = T_xyzquat(_tkey)
                     Tdiff = np.linalg.norm(np.matmul(SE3_inv(Tsm_cur), Tsm) - np.identity(4))
                     if np.sum(self.div_base_mat[i_t][i_ap]) < 1:
                         Tdiff = 100
@@ -952,28 +987,15 @@ class GreedyExecuter:
                 tkey_cur = self.Tsm_keys[i_min]
                 if tkey_cur != tkey:
                     TextColors.RED.println(
-                        "[PLAN] Current position is closer to other Tsm_key. Try switch {} ({}) -> {} ({})".format(
-                            tkey, i_ap, tkey_cur, i_ap))
+                        "[PLAN] Current position is closer to other Tsm_key. \n Try switch {} ({}) -> {} ({}) / {}".format(
+                            tkey, i_ap, tkey_cur, i_ap, tkey_cur_exact))
                     print("Drift = {}".format(np.round(self.drift, 2)))
                     idc_divs_cur = self.div_base_dict[tkey_cur][i_ap]
                     idc_divs_cur = list(set(idc_divs_cur) - set(covereds))
                     if len(idc_divs_cur) == 0:
-                        TextColors.BLUE.println("[PLAN] Switched location has no divs. Try adjust once more.")
-                        Qmob_new = np.copy(Qmob)
-                        Qmob_new[:2] = Qtar[:2]
-                        with gtimer.block("adjust_base"):
-                            self.kmb.joint_move_make_sure(Qmob_new)
-
-                        with gtimer.block("update_adjusted_offset"):
-                            try:
-                                Qcur, Qtar = offset_fun(self, self.crob, self.mplan, self.robot_name, Qref)
-                            except Exception as e:
-                                TextColors.RED.println("[PLAN] Error in offset fun")
-                                print(e)
-                                continue
+                        TextColors.BLUE.println("[PLAN] Switched location has no divs. Keep current one")
                     else:
                         tkey, i_ap, idc_divs = tkey_cur, i_ap, idc_divs_cur
-
 
             with gtimer.block("planning_all"):
                 snode_schedule_all = []
@@ -1001,7 +1023,7 @@ class GreedyExecuter:
                                 break
                             if tuple(sorted(idc_select)) in idc_select_failed:
                                 continue
-                            idc_divs_remain_ = list(set(idc_divs_remain)-set(idc_select))
+                            idc_divs_remain_ = list(set(idc_divs_remain) - set(idc_select))
                             if np.any(np.logical_and(np.min(idc_select) < idc_divs_remain_,
                                                      idc_divs_remain_ < np.max(idc_select))):
                                 # non-connected areas
@@ -1029,12 +1051,12 @@ class GreedyExecuter:
 
             with gtimer.block("execution"):
                 if len(snode_schedule_all) > 0:  # no more available case in idc_idvs_remain
-                    snode_schedule_all = self.force_add_return(snode_schedule_all)
+                    snode_schedule_all = self.force_add_return(snode_schedule_all, Qhome=Qhome)
                     Qcur = snode_schedule_all[-1].state.Q
                     self.ppline.execute_schedule(snode_schedule_all, one_by_one=True, mode_switcher=mode_switcher)
                     snode_schedule_list.append(snode_schedule_all)
-                if len(snode_schedule_list)>0:
-                    if len(snode_schedule_list[-1])>0:
+                if len(snode_schedule_list) > 0:
+                    if len(snode_schedule_list[-1]) > 0:
                         Qcur = snode_schedule_list[-1][-1].traj[-1]
         if auto_clear_subject:
             self.remove_sweep()
