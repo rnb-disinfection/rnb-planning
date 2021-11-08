@@ -209,7 +209,7 @@ kmm = KiroMobileMap(MOBILE_IP, IP_CUR, CONNECT_MOBILE)
             
 VALID_BOX_SCALE = 0.8
 VALID_SCORE_CUT = 80 
-kmb.validifier = (lambda Q: 
+kmb.scorer = (lambda Q:
                   np.max(
                       kmm.get_box_costs(mobile_box, Q, kmm.T_bil, kmm.lcost_im, kmm.lresolution, 
                                         scale=VALID_BOX_SCALE))<VALID_SCORE_CUT)

@@ -196,7 +196,7 @@ def solve_in_pddlstream(pscene, mplan, ROBOT_NAME, TOOL_NAME, HOME_POSE, goal_pa
             solution = solve(problem, algorithm='adaptive',
                              unit_costs=False, success_cost=INF, max_time=MAX_TIME, max_iterations=MAX_ITER,
                              max_skeletons=MAX_SKELETONS, search_sample_ratio=SEARCH_SAMPLE_RATIO, verbose=VERBOSE)
-            gtimer.toc("plan") / 1000
+            gtimer.toc("plan") / gtimer.scale
             saver.restore()
     print_solution(solution)
     plan, cost, evaluations = solution

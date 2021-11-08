@@ -466,7 +466,7 @@ def test_base_divs(ppline, surface, Tsm, swp_centers,
                    ax_swp_tool, ax_swp_base, TOOL_DIM, Q_dict,
                    timeout=0.3, timeout_loop=3, verbose=False,
                    multiprocess=True, terminate_on_first=True,
-                   show_motion=False, tool_dir=1):
+                   show_motion=False, tool_dir=1, **kwargs):
     pscene = ppline.pscene
     gscene = pscene.gscene
     set_sweep(pscene, surface, Tsm, swp_centers, ax_swp_tool, ax_swp_base,
@@ -479,7 +479,7 @@ def test_base_divs(ppline, surface, Tsm, swp_centers,
     ppline.search(initial_state, [(2,)], verbose=verbose,
                   timeout=timeout, timeout_loop=timeout_loop, multiprocess=multiprocess,
                   add_homing=False, terminate_on_first=terminate_on_first, 
-                  display=show_motion, post_optimize=False)
+                  display=show_motion, post_optimize=False, **kwargs)
     snode_schedule = ppline.tplan.get_best_schedule(at_home=False)
     return snode_schedule
 
@@ -858,12 +858,14 @@ class GreedyExecuter:
             return None, None, []
         i_t, i_ap = np.transpose(np.where(score_mat == max_score))[0]
         tkey = self.Tsm_keys[i_t]
-        return tkey, i_ap, self.div_base_dict[tkey][i_ap]
+        return tkey, i_ap, np.where(self.div_base_mat[i_t, i_ap, :]>0)[0]
 
     def mark_tested(self, tkey, i_ap, idc_succs, idc_fails):
-        i_t = self.Tsm_keys.index(tkey)
-        self.div_base_mat[:, :, idc_succs] = 0
-        self.div_base_mat[i_t, i_ap, idc_fails] = 0
+        if len(idc_succs) > 0:
+            self.div_base_mat[:, :, idc_succs] = 0
+        if len(idc_fails) > 0:
+            i_t = self.Tsm_keys.index(tkey)
+            self.div_base_mat[i_t, i_ap, idc_fails] = 0
 
     def get_mobile_Q(self, tkey, Qcur):
         Tbs = self.surface.get_tf(Qcur)
@@ -895,130 +897,151 @@ class GreedyExecuter:
                 homing_stack += list(reversed(snode_cur.traj))
         return snode_schedule
 
-    def greedy_execute(self, Qcur, tool_dir, mode_switcher, offset_fun):
+    def greedy_execute(self, Qcur, tool_dir, mode_switcher, offset_fun, auto_clear_subject=True):
+        gtimer = GlobalTimer.instance()
         Qcur = np.copy(Qcur)
         # # MAKE LOOP BELOW
         snode_schedule_list = []
         covereds = []
         while True:
-            # get current base base
-            tkey, i_ap, idc_divs = self.get_best_base_divs(Qcur)
+            with gtimer.block("get_best_base_divs"):
+                # get current base base
+                tkey, i_ap, idc_divs = self.get_best_base_divs(Qcur)
 
-            idc_divs = list(set(idc_divs) - set(covereds))
+                if tkey is None or len(idc_divs) == 0:
+                    break
 
-            if tkey is None or len(idc_divs) == 0:
-                break
+                # move base and get real pose
+                Qmob = self.get_mobile_Q(tkey, Qcur)
+                Qref = list(Qmob) + list(Qcur[self.idx_rb])
+                if ((not self.ccheck(T_loal=self.gscene.get_tf(self.mobile_link, Qref)))
+                        or (not self.ccheck(T_loal=self.gscene.get_tf(self.mobile_link, np.add(Qref, self.drift))))):
+                    self.mark_tested(tkey, i_ap, [], idc_divs)
+                    TextColors.RED.println("[PLAN] Skip {} - collision base position".format(tkey))
+                    print("Drift = {}".format(np.round(self.drift, 2)))
+                    continue
 
-            # move base and get real pose
-            Qmob = self.get_mobile_Q(tkey, Qcur)
-            Qref = list(Qmob) + list(Qcur[self.idx_rb])
-            if ((not self.ccheck(T_loal=self.gscene.get_tf(self.mobile_link, Qref)))
-                    or (not self.ccheck(T_loal=self.gscene.get_tf(self.mobile_link, Qref+self.drift)))):
-                print("Skip {} - collision base position".format(tkey))
-                print("Drift = {}".format(np.round(self.drift, 2)))
-                continue
-            self.kmb.joint_move_make_sure(Qmob - (self.drift[self.idx_mb] / 2))
-            try:
-                Qcur, Qtar = offset_fun(self, self.crob, self.mplan, self.robot_name, Qref)
-            except Exception as e:
-                TextColors.RED.println("[PLAN] Error in offset fun")
-                print(e)
-                continue
-            self.drift = np.mean([np.subtract(Qcur, Qref), self.drift], axis=0)
-            self.drift[2] = (self.drift[2] + np.pi) % (np.pi * 2) - np.pi
+            with gtimer.block("move_base"):
+                self.kmb.joint_move_make_sure(np.subtract(Qmob, (self.drift[self.idx_mb] / 2)))
 
-            Tbm_cur = self.gscene.get_tf(self.mobile_link, Qcur)
-            Tbs = self.surface.get_tf(Qcur)
-            Tsm_cur = np.matmul(SE3_inv(Tbs), Tbm_cur)
-            Tdiff_list = []
-            for i_t, tkey in enumerate(self.Tsm_keys):
+
+            with gtimer.block("offset_fun"):
+                try:
+                    Qcur, Qtar = offset_fun(self, self.crob, self.mplan, self.robot_name, Qref)
+                except Exception as e:
+                    TextColors.RED.println("[PLAN] Error in offset fun")
+                    print("Drift = {}".format(np.round(self.drift, 2)))
+                    print(e)
+                    continue
+                self.drift = np.mean([np.subtract(Qcur, Qref), self.drift], axis=0)
+                self.drift[self.idx_mb[2]] = (self.drift[2] + np.pi) % (np.pi * 2) - np.pi
+                self.drift[self.idx_rb] = 0
+
+            with gtimer.block("update_base_offset"):
+                Tbm_cur = self.gscene.get_tf(self.mobile_link, Qcur)
+                Tbs = self.surface.get_tf(Qcur)
+                Tsm_cur = np.matmul(SE3_inv(Tbs), Tbm_cur)
+                Tdiff_list = []
+                for i_t, tkey in enumerate(self.Tsm_keys):
+                    Tsm = T_xyzquat(tkey)
+                    Tdiff = np.linalg.norm(np.matmul(SE3_inv(Tsm_cur), Tsm) - np.identity(4))
+                    if np.sum(self.div_base_mat[i_t][i_ap]) < 1:
+                        Tdiff = 100
+                    Tdiff_list.append(Tdiff)
+                i_min = np.argmin(Tdiff_list)
+                tkey_cur = self.Tsm_keys[i_min]
+                if tkey_cur != tkey:
+                    TextColors.RED.println(
+                        "[PLAN] Current position is closer to other Tsm_key. Try switch {} ({}) -> {} ({})".format(
+                            tkey, i_ap, tkey_cur, i_ap))
+                    print("Drift = {}".format(np.round(self.drift, 2)))
+                    idc_divs_cur = self.div_base_dict[tkey_cur][i_ap]
+                    idc_divs_cur = list(set(idc_divs_cur) - set(covereds))
+                    if len(idc_divs_cur) == 0:
+                        TextColors.BLUE.println("[PLAN] Switched location has no divs. Try adjust once more.")
+                        Qmob_new = np.copy(Qmob)
+                        Qmob_new[:2] = Qtar[:2]
+                        with gtimer.block("adjust_base"):
+                            self.kmb.joint_move_make_sure(Qmob_new)
+
+                        with gtimer.block("update_adjusted_offset"):
+                            try:
+                                Qcur, Qtar = offset_fun(self, self.crob, self.mplan, self.robot_name, Qref)
+                            except Exception as e:
+                                TextColors.RED.println("[PLAN] Error in offset fun")
+                                print(e)
+                                continue
+                    else:
+                        tkey, i_ap, idc_divs = tkey_cur, i_ap, idc_divs_cur
+
+
+            with gtimer.block("planning_all"):
+                snode_schedule_all = []
+                idc_succs = []
+                idc_fails = []
+
                 Tsm = T_xyzquat(tkey)
-                Tdiff = np.linalg.norm(np.matmul(SE3_inv(Tsm_cur), Tsm) - np.identity(4))
-                if np.sum(self.div_base_mat[i_t][i_ap]) < 1:
-                    Tdiff = 100
-                Tdiff_list.append(Tdiff)
-            i_min = np.argmin(Tdiff_list)
-            tkey_cur = self.Tsm_keys[i_min]
-            if tkey_cur != tkey:
-                TextColors.YELLOW.println(
-                    "[PLAN] Current position is closer to other Tsm_key. Try switch {} ({}) -> {} ({})".format(
-                        tkey, i_ap, tkey_cur, i_ap))
-                idc_divs_cur = self.div_base_dict[tkey_cur][i_ap]
-                idc_divs_cur = list(set(idc_divs_cur) - set(covereds))
-                if len(idc_divs_cur) == 0:
-                    TextColors.YELLOW.println("[PLAN] Switched location has no divs. Try adjust once more.")
-                    Qmob_new = np.copy(Qmob)
-                    Qmob_new[:2] = Qtar[:2]
-                    self.kmb.joint_move_make_sure(Qmob_new)
-                    try:
-                        Qcur, Qtar = offset_fun(self, self.crob, self.mplan, self.robot_name, Qref)
-                    except Exception as e:
-                        TextColors.RED.println("[PLAN] Error in offset fun")
-                        print(e)
-                        continue
-                else:
-                    tkey, i_ap, idc_divs = tkey_cur, i_ap, idc_divs_cur
-
-
-            # self.kmb.joint_move_make_sure(Qtar)
-            # Qcur, Qtar = offset_fun(self, self.crob, self.mplan, self.robot_name, Qref)
-
-            if self.kmb.dummy:
-                Qcur[self.idx_mb] = Qmob + np.random.uniform([-0.05, -0.05, -0.05, 0, 0, 0],
-                                                             [0.05, 0.05, 0.05, 0, 0, 0])
-
-            snode_schedule_all = []
-            idc_succs = []
-            idc_fails = []
-
-            Tsm = T_xyzquat(tkey)
-            vec_stp = np.identity(3)[:, self.ax_step]  # in robot coords
-            vec_stp = np.matmul(Tsm[:3, :3], vec_stp)  # in surface coords
-            ax_stp_ = np.where(np.abs(vec_stp) > 0.5)[0][0]  # in surface coords
-            idc_div_rav = np.array(np.unravel_index(idc_divs, self.div_num))
-            u_list, c_list = np.unique(idc_div_rav[ax_stp_, :],
-                                       return_counts=True)  # ax_stp_: which axis is step in ravel? 0:x, 1:y
-            for uval in u_list:
-                i_line = np.where(idc_div_rav[ax_stp_] == uval)[0]
-                idc_line = list(np.asarray(idc_divs)[i_line])
-                print("[PLAN] Line idc {}".format(idc_line))
-                idc_divs_remain = copy.deepcopy(idc_line)
-                snode_schedule = []
-                while len(idc_divs_remain) > 0:
-                    for idc_select in reversed(list(powerset(idc_divs_remain))):
-                        if len(idc_select) == 0:
-                            # no area
+                vec_stp = np.identity(3)[:, self.ax_step]  # in robot coords
+                vec_stp = np.matmul(Tsm[:3, :3], vec_stp)  # in surface coords
+                ax_stp_ = np.where(np.abs(vec_stp) > 0.5)[0][0]  # in surface coords
+                idc_div_rav = np.array(np.unravel_index(idc_divs, self.div_num))
+                u_list, c_list = np.unique(idc_div_rav[ax_stp_, :],
+                                           return_counts=True)  # ax_stp_: which axis is step in ravel? 0:x, 1:y
+                for uval in u_list:
+                    i_line = np.where(idc_div_rav[ax_stp_] == uval)[0]
+                    idc_line = list(np.asarray(idc_divs)[i_line])
+                    print("[PLAN] Line idc {}".format(idc_line))
+                    idc_divs_remain = copy.deepcopy(idc_line)
+                    idc_select_failed = []
+                    while len(idc_divs_remain) > 0:
+                        snode_schedule = []
+                        for idc_select in reversed(list(powerset(idc_divs_remain))):
+                            if len(idc_select) == 0:
+                                # no area
+                                break
+                            if tuple(sorted(idc_select)) in idc_select_failed:
+                                continue
+                            idc_divs_remain_ = list(set(idc_divs_remain)-set(idc_select))
+                            if np.any(np.logical_and(np.min(idc_select) < idc_divs_remain_,
+                                                     idc_divs_remain_ < np.max(idc_select))):
+                                # non-connected areas
+                                continue
+                            print("[PLAN] Try idc {}".format(idc_select))
+                            with gtimer.block("test_base_divs"):
+                                snode_schedule = self.test_base_divs(Qcur, Tsm,
+                                                                     swp_centers=[self.surface_div_centers[i_div]
+                                                                                  for i_div in idc_select],
+                                                                     tool_dir=tool_dir)
+                            if len(snode_schedule) > 0:
+                                idc_divs_remain = sorted(set(idc_divs_remain) - set(idc_select))
+                                idc_succs += idc_select
+                                snode_schedule_all += snode_schedule
+                                Qcur = snode_schedule[-1].state.Q
+                                break
+                            else:
+                                idc_select_failed.append(tuple(sorted(idc_select)))
+                        if len(snode_schedule) == 0:  # no more available case in idc_idvs_remain
+                            idc_fails += idc_divs_remain
                             break
-                        idc_divs_remain_ = list(set(idc_divs_remain)-set(idc_select))
-                        if np.any(np.logical_and(np.min(idc_select) < idc_divs_remain_,
-                                                 idc_divs_remain_ < np.max(idc_select))):
-                            # non-connected areas
-                            continue
-                        print("[PLAN] Try idc {}".format(idc_select))
-                        snode_schedule = self.test_base_divs(Qcur, Tsm,
-                                                             swp_centers=[self.surface_div_centers[i_div] for i_div in
-                                                                          idc_select],
-                                                             tool_dir=tool_dir)
-                        if len(snode_schedule) > 0:
-                            idc_divs_remain = sorted(set(idc_divs_remain) - set(idc_select))
-                            idc_succs += idc_select
-                            snode_schedule_all += snode_schedule
-                            Qcur = snode_schedule[-1].state.Q
-                            break
-                    if len(snode_schedule) == 0:  # no more available case in idc_idvs_remain
-                        idc_fails += idc_divs_remain
-                        break
 
-            self.mark_tested(tkey, i_ap, idc_succs, idc_fails)
-            covereds += idc_succs
+                self.mark_tested(tkey, i_ap, idc_succs, idc_fails)
+                covereds += idc_succs
 
-            if len(snode_schedule_all) > 0:  # no more available case in idc_idvs_remain
-                snode_schedule_all = self.force_add_return(snode_schedule_all)
-                Qcur = snode_schedule_all[-1].state.Q
-                self.ppline.execute_schedule(snode_schedule_all, one_by_one=True, mode_switcher=mode_switcher)
-                snode_schedule_list.append(snode_schedule_all)
-        if len(snode_schedule_list)>0:
-            if len(snode_schedule_list[-1])>0:
-                Qcur = snode_schedule_list[-1][-1].traj[-1]
-        return snode_schedule_list, Qcur, covereds
+            with gtimer.block("execution"):
+                if len(snode_schedule_all) > 0:  # no more available case in idc_idvs_remain
+                    snode_schedule_all = self.force_add_return(snode_schedule_all)
+                    Qcur = snode_schedule_all[-1].state.Q
+                    self.ppline.execute_schedule(snode_schedule_all, one_by_one=True, mode_switcher=mode_switcher)
+                    snode_schedule_list.append(snode_schedule_all)
+                if len(snode_schedule_list)>0:
+                    if len(snode_schedule_list[-1])>0:
+                        Qcur = snode_schedule_list[-1][-1].traj[-1]
+        if auto_clear_subject:
+            self.remove_sweep()
+        return snode_schedule_list, Qcur, sorted(set(covereds))
+
+    def remove_sweep(self):
+        self.pscene.clear_subjects()
+        for child in copy.deepcopy(self.surface.children):
+            self.gscene.remove(self.gscene.NAME_DICT[child])
 

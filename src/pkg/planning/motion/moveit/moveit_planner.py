@@ -88,6 +88,7 @@ class MoveitPlanner(MotionInterface):
             self.dual_planner_dict = get_dual_planner(pscene, binder_links)
         self.debug_iterative_motion = False
         self.reset_PRQdict(False)
+        self.visualize_increments = False
 
     def reset_PRQdict(self, enable_PRQ=True, radii=2e-2, kwargs={}):
         self.enable_PRQ = enable_PRQ
@@ -290,21 +291,13 @@ class MoveitPlanner(MotionInterface):
 
                 if self.incremental_constraint_motion:
                     # ################################# Special planner ##############################
-                    self.sweep_params = (tool.geometry.link_name, list2dict(from_Q, self.gscene.joint_names), self.gscene.urdf_content,
-                                         target.geometry.link_name, T_tar_tool)
-                    Tcur = get_tf(tool.geometry.link_name, list2dict(from_Q, self.gscene.joint_names), self.gscene.urdf_content,
-                                  from_link=target.geometry.link_name)
-                    dT = np.subtract(T_tar_tool[:3, 3], Tcur[:3, 3]) # in target link
                     ref_link = self.chain_dict[group_name]["link_names"][0]
-                    Tref = self.gscene.get_tf(Q=from_Q, to_link=target.geometry.link_name, from_link=ref_link) # to ref_link
-                    dTref = np.matmul(Tref[:3,:3], dT) # in ref_link
-                    get_sweep_traj.args = (self, tool.geometry, dTref, from_Q)
-                    get_sweep_traj.kwargs = dict(DP=0.01, ERROR_CUT=0.01, SINGULARITY_CUT = 0.01, VERBOSE=verbose,
-                                                 ref_link=ref_link)
-                    trajectory, success = get_sweep_traj(self, tool.geometry, dTref,
-                                                         from_Q, DP=0.01, ERROR_CUT=0.01, SINGULARITY_CUT = 0.01,
-                                                         VERBOSE=verbose,
-                                                         ref_link=ref_link)
+                    Tref = self.gscene.get_tf(Q=from_Q, to_link=target.geometry.link_name, from_link=ref_link)
+                    T_ref_tool = matmul_series(Tref, T_tar_tool, tool.geometry.Toff)
+                    trajectory, success = self.get_incremental_traj(tool.geometry, T_ref_tool,
+                                                                    from_Q, step_size=0.01, ERROR_CUT=0.01,
+                                                                    SINGULARITY_CUT=0.01, VERBOSE=verbose,
+                                                                    ref_link=ref_link, VISUALIZE=self.visualize_increments)
                     if self.debug_iterative_motion:
                         self.trajectory = trajectory
                         self.gscene.show_motion(trajectory)
@@ -317,34 +310,54 @@ class MoveitPlanner(MotionInterface):
                 if verbose:
                     print("constrained motion tried: {}".format(success)) ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
             else:
-                from_Q_tmp = np.copy(from_Q)
                 replan_joint = False
+
+                if verbose:
+                    print("try transition motion") ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
+
+                pqr_pass = False
                 if self.enable_PRQ:
                     T_rtar = self.gscene.get_tf(target.geometry.link_name, from_Q,
                                                 from_link=self.chain_dict[group_name]['link_names'][0])
                     Tre = np.matmul(T_rtar, T_tar_tool)
                     Q = self.sample_PRQ(group_name, Tre, radii=self.radii)
                     if Q is not None:
+                        from_Q_tmp = np.copy(from_Q)
                         from_Q_tmp[self.combined_robot.idx_dict[group_name]] = Q
-                        if self.validate_trajectory([from_Q_tmp], update_gscene=False):
-                            replan_joint = True
-                            if verbose:
-                                print("use PRQ")
-                        else:
-                            from_Q_tmp = from_Q
-
-                if verbose:
-                    print("try transition motion") ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
-                trajectory, success = self.planner.plan_py(
-                    group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q_tmp),
-                    timeout=timeout, **kwargs)
-
-                if success and replan_joint:
-                    kwargs = copy.deepcopy(kwargs)
-                    kwargs.update(self.pqr_kwargs)
-                    to_Q = trajectory[-1][self.combined_robot.idx_dict[group_name]]
-                    trajectory, success = self.planner.plan_joint_motion_py(
-                        group_name, tuple(to_Q), tuple(from_Q), timeout=timeout_joint, **kwargs)
+                        ref_link = self.chain_dict[group_name]["link_names"][0]
+                        Tref = self.gscene.get_tf(Q=from_Q_tmp, to_link=target.geometry.link_name, from_link=ref_link)
+                        T_ref_tool = matmul_series(Tref, T_tar_tool, tool.geometry.Toff)
+                        trajectory, success = self.get_incremental_traj(tool.geometry, T_ref_tool,
+                                                                   from_Q_tmp, step_size=0.01, ERROR_CUT=0.01,
+                                                                   SINGULARITY_CUT=0.01,
+                                                                   VERBOSE=verbose,
+                                                                   ref_link=ref_link,
+                                                                   VISUALIZE=self.visualize_increments)
+                        if success:
+                            to_Q = trajectory[-1]
+                            if self.validate_trajectory([to_Q], update_gscene=False):
+                                pqr_pass = True # pass plan_py, it will fail anyway if joint motion fails
+                                if verbose:
+                                    print("[MPLAN] use PRQ")
+                                pqr_kwargs = copy.deepcopy(kwargs)
+                                pqr_kwargs.update(self.pqr_kwargs)
+                                if "timeout" not in kwargs:
+                                    pqr_kwargs["timeout"] = timeout_joint
+                                to_Q = to_Q[self.combined_robot.idx_dict[group_name]]
+                                trajectory, success = self.planner.plan_joint_motion_py(
+                                    group_name, tuple(to_Q), tuple(from_Q), **pqr_kwargs)
+                                if verbose and not success:
+                                    print("[MPLAN] PRQ joint motion failed")
+                            elif verbose:
+                                print("[MPLAN] PRQ initial not valid")
+                        elif verbose:
+                            print("[MPLAN] PRQ-target approach failed")
+                    elif verbose:
+                        print("[MPLAN] PRQ not sampled")
+                if not pqr_pass:
+                    trajectory, success = self.planner.plan_py(
+                        group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q),
+                        timeout=timeout, **kwargs)
 
                 if verbose:
                     print("transition motion tried: {}".format(success)) ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
@@ -415,6 +428,63 @@ class MoveitPlanner(MotionInterface):
         for Q in trajectory:
             traj_c.append(JointState(self.joint_num, *Q))
         return self.planner.validate_trajectory(traj_c)
+
+    ##
+    # @brief calculate incremental trajectory
+    # @param gtem GeometryItem
+    # @param T_tar target T of gtem in ref_link coords
+    def get_incremental_traj(self, gtem, T_tar, Q0, step_size=0.01, ERROR_CUT=0.01, SINGULARITY_CUT = 0.01, VISUALIZE=False,
+                       VERBOSE=False, ref_link="base_link", check_collision=True):
+        gscene = gtem.gscene
+        joint_limits = [(gscene.urdf_content.joint_map[jname].limit.lower,
+                         gscene.urdf_content.joint_map[jname].limit.upper) for jname in gscene.joint_names]
+        Q = Q0
+        Tcur = T0 = gtem.get_tf(Q0, from_link=ref_link)
+        if VISUALIZE:
+            gscene.show_pose(Q)
+            gscene.add_highlight_axis("hl", "traj_start", link_name=ref_link, T=T0, dims=(0.3,0.03,0.03))
+            gscene.add_highlight_axis("hl", "traj_target", link_name=ref_link, T=T_tar, dims=(0.5,0.05,0.05))
+        wv_tar = calc_wv(T0, T_tar)
+        Traj = []
+        wv_norm = np.linalg.norm(wv_tar)
+        if wv_norm < 1e-6:
+            return [Q0], True
+        DIR = np.divide(wv_tar, wv_norm)
+        N_div = int(np.round(wv_norm/step_size))
+        step_size = wv_norm / N_div
+        reason = "end"
+        singularity = False
+        for wv_cur in np.arange(0, wv_norm + step_size / 2, step_size):
+            Jac = gtem.get_jacobian(Q, ref_link=ref_link)
+            if np.min(np.abs(np.real(np.linalg.svd(Jac)[1]))) <= SINGULARITY_CUT:
+                singularity = True
+                reason = "singular"
+                break
+            wv_ref = DIR*wv_cur
+            Tref = apply_wv(T0, wv_ref)
+            wv_cur = calc_wv(Tcur, Tref)
+            Q = gtem.get_joint_increment(Q, wv_cur, ref_link=ref_link, Jac=Jac, Tcur=Tcur)
+            dlim = np.subtract(joint_limits, Q[:, np.newaxis])[np.where(np.sum(np.abs(Jac), axis=0) > 1e-6)[0], :]
+            if np.any(dlim[:, 0] > 0):
+                reason = "joint min"
+                break
+            if np.any(dlim[:, 1] < 0):
+                reason = "joint max"
+                break
+            Tnxt = gtem.get_tf(Q, ref_link)
+            if np.linalg.norm(calc_wv(Tref, Tnxt)) > ERROR_CUT:
+                reason = "error off"
+                break
+            Tcur = Tnxt
+            if check_collision and not self.validate_trajectory([Q]):
+                reason = "collision"
+                break
+            if VISUALIZE:
+                gscene.show_pose(Q)
+            Traj.append(Q)
+        if VERBOSE:
+            print(reason)
+        return np.array(Traj), reason=="end"
 
 
 from itertools import permutations

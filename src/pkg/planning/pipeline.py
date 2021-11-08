@@ -1,6 +1,6 @@
 import time
 from .scene import State
-from ..utils.utils import SingleValue, list2dict, differentiate, GlobalTimer, TextColors
+from ..utils.utils import SingleValue, DummyBlock, list2dict, differentiate, GlobalTimer, TextColors
 from ..utils.joint_utils import apply_vel_acc_lims
 from ..controller.trajectory_client.trajectory_client import DEFAULT_TRAJ_FREQUENCY, MultiTracker
 from .task.interface import SearchNode
@@ -85,8 +85,12 @@ class PlanningPipeline:
     # @param verbose boolean flag for printing intermediate process
     def search(self, initial_state, goal_nodes, multiprocess=False,
                max_solution_count=100, N_search=None, N_agents=None, wait_proc=True,
-               display=False, dt_vis=0.01, verbose=False, timeout_loop=600, looptime_extra=1,
-               terminate_on_first=False, **kwargs):
+               display=False, dt_vis=0.01, verbose=False, timeout_loop=600, looptime_extra=None,
+               terminate_on_first=False, timeout=1, **kwargs):
+        self.gtimer.tic("search_loop")
+        if looptime_extra is None:
+            looptime_extra = timeout
+
         if terminate_on_first:
             TextColors.RED.println("==========================================================")
             TextColors.RED.println("terminate_on_first is deprecated. Use max_solution_count=1")
@@ -129,6 +133,7 @@ class PlanningPipeline:
 
         if multiprocess:
             with self.gtimer.block("start_process"):
+                kwargs.update({"timeout": timeout})
                 self.proc_list = [Process(
                     target=self.__search_loop,
                     args=(id_agent, N_search, False, dt_vis, verbose, timeout_loop),
@@ -141,55 +146,65 @@ class PlanningPipeline:
                 self.wait_procs(timeout_loop, looptime_extra)
         else:
             self.proc_list = []
-            self.__search_loop(0, N_search, display, dt_vis, verbose, timeout_loop, **kwargs)
+            self.__search_loop(0, N_search, display, dt_vis, verbose, timeout_loop, timeout=timeout, **kwargs)
+        elapsed = self.gtimer.toc("search_loop")
+        print(
+            "========================== FINISHED ({} / {} s) ==============================]".format(
+                round(elapsed/1e3, 1), round(timeout_loop, 1)
+            ))
 
     def wait_procs(self, timeout_loop, looptime_extra):
         self.non_joineds = []
         self.gtimer.tic("wait_procs")
         elapsed = 0
-        while (not self.stop_now.value) and (elapsed<timeout_loop):
-            time.sleep(0.5)
-            elapsed = self.gtimer.toc("wait_procs") / 1000
+        while (self.stop_now.value < self.N_agents) and (elapsed<timeout_loop):
+            time.sleep(0.1)
+            elapsed = self.gtimer.toc("wait_procs") / self.gtimer.scale
 
         self.gtimer.tic("wait_procs_extra")
         all_stopped = False
         while not all_stopped:
             all_stopped = True
-            for proc in self.proc_list:
-                elapsed = self.gtimer.toc("wait_procs_extra") / 1000
+            for i_p, proc in enumerate(self.proc_list):
+                elapsed = self.gtimer.toc("wait_procs_extra") / self.gtimer.scale
                 proc_alive = proc.is_alive()
                 all_stopped = all_stopped and not proc_alive
                 if proc_alive:
                     if elapsed > looptime_extra:
                         proc.terminate()
-                        time.sleep(0.5)
+                        time.sleep(0.1)
                         if not proc.is_alive():
-                            self.non_joineds.append(proc)
+                            self.non_joineds.append(i_p)
                         continue
-                    proc.join(timeout=0.5)
+                    proc.join(timeout=0.1)
+        if len(self.non_joineds) > 0:
+            TextColors.RED.println("[ERROR] Non-joined subprocesses: {}".format(self.non_joineds))
 
     def __search_loop(self, ID, N_search,
                       display=False, dt_vis=None, verbose=False, timeout_loop=600,
                       add_homing=True, post_optimize=False, home_pose=None,  **kwargs):
         loop_counter = 0
         sample_fail_counter = 0
-        sample_fail_max = 10
+        sample_fail_max = 5
         no_queue_stop = False
         ret = False
-        while (N_search is None or self.tplan.snode_counter.value < N_search) and (time.time() - self.t0) < timeout_loop and not self.stop_now.value:
+        while (N_search is None or self.tplan.snode_counter.value < N_search) \
+                and (time.time() - self.t0) < timeout_loop \
+                and (self.stop_now.value < self.N_agents):
             loop_counter += 1
             snode, from_state, to_state, sample_fail = self.tplan.sample()
-            with self.counter_lock:
-                if not sample_fail:
-                    sample_fail_counter = 0
+            if not sample_fail:
+                sample_fail_counter = 0
+                with self.counter_lock:
                     self.search_counter.value = self.search_counter.value + 1
+            else:
+                time.sleep(0.1)
+                sample_fail_counter += 1
+                if sample_fail_counter > sample_fail_max:
+                    no_queue_stop = True
+                    break
                 else:
-                    sample_fail_counter += 1
-                    if sample_fail_counter > sample_fail_max:
-                        no_queue_stop = True
-                        break
-                    else:
-                        continue
+                    continue
             if verbose:
                 print('try: {} - {}->{}'.format(snode.idx, from_state.node, to_state.node))
             self.gtimer.tic("test_connection")
@@ -216,13 +231,14 @@ class PlanningPipeline:
                     break
 
         if no_queue_stop:
-            term_reason = "node queue empty"
+            self.stop_now.value = self.stop_now.value + 1
+            term_reason = "node queue empty {}th".format(self.stop_now.value)
         elif N_search is not None and self.tplan.snode_counter.value >= N_search:
             term_reason = "max search node count reached ({}/{})".format(self.tplan.snode_counter.value, N_search)
-            self.stop_now.value = 1
+            self.stop_now.value = self.N_agents
         elif (time.time() - self.t0) >= timeout_loop:
-            term_reason = "max iteration time reached ({}/{} s)".format(int(time.time()-self.t0), timeout_loop)
-            self.stop_now.value = 1
+            term_reason = "max iteration time reached ({}/{} s)".format(round(time.time()-self.t0, 1), round(timeout_loop, 1))
+            self.stop_now.value = self.N_agents
         elif ret:
             term_reason = "required answers acquired"
             if add_homing:
@@ -236,13 +252,14 @@ class PlanningPipeline:
             if post_optimize:
                 print("++ post-optimizing acquired answer ++")
                 self.post_optimize_schedule(snode_new)
-            self.stop_now.value = 1
-        elif self.stop_now.value:
-            term_reason = "required answers acquired from other agent"
+            self.stop_now.value = self.N_agents
+        elif self.stop_now.value >= self.N_agents:
+            term_reason = "Stop called from other agent"
         else:
             term_reason = "Unknown issue"
         print("=========================================================================================================")
-        print("======================= terminated {}: {} ===============================".format(ID, term_reason))
+        print("======================= terminated {}: {}  ({}/{}) ===============================".format(
+            ID, term_reason, round(time.time()-self.t0, 1), round(timeout_loop, 1)))
         print("=========================================================================================================")
 
     ##
