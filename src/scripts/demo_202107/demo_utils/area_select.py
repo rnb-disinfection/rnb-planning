@@ -882,7 +882,7 @@ class GreedyExecuter:
             initial_state = snode_schedule[0].state.copy(self.pscene)
             initial_state.Q[self.idx_rb] = Qhome[self.idx_rb]
             homing = self.ppline.add_return_motion(snode_cur,
-                                                   initial_state=,
+                                                   initial_state=initial_state,
                                                    timeout=1, try_count=3)
             if len(homing) > 0:
                 for hnode in homing:
@@ -899,7 +899,7 @@ class GreedyExecuter:
                 homing_stack += list(reversed(snode_cur.traj))
         return snode_schedule
 
-    def greedy_execute(self, Qcur, tool_dir, mode_switcher, offset_fun, auto_clear_subject=True, cost_cut=105):
+    def greedy_execute(self, Qcur, tool_dir, mode_switcher, offset_fun, auto_clear_subject=True, cost_cut=110):
         gtimer = GlobalTimer.instance()
         Qcur = np.copy(Qcur)
         Qhome = np.copy(Qcur)
@@ -927,6 +927,7 @@ class GreedyExecuter:
                     print("Drift = {}".format(np.round(self.drift, 2)))
                     continue
 
+            print("Drift = {}".format(np.round(self.drift, 2)))
             with gtimer.block("move_base"):
                 self.kmb.joint_move_make_sure(np.subtract(Qmob, (self.drift[self.idx_mb] / 2)))
 
@@ -935,7 +936,6 @@ class GreedyExecuter:
                     Qcur, Qtar = offset_fun(self, self.crob, self.mplan, self.robot_name, Qref)
                 except Exception as e:
                     TextColors.RED.println("[PLAN] Error in offset fun")
-                    print("Drift = {}".format(np.round(self.drift, 2)))
                     print(e)
                     continue
 

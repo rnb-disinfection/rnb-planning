@@ -149,10 +149,10 @@ def add_closet(gscene, closet_center, closet_rpy, COLOR_CLOSET_COL = (0,1,0,0.3)
                              color=(0, 0, 0, 0.1), fixed=True, collision=True, parent="closet_vis")
     
     closet_down = gscene.create_safe(GEOTYPE.BOX, "closet_down", link_name="base_link",
-                                 dims=(0.8,0.495+margin*2,0.02), center=(0.31,-0.025,0.47), rpy=(0,np.pi/2,0),
+                                 dims=(0.78,0.495+margin*2,0.02), center=(0.31,-0.025,0.5), rpy=(0,np.pi/2,0),
                                  color=COLOR_CLOSET_COL, fixed=True, collision=False, parent="closet_vis")
     closet_down_col = gscene.create_safe(GEOTYPE.BOX, "closet_down_col", link_name="base_link",
-                                 dims=(0.8,0.495+margin_col*2,0.64), center=(-0.01,-0.025,0.47), rpy=(0,np.pi/2,0),
+                                 dims=(0.78,0.495+margin_col*2,0.64), center=(-0.01,-0.025,0.5), rpy=(0,np.pi/2,0),
                                  color=(0, 0, 0, 0.1), fixed=True, collision=True, parent="closet_vis")
     # closet_shelf = gscene.create_safe(GEOTYPE.BOX, "closet_shelf", link_name="base_link",
     #                              dims=(0.02,0.24+margin*2,0.465), center=(-0.065,0.105,1.24), rpy=(0,np.pi/2,0),
