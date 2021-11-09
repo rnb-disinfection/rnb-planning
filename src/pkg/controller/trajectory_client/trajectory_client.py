@@ -51,9 +51,13 @@ class TrajectoryClient(object):
 
     ##
     # @brief Wait until the queue on the server is empty. This also means the trajectory motion is finished.
-    def wait_queue_empty(self):
+    def wait_queue_empty(self, max_dur=1000):
+        time_start = time.time()
         while self.get_qcount()>0:
             time.sleep(1.0/self.traj_freq)
+            if (time.time() - time_start) > max_dur:
+                TextColors.RED.println("[WARN] ROBOT MOTION TIMEOUT")
+                break
 
     ##
     # @brief    Send target pose to the server and store the queue count.

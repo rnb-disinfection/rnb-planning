@@ -3,6 +3,7 @@ from .filter_interface import MotionFilterInterface, save_scene
 from ...utils.joint_utils import *
 from ...utils.gjk import get_point_list, set_point_list, get_gjk_distance
 from ...utils.utils import GlobalTimer,TextColors
+from ...geometry.geotype import *
 import random
 
 DEBUG_MODE_GRAB_FILT_LOG = False
@@ -40,15 +41,19 @@ class GraspChecker(MotionFilterInterface):
         for rname, chain_vals in self.chain_dict.items():
             tip_link = chain_vals['tip_link']
             robot_link_names = chain_vals['link_names']
+            children = self.gscene.get_children_links(self.pscene.combined_robot.get_robot_base_dict()[rname])
             self.end_link_couple_dict[tip_link] = [lname for lname in reversed(robot_link_names)
                                                    if lname in self.gscene.fixed_link_adjacency_map[tip_link]]
             index_arr = np.array([self.gscene.link_names.index(lname) for lname in robot_link_names])
             assert np.all((index_arr[1:]-index_arr[:-1])>0), "link_name should be ordered as same as chain order"
-            self.robot_ex_link_dict[rname] = [lname for lname in self.gscene.link_names if lname not in robot_link_names]
+            self.robot_ex_link_dict[rname] = [lname for lname in self.gscene.link_names
+                                              if lname not in children]
             for lname in robot_link_names:
                 self.link_robot_dict[lname] = rname
         # @brief set show_vertices=True to show collision vertices
         self.show_vertices = False
+        self.mesh_first_encounter = True
+        self.ignore_always = []
         # self.verts_holder_dict = {}
 
 
@@ -98,7 +103,7 @@ class GraspChecker(MotionFilterInterface):
         for actor_vertice, actor_radius in actor_vertice_list:
             for object_vertice, object_radius in object_vertice_list:
                 dist_list.append(get_gjk_distance(actor_vertice, object_vertice) - actor_radius - object_radius)
-        res = np.min(dist_list) > + 1e-4
+        res = np.min(dist_list) > + 1e-6
         if self.show_vertices:
             print("res: {} ({})".format(res, round(np.min(dist_list), 4)))
             if not res:
@@ -107,7 +112,7 @@ class GraspChecker(MotionFilterInterface):
             T_bl= np.matmul(Tbol, T_loal)
             self.gscene.add_highlight_axis("gc_center", "Tloal", "base_link",
                                            center=T_bl[:3,3], orientation_mat=T_bl[:3,:3])
-            raw_input("wait for key")
+            # raw_input("wait for key")
             self.gscene.clear_highlight(hl_keys=["gc_actor", "gc_object", "gc_center"])
 
 
@@ -146,12 +151,22 @@ class GraspChecker(MotionFilterInterface):
         object_vertinfo_list = []
         for ac_geo in actor_geo_list:
             for T_loal_ in T_loal_list:
+                if ac_geo.gtype==GEOTYPE.MESH:
+                    if self.mesh_first_encounter:
+                        self.mesh_first_encounter = False
+                        TextColors.RED.println("[WARN] GJK algorithm in GraspChecker cannot handle non-convex mesh. Ignoring all mesh items")
+                    continue
                 T = actor_T2end_dict[ac_geo.link_name]
                 verts, radius = ac_geo.get_vertice_radius()
                 Tac = np.matmul(T_loal_, np.matmul(T, ac_geo.Toff))
                 actor_vertinfo_list.append((ac_geo.name, Tac, verts, radius, ac_geo.dims))
 
         for obj_geo in object_geo_list:
+            if ac_geo.gtype==GEOTYPE.MESH:
+                if self.mesh_first_encounter:
+                    self.mesh_first_encounter = False
+                    TextColors.RED.println("[WARN] GJK algorithm in GraspChecker cannot handle non-convex mesh. Ignoring all mesh items")
+                continue
             T = object_T2end_dict[obj_geo.link_name]
             verts, radius = obj_geo.get_vertice_radius()
             Tobj = np.matmul(T, obj_geo.Toff)
@@ -170,6 +185,7 @@ class GraspChecker(MotionFilterInterface):
     def get_geolist_tflist_pairs(self, actor, obj, Q_dict, obj_only=False, ignore=[]):
         # gtimer = GlobalTimer.instance()
         # gtimer.tic("preprocess")
+        _ignore = ignore + self.ignore_always
 
         actor_link = actor.geometry.link_name
         object_link = obj.geometry.link_name
@@ -198,7 +214,7 @@ class GraspChecker(MotionFilterInterface):
             obj_family = obj.geometry.get_family()
             object_geo_list = [gtem for gtem in object_geo_list if gtem.name in obj_family]
 
-        for gtem_ig in ignore:
+        for gtem_ig in _ignore:
             if gtem_ig in actor_geo_list:
                 actor_geo_list.remove(gtem_ig)
             elif gtem_ig in object_geo_list:

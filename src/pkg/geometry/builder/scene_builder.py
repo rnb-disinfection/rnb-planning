@@ -35,6 +35,7 @@ def select_put_dir(Robj, dir_vec_dict, ref_vec=[[0], [0], [-1]]):
 #           call reset_reference_coord -> create_gscene
 class SceneBuilder(Singleton):
     __rospy_initialized = False
+    autostart_roscore = True
     __roscore = None
 
     ##
@@ -67,8 +68,12 @@ class SceneBuilder(Singleton):
         custom_limits   = combined_robot.custom_limits
 
         if not SceneBuilder.__rospy_initialized:
-            SceneBuilder.__roscore = subprocess.Popen(['roscore'])
-            rospy.init_node(node_name, anonymous=True, disable_signals=True)
+            if self.autostart_roscore:
+                SceneBuilder.__roscore = subprocess.Popen(['roscore'])
+            try:
+                rospy.init_node(node_name, anonymous=True, disable_signals=True)
+            except:
+                TextColors.YELLOW.println("ros_node already initialized somewhere else")
             SceneBuilder.__rospy_initialized = True
 
         self.xcustom = XacroCustomizer.instance()
@@ -207,7 +212,7 @@ class SceneBuilder(Singleton):
                         gscene.create_safe(
                             name=gname, link_name=link.name, gtype=GEOTYPE.CYLINDER,
                             center=xyz, dims=(geometry.radius * 2, geometry.radius * 2, geometry.length), rpy=rpy,
-                            color=color, display=display, collision=collision, fixed=True)
+                            color=color, display=display, collision=collision, fixed=True, in_urdf=True)
                     )
                 elif geotype == 'Box':
                     gname = "{}_{}_{}".format(link.name, geotype, id_dict[link.name])
@@ -215,7 +220,7 @@ class SceneBuilder(Singleton):
                         gscene.create_safe(
                             name=gname, link_name=link.name, gtype=GEOTYPE.BOX,
                             center=xyz, dims=geometry.size, rpy=rpy,
-                            color=color, display=display, collision=collision, fixed=True)
+                            color=color, display=display, collision=collision, fixed=True, in_urdf=True)
                     )
                 elif geotype == 'Sphere':
                     gname = "{}_{}_{}".format(link.name, geotype, id_dict[link.name])
@@ -223,7 +228,7 @@ class SceneBuilder(Singleton):
                         gscene.create_safe(
                             name=gname, link_name=link.name, gtype=GEOTYPE.SPHERE,
                             center=xyz, dims=[geometry.radius * 2] * 3, rpy=rpy,
-                            color=color, display=display, collision=collision, fixed=True)
+                            color=color, display=display, collision=collision, fixed=True, in_urdf=True)
                     )
                 elif geotype == 'Mesh':
                     raise (NotImplementedError("Mesh collision boundary is not supported"))

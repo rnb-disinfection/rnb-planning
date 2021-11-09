@@ -135,7 +135,7 @@ class BindingTransform:
             actor.Toff_lh = np.identity(4)
             actor_root = None
         else:
-            actor_root = actor.geometry.get_family()[0]
+            actor_root = actor.geometry.name
 
         # @brief BindingChain, (subject name, handle name, actor name, actor's root geometry name)
         self.binding = BindingChain(obj.oname, handle.name, actor.name, actor_root)

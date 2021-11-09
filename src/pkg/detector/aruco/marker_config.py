@@ -18,6 +18,12 @@ def get_aruco_map():
             ObjectMarker('panda1', 23, 0.048, [0.1132,-0.1212,0], (np.pi,0,0)),
             ObjectMarker('panda1', 24, 0.048, [-0.1292,-0.1212,0], (np.pi,0,0))
         ]),
+        'indy1': MarkerSet('indy1', dlevel=DetectionLevel.ROBOT, _list=[
+            ObjectMarker('indy1', 31, 0.048, [-0.0712,0.1212,0], (np.pi,0,0)),
+            ObjectMarker('indy1', 32, 0.048, [0.1212,0.1212,0], (np.pi,0,0)),
+            ObjectMarker('indy1', 33, 0.048, [0.1212,-0.1212,0], (np.pi,0,0)),
+            ObjectMarker('indy1', 34, 0.048, [-0.0712,-0.1212,0], (np.pi,0,0))
+        ]),
         'floor':MarkerSet('floor', dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX, dims=(1.52,0.72,0.01),
                           _list=[
                               ObjectMarker('floor', 101, 0.05, [0.66-0.25-0.1,-0.29+0.17+0.07,0.005], (np.pi,0,0)),
@@ -181,10 +187,15 @@ def get_aruco_map():
                          _list=[
                              ObjectMarker('chair', 225, 0.18, [0,0,0], (0,0,0))
                          ]),
-        'desk':MarkerSet('table',
+        'table':MarkerSet('table',
                          dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX, dims=(0.1, 0.1,0.1), color=(0.8,0.0,0.0,1),
                          _list=[
                              ObjectMarker('table', 226, 0.18, [0,0,0], (0,0,0))
+                         ]),
+        'test_target': MarkerSet('test_target',
+                         dlevel=DetectionLevel.MOVABLE, gtype=GEOTYPE.BOX, dims=(0.1, 0.1,0.01), color=(0.8,0.0,0.0,1),
+                         _list=[
+                             ObjectMarker('test_target', 220, 0.06, [0.0, 0.0, 0.0], (0, 0, 0))
                          ])
     })
     return aruco_map

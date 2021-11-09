@@ -4,7 +4,7 @@ from .ros_rviz import show_motion, get_markers, get_publisher
 from .geotype import GEOTYPE
 from ..utils.rotation_utils import *
 from ..utils.joint_utils import get_tf, get_link_adjacency_map, get_min_distance_map, get_link_control_dict
-from ..utils.utils import list2dict, dict2list
+from ..utils.utils import list2dict, dict2list, TextColors
 from collections import defaultdict
 from copy import deepcopy
 
@@ -37,9 +37,11 @@ class GeometryScene(list):
         self.joint_num = len(self.joint_names)
         self.__set_urdf(urdf_content, urdf_path)
         self.rviz = rviz
+        self.highlight_dict = defaultdict(dict)
+        self.marker_dict = defaultdict(list)
+        self.marker_dict_fixed = defaultdict(list)
+        self.virtuals = []
         if self.rviz:
-            self.marker_list = []
-            self.highlight_dict = defaultdict(dict)
             self.set_rviz()
 
     def __set_urdf(self, urdf_content, urdf_path):
@@ -168,21 +170,27 @@ class GeometryScene(list):
             joint_pose = self.joints.position
         # prepare visualization markers
         self.__clear_markers()
-        self.marker_list = get_markers(self, self.joints, self.joint_names)
+        self.marker_dict_fixed = get_markers([gtem for gtem in self if gtem.fixed_on_world], self.joints, self.joint_names)
+        self.marker_dict = get_markers([gtem for gtem in self if not gtem.fixed_on_world], self.joints, self.joint_names)
         self.show_pose(joint_pose)
 
     ##
     # @brief add new marker (for internal use)
     def __add_marker(self, gtem):
-        self.marker_list += get_markers([gtem], self.joints, self.joint_names)
+        if self.rviz:
+            markers = get_markers([gtem], self.joints, self.joint_names)
+            if gtem.fixed_on_world:
+                self.marker_dict_fixed.update(markers)
+            else:
+                self.marker_dict.update(markers)
 
     ##
     # @brief republish markers with last published position
-    # @remark TODO: make [mk for mk in self.marker_list if mk.geometry == gtem] efficient
     def update_marker(self, gtem):
         if self.rviz:
+            marker_dict = self.marker_dict_fixed if gtem.fixed_on_world else self.marker_dict
             joint_dict = {self.joints.name[i]: self.joints.position[i] for i in range(len(self.joint_names))}
-            marks = [mk for mk in self.marker_list if mk.geometry == gtem]
+            marks = marker_dict[gtem.name]
             if gtem.display and len(marks)==0:
                 self.__add_marker(gtem)
             else:
@@ -195,45 +203,55 @@ class GeometryScene(list):
 
     ##
     # @brief republish all markers with last published position
-    def update_markers_all(self):
+    def update_markers_all(self, include_fixed=True):
         if self.rviz:
             joint_dict = {self.joints.name[i]: self.joints.position[i] for i in range(len(self.joint_names))}
-            for mk in self.marker_list:
-                mk.set_marker(joint_dict, create=False)
+            if include_fixed:
+                for mks in self.marker_dict_fixed.values():
+                    for mk in mks:
+                        mk.set_marker(joint_dict, create=False)
+            for mks in self.marker_dict.values():
+                for mk in mks:
+                    mk.set_marker(joint_dict, create=False)
 
     ##
     # @brief remove marker for specific geometry item
     def __remove_marker(self, gtem, sleep=True):
-        del_list = []
-        for marker in self.marker_list:
-            if marker.geometry == gtem:
-                del_list.append(marker)
-        for marker in del_list:
-            marker.delete(sleep=sleep)
-            self.marker_list.remove(marker)
+        marker_dict = self.marker_dict_fixed if gtem.fixed_on_world else self.marker_dict
+        if gtem.name in marker_dict:
+            for marker in marker_dict[gtem.name]:
+                marker.delete(sleep=sleep)
 
     ##
     # @brief clear all markers
-    def __clear_markers(self):
+    def __clear_markers(self, include_fixed=True):
         for hl_key in self.highlight_dict.keys():
             self.clear_highlight(hl_key)
-        for mk in self.marker_list:
-            mk.delete()
-        self.marker_list = []
+        if include_fixed:
+            for mks in self.marker_dict_fixed.values():
+                for mk in mks:
+                    mk.delete()
+            self.marker_dict_fixed = defaultdict(list)
+        for mks in self.marker_dict:
+            for mk in mks:
+                mk.delete()
+        self.marker_dict = defaultdict(list)
 
     ##
     # @brief show pose
     # @param pose Q in radian numpy array
     def show_pose(self, pose, **kwargs):
-        if isinstance(pose, dict):
-            pose = dict2list(pose, self.joint_names)
-        show_motion([pose], self.marker_list, self.pub, self.joints, self.joint_names, **kwargs)
+        self.show_motion([pose], **kwargs)
 
     ##
     # @brief show motion list
     # @param pose_list list of Q in radian numpy array
     def show_motion(self, pose_list, **kwargs):
-        show_motion(pose_list, self.marker_list, self.pub, self.joints, self.joint_names, **kwargs)
+        if self.rviz:
+            marker_list = []
+            for mks in self.marker_dict.values():
+                marker_list += mks
+            show_motion(pose_list, marker_list, self.pub, self.joints, self.joint_names, **kwargs)
 
     ##
     # @brief clear all highlights
@@ -260,18 +278,37 @@ class GeometryScene(list):
                             collision=False)
 
         self.highlight_dict[hl_key][htem.name] = htem
-        self.__add_marker(htem)
+        if self.rviz:
+            self.__add_marker(htem)
         self.add_highlight_axis(hname, "axis", gtem.link_name, center=gtem.center, orientation_mat=gtem.orientation_mat)
 
     ##
+    # @param points (Nx3)
+    def show_point_cloud(self, points, prefix="cloud", link_name="base_link", sample_to=300, **kwargs):
+        sample_step = int(len(points) / sample_to)
+        if sample_step == 0:
+            sample_step = 1
+        for ip, pt in enumerate(points[::sample_step]):
+            self.add_highlight_axis("hl", prefix + "_{}".format(ip), link_name=link_name, center=pt, axis=None, **kwargs)
+
+    ##
     # @brief add highlight axis
-    def add_highlight_axis(self, hl_key, name, link_name, center, orientation_mat, color=None, axis="xyz", dims=(0.10, 0.01, 0.01)):
+    def add_highlight_axis(self, hl_key, name, link_name="base_link",
+                           center=None, orientation_mat=None, T=None,
+                           color=None, axis="xyz", dims=(0.10, 0.01, 0.01)):
+        assert center is not None or T is not None, "Either center, orientation or T should be given"
+        if center is None:
+            center, orientation_mat = T[:3,3], T[:3,:3]
+        elif orientation_mat is None:
+            orientation_mat = np.identity(3)
+            
         if axis == '' or axis == None:
             ctem = self.create_safe(gtype=GEOTYPE.SPHERE, name="cp_" + name, link_name=link_name,
                                   center=center, dims=(min(dims),)*3, rpy=(0,0,0),
                                   color=(0, 0, 0, 0.5) if color is None else color,
                                   collision=False)
-            self.__add_marker(ctem)
+            if self.rviz:
+                self.__add_marker(ctem)
             self.highlight_dict[hl_key][ctem.name] = ctem
             return
 
@@ -279,7 +316,8 @@ class GeometryScene(list):
             axtemx = self.create_safe(gtype=GEOTYPE.ARROW, name="axx_" + name, link_name=link_name,
                                   center=center, dims=dims, rpy=Rot2rpy(orientation_mat), color=(1, 0, 0, 0.5) if color is None else color,
                                   collision=False)
-            self.__add_marker(axtemx)
+            if self.rviz:
+                self.__add_marker(axtemx)
             self.highlight_dict[hl_key][axtemx.name] = axtemx
 
         if 'y' in axis:
@@ -287,7 +325,8 @@ class GeometryScene(list):
                                   center=center, dims=dims,
                                   rpy=Rot2rpy(np.matmul(orientation_mat, Rot_axis(3, np.pi / 2))), color=(0, 1, 0, 0.5) if color is None else color,
                                   collision=False)
-            self.__add_marker(axtemy)
+            if self.rviz:
+                self.__add_marker(axtemy)
             self.highlight_dict[hl_key][axtemy.name] = axtemy
 
         if 'z' in axis:
@@ -296,7 +335,8 @@ class GeometryScene(list):
                                   rpy=Rot2rpy(np.matmul(orientation_mat, Rot_axis(2, -np.pi / 2))),
                                   color=(0, 0, 1, 0.5) if color is None else color,
                                   collision=False)
-            self.__add_marker(axtemz)
+            if self.rviz:
+                self.__add_marker(axtemz)
             self.highlight_dict[hl_key][axtemz.name] = axtemz
 
     ##
@@ -327,24 +367,44 @@ class GeometryScene(list):
                          ((XMAX + XMIN) / 2, YMAX+thickness/2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
                          color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
 
+    def clear_virtuals(self):
+        for virtual in self.virtuals:
+            try:
+                self.remove(virtual)
+            except:
+                pass
+        self.virtuals = []
+
     ##
     # @brief set workspace boundary
-    def add_virtual_guardrail(self, plane_gtem, HEIGHT=0.05):
+    def add_virtual_guardrail(self, plane_gtem, HEIGHT=0.05, margin=0.01, axis="y"):
         gname = plane_gtem.name
         dims = plane_gtem.dims
         XMIN, XMAX, YMIN, YMAX, ZMIN, ZMAX = -dims[0]/2, dims[0]/2, -dims[1]/2, dims[1]/2, 0, HEIGHT
-        self.create_safe(GEOTYPE.BOX, "{}_front_gr".format(gname), "base_link", (0.01, YMAX - YMIN, ZMAX - ZMIN),
-                         (XMAX, (YMAX + YMIN) / 2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
-                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent=gname)
-        self.create_safe(GEOTYPE.BOX, "{}_back_gr".format(gname), "base_link", (0.01, YMAX - YMIN, ZMAX - ZMIN),
-                         (XMIN, (YMAX + YMIN) / 2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
-                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent=gname)
-        self.create_safe(GEOTYPE.BOX, "{}_left_gr".format(gname), "base_link", (XMAX - XMIN, 0.01, ZMAX - ZMIN),
-                         ((XMAX + XMIN) / 2, YMIN, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
-                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent=gname)
-        self.create_safe(GEOTYPE.BOX, "{}_right_gr".format(gname), "base_link", (XMAX - XMIN, 0.01, ZMAX - ZMIN),
-                         ((XMAX + XMIN) / 2, YMAX, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
-                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent=gname)
+        if "x" in axis.lower():
+            gtem0 = self.create_safe(GEOTYPE.BOX, "{}_front_gr".format(gname), "base_link", (0.01, YMAX - YMIN, ZMAX - ZMIN),
+                             (XMAX + margin, (YMAX + YMIN) / 2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
+                             color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent=gname)
+            gtem1 = self.create_safe(GEOTYPE.BOX, "{}_back_gr".format(gname), "base_link", (0.01, YMAX - YMIN, ZMAX - ZMIN),
+                             (XMIN - margin, (YMAX + YMIN) / 2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
+                             color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent=gname)
+            virtuals = []
+            for virtual in self.virtuals:
+                if virtual.name not in [gtem0.name, gtem1.name]:
+                    virtuals.append(virtual)
+            self.virtuals = virtuals + [gtem0, gtem1]
+        if "y" in axis.lower():
+            gtem0 = self.create_safe(GEOTYPE.BOX, "{}_left_gr".format(gname), "base_link", (XMAX - XMIN, 0.01, ZMAX - ZMIN),
+                             ((XMAX + XMIN) / 2, YMIN - margin, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
+                             color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent=gname)
+            gtem1 = self.create_safe(GEOTYPE.BOX, "{}_right_gr".format(gname), "base_link", (XMAX - XMIN, 0.01, ZMAX - ZMIN),
+                             ((XMAX + XMIN) / 2, YMAX + margin, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
+                             color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent=gname)
+            virtuals = []
+            for virtual in self.virtuals:
+                if virtual.name not in [gtem0.name, gtem1.name]:
+                    virtuals.append(virtual)
+            self.virtuals = virtuals + [gtem0, gtem1]
 
     def highlight_robot(self, color=(1,0,0,0.5)):
         vis_bak = {}
@@ -375,6 +435,24 @@ class GeometryScene(list):
         return get_tf(to_link=to_link, joint_dict=Q_dict,
                       urdf_content=self.urdf_content, from_link=from_link)
 
+    def get_children_links(self, link_name):
+        if link_name in self.urdf_content.child_map:
+            children = map(lambda x: x[1], self.urdf_content.child_map[link_name])
+            for child in children:
+                children += self.get_children_links(child)
+            return sorted(set(children))
+        else:
+            return []
+
+    def get_joint_tf(self, jname, Q_dict, ref_link="base_link"):
+        joint = self.urdf_content.joint_map[jname]
+        Tj = T_xyzrpy((joint.origin.xyz, joint.origin.rpy))
+        T_link = self.get_tf(joint.parent, Q_dict, from_link=ref_link)
+        T_bj = np.matmul(T_link, Tj)
+        zi = np.matmul(T_bj[:3, :3], joint.axis)
+        return T_bj, zi
+
+
 ##
 # @class GeometryItem
 # @brief Instance of geometry item
@@ -393,13 +471,29 @@ class GeometryItem(object):
     # @param fixed flag that the object is fixed to the attached link (transferring is not considered)
     # @param online flag that the object should be detected online
     # @param K_col collision weighting for soft collision boundary of eTaSL
-    # @param uri mesh uri in case of mesh geometry
-    # @param scale scale in case of mesh geometry
+    # @param uri mesh uri in case of mesh geometry using file resource
+    # @param scale scale of the obejct in case of mesh geometry. In case of points, scale[0:2] are points' widths and heights
     # @param parent parent geometry, in case it is a child geometry
+    # @param vertices (Nx3) points of mesh if you put vertices directly
+    # @param triangles (Nx3) indeces of points for triangles
+    # @param colors colors of points or triangles, in case of mesh with them
+    # @param in_urdf for geometries that are already in urdf file - e.g. no need to add to move it scene
     def __init__(self, gscene, gtype, name, link_name, dims, center, rpy=(0,0,0), color=(0,1,0,1), display=True,
                  collision=True, fixed=False, soft=False, online=False, K_col=None, uri="", scale=(1,1,1), create=True,
-                 parent=None):
+                 parent=None, vertices=None, triangles=None, colors=None, in_urdf=False):
         self.uri, self.scale = uri, scale
+        self.vertices=vertices
+        self.triangles=triangles
+        self.colors = colors
+        self.in_urdf = in_urdf
+        if vertices is not None:
+            if not all(np.abs(np.mean([np.max(vertices, axis=0), np.min(vertices, axis=0)], axis=0)) <=1e-6):
+                TextColors.YELLOW.println(
+                    "[WARN] Vertices for mesh should be have center point (0,0,0). Auto adjusting.")
+                vertices = np.copy(vertices)
+                point_ct = np.mean([np.max(vertices, axis=0), np.min(vertices, axis=0)], axis=0)
+                self.vertices = vertices - point_ct
+                center += np.matmul(Rot_rpy(rpy), point_ct)
         self.children = []
         self.parent = parent
         self.name = name
@@ -417,6 +511,7 @@ class GeometryItem(object):
         self.display = display
         self.collision = collision
         self.fixed = fixed
+        self.fixed_on_world = fixed and link_name=="base_link"
         self.soft = soft
         self.online = online
         self.K_col = K_col
@@ -464,6 +559,7 @@ class GeometryItem(object):
     # @param joint_dict joint values in dictionary format {name: radian value}
     # @param from_link name of reference link
     def get_tf(self, joint_dict, from_link='base_link'):
+        joint_dict = joint_dict if isinstance(joint_dict, dict) else list2dict(joint_dict, self.gscene.joint_names)
         T = get_tf(to_link=self.link_name, joint_dict=joint_dict, urdf_content=self.gscene.urdf_content, from_link=from_link)
         T = np.matmul(T, self.Toff)
         return T
@@ -518,7 +614,11 @@ class GeometryItem(object):
     ##
     # @brief get local vertice and maximum radius of the geometry
     def get_vertice_radius(self):
-        return np.multiply(DEFAULT_VERT_DICT[self.gtype], self.dims), (0 if self.gtype == GEOTYPE.CYLINDER else self.radius)
+        if self.gtype == GEOTYPE.MESH:
+            return self.vertices, 0
+        else:
+            return np.multiply(DEFAULT_VERT_DICT[self.gtype], self.dims), \
+                   (0 if self.gtype == GEOTYPE.CYLINDER else self.radius)
     ##
     # @brief get vertice from specific link
     def get_vertice_radius_from(self, joint_dict, from_link='base_link'):
@@ -610,18 +710,25 @@ class GeometryItem(object):
             if jname not in chain:
                 Jac.append(np.zeros(6))
                 continue
-            joint = self.gscene.urdf_content.joint_map[jname]
-            Tj = T_xyzrpy((joint.origin.xyz, joint.origin.rpy))
-            T_link = get_tf(joint.parent, Q_dict, self.gscene.urdf_content, from_link=ref_link)
-            T_bj = np.matmul(T_link, Tj)
-            zi = np.matmul(T_bj[:3, :3], joint.axis)
-            T_p = self.get_tf(Q_dict)
+            T_bj, zi = self.gscene.get_joint_tf(jname, Q_dict, ref_link)
+            T_p = self.get_tf(Q_dict, ref_link)
             dpi = T_p[:3, 3] - T_bj[:3, 3]
             zp = np.cross(zi, dpi)
             Ji = np.concatenate([zp, zi])
             Jac.append(Ji)
         Jac = np.array(Jac).transpose()
         return Jac
+
+    ##
+    # @param dVW twist on base coord = concat(w, v)
+    def get_joint_increment(self, Q0, twist, ref_link="base_link", Jac=None, Tcur=None):
+        if Jac is None:
+            Jac = self.get_jacobian(Q0, ref_link)
+        if Tcur is None:
+            Tcur = self.get_tf(Q0, ref_link)
+        Jinv = np.linalg.pinv(Jac)
+        dQ = np.matmul(Jinv, np.asarray(twist)[[3, 4, 5, 0, 1, 2]])
+        return np.add(Q0, dQ)
 
 def load_gtem_args(gscene, gtem_args):
     gtem_remove = []

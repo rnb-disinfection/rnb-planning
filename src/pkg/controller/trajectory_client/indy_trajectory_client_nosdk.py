@@ -1,6 +1,7 @@
 from .trajectory_client import *
 from .indy_utils.indydcp_client import IndyDCPClient
-from .indy_utils.indy_program_maker import JsonProgramComponent
+from .indy_utils.indy_program_maker import JsonProgramComponent, \
+    POLICY_KEEP_PAUSE, POLICY_RESUME_AFTER, POLICY_STOP_PROGRAM, POLICY_NO_COLLISION_DETECTION
 
 INDY_DOF = 6
 INDY_NAME = "NRMK-Indy7"
@@ -18,7 +19,9 @@ class IndyTrajectoryClientNoSDK(IndyDCPClient, TrajectoryClient):
         IndyDCPClient.__init__(self, *args, server_ip=server_ip, **kwargs_indy)
         TrajectoryClient.__init__(self, server_ip=self.server_ip, **kwargs_otic)
         self.traj_vel = 1
-        self.traj_blend = 5
+        self.traj_blend = 3
+        self.grasp_ref = True
+        self.collision_policy = POLICY_NO_COLLISION_DETECTION
         with self:
             self.set_collision_level(5)
             self.set_joint_vel_level(5)
@@ -27,7 +30,10 @@ class IndyTrajectoryClientNoSDK(IndyDCPClient, TrajectoryClient):
             self.set_task_blend_radius(0.1)
 
     def get_qcount(self):
-        raise(RuntimeError("get_qcount is not supported without indy sdk"))
+        # raise(RuntimeError("get_qcount is not supported without indy sdk"))
+        with self:
+            # print("indy qcount: {}".format(not self.get_robot_status()['movedone']))
+            return not self.get_robot_status()['movedone']
 
     def get_qcur(self):
         with self:
@@ -39,11 +45,6 @@ class IndyTrajectoryClientNoSDK(IndyDCPClient, TrajectoryClient):
 
     def terminate_loop(self):
         raise(RuntimeError("terminate_loop is not supported without indy sdk"))
-
-    ##
-    # @brief Wait until the queue on the server is empty. This also means the trajectory motion is finished.
-    def wait_queue_empty(self):
-        raise(RuntimeError("wait_queue_empty is not supported without indy sdk"))
 
     ##
     # @brief    Send target pose to the server and store the queue count.
@@ -113,7 +114,7 @@ class IndyTrajectoryClientNoSDK(IndyDCPClient, TrajectoryClient):
 
         # Joint Move
         with self:
-            prog = JsonProgramComponent(policy=0, resume_time=2)
+            prog = JsonProgramComponent(policy=self.collision_policy, resume_time=2)
             for Q in traj_wps:
                 prog.add_joint_move_to(np.rad2deg(Q).tolist(), vel=self.traj_vel, blend=self.traj_blend)
 
@@ -140,6 +141,7 @@ class IndyTrajectoryClientNoSDK(IndyDCPClient, TrajectoryClient):
     def grasp(self, grasp):
         with self:
             gstate = self.get_endtool_do(0)
+            grasp = self.grasp_ref if grasp else not self.grasp_ref
             if gstate != grasp:
                 self.set_endtool_do(0, grasp)
                 time.sleep(0.5)

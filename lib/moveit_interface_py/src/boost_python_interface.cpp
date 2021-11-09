@@ -25,6 +25,7 @@ BOOST_PYTHON_MODULE(moveit_interface_py){
             .value("SPHERE", ObjectType::SPHERE)
             .value("CYLINDER", ObjectType::CYLINDER)
             .value("PLANE", ObjectType::PLANE)
+            .value("MESH", ObjectType::MESH)
             .export_values()
             ;
 
@@ -102,6 +103,18 @@ BOOST_PYTHON_MODULE(moveit_interface_py){
             .def("__len__", &JointState::size)
             ;
 
+    class_<Vec3List>("Vec3List", init<>())
+            .def("__len__", &Vec3List::size)
+            .def("clear", &Vec3List::clear)
+            .def("append", &std_item<Vec3List>::add,
+                 with_custodian_and_ward<1,2>()) // to let container keep value
+            .def("__getitem__", &std_item<Vec3List>::get,
+                 return_value_policy<copy_non_const_reference>())
+            .def("__setitem__", &std_item<Vec3List>::set,
+                 with_custodian_and_ward<1,2>()) // to let container keep value
+            .def("__delitem__", &std_item<Vec3List>::del)
+            ;
+
     class_<Trajectory>("Trajectory", init<>())
             .def("__len__", &Trajectory::size)
             .def("clear", &Trajectory::clear)
@@ -136,6 +149,7 @@ BOOST_PYTHON_MODULE(moveit_interface_py){
             .def("add_union_manifold", &Planner::add_union_manifold)
             .def("clear_manifolds", &Planner::clear_manifolds)
             .def("add_object", &Planner::add_object)
+            .def("add_mesh", &Planner::add_mesh)
             .def("process_object", &Planner::process_object)
             .def("clear_all_objects", &Planner::clear_all_objects)
             .def("terminate", &Planner::terminate)

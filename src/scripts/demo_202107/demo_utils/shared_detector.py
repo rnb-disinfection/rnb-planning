@@ -2,10 +2,18 @@ import SharedArray as sa
 import numpy as np
 import cv2
 import time
-from mmdet.apis import init_detector, inference_detector
 import os
-os.chdir(os.path.join(os.environ["RNB_PLANNING_DIR"], 'src'))
+import sys
+import subprocess
 RNB_PLANNING_DIR = os.environ["RNB_PLANNING_DIR"]
+sys.path.append(os.path.join(os.path.join(RNB_PLANNING_DIR, 'src')))
+sys.path.append(os.path.join(RNB_PLANNING_DIR, 'src/scripts/milestone_202110'))
+if sys.version.startswith("3"):
+    from pkg.utils.utils_python3 import *
+elif sys.version.startswith("2"):
+    from pkg.utils.utils import *
+
+from pkg.utils.shared_function import shared_fun, CallType, ArgSpec, ResSpec, set_serving, is_serving, serve_forever, SHARED_FUNC_ALL
 
 IMG_URI = "shm://color_img"
 MASK_URI = "shm://mask_img"
@@ -13,6 +21,8 @@ REQ_URI = "shm://request"
 RESP_URI = "shm://response"
 
 IMG_DIM = (720, 1280, 3)
+
+FILE_PATH = os.path.join(RNB_PLANNING_DIR, 'src/scripts/demo_202107/demo_utils/shared_detector.py')
 
 
 class SharedDetector:
@@ -28,41 +38,33 @@ class SharedDetector:
         device = 'cuda:0'
 
         # Initiate model(object detector)
-        self.model = init_detector(config_file, checkpoint_file, device=device)
+        if __name__ == "__main__":
+            try:
+                self.model = init_detector(config_file, checkpoint_file, device=device)
+            except Exception as e:
+                TextColors.RED.println("[ERROR] Could not initialize detector")
+                print(e)
 
-    def serve_forever(self):
-        self.request[:] = 0
-        self.resp[:] = 0
-        print("===== Ready Inference Server =====")
-        while True:
-            while not self.request[:]:
-                time.sleep(0.01)
-            self.request[:] = 0
-            self.resp[:] = 0
-            # Inference object detection & segmentation
-            result = inference_detector(self.model, self.color_img)
-            boxes, masks = result[0], result[1]
-            # Index 60 means dining table
-            mask_res = masks[60][0]
-            self.return_img[:] = mask_res
-            self.resp[:] = 1
 
-    def __enter__(self):
-        self.color_img = sa.create(IMG_URI, IMG_DIM, dtype=np.uint8)
-        self.return_img = sa.create(MASK_URI, IMG_DIM[:2], dtype=np.uint8)
-        self.request = sa.create(REQ_URI, (1,), dtype=np.uint8)
-        self.resp = sa.create(RESP_URI, (1,), dtype=np.uint8)
-        self.request[:] = 0
-        self.resp[:] = 0
-
-    def __exit__(self, type, value, traceback):
-        sa.delete(IMG_URI)
-        sa.delete(MASK_URI)
-        sa.delete(REQ_URI)
-        sa.delete(RESP_URI)
-
+    @shared_fun(CallType.SYNC, "SharedDetector",
+                ArgSpec("color_img", IMG_DIM, np.uint8),
+                ResSpec(0, IMG_DIM[:2], float))
+    def inference(self, color_img):
+        # Inference object detection & segmentation
+        result = inference_detector(self.model, color_img)
+        boxes, masks = result[0], result[1]
+        # Index 60 means dining table
+        mask_res = masks[60][0]
+        return mask_res
 
 if __name__ == "__main__":
+    try:
+        from mmdet.apis import init_detector, inference_detector
+    except Exception as e:
+        print(TextColors.RED.println("[ERROR] Could not import mmdat"))
+        print(e)
     sdet = SharedDetector()
-    with sdet:
-        sdet.serve_forever()
+    set_serving(True)
+    serve_forever("SharedDetector", [sdet.inference], verbose=True)
+else:
+    output = subprocess.Popen(['python3', FILE_PATH], cwd=os.path.dirname(FILE_PATH))

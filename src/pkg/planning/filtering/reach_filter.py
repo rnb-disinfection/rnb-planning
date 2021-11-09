@@ -406,7 +406,7 @@ class ReachTrainer:
             if i_s % 100 == 0 :
                 t_cur = gtimer.toc("full_loop")
                 print("{} / {} ({} / {} s): current success ratio = {}".format(
-                    i_s, N_s, int(t_cur/1000), int(float(N_s)/float(i_s+1e-3)*t_cur/1000), np.mean(success_list)))
+                    i_s, N_s, int(t_cur/gtimer.scale), int(float(N_s)/float(i_s+1e-3)*t_cur/gtimer.scale), np.mean(success_list)))
 
         return samplevec_list, success_list
 
@@ -460,7 +460,7 @@ class ReachTrainer:
             if i_s % 100 == 0 :
                 t_cur = gtimer.toc("full_loop")
                 print("{} / {} ({} / {} s): current success ratio = {}".format(
-                    i_s, N_s, int(t_cur/1000), int(float(N_s)/float(i_s+1e-3)*t_cur/1000), np.mean(success_list)))
+                    i_s, N_s, int(t_cur/gtimer.scale), int(float(N_s)/float(i_s+1e-3)*t_cur/gtimer.scale), np.mean(success_list)))
         self.save_data(data_div, featurevec_list, success_list)
 
     def load_and_visualize(self, robot_type, tip_link, data_div, timeout=1):
@@ -520,7 +520,7 @@ class ReachTrainer:
             if i_s % 100 == 0 :
                 t_cur = gtimer.toc("full_loop")
                 print("{} / {} ({} / {} s): current success ratio = {}".format(
-                    i_s, N_s, int(t_cur/1000), int(float(N_s)/float(i_s+1e-3)*t_cur/1000), np.mean(success_list)))
+                    i_s, N_s, int(t_cur/gtimer.scale), int(float(N_s)/float(i_s+1e-3)*t_cur/gtimer.scale), np.mean(success_list)))
 
     def save_data(self, div, featurevec_list, success_list):
         robot_path = os.path.join(self.data_path, self.robot_type.name)

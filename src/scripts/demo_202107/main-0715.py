@@ -10,13 +10,8 @@ import sys
 os.chdir(os.path.join(os.environ["RNB_PLANNING_DIR"], 'src'))
 sys.path.append(os.path.join(os.environ["RNB_PLANNING_DIR"], 'src/scripts/demo_202107'))
 
-from pkg.global_config import RNB_PLANNING_DIR
-from demo_utils.kiro_udp_send import start_mobile_udp_thread, send_pose_wait, get_xyzw_cur, get_reach_state
-from pkg.utils.utils import *    
-from pkg.utils.rotation_utils import *
 from pkg.controller.combined_robot import *
 from pkg.project_config import *
-from demo_utils.streaming import *
 from demo_utils.detect_table import *
 from demo_utils.area_select import *
 
@@ -100,8 +95,9 @@ ui_broker.start_server()
 ui_broker.set_tables()
 
 # Register binders
-from pkg.planning.constraint.constraint_actor import Gripper2Tool, PlacePlane, SweepFramer, FixtureSlot
-brush_face = pscene.create_binder(bname="brush_face", gname="brush_face", _type=SweepFramer, point=(-gscene.NAME_DICT['brush_face'].dims[0]/2,0,0), 
+from pkg.planning.constraint.constraint_actor import SweepFramer
+
+brush_face = pscene.create_binder(bname="brush_face", gname="brush_face", _type=SweepFramer, point=(-gscene.NAME_DICT['brush_face'].dims[0]/2,0,0),
                      rpy=(0,np.pi/2*1,0))
 
 # Set planner
@@ -113,11 +109,6 @@ tplan = TaskRRT(pscene)
 tplan.prepare()
 ppline.set_motion_planner(mplan)
 ppline.set_task_planner(tplan)
-
-from pkg.planning.filtering.grasp_filter import GraspChecker
-from pkg.planning.filtering.reach_filter import ReachChecker
-from pkg.planning.filtering.latticized_filter import LatticedChecker
-from pkg.planning.filtering.task_clearance_filter import TaskClearanceChecker
 
 # gcheck = GraspChecker(pscene)
 # rcheck = ReachChecker(pscene)
@@ -408,8 +399,6 @@ for i_cn in range(4):
 
     # In[ ]:
 
-
-    from pkg.planning.constraint.constraint_common             import sample_redundancy, combine_redundancy
     gtimer = GlobalTimer.instance()
     # initial_state = pscene.initialize_state(crob.home_pose)
     initial_state = pscene.initialize_state(VIEW_POSE)
@@ -424,7 +413,8 @@ for i_cn in range(4):
     # In[ ]:
 
 
-    from pkg.utils.traj_utils import simplify_schedule, mix_schedule
+    from pkg.utils.traj_utils import simplify_schedule
+
     mplan.reset_log(False)
     gtimer.reset()
     tplan.prepare()

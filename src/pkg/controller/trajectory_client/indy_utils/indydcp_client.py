@@ -17,6 +17,7 @@ import sys
 import os.path
 import numpy as np
 import json
+import time
 
 from ctypes import *
 from threading import Lock
@@ -1575,14 +1576,17 @@ class IndyDCPClient(object):
 
     def wait_for_program_finish(self):
         while self.get_program_state()['running']:
+            time.sleep(0.2)
             pass
         print('Program Finished: ', GLOBAL_DICT['stop'])
         return GLOBAL_DICT['stop']
 
     def wait_for_move_finish(self):
         while self.get_robot_status()['busy']:
+            time.sleep(0.2)
             pass
         while not self.get_robot_status()['movedone']:
+            time.sleep(0.2)
             pass
         print("Move finished!")
         return True

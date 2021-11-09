@@ -1,6 +1,6 @@
 import time
 from .scene import State
-from ..utils.utils import SingleValue, list2dict, differentiate, GlobalTimer
+from ..utils.utils import SingleValue, DummyBlock, list2dict, differentiate, GlobalTimer, TextColors
 from ..utils.joint_utils import apply_vel_acc_lims
 from ..controller.trajectory_client.trajectory_client import DEFAULT_TRAJ_FREQUENCY, MultiTracker
 from .task.interface import SearchNode
@@ -75,6 +75,7 @@ class PlanningPipeline:
     # @param multiprocess boolean flag for multiprocess search
     # @param N_redundant_sample number of redundancy sampling
     # @param terminate_on_first boolean flag for terminate on first answer
+    # @param max_solution_count number of maximum solution count
     # @param N_search maximum number of search for each thread
     # @param timeout_loop search timeout default = 600 sec
     # @param N_agents number of multiprocess agents, Default = cpu_count
@@ -83,12 +84,24 @@ class PlanningPipeline:
     # @param dt_vis display period
     # @param verbose boolean flag for printing intermediate process
     def search(self, initial_state, goal_nodes, multiprocess=False,
-                     terminate_on_first=True, N_search=None, N_agents=None, wait_proc=True,
-                     display=False, dt_vis=0.01, verbose=False, timeout_loop=600, looptime_extra=1, **kwargs):
+               max_solution_count=100, N_search=None, N_agents=None, wait_proc=True,
+               display=False, dt_vis=0.01, verbose=False, timeout_loop=600, looptime_extra=None,
+               terminate_on_first=False, timeout=1, **kwargs):
+        self.gtimer.tic("search_loop")
+        if looptime_extra is None:
+            looptime_extra = timeout
+
+        if terminate_on_first:
+            TextColors.RED.println("==========================================================")
+            TextColors.RED.println("terminate_on_first is deprecated. Use max_solution_count=1")
+            TextColors.RED.println("==========================================================")
+            max_solution_count = 1
+
         ## @brief runber of redundancy sampling
         self.t0 = time.time()
         self.DOF = len(initial_state.Q)
         self.initial_state = initial_state
+        self.max_solution_count = max_solution_count
         with self.gtimer.block("initialize_memory"):
             if multiprocess:
                 if display:
@@ -99,6 +112,7 @@ class PlanningPipeline:
                 self.N_agents = N_agents
                 print("Use {}/{} agents".format(N_agents, cpu_count()))
                 self.search_counter = self.manager.Value('i', 0)
+                self.solution_count = self.manager.Value('i', 0)
                 self.stop_now = self.manager.Value('i', 0)
                 self.tplan.initialize_memory(self.manager)
                 if self.mplan.flag_log:
@@ -108,6 +122,7 @@ class PlanningPipeline:
             else:
                 self.N_agents = 1
                 self.search_counter = SingleValue('i', 0)
+                self.solution_count = SingleValue('i', 0)
                 self.stop_now =  SingleValue('i', 0)
                 self.tplan.initialize_memory(None)
                 for mfilter in self.mplan.motion_filters:
@@ -118,9 +133,10 @@ class PlanningPipeline:
 
         if multiprocess:
             with self.gtimer.block("start_process"):
+                kwargs.update({"timeout": timeout})
                 self.proc_list = [Process(
                     target=self.__search_loop,
-                    args=(id_agent, terminate_on_first, N_search, False, dt_vis, verbose, timeout_loop),
+                    args=(id_agent, N_search, False, dt_vis, verbose, timeout_loop),
                     kwargs=kwargs) for id_agent in range(N_agents)]
                 for proc in self.proc_list:
                     proc.daemon = True
@@ -130,55 +146,65 @@ class PlanningPipeline:
                 self.wait_procs(timeout_loop, looptime_extra)
         else:
             self.proc_list = []
-            self.__search_loop(0, terminate_on_first, N_search, display, dt_vis, verbose, timeout_loop, **kwargs)
+            self.__search_loop(0, N_search, display, dt_vis, verbose, timeout_loop, timeout=timeout, **kwargs)
+        elapsed = self.gtimer.toc("search_loop")
+        print(
+            "========================== FINISHED ({} / {} s) ==============================]".format(
+                round(elapsed/1e3, 1), round(timeout_loop, 1)
+            ))
 
     def wait_procs(self, timeout_loop, looptime_extra):
         self.non_joineds = []
         self.gtimer.tic("wait_procs")
         elapsed = 0
-        while (not self.stop_now.value) and (elapsed<timeout_loop):
-            time.sleep(0.5)
-            elapsed = self.gtimer.toc("wait_procs") / 1000
+        while (self.stop_now.value < self.N_agents) and (elapsed<timeout_loop):
+            time.sleep(0.1)
+            elapsed = self.gtimer.toc("wait_procs") / self.gtimer.scale
 
         self.gtimer.tic("wait_procs_extra")
         all_stopped = False
         while not all_stopped:
             all_stopped = True
-            for proc in self.proc_list:
-                elapsed = self.gtimer.toc("wait_procs_extra") / 1000
+            for i_p, proc in enumerate(self.proc_list):
+                elapsed = self.gtimer.toc("wait_procs_extra") / self.gtimer.scale
                 proc_alive = proc.is_alive()
                 all_stopped = all_stopped and not proc_alive
                 if proc_alive:
                     if elapsed > looptime_extra:
                         proc.terminate()
-                        time.sleep(0.5)
+                        time.sleep(0.1)
                         if not proc.is_alive():
-                            self.non_joineds.append(proc)
+                            self.non_joineds.append(i_p)
                         continue
-                    proc.join(timeout=0.5)
+                    proc.join(timeout=0.1)
+        if len(self.non_joineds) > 0:
+            TextColors.RED.println("[ERROR] Non-joined subprocesses: {}".format(self.non_joineds))
 
-    def __search_loop(self, ID, terminate_on_first, N_search,
+    def __search_loop(self, ID, N_search,
                       display=False, dt_vis=None, verbose=False, timeout_loop=600,
                       add_homing=True, post_optimize=False, home_pose=None,  **kwargs):
         loop_counter = 0
         sample_fail_counter = 0
-        sample_fail_max = 10
+        sample_fail_max = 5
         no_queue_stop = False
         ret = False
-        while (N_search is None or self.tplan.snode_counter.value < N_search) and (time.time() - self.t0) < timeout_loop and not self.stop_now.value:
+        while (N_search is None or self.tplan.snode_counter.value < N_search) \
+                and (time.time() - self.t0) < timeout_loop \
+                and (self.stop_now.value < self.N_agents):
             loop_counter += 1
             snode, from_state, to_state, sample_fail = self.tplan.sample()
-            with self.counter_lock:
-                if not sample_fail:
-                    sample_fail_counter = 0
+            if not sample_fail:
+                sample_fail_counter = 0
+                with self.counter_lock:
                     self.search_counter.value = self.search_counter.value + 1
+            else:
+                time.sleep(0.1)
+                sample_fail_counter += 1
+                if sample_fail_counter > sample_fail_max:
+                    no_queue_stop = True
+                    break
                 else:
-                    sample_fail_counter += 1
-                    if sample_fail_counter > sample_fail_max:
-                        no_queue_stop = True
-                        break
-                    else:
-                        continue
+                    continue
             if verbose:
                 print('try: {} - {}->{}'.format(snode.idx, from_state.node, to_state.node))
             self.gtimer.tic("test_connection")
@@ -198,19 +224,23 @@ class PlanningPipeline:
                         len(traj), simtime,
                         error))
                     print('=' * 150)
-            if terminate_on_first and ret:
-                break
+            if ret:
+                sol_count = self.solution_count.value + 1
+                self.solution_count.value = sol_count
+                if sol_count > self.max_solution_count:
+                    break
 
         if no_queue_stop:
-            term_reason = "node queue empty"
+            self.stop_now.value = self.stop_now.value + 1
+            term_reason = "node queue empty {}th".format(self.stop_now.value)
         elif N_search is not None and self.tplan.snode_counter.value >= N_search:
             term_reason = "max search node count reached ({}/{})".format(self.tplan.snode_counter.value, N_search)
-            self.stop_now.value = 1
+            self.stop_now.value = self.N_agents
         elif (time.time() - self.t0) >= timeout_loop:
-            term_reason = "max iteration time reached ({}/{} s)".format(int(time.time()), self.t0)
-            self.stop_now.value = 1
+            term_reason = "max iteration time reached ({}/{} s)".format(round(time.time()-self.t0, 1), round(timeout_loop, 1))
+            self.stop_now.value = self.N_agents
         elif ret:
-            term_reason = "first answer acquired"
+            term_reason = "required answers acquired"
             if add_homing:
                 print("++ adding return motion to acquired answer ++")
                 home_state = self.tplan.snode_dict[0].copy(self.pscene)
@@ -222,13 +252,14 @@ class PlanningPipeline:
             if post_optimize:
                 print("++ post-optimizing acquired answer ++")
                 self.post_optimize_schedule(snode_new)
-            self.stop_now.value = 1
-        elif self.stop_now.value:
-            term_reason = "first answer acquired from other agent"
+            self.stop_now.value = self.N_agents
+        elif self.stop_now.value >= self.N_agents:
+            term_reason = "Stop called from other agent"
         else:
             term_reason = "Unknown issue"
         print("=========================================================================================================")
-        print("======================= terminated {}: {} ===============================".format(ID, term_reason))
+        print("======================= terminated {}: {}  ({}/{}) ===============================".format(
+            ID, term_reason, round(time.time()-self.t0, 1), round(timeout_loop, 1)))
         print("=========================================================================================================")
 
     ##
@@ -335,7 +366,7 @@ class PlanningPipeline:
 
     ##
     # @brief add return motion to a SearchNode schedule
-    def add_return_motion(self, snode_last, initial_state=None, timeout=5, try_count=5):
+    def add_return_motion(self, snode_last, initial_state=None, timeout=1, try_count=3):
         if initial_state is None:
             initial_state = self.initial_state
         state_last = snode_last.state
@@ -371,7 +402,10 @@ class PlanningPipeline:
     ##
     # @brief    optimize a SearchNode schedule
     # @remark   MoveitPlanner should be set as the motion planner by set_motion_planner
-    def post_optimize_schedule(self, snode_last, timeout=5, **kwargs):
+    # @param    post_opt    set this value True to use post optimizer in OMPL (default), you need to install optimizer plugins
+    # @param    plannerconfig   set this keyword value to a optimal algorithm in PlannerConfig and set post_opt False to use optimal planning
+    # @param    reverse     set this value True to apply planning in reverse direction
+    def post_optimize_schedule(self, snode_last, timeout=5, post_opt=True, reverse=False, **kwargs):
         snode_pre = None
         state_pre = None
         snode_schedule = self.tplan.idxSchedule2SnodeScedule(snode_last.parents + [snode_last.idx])
@@ -379,26 +413,29 @@ class PlanningPipeline:
             if snode.traj is not None:
                 state_new = state_pre.copy(self.pscene)
                 state_new.Q = snode.traj[-1]
-                diffs = [sname for sname in self.pscene.subject_name_list
-                         if (state_pre.binding_state[sname].get_chain()
-                             != snode.state.binding_state[sname].get_chain())
-                         ]
-                post_opt = True
-                for obj_name in diffs:
-                    btf_from = state_pre.binding_state[obj_name]
-                    btf_to = snode.state.binding_state[obj_name]
-                    constraints = self.pscene.subject_dict[obj_name].make_constraints(btf_from.get_chain(),
-                                                                                      btf_to.get_chain())
-                    post_opt = post_opt and len(constraints) == 0  # no optimization for constrained motion
+                # no optimization for constrained motion
+                post_opt = self.pscene.is_constrained_transition(state_pre, snode.state, check_available=False)
 
                 if post_opt:
-                    Traj, LastQ, error, success, binding_list = self.mplan.plan_transition(state_pre, state_new,
-                                                                                           timeout=timeout,
-                                                                                           post_opt=True,
-                                                                                           **kwargs)
+                    print("Optimize {} - > {}:".format(snode_pre.state.node, snode.state.node))
+                    if reverse:
+                        Traj, LastQ, error, success, binding_list = self.mplan.plan_transition(state_new, state_pre,
+                                                                                               timeout=timeout,
+                                                                                               post_opt=post_opt,
+                                                                                               **kwargs)
+                        Traj = np.array(list(reversed(Traj)))
+                    else:
+                        Traj, LastQ, error, success, binding_list = self.mplan.plan_transition(state_pre, state_new,
+                                                                                               timeout=timeout,
+                                                                                               post_opt=post_opt,
+                                                                                               **kwargs)
                     if success:
+                        print("Success")
                         snode.set_traj(Traj, snode_pre.traj_tot)
                         snode.state.Q = Traj[-1]
+                        self.tplan.snode_dict[snode.idx] = snode
+                    else:
+                        print("Failure")
             snode_pre = snode
             state_pre = snode.state
 
@@ -450,9 +487,11 @@ class PlanningPipeline:
     # @brief execute schedule
     # @param mode_switcher ModeSwitcher class instance
     def execute_schedule(self, snode_schedule, auto_stop=True, mode_switcher=None, one_by_one=False, multiproc=False,
-                         error_stop_deg=10):
+                         error_stop_deg=10, auto_sync_robot_pose=False):
         self.execute_res = False
         snode_pre = snode_schedule[0]
+        if auto_sync_robot_pose:
+            self.pscene.combined_robot.joint_move_make_sure(snode_schedule[0].state.Q)
         for snode in snode_schedule:
             if snode.traj is None or len(snode.traj) == 0:
                 snode_pre = snode
@@ -470,13 +509,17 @@ class PlanningPipeline:
                 t_exe.join()
             else:
                 self.pscene.combined_robot.move_joint_traj(snode.traj, auto_stop=False, one_by_one=one_by_one)
-
-            if not self.pscene.combined_robot.wait_queue_empty(trajectory=[snode.traj[-1]], error_stop=error_stop_deg):
-                self.pscene.combined_robot.stop_tracking()
-                self.execute_res = False
-                print("=================== ERROR ===================")
-                print("====== Robot configuration not in sync ======")
-                return False
+                if len(self.pscene.combined_robot.get_robots_in_act(snode.traj)) == 0:
+                    print("No motion for connected robot - playing motion in RVIZ")
+                    self.pscene.gscene.show_motion(snode.traj)
+            if not one_by_one:
+                if not self.pscene.combined_robot.wait_queue_empty(
+                        trajectory=[snode.traj[0], snode.traj[-1]], error_stop=error_stop_deg):
+                    self.pscene.combined_robot.stop_tracking()
+                    self.execute_res = False
+                    print("=================== ERROR ===================")
+                    print("====== Robot configuration not in sync ======")
+                    return False
 
             if mode_switcher is not None:
                 mode_switcher.switch_out(switch_state, snode)
@@ -583,3 +626,107 @@ class PlanningPipeline:
             self.pscene.set_object_state(snode.state)
             if not on_rviz:
                 self.execute_grip(state_0)
+
+    def get_updated_schedule(self, snode_schedule, Q0, stype_overwrite_on_conflict=None, **kwargs):
+        snode_schedule_new = []
+        for snode in snode_schedule:
+            snode_schedule_new.append(snode.copy(self.pscene))
+        snode_schedule_new[0].state.Q = Q0
+
+        for snode_pre, snode_nxt in zip(snode_schedule_new[:-1], snode_schedule_new[1:]):
+            rnames = map(lambda x: x[0], self.pscene.combined_robot.get_robots_in_act(snode_nxt.traj))
+            rnames_new = map(lambda x: x[0], self.pscene.combined_robot.get_robots_in_act(
+                [snode_pre.state.Q, snode_nxt.state.Q]))
+            rnames_diff = list(set(rnames_new) - set(rnames))
+            if len(rnames_diff) == 0:
+                break
+            elif len(rnames_diff) > 1:
+                raise (RuntimeError("Too much difference"))
+            else:
+                rname = rnames_diff[0]
+                idx_fix = self.pscene.combined_robot.idx_dict[rname]
+
+                print("Try Update {} -> {}".format(rname, snode_pre.state.node, snode_nxt.state.node))
+                print("{}: {} -> {}".format(rname,
+                                            np.round(snode_pre.state.Q[idx_fix], 3),
+                                            np.round(snode_nxt.state.Q[idx_fix], 3)))
+
+                snode_nxt.state.Q[idx_fix] = snode_pre.state.Q[idx_fix]
+
+                if np.sum([n0 != n1
+                           for n0, n1
+                           in zip(snode_pre.state.node, snode_nxt.state.node)]
+                          ) > 1:
+                    wtask_name = [sname
+                                  for sname, stype
+                                  in zip(pscene.subject_name_list,
+                                         pscene.subject_type_list)
+                                  if stype == stype_overwrite_on_conflict][0]
+
+                    snode_pre.state.binding_state[wtask_name] = \
+                        snode_nxt.state.binding_state[wtask_name]
+                    snode_pre.state.set_binding_state(snode_pre.state.binding_state, pscene)
+
+                traj, state_next, error, succ = \
+                    self.test_connection(from_state=snode_pre.state,
+                                         to_state=snode_nxt.state, **kwargs)
+                if succ:
+                    snode_nxt.set_traj(traj)
+                    snode_nxt.state = state_next
+                    print("Update success: {} -> {}".format(snode_pre.state.node, snode_nxt.state.node))
+                else:
+                    TextColors.RED.println(("Update fail: {} -> {}".format(snode_pre.state.node, snode_nxt.state.node)))
+                    raise (RuntimeError("Update fail: {} -> {}".format(snode_pre.state.node, snode_nxt.state.node)))
+        return snode_schedule_new
+
+    def replan_schedule(self, snode_schedule, Q0, stype_overwrite_on_conflict=None, **kwargs):
+        snode_schedule_new = []
+        for snode in snode_schedule:
+            snode_schedule_new.append(snode.copy(self.pscene))
+        snode_schedule_new[0].state.Q = Q0
+
+        for snode_pre, snode_nxt in zip(snode_schedule_new[:-1], snode_schedule_new[1:]):
+            rnames = map(lambda x: x[0], self.pscene.combined_robot.get_robots_in_act(snode_nxt.traj))
+            rnames_new = map(lambda x: x[0], self.pscene.combined_robot.get_robots_in_act(
+                [snode_pre.state.Q, snode_nxt.state.Q]))
+            rnames_diff = list(set(rnames_new) - set(rnames))
+            if len(rnames_diff) == 0:
+                break
+            elif len(rnames_diff) > 1:
+                raise (RuntimeError("Too much difference"))
+            else:
+                rname = rnames_diff[0]
+                idx_fix = self.pscene.combined_robot.idx_dict[rname]
+
+                print("Try Update {} -> {}".format(rname, snode_pre.state.node, snode_nxt.state.node))
+                print("{}: {} -> {}".format(rname,
+                                            np.round(snode_pre.state.Q[idx_fix], 3),
+                                            np.round(snode_nxt.state.Q[idx_fix], 3)))
+
+                snode_nxt.state.Q[idx_fix] = snode_pre.state.Q[idx_fix]
+
+                if np.sum([n0 != n1
+                           for n0, n1
+                           in zip(snode_pre.state.node, snode_nxt.state.node)]
+                          ) > 1:
+                    wtask_name = [sname
+                                  for sname, stype
+                                  in zip(pscene.subject_name_list,
+                                         pscene.subject_type_list)
+                                  if stype == stype_overwrite_on_conflict][0]
+
+                    snode_pre.state.binding_state[wtask_name] = \
+                        snode_nxt.state.binding_state[wtask_name]
+                    snode_pre.state.set_binding_state(snode_pre.state.binding_state, pscene)
+
+                traj, state_next, error, succ = \
+                    self.test_connection(from_state=snode_pre.state,
+                                         to_state=snode_nxt.state, **kwargs)
+                if succ:
+                    snode_nxt.set_traj(traj)
+                    snode_nxt.state = state_next
+                    print("Update success: {} -> {}".format(snode_pre.state.node, snode_nxt.state.node))
+                else:
+                    TextColors.RED.println(("Update fail: {} -> {}".format(snode_pre.state.node, snode_nxt.state.node)))
+                    raise (RuntimeError("Update fail: {} -> {}".format(snode_pre.state.node, snode_nxt.state.node)))
+        return snode_schedule_new

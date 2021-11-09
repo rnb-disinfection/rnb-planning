@@ -175,6 +175,13 @@ namespace RNB {
             bool add_object(string name, const ObjectType type,
                             CartPose pose, Vec3 dims,
                             string link_name, NameList touch_links, bool attach);
+            /**
+             * @brief simply add object
+             * @author Junsu Kang
+             */
+            bool add_mesh(string name, const ObjectType type,
+                          CartPose pose, Vec3List vertices, Vec3List triangles,
+                          string link_name, NameList touch_links, bool attach);
 
             /**
              * @brief clear all objects in the scene

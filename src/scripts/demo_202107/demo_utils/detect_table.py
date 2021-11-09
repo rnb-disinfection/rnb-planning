@@ -190,7 +190,7 @@ def draw_registration_result_original_color(source, target, transformation):
     FOR_model.translate(source_temp.get_center() - FOR_model.get_center())
 
     FOR_target = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.15, origin=target.get_center())
-    o3d.visualization.draw_geometries([source_temp, target, FOR_origin])
+    o3d.visualization.draw_geometries([source_temp, target, FOR_origin, FOR_model, FOR_target])
 
 
 def compute_ICP(model_mesh, pcd, model_center_offset):
@@ -309,7 +309,7 @@ def left_corner(x_bo, y_bo):
 
     # if (np.linalg.norm(edge_left - p) < 0.05):
     if (edge_left[0] < p2[0]):
-        # actually, it is case 2
+        # actuaally, it is case 2
         case = 2
         num1 = abs(p1[1] - edge_left[1])
         den1 = abs(p1[0] - edge_left[0])
@@ -329,10 +329,10 @@ def left_corner(x_bo, y_bo):
     # orientation of table
     if (case == 1):
         print("Detect table case 1")
-        T_bo[:3, :3] = Rot_axis(3, deg2rad(-theta))
+        T_bo[:3, :3] = Rot_axis(3, -theta)
     elif (case == 2):
         print("Detect table case 2")
-        T_bo[:3, :3] = Rot_axis(3, deg2rad(theta))
+        T_bo[:3, :3] = Rot_axis(3, theta)
     T_bo[:3, 3] = (edge_left.T + np.divide(TABLE_DIMS[[0, 1, 2]] * OFF_DIR, 2).T)
     return T_bo
 
@@ -384,15 +384,16 @@ def right_corner(x_bo, y_bo):
     # print(abs(np.subtract(edge_right, p2)[1] / np.subtract(edge_right, p2)[0]))
 
     theta = (theta1 + theta2) / 2
+    # theta = max(theta1, theta2)
     T_bo = np.identity(4)
     T_bo[:3, 3] = (edge_right.T + np.divide(TABLE_DIMS[[0, 1, 2]] * OFF_DIR, 2).T)
     # orientation of table
     if (case == 1):
         print("Detect table case 1")
-        T_bo[:3, :3] = Rot_axis(3, deg2rad(-theta))
+        T_bo[:3, :3] = Rot_axis(3, -theta)
     elif (case == 2):
         print("Detect table case 2")
-        T_bo[:3, :3] = Rot_axis(3, deg2rad(theta))
+        T_bo[:3, :3] = Rot_axis(3, theta)
     return T_bo
 
 def refine_plane(gscene, track, viewpoint, T_ft, Qcur, TABLE_DIMS, collision,

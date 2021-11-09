@@ -41,6 +41,50 @@ def add_indy_gripper_asm2(gscene, robot_name):
                        color=(0.0,0.8,0.0,0.5), display=True, fixed=True, collision=True)
     raise(DeprecationWarning("add_indy_gripper_asm2 is deprecated. Set RobotType to indy7gripper instead."))
 
+##
+# @brief add indy_gripper_asm2 mesh and collision boundary for the gripper, for neuromeka tech value eval demo
+# @param gscene     rnb-planning.src.pkg.geometry.geometry.GeometryScene
+# @param robot_name full indexed name of the robot
+def add_indy_gripper_asm3(gscene, robot_name):
+    gscene.create_safe(GEOTYPE.MESH, "{}_gripper_vis".format(robot_name),
+                       link_name="{}_tcp".format(robot_name),
+                       dims=(0.1,0.1,0.1), center=(0,0,0), rpy=(0,0,np.pi/2),
+                       color=(0.1,0.1,0.1,1), display=True, fixed=True, collision=False,
+                       uri="package://my_mesh/meshes/stl/indy_gripper_asm3_res.STL", scale=(1,1,1))
+
+    gscene.create_safe(GEOTYPE.BOX, "{}_gripper".format(robot_name),
+                       link_name="{}_tcp".format(robot_name),
+                       dims=(0.06,0.08,0.06), center=(0,0,0.04), rpy=(0,0,0),
+                       color=(0.0,0.8,0.0,0.5), display=True, fixed=True, collision=True)
+
+    gscene.create_safe(GEOTYPE.BOX, "{}_finger1".format(robot_name),
+                       link_name="{}_tcp".format(robot_name),
+                       dims=(0.044, 0.034, 0.07), center=(0, 0.045, 0.085), rpy=(0, 0, 0),
+                       color=(0.0, 0.8, 0.0, 0.5), display=True, fixed=True, collision=True)
+
+    gscene.create_safe(GEOTYPE.BOX, "{}_finger2".format(robot_name),
+                       link_name="{}_tcp".format(robot_name),
+                       dims=(0.044, 0.034, 0.07), center=(0, -0.045, 0.085), rpy=(0, 0, 0),
+                       color=(0.0, 0.8, 0.0, 0.5), display=True, fixed=True, collision=True)
+
+    gscene.create_safe(GEOTYPE.CYLINDER, "{}_fingertip1".format(robot_name),
+                       link_name="{}_tcp".format(robot_name),
+                       dims=(0.044, 0.044, 0.034), center=(0, 0.045, 0.12), rpy=(np.pi / 2, 0, 0),
+                       color=(0.0, 0.8, 0.0, 0.5), display=True, fixed=True, collision=True)
+
+    gscene.create_safe(GEOTYPE.CYLINDER, "{}_fingertip2".format(robot_name),
+                       link_name="{}_tcp".format(robot_name),
+                       dims=(0.044, 0.044, 0.034), center=(0, -0.045, 0.12), rpy=(np.pi / 2, 0, 0),
+                       color=(0.0, 0.8, 0.0, 0.5), display=True, fixed=True, collision=True)
+    gscene.create_safe(GEOTYPE.BOX, "{}_plug".format(robot_name),
+                       link_name="{}_tcp".format(robot_name),
+                       dims=(0.05,0.1,0.05), center=(0,0.07,-0.03), rpy=(0,0,0),
+                       color=(0.0,0.8,0.0,0.5), display=True, fixed=True, collision=True)
+    gscene.create_safe(GEOTYPE.BOX, "{}_plug2".format(robot_name),
+                       link_name="{}_tcp".format(robot_name),
+                       dims=(0.05,0.08,0.05), center=(0,0.07,0.01), rpy=(0,0,0),
+                       color=(0.0,0.8,0.0,0.5), display=True, fixed=True, collision=True)
+
 
 ##
 # @brief add add_sweep_tool to indy
@@ -75,6 +119,10 @@ def add_indy_sweep_tool(gscene, robot_name, face_name="brush_face", tool_offset=
     gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_col".format(face_name), link_name="{}_tcp".format(robot_name),
                        center=(0, 0, tool_offset-0.015), dims=(0.08, 0.15, 0.03), rpy=(0, 0, 0), color=(0.0, 0.8, 0.0, 0.5),
                        collision=True, fixed=True)
+    gscene.create_safe(GEOTYPE.BOX, "{}_plug".format(robot_name),
+                       link_name="{}_tcp".format(robot_name),
+                       dims=(0.05,0.1,0.05), center=(0,0.07,-0.03), rpy=(0,0,0),
+                       color=(0.0,0.8,0.0,0.5), display=True, fixed=True, collision=True)
 
 
 
@@ -616,3 +664,43 @@ def remove_double_motion(ppline, snode_schedule, **kwargs):
             if succ:
                 reconnect_snodes(ppline.tplan.snode_dict, snode_parent, snode_cur)
     return ppline.tplan.idxSchedule2SnodeScedule(snode_schedule[-1].parents + [snode_schedule[-1].idx])
+
+
+from ..planning.motion.moveit.moveit_py import PlannerConfig
+
+##
+# @brief get looking motion to a target point. com_link to tip link distance is maintained.
+# @param target_point target point in global coords
+# @param view_dir     looking direction in tip link
+def get_look_motion(mplan, rname, from_Q, target_point, com_link, 
+                    view_dir=[0,0,1], timeout=1):
+    gscene = mplan.gscene
+    if isinstance(target_point, GeometryItem):
+        target_point = target_point.get_tf(from_Q)[:3,3]
+    tip_link = mplan.chain_dict[rname]['tip_link']
+    ref_link = mplan.chain_dict[rname]['link_names'][0]
+    Trb = SE3_inv(gscene.get_tf(ref_link, from_Q))
+    target_point = np.matmul(Trb[:3,:3], target_point)+Trb[:3,3]
+    Tcur = gscene.get_tf(tip_link, from_Q, from_link=ref_link)
+    Tcom = gscene.get_tf(com_link, from_Q, from_link=ref_link)
+    cur_dir = np.matmul(Tcur[:3,:3], view_dir)
+    target_dir = target_point - Tcom[:3,3]
+    dR = Rotation.from_rotvec(calc_rotvec_vecs(cur_dir, target_dir)).as_dcm()
+    dRr = matmul_series(Tcom[:3,:3].transpose(), dR, Tcom[:3,:3])
+
+    Toc = np.matmul(SE3_inv(Tcom), Tcur)
+    Tot = np.matmul(SE3(dRr, (0,)*3), Toc)
+    Ttar_ref = np.matmul(Tcom, Tot)
+    retract_N = 10
+    retract_step = 0.05
+    mplan.update_gscene()
+    for i_ret in range(retract_N):
+        dP = np.multiply(view_dir, retract_step*i_ret)
+        Ttar = np.copy(Ttar_ref)
+        Ttar[:3,3] = Ttar_ref[:3,3] - np.matmul(Ttar_ref[:3,:3], dP)
+        xyzquat = T2xyzquat(Ttar)
+        traj, succ = mplan.planner.plan_py(rname, tip_link, xyzquat[0]+xyzquat[1], ref_link, from_Q,
+                                           timeout=timeout)
+        if succ:
+            break
+    return traj, succ

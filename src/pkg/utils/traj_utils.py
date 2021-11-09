@@ -184,8 +184,8 @@ def calc_T_list_simple(trajectory, vel_lims, acc_lims,
     for _ in range(1000):
         dT_list_pre = dT_list # between q, N-1
         vel_list = dq_list/dT_list[:,np.newaxis] # between q, N-1
-        vel_list = np.pad(vel_list, ((1,1),(0,0)), 'constant', constant_values=0) # between q and expand, N+1
-        dT_list = np.pad(dT_list, (1,1), 'constant', constant_values=0) # between q and expand, N+1
+        vel_list = np.pad(vel_list, ((1,1),(0,0)), 'constant') # between q and expand, N+1
+        dT_list = np.pad(dT_list, (1,1), 'constant') # between q and expand, N+1
         dv_list = vel_list[1:]- vel_list[:-1] # on q, N
         vel_mid_list = np.abs((vel_list[1:] + vel_list[:-1])/2) # on q, N
         vel_ratio_mid = np.max(vel_mid_list/(vel_lims*(1+vel_margin_ratio)), axis=-1) # on q, N
@@ -213,7 +213,7 @@ def calc_T_list_simple(trajectory, vel_lims, acc_lims,
         dT_list_mid_new[0] *= 2   # double first and last acc time as they are half-step
         dT_list_mid_new[-1] *= 2   # double first and last acc time as they are half-step
         dT_list = (dT_list_mid_new[:-1]+dT_list_mid_new[1:])/2 # between q, N-1
-    T_list = np.pad(dT_list, (0,1), 'constant', constant_values=0)
+    T_list = np.pad(dT_list, (0,1), 'constant')
     for idx in idx_skip:
         T_list = np.insert(T_list, idx, 0)
     return T_list
@@ -364,61 +364,19 @@ def mix_schedule(mplan, snode_schedule):
 
     return snode_schedule_mixed
 
+def calc_wv(T0, T1):
+    R0, P0 = T0[:3, :3], T0[:3, 3]
+    R1, P1 = T1[:3, :3], T1[:3, 3]
+    dP_b = P1 - P0
+    dR_b = Rotation.from_dcm(np.matmul(R1, R0.transpose())).as_rotvec()
+    return np.concatenate([dR_b, dP_b])
 
-##
-# @brief calculate sweep trajectory
-# @param gtem GeometryItem
-# @param dP_tar target delta pos
-def get_sweep_traj(mplan, gtem, dP_tar, Q0, DP=0.01, ERROR_CUT=0.01, SINGULARITY_CUT = 0.01, VISUALIZE=False,
-                   VERBOSE=False, ref_link="base_link"):
-    gscene = gtem.gscene
-    joint_limits = [(gscene.urdf_content.joint_map[jname].limit.lower,
-                     gscene.urdf_content.joint_map[jname].limit.upper) for jname in gscene.joint_names]
-    Q = Q0
-    dP_tar = np.matmul(gscene.get_tf(ref_link, Q)[:3, :3].transpose(), dP_tar)
-    T0 = Tnew = gtem.get_tf(list2dict(Q0, gscene.joint_names), from_link=ref_link)
-    P0 = T0[:3, 3]
-    if VISUALIZE:
-        gscene.show_pose(Q)
-    Traj = []
-    dPnorm = np.linalg.norm(dP_tar)
-    DIR = np.concatenate([np.divide(dP_tar, dPnorm), [0, 0, 0]])
-    P0 = np.concatenate([P0, [0, 0, 0]])
-    reason = "end"
-    singularity = False
-    for dP_cur in np.arange(0, dPnorm + DP / 2, DP):
-        Jac = gtem.get_jacobian(Q, ref_link=ref_link)
-        if np.min(np.abs(np.real(np.linalg.svd(Jac)[1]))) <= SINGULARITY_CUT:
-            singularity = True
-            reason = "singular"
-            break
-        Jinv = np.linalg.pinv(Jac)
-        Ptar = np.multiply(DIR, dP_cur) + P0
-        Pcur = np.concatenate([Tnew[:3, 3], [0, 0, 0]])
-        dQ = np.matmul(Jinv, Ptar - Pcur)
-        Q = Q + dQ
-        if VISUALIZE:
-            gscene.show_pose(Q)
-        dlim = np.subtract(joint_limits, Q[:, np.newaxis])[np.where(np.sum(np.abs(Jac), axis=0) > 1e-6)[0], :]
-        if np.any(dlim[:, 0] > 0):
-            reason = "joint min"
-            break
-        if np.any(dlim[:, 1] < 0):
-            reason = "joint max"
-            break
-        if not mplan.validate_trajectory([Q]):
-            reason = "collision"
-            break
-        Tnew = gtem.get_tf(list2dict(Q, gscene.joint_names), from_link=ref_link)
-        dPcalc = Tnew[:3, 3] - T0[:3, 3]
-        dRcalc = Rotation.from_dcm(np.matmul(Tnew[:3, :3], T0[:3, :3].transpose())).as_rotvec()
-        if np.abs(np.linalg.norm(dPcalc) - np.dot(dPcalc, DIR[:3])) > ERROR_CUT:
-            reason = "error off"
-            break
-        Traj.append(Q)
-    if VERBOSE:
-        print(reason)
-    return np.array(Traj), reason=="end"
+def apply_wv(T0, wv):
+    dP = wv[3:]
+    dR = Rotation.from_rotvec(wv[:3]).as_dcm()
+    P1 = dP + T0[:3,3]
+    R1 = np.matmul(dR, T0[:3,:3])
+    return SE3(R1, P1)
 
 
 from scipy.interpolate import splprep, splev
@@ -483,4 +441,54 @@ def bspline_schedule(pscene, snode_schedule, radii_deg=1):
             traj_new = bspline_traj(trajectory=snode_cp.traj, radii_deg=radii_deg)
             snode_cp.set_traj(traj_new)
     return snode_schedule_safe
+
+def subdivide_traj(from_Q, to_Q, dQ_ref=0.01):
+    diff = np.subtract(to_Q, from_Q)
+    diff_abs = np.linalg.norm(diff)
+    if diff_abs < 1e-6:
+        return np.array([from_Q, to_Q])
+    N_div = diff_abs/dQ_ref
+    dQ = diff / N_div
+    return np.arange(N_div+1)[:, np.newaxis]*dQ[np.newaxis, :] + from_Q
+
+def validate_simple_traj(mplan, traj_simple, dQ_ref=0.01):
+    res = True
+    for from_Q, to_Q in zip(traj_simple[:-1], traj_simple[1:]):
+        traj_div =subdivide_traj(from_Q, to_Q, dQ_ref=dQ_ref)
+        res = res and mplan.validate_trajectory(traj_div)
+    return res
+
+def recursive_shortcut(mplan, traj_simple):
+    traj_len = len(traj_simple)
+    if traj_len > 2:
+        traj_test = traj_simple[range(2, traj_len)]
+        traj_conseq = recursive_shortcut(mplan, traj_test)
+        traj_skip = np.concatenate([traj_simple[:1], traj_conseq], axis=0)
+        traj_full = np.concatenate([traj_simple[:2], traj_conseq], axis=0)
+        if validate_simple_traj(mplan, traj_skip):
+            return traj_skip
+        else:
+            return traj_full
+    return traj_simple
+
+def recursive_shortcut_snode_schedule(pscene, mplan, snode_schedule_simple):
+    snode_schedule_opt = [snode_schedule_simple[0].copy(pscene)]
+    for i_s, (snode_pre, snode) in enumerate(zip(snode_schedule_simple[:-1], snode_schedule_simple[1:])):
+        from_state = snode_pre.state
+        to_state = snode.state
+        traj = snode.traj
+        if pscene.is_constrained_transition(from_state, to_state, check_available=False):
+            print("{} connection {}-{} : skip constrained".format(i_s, snode_pre.idx, snode.idx))
+            snode_new = snode.copy(pscene)
+            snode_schedule_opt.append(snode_new)
+            continue
+        pscene.set_object_state(from_state)
+        traj_simple = simplify_traj(traj, step_fractions=[0, 1])
+        traj_short = recursive_shortcut(mplan, traj_simple)
+        print("{} connection {}-{} : {} -> {}".format( i_s,
+            snode_pre.idx, snode.idx, len(traj_simple), len(traj_short)))
+        snode_new = snode.copy(pscene)
+        snode_new.set_traj(traj_short)
+        snode_schedule_opt.append(snode_new)
+    return snode_schedule_opt
 
