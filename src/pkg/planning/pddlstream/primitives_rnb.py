@@ -474,9 +474,20 @@ def run_checkers(checkers, actor, subject, Tloal_list, Q_dict, ignore=[], show_s
         if not res:
             print("Check Feas Fail: {}".format(checker.__class__.__name__))
             vis_bak = gscene.highlight_robot(color=gscene.COLOR_LIST[i_c])
+
+            filt_reason = ""
+            if checker.__class__.__name__ == "GraspChecker":
+                filt_reason = "Tool Collison"
+            if checker.__class__.__name__ == "ReachChecker":
+                filt_reason = "Inverse Kinematics"
+            if checker.__class__.__name__ == "LatticedChecker":
+                filt_reason = "Path Existence"
+            text = gscene.display_text("state", "Infeasible - {}".format(filt_reason), (0, 0, 1.4),
+                                     color=tuple(np.add(gscene.COLOR_LIST[i_c], (0,0,0,0.5))))
         time.sleep(SHOW_TIME)
         if not res:
             gscene.recover_robot(vis_bak)
+            gscene.remove(text)
     return res
 
 def reset_checker_cache():
@@ -591,13 +602,18 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                         if show_state:
                             if q_approach is None:
                                 print("inverse_kinematics fail to approach")
+                                ik_reason ="Inverse Kinematics Fail"
                                 color = pscene.gscene.COLOR_LIST[2]
                             else:
                                 print("IK-approach collision fail")
+                                ik_reason ="IK Solution in Collision"
                                 color = pscene.gscene.COLOR_LIST[0]
                             vis_bak = pscene.gscene.highlight_robot(color)
+                            text = pscene.gscene.display_text("state", ik_reason, (0,0,1.4),
+                                                              color=tuple(np.add(color, (0,0,0,0.5))))
                             time.sleep(SHOW_TIME)
                             pscene.gscene.recover_robot(vis_bak)
+                            pscene.gscene.remove(text)
                         continue
                     # print("go on")
                     conf = BodyConf(robot, q_approach)
@@ -635,13 +651,18 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                             if show_state:
                                 if q_grasp is None:
                                     print("inverse_kinematics fail to grasp")
+                                    ik_reason = "IK Grasp Fail"
                                     color = pscene.gscene.COLOR_LIST[2]
                                 else:
                                     print("IK-grasp collision fail")
+                                    ik_reason = "IK Grasp in Collision"
                                     color = pscene.gscene.COLOR_LIST[0]
                                 vis_bak = pscene.gscene.highlight_robot(color)
+                                text = pscene.gscene.display_text("state", ik_reason, (0,0,1.4),
+                                                                  color=tuple(np.add(color,(0,0,0,0.5))))
                                 time.sleep(SHOW_TIME)
                                 pscene.gscene.recover_robot(vis_bak)
+                                pscene.gscene.remove(text)
                             continue
                     if show_state:
                         time.sleep(SHOW_TIME)

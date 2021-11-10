@@ -29,7 +29,7 @@ DEFAULT_VERT_DICT = {
 # @class GeometryScene
 # @brief Geometric scene & visualization handle. Also a list of GeometryItem.
 class GeometryScene(list):
-    COLOR_LIST = [(1,0,0,0.5), (1,0,1,0.5), (1,1,0,0.5), (0,1,0,0.5), (0,1,1,0.5), (0,0,1,0.5), (0,0,0,0.5)]
+    COLOR_LIST = [(1,0,0,0.5), (1,0,1,0.5), (0.7,0.7,0,0.5), (0,1,0,0.5), (0,1,1,0.5), (0,0,1,0.5), (0,0,0,0.5)]
 
     def __init__(self, urdf_content, urdf_path, joint_names, link_names, rviz=True):
         self.NAME_DICT = {}
@@ -135,6 +135,12 @@ class GeometryScene(list):
                       create=True, **kwargs)
         return gtem
 
+    def display_text(self, name, msg, loc, link_name="base_link", scale=0.2, color=(0,0,0,1)):
+        scale = scale if isinstance(scale, tuple) else (scale, )*3
+        return self.create_safe(GEOTYPE.TEXT, name, link_name=link_name, dims=(0.1, 0.1, 0.1),
+                                  scale=scale, center=loc, rpy=(0, 0, 0),
+                                  text=msg, color=color, collision=False, fixed=True)
+
     ##
     # @brief copy from existing geometry item
     # @param new_name new name
@@ -232,7 +238,7 @@ class GeometryScene(list):
                 for mk in mks:
                     mk.delete()
             self.marker_dict_fixed = defaultdict(list)
-        for mks in self.marker_dict:
+        for mks in self.marker_dict.values():
             for mk in mks:
                 mk.delete()
         self.marker_dict = defaultdict(list)
@@ -478,14 +484,16 @@ class GeometryItem(object):
     # @param triangles (Nx3) indeces of points for triangles
     # @param colors colors of points or triangles, in case of mesh with them
     # @param in_urdf for geometries that are already in urdf file - e.g. no need to add to move it scene
+    # @param text text for GEOTYPE.TEXT. only scale[0] is the scale of text
     def __init__(self, gscene, gtype, name, link_name, dims, center, rpy=(0,0,0), color=(0,1,0,1), display=True,
                  collision=True, fixed=False, soft=False, online=False, K_col=None, uri="", scale=(1,1,1), create=True,
-                 parent=None, vertices=None, triangles=None, colors=None, in_urdf=False):
+                 parent=None, vertices=None, triangles=None, colors=None, in_urdf=False, text=None):
         self.uri, self.scale = uri, scale
         self.vertices=vertices
         self.triangles=triangles
         self.colors = colors
         self.in_urdf = in_urdf
+        self.text = text
         if vertices is not None:
             if not all(np.abs(np.mean([np.max(vertices, axis=0), np.min(vertices, axis=0)], axis=0)) <=1e-6):
                 TextColors.YELLOW.println(
