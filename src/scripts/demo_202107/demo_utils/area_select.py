@@ -897,13 +897,14 @@ class GreedyExecuter:
                 homing_stack += list(reversed(snode_cur.traj))
         return snode_schedule
 
-    def greedy_execute(self, Qcur, tool_dir, mode_switcher, offset_fun, auto_clear_subject=True, cost_cut=110):
+    def greedy_execute(self, Qcur, tool_dir, mode_switcher, offset_fun, auto_clear_subject=True, cost_cut=110, covereds=[]):
         gtimer = GlobalTimer.instance()
         Qcur = np.copy(Qcur)
         Qhome = np.copy(Qcur)
         # # MAKE LOOP BELOW
         snode_schedule_list = []
-        covereds = []
+        covereds = deepcopy(covereds)
+        self.mark_tested(None, None, covereds, [])
         while True:
             with gtimer.block("get_best_base_divs"):
                 # get current base base
