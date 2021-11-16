@@ -215,7 +215,6 @@ def get_division_dict(pscene, surface, brush_face, robot_config, plane_val, tip_
                 if diff_grid < 0:
                     continue
                 min_val, max_val = np.multiply([min_grid, max_grid], div_size_swp/2) # in real value
-                diff_val = max_val - min_val # in real value
                 sweep_num = int(diff_grid / 2)+1 # in div_size grid
                 sweep_num_list.append(sweep_num)
 
@@ -230,6 +229,7 @@ def get_division_dict(pscene, surface, brush_face, robot_config, plane_val, tip_
                 swp_points = np.zeros((len(h_in_range), 3))
                 swp_points[:, ax_swp] = h_in_range
 
+            diff_val = np.max(swp_points[:, ax_swp]) - np.min(swp_points[:, ax_swp])
             lv_stp = int(np.round(step_val/div_size_nswp_grid))
             lv_pln = int(np.round(pln_val/div_size_nswp_grid))
             off_val = int(np.round((step_val-lv_stp*div_size_nswp_grid
@@ -238,8 +238,6 @@ def get_division_dict(pscene, surface, brush_face, robot_config, plane_val, tip_
             swp_points[:, ax_step] = step_val if ax_step==2 else div_size_nswp_grid*lv_stp+off_val*resolution
             swp_points[:, ax_pln] = plane_val if plane_val is not None else div_size_nswp_grid*lv_pln+off_val*resolution
             if len(step_points_dict[off_val][(lv_stp, lv_pln)])<len(swp_points):
-                step_points_dict[off_val][(lv_stp, lv_pln)] = swp_points
-            else:
                 step_points_dict[off_val][(lv_stp, lv_pln)] = swp_points
         step_points_list = list(step_points_dict.values())
         if len(step_points_list)>0:
@@ -899,13 +897,14 @@ class GreedyExecuter:
                 homing_stack += list(reversed(snode_cur.traj))
         return snode_schedule
 
-    def greedy_execute(self, Qcur, tool_dir, mode_switcher, offset_fun, auto_clear_subject=True, cost_cut=110):
+    def greedy_execute(self, Qcur, tool_dir, mode_switcher, offset_fun, auto_clear_subject=True, cost_cut=110, covereds=[]):
         gtimer = GlobalTimer.instance()
         Qcur = np.copy(Qcur)
         Qhome = np.copy(Qcur)
         # # MAKE LOOP BELOW
         snode_schedule_list = []
-        covereds = []
+        covereds = deepcopy(covereds)
+        self.mark_tested(None, None, covereds, [])
         while True:
             with gtimer.block("get_best_base_divs"):
                 # get current base base
