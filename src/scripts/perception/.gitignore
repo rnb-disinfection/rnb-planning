@@ -4,6 +4,8 @@
 *.ply
 *.json
 *.zip
+*.png
+*.jpg
 dataset/
 configs/
 mmcv_custom/
@@ -15,4 +17,5 @@ pytorch/
 models/
 cfg/
 contrib/
+save_img/
 include

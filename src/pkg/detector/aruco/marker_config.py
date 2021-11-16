@@ -192,10 +192,77 @@ def get_aruco_map():
                          _list=[
                              ObjectMarker('table', 226, 0.18, [0,0,0], (0,0,0))
                          ]),
-        'test_target': MarkerSet('test_target',
-                         dlevel=DetectionLevel.MOVABLE, gtype=GEOTYPE.BOX, dims=(0.1, 0.1,0.01), color=(0.8,0.0,0.0,1),
+        'test_table': MarkerSet('test_table',
+                         dlevel=DetectionLevel.MOVABLE, gtype=GEOTYPE.BOX, dims=(0.6, 0.4,0.01), color=(0.8,0.0,0.0,1),
                          _list=[
-                             ObjectMarker('test_target', 220, 0.06, [0.0, 0.0, 0.0], (0, 0, 0))
-                         ])
+                             ObjectMarker('ttable_1', 230, 0.055, [0.0275, -0.0275, 0.0], (np.pi, 0, 0)),
+                             ObjectMarker('ttable_2', 231, 0.055, [0.1215, -0.0275, 0.0], (np.pi, 0, 0)),
+                             ObjectMarker('ttable_3', 232, 0.055, [0.0275, -0.1425, 0.0], (np.pi, 0, 0)),
+                             ObjectMarker('ttable_4', 233, 0.055, [0.1215, -0.1425, 0.0], (np.pi, 0, 0))
+                         ]),
+        # # for left
+        # 'test_bed': MarkerSet('test_bed',
+        #                         dlevel=DetectionLevel.MOVABLE, gtype=GEOTYPE.BOX, dims=(0.6, 0.4, 0.01),
+        #                         color=(0.8, 0.0, 0.0, 1),
+        #                         _list=[
+        #                             ObjectMarker('tbed_1', 230, 0.15,
+        #                                          [1.18627376517, -0.342703558662, 0.120225254275],
+        #                                          (1.52131995759, 0.0133979864499, 1.60435635356)),
+        #                             ObjectMarker('tbed_2', 231, 0.15,
+        #                                          [1.19599951174, 0.374033144349, 0.122950419945],
+        #                                          (1.54346588349, -0.00874319802384, 1.58756294403)),
+        #                             ObjectMarker('tbed_3', 232, 0.15,
+        #                                          [0.889404125146, -0.43589665181, 0.108971108262],
+        #                                          (1.55933691734, -0.0373457612565, -0.0184408198392)),
+        #                             ObjectMarker('tbed_4', 233, 0.15,
+        #                                          [0.140229213529, -0.431581490143, 0.0705030629548],
+        #                                          (1.61742523905, -0.0140970518267, 0.0192163201867))
+        #                         ]),
+
+        # for left
+        'test_bed': MarkerSet('test_bed',
+                              dlevel=DetectionLevel.MOVABLE, gtype=GEOTYPE.BOX, dims=(0.6, 0.4, 0.01),
+                              color=(0.8, 0.0, 0.0, 1),
+                              _list=[
+                                  ObjectMarker('tbed_1', 230, 0.15,
+                                               [1.2002175, -0.33125859, 0.17261603],
+                                               (-1.65977093, 0.0459408, 1.59540118)),
+                                  ObjectMarker('tbed_2', 231, 0.15,
+                                               [1.20746026, 0.39556057, 0.14577929],
+                                               (-1.64092644, 0.03097502, 1.58835796)),
+                                  ObjectMarker('tbed_3', 232, 0.15,
+                                               [0.89416823, -0.42463095, 0.15864651],
+                                               (-1.53864032, 0.00202508, 0.00342758)),
+                                  ObjectMarker('tbed_4', 233, 0.15,
+                                               [0.103883083945, -0.40565275112, 0.0920507654886],
+                                               (-1.55411966732, -0.0210382301981, 0.0141786053189))
+                              ]),
+
+        # # for right
+        # 'test_bed': MarkerSet('test_bed',
+        #                       dlevel=DetectionLevel.MOVABLE, gtype=GEOTYPE.BOX, dims=(0.6, 0.4, 0.01),
+        #                       color=(0.8, 0.0, 0.0, 1),
+        #                       _list=[
+        #                           ObjectMarker('tbed_1', 230, 0.15,
+        #                                        [-0.922045680246, -0.00717801432787, -0.0317057241136],
+        #                                        (1.5139852756, -0.00210178048308, 1.66519479886)),
+        #                           ObjectMarker('tbed_2', 231, 0.15,
+        #                                        [-1.0871957852, -0.267970363843, 0.610030134852],
+        #                                        (1.38293833269, 0.248477208201, 2.81820774128)),
+        #                           ObjectMarker('tbed_3', 232, 0.15,
+        #                                        [0.709012335191, 0.468341523168, 0.133590886149],
+        #                                        (1.51925169422, 0.0657520360644, -3.1087491943)),
+        #                           ObjectMarker('tbed_4', 233, 0.15,
+        #                                        [-0.332366535353, 0.352724368267, 0.0154711434349],
+        #                                        (1.06139188259, -0.510193426712, 1.47218931273))
+        #                       ]),
+
+        'test_closet': MarkerSet('test_closet',
+                                dlevel=DetectionLevel.MOVABLE, gtype=GEOTYPE.BOX, dims=(0.6, 0.4, 0.01),
+                                color=(0.8, 0.0, 0.0, 1),
+                                _list=[
+                                    ObjectMarker('tcloset_1', 234, 0.15, [0.0275, -0.0275, 0.0], (np.pi, 0, 0)),
+                                    ObjectMarker('tcloset_2', 235, 0.15, [0.1215, -0.0275, 0.0], (np.pi, 0, 0))
+                                ])
     })
     return aruco_map
