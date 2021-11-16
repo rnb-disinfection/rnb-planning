@@ -1,5 +1,6 @@
 import socket
 import cv2
+import os
 import numpy as np
 from queue import Queue
 from _thread import *
@@ -7,6 +8,7 @@ import pyrealsense2 as rs
 import json
 import socket
 import argparse
+from .detection_util import SAVE_DIR
 
 PORT = 8580
 DEPTHMAP_SIZE = (480, 640)
@@ -155,6 +157,33 @@ class CameraGenerator:
         finally:
             pass
 
+    ##
+    # @brief press s to save image
+    def stream_capture_image(self, obj_type, crob):
+        # print("== press s to save image ==")
+        while True:
+            color_image, depth_image, depth_intrins = self.catch_frame()
+            intrinsics = (depth_intrins.width, depth_intrins.height,
+                          depth_intrins.fx, depth_intrins.fy,
+                          depth_intrins.ppx, depth_intrins.ppy)
+            rdict = {'color': color_image,
+                     'depth': depth_image,
+                     'intrins': intrinsics, 'depth_scale': self.depth_scale}
+            cv2.imshow('ColorImage', rdict['color'])
+            cv2.imshow('DepthImage', rdict['depth'])
+
+            # key = cv2.waitKey(1)
+            key = 115
+            if (key == 27):
+                cv2.destroyAllWindows()
+                break
+            elif key == 115:
+                cv2.imwrite(SAVE_DIR + '/{}.jpg'.format(obj_type), rdict['color'])
+                cv2.imwrite(SAVE_DIR + '/{}.png'.format(obj_type), rdict['depth'])
+                Q = crob.get_real_robot_pose()
+                np.savetxt(SAVE_DIR + '/{}.csv'.format(obj_type), Q, delimiter=",")
+                break
+        return rdict
 
 def run_server(host=None, port=PORT):
     if host is None or host == "None":
