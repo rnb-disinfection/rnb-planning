@@ -95,4 +95,4 @@ if __name__ == "__main__":
                    vvt.set_reference,
                    vvt.get_reference,
                    vvt.get_all_pose,
-                   vvt.get_all_pose], verbose=True)
+                   vvt.get_pose], verbose=True)

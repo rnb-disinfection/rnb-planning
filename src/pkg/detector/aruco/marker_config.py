@@ -6,7 +6,7 @@ def get_aruco_map():
     #     params = aruco.DetectorParameters_create()
 
     aruco_map = ArucoMap(dictionary=dictionary, _dict={
-        'vive_ref':MarkerSet('vive_ref', dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX, dims=(0.3,0.4,0.01),
+        'vive_ref':MarkerSet('vive_ref', dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX, dims=(0.4,0.3,0.01),
                           color=(0.9,0.9,0.9,0.2),
                           _list=[
                               ObjectMarker('vive_ref', 1, 0.05, [-0.1, -0.05,0.0], (0,0,0)),
