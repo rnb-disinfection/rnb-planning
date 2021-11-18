@@ -77,7 +77,7 @@ class DetectorInterface:
         pass
 
     ##
-    # @brief    add axis marker to GeometryHandle
+    # @brief    visualize detection results for specific item on GeometryHandle
     @abstractmethod
     def add_item_axis(self, gscene, hl_key, item, axis_name=None):
         pass
