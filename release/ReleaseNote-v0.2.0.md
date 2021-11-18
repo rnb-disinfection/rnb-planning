@@ -1,4 +1,30 @@
 # RNB-Planning v0.1.0 Release Notes (2021-3-20)
+
+## Preparing release
+### Branches to merge
+* feature-manual-mobile
+* feature-demo1108
+* feature-perception-test?
+* feature-sweep-data-new?
+### Branches to remove
+* feature-wiping-area-dataset
+* feature-cpp
+### Added features
+#### Detector
+* CombinedDetector
+  - Camera class as singletone
+* MultiICP
+  - Implement as Detector subclass
+  - Need to add usage script
+#### Planning
+* PDDLStream (Pick&Place)
+  - Need to add usage script
+* BindingTransform
+  - Need to update manual
+* Constrained path generation by incremental IK
+### Removed features
+#### eTaSL planner
+
 ## New features
 * **TBD**  
   
