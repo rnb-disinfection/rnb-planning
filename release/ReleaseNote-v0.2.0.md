@@ -1,4 +1,4 @@
-# RNB-Planning v0.2.0 Release Notes (2021-3-20)
+# RNB-Planning v0.2.0 Release Notes (2021-11-18)
 
 ## Preparing release
 ### Branches to merge
