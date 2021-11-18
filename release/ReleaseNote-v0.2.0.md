@@ -11,11 +11,12 @@
 * feature-cpp
 ### Added features
 #### Detector
-* CombinedDetector
-  - Camera class as singletone
 * MultiICP
   - Implement as Detector subclass
+    - Detection rule using mmdet & MultiICP 
   - Need to add usage script
+* CombinedDetector
+  - Camera class as singletone
 #### Planning
 * PDDLStream (Pick&Place)
   - Need to add usage script
