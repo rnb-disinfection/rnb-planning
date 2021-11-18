@@ -18,4 +18,5 @@ models/
 cfg/
 contrib/
 save_img/
+exp_data/
 include
