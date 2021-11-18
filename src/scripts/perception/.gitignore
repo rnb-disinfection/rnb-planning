@@ -4,6 +4,10 @@
 *.ply
 *.json
 *.zip
+*.png
+*.jpg
+save_img/
+model_CAD/
 dataset/
 configs/
 mmcv_custom/

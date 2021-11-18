@@ -40,38 +40,39 @@ def add_cam(gscene, tool_link="indy0_tcp"):
                        color=(0.8, 0.8, 0.8, 0.2), display=True, fixed=True, collision=True)
     return viewpoint
 
-def add_kiro_indytool_down(gscene, zoff=0, tool_link="indy1_tcp", face_name="brush_face"):
+def add_kiro_indytool_down(gscene, zoff=0, tool_link="indy1_tcp", face_name="brush_face", ext_off=0.032):
+
     gscene.create_safe(gtype=GEOTYPE.MESH, name="indy_tool_vis", link_name=tool_link,
-                       dims=(0.1,0.1,0.1), center=(0,0,0), rpy=(0,0,0),
+                       dims=(0.1,0.1,0.1), center=(0,0,ext_off), rpy=(0,0,0),
                        display=True, color=(0.8,0.8,0.8,1), collision=False, fixed=True,
                        uri="package://my_mesh/meshes/stl/kiro_indytool_down_res.stl")
     gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="hinge_bar_col", link_name=tool_link,
-                       center=(0.08, 0, 0.10), dims=(0.1, 0.1, 0.25), rpy=(0, np.pi / 4, 0),
+                       center=(0.08, 0, 0.10+ext_off), dims=(0.1, 0.1, 0.25), rpy=(0, np.pi / 4, 0),
                        display=True, color=(0.8, 0.8, 0.8, 0.7), collision=True, fixed=True)
     brush_face = gscene.create_safe(gtype=GEOTYPE.BOX, name=face_name, link_name=tool_link,
-                       center=(0.27+zoff, 0, 0.236), dims=(0.12, 0.34, 0.01), rpy=(0, -np.pi/2, 0),
+                       center=(0.27+zoff, 0, 0.236+ext_off), dims=(0.12, 0.34, 0.01), rpy=(0, -np.pi/2, 0),
                        color=(1.0, 0.0, 0.0, 0.5),
                        collision=False, fixed=True)
     gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_col".format(face_name), link_name=tool_link,
-                       center=(0.225+zoff/2, 0, 0.236), dims=(0.12, 0.34, 0.09+zoff), rpy=(0, -np.pi/2, 0),
+                       center=(0.225+zoff/2, 0, 0.236+ext_off), dims=(0.12, 0.34, 0.09+zoff), rpy=(0, -np.pi/2, 0),
                        color=(0.8, 0.8, 0.8, 0.8),
                        collision=True, fixed=True)
     return brush_face
 
-def add_kiro_indytool_up(gscene, zoff=0, tool_link="indy1_tcp", face_name="brush_face"):
+def add_kiro_indytool_up(gscene, zoff=0, tool_link="indy1_tcp", face_name="brush_face", ext_off=0.032):
     gscene.create_safe(gtype=GEOTYPE.MESH, name="indy_tool_vis", link_name=tool_link,
-                       dims=(0.1,0.1,0.1), center=(0,0,0), rpy=(0,0,0),
+                       dims=(0.1,0.1,0.1), center=(0,0,0+ext_off), rpy=(0,0,0),
                        display=True, color=(0.8,0.8,0.8,1), collision=False, fixed=True,
                        uri="package://my_mesh/meshes/stl/kiro_indytool_up_res.stl")
     gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="hinge_bar_col", link_name=tool_link,
-                       center=(0.08, 0, 0.10), dims=(0.1, 0.1, 0.25), rpy=(0, np.pi / 4, 0),
+                       center=(0.08, 0, 0.10+ext_off), dims=(0.1, 0.1, 0.25), rpy=(0, np.pi / 4, 0),
                        display=True, color=(0.8, 0.8, 0.8, 0.7), collision=True, fixed=True)
     brush_face = gscene.create_safe(gtype=GEOTYPE.BOX, name=face_name, link_name=tool_link,
-                       center=(0.18, 0, 0.295+zoff), dims=(0.12, 0.34, 0.01), rpy=(0, -np.pi, 0),
+                       center=(0.18, 0, 0.295+zoff+ext_off), dims=(0.12, 0.34, 0.01), rpy=(0, -np.pi, 0),
                        color=(1.0, 0.0, 0.0, 0.5),
                        collision=False, fixed=True)
     gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_col".format(face_name), link_name=tool_link,
-                       center=(0.18, 0, 0.25+zoff/2), dims=(0.12, 0.34, 0.09+zoff), rpy=(0, -np.pi, 0),
+                       center=(0.18, 0, 0.25+zoff/2+ext_off), dims=(0.12, 0.34, 0.09+zoff), rpy=(0, -np.pi, 0),
                        color=(0.8, 0.8, 0.8, 0.8),
                        collision=True, fixed=True)
     return brush_face

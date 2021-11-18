@@ -57,6 +57,10 @@ MODEL_DIR = os.path.join(MILESTONE_DIR, "model_CAD")
 COLOR_PATH = os.path.join(MILESTONE_DIR, "save_img/top_table/color")
 DEPTH_PATH = os.path.join(MILESTONE_DIR, "save_img/top_table/depth")
 INTRINSIC_PATH = os.path.join(MILESTONE_DIR, "save_img/top_table")
+try:
+    os.mkdir(SAVE_DIR)
+except:
+    pass
 
 DEPTHMAP_SIZE = (480, 640)
 IMAGE_SIZE = (720, 1280)
