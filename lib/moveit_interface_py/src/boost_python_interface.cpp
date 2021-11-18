@@ -25,6 +25,14 @@ BOOST_PYTHON_MODULE(moveit_interface_py){
             .value("SPHERE", ObjectType::SPHERE)
             .value("CYLINDER", ObjectType::CYLINDER)
             .value("PLANE", ObjectType::PLANE)
+            .value("MESH", ObjectType::MESH)
+            .export_values()
+            ;
+
+    enum_<ompl_interface::ConstrainedSpaceType>("ConstrainedSpaceType")
+            .value("PROJECTED", ompl_interface::ConstrainedSpaceType::PROJECTED)
+            .value("ATLAS", ompl_interface::ConstrainedSpaceType::ATLAS)
+            .value("TANGENTBUNDLE", ompl_interface::ConstrainedSpaceType::TANGENTBUNDLE)
             .export_values()
             ;
 
@@ -95,6 +103,18 @@ BOOST_PYTHON_MODULE(moveit_interface_py){
             .def("__len__", &JointState::size)
             ;
 
+    class_<Vec3List>("Vec3List", init<>())
+            .def("__len__", &Vec3List::size)
+            .def("clear", &Vec3List::clear)
+            .def("append", &std_item<Vec3List>::add,
+                 with_custodian_and_ward<1,2>()) // to let container keep value
+            .def("__getitem__", &std_item<Vec3List>::get,
+                 return_value_policy<copy_non_const_reference>())
+            .def("__setitem__", &std_item<Vec3List>::set,
+                 with_custodian_and_ward<1,2>()) // to let container keep value
+            .def("__delitem__", &std_item<Vec3List>::del)
+            ;
+
     class_<Trajectory>("Trajectory", init<>())
             .def("__len__", &Trajectory::size)
             .def("clear", &Trajectory::clear)
@@ -124,15 +144,25 @@ BOOST_PYTHON_MODULE(moveit_interface_py){
             .def("plan_with_constraints", &Planner::plan_with_constraints,
                  return_value_policy<copy_non_const_reference>())
             .def("test_jacobian", &Planner::test_jacobian)
+            .def("validate_trajectory", &Planner::validate_trajectory)
             .def("clear_context_cache", &Planner::clear_context_cache)
             .def("add_union_manifold", &Planner::add_union_manifold)
             .def("clear_manifolds", &Planner::clear_manifolds)
             .def("add_object", &Planner::add_object)
+            .def("add_mesh", &Planner::add_mesh)
             .def("process_object", &Planner::process_object)
             .def("clear_all_objects", &Planner::clear_all_objects)
             .def("terminate", &Planner::terminate)
-            .def("solve_ik", &Planner::solve_ik)
+            .def("set_joint_state", &Planner::set_joint_state)
+            .def("get_joint_state", &Planner::get_joint_state,
+                 return_value_policy<copy_non_const_reference>())
+            .def("solve_ik", &Planner::solve_ik,
+                 return_value_policy<copy_non_const_reference>())
             .def("check_collision", &Planner::check_collision)
-            .def("get_jacobian", &Planner::get_jacobian)
+            .def("get_jacobian", &Planner::get_jacobian,
+                 return_value_policy<copy_non_const_reference>())
+            .def("set_tolerance", &Planner::set_tolerance)
+            .def("get_tolerance", &Planner::get_tolerance,
+                 return_value_policy<copy_non_const_reference>())
             ;
 }

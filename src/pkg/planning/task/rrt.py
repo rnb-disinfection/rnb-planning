@@ -20,7 +20,7 @@ class TaskRRT(TaskInterface):
     # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
     def __init__(self, pscene,
                  new_node_sampler=random.choice, parent_node_sampler=random.choice, parent_snode_sampler=random.choice,
-                 binding_sampler=random.choice, redundancy_sampler=random.uniform, custom_rule=None):
+                 binding_sampler=random.choice, redundancy_sampler=random.uniform, custom_rule=None, node_trial_max=1e2):
         TaskInterface.__init__(self, pscene)
         self.new_node_sampler = new_node_sampler
         self.parent_node_sampler = parent_node_sampler
@@ -28,16 +28,19 @@ class TaskRRT(TaskInterface):
         self.binding_sampler = binding_sampler
         self.redundancy_sampler = redundancy_sampler
         self.custom_rule = custom_rule
+        self.explicit_edges = {}
+        self.node_trial_max = node_trial_max
 
     ##
     # @brief build object-level node graph
-    def prepare(self):
+    # @param random_homing set this True to enable random homing motion
+    def prepare(self, random_homing=False):
         pscene = self.pscene
 
         # make all node connections
         self.node_list = pscene.get_all_nodes()
-        self.node_dict_full = {k: [] for k in self.node_list}
-        self.node_parent_dict_full = {k: [] for k in self.node_list}
+        self.node_dict_full = {k: [k] if random_homing else [] for k in self.node_list}
+        self.node_parent_dict_full = {k: [k] if random_homing else [] for k in self.node_list}
         for node in self.node_list:
             for leaf in pscene.get_node_neighbor(node):
                 if leaf in self.node_list:
@@ -47,7 +50,7 @@ class TaskRRT(TaskInterface):
             self.node_dict_full[node] = set(self.node_dict_full[node])
             self.node_parent_dict_full[node] = set(self.node_parent_dict_full[node])
 
-        self.unstoppable_subjects = [i_s for i_s, sname in enumerate(self.pscene.subject_name_list)
+        self.unstoppable_subjects = [sname for sname in self.pscene.subject_name_list
                                      if self.pscene.subject_dict[sname].unstoppable]
 
     ##
@@ -58,12 +61,16 @@ class TaskRRT(TaskInterface):
         if multiprocess_manager is not None:
             self.neighbor_nodes = multiprocess_manager.dict()  # keys of dict is used as set, as set is not in multiprocess
             self.node_snode_dict = multiprocess_manager.dict()
+            self.node_trial_dict = multiprocess_manager.dict()
+            self.neighbor_node_lock = multiprocess_manager.Lock()
             self.snode_dict_lock = multiprocess_manager.Lock()
             self.attempts_reseved = multiprocess_manager.Queue()
             self.reserve_lock = multiprocess_manager.Lock()
         else:
             self.neighbor_nodes = dict()
             self.node_snode_dict = dict()
+            self.node_trial_dict = dict()
+            self.neighbor_node_lock = DummyBlock()
             self.snode_dict_lock = DummyBlock()
             self.attempts_reseved = Queue()
             self.reserve_lock = DummyBlock()
@@ -76,24 +83,32 @@ class TaskRRT(TaskInterface):
         self.reserved_attempt = False
 
         self.unstoppable_terminals = {}
-        for sub_i in self.unstoppable_subjects:
-            self.unstoppable_terminals[sub_i] = [self.initial_state.node[sub_i]]
+        for i_s, sname in enumerate(self.pscene.subject_name_list):
+            if sname not in self.unstoppable_subjects:
+                continue
+            self.unstoppable_terminals[sname] = [self.initial_state.node[i_s]]
             for goal in goal_nodes:
-                self.unstoppable_terminals[sub_i].append(goal[sub_i])
+                self.unstoppable_terminals[sname].append(goal[i_s])
 
         self.node_dict = {}
+        self.node_parent_dict = defaultdict(set)
         for node, leafs in self.node_dict_full.items():
-            self.node_dict[node] = set(
-                [leaf for leaf in leafs ## unstoppable node should change or at terminal
-                 if all([node[k] in terms or node[k]!=leaf[k]
-                         for k, terms in self.unstoppable_terminals.items()])])
-
-        self.node_parent_dict = {}
-        for node, parents in self.node_parent_dict_full.items():
-            self.node_parent_dict[node] = set(
-                [parent for parent in parents ## unstoppable node should change or at terminal
-                 if all([node[k] in terms or node[k]!=parent[k]
-                         for k, terms in self.unstoppable_terminals.items()])])
+            self.node_trial_dict[node] = self.node_trial_max
+            ## goal node does not have child leaf
+            if node in goal_nodes:
+                self.node_dict[node] = set()
+                continue
+            if node in self.explicit_edges:
+                self.node_dict[node] = set(self.explicit_edges[node])
+            else:
+                ## unstoppable node should change or at terminal
+                leaf_list = [leaf
+                             for leaf in leafs
+                             if self.check_unstoppable_terminals(node, leaf)]
+                self.node_dict[node] = set(leaf_list)
+            for leaf in self.node_dict[node]:
+                self.node_parent_dict[leaf].add(node)
+        self.node_parent_dict = dict(self.node_parent_dict)
 
         if hasattr(self.new_node_sampler, "init"):
             self.new_node_sampler.init(self, self.multiprocess_manager)
@@ -108,7 +123,7 @@ class TaskRRT(TaskInterface):
         if hasattr(self.custom_rule, "init"):
             self.custom_rule.init(self, self.multiprocess_manager)
 
-        snode_root = self.make_search_node(None, initial_state, None, None)
+        snode_root = self.make_search_node(None, initial_state, None)
         self.connect(None, snode_root)
         self.update(None, snode_root, True)
 
@@ -117,31 +132,53 @@ class TaskRRT(TaskInterface):
     # @param lock lock instance to multiprocess
     def sample(self):
         sample_fail = True
-        while sample_fail:
+        fail_count = 0
+        parent_snode, from_state, to_state = None, None, None
+        while sample_fail and fail_count<3:
+            fail_count += 1
             self.reserved_attempt = False
             with self.reserve_lock:
                 if not self.attempts_reseved.empty():
                     try:
                         parent_sidx, new_node = self.attempts_reseved.get(timeout=0.1)
                         self.reserved_attempt = True
-                        # print("got reserved one from {}".format(parent_sidx))
-                    except:
+                        # print("gettting reserved one from {}: {}".format(parent_sidx, new_node))
+                    except Exception as e:
+                        print("error in gettting reserved one from {}".format(parent_sidx))
+                        print(e)
                         pass
             if not self.reserved_attempt:
                 try:
-                    new_node = self.new_node_sampler(self.neighbor_nodes.keys())
+                    node_keys = self.neighbor_nodes.keys()
+                    if len(node_keys)>0:
+                        new_node = self.new_node_sampler(node_keys)
+                        node_trial = self.node_trial_dict[new_node]
+                        node_trial -= 1
+                        self.node_trial_dict[new_node] = node_trial
+                        if node_trial <= 0:
+                            with self.neighbor_node_lock:
+                                self.neighbor_nodes.pop(new_node)
+                    else:
+                        # print("ERROR sampling parent - NO SAMPLE REMAINED! Return None to stop")
+                        return None, None, None, True
                     parent_nodes = self.node_parent_dict[new_node]
                     parent_node = self.parent_node_sampler(list(parent_nodes.intersection(self.node_snode_dict.keys())))
                     parent_sidx = self.parent_snode_sampler(self.node_snode_dict[parent_node])
+                    if hasattr(self.custom_rule, "refoliate"):
+                        new_node, parent_sidx, reject = self.custom_rule.refoliate(self, new_node, parent_sidx)
+                        if reject:
+                            sample_fail = True
+                            continue
                     # print("sampled one from {}".format(parent_sidx))
                 except Exception as e:  ## currently occurs when terminating search in multiprocess
                     try:
                         print("ERROR sampling parent from : {} / parent nodes: {}".format(new_node, parent_nodes))
                     except:
-                        print("ERROR sampling parent - NO SAMPLE REMAINED!")
-                        # snode_root = self.make_search_node(None, self.initial_state, None, None)
+                        print("ERROR sampling parent - Failed to get new_node or parent_nodes")
+                        # snode_root = self.make_search_node(None, self.initial_state, None)
                         # self.connect(None, snode_root)
                         # self.update(None, snode_root, True)
+                        time.sleep(0.5)
                     print(e)
                     sample_fail = True
                     continue
@@ -149,19 +186,21 @@ class TaskRRT(TaskInterface):
             from_state = parent_snode.state
             if isinstance(new_node, State):
                 to_state = new_node
-                redundancy_dict = deepcopy(parent_snode.redundancy_dict)
+            elif isinstance(new_node, int): # for copy and extend existing SearchNode, especially for RRT* extension
+                snode_tar = self.snode_dict[new_node]
+                to_state = snode_tar.state
             else:
                 available_binding_dict = self.pscene.get_available_binding_dict(from_state, new_node,
-                                                                                                  list2dict(from_state.Q, self.pscene.gscene.joint_names))
+                                                                                list2dict(from_state.Q, self.pscene.gscene.joint_names))
                 if not all([len(abds)>0 for abds in available_binding_dict.values()]):
                     print("============== Non-available transition: sample again =====================")
                     sample_fail = True
                     continue
-                to_state, redundancy_dict = self.pscene.sample_leaf_state(from_state, available_binding_dict, new_node,
-                                                                          binding_sampler=self.binding_sampler,
-                                                                          redundancy_sampler=self.redundancy_sampler)
+                to_state = self.pscene.sample_leaf_state(from_state, available_binding_dict, new_node,
+                                                         binding_sampler=self.binding_sampler,
+                                                         redundancy_sampler=self.redundancy_sampler)
             sample_fail = False
-        return parent_snode, from_state, to_state, redundancy_dict, sample_fail
+        return parent_snode, from_state, to_state, sample_fail
 
     ##
     # @brief (prototype) update connection result to the searchng algorithm
@@ -176,7 +215,9 @@ class TaskRRT(TaskInterface):
         if connection_result:
             node_new = snode_new.state.node
             for leaf in self.node_dict[node_new]:
-                self.neighbor_nodes[leaf] = None
+                if leaf not in self.goal_nodes: # goal nodes are manually reached below when possible. no need for random access
+                    if self.node_trial_dict[leaf]:
+                        self.neighbor_nodes[leaf] = None
 
             with self.snode_dict_lock:
                 if snode_new.state.node not in self.node_snode_dict:
@@ -186,22 +227,24 @@ class TaskRRT(TaskInterface):
                         self.node_snode_dict[snode_new.state.node]+[snode_new.idx]
 
             if self.check_goal(snode_new.state):
+                print("Goal reached")
                 return True
 
         cres = False
         if self.custom_rule is not None:
             cres, next_items = self.custom_rule(self, snode_src, snode_new, connection_result)
             if cres:
-                # print("make custom reservation: {}".format(next_items))
+                # print("make custom reservation: {} -> {}".format(snode_new.idx, next_items))
                 for next_item in next_items:
-                    self.attempts_reseved.put((snode_new.idx, next_item))
+                    from_idx = snode_new.idx if connection_result else snode_src.idx
+                    self.attempts_reseved.put((from_idx, next_item))
 
         if not cres:
             if connection_result:
                 for gnode in self.goal_nodes:
                     if snode_new.state.node in self.node_parent_dict[gnode]:
                         self.attempts_reseved.put((snode_new.idx, gnode))
-                        print("=============== try reaching goal from {} =================".format(node_new))
+                        # print("=============== try reaching goal from {} =================".format(node_new))
                     elif not self.reserved_attempt:
                         nodes_near = list(self.node_dict[node_new])
                         ## goal-matching item indexes
@@ -212,10 +255,13 @@ class TaskRRT(TaskInterface):
                                            for node_n in nodes_near
                                            if all([node_n[match_i] == node_new[match_i]
                                                    for match_i  in match_self_idx])]
-                            node_extend = self.new_node_sampler(nodes_candi)
-                            self.attempts_reseved.put((snode_new.idx, node_extend))
-                            # print("=============== try extend to goal {} -> {} =================".format(
-                            #     node_new, node_extend))
+                            try:
+                                node_extend = self.new_node_sampler(nodes_candi)
+                                self.attempts_reseved.put((snode_new.idx, node_extend))
+                                # print("=============== try extend to goal {} -> {} =================".format(
+                                #     node_new, node_extend))
+                            except Exception as e:
+                                print(e)
 
         return False
 
@@ -224,3 +270,9 @@ class TaskRRT(TaskInterface):
     # @param state rnb-planning.src.pkg.planning.scene.State
     def check_goal(self, state):
         return state.node in self.goal_nodes
+
+    def check_unstoppable_terminals(self, node, leaf=None):
+        return all([(node[k] in self.unstoppable_terminals[sname] or
+                     (False if leaf is None else node[k] != leaf[k]))
+                    for k, sname in enumerate(self.pscene.subject_name_list)
+                    if sname in self.unstoppable_terminals])

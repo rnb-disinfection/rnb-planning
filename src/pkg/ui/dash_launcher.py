@@ -379,6 +379,7 @@ def run_server(on_background=False, **kwargs):
     set_layout()
     if on_background:
         __thread = Thread(target=app.run_server, kwargs=kwargs)
+        __thread.daemon = True
         __thread.start()
     else:
         app.run_server(**kwargs)

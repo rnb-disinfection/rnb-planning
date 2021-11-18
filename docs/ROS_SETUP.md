@@ -5,20 +5,21 @@
   && wget https://raw.githubusercontent.com/orocapangyo/meetup/master/190830/install_ros_melodic.sh && chmod 755 ./install_ros_melodic.sh && bash ./install_ros_melodic.sh \
   && sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list' \
   && sudo apt-key adv --keyserver hkp://ha.pool.sks-keyservers.net:80 --recv-key 421C365BD9FF1F717815A3895523BAEEB01FA116 \
-  && sudo apt-get update && sudo apt-get upgrade -y \
+  && sudo apt-get update \
   && sudo apt-get install ros-melodic-desktop-full -y \
   && sudo apt-get install ros-melodic-rqt* -y \
   && sudo apt-get install python-rosdep -y \
   && sudo rosdep init \
   && rosdep update \
   && sudo apt-get install python-rosinstall -y \
-  && sudo apt-get install ros-melodic-catkin python-catkin-tools -y
+  && sudo apt-get install ros-melodic-catkin python-catkin-tools -y \
+  && sudo apt-get install ros-melodic-move-base
   ```
   * **RESTART TERMINAL!**  
   
 * Moveit  
   ```bash
-  sudo apt-get install -y ros-melodic-moveit ros-melodic-industrial-core ros-melodic-moveit-visual-tools ros-melodic-joint-state-publisher-gui  
+  sudo apt-get install -y ros-melodic-moveit ros-melodic-industrial-core ros-melodic-moveit-visual-tools ros-melodic-joint-state-publisher-gui
   ```  
 * Gazebo  
   ```bash

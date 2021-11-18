@@ -19,3 +19,4 @@ __pycache__/
 cmake-build-debug/
 Release/
 *.so
+latticizer-test/

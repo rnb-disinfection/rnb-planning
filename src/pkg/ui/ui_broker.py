@@ -48,10 +48,10 @@ class UIBroker(Singleton):
                 self.table_dict[table.table_name] = table.interface
                 table.custom_buttons = table.interface.CUSTOM_BUTTONS
 
-    def start_server(self):
+    def start_server(self, ip_host='0.0.0.0'):
         if not self.__server_on:
             dash_launcher.set_tabs(self.tab_list)
-            dash_launcher.run_server(on_background=True, debug=False, host='0.0.0.0')
+            dash_launcher.run_server(on_background=True, debug=False, host=ip_host)
             self.__server_on = True
 
     def set_tables(self):

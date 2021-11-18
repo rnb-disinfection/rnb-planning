@@ -106,6 +106,9 @@
 				</MakeCommands>
 			</Target>
 		</Build>
+		<Unit filename="/home/rnb/Projects/rnb-planning/lib/latticizer/include/logger.h">
+			<Option target="latticizer"/>
+		</Unit>
 		<Unit filename="/home/rnb/Projects/rnb-planning/lib/latticizer/include/timer.h">
 			<Option target="latticizer"/>
 		</Unit>
@@ -113,6 +116,9 @@
 			<Option target="latticizer"/>
 		</Unit>
 		<Unit filename="/home/rnb/Projects/rnb-planning/lib/latticizer/src/latticizer.cpp">
+			<Option target="latticizer"/>
+		</Unit>
+		<Unit filename="/home/rnb/Projects/rnb-planning/lib/latticizer/src/logger.cpp">
 			<Option target="latticizer"/>
 		</Unit>
 		<Unit filename="/home/rnb/Projects/rnb-planning/lib/latticizer/src/test.cpp">

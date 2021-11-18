@@ -1,8 +1,9 @@
 from __future__ import print_function
 
+from ....utils.utils import *
+from ....utils.joint_utils import get_tf
 from ....utils.rotation_utils import *
 from ....geometry.geometry import GEOTYPE
-from ...constraint.constraint_common import calc_redundancy
 from ...constraint.constraint_subject import FramedPoint, DirectedPoint
 
 
@@ -33,9 +34,11 @@ def get_tf_representation(gtem):
 def get_representation(gtem, point=None):
     if point is not None:
         return "MultiSphere({{Vector({},{},{})}},{{ {} }})".format(*(tuple(point)+(0,)))
-    elif gtem.gtype == GEOTYPE.SPHERE:
-        return "MultiSphere({{Vector({},{},{})}},{{ {} }})".format(0, 0, 0, 0) #gtem.radius)
+    elif gtem.gtype == GEOTYPE.PLANE:
+        return "Box({},{},{})".format(*(3, 3, 0))
     elif gtem.gtype == GEOTYPE.BOX:
+        return "Box({},{},{})".format(*gtem.dims)
+    elif gtem.gtype == GEOTYPE.PLANE:
         return "Box({},{},{})".format(*gtem.dims)
     elif gtem.gtype in [GEOTYPE.CAPSULE, GEOTYPE.CYLINDER]:
         return "CapsuleZ({radius},{length})".format(radius=gtem.radius,length=gtem.dims[2])
@@ -63,7 +66,7 @@ context=ctx,
     )
 
 def make_point_pair_constraint(obj1, obj2, varname, constraint_name, make_error=True, point1=None, point2=None,
-                               K='K', activation=False):
+                               priority=2, K='K', activation=False):
     error_statement = ""
     if make_error:
         error_val = "\nerror_target = error_target + abs(dist_{varname}))".format(varname=varname)
@@ -78,16 +81,18 @@ Constraint{{
     context=ctx,
     name="{constraint_name}",
     expr = {activation_expr}dist_{varname},
-    priority = 2,
+    priority = {priority},
     K        = {K}
 }}""".format(
-        constraint_name=constraint_name,
-        T1=get_tf_name(obj1), ctem1radius=0,
-        T2=get_tf_name(obj2), ctem2radius=0,
-        varname=varname, K=K, activation_expr="constraint_activation*" if activation else ""
-    ) + error_statement
+    constraint_name=constraint_name,
+    T1=get_tf_name(obj1), ctem1radius=0,
+    T2=get_tf_name(obj2), ctem2radius=0,
+    varname=varname, priority=priority,
+    K=K, activation_expr="constraint_activation*" if activation else ""
+) + error_statement
 
-def make_dir_constraint(pointer1, pointer2, name, constraint_name, make_error=True, K='K', activation=False):
+def make_dir_constraint(pointer1, pointer2, name, constraint_name, make_error=True,
+                        priority=2, K='K', activation=False):
     error_statement = ""
     if make_error:
         error_val = "\nerror_target = error_target + abs(angle_{name})".format(name=name)
@@ -104,14 +109,16 @@ Constraint{{
     context=ctx,
     name="{constraint_name}",
     expr = {activation_expr}angle_{name},
-    priority = 2,
+    priority = {priority},
     K        = {K}
 }}""".format(
         constraint_name=constraint_name,
-        name=name, K=K, activation_expr="constraint_activation*" if activation else ""
+        name=name, priority=priority,
+    K=K, activation_expr="constraint_activation*" if activation else ""
     ) + error_statement
 
-def make_orientation_constraint(framer1, framer2, name, constraint_name, rpy_add=None, make_error=True, K='K', activation=False):
+def make_orientation_constraint(framer1, framer2, name, constraint_name, rpy_add=None, make_error=True,
+                                priority=2, K='K', activation=False):
     if rpy_add is not None:
         R2 = np.matmul(framer2.R_point, Rot_rpy(rpy_add))
     else:
@@ -147,11 +154,12 @@ Constraint{{
     context=ctx,
     name="{constraint_name}",
     expr = {activation_expr}orientation_{name},
-    priority = 2,
+    priority = {priority},
     K        = {K}
 }}""".format(
         constraint_name=constraint_name,
-        name=name, K=K, activation_expr="constraint_activation*" if activation else ""
+        name=name, priority=priority,
+        K=K, activation_expr="constraint_activation*" if activation else ""
     ) + error_statement
 
 def make_directed_point_constraint(pointer1, pointer2, name, make_error=True, activation=False):
@@ -269,8 +277,9 @@ Constraint{{
         error_statement = error_val
     return joint_constraints + error_statement
 
-def make_action_constraints(object, handle, effector, redundancy_values=None, activation=False):
-    if redundancy_values is None:
+def make_action_constraints(object, handle, effector,
+                            btf_from, btf_to, activation=False):
+    if btf_to.redundancy is None:
         if isinstance(handle, FramedPoint):
             make_constraint_fun = make_oriented_point_constraint
         elif isinstance(handle, DirectedPoint):
@@ -279,15 +288,48 @@ def make_action_constraints(object, handle, effector, redundancy_values=None, ac
             raise(NotImplementedError("non-implemented handle type"))
         const_txt = make_constraint_fun(handle, effector, handle.name_full, activation=activation)
     else:
-        point_add_handle, rpy_add_handle = redundancy_values[(object.oname, handle.name)]
-        point_add_effector, rpy_add_effector = redundancy_values[(object.oname, effector.name)]
-        T_add = np.matmul(SE3(Rot_rpy(rpy_add_effector), point_add_effector),
-                          SE3_inv(SE3(Rot_rpy(rpy_add_handle), point_add_handle)))
+        T_add = btf_to.T_add_ah
         point_add = T_add[:3,3]
         rpy_add = Rot2rpy(T_add[:3,:3])
         const_txt = make_oriented_point_constraint(handle, effector, handle.name_full,
                                                    point_add=point_add, rpy_add=rpy_add,
                                                    activation=activation)
+    constraints = object.make_constraints(btf_from.get_chain(),
+                                          btf_to.get_chain())
+    if constraints:
+        for motion_constraint in constraints:
+            const_txt += "\n" + make_motion_constraints(effector, motion_constraint, activation=activation)
     return const_txt
 
+
+def make_motion_constraints(effector, motion_constraint, activation=False):
+    T_tool_offset = motion_constraint.T_tool_offset
+    Roff_tool = T_tool_offset[:3,:3]
+    Poff_tool = T_tool_offset[:3,3]
+
+
+    pointer2 = DummyObject()
+    pointer2.geometry = effector.geometry
+    pointer2.point = tuple(np.add(effector.point or (0,0,0), np.matmul(effector.R_point, Poff_tool)))
+    pointer2.R_point = np.matmul(effector.R_point, Roff_tool)
+
+    pair_constraint = ""
+    ori_constraint = ""
+    for gtem in motion_constraint.geometry_list:
+        constraint_name_point = "point_constraint_{name}_{bname}".format(name=gtem.name, bname=effector.name)
+        if motion_constraint.fix_surface:
+            pair_constraint += make_point_pair_constraint(gtem, pointer2.geometry, constraint_name_point,
+                                                          constraint_name_point, make_error=False,
+                                                          point1=None, point2=pointer2.point, activation=activation,
+                                                          priority=2, K='K*2')
+        if motion_constraint.fix_normal:
+            constraint_name_dir = "dir_constraint_{name}_{bname}".format(name=gtem.name, bname=effector.name)
+            pointer1 = DummyObject()
+            pointer1.geometry = gtem
+            pointer1.point = None
+            pointer1.R_point = np.identity(3)
+            ori_constraint += make_dir_constraint(pointer1, pointer2, name=constraint_name_dir,
+                                                 constraint_name=constraint_name_dir,
+                                                 make_error=False, activation=activation, priority=2, K='K*2')
+    return pair_constraint + "\n" + ori_constraint
 

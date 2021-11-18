@@ -1,10 +1,19 @@
 from abc import *
 import numpy as np
-from ...utils.utils import list2dict, GlobalTimer
-from ..constraint.constraint_common import calc_redundancy
+from ...utils.utils import list2dict, GlobalTimer, DummyBlock, save_pickle, try_mkdir, TextColors
+from ..constraint.constraint_common import BindingTransform
+from collections import defaultdict
+import time
+import os
 
 __metaclass__ = type
 
+MOTION_PATH = os.path.join(os.environ['RNB_PLANNING_DIR'], "data/motion_scenes")
+try_mkdir(MOTION_PATH)
+
+LOG_MOTION_PLANNING = False
+if LOG_MOTION_PLANNING:
+    TextColors.RED.println("[WARN] Motion Planning Logging is ON")
 
 ##
 # @class MotionInterface
@@ -37,17 +46,24 @@ class MotionInterface:
         self.joint_num = self.gscene.joint_num
         self.gtimer = GlobalTimer.instance()
         ## @brief log of plan results
-        self.result_log = {}
+        self.result_log = defaultdict(list)
         self.reset_log()
 
     ##
     # @brief reset log data and set log flag
     # @param flag_log set this value True to log filter results
-    def reset_log(self, flag_log=False):
+    def reset_log(self, flag_log=False, manager=None):
         self.flag_log = flag_log
-        self.result_log = {mfilter.__class__.__name__: [] for mfilter in self.motion_filters}
-        self.result_log["planning"] = []
-        self.gtimer.reset()
+        if manager is None:
+            self.result_log = defaultdict(list)
+            self.log_lock = None
+        else:
+            self.result_log = manager.dict()
+            self.log_lock = manager.Lock()
+            for mfilter in self.motion_filters:
+                self.result_log[mfilter.__class__.__name__] = []
+            self.result_log["planning"] = []
+
 
     ##
     # @brief (prototype) update changes in geometric scene
@@ -59,69 +75,110 @@ class MotionInterface:
     # @brief plan transition
     # @param from_state         starting state (rnb-planning.src.pkg.planning.scene.State)
     # @param to_state           goal state (rnb-planning.src.pkg.planning.scene.State)
-    # @param redundancy_dict    redundancy in dictionary format {object name: {axis: value}}
+    # @param show_state         show intermediate state on RVIZ
     # @return Traj      Full trajectory as array of Q
     # @return LastQ     Last joint configuration as array
     # @return error     planning error
     # @return success   success/failure of planning result
-    # @return binding_list  list of binding
-    def plan_transition(self, from_state, to_state, redundancy_dict=None, **kwargs):
+    # @param binding_list   list of bindings to pursue [(subject name, handle name, actor name, actor root geometry name)]
+    def plan_transition(self, from_state, to_state, verbose=False, test_filters_only=False,
+                        show_state=False, **kwargs):
         if from_state is not None:
             self.pscene.set_object_state(from_state)
-        binding_list, success = self.pscene.get_slack_bindings(from_state, to_state)
-
-        redundancy_values = {}
+        subject_list, success = self.pscene.get_changing_subjects(from_state, to_state)
 
         if success:
-            for binding in binding_list:
-                obj_name, ap_name, binder_name, binder_geometry_name = binding
-                binder_geometry_prev = from_state.binding_state[self.pscene.subject_name_list.index(obj_name)][-1]
-                actor, obj = self.pscene.actor_dict[binder_name], self.pscene.subject_dict[obj_name]
-                handle = obj.action_points_dict[ap_name]
-                if obj_name not in redundancy_dict:
-                    print("========== obj_name {} not in redundancy_dict {} -> {} =============".format(obj_name, from_state.node, to_state.node))
-                    success = False
-                    break
-                redundancy, Q_dict = redundancy_dict[obj_name], list2dict(from_state.Q, self.joint_names)
-                redundancy_values[(obj_name, handle.name)] = calc_redundancy(redundancy[handle.name], handle)
-                redundancy_values[(obj_name, actor.name)] = calc_redundancy(redundancy[actor.name], actor)
+            Q_dict = list2dict(from_state.Q, self.gscene.joint_names)
+            for sname in subject_list:
+                btf = to_state.binding_state[sname]
 
-                for mfilter in self.motion_filters:
+                for i_f, mfilter in enumerate(self.motion_filters):
+                    fname = mfilter.__class__.__name__
                     if self.flag_log:
-                        self.gtimer.tic(mfilter.__class__.__name__)
-                    success = mfilter.check(actor, obj, handle, redundancy_values, Q_dict,
-                                            binder_geometry_prev==binder_geometry_name
-                                            and self.pscene.subject_dict[obj_name].constrained)
+                        self.gtimer.tic(fname)
+                    success = mfilter.check(btf, Q_dict)
                     if self.flag_log:
-                        self.gtimer.toc(mfilter.__class__.__name__)
-                        self.result_log[mfilter.__class__.__name__].append(success)
+                        self.gtimer.toc(fname)
+                        if self.log_lock is not None:
+                            with self.log_lock:
+                                rlog = self.result_log[fname]
+                                rlog.append(success)
+                                self.result_log[fname] = rlog
+                        else:
+                            self.result_log[fname].append(success)
                     if not success:
+                        if verbose or show_state:
+                            print("Motion Filer Failure: {}".format(fname))
+                        if show_state:
+                            if from_state.Q is not None:
+                                self.gscene.show_pose(from_state.Q)
+                            vis_bak = self.gscene.highlight_robot(self.gscene.COLOR_LIST[i_f])
+                            time.sleep(0.5)
+                            self.gscene.recover_robot(vis_bak)
                         break
+            if test_filters_only:
+                return success
+        else:
+            try:
+                motion_dat = {}
+                motion_dat['from_state'] = from_state
+                motion_dat['to_state'] = to_state
+                motion_dat['gtem_args'] = self.gscene.get_gtem_args()
+                save_pickle(
+                    os.path.join(MOTION_PATH,
+                                 "{0:08d}.pkl".format(
+                                     len(os.listdir(MOTION_PATH)))), motion_dat)
+            except Exception as e:
+                save_pickle(
+                    os.path.join(MOTION_PATH,
+                                 "{0:08d}-EXCEPTION.pkl".format(
+                                     len(os.listdir(MOTION_PATH)))), str(e))
+
 
         if success:
             if self.flag_log:
                 self.gtimer.tic('planning')
-            Traj, LastQ, error, success = self.plan_algorithm(from_state, to_state, binding_list,
-                                                              redundancy_values=redundancy_values, **kwargs)
+            Traj, LastQ, error, success = self.plan_algorithm(from_state, to_state, subject_list,
+                                                              verbose=verbose, **kwargs)
             if self.flag_log:
                 self.gtimer.toc('planning')
-                self.result_log['planning'].append(success)
+                if self.log_lock is not None:
+                    with self.log_lock:
+                        rlog = self.result_log['planning']
+                        rlog.append(success)
+                        self.result_log['planning'] = rlog
+                else:
+                    self.result_log['planning'].append(success)
+            if not success:
+                if verbose or show_state:
+                    print("Motion Plan Failure")
+                if show_state:
+                    if from_state.Q is not None:
+                        self.gscene.show_pose(from_state.Q)
+                    vis_bak = self.gscene.highlight_robot(self.gscene.COLOR_LIST[-1])
+                    time.sleep(0.5)
+                    self.gscene.recover_robot(vis_bak)
         else:
             Traj, LastQ, error, success = [from_state.Q], from_state.Q, 1e10, False
-        return Traj, LastQ, error, success, binding_list
+        if LOG_MOTION_PLANNING:
+            save_pickle(os.path.join(MOTION_PATH, "%05d.pkl"%len(os.listdir(MOTION_PATH))),
+                        {"from_state":from_state, "to_state":to_state,
+                         "subject_list":subject_list, "kwargs": kwargs,
+                         "Traj": Traj, "success": success})
+
+        return Traj, LastQ, error, success, [to_state.binding_state[sname].get_chain() for sname in subject_list]
 
     ##
     # @brief (prototype) planning algorithm implementation for each planner
     # @param from_state     starting state (rnb-planning.src.pkg.planning.scene.State)
     # @param to_state       goal state (rnb-planning.src.pkg.planning.scene.State)
-    # @param binding_list   list of bindings to pursue
-    # @param redundancy_values calculated redundancy values in dictionary format {(object name, point name): (xyz, rpy)}
+    # @param subject_list   list of changed subjects
     # @return Traj      Full trajectory as array of Q
     # @return LastQ     Last joint configuration as array
     # @return error     planning error
     # @return success   success/failure of planning result
     @abstractmethod
-    def plan_algorithm(self, from_state, to_state, binding_list, redundancy_values=None, **kwargs):
+    def plan_algorithm(self, from_state, to_state, subject_list, verbose=False, **kwargs):
         return [], [], 1e10, False
 
     ##
@@ -129,32 +186,23 @@ class MotionInterface:
     # @remark  call step_online_plan to get each step plans
     # @param from_state starting state (rnb-planning.src.pkg.planning.scene.State)
     # @param to_state   goal state (rnb-planning.src.pkg.planning.scene.State)
-    def init_online_plan(self, from_state, to_state, T_step, control_freq, playback_rate=0.5,
-                         redundancy_dict=None, **kwargs):
-        binding_list, success = self.pscene.get_slack_bindings(from_state, to_state)
-        redundancy_values = {}
+    def init_online_plan(self, from_state, to_state, T_step, control_freq, playback_rate=0.5, **kwargs):
+        subject_list, success = self.pscene.get_changing_subjects(from_state, to_state)
         if success:
-            if redundancy_dict is not None:
-                for binding in binding_list:
-                    obj_name, ap_name, binder_name, binder_geometry_name = binding
-                    actor, obj = self.pscene.actor_dict[binder_name], self.pscene.subject_dict[obj_name]
-                    handle = obj.action_points_dict[ap_name]
-                    redundancy, Q_dict = redundancy_dict[obj_name], list2dict(from_state.Q, self.joint_names)
-                    redundancy_values[(obj_name, handle.name)] = calc_redundancy(redundancy[handle.name], handle)
-                    redundancy_values[(obj_name, actor.name)] = calc_redundancy(redundancy[actor.name], actor)
-            return self.init_online_algorithm(from_state, to_state, binding_list=binding_list,
+            return self.init_online_algorithm(from_state, to_state, subject_list=subject_list,
                                               T_step=T_step, control_freq=control_freq, playback_rate=playback_rate,
-                                              redundancy_values=redundancy_values**kwargs)
+                                              **kwargs)
         else:
-            raise(RuntimeError("init online plan fail - get_slack_bindings"))
+            raise(RuntimeError("init online plan fail - get_changing_subjects"))
 
 
     ##
     # @brief (prototype) initialize online planning algorithm
     # @param from_state starting state (rnb-planning.src.pkg.planning.scene.State)
     # @param to_state   goal state (rnb-planning.src.pkg.planning.scene.State)
+    # @param subject_list   list of changed subject names
     @abstractmethod
-    def init_online_algorithm(self, from_state, to_state, T_step, control_freq, redundancy_values=None,
+    def init_online_algorithm(self, from_state, to_state, subject_list, T_step, control_freq,
                               playback_rate=0.5, **kwargs):
         pass
 

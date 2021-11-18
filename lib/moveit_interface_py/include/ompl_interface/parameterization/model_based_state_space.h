@@ -53,20 +53,19 @@ namespace ompl_interface
     struct ModelBasedStateSpaceSpecification
     {
         ModelBasedStateSpaceSpecification(const moveit::core::RobotModelConstPtr& robot_model,
-                                          const moveit::core::JointModelGroup* jmg, bool constrained = false)
-                : robot_model_(robot_model), joint_model_group_(jmg), constrained_(constrained)
+                                          const moveit::core::JointModelGroup* jmg)
+                : robot_model_(robot_model), joint_model_group_(jmg)
         {
         }
 
-        ModelBasedStateSpaceSpecification(const moveit::core::RobotModelConstPtr& robot_model, const std::string& group_name,
-                                          bool constrained = false)
-                : robot_model_(robot_model), joint_model_group_(robot_model_->getJointModelGroup(group_name)), constrained_(constrained)
+        ModelBasedStateSpaceSpecification(const moveit::core::RobotModelConstPtr& robot_model,
+                                          const std::string& group_name)
+                : robot_model_(robot_model), joint_model_group_(robot_model_->getJointModelGroup(group_name))
         {
             if (!joint_model_group_)
                 throw std::runtime_error("Group '" + group_name + "'  was not found");
         }
 
-        bool constrained_;
         moveit::core::RobotModelConstPtr robot_model_;
         const moveit::core::JointModelGroup* joint_model_group_;
         moveit::core::JointBoundsVector joint_bounds_;

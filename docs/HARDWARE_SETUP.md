@@ -45,6 +45,26 @@
   pip install pyrealsense2  
   ```
   
+## TroubleShooting
+* When apt-get update fails with realsense
+```bash
+curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | sudo apt-key add - \
+&& sudo sed -i 's/http:\/\/realsense-hw-public.s3.amazonaws.com/https:\/\/librealsense.intel.com/' /etc/apt/sources.list
+```
+* When this error arises: Skipping acquire of configured file 'main/binary-i386/Packages' as repository 'https://packages.microsoft.com/ubuntu/18.04/prod bionic InRelease' doesn't support architecture 'i386'
+  * Open 'etc/apt/sources.list' as root
+  * Change this
+  ```bash
+  deb https://packages.microsoft.com/ubuntu/18.04/prod bionic main
+  # deb-src https://packages.microsoft.com/ubuntu/18.04/prod bionic main
+  ```
+  * To this
+  ```bash
+  deb [arch=amd64] https://packages.microsoft.com/ubuntu/18.04/prod bionic main
+  # deb-src [arch=amd64] https://packages.microsoft.com/ubuntu/18.04/prod bionic main
+  ```
+
+  
 ## Setup and launch indy and panda
 * setup [rnb-control](https://github.com/rnb-disinfection/rnb-control) on indy and panda
 * launch panda command repeater on matser  
@@ -55,5 +75,5 @@
 ## (Expert) Adding a new hardware to the framework
 * You need a xacro model file in src/robots to use a robot model in this framework.
     * To make xacro file compatible with this framework, read **How to make xacro for multi-robot** section in [docs/SUPPLEMENT_README.md](../docs/SUPPLEMENT_README.md)
-* You also need to set planning parameters for your robot in [src/robots/kinematics.yaml](../src/robots/kinematics.yaml]) and [src/robots/ompl_planning.yaml](../src/robots/ompl_planning.yaml)
+* You also need to set planning parameters for your robot in [src/robots/kinematics.yaml](../src/robots/kinematics.yaml]), [src/robots/ompl_planning.yaml](../src/robots/ompl_planning.yaml) and [src/robots/stomp_planning.yaml](../src/robots/stomp_planning.yaml])
     * Check the contents of the file, mostly you can just copy the contents and change the name of the robot to get ready.

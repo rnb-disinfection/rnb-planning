@@ -5,6 +5,8 @@ import uuid
 import rospy
 from sensor_msgs.msg import JointState
 from visualization_msgs.msg import Marker
+from geometry_msgs.msg import Point
+from std_msgs.msg import ColorRGBA
 
 from .geotype import GEOTYPE
 from ..utils.rotation_utils import SE3
@@ -49,13 +51,14 @@ def show_motion(pose_list, marker_list, pub, joints, joint_names, error_skip=0, 
 ##
 # @brief get markers from geometry items
 def get_markers(geometry_items, joints, joint_names):
-    marker_list = []
+    marker_dict = {}
     joint_dict = {joints.name[i]: joints.position[i] for i in range(len(joint_names))}
-    for ctem in geometry_items:
-        if ctem.display:
-            marker_list += [GeoMarker(geometry=ctem)]
-            marker_list[-1].set_marker(joint_dict)
-    return marker_list
+    for gtem in geometry_items:
+        marker_dict[gtem.name] = []
+        if gtem.display:
+            marker_dict[gtem.name] += [GeoMarker(geometry=gtem)]
+            marker_dict[gtem.name][-1].set_marker(joint_dict)
+    return marker_dict
 
 
 ##
@@ -98,10 +101,21 @@ class GeoMarker:
             self.marker.color.r, self.marker.color.g, self.marker.color.b, self.marker.color.a  = self.geometry.color
 
 #         self.marker.header.frame_id = self.geometry.link_name # let rviz transform link - buggy
-        if hasattr(self.geometry, 'uri'):
-            self.marker.mesh_resource = self.geometry.uri
         if self.geometry.gtype == GEOTYPE.MESH:
             self.marker.scale.x, self.marker.scale.y, self.marker.scale.z = self.geometry.scale
+            self.marker.mesh_resource = self.geometry.uri
+            if self.geometry.vertices is not None:
+                if self.geometry.triangles is None:
+                    self.marker.points = [Point(*vert) for vert in self.geometry.vertices]
+                    N_points = len(self.marker.points)
+                else:
+                    vidc_flat = np.concatenate(self.geometry.triangles, axis=0).astype(np.int).tolist()
+                    self.marker.points = [Point(*vert) for vert in np.asarray(self.geometry.vertices)[vidc_flat]]
+                    N_points = len(self.marker.points)/3
+                if self.geometry.colors is not None:
+                    self.marker.colors = [ColorRGBA(*(list(color[:3])+[1])) for color in self.geometry.colors]
+                else:
+                    self.marker.colors = [ColorRGBA(*self.geometry.color) for _ in range(N_points)]
         if self.geometry.gtype == GEOTYPE.CAPSULE:
             if create or len(self.submarkers)==0:
                 self.submarkers.append(GeoMarker.create_marker_template(Marker.SPHERE, [self.geometry.radius*2]*3, self.geometry.color))
@@ -166,7 +180,15 @@ class GeoMarker:
         elif self.geometry.gtype == GEOTYPE.SPHERE:
             return Marker.SPHERE
         elif self.geometry.gtype == GEOTYPE.MESH:
-            return Marker.MESH_RESOURCE
+            if self.geometry.uri != "":
+                return Marker.MESH_RESOURCE
+            elif self.geometry.vertices is not None:
+                if self.geometry.triangles is not None:
+                    return Marker.TRIANGLE_LIST
+                else:
+                    return Marker.POINTS
+            else:
+                raise(RuntimeError("Mesh geometry should have uri or vertices"))
         elif self.geometry.gtype == GEOTYPE.ARROW:
             return Marker.ARROW
         elif self.geometry.gtype == GEOTYPE.PLANE:

@@ -154,6 +154,15 @@ def Rot_rpy(rpy):
 def Rot2rpy(R):
     return np.asarray(list(reversed(Rot2zyx(R))))
 
+def Rot2axis(R, axis):
+    shift = 1-axis
+    Rshift = np.zeros((3,3))
+    for ax in range(3):
+        Rshift[ax+shift,ax] = 1
+    Rx = matmul_series(Rshift, R, Rshift.transpose())
+    rot_x = Rot2zyx(Rx)[-1]
+    return rot_x
+
 ##
 # @return tuple(xyz, rpy(rad))
 def T2xyzrpy(T):
@@ -161,13 +170,19 @@ def T2xyzrpy(T):
 
 ##
 # @return tuple(xyz, rotvec)
-def T2xyzrvec(T):
-    return T[:3,3].tolist(), Rotation.from_dcm(T[:3,:3]).as_rotvec().tolist()
+def T2xyzrvec(T, decimals=None):
+    if decimals is None:
+        return T[:3,3].tolist(), Rotation.from_dcm(T[:3,:3]).as_rotvec().tolist()
+    else:
+        return tuple(np.round(T[:3,3], decimals)), tuple(Rotation.from_dcm(T[:3,:3]).as_rotvec())
 
 ##
 # @return tuple(xyz, quaternion)
-def T2xyzquat(T):
-    return T[:3,3].tolist(), Rotation.from_dcm(T[:3,:3]).as_quat().tolist()
+def T2xyzquat(T, decimals=None):
+    if decimals is None:
+        return T[:3,3].tolist(), Rotation.from_dcm(T[:3,:3]).as_quat().tolist()
+    else:
+        return tuple(np.round(T[:3,3], decimals)), tuple(np.round(Rotation.from_dcm(T[:3,:3]).as_quat(), decimals))
 
 ##
 # @param xyzrpy tuple(xyz, rpy(rad))
@@ -178,6 +193,11 @@ def T_xyzrpy(xyzrpy):
 # @param xyzrpy tuple(xyz, quaternion)
 def T_xyzquat(xyzquat):
     return SE3(Rotation.from_quat(xyzquat[1]).as_dcm(), xyzquat[0])
+
+##
+# @param xyzrpy tuple(xyz, quaternion)
+def T_xyzrvec(xyzrvec):
+    return SE3(Rotation.from_rotvec(xyzrvec[1]).as_dcm(), xyzrvec[0])
 
 def matmul_series(*Tlist):
     T = Tlist[0]
@@ -197,8 +217,19 @@ def calc_rotvec_vecs(vec1, vec2):
     cross_vec = np.cross(vec1, vec2)
     dot_val = np.dot(vec1, vec2)
     cross_abs = np.linalg.norm(cross_vec)
-    cross_nm = cross_vec/cross_abs
-    rotvec = cross_nm * np.arctan2(cross_abs, dot_val)
+    if np.linalg.norm(cross_abs) < 1e-8:
+        if len(vec1)==2:
+            if dot_val>=0:
+                rotvec = 0
+            else:
+                rotvec = np.pi
+        elif len(vec1)==3:
+            rotvec = np.zeros(3)
+            if dot_val<0:
+                rotvec[2] = np.pi
+    else:
+        cross_nm = cross_vec/cross_abs
+        rotvec = cross_nm * np.arctan2(cross_abs, dot_val)
     return rotvec
 
 def calc_zvec_R(zvec):
@@ -280,3 +311,6 @@ def interpolate_T(T1, T2, POS_STEP=None, ROT_STEP=None, N_STEP=None):
     Rarr = np.array([np.matmul(R_cur, Rotation.from_rotvec(dRvec_tmp).as_dcm()) for dRvec_tmp in dRarr.transpose()])
 
     return [SE3(R, P) for R, P in zip(Rarr, Parr)]
+
+def norm_SE3(T, rot_scale=0.1):
+    return np.linalg.norm(T[:3,3]) + rot_scale*np.linalg.norm(Rotation.from_dcm(T[:3,:3]).as_rotvec())
