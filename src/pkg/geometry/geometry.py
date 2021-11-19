@@ -452,6 +452,22 @@ class GeometryScene(list):
         zi = np.matmul(T_bj[:3, :3], joint.axis)
         return T_bj, zi
 
+    def show_vector(self, hl_key, name, origin, vector, link_name="base_link", color=(1,0,0,1)):
+        vector_len = np.linalg.norm(vector)
+        vector_nm = vector / (vector_len + 1e-6)
+        rotvec = calc_rotvec_vecs([0, 0, 1], vector_nm)
+        R = Rotation.from_rotvec(rotvec).as_dcm()
+        return self.add_highlight_axis(hl_key, name, link_name=link_name,
+                                       center=origin, orientation_mat=R,
+                                       axis="z", color=color, dims=(vector_len, vector_len*0.1, vector_len*0.1))
+
+    def show_wrench(self, name, wrench, Tbp, fscale=0.01, tscale=0.5, hl_key="wc", link_name="base_link"):
+        v, w = wrench[:3]*fscale, wrench[3:]*tscale
+        Rbp, Pbp = Tbp[:3,:3], Tbp[:3,3]
+        self.show_vector(hl_key, name+"_v", origin=Pbp,
+                         vector=np.matmul(Rbp, v), color=(1,0,0,1), link_name=link_name)
+        self.show_vector(hl_key, name+"_w", origin=Pbp,
+                         vector=np.matmul(Rbp, w), color=(0,0,1,1), link_name=link_name)
 
 ##
 # @class GeometryItem
