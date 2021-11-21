@@ -17,19 +17,22 @@
   - Need to add usage script
 * CombinedDetector
   - Camera class as singletone
-#### Planning
-* PDDLStream (Pick&Place)
-  - Need to add usage script
-* **BindingTransform**
-  - ***pscene.sample_leaf_state()*** now returns *to_state* only. *redundancy_dict* is contained in ***to_state.binding_state***.
-  - ***State.binding_state*** is a dictionary of **BindingTransform**. The redundancy can be accessed at ***BindingTransform.redundancy***.
-  - To adjust redundancy, call ***BindingTransform.set_redundancy()*** and ***BindingTransform.update_transforms()***.
-* Interpolated path generation by incremental IK
+  
 ### Removed features
 #### eTaSL planner
 
 ## New features
-* **TBD**  
+### 4. PlanningPipeline
+* **4.1 PlanningScene**  
+  - **BindingTransform**
+    - ***pscene.sample_leaf_state()*** now returns *to_state* only. *redundancy_dict* is contained in ***to_state.binding_state***.
+    - ***State.binding_state*** is a dictionary of **BindingTransform**. The redundancy can be accessed at ***BindingTransform.redundancy***.
+    - To adjust redundancy, call ***BindingTransform.set_redundancy()*** and ***BindingTransform.update_transforms()***.
+* **4.2 MotionPlanner**  
+  - **MoveitPlanner**
+    - Interpolated path generation by incremental IK
+* **4.3 TaskPlanner**  
+  - **PDDLStream (Pick&Place)**  
   
 ## Deprecated features
 * **TBD**    
