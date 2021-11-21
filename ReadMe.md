@@ -79,7 +79,10 @@ source "$RNB_PLANNING_DIR"ws_ros/devel/setup.bash
 echo 'source "$RNB_PLANNING_DIR"ws_ros/devel/setup.bash' >> ~/.bashrc
 ```
 
-## 2.3 Recommended Tools and Options
+## 2.3 (Optional) Install PDDLStream
+* To use PDDLStream task-motion planning, follow instruction in [docs/PDDLStream.md](docs/PDDLStream.md)
+
+## 2.4 Recommended Tools and Options
 * Follow instruction in [docs/SUPPLEMENT_README.md](docs/SUPPLEMENT_README.md)
 * To use eTaSL planner and **online planning**, follow instruction in **eTaSL** in [docs/SUPPLEMENT_README.md](docs/SUPPLEMENT_README.md)
 
