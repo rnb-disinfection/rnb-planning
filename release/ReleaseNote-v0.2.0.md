@@ -21,8 +21,8 @@
 * PDDLStream (Pick&Place)
   - Need to add usage script
 * **BindingTransform**
-  - ***pscene.sample_leaf_state()*** now returns to_state only. redundancy_dict is contained in ***to_state.binding_state***.
-  - State.binding_state is a dictionary of **BindingTransform**. The redundancy can be accessed at ***BindingTransform.redundancy***.
+  - ***pscene.sample_leaf_state()*** now returns *to_state* only. *redundancy_dict* is contained in ***to_state.binding_state***.
+  - ***State.binding_state*** is a dictionary of **BindingTransform**. The redundancy can be accessed at ***BindingTransform.redundancy***.
   - To adjust redundancy, call ***BindingTransform.set_redundancy()*** and ***BindingTransform.update_transforms()***.
 * Interpolated path generation by incremental IK
 ### Removed features
