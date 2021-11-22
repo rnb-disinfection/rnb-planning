@@ -152,7 +152,7 @@ def postprocess_plan(plan):
 def solve_in_pddlstream(pscene, mplan, ROBOT_NAME, TOOL_NAME, HOME_POSE, goal_pairs,
                         TIMEOUT_MOTION, MAX_TIME, MAX_ITER, MAX_SKELETONS,
                         GRASP_SAMPLE, STABLE_SAMPLE, SHOW_STATE, SEARCH_SAMPLE_RATIO,
-                        use_pybullet_gui=False, USE_MOVEIT_IK=False, TIMED_COMPLETE=False, VERBOSE=False,
+                        use_pybullet_gui=False, USE_MOVEIT_IK=True, TIMED_COMPLETE=False, VERBOSE=False,
                         IK_TRY_NUM=10, IK_TIMEOUT_SINGLE=0.01):
     gtimer = GlobalTimer.instance()
     gscene = pscene.gscene
@@ -176,7 +176,7 @@ def solve_in_pddlstream(pscene, mplan, ROBOT_NAME, TOOL_NAME, HOME_POSE, goal_pa
                                                   movable=movable_bodies,
                                                   checkers_ik=checkers_ik,
                                                   tool_name=TOOL_NAME,
-                                                  tool_link_name=gscene.NAME_DICT[TOOL_NAME].link_name,
+                                                  tool_link_name=pscene.actor_dict[TOOL_NAME].geometry.link_name,
                                                   mplan=mplan, timeout=TIMEOUT_MOTION,
                                                   grasp_sample=GRASP_SAMPLE, stable_sample=STABLE_SAMPLE,
                                                   show_state=SHOW_STATE, USE_MOVEIT_IK=USE_MOVEIT_IK,
