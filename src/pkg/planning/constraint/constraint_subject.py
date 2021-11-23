@@ -169,7 +169,6 @@ class Subject:
     ## @brief SubjectType
     stype = None
     unstoppable = False
-    constrained = False
     def __init__(self):
         ## @brief name of object
         self.oname = None
@@ -304,16 +303,15 @@ class AbstractTask(Subject):
 
 ##
 # @class WaypointTask
-# @brief sweep action points in alphabetical order
-# @remark   state_param: boolean vector of which each element represents if each waypoint is covered or not
-#           node_item: number of covered waypoints
+# @brief sequential waypoint reaching
 class WaypointTask(AbstractTask):
-    constrained = False
+
     ##
     # @param oname object's name
     # @param geometry parent geometry
     # @param action_points_dict pre-defined action points as dictionary
-    def __init__(self, oname, geometry, action_points_dict, sub_binders_dict=None, tol=1e-3):
+    # @param one_direction set this value to False to enable bi-directional waypoint transfer
+    def __init__(self, oname, geometry, action_points_dict, sub_binders_dict=None, tol=1e-3, one_direction=True):
         self.oname = oname
         self.geometry = geometry
         self.action_points_dict = action_points_dict
@@ -323,6 +321,7 @@ class WaypointTask(AbstractTask):
         self.state_param = np.zeros(len(self.action_points_order), dtype=np.bool)
         self.binding = BindingChain(self.oname, None, None, None)
         self.tol = tol
+        self.one_direction = one_direction
         self.kwargs = {"tol": tol}
 
     ##
@@ -331,10 +330,12 @@ class WaypointTask(AbstractTask):
     # @param state_param list of done-mask
     def set_state(self, binding, state_param=None):
         self.binding = deepcopy(binding)
-        if state_param is None:
-            self.state_param = np.zeros(len(self.action_points_order), dtype=np.bool)
-        else:
-            self.state_param = state_param.copy()
+        self.state_param = np.zeros(len(self.action_points_order), dtype=np.bool)
+        if self.binding[1] is not None:
+            if self.binding[1] in self.action_points_order:
+                self.state_param[:self.action_points_order.index(self.binding[1])+1] = True
+            else:
+                raise(RuntimeError("Undefined handle {}".format(self.binding[1])))
         self.update_sub_points()
 
     ##
@@ -347,7 +348,7 @@ class WaypointTask(AbstractTask):
     # @brief get object-level state_param component
     def get_state_param_update(self, btf, state_param):
         if btf.binding.handle_name is not None:
-            state_param[self.action_points_order.index(btf.binding.handle_name)] = True
+            state_param[:self.action_points_order.index(btf.binding.handle_name) + 1] = True
         return state_param
 
     ##
@@ -366,7 +367,8 @@ class WaypointTask(AbstractTask):
         apk = self.action_points_order[to_node_item - 1]
         ap_list = [ap_dict[apk]] if apk not in apk_exclude else []
         ctypes = [ap.ctype for ap in ap_list]
-        bd_list = [actor for actor in actor_dict.values() if actor.ctype in ctypes] # bd_exclude is ignored as previous binding is re-used in sweep
+        bd_list = [actor for actor in actor_dict.values() if
+                   actor.ctype in ctypes]  # bd_exclude is ignored as previous binding is re-used in sweep
         for bd in bd_list:
             self.geometry.gscene.link_control_map[bd.geometry.link_name]
 
@@ -399,15 +401,17 @@ class WaypointTask(AbstractTask):
     ##
     # @brief get object-level neighbor component (detach or next waypoint)
     def get_neighbor_node_component_list(self, node_tem, pscene):
+        neighbor = [node_tem]
         if node_tem < len(self.state_param):
-            return [node_tem, node_tem+1]
-        else:
-            return [node_tem]
+            neighbor.append(node_tem + 1)
+        if (not self.one_direction) and node_tem > 0:
+            neighbor.insert(0, node_tem - 1)
+        return neighbor
 
     ##
     # @brief get all object-level node component
     def get_all_node_components(self, pscene):
-        return list(range(len(self.state_param)+1))
+        return list(range(len(self.state_param) + 1))
 
     ##
     # @brief return list of state_params corresponds to given node_item.
@@ -427,7 +431,6 @@ class WaypointTask(AbstractTask):
 # @remark   state_param: boolean vector of which each element represents if each waypoint is covered or not
 #           node_item: number of covered waypoints
 class SweepTask(WaypointTask):
-    constrained = True
 
     ##
     # @brief make constraints. by default, empty list.
@@ -448,13 +451,12 @@ class SweepTask(WaypointTask):
 #           node_item: number of covered waypoints
 class SweepLineTask(SweepTask):
     unstoppable = True
-    constrained = True
     ##
     # @param oname object's name
     # @param geometry parent geometry
     # @param action_points_dict pre-defined action points as dictionary
     def __init__(self, oname, geometry, action_points_dict, sub_binders_dict=None,
-                 geometry_vertical=None, tol=1e-3, clearance=None):
+                 geometry_vertical=None, tol=1e-3, clearance=None, **kwargs):
         if isinstance(geometry_vertical, str):
             geometry_vertical = geometry.gscene.NAME_DICT[geometry_vertical]
         clearance_names = []
@@ -466,7 +468,7 @@ class SweepLineTask(SweepTask):
                 clearance_gtem.append(gtem)
                 clearance_names.append(gtem.name)
             clearance = clearance_gtem
-        SweepTask.__init__(self, oname, geometry, action_points_dict, sub_binders_dict=sub_binders_dict, tol=tol)
+        SweepTask.__init__(self, oname, geometry, action_points_dict, sub_binders_dict=sub_binders_dict, tol=tol, **kwargs)
         self.kwargs = {"geometry_vertical":
                            geometry_vertical.name if geometry_vertical is not None else geometry_vertical,
                        "tol": tol, "clearance": clearance_names}

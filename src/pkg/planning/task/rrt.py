@@ -20,7 +20,8 @@ class TaskRRT(TaskInterface):
     # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
     def __init__(self, pscene,
                  new_node_sampler=random.choice, parent_node_sampler=random.choice, parent_snode_sampler=random.choice,
-                 binding_sampler=random.choice, redundancy_sampler=random.uniform, custom_rule=None, node_trial_max=1e2):
+                 binding_sampler=random.choice, redundancy_sampler=random.uniform, custom_rule=None, node_trial_max=1e2,
+                 random_try_goal=True):
         TaskInterface.__init__(self, pscene)
         self.new_node_sampler = new_node_sampler
         self.parent_node_sampler = parent_node_sampler
@@ -30,6 +31,7 @@ class TaskRRT(TaskInterface):
         self.custom_rule = custom_rule
         self.explicit_edges = {}
         self.node_trial_max = node_trial_max
+        self.random_try_goal = random_try_goal
 
     ##
     # @brief build object-level node graph
@@ -215,7 +217,7 @@ class TaskRRT(TaskInterface):
         if connection_result:
             node_new = snode_new.state.node
             for leaf in self.node_dict[node_new]:
-                if leaf not in self.goal_nodes: # goal nodes are manually reached below when possible. no need for random access
+                if self.random_try_goal or leaf not in self.goal_nodes: # goal nodes are manually reached below when possible. no need for random access
                     if self.node_trial_dict[leaf]:
                         self.neighbor_nodes[leaf] = None
 

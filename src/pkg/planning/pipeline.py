@@ -453,6 +453,7 @@ class PlanningPipeline:
                 snode_pre = snode
                 continue
             self.pscene.gscene.clear_highlight()
+            time.sleep(0.1)
             for sname in self.pscene.subject_name_list:
                 btf_pre, btf = snode_pre.state.binding_state[sname], snode.state.binding_state[sname]
                 if btf_pre.get_chain() != btf.get_chain():
@@ -464,6 +465,8 @@ class PlanningPipeline:
             time.sleep(period)
             self.pscene.gscene.show_pose(snode.traj[-1])
             snode_pre = snode
+        self.pscene.gscene.clear_highlight()
+        time.sleep(0.1)
 
     ##
     # @brief execute grasping as described in the given state
@@ -548,10 +551,9 @@ class PlanningPipeline:
             scale_tmp = 1
             subject_list, success = self.pscene.get_changing_subjects(snode_pre.state, snode.state)
             for sname in subject_list:
-                actor_root = snode.state.binding_state[sname].binding.actor_root_gname
-                actor_root_prev = snode_pre.state.binding_state[sname].binding.actor_root_gname
-                if actor_root_prev == actor_root and \
-                        self.pscene.subject_dict[sname].constrained:
+                binding_to = snode.state.binding_state[sname].get_chain()
+                binding_prev = snode_pre.state.binding_state[sname].get_chain()
+                if self.pscene.subject_dict[sname].make_constraints(binding_to, binding_prev):
                     scale_tmp = self.constrained_motion_scale
                     break
 

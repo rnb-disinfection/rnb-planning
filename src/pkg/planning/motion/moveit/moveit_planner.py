@@ -267,6 +267,9 @@ class MoveitPlanner(MotionInterface):
             T_tar_tool = np.matmul(T_tar, SE3_inv(T_tool))
             goal_pose = tuple(T_tar_tool[:3,3]) \
                         +tuple(Rotation.from_dcm(T_tar_tool[:3,:3]).as_quat())
+            T_tar_tool_cur = self.gscene.get_tf(Q=from_state.Q, to_link=tool.geometry.link_name, from_link=target.geometry.link_name)
+            if np.linalg.norm(T_tar_tool - T_tar_tool_cur) < 1e-3:
+                return [from_state.Q], from_state.Q, 0, True
 
             if dual:
                 dual_planner = self.dual_planner_dict[group_name]
@@ -283,6 +286,8 @@ class MoveitPlanner(MotionInterface):
             btf_to = to_state.binding_state[obj_name]
             constraints = obj.make_constraints(btf_from.get_chain(),
                                                btf_to.get_chain())
+            ref_link = self.chain_dict[group_name]["link_names"][0]
+            Tref = self.gscene.get_tf(Q=from_Q, to_link=target.geometry.link_name, from_link=ref_link)
             if constraints:
                 for motion_constraint in constraints:
                     self.add_constraint(group_name, tool.geometry.link_name, tool.Toff_lh, motion_constraint=motion_constraint)
@@ -291,8 +296,6 @@ class MoveitPlanner(MotionInterface):
 
                 if self.incremental_constraint_motion:
                     # ################################# Special planner ##############################
-                    ref_link = self.chain_dict[group_name]["link_names"][0]
-                    Tref = self.gscene.get_tf(Q=from_Q, to_link=target.geometry.link_name, from_link=ref_link)
                     T_ref_tool = matmul_series(Tref, T_tar_tool, tool.geometry.Toff)
                     trajectory, success = self.get_incremental_traj(tool.geometry, T_ref_tool,
                                                                     from_Q, step_size=0.01, ERROR_CUT=0.01,

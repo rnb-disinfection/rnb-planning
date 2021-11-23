@@ -125,7 +125,69 @@ def add_indy_sweep_tool(gscene, robot_name, face_name="brush_face", tool_offset=
                        color=(0.0,0.8,0.0,0.5), display=True, fixed=True, collision=True)
 
 
+from pkg.planning.constraint.constraint_subject import Grasp2Point, FramePoint, SweepFrame, SweepLineTask, CustomObject
+from pkg.planning.constraint.constraint_actor import Gripper2Tool, PlaceFrame, SweepFramer
 
+
+def add_drawer(pscene, dname="drawer", draw_len=0.2,
+               center=(1, 1, 1), rpy=(0, 0, 0), dims=(0.4, 0.4, 0.2),
+               wall_thickness=0.02, handle_size=(0.05, 0.1, 0.02),
+               color=(0.8, 0.8, 0.8, 1), link_name="base_link", clearance=2e-3):
+    gscene = pscene.gscene
+    botname = "{}_bot".format(dname)
+    drawer_bot = gscene.create_safe(GEOTYPE.BOX, botname, link_name=link_name,
+                                    center=center, rpy=rpy,
+                                    dims=(dims[0] + wall_thickness, dims[1] + wall_thickness, wall_thickness),
+                                    fixed=True, collision=True, color=color)
+    gscene.create_safe(GEOTYPE.BOX, "{}_ceil".format(dname), link_name=link_name,
+                       center=(0, 0, dims[2]),
+                       dims=(dims[0] + wall_thickness, dims[1] + wall_thickness, wall_thickness),
+                       fixed=True, collision=True, color=color, parent=botname)
+    gscene.create_safe(GEOTYPE.BOX, "{}_back".format(dname), link_name=link_name,
+                       center=(dims[0] / 2, 0, dims[2] / 2),
+                       dims=(wall_thickness, dims[1] + wall_thickness, dims[2] + wall_thickness),
+                       fixed=True, collision=True, color=color, parent=botname)
+    gscene.create_safe(GEOTYPE.BOX, "{}_left".format(dname), link_name=link_name,
+                       center=(0, -dims[1] / 2, dims[2] / 2),
+                       dims=(dims[0] + wall_thickness, wall_thickness, dims[2] + wall_thickness),
+                       fixed=True, collision=True, color=color, parent=botname)
+    gscene.create_safe(GEOTYPE.BOX, "{}_right".format(dname), link_name=link_name,
+                       center=(0, dims[1] / 2, dims[2] / 2),
+                       dims=(dims[0] + wall_thickness, wall_thickness, dims[2] + wall_thickness),
+                       fixed=True, collision=True, color=color, parent=botname)
+    Q0 = [0] * gscene.joint_num
+    Tbb = drawer_bot.get_tf(Q0)
+    center = np.matmul(Tbb, SE3(np.identity(3), (-wall_thickness - clearance / 2, 0, dims[2] / 2)))[:3, 3]
+    drawer = gscene.create_safe(GEOTYPE.BOX, dname, link_name=link_name,
+                                center=center, dims=np.subtract(dims, wall_thickness + clearance),
+                                fixed=False, collision=True, color=color)
+
+    pplane0 = pscene.create_binder(bname=drawer_bot.name + "_0", gname=drawer_bot.name, _type=PlaceFrame,
+                                   point=((drawer_bot.dims[0] - wall_thickness) / 2, 0, wall_thickness / 2))
+    pplane1 = pscene.create_binder(bname=drawer_bot.name + "_1", gname=drawer_bot.name, _type=PlaceFrame,
+                                   point=((drawer_bot.dims[0] - wall_thickness) / 2 - draw_len, 0, wall_thickness / 2))
+
+    handle = gscene.create_safe(GEOTYPE.BOX, "{}_handle".format(dname), link_name=link_name,
+                                center=(-dims[0] / 2 + wall_thickness / 2 - handle_size[0] / 2, 0, 0), dims=handle_size,
+                                fixed=False, collision=True, color=color, parent=drawer.name)
+
+    Tbp0, Tbh = pplane0.get_tf_handle(Q0), handle.get_tf(Q0)
+    Thp0 = np.matmul(SE3_inv(Tbh), Tbp0)
+    gpoint = Grasp2Point("gp", handle, (0, 0, 0), (0, 0, np.pi / 2))
+    ppoint = FramePoint("pp", handle, Thp0[:3, 3], Rot2rpy(Thp0[:3, :3]))
+    handle_s = pscene.create_subject(oname="handle", gname=handle.name, _type=CustomObject,
+                                     action_points_dict={gpoint.name: gpoint, ppoint.name: ppoint})
+    drawer = pscene.create_binder(bname=handle.name, gname=handle.name, _type=SweepFramer, point=(0, 0, 0),
+                                  rpy=(0, 0, 0))
+    Tbd = drawer.get_tf_handle(Q0)
+    Tdd = np.matmul(SE3_inv(Tbb), Tbd)
+    gp1 = SweepFrame("h1", drawer_bot, Tdd[:3, 3], Rot2rpy(Tdd[:3, :3]))
+    gp2 = SweepFrame("h2", drawer_bot, Tdd[:3, 3] - (draw_len, 0, 0), Rot2rpy(Tdd[:3, :3]))
+
+    sweep = pscene.create_subject(oname=dname, gname=drawer_bot.name, _type=SweepLineTask,
+                                  action_points_dict={gp1.name: gp1,
+                                                      gp2.name: gp2}, one_direction=False)
+    return drawer_bot, drawer, handle
 
 
 def finish_L_shape(gscene, gtem_dict):

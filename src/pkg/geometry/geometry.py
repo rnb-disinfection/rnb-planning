@@ -221,6 +221,10 @@ class GeometryScene(list):
         if gtem.name in marker_dict:
             for marker in marker_dict[gtem.name]:
                 marker.delete(sleep=sleep)
+            if gtem.name in self.marker_dict_fixed:
+                del self.marker_dict_fixed[gtem.name]
+            if gtem.name in self.marker_dict:
+                del self.marker_dict[gtem.name]
 
     ##
     # @brief clear all markers
@@ -262,6 +266,7 @@ class GeometryScene(list):
                     del self.highlight_dict[hl_key][k]
                     if v in self:
                         self.remove(v)
+            del self.highlight_dict[hl_key]
 
     ##
     # @brief highlight a geometry

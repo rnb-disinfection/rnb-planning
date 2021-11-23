@@ -47,6 +47,11 @@ class PointerActor(Actor):
                                "z":(dims[2]/2,dims[2]/2),
                                "w":(-np.pi,np.pi)}
 
+    ##
+    # @brief place plane is only available when vertical direction is in range of VERTICAL_CUT (10 deg)
+    def check_available(self, joint_dict):
+        return self.geometry.is_controlled()
+
 
 ##
 # @class FrameActor
@@ -63,6 +68,11 @@ class FrameActor(Actor):
             self.redundancy = {"x":(-dims[0]/2,dims[0]/2),
                                "y":(-dims[1]/2,dims[1]/2)}
 
+    ##
+    # @brief place plane is only available when vertical direction is in range of VERTICAL_CUT (10 deg)
+    def check_available(self, joint_dict):
+        return self.geometry.is_controlled()
+
 ################################# USABLE CLASS #########################################
 
 
@@ -74,11 +84,6 @@ class VacuumTool(PointerActor):
     multiple = False
     ctype = ConstraintType.Vacuum
 
-    ##
-    # @brief vacuum tool is always available
-    def check_available(self, joint_dict):
-        return True
-
 
 ##
 # @class Gripper2Tool
@@ -87,11 +92,6 @@ class Gripper2Tool(PointerActor):
     controlled = True
     multiple = False
     ctype = ConstraintType.Grasp2
-
-    ##
-    # @brief gripper tool is always available
-    def check_available(self, joint_dict):
-        return True
 
     ##
     # @brief currently support only x-y plane
@@ -113,11 +113,6 @@ class FramedTool(FrameActor):
     controlled = True
     multiple = False
     ctype = ConstraintType.Frame
-
-    ##
-    # @brief frame tool is always available
-    def check_available(self, joint_dict):
-        return True
 
 
 ##
@@ -162,22 +157,11 @@ class FixtureSlot(PointerActor):
     def check_available(self, joint_dict):
         return False
 
-class AbstractWaypointAgent:
-    def bind(self, action_obj, bind_point, joint_dict_last):
-        state_param = action_obj.state_param
-        state_param[action_obj.action_points_order.index(bind_point)] = True
-        action_obj.set_state(BindingChain(action_obj.oname, bind_point, self.name, self.geometry.name), state_param)
-
-    ##
-    # @brief place plane is only available when vertical direction is in range of VERTICAL_CUT (10 deg)
-    def check_available(self, joint_dict):
-        return self.geometry.is_controlled()
-
 
 ##
 # @class SweepTool
 # @brief Actor class for sweeping. z-direction constrained. (PointerActor)
-class SweepTool(AbstractWaypointAgent, PointerActor):
+class SweepTool(PointerActor):
     controlled = True
     multiple = False
     ctype = ConstraintType.Sweep
@@ -187,7 +171,7 @@ class SweepTool(AbstractWaypointAgent, PointerActor):
 ##
 # @class SweepFramer
 # @brief Actor class for sweeping. z-direction constrained. (FrameActor)
-class SweepFramer(AbstractWaypointAgent, FrameActor):
+class SweepFramer(FrameActor):
     controlled = True
     multiple = False
     ctype = ConstraintType.Sweep
@@ -197,7 +181,7 @@ class SweepFramer(AbstractWaypointAgent, FrameActor):
 ##
 # @class WayAgent
 # @brief Actor class for waypoint reaching. z-direction constrained. (PointerActor)
-class WayAgent(AbstractWaypointAgent, PointerActor):
+class WayAgent(PointerActor):
     controlled = True
     multiple = False
     ctype = ConstraintType.Waypoint
@@ -207,7 +191,7 @@ class WayAgent(AbstractWaypointAgent, PointerActor):
 ##
 # @class WayFramer
 # @brief Actor class for waypoint reaching. z-direction constrained. (PointerActor)
-class WayFramer(AbstractWaypointAgent, FrameActor):
+class WayFramer(FrameActor):
     controlled = True
     multiple = False
     ctype = ConstraintType.Waypoint

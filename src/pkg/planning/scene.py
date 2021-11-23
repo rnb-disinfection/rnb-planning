@@ -189,6 +189,7 @@ class PlanningScene:
     def set_object_state(self, state):
         bd_list = state.binding_state.get_chains_sorted()
         bd_list_done = []
+        bd_list_postponed = set()
         while bd_list:
             bd = bd_list.pop(0)
             obj = self.subject_dict[bd.subject_name]
@@ -199,9 +200,10 @@ class PlanningScene:
             binder = self.actor_dict[bd.actor_name]
             binder_family = set(binder.geometry.get_family())
             remaining_subjects = [self.subject_dict[bd_tmp[0]].geometry.name for bd_tmp in bd_list]
-            if binder_family.intersection(remaining_subjects):
+            if binder_family.intersection(remaining_subjects)-bd_list_postponed:
                 # If binder is a family of remaining subjects, move it to end to change it after the subject is updated
-                bd_list += [bd]
+                bd_list.append(bd)
+                bd_list_postponed = bd_list_postponed.union(binder_family)
             else:
                 obj.set_state(bd, state_param)
                 bd_list_done += [bd]
@@ -320,7 +322,7 @@ class PlanningScene:
     # @brief change binding state
     # @param binding    binding tuple (object name, binding point, binder)
     # @param joint_dict joint pose in radian as dictionary
-    def rebind(self, binding, joint_dict):
+    def rebind(self, binding, joint_dict, done_log=[]):
         object_tar = self.subject_dict[binding.subject_name]
         obj_fam = object_tar.geometry.get_family()
         if binding.actor_name is None:
@@ -328,11 +330,14 @@ class PlanningScene:
         else:
             binder = self.actor_dict[binding.actor_name]
             binder.bind(action_obj=object_tar, bind_point=binding.handle_name, joint_dict_last=joint_dict)   # bind given binding
+        done_log = done_log + [(binding.subject_name, binding.actor_name)]
         for binder_sub in [k for k,v in self.actor_dict.items()
                            if v.geometry.name in obj_fam]: # find bound object's sub-binder
             for binding_sub in [v.binding for v in self.subject_dict.values()
                                 if v.binding.actor_name == binder_sub]: # find object bound to the sub-binder
-                self.rebind(binding_sub, joint_dict) # update binding of the sub-binder too
+                if (binding_sub.subject_name, binding_sub.actor_name) not in done_log:
+                    self.rebind(binding_sub, joint_dict, done_log=done_log) # update binding of the sub-binder too
+
 
     ##
     # @brief change binding state
@@ -503,19 +508,20 @@ class PlanningScene:
 
     ##
     # @brief    add axis marker to handle
-    def add_handle_axis(self, hl_key, handle, Toff=None, color=None):
+    def add_handle_axis(self, hl_key, handle, Toff=None, color=None, dims=(0.10, 0.01, 0.01)):
         hobj = handle.geometry
         Toff_lh = handle.Toff_lh
         if Toff is not None:
             Toff_lh = np.matmul(Toff_lh, Toff)
         axis = "xyz"
-        self.gscene.add_highlight_axis(hl_key, hobj.name, hobj.link_name, Toff_lh[:3,3], Toff_lh[:3,:3], color=color, axis=axis)
+        self.gscene.add_highlight_axis(hl_key, handle.name, hobj.link_name, Toff_lh[:3,3], Toff_lh[:3,:3],
+                                       color=color, axis=axis, dims=dims)
 
     ##
     # @brief    add axis marker to handle
     # @param binding tuple (subject name, handle name, binder name, binder geometry name)
     # @param btf BindingTransform
-    def show_binding(self, btf):
+    def show_binding(self, btf, dims=(0.1,0.01,0.01)):
         sname, hname, aname, agname = btf.get_chain()
         if hname is not None:
             handle = self.subject_dict[sname].action_points_dict[hname]
