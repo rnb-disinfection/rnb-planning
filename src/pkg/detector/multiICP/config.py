@@ -44,12 +44,15 @@ class ObjectInfo(list):
     # @param dims  geometry dimensions
     # @param color geometry visualization color
     # @param Toff
-    def __init__(self, name, dlevel, gtype=None, dims=None, color=None, Toff=None):
+    def __init__(self, name, dlevel, gtype=None, dims=None, color=None, Toff=None,
+                 scale=[1e-3,1e-3,1e-3], url=None):
         if color is None:
             color = (0.6,0.6,0.6,1)
         self.name, self.dlevel, self.gtype = name, dlevel, gtype
         self.dims, self.color = dims, color
         self.Toff = Toff
+        self.scale = scale
+        self.url = url
 
     def get_geometry_kwargs(self):
         ##
@@ -61,20 +64,24 @@ class ObjectInfo(list):
 def get_obj_info():
     obj_info = {
         'cup': ObjectInfo('cup', dlevel=DetectionLevel.MOVABLE, gtype=GEOTYPE.CYLINDER,
-                            dims=(0.4, 0.3, 0.01), color=(0.9, 0.9, 0.9, 0.2),
-                            Toff=SE3(np.identity(3), (0, 0, 0))),
+                          dims=(0.4, 0.3, 0.01), color=(0.9, 0.9, 0.9, 0.2),
+                          Toff=SE3(np.identity(3), (0, 0, 0)), scale=(1.3,1.3,1.26),
+                          url='/home/jhkim/Projects/rnb-planning/release/cup.stl'),
 
         'table': ObjectInfo('table', dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX,
                             dims=(0.4, 0.3, 0.01), color=(0.9, 0.9, 0.9, 0.2),
-                            Toff=SE3(np.identity(3), (0,0,0))),
+                            Toff=SE3(np.identity(3), (0,0,0)), scale=(1e-3,1e-3,1e-3),
+                            url='/home/jhkim/Projects/rnb-planning/release/table.STL'),
 
         'bed': ObjectInfo('bed', dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX,
-                         dims=(0.4,0.3,0.01), color=(0.9,0.9,0.9,0.2),
-                         Toff=SE3([[0,1,0],[0,0,1],[1,0,0]], (0.455,0,1.02))),
+                          dims=(0.4,0.3,0.01), color=(0.9,0.9,0.9,0.2),
+                          Toff=SE3([[0,1,0],[0,0,1],[1,0,0]], (0.455,0,1.02)), scale=(1e-3,1e-3,1e-3),
+                          url='/home/jhkim/Projects/rnb-planning/release/bed.STL'),
 
         'closet': ObjectInfo('closet', dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX,
                              dims=(0.4, 0.3, 0.01), color=(0.9, 0.9, 0.9, 0.2),
-                             Toff=SE3([[1,0,0],[0,0,1],[0,-1,0]], (0.3,0,0.2725)))
+                             Toff=SE3([[1,0,0],[0,0,1],[0,-1,0]], (0.3,0,0.2725)), scale=(1e-3,1e-3,1e-3),
+                             url='/home/jhkim/Projects/rnb-planning/release/top_table.STL')
     }
     return obj_info
 

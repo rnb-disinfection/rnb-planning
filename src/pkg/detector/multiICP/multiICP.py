@@ -23,33 +23,6 @@ from ...utils.rotation_utils import *
 ColorDepthMap = namedtuple('ColorDepthMap', ['color', 'depth', 'intrins', 'depth_scale'])
 
 ##
-# @param cdp ColorDepthMap
-# @param mask segmented result from object detection algorithm
-def apply_mask(cdp, mask):
-    mask_u8 = np.zeros_like(mask).astype(np.uint8)
-    mask_u8[np.where(mask)] = 255
-    color_masked = cv2.bitwise_and(cdp.color, cdp.color, mask=mask_u8).astype(np.uint8)
-    depth_masked = cv2.bitwise_and(cdp.depth, cdp.depth, mask=mask_u8).astype(np.uint16)
-    return ColorDepthMap(color_masked, depth_masked, cdp.intrins, cdp.depth_scale)
-
-##
-# @param cdp ColorDepthMap
-# @param Tc camera coord w.r.t base coord
-def cdp2pcd(cdp, Tc=None, depth_trunc=5.0):
-    if Tc is None:
-        Tc = np.identity(4)
-    color = o3d.geometry.Image(cdp.color)
-    depth = o3d.geometry.Image(cdp.depth)
-    d_scale = cdp.depth_scale
-    rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(color, depth, depth_scale=1 / d_scale,
-                                                                    depth_trunc=depth_trunc,
-                                                                    convert_rgb_to_intensity=False)
-    pcd = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image,
-                                                         o3d.camera.PinholeCameraIntrinsic(
-                                                             *cdp.intrins), SE3_inv(Tc))
-    return pcd
-
-##
 # @param pcd point cloud
 # @param voxel_size voxel size of downsampling
 def preprocess_point_cloud(pcd, voxel_size):
@@ -104,14 +77,14 @@ class MultiICP:
         self.camera = camera
         self.img_dim = (720, 1080)
         self.config_list = []
+        self.depth_trunc = 5.0
         self.model = None
         self.cdp = None
         self.pcd = None
         self.pcd_Tc_stack = []
         self.model_sampled = None
-        self.depth_trunc = 5.0
-        self.pose = None
-        self.pose_dict = {}
+        self.micp_dict = {}
+        self.hrule_dict = {}
 
 
     ##
@@ -150,7 +123,7 @@ class MultiICP:
     # @return  cameraMatrix 3x3 camera matrix in pixel units,
     # @return  distCoeffs distortion coefficients, 5~14 float array
     # @return  depthscale scale of depth value
-    def get_config(self):
+    def get_camera_config(self):
         return self.config_list
 
     ##
@@ -159,6 +132,33 @@ class MultiICP:
         color_image, depth_image = self.camera.get_image_depthmap()
         self.img_dim = (color_image.shape[0], color_image.shape[1])
         return color_image, depth_image
+
+    ##
+    # @param cdp ColorDepthMap
+    # @param mask segmented result from object detection algorithm
+    def apply_mask(cdp, mask):
+        mask_u8 = np.zeros_like(mask).astype(np.uint8)
+        mask_u8[np.where(mask)] = 255
+        color_masked = cv2.bitwise_and(cdp.color, cdp.color, mask=mask_u8).astype(np.uint8)
+        depth_masked = cv2.bitwise_and(cdp.depth, cdp.depth, mask=mask_u8).astype(np.uint16)
+        return ColorDepthMap(color_masked, depth_masked, cdp.intrins, cdp.depth_scale)
+
+    ##
+    # @param cdp ColorDepthMap
+    # @param Tc camera coord w.r.t base coord
+    def cdp2pcd(cdp, Tc=None, depth_trunc=5.0):
+        if Tc is None:
+            Tc = np.identity(4)
+        color = o3d.geometry.Image(cdp.color)
+        depth = o3d.geometry.Image(cdp.depth)
+        d_scale = cdp.depth_scale
+        rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(color, depth, depth_scale=1 / d_scale,
+                                                                        depth_trunc=depth_trunc,
+                                                                        convert_rgb_to_intensity=False)
+        pcd = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image,
+                                                             o3d.camera.PinholeCameraIntrinsic(
+                                                                 *cdp.intrins), SE3_inv(Tc))
+        return pcd
 
     ##
     # @brief detect objects in 2D image through mmdet
@@ -203,15 +203,16 @@ class MultiICP:
         #                                             number_of_points=int(len(np.array(self.pcd.points) * ratio)))
         return cdp_masked.color
 
-    def get_pose(self, name):
-        if name in class_dict.keys():
-            try:
-                pose = self.pose_dict[name]
-                return pose
-            except:
-                raise (NotImplementedError("{} is not detected yet. Non available \n".format(name)))
-        else :
-            raise (NotImplementedError("{} is not detected yet. Non available \n".format(name)))
+
+    ##
+    # @brief add model
+    # @param model open3d.geometry.TriangleMesh or file path
+    # @param hrule  GeometryItem coordinate in TriangleMesh coordinate. externally, we use geometry coordinate for all TFs
+    def set_config(self, model, hrule):
+        self.model = self.add_model(model, Toff, scale)
+        self.micp_dict = {}
+        self.hrule_dict = {}
+
 
     ##
     # @brief add cad model to compute ICP
@@ -424,7 +425,6 @@ class MultiICP:
     def clear(self):
         self.pcd = None
         self.pcd_Tc_stack = []
-        self.pose = None
         self.cdp = None
 
     def draw_registration_result_original_color(source, target, transformation):
@@ -562,7 +562,7 @@ class MultiICP:
     # @param    gscene  geometry scene
     # @param    name    item name
     # @return   kwargs  kwargs
-    def get_geometry_kwargs(self, gscene, name):
+    def get_geometry_kwargs(self, name):
         obj_info = get_obj_info()
         if name in class_dict.keys():
             try:
