@@ -145,6 +145,20 @@ class PlaceFrame(FrameActor):
     def check_available(self, joint_dict):
         return self.get_tf_handle(joint_dict)[2,2]>self.VERTICAL_CUT
 
+##
+# @class AttachFrame
+# @brief Actor class for placing frame. Fully constrained. (FrameActor)
+class AttachFrame(FrameActor):
+    controlled = False
+    multiple = True
+    ctype = ConstraintType.Frame
+    VERTICAL_CUT = np.cos(np.deg2rad(10))
+
+    ##
+    # @brief place frame is only available when vertical direction is in range of VERTICAL_CUT (10 deg)
+    def check_available(self, joint_dict):
+        return True
+
 
 ##
 # @class FixtureSlot

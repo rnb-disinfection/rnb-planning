@@ -126,7 +126,7 @@ def add_indy_sweep_tool(gscene, robot_name, face_name="brush_face", tool_offset=
 
 
 from pkg.planning.constraint.constraint_subject import Grasp2Point, FramePoint, SweepFrame, SweepLineTask, CustomObject
-from pkg.planning.constraint.constraint_actor import Gripper2Tool, PlaceFrame, SweepFramer
+from pkg.planning.constraint.constraint_actor import Gripper2Tool, PlaceFrame, SweepFramer, AttachFrame
 
 
 def add_drawer(pscene, dname="drawer", draw_len=0.2,
@@ -188,6 +188,35 @@ def add_drawer(pscene, dname="drawer", draw_len=0.2,
                                   action_points_dict={gp1.name: gp1,
                                                       gp2.name: gp2}, one_direction=False)
     return drawer_bot, drawer, handle
+
+def add_lever(pscene, knob,lname="lever", lever_ang=np.pi/4, knob_offset=(0.09), dims=(0.02, 0.2, 0.02),
+              link_name="base_link", color=(0.8, 0.8, 0.8, 1), clearance = 1e-3):
+    gscene = pscene.gscene
+    Q0 = [0]*gscene.joint_num
+    Tbk = knob.get_tf(Q0)
+    Tbkp = np.matmul(Tbk, SE3(np.identity(3), (0, 0, knob.dims[2]/2+clearance)))
+    Tbl = np.matmul(Tbkp, SE3(np.identity(3), (0, knob_offset, dims[2]/2)))
+    lever = gscene.create_safe(GEOTYPE.BOX, lname, link_name=link_name,
+                                    center=Tbl[:3,3], rpy=Rot2rpy(Tbl[:3,:3]), dims=dims,
+                                    fixed=False, collision=True, color=color)
+    lgrasp = Grasp2Point("gp", lever, (0, 0, 0), (np.pi/2, 0, -np.pi/2))
+    lattach = PlaceFrame("cp", lever, (0, -knob_offset, -dims[2]/2), (0,0,0))
+
+    lever_g = pscene.create_subject(oname=lname+"_grip", gname=lever.name, _type=CustomObject,
+                                     action_points_dict={lgrasp.name: lgrasp, lattach.name: lattach})
+    kpoint0 = pscene.create_binder(bname=knob.name + "_0", gname=knob.name, _type=AttachFrame,
+                                   point=(0, 0, knob.dims[2]/2+clearance))
+    kpoint1 = pscene.create_binder(bname=knob.name + "_1", gname=knob.name, _type=AttachFrame,
+                                   point=(0, 0, knob.dims[2]/2+clearance), rpy=(0, 0, lever_ang))
+
+    lever_r = pscene.create_binder(bname=knob.name+"_plug", gname=lname, _type=SweepFramer,
+                                   point=(0, -knob_offset, -dims[2]/2))
+    rp1 = SweepFrame("r1", knob, (0, 0, knob.dims[2]/2+clearance), (0,0,0))
+    rp2 = SweepFrame("r2", knob, (0, 0, knob.dims[2]/2+clearance), rpy=(0, 0, lever_ang))
+
+    sweep = pscene.create_subject(oname=knob.name, gname=knob.name, _type=SweepLineTask,
+                                  action_points_dict={rp1.name: rp1,
+                                                      rp2.name: rp2}, one_direction=False)
 
 
 def finish_L_shape(gscene, gtem_dict):
