@@ -528,6 +528,66 @@ class SweepLineTask(SweepTask):
         else:
             return []
 
+##
+# @class KnobTask
+# @brief sweep action points in alphabetical order
+# @remark   state_param: boolean vector of which each element represents if each waypoint is covered or not
+#           node_item: number of covered waypoints
+class KnobTask(SweepTask):
+    def __init__(self, oname, geometry, lever, action_points_dict, sub_binders_dict=None, tol=1e-3):
+        self.lever = lever
+        self.T0 = geometry.Toff
+        self.link0 = geometry.link_name
+        SweepTask.__init__(self, oname, geometry, action_points_dict,
+                           sub_binders_dict=sub_binders_dict, tol=tol, one_direction=False)
+
+    ##
+    # @brief set object binding state and update location
+    # @param binding BindingTransform
+    # @param state_param list of done-mask
+    def set_state(self, binding, state_param=None):
+        self.binding = deepcopy(binding)
+        self.state_param = np.zeros(len(self.action_points_order), dtype=np.bool)
+        if self.binding.chain.handle_name is not None:
+            if self.binding.chain.handle_name in self.action_points_order:
+                self.state_param[:self.action_points_order.index(self.binding.chain.handle_name) + 1] = True
+            else:
+                raise (RuntimeError("Undefined handle {}".format(self.binding.chain.handle_name)))
+        if binding.chain.handle_name is None:
+            handle = self.action_points_dict[self.action_points_order[0]]
+        else:
+            handle = self.action_points_dict[binding.chain.handle_name]
+        actor = self.lever
+        if all(self.state_param):
+            self.geometry.set_offset_tf(binding.T_lao[:3, 3], binding.T_lao[:3, :3])
+            self.geometry.set_link(binding.actor_link)
+        else:
+            self.geometry.set_offset_tf(self.T0[:3, 3], self.T0[:3, :3])
+            self.geometry.set_link(self.link0)
+
+        self.update_sub_points()
+
+    ##
+    # @brief make constraints. by default, empty list.
+    # @remark constraint is applied when using same binding
+    # @param binding_from previous binding
+    # @param binding_to next binding
+    def make_constraints(self, binding_from, binding_to, tol=None):
+        if binding_from is not None and binding_from.actor_name == binding_to.actor_name:
+            return "Constraint not implemented yet. Use MoveitPlanner.incremental_constraint_motion=True"
+        else:
+            return []
+
+    ##
+    # @brief get object-level neighbor component (detach or next waypoint)
+    def get_neighbor_node_component_list(self, node_tem, pscene):
+        if node_tem == len(self.state_param):
+            neighbor = [node_tem]
+        else:  # node_tem < len(self.state_param):
+            neighbor = [node_tem + 1]
+        if (not self.one_direction) and node_tem > 0:
+            neighbor.insert(0, node_tem - 1)
+        return neighbor
 
 ##
 # @class AbstractObject

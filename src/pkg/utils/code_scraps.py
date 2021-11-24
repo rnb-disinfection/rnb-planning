@@ -127,7 +127,8 @@ def add_indy_sweep_tool(gscene, robot_name, face_name="brush_face", tool_offset=
 
 from pkg.planning.constraint.constraint_subject import Grasp2Point, FramePoint, SweepFrame, SweepLineTask, CustomObject
 from pkg.planning.constraint.constraint_actor import Gripper2Tool, PlaceFrame, SweepFramer, AttachFrame
-
+from pkg.planning.constraint.constraint_actor import KnobFramer, HingeFramer
+from pkg.planning.constraint.constraint_subject import KnobFrame, HingeFrame, KnobTask
 
 def add_drawer(pscene, dname="drawer", draw_len=0.2,
                center=(1, 1, 1), rpy=(0, 0, 0), dims=(0.4, 0.4, 0.2),
@@ -189,6 +190,39 @@ def add_drawer(pscene, dname="drawer", draw_len=0.2,
                                                       gp2.name: gp2}, one_direction=False)
     return drawer_bot, drawer, handle
 
+def add_door(pscene, dname = "door", center = (0.5,0,0.5), rpy = (0,0,0),
+             dims = (0.05, 0.4, 0.5), hinge_point = (-0.025, 0.2, 0),
+             door_ang = np.pi*1/4, door_div = 1, link_name="base_link", clearance=1e-3,
+             frame_depth=0.0, frame_thickness=0.01, color = (0.8,0.8,0.8,1), add_frame=False):
+    gscene = pscene.gscene
+    door = gscene.create_safe(GEOTYPE.BOX, dname, link_name=link_name,
+                              center=center, rpy=rpy, dims=dims,
+                              fixed=False, collision=True, color=color)
+    door_frame = gscene.create_safe(GEOTYPE.BOX, dname+"_frame", link_name=link_name,
+                                    center=center, rpy=Rot2rpy(np.matmul(Rot_rpy(rpy), Rot_axis(2,np.pi/2))),
+                                    dims=np.asarray(dims)[[2,1,0]],
+                                    fixed=True, collision=False, color=(1,1,1,0.0), display=False)
+    if add_frame:
+        gscene.add_virtual_guardrail(door_frame, axis="xy", color=color, THICKNESS=frame_thickness,
+                                     HEIGHT=dims[0]/2+frame_depth, margin=frame_thickness/2+clearance)
+
+    door_r = pscene.create_binder(bname=door.name+"_hinge", gname=door.name, _type=HingeFramer,
+                                  point=hinge_point)
+
+    hinge_points = []
+    for i_div in range(door_div+1):
+        ang = door_ang/door_div*i_div
+        hinge_points.append(HingeFrame("h{}".format(i_div), door_frame,
+                                       np.asarray(hinge_point)[[2,1,0]],
+                                       Rot2rpy(
+                                           np.matmul(Rot_axis(2,np.pi/2).transpose(),
+                                                     Rot_axis(3, -ang)))))
+
+    door_s = pscene.create_subject(oname=door.name, gname=door_frame.name, _type=SweepTask,
+                                  action_points_dict={hp.name: hp for hp in hinge_points},
+                                  one_direction=False)
+    return door, door_s
+
 def add_lever(pscene, knob,lname="lever", lever_ang=np.pi/4, knob_offset=(0.09), dims=(0.02, 0.2, 0.02),
               link_name="base_link", color=(0.8, 0.8, 0.8, 1), clearance = 1e-3):
     gscene = pscene.gscene
@@ -209,44 +243,15 @@ def add_lever(pscene, knob,lname="lever", lever_ang=np.pi/4, knob_offset=(0.09),
     kpoint1 = pscene.create_binder(bname=knob.name + "_1", gname=knob.name, _type=AttachFrame,
                                    point=(0, 0, knob.dims[2]/2+clearance), rpy=(0, 0, lever_ang))
 
-    lever_r = pscene.create_binder(bname=knob.name+"_plug", gname=lname, _type=SweepFramer,
+    lever_plug = pscene.create_binder(bname=knob.name+"_plug", gname=lname, _type=KnobFramer,
                                    point=(0, -knob_offset, -dims[2]/2))
-    rp1 = SweepFrame("r1", knob, (0, 0, knob.dims[2]/2+clearance), (0,0,0))
-    rp2 = SweepFrame("r2", knob, (0, 0, knob.dims[2]/2+clearance), rpy=(0, 0, lever_ang))
+    rp1 = KnobFrame("r1", knob, (0, 0, knob.dims[2]/2+clearance), (0,0,0))
+    rp2 = KnobFrame("r2", knob, (0, 0, knob.dims[2]/2+clearance), rpy=(0, 0, lever_ang))
 
-    sweep = pscene.create_subject(oname=knob.name, gname=knob.name, _type=SweepLineTask,
-                                  action_points_dict={rp1.name: rp1,
-                                                      rp2.name: rp2}, one_direction=False)
-
-def add_door(pscene, dname = "door", center = (0.5,0,0.5), rpy = (0,0,0),
-             dims = (0.05, 0.4, 0.5), hinge_point = (-0.025, 0.2, 0),
-             door_ang = np.pi*3/4, door_div = 3, clearance=3e-3,
-             frame_depth=0.0, frame_thickness=0.01, color = (0.8,0.8,0.8,1)):
-    gscene = pscene.gscene
-    door = gscene.create_safe(GEOTYPE.BOX, dname, link_name="base_link",
-                              center=center, rpy=rpy, dims=dims,
-                              fixed=False, collision=True, color=color)
-    door_frame = gscene.create_safe(GEOTYPE.BOX, dname+"_frame", link_name="base_link",
-                                    center=center, rpy=Rot2rpy(np.matmul(Rot_rpy(rpy), Rot_axis(2,np.pi/2))),
-                                    dims=np.asarray(dims)[[2,1,0]],
-                                    fixed=True, collision=False, color=(1,1,1,0.0), display=False)
-    gscene.add_virtual_guardrail(door_frame, axis="xy", color=color, THICKNESS=frame_thickness,
-                                 HEIGHT=dims[0]/2+frame_depth, margin=frame_thickness/2+clearance)
-
-    door_r = pscene.create_binder(bname=door.name+"_hinge", gname=door.name, _type=SweepFramer,
-                                  point=hinge_point)
-
-    hinge_points = []
-    for i_div in range(door_div+1):
-        ang = door_ang/door_div*i_div
-        hinge_points.append(SweepFrame("h{}".format(i_div), door_frame,
-                                       np.asarray(hinge_point)[[2,1,0]],
-                                       np.matmul(Rot_axis(2,np.pi/2).transpose(), Rot_axis(3, ang))))
-
-    door_s = pscene.create_subject(oname=door.name, gname=door_frame.name, _type=SweepTask,
-                                  action_points_dict={hp.name: hp for hp in hinge_points},
-                                  one_direction=False)
-    return door, door_s
+    knob_s = pscene.create_subject(oname=knob.name, gname=knob.name, _type=KnobTask,
+                                   action_points_dict={rp1.name: rp1, rp2.name: rp2},
+                                   lever = lever_plug)
+    return knob_s
 
 def finish_L_shape(gscene, gtem_dict):
     if "l_shape" in gtem_dict:

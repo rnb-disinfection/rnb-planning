@@ -69,14 +69,9 @@ class KnobTask(SweepTask):
         else:
             handle = self.action_points_dict[binding.chain.handle_name]
         actor = self.lever
-        btf = BindingTransform(self, handle, actor)
         if all(self.state_param):
-            Thg = np.matmul(SE3_inv(handle.Toff_lh), self.geometry.Toff)
-            Tlag = matmul_series(btf.T_actor_lh, SE3_inv(btf.T_add_handle), Thg)
-            if (np.linalg.norm(Tlag - self.geometry.Toff) > 1e-5
-                    or self.geometry.link_name != actor.geometry.link_name):
-                self.geometry.set_offset_tf(Tlag[:3, 3], Tlag[:3, :3])
-                self.geometry.set_link(actor.geometry.link_name)
+            self.geometry.set_offset_tf(binding.T_lao[:3, 3], binding.T_lao[:3, :3])
+            self.geometry.set_link(binding.actor_link)
         else:
             self.geometry.set_offset_tf(self.T0[:3, 3], self.T0[:3, :3])
             self.geometry.set_link(self.link0)
