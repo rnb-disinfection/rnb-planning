@@ -108,7 +108,7 @@ class PlanningPipeline:
                     print("Cannot display motion in multiprocess")
                     display = False
                 if N_agents is None:
-                    N_agents = cpu_count()
+                    N_agents = cpu_count() / 2
                 self.N_agents = N_agents
                 print("Use {}/{} agents".format(N_agents, cpu_count()))
                 self.search_counter = self.manager.Value('i', 0)
@@ -211,6 +211,8 @@ class PlanningPipeline:
             traj, new_state, error, succ = self.test_connection(from_state, to_state,
                                                                 display=display, dt_vis=dt_vis, verbose=verbose,
                                                                 **kwargs)
+            if new_state.node == (2, 2, 'grip0'):
+                print("x")
             simtime = self.gtimer.toc("test_connection")
             snode_new = self.tplan.make_search_node(snode, new_state, traj)
             if succ:

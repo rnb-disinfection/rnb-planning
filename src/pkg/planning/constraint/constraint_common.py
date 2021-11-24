@@ -22,6 +22,8 @@ class ConstraintType(Enum):
     Fixture = 4
     Sweep = 5
     Waypoint = 6
+    Knob = 7
+    Hinge = 8
 
 
 OPPOSITE_DICT = {

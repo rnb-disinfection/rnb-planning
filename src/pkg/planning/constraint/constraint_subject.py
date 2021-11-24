@@ -132,6 +132,18 @@ class SweepPoint(DirectedPoint):
 # @brief ActionPoint for rnb-planning.src.pkg.planning.constraint.constraint_actor.SweepTool
 class SweepFrame(FramePoint):
     ctype=ConstraintType.Sweep
+
+##
+# @class KnobFrame
+# @brief ActionPoint for rnb-planning.src.pkg.planning.constraint.constraint_actor.SweepTool
+class KnobFrame(FramePoint):
+    ctype=ConstraintType.Knob
+
+##
+# @class KnobFrame
+# @brief ActionPoint for rnb-planning.src.pkg.planning.constraint.constraint_actor.SweepTool
+class HingeFrame(FramePoint):
+    ctype=ConstraintType.Hinge
 ##
 # @class WayPoint
 # @brief ActionPoint for rnb-planning.src.pkg.planning.constraint.constraint_actor.WayAgent
@@ -287,12 +299,6 @@ class AbstractTask(Subject):
         raise(NotImplementedError("AbstractTask is abstract class"))
 
     ##
-    # @brief (prototype) return list of state_params corresponds to given node_item.
-    @abstractmethod
-    def get_corresponding_params(self, node_item):
-        raise(NotImplementedError("AbstractTask is abstract class"))
-
-    ##
     # @brief get initial binding - for task, usually no binding is initial state
     # @param actor_dict dictionary of binder {binder_name: rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor}
     # @param Q_dict dictionary of joint values {joint_name: value}
@@ -330,7 +336,10 @@ class WaypointTask(AbstractTask):
     # @param state_param list of done-mask
     def set_state(self, binding, state_param=None):
         self.binding = deepcopy(binding)
-        self.state_param = np.zeros(len(self.action_points_order), dtype=np.bool)
+        if self.one_direction and state_param is not None:
+            self.state_param = np.copy(state_param)
+        else:
+            self.state_param = np.zeros(len(self.action_points_order), dtype=np.bool)
         if self.binding[1] is not None:
             if self.binding[1] in self.action_points_order:
                 self.state_param[:self.action_points_order.index(self.binding[1])+1] = True
@@ -363,8 +372,10 @@ class WaypointTask(AbstractTask):
         ap_dict = self.action_points_dict
         apk_exclude = self.get_conflicting_points(from_binding[1])
         bd_exclude = from_binding[-2]
-
-        apk = self.action_points_order[to_node_item - 1]
+        if to_node_item>0:
+            apk = self.action_points_order[to_node_item - 1]
+        else:
+            apk = self.action_points_order[0]
         ap_list = [ap_dict[apk]] if apk not in apk_exclude else []
         ctypes = [ap.ctype for ap in ap_list]
         bd_list = [actor for actor in actor_dict.values() if
@@ -412,17 +423,6 @@ class WaypointTask(AbstractTask):
     # @brief get all object-level node component
     def get_all_node_components(self, pscene):
         return list(range(len(self.state_param) + 1))
-
-    ##
-    # @brief return list of state_params corresponds to given node_item.
-    def get_corresponding_params(self, node_item):
-        idx_combs = combinations(range(self.action_point_len), node_item)
-        params_list = []
-        for comb in idx_combs:
-            param = np.zeros(len(self.action_points_order), dtype=np.bool)
-            param[list(comb)] = True
-            params_list.append(param)
-        return params_list
 
 
 ##

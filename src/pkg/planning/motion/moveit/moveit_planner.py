@@ -253,9 +253,14 @@ class MoveitPlanner(MotionInterface):
                 target, T_tar = binder, T_binder
                 T_add_tool = T_add_handle
                 T_add_tar = T_add_actor
+            elif group_name_handle == group_name_binder:
+                if verbose:
+                    print("link transfer between same links: {} - {}".format(subject_list, group_name_binder))
+                return [from_state.Q], from_state.Q, 1, False
             else:
                 if not self.enable_dual:
-                    raise(RuntimeError("dual arm motion is not enabled"))
+                    raise(RuntimeError("dual arm motion is not enabled - {} & {} - {}".format(
+                        group_name_handle, group_name_binder, subject_list)))
                 dual = True
                 group_name = "{}_{}".format(group_name_binder, group_name_handle)
                 self.update_gscene(group_name, only_self_collision=only_self_collision)
@@ -289,10 +294,6 @@ class MoveitPlanner(MotionInterface):
             ref_link = self.chain_dict[group_name]["link_names"][0]
             Tref = self.gscene.get_tf(Q=from_Q, to_link=target.geometry.link_name, from_link=ref_link)
             if constraints:
-                for motion_constraint in constraints:
-                    self.add_constraint(group_name, tool.geometry.link_name, tool.Toff_lh, motion_constraint=motion_constraint)
-                if verbose:
-                    print("try constrained motion") ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
 
                 if self.incremental_constraint_motion:
                     # ################################# Special planner ##############################
@@ -305,6 +306,10 @@ class MoveitPlanner(MotionInterface):
                         self.trajectory = trajectory
                         self.gscene.show_motion(trajectory)
                 else:
+                    for motion_constraint in constraints:
+                        self.add_constraint(group_name, tool.geometry.link_name, tool.Toff_lh, motion_constraint=motion_constraint)
+                    if verbose:
+                        print("try constrained motion") ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
                     ################################ Original planner ##############################
                     trajectory, success = planner.plan_constrained_py(
                         group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q),
@@ -450,9 +455,11 @@ class MoveitPlanner(MotionInterface):
         wv_tar = calc_wv(T0, T_tar)
         Traj = []
         wv_norm = np.linalg.norm(wv_tar)
-        if wv_norm < 1e-6:
+        if wv_norm < 1e-3:
             return [Q0], True
         DIR = np.divide(wv_tar, wv_norm)
+        if wv_norm < step_size:
+            step_size = wv_norm
         N_div = int(np.round(wv_norm/step_size))
         step_size = wv_norm / N_div
         reason = "end"

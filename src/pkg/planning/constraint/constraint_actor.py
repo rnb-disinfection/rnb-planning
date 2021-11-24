@@ -191,6 +191,22 @@ class SweepFramer(FrameActor):
     ctype = ConstraintType.Sweep
     VERTICAL_CUT = np.cos(np.deg2rad(10))
 
+##
+# @class KnobFramer
+# @brief Actor class for sweeping. z-direction constrained. (FrameActor)
+class KnobFramer(FrameActor):
+    controlled = True
+    multiple = False
+    ctype = ConstraintType.Knob
+
+##
+# @class HingeFramer
+# @brief Actor class for sweeping. z-direction constrained. (FrameActor)
+class HingeFramer(FrameActor):
+    controlled = True
+    multiple = False
+    ctype = ConstraintType.Hinge
+
 
 ##
 # @class WayAgent
