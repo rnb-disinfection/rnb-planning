@@ -13,10 +13,10 @@ class Actor(ActionPoint):
 
     def bind(self, action_obj, bind_point, joint_dict_last):
         Tbo = action_obj.geometry.get_tf(joint_dict_last)
-        Tbt = get_tf(self.geometry.link_name, joint_dict_last, self.gscene.urdf_content)
-        Tto = np.matmul(np.linalg.inv(Tbt), Tbo)
-        binding = BindingChain(action_obj.oname, bind_point, self.name, self.geometry.name)
-        state_param = (self.geometry.link_name, Tto)
+        Tbal = get_tf(self.geometry.link_name, joint_dict_last, self.gscene.urdf_content)
+        Tlao = np.matmul(np.linalg.inv(Tbal), Tbo)
+        binding = BindingTransform(action_obj, action_obj.action_points_dict[bind_point], self, T_lao=Tlao)
+        state_param = (self.geometry.link_name, Tlao)
         action_obj.set_state(binding, state_param)
 
     def check_type(self, action_point):

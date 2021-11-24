@@ -123,7 +123,7 @@ BindingChain = namedtuple("BindingChain", ["subject_name", "handle_name", "actor
 # @brief    information holder that contains all sub-transfomations in the binding
 # @remark   give either one of redundancy, T_loal. It none is given, current position is used
 class BindingTransform:
-    def __init__(self, obj, handle, actor, redundancy=None, T_loal=None):
+    def __init__(self, obj, handle, actor, redundancy=None, T_loal=None, T_lao=None):
         self.point_add_handle, self.rpy_add_handle, self.point_add_actor, self.rpy_add_actor = [(0,0,0)]*4
 
         if handle is None: # for cases where handle is not important. this can cause errors
@@ -136,13 +136,20 @@ class BindingTransform:
             actor.name = None
             actor.Toff_lh = np.identity(4)
             actor_root = None
+            ## @brief link of actor
+            self.actor_link = None
         else:
             actor_root = actor.geometry.name
+            self.actor_link = actor.geometry.link_name
 
         # @brief BindingChain, (subject name, handle name, actor name, actor's root geometry name)
-        self.binding = BindingChain(obj.oname, handle.name, actor.name, actor_root)
+        self.chain = BindingChain(obj.oname, handle.name, actor.name, actor_root)
         # @brief correscponding redundancy in form of {action point name: {axis: value}}
         self.redundancy = redundancy
+
+        if T_lao is not None:
+            T_laol = np.matmul(T_lao, SE3_inv(obj.geometry.Toff))
+            T_loal = SE3_inv(T_laol)
 
         if redundancy is not None:
             self.set_redundancy(redundancy, handle, actor)
@@ -155,15 +162,15 @@ class BindingTransform:
                 T_add_actor = np.matmul(SE3_inv(actor.Toff_lh), handle.Toff_lh)
                 self.point_add_actor, self.rpy_add_actor = T2xyzrpy(T_add_actor)
 
-        self.update_transforms(handle, actor)
+        self.update_transforms(obj, handle, actor)
 
     def set_redundancy(self, redundancy, handle, actor):
-        if self.binding.handle_name in redundancy:
+        if self.chain.handle_name in redundancy:
             self.point_add_handle, self.rpy_add_handle = calc_redundancy(redundancy[handle.name], handle)
-        if self.binding.actor_name in redundancy:
+        if self.chain.actor_name in redundancy:
             self.point_add_actor, self.rpy_add_actor = calc_redundancy(redundancy[actor.name], actor)
 
-    def update_transforms(self, handle, actor):
+    def update_transforms(self, obj, handle, actor):
         ## @brief redundant transformation added on the handle side
         self.T_add_handle = T_xyzrpy((self.point_add_handle, self.rpy_add_handle))
         ## @brief redundant transformation added on the actor side
@@ -176,17 +183,21 @@ class BindingTransform:
         self.T_actor_lh = np.matmul(actor.Toff_lh, self.T_add_actor)
         ## @brief link-object-actor-link transformation with redundancy
         self.T_loal = np.matmul(self.T_handle_lh, SE3_inv(self.T_actor_lh))
+        ## @brief link-actor-object-link transformation with redundancy
+        self.T_laol = SE3_inv(self.T_loal)
+        ## @brief link-actor-object transformation with redundancy
+        self.T_lao = np.matmul(self.T_laol, obj.geometry.Toff)
 
     def get_chain(self):
-        return self.binding
+        return self.chain
 
     def get_instance_chain(self, pscene):
-        subject = pscene.subject_dict[self.binding.subject_name]
+        subject = pscene.subject_dict[self.chain.subject_name]
         return subject, \
-               subject.action_points_dict[self.binding.handle_name] \
-                   if self.binding.handle_name in subject.action_points_dict else self.binding.handle_name, \
-               pscene.actor_dict[self.binding.actor_name] \
-                   if self.binding.actor_name in pscene.actor_dict else self.binding.actor_name
+               subject.action_points_dict[self.chain.handle_name] \
+                   if self.chain.handle_name in subject.action_points_dict else self.chain.handle_name, \
+               pscene.actor_dict[self.chain.actor_name] \
+                   if self.chain.actor_name in pscene.actor_dict else self.chain.actor_name
 
 ##
 # @class    BindingState

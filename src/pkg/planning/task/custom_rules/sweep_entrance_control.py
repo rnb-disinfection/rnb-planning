@@ -136,7 +136,7 @@ class SweepEntranceControlRule(CustomRuleInterface):
                             # print("Check home: {} in {}".format(
                             #     node_new[diff_sidx], tplan.unstoppable_terminals[diff_sidx]))
                             link_name = self.pscene.gscene.NAME_DICT[
-                                snode_new.state.binding_state[diff_sname].binding.actor_root_gname].link_name
+                                snode_new.state.binding_state[diff_sname].chain.actor_root_gname].link_name
                             rname_candis = [rname for rname, chain_vals in self.chain_dict.items() if
                                             link_name in chain_vals['link_names']]
                             if len(rname_candis) == 0:

@@ -247,7 +247,7 @@ def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, too
         mplan.result_log["pre_motion_checks"].append(feas)
 
     if feas or DEBUG_MODE_PRIM_RNB:
-        Traj, LastQ, error, success, binding_list = mplan.plan_transition(
+        Traj, LastQ, error, success, chain_list = mplan.plan_transition(
             from_state, to_state, timeout=timeout, show_state=show_state)
     else:
         Traj, success = [], False

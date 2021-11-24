@@ -14,7 +14,7 @@ class ObjectTable(TableInterface):
         return self.planning_pipeline.pscene.subject_dict
 
     def serialize(self, otem):
-        return [otem.oname, otem.__class__.__name__, otem.binding[1], otem.binding[2]]
+        return [otem.oname, otem.__class__.__name__, otem.binding.chain.handle_name, otem.binding.chain[2]]
 
     def highlight_item(self, otem, color=None):
         self.planning_pipeline.pscene.gscene.highlight_geometry(self.HILIGHT_KEY, otem.geometry.name, color=color)
@@ -24,7 +24,7 @@ class ObjectTable(TableInterface):
             binder_geometry = self.planning_pipeline.pscene.actor_dict[value['Binder']].geometry.name
             self.planning_pipeline.pscene.create_subject(oname=value[IDENTIFY_COL], gname=value[IDENTIFY_COL],
                                                         _type=otype_to_class(value['OType']),
-                                                        binding=BindingChain(value[IDENTIFY_COL], value['Binding'], value['Binder'], binder_geometry))
+                                                         chain=BindingChain(value[IDENTIFY_COL], value['Binding'], value['Binder'], binder_geometry))
         except Exception as e:
             print(e)
 
@@ -38,15 +38,15 @@ class ObjectTable(TableInterface):
         elif active_col == "OType":
             res, msg = False, "Object Type is not changeable"
         elif active_col == "Binding":
-            binding = BindingChain(otem.oname, value, otem.binding[2], otem.binding[3])
+            chain = BindingChain(otem.oname, value, otem.binding.chain.actor_name, otem.binding.chain.actor_root_gname)
             joint_dict = list2dict(self.planning_pipeline.pscene.gscene.joints.position,
                                    self.planning_pipeline.pscene.combined_robot.joint_names)
-            self.planning_pipeline.pscene.rebind(binding, joint_dict)
+            self.planning_pipeline.pscene.rebind(chain, joint_dict)
         elif active_col == "Binder":
-            binding = BindingChain(otem.oname, otem.binding[1], value, otem.binding[3])
+            chain = BindingChain(otem.oname, otem.binding.chain.handle_name, value, otem.binding.chain.actor_root_gname)
             joint_dict = list2dict(self.planning_pipeline.pscene.gscene.joints.position,
                                    self.planning_pipeline.pscene.combined_robot.joint_names)
-            self.planning_pipeline.pscene.rebind(binding, joint_dict)
+            self.planning_pipeline.pscene.rebind(chain, joint_dict)
         return res, msg
 
     def button(self, button, *args, **kwargs):

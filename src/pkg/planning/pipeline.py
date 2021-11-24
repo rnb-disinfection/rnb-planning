@@ -283,7 +283,7 @@ class PlanningPipeline:
                 self.pscene.gscene.show_pose(from_state.Q)
                 self.pscene.show_binding(to_state.binding_state[sname])
 
-        Traj, LastQ, error, success, binding_list = \
+        Traj, LastQ, error, success, chain_list = \
             self.mplan.plan_transition(from_state, to_state, verbose=verbose, **kwargs)
 
         if display:
@@ -291,7 +291,7 @@ class PlanningPipeline:
                 self.pscene.gscene.show_motion(Traj, error_skip=error_skip, period=dt_vis)
             self.pscene.gscene.clear_highlight()
 
-        end_state = self.pscene.rebind_all(binding_list, LastQ)
+        end_state = self.pscene.rebind_all(chain_list, LastQ)
         return Traj, end_state, error, success
 
     ##
@@ -352,7 +352,7 @@ class PlanningPipeline:
     def __refine_trajectory(self, key, snode_from, snode_to, **kwargs):
         from_state = snode_from.state
         to_state = snode_to.state
-        Traj, LastQ, error, success, binding_list = \
+        Traj, LastQ, error, success, chain_list = \
             self.mplan.plan_transition(from_state, to_state, **kwargs)
 
         if success:
@@ -421,13 +421,13 @@ class PlanningPipeline:
                 if post_opt:
                     print("Optimize {} - > {}:".format(snode_pre.state.node, snode.state.node))
                     if reverse:
-                        Traj, LastQ, error, success, binding_list = self.mplan.plan_transition(state_new, state_pre,
+                        Traj, LastQ, error, success, chain_list = self.mplan.plan_transition(state_new, state_pre,
                                                                                                timeout=timeout,
                                                                                                post_opt=post_opt,
                                                                                                **kwargs)
                         Traj = np.array(list(reversed(Traj)))
                     else:
-                        Traj, LastQ, error, success, binding_list = self.mplan.plan_transition(state_pre, state_new,
+                        Traj, LastQ, error, success, chain_list = self.mplan.plan_transition(state_pre, state_new,
                                                                                                timeout=timeout,
                                                                                                post_opt=post_opt,
                                                                                                **kwargs)
@@ -578,7 +578,7 @@ class PlanningPipeline:
         state_fin = snode_schedule[-1].state
         state_home = state_fin.copy(self.pscene)
         state_home.Q = np.array(self.pscene.combined_robot.home_pose)
-        trajectory, Q_last, error, success, binding_list = self.mplan.plan_transition(state_fin, state_home)
+        trajectory, Q_last, error, success, chain_list = self.mplan.plan_transition(state_fin, state_home)
         if success:
             snode_home = SearchNode(0, state_home, [], [], depth=0)
             snode_home.set_traj(trajectory, 0)

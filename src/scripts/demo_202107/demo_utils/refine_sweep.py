@@ -73,7 +73,7 @@ def refine_sweep(pscene, mplan, snode_schedule, len_traj=None):
                                               snode_pre.state.node, snode.state.node):
             if ntem1 != ntem2 and stype == SweepLineTask:
                 if ntem1 == 1:
-                    gtem = gscene.NAME_DICT[snode.state.binding_state[sname].binding.actor_root_gname]
+                    gtem = gscene.NAME_DICT[snode.state.binding_state[sname].chain.actor_root_gname]
                     snode.traj = make_sweep_traj(pscene.gscene, mplan, gtem, snode.traj, len_traj=len_traj)
 
 
@@ -84,7 +84,7 @@ def simplify_sweep(pscene, mplan, snode_schedule, len_traj=None):
                                               snode_pre.state.node, snode.state.node):
             if ntem1 != ntem2 and stype == SweepLineTask:
                 if ntem1 == 1:
-                    gtem = pscene.gscene.NAME_DICT[snode.state.binding_state[sname].binding.actor_root_gname]
+                    gtem = pscene.gscene.NAME_DICT[snode.state.binding_state[sname].chain.actor_root_gname]
                     step = int(len(snode.traj) / len_traj)
                     Qlast = snode.traj[-1]
                     snode.traj = snode.traj[::step]

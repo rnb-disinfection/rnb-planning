@@ -54,20 +54,20 @@ class KnobTask(SweepTask):
 
     ##
     # @brief set object binding state and update location
-    # @param binding BindingChain
+    # @param binding BindingTransform
     # @param state_param list of done-mask
     def set_state(self, binding, state_param=None):
         self.binding = deepcopy(binding)
         self.state_param = np.zeros(len(self.action_points_order), dtype=np.bool)
-        if self.binding[1] is not None:
-            if self.binding[1] in self.action_points_order:
-                self.state_param[:self.action_points_order.index(self.binding[1]) + 1] = True
+        if self.binding.chain.handle_name is not None:
+            if self.binding.chain.handle_name in self.action_points_order:
+                self.state_param[:self.action_points_order.index(self.binding.chain.handle_name) + 1] = True
             else:
-                raise (RuntimeError("Undefined handle {}".format(self.binding[1])))
-        if binding.handle_name is None:
+                raise (RuntimeError("Undefined handle {}".format(self.binding.chain.handle_name)))
+        if binding.chain.handle_name is None:
             handle = self.action_points_dict[self.action_points_order[0]]
         else:
-            handle = self.action_points_dict[binding.handle_name]
+            handle = self.action_points_dict[binding.chain.handle_name]
         actor = self.lever
         btf = BindingTransform(self, handle, actor)
         if all(self.state_param):
