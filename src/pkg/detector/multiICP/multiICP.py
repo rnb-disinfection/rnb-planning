@@ -85,6 +85,7 @@ class MultiICP:
         self.model_sampled = None
         self.micp_dict = {}
         self.hrule_dict = {}
+        self.pose = None
 
 
     ##
@@ -144,6 +145,7 @@ class MultiICP:
         return ColorDepthMap(color_masked, depth_masked, cdp.intrins, cdp.depth_scale)
 
     ##
+    # @brief convert cdp to pcd
     # @param cdp ColorDepthMap
     # @param Tc camera coord w.r.t base coord
     def cdp2pcd(cdp, Tc=None, depth_trunc=5.0):
@@ -159,6 +161,50 @@ class MultiICP:
                                                              o3d.camera.PinholeCameraIntrinsic(
                                                                  *cdp.intrins), SE3_inv(Tc))
         return pcd
+
+    ##
+    # @brief add model mesh
+    # @param model_name name of CAD model
+    def set_model(self, model_name):
+        obj_info = get_obj_info()
+        model_info = obj_info[model_name]
+        if model_info.Toff is None:
+            self.Toff = np.identity(4)
+            self.Toff_inv = SE3_inv(self.Toff)
+        else:
+            self.Toff = model_info.Toff
+            self.Toff_inv = SE3_inv(self.Toff)
+
+        if isinstance(model_info.url, o3d.geometry.TriangleMesh):
+            self.model = model
+        elif isinstance(model_info.url, str):
+            self.model = o3d.io.read_triangle_mesh(model_info.url)
+            self.model.vertices = o3d.utility.Vector3dVector(
+                np.asarray(self.model.vertices) * np.array([scale[0], scale[1], scale[2]]))
+        else:
+            raise (NotImplementedError("non available input for model : \n".format(model)))
+
+    ##
+    # @brief add pcd from image, sampled pcd from mesh
+    # @param cdp_masked ColorDepthMap
+    # @param Tc camera coord w.r.t base coord
+    def make_pcd(self, cdp_masked, Tc=None, ratio=0.5):
+        if Tc is None:
+            Tc = np.identity(4)
+        pcd_cam = cdp2pcd(cdp_masked, depth_trunc=self.depth_trunc)
+        pcd = cdp2pcd(cdp_masked, Tc=Tc, depth_trunc=self.depth_trunc)
+
+        self.pcd_Tc_stack.append((pcd_cam, Tc, pcd))
+        self.pcd = self.pcd_Tc_stack[0][2]
+        for _pcd in self.pcd_Tc_stack[1:]:
+            self.pcd += _pcd[2]
+        if len(self.pcd_Tc_stack) > 1:
+            self.pcd = self.pcd.uniform_down_sample(every_k_points=len(self.pcd_Tc_stack))
+        self.model.compute_vertex_normals()
+        self.model_sampled = self.model.sample_points_uniformly(
+            number_of_points=int(len(np.array(self.pcd.points)) * ratio))
+        # self.model_sampled = self.model.sample_points_poisson_disk(
+        #                                             number_of_points=int(len(np.array(self.pcd.points) * ratio)))
 
     ##
     # @brief detect objects in 2D image through mmdet
@@ -205,13 +251,12 @@ class MultiICP:
 
 
     ##
-    # @brief add model
-    # @param model open3d.geometry.TriangleMesh or file path
-    # @param hrule  GeometryItem coordinate in TriangleMesh coordinate. externally, we use geometry coordinate for all TFs
-    def set_config(self, model, hrule):
-        self.model = self.add_model(model, Toff, scale)
-        self.micp_dict = {}
-        self.hrule_dict = {}
+    # @brief add micp_dict, hrule_dict
+    # @param micp_dict MultiICP class for each object
+    # @param hrule_dict
+    def set_config(self, micp_dict, hrule_dict):
+        self.micp_dict = micp_dict
+        self.hrule_dict = hrule_dict
 
 
     ##
@@ -305,7 +350,6 @@ class MultiICP:
             self.draw(ICP_result)
 
         self.pose = ICP_result
-        self.pose_dict[self.obj_name] = ICP_result
         return ICP_result, reg_p2p.fitness
 
     ##
@@ -379,7 +423,6 @@ class MultiICP:
             self.draw(ICP_result, source, target)
 
         self.pose = ICP_result
-        self.pose_dict[self.obj_name] = ICP_result
         return ICP_result, reg_p2p.fitness
 
     def draw(self, To, source=None, target=None, option_geos=[]):
@@ -559,19 +602,18 @@ class MultiICP:
 
     ##
     # @brief    Acquire geometry kwargs of item
-    # @param    gscene  geometry scene
     # @param    name    item name
     # @return   kwargs  kwargs
     def get_geometry_kwargs(self, name):
-        obj_info = get_obj_info()
-        if name in class_dict.keys():
-            try:
-                handle = gscene.NAME_DICT[name]
-                return obj_info[name].get_geometry_kwargs()
-            except:
-                raise (NotImplementedError("{} is not detected yet. Non available \n".format(name)))
-        else :
-            raise (NotImplementedError("{} is not detected yet. Non available \n".format(name)))
+        if "_" in name:
+            name_cat = name.split("_")[0]
+        else:
+            name_cat = name
+        model = self.micp_dict[name_cat].model
+        return dict(gtype=GEOTYPE.MESH, name=name_cat,
+                    dims=(0.1, 0.1, 0.1), color=(0.8, 0.8, 0.8, 1),
+                    display=True, fixed=True, collision=False,
+                    vertices=np.asarray(model.vertices), triangles=np.asarray(model.triangles))
 
     ##
     # @brief    add axis marker to GeometryHandle
