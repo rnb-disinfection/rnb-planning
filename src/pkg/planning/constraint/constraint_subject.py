@@ -666,9 +666,9 @@ class AbstractObject(Subject):
     # @brief set object binding state and update location
     # @param binding BindingTransform
     # @param state_param (link name, offset transformation in 4x4 matrix)
-    def set_state(self, binding, state_param):
-        link_name = state_param[0]
-        frame = state_param[1]
+    def set_state(self, binding, state_param=None):
+        link_name = binding.actor_link
+        frame = binding.T_lao
         self.geometry.set_offset_tf(frame[:3, 3], frame[:3,:3])
         self.geometry.set_link(link_name)
         self.update_sub_points()

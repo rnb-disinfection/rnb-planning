@@ -669,7 +669,7 @@ class PlanningPipeline:
 
                     snode_pre.state.binding_state[wtask_name] = \
                         snode_nxt.state.binding_state[wtask_name]
-                    snode_pre.state.set_binding_state(snode_pre.state.binding_state, pscene)
+                    snode_pre.state.set_binding_state(pscene, snode_pre.state.binding_state, snode_pre.state.state_param)
 
                 traj, state_next, error, succ = \
                     self.test_connection(from_state=snode_pre.state,
@@ -721,7 +721,7 @@ class PlanningPipeline:
 
                     snode_pre.state.binding_state[wtask_name] = \
                         snode_nxt.state.binding_state[wtask_name]
-                    snode_pre.state.set_binding_state(snode_pre.state.binding_state, pscene)
+                    snode_pre.state.set_binding_state(pscene, snode_pre.state.binding_state, snode_pre.state.state_param)
 
                 traj, state_next, error, succ = \
                     self.test_connection(from_state=snode_pre.state,

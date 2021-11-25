@@ -167,8 +167,8 @@ class SweepEntranceControlRule(CustomRuleInterface):
             if isinstance(diff_subject, AbstractObject):
                 #                 print("Rule for AbstractObject")
                 if connection_result:
-                    link_name1 = snode_src.state.state_param[diff_sname][0]
-                    link_name2 = snode_new.state.state_param[diff_sname][0]
+                    link_name1 = snode_src.state.binding_state[diff_sname].actor_link[0]
+                    link_name2 = snode_new.state.binding_state[diff_sname].actor_link[0]
                     rname_candis = [rname for rname, chain_vals in self.chain_dict.items() if
                                     link_name1 in chain_vals['link_names'] or link_name2 in chain_vals['link_names']]
                     if len(rname_candis) == 0:

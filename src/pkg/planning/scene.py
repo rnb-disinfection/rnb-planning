@@ -503,7 +503,7 @@ class PlanningScene:
                 redundancy = sample_redundancy(redundancy_tot, sampler=redundancy_sampler)
                 btf_to = BindingTransform(obj, to_ap, to_binder, redundancy)
             to_binding_state[sname] = btf_to
-        to_state.set_binding_state(to_binding_state, self)
+        to_state.set_binding_state(self, to_binding_state, to_state.state_param)
         return to_state
 
     ##

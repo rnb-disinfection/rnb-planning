@@ -16,8 +16,7 @@ class Actor(ActionPoint):
         Tbal = get_tf(self.geometry.link_name, joint_dict_last, self.gscene.urdf_content)
         Tlao = np.matmul(np.linalg.inv(Tbal), Tbo)
         binding = BindingTransform(action_obj, action_obj.action_points_dict[bind_point], self, T_lao=Tlao)
-        state_param = (self.geometry.link_name, Tlao)
-        action_obj.set_state(binding, state_param)
+        action_obj.set_state(binding, None)
 
     def check_type(self, action_point):
         return action_point.ctype == self.ctype

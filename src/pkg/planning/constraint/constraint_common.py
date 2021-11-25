@@ -123,7 +123,7 @@ BindingChain = namedtuple("BindingChain", ["subject_name", "handle_name", "actor
 # @brief    information holder that contains all sub-transfomations in the binding
 # @remark   give either one of redundancy, T_loal. It none is given, current position is used
 class BindingTransform:
-    def __init__(self, obj, handle, actor, redundancy=None, T_loal=None, T_lao=None):
+    def __init__(self, obj, handle, actor, redundancy=None, T_loal=None, T_lao=None, null_bind_link="base_link"):
         self.point_add_handle, self.rpy_add_handle, self.point_add_actor, self.rpy_add_actor = [(0,0,0)]*4
 
         if handle is None: # for cases where handle is not important. this can cause errors
@@ -137,7 +137,7 @@ class BindingTransform:
             actor.Toff_lh = np.identity(4)
             actor_root = None
             ## @brief link of actor
-            self.actor_link = None
+            self.actor_link = null_bind_link
         else:
             actor_root = actor.geometry.name
             self.actor_link = actor.geometry.link_name

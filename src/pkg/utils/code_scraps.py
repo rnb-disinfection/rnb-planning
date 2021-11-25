@@ -543,8 +543,7 @@ def move_objects_down_until_collision(obj_list, gcheck, Q_dict):
 
         while(check_geometry_collision(gcheck, geometry, Q_dict=Q_dict)):
             if isinstance(obj, AbstractObject):
-                state_param = obj.get_state_param()
-                obj.set_state(obj.binding, (state_param[0], np.matmul(SE3(np.identity(3), [0,0,-1e-3]), state_param[1])))
+                obj.set_state(obj.binding, None)
             else:
                 Toff = np.matmul(SE3(np.identity(3), [0, 0, -1e-3]), geometry.Toff)
                 geometry.set_offset_tf(center=Toff[:3,3], orientation_mat=Toff[:3,:3])
@@ -560,8 +559,7 @@ def move_objects_up_until_no_collision(obj_list, gcheck, Q_dict):
 
         while(not check_geometry_collision(gcheck, geometry, Q_dict=Q_dict)):
             if isinstance(obj, AbstractObject):
-                state_param = obj.get_state_param()
-                obj.set_state(obj.binding, (state_param[0], np.matmul(SE3(np.identity(3), [0,0,1e-3]), state_param[1])))
+                obj.set_state(obj.binding, None)
             else:
                 Toff = np.matmul(SE3(np.identity(3), [0, 0, 1e-3]), geometry.Toff)
                 geometry.set_offset_tf(center=Toff[:3,3], orientation_mat=Toff[:3,:3])
