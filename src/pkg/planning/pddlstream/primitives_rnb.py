@@ -398,7 +398,7 @@ def check_feas(pscene, body_subject_map, actor, checkers, home_dict, body, pose,
     with gtimer.block('check_feas'):
         subject = body_subject_map[body]
         Tbo = T_xyzquat(pose.value)
-        obj_pscene.set_state(binding=BindingTransform(subject, None, None, T_lao=Tbo, null_bind_link=base_link),
+        subject.set_state(binding=BindingTransform(subject, None, None, T_lao=Tbo, null_bind_link=base_link),
                              state_param=None)
 
         Tlao = T_xyzquat(grasp.grasp_pose)

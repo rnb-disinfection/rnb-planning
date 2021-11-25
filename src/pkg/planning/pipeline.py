@@ -227,6 +227,17 @@ class PlanningPipeline:
                         error))
                     print('=' * 150)
             if ret:
+                if add_homing:
+                    print("++ adding return motion to acquired answer ++")
+                    home_state = self.tplan.snode_dict[0].copy(self.pscene)
+                    home_state.Q = self.pscene.combined_robot.home_pose if home_pose is None else home_pose
+                    if add_homing>1:
+                        self.add_return_motion(snode_new, try_count=add_homing, initial_state=home_state)
+                    else:
+                        self.add_return_motion(snode_new, initial_state=home_state)
+                if post_optimize:
+                    print("++ post-optimizing acquired answer ++")
+                    self.post_optimize_schedule(snode_new)
                 sol_count = self.solution_count.value + 1
                 self.solution_count.value = sol_count
                 if sol_count > self.max_solution_count:
@@ -243,17 +254,6 @@ class PlanningPipeline:
             self.stop_now.value = self.N_agents
         elif ret:
             term_reason = "required answers acquired"
-            if add_homing:
-                print("++ adding return motion to acquired answer ++")
-                home_state = self.tplan.snode_dict[0].copy(self.pscene)
-                home_state.Q = self.pscene.combined_robot.home_pose if home_pose is None else home_pose
-                if add_homing>1:
-                    self.add_return_motion(snode_new, try_count=add_homing, initial_state=home_state)
-                else:
-                    self.add_return_motion(snode_new, initial_state=home_state)
-            if post_optimize:
-                print("++ post-optimizing acquired answer ++")
-                self.post_optimize_schedule(snode_new)
             self.stop_now.value = self.N_agents
         elif self.stop_now.value >= self.N_agents:
             term_reason = "Stop called from other agent"
