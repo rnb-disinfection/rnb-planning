@@ -64,6 +64,8 @@ set_meta_data("dat_root", dat_root)
 set_meta_data("rtype", rtype)
 set_meta_data("dat_dir", dat_dir)
 set_meta_data("fname", fname)
+from pkg.planning.pddlstream import convert_pscene
+convert_pscene.RECORD_MODE = True
 
 
 file_gtems = os.path.join(DATASET_PATH, fname)

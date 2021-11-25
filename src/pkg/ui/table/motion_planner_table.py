@@ -1,5 +1,6 @@
 from .table_interface import *
-from ...planning.motion.etasl.etasl_planner import *
+try: from ...planning.motion.etasl.etasl_planner import *
+except: pass
 from ...planning.motion.moveit.moveit_planner import *
 
 class MotionPlanTable(TableInterface):

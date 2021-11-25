@@ -22,7 +22,7 @@ RESP_URI = "shm://response"
 
 IMG_DIM = (720, 1280, 3)
 
-FILE_PATH = os.path.join(RNB_PLANNING_DIR, 'src/scripts/demo_202107/demo_utils/shared_detector.py')
+FILE_PATH = os.path.join(RNB_PLANNING_DIR, 'src/scripts/milestone_202110/utils/shared_detector.py')
 
 class SharedDetector:
     def __init__(self):        self.initizlied = False
@@ -33,9 +33,9 @@ class SharedDetector:
             self.initizlied = True
             # Load config, checkpoint file of cascade mask rcnn swin based
             config_file = os.path.join(RNB_PLANNING_DIR,
-                                       'src/scripts/demo_202107/demo_utils/configs/swin/cascade_mask_rcnn_swin_base_patch4_window7_mstrain_480-800_giou_4conv1f_adamw_3x_coco.py')
+                                       'src/scripts/milestone_202110/utils/configs/swin/cascade_mask_rcnn_swin_base_patch4_window7_mstrain_480-800_giou_4conv1f_adamw_3x_coco.py')
             checkpoint_file = os.path.join(RNB_PLANNING_DIR,
-                                           'src/scripts/demo_202107/demo_utils/cascade_mask_rcnn_swin_base_patch4_window7.pth')
+                                           'src/scripts/milestone_202110/utils/cascade_mask_rcnn_swin_base_patch4_window7.pth')
 
             # config_file = '/home/jhkim/Swin-Transformer-Object-Detection/configs/swin/cascade_mask_rcnn_swin_base_patch4_window7_mstrain_480-800_giou_4conv1f_adamw_3x_coco.py'
             # checkpoint_file = '/home/jhkim/Swin-Transformer-Object-Detection/cascade_mask_rcnn_swin_base_patch4_window7.pth'
