@@ -936,6 +936,7 @@ class GreedyExecuter:
                 except Exception as e:
                     TextColors.RED.println("[PLAN] Error in offset fun")
                     print(e)
+                    self.mark_tested(tkey, i_ap, [], idc_divs)
                     continue
 
                 self.drift = np.mean([np.subtract(Qcur, Qref), self.drift], axis=0)
