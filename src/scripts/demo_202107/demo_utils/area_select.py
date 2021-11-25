@@ -463,7 +463,7 @@ def set_sweep(pscene, surface, Tsm, swp_centers, ax_swp_tool, ax_swp_base,
 def test_base_divs(ppline, surface, Tsm, swp_centers,
                    ax_swp_tool, ax_swp_base, TOOL_DIM, Q_dict,
                    timeout=0.3, timeout_loop=3, verbose=False,
-                   multiprocess=True, terminate_on_first=True,
+                   multiprocess=True, max_solution_count=1,
                    show_motion=False, tool_dir=1, **kwargs):
     pscene = ppline.pscene
     gscene = pscene.gscene
@@ -476,7 +476,7 @@ def test_base_divs(ppline, surface, Tsm, swp_centers,
 
     ppline.search(initial_state, [(2,)], verbose=verbose,
                   timeout=timeout, timeout_loop=timeout_loop, multiprocess=multiprocess,
-                  add_homing=False, terminate_on_first=terminate_on_first, 
+                  add_homing=False, max_solution_count=max_solution_count, 
                   display=show_motion, post_optimize=False, **kwargs)
     snode_schedule = ppline.tplan.get_best_schedule(at_home=False)
     return snode_schedule
@@ -485,14 +485,14 @@ def test_base_divs(ppline, surface, Tsm, swp_centers,
 class TestBaseDivFunc:
     def __init__(self, ppline, surface, ax_swp_tool, ax_swp_base,
                  TOOL_DIM, Q_dict,
-                 multiprocess=True, terminate_on_first=True,
+                 multiprocess=True, max_solution_count=1,
                  show_motion=False, highlight_color=(1, 1, 0, 0.5), tool_dir=1, **kwargs):
         self.ppline, self.surface = ppline, surface
         self.TOOL_DIM, self.Q_dict = TOOL_DIM, Q_dict
         self.pscene = self.ppline.pscene
         self.gscene = self.pscene.gscene
         self.multiprocess = multiprocess
-        self.terminate_on_first = terminate_on_first
+        self.max_solution_count = max_solution_count
         self.show_motion = show_motion
         self.tool_dir = tool_dir
         self.highlight_color = highlight_color
@@ -504,7 +504,7 @@ class TestBaseDivFunc:
     def __call__(self, Tsm, swp_centers):
         output = test_base_divs(self.ppline, self.surface, Tsm, swp_centers,
                                 self.ax_swp_tool, self.ax_swp_base, self.TOOL_DIM, self.Q_dict,
-                                multiprocess=self.multiprocess, terminate_on_first=self.terminate_on_first,
+                                multiprocess=self.multiprocess, max_solution_count=self.max_solution_count,
                                 show_motion=self.show_motion, tool_dir=self.tool_dir, **self.kwargs)
         if output:
             # leave highlight on cleared area
@@ -954,8 +954,8 @@ class GreedyExecuter:
                 TextColors.BLUE.println("[PLAN] Qref: {}".format(np.round(Qref[:3], 3)))
                 TextColors.BLUE.println("[PLAN] tar: {}".format(np.round(Qtar[:3], 3)))
                 Qmob_new = np.copy(Qmob)
-                Qmob_new[:2] = Qtar[:2]
-                self.kmb.joint_move_make_sure(Qmob_new)
+                Qmob_new[:3] = Qtar[:3]
+                self.kmb.joint_move_make_sure(Qmob_new, check_valid=0)
 
             with gtimer.block("update_adjusted_offset"):
                 try:
