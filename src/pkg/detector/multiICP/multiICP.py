@@ -22,6 +22,25 @@ from ...utils.rotation_utils import *
 # @param depth_scale multiplier for depthymap
 ColorDepthMap = namedtuple('ColorDepthMap', ['color', 'depth', 'intrins', 'depth_scale'])
 
+
+##
+# @brief convert cdp to pcd
+# @param cdp ColorDepthMap
+# @param Tc camera coord w.r.t base coord
+def cdp2pcd(cdp, Tc=None, depth_trunc=5.0):
+    if Tc is None:
+        Tc = np.identity(4)
+    color = o3d.geometry.Image(cdp.color)
+    depth = o3d.geometry.Image(cdp.depth)
+    d_scale = cdp.depth_scale
+    rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(color, depth, depth_scale=1 / d_scale,
+                                                                    depth_trunc=depth_trunc,
+                                                                    convert_rgb_to_intensity=False)
+    pcd = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image,
+                                                         o3d.camera.PinholeCameraIntrinsic(
+                                                             *cdp.intrins), SE3_inv(Tc))
+    return pcd
+
 ##
 # @param pcd point cloud
 # @param voxel_size voxel size of downsampling
@@ -85,6 +104,7 @@ class MultiICP:
         self.model_sampled = None
         self.micp_dict = {}
         self.hrule_dict = {}
+        self.objectPose_dict = {}
         self.pose = None
 
 
@@ -137,30 +157,12 @@ class MultiICP:
     ##
     # @param cdp ColorDepthMap
     # @param mask segmented result from object detection algorithm
-    def apply_mask(cdp, mask):
+    def apply_mask(self, cdp, mask):
         mask_u8 = np.zeros_like(mask).astype(np.uint8)
         mask_u8[np.where(mask)] = 255
         color_masked = cv2.bitwise_and(cdp.color, cdp.color, mask=mask_u8).astype(np.uint8)
         depth_masked = cv2.bitwise_and(cdp.depth, cdp.depth, mask=mask_u8).astype(np.uint16)
         return ColorDepthMap(color_masked, depth_masked, cdp.intrins, cdp.depth_scale)
-
-    ##
-    # @brief convert cdp to pcd
-    # @param cdp ColorDepthMap
-    # @param Tc camera coord w.r.t base coord
-    def cdp2pcd(cdp, Tc=None, depth_trunc=5.0):
-        if Tc is None:
-            Tc = np.identity(4)
-        color = o3d.geometry.Image(cdp.color)
-        depth = o3d.geometry.Image(cdp.depth)
-        d_scale = cdp.depth_scale
-        rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(color, depth, depth_scale=1 / d_scale,
-                                                                        depth_trunc=depth_trunc,
-                                                                        convert_rgb_to_intensity=False)
-        pcd = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image,
-                                                             o3d.camera.PinholeCameraIntrinsic(
-                                                                 *cdp.intrins), SE3_inv(Tc))
-        return pcd
 
     ##
     # @brief add model mesh
@@ -180,7 +182,9 @@ class MultiICP:
         elif isinstance(model_info.url, str):
             self.model = o3d.io.read_triangle_mesh(model_info.url)
             self.model.vertices = o3d.utility.Vector3dVector(
-                np.asarray(self.model.vertices) * np.array([scale[0], scale[1], scale[2]]))
+                np.asarray(self.model.vertices) * np.array([model_info.scale[0],
+                                                            model_info.scale[1],
+                                                            model_info.scale[2]]))
         else:
             raise (NotImplementedError("non available input for model : \n".format(model)))
 
@@ -188,7 +192,7 @@ class MultiICP:
     # @brief add pcd from image, sampled pcd from mesh
     # @param cdp_masked ColorDepthMap
     # @param Tc camera coord w.r.t base coord
-    def make_pcd(self, cdp_masked, Tc=None, ratio=0.5):
+    def make_pcd(self, cdp_masked, Tc=None, ratio=0.3):
         if Tc is None:
             Tc = np.identity(4)
         pcd_cam = cdp2pcd(cdp_masked, depth_trunc=self.depth_trunc)
@@ -200,6 +204,7 @@ class MultiICP:
             self.pcd += _pcd[2]
         if len(self.pcd_Tc_stack) > 1:
             self.pcd = self.pcd.uniform_down_sample(every_k_points=len(self.pcd_Tc_stack))
+        self.pcd = self.pcd.uniform_down_sample(every_k_points=int(1/ratio))
         self.model.compute_vertex_normals()
         self.model_sampled = self.model.sample_points_uniformly(
             number_of_points=int(len(np.array(self.pcd.points)) * ratio))
@@ -207,47 +212,111 @@ class MultiICP:
         #                                             number_of_points=int(len(np.array(self.pcd.points) * ratio)))
 
     ##
-    # @brief detect objects in 2D image through mmdet
+    # @brief detect 3D objects pose
     # @param  color_image   color image of object
     # @param  depth_image   color image of object
     # @param  Tc camera transformation matrix
-    def detect(self, sd, obj_name, color_image=None, depth_image=None,
-               Tc=None, ratio=0.5):
-        self.obj_name = obj_name
+    def detect(self, sd, color_image=None, depth_image=None,
+               Tc=None, ratio=0.3, visualize=False):
         if color_image is None or depth_image is None:
             color_image, depth_image = self.get_image()
-
-        camera_mtx = self.config_list[0]
-        cam_intrins = [self.img_dim[1], self.img_dim[0],
-                       camera_mtx[0,0],camera_mtx[1,1],
-                       camera_mtx[0,2],camera_mtx[1,2]]
-        depth_scale = self.config_list[2]
+            camera_mtx = self.config_list[0]
+            cam_intrins = [self.img_dim[1], self.img_dim[0],
+                           camera_mtx[0, 0], camera_mtx[1, 1],
+                           camera_mtx[0, 2], camera_mtx[1, 2]]
+            depth_scale = self.config_list[2]
+        else:
+            cam_intrins = [1280, 720,
+                           909.957763671875, 909.90283203125,
+                           638.3824462890625, 380.0085144042969]
+            depth_scale = 1 / 3999.999810010204
         cdp = ColorDepthMap(color_image, depth_image, cam_intrins, depth_scale)
 
-        # Output of inference(mask for detected object you choose)
+        # Output of inference(mask for detected object)
         mask_out_list = sd.inference(color_img=cdp.color)
-        mask_out = mask_out_list[class_dict[obj_name]]
-        cdp_masked = apply_mask(cdp, mask_out)
+        mask_dict = {}
+        for idx in range(80):
+            if np.any(mask_out_list[idx]):
+                for name, value in class_dict.items():
+                    if value == idx:
+                        num = int(np.max(mask_out_list[value]))
+                        print('Detected : {}, {} object(s)'.format(name, num))
+                        mask_dict[name] = mask_out_list[value]
+            else:
+                pass
 
-        self.cdp = cdp_masked
+        objectPose_dict = {}
+        hrule_targets_dict = {}
+        for name, micp in self.micp_dict.items():
+            if name in mask_dict.keys():
+                micp.clear()
 
-        if Tc is None:
-            Tc = np.identity(4)
-        pcd_cam = cdp2pcd(cdp_masked, depth_trunc=self.depth_trunc)
-        pcd = cdp2pcd(cdp_masked, Tc=Tc, depth_trunc=self.depth_trunc)
+                # add to micp
+                micp.set_model(name)
+                masks = mask_dict[name]
+                num = int(np.max(masks))
+                mask_list = []
+                mask_zero = np.empty((self.img_dim[0],self.img_dim[1]), dtype=bool)
+                mask_zero[:,:] = False
+                for i in range(num):
+                    mask_tmp = mask_zero
+                    mask_tmp[np.where(masks==i+1)] = True
+                    mask_list.append(mask_tmp)
 
-        self.pcd_Tc_stack.append((pcd_cam, Tc, pcd))
-        self.pcd = self.pcd_Tc_stack[0][2]
-        for _pcd in self.pcd_Tc_stack[1:]:
-            self.pcd += _pcd[2]
-        if len(self.pcd_Tc_stack) > 1:
-            self.pcd = self.pcd.uniform_down_sample(every_k_points=len(self.pcd_Tc_stack))
-        self.model.compute_vertex_normals()
-        self.model_sampled = self.model.sample_points_uniformly(
-            number_of_points=int(len(np.array(self.pcd.points)) * ratio))
-        # self.model_sampled = self.model.sample_points_poisson_disk(
-        #                                             number_of_points=int(len(np.array(self.pcd.points) * ratio)))
-        return cdp_masked.color
+                T_cb = SE3_inv(Tc)
+                for i_m, mask in enumerate(mask_list):
+                    cdp_masked = micp.apply_mask(cdp, mask)
+                    micp.make_pcd(cdp_masked, ratio=ratio)
+                    Tguess = micp.get_initial_by_center(R=np.matmul(T_cb[:3, :3], Rot_axis(3, np.pi)),
+                                                        offset=np.matmul(T_cb[:3, :3], (1.1 * 0.7, 0, -0.5)))
+
+                    # Compute ICP
+                    T, _ = micp.compute_ICP(To=Tguess, visualize=visualize)
+                    name_i = "{}_{:02}".format(name, i_m)
+                    objectPose_dict[name_i] = T
+                    self.objectPose_dict[name_i] = T
+                    print('Found 6DoF pose of {}'.format(name_i))
+            elif name in self.hrule_dict.keys():
+                micp.clear()
+
+                # # add to micp
+                # micp.set_model(name)
+                # micp.make_pcd(cdp, Tc, ratio)
+                hrule_targets_dict[name] = self.hrule_dict[name]
+            else:
+                raise (RuntimeError("Detection rule undefined for {}".format(name)))
+
+        for name, hrule in sorted(hrule_targets_dict.items()):
+            micp = self.micp_dict[name]
+
+            # add to micp
+            micp.set_model(name)
+            micp.make_pcd(cdp, ratio=ratio)
+            print("Number of points {}".format(len(np.asarray(micp.pcd.points))))
+            if visualize:
+                FOR_origin = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.2, origin=[0, 0, 0])
+                o3d.visualization.draw_geometries(([micp.pcd, FOR_origin]))
+            if name=="closet":
+                print('===Apply heuristic rule for closet===')
+                mrule = hrule_closet(micp, self.micp_dict[hrule.parent], hrule, Tc=Tc)
+            micp.make_pcd(cdp, Tc=Tc, ratio=ratio)
+            pcd_dict = mrule.apply_rule(micp.pcd, objectPose_dict)
+            T_list = []
+            for name_i, pcd in pcd_dict.items():
+                micp.pcd = pcd
+                initial_guess = micp.get_initial_by_median(np.matmul(Tc, self.micp_dict[hrule.parent].pose)[:3,:3],
+                                                           np.matmul(Tc[:3, :3], (0, 0, 0.3)) - (0.5, 0.2, 1))
+                print("Number of points {}".format(len(np.asarray(micp.pcd.points))))
+                # T, _ = micp.compute_ICP(To=initial_guess, visualize=visualize)
+                T, _ = micp.compute_front_ICP(Tc, To=initial_guess, visualize=visualize)
+                T_list.append(T)
+            for i_t, T in enumerate(T_list):
+                name_i = "{}_{:02}".format(name, i_t)
+                objectPose_dict[name_i] = T
+                self.objectPose_dict[name_i] = T
+                print('Found 6DoF pose of {}'.format(name_i))
+
+        return objectPose_dict
 
 
     ##
@@ -283,7 +352,7 @@ class MultiICP:
     ##
     # @param cdp open3d.geometry.PointCloud
     # @param Tc camera transformation matrix
-    def add_pointcloud(self, pcd, Tc=None, ratio=0.5):
+    def add_pointcloud(self, pcd, Tc=None, ratio=0.3):
         if Tc is None:
             pcd_cam = copy.deepcopy(pcd)
             pcd = copy.deepcopy(pcd)
@@ -304,6 +373,7 @@ class MultiICP:
             self.pcd += _pcd[2]
         if len(self.pcd_Tc_stack) > 1:
             self.pcd = self.pcd.uniform_down_sample(every_k_points=len(self.pcd_Tc_stack))
+        self.pcd = self.pcd.uniform_down_sample(every_k_points=int(1 / ratio))
         self.model.compute_vertex_normals()
         self.model_sampled = self.model.sample_points_uniformly(
             number_of_points=int(len(np.array(self.pcd.points)) * ratio))
@@ -314,7 +384,7 @@ class MultiICP:
     ##
     # @param To    initial transformation matrix of geometry object in the intended icp origin coordinate
     # @param thres max distance between corresponding points
-    def compute_ICP(self, To=None, thres=0.1,
+    def compute_ICP(self, To=None, thres=0.15,
                     relative_fitness=1e-15, relative_rmse=1e-15, max_iteration=500000,
                     voxel_size=0.04, visualize=False
                     ):
@@ -356,7 +426,7 @@ class MultiICP:
     # @param Tc_cur this is new camera transformation in pcd origin
     # @param To    initial transformation matrix of geometry object in the intended icp origin coordinate
     # @param thres max distance between corresponding points
-    def compute_front_ICP(self, Tc_cur=None, To=None, thres=0.1,
+    def compute_front_ICP(self, Tc_cur=None, To=None, thres=0.13,
                           relative_fitness=1e-15, relative_rmse=1e-15, max_iteration=500000,
                           voxel_size=0.04, visualize=False
                           ):

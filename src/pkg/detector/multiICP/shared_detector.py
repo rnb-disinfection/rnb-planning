@@ -40,10 +40,7 @@ def SharedDetectorGen(IMG_DIM=(720, 1280, 3)):
                 checkpoint_file = os.path.join(RNB_PLANNING_DIR,
                                                'src/configs/cascade_mask_rcnn_swin_base_patch4_window7.pth')
 
-                # config_file = '/home/jhkim/Swin-Transformer-Object-Detection/configs/swin/cascade_mask_rcnn_swin_base_patch4_window7_mstrain_480-800_giou_4conv1f_adamw_3x_coco.py'
-                # checkpoint_file = '/home/jhkim/Swin-Transformer-Object-Detection/cascade_mask_rcnn_swin_base_patch4_window7.pth'
                 device = 'cuda:0'
-                # device = 'cpu'
                 try:
                     self.model = init_detector(config_file, checkpoint_file, device=device)
                 except Exception as e:
@@ -59,13 +56,17 @@ def SharedDetectorGen(IMG_DIM=(720, 1280, 3)):
                 boxes, masks = result[0], result[1]
 
                 detect_false = np.empty((IMG_DIM[0],IMG_DIM[1]), dtype=bool)
-                detect_false[:, :] = False
+                detect_false[:,:] = False
 
                 return_img = np.zeros((80, IMG_DIM[0],IMG_DIM[1]))
 
                 for idx in range(80):
                     if len(masks[idx]) != 0:
-                        mask_res = masks[idx][0]
+                        mask_res = np.empty((IMG_DIM[0], IMG_DIM[1]), dtype=bool)
+                        mask_res[:,:] = False
+                        for i_t in range(len(masks[idx])):
+                            mask_temp = masks[idx][i_t]
+                            mask_res[np.where(mask_temp==True)] = int(i_t + 1)
                         return_img[idx][:,:] = mask_res
                     else:
                         return_img[idx][:,:] = detect_false
