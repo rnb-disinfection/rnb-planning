@@ -240,7 +240,7 @@ class MultiICP:
                 for name, value in class_dict.items():
                     if value == idx:
                         num = int(np.max(mask_out_list[value]))
-                        print('Detected : {}, {} object(s)'.format(name, num))
+                        print('===== Detected : {}, {} object(s) ====='.format(name, num))
                         mask_dict[name] = mask_out_list[value]
             else:
                 pass
@@ -254,11 +254,10 @@ class MultiICP:
                 # add to micp
                 micp.set_model(name)
                 masks = mask_dict[name]
-                num = int(np.max(masks))
                 mask_list = []
                 mask_zero = np.empty((self.img_dim[0],self.img_dim[1]), dtype=bool)
                 mask_zero[:,:] = False
-                for i in range(num):
+                for i in range(int(np.max(masks))):
                     mask_tmp = mask_zero
                     mask_tmp[np.where(masks==i+1)] = True
                     mask_list.append(mask_tmp)
@@ -278,10 +277,6 @@ class MultiICP:
                     print('Found 6DoF pose of {}'.format(name_i))
             elif name in self.hrule_dict.keys():
                 micp.clear()
-
-                # # add to micp
-                # micp.set_model(name)
-                # micp.make_pcd(cdp, Tc, ratio)
                 hrule_targets_dict[name] = self.hrule_dict[name]
             else:
                 raise (RuntimeError("Detection rule undefined for {}".format(name)))
@@ -289,16 +284,15 @@ class MultiICP:
         for name, hrule in sorted(hrule_targets_dict.items()):
             micp = self.micp_dict[name]
 
-            # add to micp
+            # # add to micp
             micp.set_model(name)
             micp.make_pcd(cdp, ratio=ratio)
-            print("Number of points {}".format(len(np.asarray(micp.pcd.points))))
-            if visualize:
-                FOR_origin = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.2, origin=[0, 0, 0])
-                o3d.visualization.draw_geometries(([micp.pcd, FOR_origin]))
-            if name=="closet":
-                print('===Apply heuristic rule for closet===')
-                mrule = hrule_closet(micp, self.micp_dict[hrule.parent], hrule, Tc=Tc)
+            # if visualize:
+            #     FOR_origin = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.2, origin=[0, 0, 0])
+            #     o3d.visualization.draw_geometries(([micp.pcd, FOR_origin]))
+            print('===== Apply heuristic rule for {} ====='.format(name))
+            mrule = hrule.make_rule(micp, self.micp_dict[hrule.parent], Tc=Tc)
+            # mrule = hrule_closet(micp, self.micp_dict[hrule.parent], hrule, Tc=Tc)
             micp.make_pcd(cdp, Tc=Tc, ratio=ratio)
             pcd_dict = mrule.apply_rule(micp.pcd, objectPose_dict)
             T_list = []

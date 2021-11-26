@@ -4,7 +4,6 @@ import numpy as np
 import copy
 import open3d as o3d
 from enum import Enum
-
 from ..aruco.detector import *
 from ...geometry.geometry import GEOTYPE
 from ...utils.rotation_utils import *
@@ -62,7 +61,7 @@ def get_obj_info():
                             url='/home/jhkim/Projects/rnb-planning/release/table.STL'),
 
         'bed': ObjectInfo('bed', dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX,
-                          dims=(0.4,0.3,0.01), color=(0.9,0.9,0.9,0.2),
+                          dims=(1.70,0.91,0.66), color=(0.9,0.9,0.9,0.2),
                           Toff=SE3([[0,1,0],[0,0,1],[1,0,0]], (0.455,0,1.02)), scale=(1e-3,1e-3,1e-3),
                           url='/home/jhkim/Projects/rnb-planning/release/bed.STL'),
 
@@ -103,7 +102,6 @@ class MaskBoxRule:
             mask_list = []
             for mbox in self.box_list:
                 if self.parent in oname:
-                    print("Here")
                     T_bx = mbox.get_tf(To)
                     T_xb = SE3_inv(T_bx)
                     abs_cuts = np.divide(mbox.dims, 2)
@@ -117,6 +115,13 @@ class MaskBoxRule:
             pcd.points = o3d.utility.Vector3dVector(points[idc])
             pcd_dict[oname.replace(self.parent, self.target)] = pcd
         return pcd_dict
+
+    def make_rule(self, micp_target, micp_parent, Tc=None):
+        if self.target == "closet":
+            return hrule_closet(micp_target, micp_parent, self, Tc=Tc)
+
+
+
 
 def remove_bed(pcd_original, pcd_bed):
     dists = pcd_original.compute_point_cloud_distance(pcd_bed)
@@ -193,12 +198,13 @@ def check_closet_location(pcd_total, pcd_bed, T_bc, T_bo, bed_dims, floor_margin
 
 
 def hrule_closet(micp_closet, micp_bed, mrule_closet, Tc=None):
+    obj_info = get_obj_info()
     if Tc is None:
         Tbc = SE3(np.identity(3), (0, 0, 0))
     else:
         Tbc = Tc
-    bed_dims = (1.70,0.91,0.01)
     Tbo = np.matmul(Tbc, micp_bed.pose)
+    bed_dims = obj_info["bed"].dims
     CLOSET_LOCATION = check_closet_location(micp_closet.pcd, micp_bed.pcd, Tbc, Tbo, bed_dims)
 
     # bed_box
