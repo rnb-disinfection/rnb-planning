@@ -28,9 +28,9 @@ class PlanningScene:
         self.gscene = gscene
         ## @brief rnb-planning.src.pkg.controller.combined_robot.CombinedRobot
         self.combined_robot = combined_robot
-        ## @brief {binder name: binder instance (rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor)}
+        ## @brief {actor name: binder instance (rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor)}
         self.actor_dict = {}
-        ## @brief {geometry name: binder name}
+        ## @brief {geometry name: actor name}
         self.geometry_actor_dict = defaultdict(list)
         ## @brief {object name: handle name)}
         self.handle_dict = {}
@@ -85,7 +85,7 @@ class PlanningScene:
                     del subject.sub_binders_dict[bname]
 
     ##
-    # @param bname binder name
+    # @param bname actor name
     # @param gname name of parent object
     # @param _type type of binder, subclass of rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
     # @param point binding point offset from object (m). Put None to disable single point constraint and enable surface constraint.
@@ -116,14 +116,14 @@ class PlanningScene:
         return uniq_binders
 
     ##
-    # @brief get controlled binders in dictionary
+    # @brief get active binders in dictionary
     # @param type_list rnb-planning.src.pkg.planning.constraint.constraint_common.ConstraintType
-    def divide_binders_by_control(self, type_list=None):
+    def separate_active_binders(self, type_list=None):
         controlled_binders = []
         uncontrolled_binders = []
         for k_b, binder in self.actor_dict.items():
             if type_list is None or binder.ctype in type_list:
-                if binder.controlled:
+                if binder.active:
                     controlled_binders += [k_b]
                 else:
                     uncontrolled_binders += [k_b]
@@ -246,12 +246,12 @@ class PlanningScene:
                 available_nodes.append(node)
         return available_nodes
 
-    def get_state_param_update(self, binding_state, state_param):
+    def get_updated_state_param(self, binding_state, state_param):
         state_param_new = {}
         for sname in self.subject_name_list:
             btf = binding_state[sname]
             subject = self.subject_dict[sname]
-            state_param_new[sname] = subject.get_state_param_update(btf, state_param[btf.chain.subject_name])
+            state_param_new[sname] = subject.get_updated_state_param(btf, state_param[btf.chain.subject_name])
         return state_param_new
 
     def get_node(self, binding_state, state_param):
@@ -425,7 +425,7 @@ class PlanningScene:
     ##
     # @brief    get a dictionary of available bindings in object-binding geometry level =
     #           **object**-point-binder- **geometry**
-    # @return   {object name: binder geometry name}
+    # @return   {object name: actor root geometry name}
     def get_available_actor_dict(self):
         available_actor_dict = defaultdict(list)
         for bname in self.geometry_actor_dict.keys():
@@ -447,7 +447,7 @@ class PlanningScene:
     # @param state current state
     # @param to_node target object-level node
     # @param Q_dict current joint configuration in dictionary
-    # @return {object name: [(point name, binder name)]}
+    # @return {object name: [(point name, actor name)]}
     def get_available_binding_dict(self, state, to_node, Q_dict=None):
         if Q_dict is None:
             Q_dict = list2dict(state.Q, self.gscene.joint_names)
@@ -455,7 +455,7 @@ class PlanningScene:
         for oname, to_node_item, from_node_item in zip(
                 self.subject_name_list, to_node, state.node):
             from_binding = state.binding_state[oname].get_chain()
-            # bgname: binder geometry name
+            # bgname: actor root geometry name
             # sbgname: state
             if from_node_item != to_node_item:
                 available_binding_dict[oname] = self.subject_dict[oname].get_available_bindings(
@@ -468,9 +468,9 @@ class PlanningScene:
     # @brief    sample next state for given transition
     # @param    state current state
     # @param    available_binding_dict pre-extracted available bindings for each object
-    #           {object name: [(point name, binder name)]}
+    #           {object name: [(point name, actor name)]}
     # @param    to_node target object-level node
-    # @param    binding_sampler random sampling function to be apllied to available binding list [(point name, binder name)]
+    # @param    binding_sampler random sampling function to be apllied to available binding list [(point name, actor name)]
     #                           default=random.choice
     # @param    sampler         sampling function to be applied to redundancy param (default=random.uniform)
     # @return   (sampled next state, sampled redundancy)

@@ -106,7 +106,7 @@ def prepare_stable_redundancy_set(body_subject_map, body_actor_map, show_state=F
 
     for body, subject in body_subject_map.items():
         for surface, actor in body_actor_map.items():
-            if actor.controlled:
+            if actor.active:
                 continue
             rd_key = (subject.oname, actor.name)
             if rd_key in redundancyque_dict:

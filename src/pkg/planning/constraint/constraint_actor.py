@@ -8,7 +8,7 @@ from .constraint_common import *
 # @brief Base class for binder
 # @remark get_redundancy and check_available should be implemented with child classes
 class Actor(ActionPoint):
-    controlled = None
+    active = None
     multiple = None
 
     def bind(self, action_obj, bind_point, joint_dict_last):
@@ -79,7 +79,7 @@ class FrameActor(Actor):
 # @class VacuumTool
 # @brief Actor class for vacuum type tool. z-direction is constrained. (PointerActor)
 class VacuumTool(PointerActor):
-    controlled = True
+    active = True
     multiple = False
     ctype = ConstraintType.Vacuum
 
@@ -88,7 +88,7 @@ class VacuumTool(PointerActor):
 # @class Gripper2Tool
 # @brief Actor class for 2-finger gripper type tool. z-direction is constrained. (PointerActor)
 class Gripper2Tool(PointerActor):
-    controlled = True
+    active = True
     multiple = False
     ctype = ConstraintType.Grasp2
 
@@ -109,7 +109,7 @@ class Gripper2Tool(PointerActor):
 # @class FramedTool
 # @brief Actor class for fully constrained tool. (FrameActor)
 class FramedTool(FrameActor):
-    controlled = True
+    active = True
     multiple = False
     ctype = ConstraintType.Frame
 
@@ -118,7 +118,7 @@ class FramedTool(FrameActor):
 # @class PlacePlane
 # @brief Actor class for placing plane. z-direction constrained. (PointerActor)
 class PlacePlane(PointerActor):
-    controlled = False
+    active = False
     multiple = True
     ctype = ConstraintType.Place
     VERTICAL_CUT = np.cos(np.deg2rad(10))
@@ -134,7 +134,7 @@ class PlacePlane(PointerActor):
 # @class PlaceFrame
 # @brief Actor class for placing frame. Fully constrained. (FrameActor)
 class PlaceFrame(FrameActor):
-    controlled = False
+    active = False
     multiple = True
     ctype = ConstraintType.Frame
     VERTICAL_CUT = np.cos(np.deg2rad(10))
@@ -148,7 +148,7 @@ class PlaceFrame(FrameActor):
 # @class AttachFrame
 # @brief Actor class for placing frame. Fully constrained. (FrameActor)
 class AttachFrame(FrameActor):
-    controlled = False
+    active = False
     multiple = True
     ctype = ConstraintType.Frame
     VERTICAL_CUT = np.cos(np.deg2rad(10))
@@ -163,7 +163,7 @@ class AttachFrame(FrameActor):
 # @class FixtureSlot
 # @brief Fixture slot to implement assembly object with bindings.
 class FixtureSlot(PointerActor):
-    controlled = False
+    active = False
     multiple = True
     ctype = ConstraintType.Fixture
 
@@ -175,7 +175,7 @@ class FixtureSlot(PointerActor):
 # @class SweepTool
 # @brief Actor class for sweeping. z-direction constrained. (PointerActor)
 class SweepTool(PointerActor):
-    controlled = True
+    active = True
     multiple = False
     ctype = ConstraintType.Sweep
     VERTICAL_CUT = np.cos(np.deg2rad(10))
@@ -185,7 +185,7 @@ class SweepTool(PointerActor):
 # @class SweepFramer
 # @brief Actor class for sweeping. z-direction constrained. (FrameActor)
 class SweepFramer(FrameActor):
-    controlled = True
+    active = True
     multiple = False
     ctype = ConstraintType.Sweep
     VERTICAL_CUT = np.cos(np.deg2rad(10))
@@ -194,7 +194,7 @@ class SweepFramer(FrameActor):
 # @class KnobFramer
 # @brief Actor class for sweeping. z-direction constrained. (FrameActor)
 class KnobFramer(FrameActor):
-    controlled = True
+    active = True
     multiple = False
     ctype = ConstraintType.Knob
 
@@ -202,7 +202,7 @@ class KnobFramer(FrameActor):
 # @class HingeFramer
 # @brief Actor class for sweeping. z-direction constrained. (FrameActor)
 class HingeFramer(FrameActor):
-    controlled = True
+    active = True
     multiple = False
     ctype = ConstraintType.Hinge
 
@@ -211,7 +211,7 @@ class HingeFramer(FrameActor):
 # @class WayAgent
 # @brief Actor class for waypoint reaching. z-direction constrained. (PointerActor)
 class WayAgent(PointerActor):
-    controlled = True
+    active = True
     multiple = False
     ctype = ConstraintType.Waypoint
     VERTICAL_CUT = np.cos(np.deg2rad(10))
@@ -221,7 +221,7 @@ class WayAgent(PointerActor):
 # @class WayFramer
 # @brief Actor class for waypoint reaching. z-direction constrained. (PointerActor)
 class WayFramer(FrameActor):
-    controlled = True
+    active = True
     multiple = False
     ctype = ConstraintType.Waypoint
     VERTICAL_CUT = np.cos(np.deg2rad(10))

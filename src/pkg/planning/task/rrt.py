@@ -192,6 +192,8 @@ class TaskRRT(TaskInterface):
                 snode_tar = self.snode_dict[new_node]
                 to_state = snode_tar.state
             else:
+                print("from_state.node: {}".format(from_state.node))
+                print("new_node: {}".format(new_node))
                 available_binding_dict = self.pscene.get_available_binding_dict(from_state, new_node,
                                                                                 list2dict(from_state.Q, self.pscene.gscene.joint_names))
                 if not all([len(abds)>0 for abds in available_binding_dict.values()]):
@@ -201,6 +203,7 @@ class TaskRRT(TaskInterface):
                 to_state = self.pscene.sample_leaf_state(from_state, available_binding_dict, new_node,
                                                          binding_sampler=self.binding_sampler,
                                                          redundancy_sampler=self.redundancy_sampler)
+                print("to_state.node: {}".format(to_state.node))
             sample_fail = False
         return parent_snode, from_state, to_state, sample_fail
 
