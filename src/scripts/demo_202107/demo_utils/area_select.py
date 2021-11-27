@@ -939,9 +939,10 @@ class GreedyExecuter:
                     self.mark_tested(tkey, i_ap, [], idc_divs)
                     continue
 
-                self.drift = np.mean([np.subtract(Qcur, Qref), self.drift], axis=0)
-                self.drift[self.idx_mb[2]] = (self.drift[2] + np.pi) % (np.pi * 2) - np.pi
-                self.drift[self.idx_rb] = 0
+#                 self.drift = np.mean([np.subtract(Qcur, Qref), self.drift], axis=0)
+#                 self.drift[self.idx_mb[2]] = (self.drift[2] + np.pi) % (np.pi * 2) - np.pi
+#                 self.drift[self.idx_rb] = 0
+                self.drift[:] = 0
                 Tbm_cur = self.gscene.get_tf(self.mobile_link, Qcur)
                 Tbs = self.surface.get_tf(Qcur)
                 Tsm_cur = np.matmul(SE3_inv(Tbs), Tbm_cur)
@@ -954,7 +955,7 @@ class GreedyExecuter:
                 TextColors.BLUE.println("[PLAN] Qref: {}".format(np.round(Qref[:3], 3)))
                 TextColors.BLUE.println("[PLAN] tar: {}".format(np.round(Qtar[:3], 3)))
                 Qmob_new = np.copy(Qmob)
-                Qmob_new[:3] = Qtar[:3]
+                Qmob_new[:2] = Qtar[:2]
                 self.kmb.joint_move_make_sure(Qmob_new, check_valid=0)
 
             with gtimer.block("update_adjusted_offset"):
