@@ -240,8 +240,8 @@ class Subject:
 
     ##
     # @brief (prototype) get all object-level node component
-    @classmethod
-    def get_all_node_components(cls, pscene):
+    @abstractmethod
+    def get_all_node_components(self, pscene):
         pass
 
     ##
@@ -559,31 +559,26 @@ class SweepLineTask(SweepTask):
             return []
 
 
-class KnobState(Enum):
-    ONZERO = 0
-    TURNED = 1
-
-
 ##
-# @class KnobTask
+# @class HingeTask
 # @brief sweep action points in alphabetical order
 # @remark   state_param: boolean vector of which each element represents if each waypoint is covered or not
 #           node_item: number of covered waypoints
-class KnobTask(AbstractTask):
-    def __init__(self, oname, geometry, off_binding_pair, on_binding_pair, sub_binders_dict=None, tol=1e-3):
+class HingeTask(AbstractTask):
+    # @param binding_pairs list of tuple (handle, attach frame) [(handle, binder), ...]
+    def __init__(self, oname, geometry, binding_pairs, sub_binders_dict=None, tol=1e-3):
         self.T0 = geometry.Toff
         self.link0 = geometry.link_name
         self.oname = oname
         self.geometry = geometry
-        self.off_point, self.off_frame = off_binding_pair
-        self.on_point, self.on_frame = on_binding_pair
-        self.action_points_dict = {self.on_point.name: self.on_point, self.off_point.name: self.off_point}
-        self.action_points_order = sorted(self.action_points_dict.keys())
+        self.binding_pairs = binding_pairs
+        self.action_points_dict = {ap.name: ap for ap, bp in binding_pairs}
+        self.action_points_order = [ap.name for ap, bp in binding_pairs]
         self.action_point_len = len(self.action_points_order)
         self.sub_binders_dict = {} if sub_binders_dict is None else sub_binders_dict
-        self.sub_binders_dict[self.off_frame.name] = self.off_frame
-        self.sub_binders_dict[self.on_frame.name] = self.on_frame
-        self.state_param = KnobState.ONZERO
+        for ap, bp in binding_pairs:
+            self.sub_binders_dict[bp.name] = bp
+        self.state_param = self.action_points_order[0]
         self.binding = BindingTransform(self, None, None, None)
         self.tol = tol
         self.kwargs = {"tol": tol}
@@ -595,25 +590,24 @@ class KnobTask(AbstractTask):
     def set_state(self, binding, state_param):
         self.binding = deepcopy(binding)
         self.state_param = deepcopy(self.state_param)
-        if state_param == KnobState.ONZERO:
-            self.off_frame.available, self.on_frame.available= True, False
-        if state_param == KnobState.TURNED:
-            self.off_frame.available, self.on_frame.available= False, True
+        for ap, bp in self.binding_pairs:
+            bp.available = False
+        chain = self.binding.chain
+        if chain.handle_name in self.action_points_order:
+            i_bd = self.action_points_order.index(chain.handle_name)
+            self.binding_pairs[i_bd][1].available = True
+        else:
+            self.binding_pairs[0][1].available = True
         self.update_sub_points()
 
     ##
     # @brief (prototype) get updated object-level state_param component
     def get_updated_state_param(self, btf, state_param):
-        if state_param == KnobState.ONZERO:
-            if btf.chain.handle_name == self.on_point.name:
-                return KnobState.TURNED
-            else:
-                return deepcopy(state_param)
-        if state_param == KnobState.TURNED:
-            if btf.chain.handle_name == self.off_point.name:
-                return KnobState.ONZERO
-            else:
-                return deepcopy(state_param)
+        chain = btf.chain
+        if chain.handle_name in self.action_points_order:
+            return chain.handle_name
+        else:
+            return deepcopy(state_param)
 
     ##
     # @brief (prototype) get available bindings from current binding state
@@ -624,16 +618,8 @@ class KnobTask(AbstractTask):
     # @param Q_dict dictionary of joint values {joint_name: value}
     # @return list of available bindings [(handle name, actor name, actor root geometry name), ...]
     def get_available_bindings(self, from_binding, to_node_item, actor_dict, Q_dict):
-        if to_node_item == KnobState.TURNED.name:
-            if from_binding.handle_name in [None, self.off_point.name]:
-                ap_list = [self.on_point]
-            else:
-                raise (RuntimeError("Unexpected transition: {} - > {}").format(from_binding, to_node_item))
-        if to_node_item == KnobState.ONZERO.name:
-            if from_binding.handle_name == self.on_point.name:
-                ap_list = [self.off_point]
-            else:
-                raise (RuntimeError("Unexpected transition: {} - > {}").format(from_binding, to_node_item))
+        if to_node_item in self.action_points_order:
+            ap_list = [self.action_points_dict[to_node_item]]
 
         ctypes = [ap.ctype for ap in ap_list]
         bd_list = [actor for actor in actor_dict.values() if
@@ -660,21 +646,20 @@ class KnobTask(AbstractTask):
     # @brief (prototype) get object-level node component
     @classmethod
     def get_node_component(cls, btf, state_param):
-        return state_param.name
+        return state_param
 
     ##
     # @brief (prototype) get object-level node component
     def get_neighbor_node_component_list(self, node_tem, pscene):
-        if node_tem == KnobState.ONZERO.name:
-            return [KnobState.TURNED.name]
-        if node_tem == KnobState.TURNED.name:
-            return [KnobState.ONZERO.name]
+        nodes = deepcopy(self.action_points_order)
+        if node_tem in self.action_points_order:
+            nodes.remove(node_tem)
+        return nodes
 
     ##
     # @brief (prototype) get all object-level node component
-    @classmethod
-    def get_all_node_components(cls, pscene):
-        return [KnobState.ONZERO.name, KnobState.TURNED.name]
+    def get_all_node_components(self, pscene):
+        return deepcopy(self.action_points_order)
 
     ##
     # @brief make constraints. by default, empty list.

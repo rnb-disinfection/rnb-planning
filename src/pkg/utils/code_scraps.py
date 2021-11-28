@@ -237,7 +237,7 @@ def add_lever(pscene, knob, lname="lever", lever_ang=np.pi / 4, knob_offset=(0.0
     lgrasp = Grasp2Point("gp", lever, (0, 0, 0), (np.pi / 2, 0, -np.pi / 2))
     lattach = PlaceFrame("cp", lever, (0, -knob_offset, -dims[2] / 2), (0, 0, 0), key=lname)
 
-    lever_g = pscene.create_subject(oname=lname + "_grip", gname=lever.name, _type=CustomObject,
+    lever_s = pscene.create_subject(oname=lname, gname=lever.name, _type=CustomObject,
                                     action_points_dict={lgrasp.name: lgrasp, lattach.name: lattach})
 
     lever_plug = pscene.create_binder(bname=knob.name + "_plug", gname=lname, _type=KnobFramer,
@@ -249,9 +249,9 @@ def add_lever(pscene, knob, lname="lever", lever_ang=np.pi / 4, knob_offset=(0.0
            pscene.create_binder(bname=knob.name + "_2", gname=knob.name, _type=AttachFramer,
                                 point=(0, 0, knob.dims[2] / 2 + clearance), rpy=(0, 0, lever_ang), key=lname)
            )
-    knob_s = pscene.create_subject(oname=knob.name, gname=knob.name, _type=KnobTask,
-                                   off_binding_pair=bd1, on_binding_pair=bd2)
-    return knob_s
+    knob_s = pscene.create_subject(oname=knob.name, gname=knob.name, _type=HingeTask,
+                                   binding_pairs=[bd1, bd2])
+    return lever_s, knob_s
 
 def finish_L_shape(gscene, gtem_dict):
     if "l_shape" in gtem_dict:
