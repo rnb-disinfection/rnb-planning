@@ -236,7 +236,7 @@ class Subject:
     # @brief (prototype) get object-level node component
     @abstractmethod
     def get_neighbor_node_component_list(self, node_tem, pscene):
-        pass
+        return []
 
     ##
     # @brief (prototype) get all object-level node component
@@ -288,7 +288,7 @@ class Subject:
             for bname, binder in actor_dict.items():
                 if binder.check_available(Q_dict):
                     binder_T = binder_T_dict[bname]
-                    if binder.geometry.name in self_family or not binder.check_type(handle):
+                    if binder.geometry.name in self_family or not binder.check_pair(handle):
                         continue
                     binder_redundancy = binder.get_redundancy()
                     handle_redundancy = handle.get_redundancy()
@@ -416,7 +416,7 @@ class WaypointTask(AbstractTask):
         available_bindings = []
         for bd in bd_list:
             for ap in ap_list:
-                if bd.check_type(ap):
+                if bd.check_pair(ap):
                     available_bindings.append((ap.name, bd.name, bd.geometry.name))
         if not available_bindings:
             print("=================================")
@@ -440,19 +440,19 @@ class WaypointTask(AbstractTask):
             return 0
 
     ##
-    # @brief get object-level neighbor component (detach or next waypoint)
-    def get_neighbor_node_component_list(self, node_tem, pscene):
-        neighbor = [node_tem]
-        if node_tem < len(self.state_param):
-            neighbor.append(node_tem + 1)
-        if (not self.one_direction) and node_tem > 0:
-            neighbor.insert(0, node_tem - 1)
-        return neighbor
-
-    ##
     # @brief get all object-level node component
     def get_all_node_components(self, pscene):
         return list(range(len(self.state_param) + 1))
+
+    ##
+    # @brief get object-level neighbor component (detach or next waypoint)
+    def get_neighbor_node_component_list(self, node_tem, pscene):
+        neighbor = []
+        if (not self.one_direction) and node_tem > 1:
+            neighbor.append(node_tem - 1)
+        if node_tem < len(self.state_param):
+            neighbor.append(node_tem + 1)
+        return neighbor
 
 
 ##
@@ -558,37 +558,123 @@ class SweepLineTask(SweepTask):
         else:
             return []
 
+
+class KnobState(Enum):
+    ONZERO = 0
+    TURNED = 1
+
+
 ##
 # @class KnobTask
 # @brief sweep action points in alphabetical order
 # @remark   state_param: boolean vector of which each element represents if each waypoint is covered or not
 #           node_item: number of covered waypoints
-class KnobTask(WaypointTask):
-    def __init__(self, oname, geometry, lever, action_points_dict, sub_binders_dict=None, tol=1e-3):
-        self.lever = lever
+class KnobTask(AbstractTask):
+    def __init__(self, oname, geometry, off_binding_pair, on_binding_pair, sub_binders_dict=None, tol=1e-3):
         self.T0 = geometry.Toff
         self.link0 = geometry.link_name
-        WaypointTask.__init__(self, oname, geometry, action_points_dict,
-                           sub_binders_dict=sub_binders_dict, tol=tol, one_direction=False)
+        self.oname = oname
+        self.geometry = geometry
+        self.off_point, self.off_frame = off_binding_pair
+        self.on_point, self.on_frame = on_binding_pair
+        self.action_points_dict = {self.on_point.name: self.on_point, self.off_point.name: self.off_point}
+        self.action_points_order = sorted(self.action_points_dict.keys())
+        self.action_point_len = len(self.action_points_order)
+        self.sub_binders_dict = {} if sub_binders_dict is None else sub_binders_dict
+        self.sub_binders_dict[self.off_frame.name] = self.off_frame
+        self.sub_binders_dict[self.on_frame.name] = self.on_frame
+        self.state_param = KnobState.ONZERO
+        self.binding = BindingTransform(self, None, None, None)
+        self.tol = tol
+        self.kwargs = {"tol": tol}
 
     ##
-    # @brief set object binding state and update location
+    # @brief (prototype) set state param
     # @param binding BindingTransform
-    # @param state_param list of done-mask
-    def set_state(self, binding, state_param=None):
+    # @param state_param
+    def set_state(self, binding, state_param):
         self.binding = deepcopy(binding)
-        self.state_param = np.zeros(len(self.action_points_order), dtype=np.bool)
-        if self.binding.chain.handle_name is not None:
-            if self.binding.chain.handle_name in self.action_points_order:
-                self.state_param[:self.action_points_order.index(self.binding.chain.handle_name) + 1] = True
-            else:
-                raise (RuntimeError("Undefined handle {}".format(self.binding.chain.handle_name)))
-        if binding.chain.handle_name is None:
-            handle = self.action_points_dict[self.action_points_order[0]]
-        else:
-            handle = self.action_points_dict[binding.chain.handle_name]
-
+        self.state_param = deepcopy(self.state_param)
+        if state_param == KnobState.ONZERO:
+            self.off_frame.available, self.on_frame.available= True, False
+        if state_param == KnobState.TURNED:
+            self.off_frame.available, self.on_frame.available= False, True
         self.update_sub_points()
+
+    ##
+    # @brief (prototype) get updated object-level state_param component
+    def get_updated_state_param(self, btf, state_param):
+        if state_param == KnobState.ONZERO:
+            if btf.chain.handle_name == self.on_point.name:
+                return KnobState.TURNED
+            else:
+                return deepcopy(state_param)
+        if state_param == KnobState.TURNED:
+            if btf.chain.handle_name == self.off_point.name:
+                return KnobState.ONZERO
+            else:
+                return deepcopy(state_param)
+
+    ##
+    # @brief (prototype) get available bindings from current binding state
+    # @param from_binding current binding (subject name, handle name, actor name, actor root geometry name)
+    # @param to_node_item desired node item
+    # @param actor_dict
+    #           dictionary of binder {binder_name: rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor}
+    # @param Q_dict dictionary of joint values {joint_name: value}
+    # @return list of available bindings [(handle name, actor name, actor root geometry name), ...]
+    def get_available_bindings(self, from_binding, to_node_item, actor_dict, Q_dict):
+        if to_node_item == KnobState.TURNED.name:
+            if from_binding.handle_name in [None, self.off_point.name]:
+                ap_list = [self.on_point]
+            else:
+                raise (RuntimeError("Unexpected transition: {} - > {}").format(from_binding, to_node_item))
+        if to_node_item == KnobState.ONZERO.name:
+            if from_binding.handle_name == self.on_point.name:
+                ap_list = [self.off_point]
+            else:
+                raise (RuntimeError("Unexpected transition: {} - > {}").format(from_binding, to_node_item))
+
+        ctypes = [ap.ctype for ap in ap_list]
+        bd_list = [actor for actor in actor_dict.values() if
+                   actor.ctype in ctypes]  # bd_exclude is ignored as previous binding is re-used in sweep
+        for bd in bd_list:
+            self.geometry.gscene.link_control_map[bd.geometry.link_name]
+
+        available_bindings = []
+        for bd in bd_list:
+            for ap in ap_list:
+                if bd.check_pair(ap):
+                    available_bindings.append((ap.name, bd.name, bd.geometry.name))
+        if not available_bindings:
+            print("=================================")
+            print("=================================")
+            print("=================================")
+            print("Not available:{}-{}".format(self.oname, to_node_item))
+            print("=================================")
+            print("=================================")
+            print("=================================")
+        return available_bindings
+
+    ##
+    # @brief (prototype) get object-level node component
+    @classmethod
+    def get_node_component(cls, btf, state_param):
+        return state_param.name
+
+    ##
+    # @brief (prototype) get object-level node component
+    def get_neighbor_node_component_list(self, node_tem, pscene):
+        if node_tem == KnobState.ONZERO.name:
+            return [KnobState.TURNED.name]
+        if node_tem == KnobState.TURNED.name:
+            return [KnobState.ONZERO.name]
+
+    ##
+    # @brief (prototype) get all object-level node component
+    @classmethod
+    def get_all_node_components(cls, pscene):
+        return [KnobState.ONZERO.name, KnobState.TURNED.name]
 
     ##
     # @brief make constraints. by default, empty list.
@@ -596,21 +682,7 @@ class KnobTask(WaypointTask):
     # @param binding_from previous binding
     # @param binding_to next binding
     def make_constraints(self, binding_from, binding_to, tol=None):
-        if binding_from is not None and binding_from.actor_name == binding_to.actor_name:
-            return "Constraint not implemented yet. Use MoveitPlanner.incremental_constraint_motion=True"
-        else:
-            return []
-
-    ##
-    # @brief get object-level neighbor component (detach or next waypoint)
-    def get_neighbor_node_component_list(self, node_tem, pscene):
-        if node_tem == len(self.state_param):
-            neighbor = [node_tem]
-        else:  # node_tem < len(self.state_param):
-            neighbor = [node_tem + 1]
-        if (not self.one_direction) and node_tem > 0:
-            neighbor.insert(0, node_tem - 1)
-        return neighbor
+        return "Constraint not implemented yet. Use MoveitPlanner.incremental_constraint_motion=True"
 
 ##
 # @class AbstractObject
@@ -641,7 +713,7 @@ class AbstractObject(Subject):
         available_bindings = []
         for bd in bd_list:
             for ap in ap_list:
-                if bd.check_type(ap):
+                if bd.check_pair(ap):
                     available_bindings.append((ap.name, bd.name, bd.geometry.name))
         if not available_bindings:
             print("=================================")
@@ -703,7 +775,7 @@ class AbstractObject(Subject):
     ##
     # @brief get all object-level node component
     def get_all_node_components(self, pscene):
-        return [v.geometry.name for k,v in pscene.actor_dict.items() if any(v.check_type(ap) for ap in self.action_points_dict.values())]
+        return [v.geometry.name for k,v in pscene.actor_dict.items() if any(v.check_pair(ap) for ap in self.action_points_dict.values())]
 
 
 ################################# USABLE CLASS #########################################

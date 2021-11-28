@@ -50,13 +50,14 @@ class ActionPoint:
     # @param    point       action point offset respect to parent geometry
     # @param    rpy         orientation offset respect to parent geometry
     # @param    name_full   constraint full name, mainly for eTaSL constraint definition
-    def __init__(self, name, geometry, point, rpy, name_full=None):
+    def __init__(self, name, geometry, point, rpy, name_full=None, key=0):
         self.gscene = geometry.gscene
         self.name = name
         self.geometry = geometry
         self.set_point_rpy(point, rpy)
         self.name_full = \
             name_full if name_full else "{objname}_{name}".format(objname=self.geometry.name, name=self.name)
+        self.key = key
 
     ##
     # @param    point       action point offset respect to parent geometry
@@ -336,7 +337,7 @@ def find_match(pscene, actor, T_ba, Q_dict, margin=1e-3):
     margin_max = -1e5
     for obj in pscene.subject_dict.values():
         for handle in obj.action_points_dict.values():
-            if actor.check_type(handle):
+            if actor.check_pair(handle):
                 handle_T = handle.get_tf_handle(Q_dict)
                 handle_redundancy = handle.get_redundancy()
                 margin_mat = get_binding_margins(handle_T, binder_T, handle_redundancy, binder_redundancy)

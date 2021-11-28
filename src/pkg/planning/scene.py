@@ -90,10 +90,10 @@ class PlanningScene:
     # @param _type type of binder, subclass of rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
     # @param point binding point offset from object (m). Put None to disable single point constraint and enable surface constraint.
     # @param rpy   orientation of binding point (rad)
-    def create_binder(self, bname, gname, _type, point, rpy=(0, 0, 0)):
+    def create_binder(self, bname, gname, _type, point, rpy=(0, 0, 0), **kwargs):
         self.remove_binder(bname)
         geometry = self.gscene.NAME_DICT[gname]
-        binder = _type(bname, geometry=geometry, point=point, rpy=rpy)
+        binder = _type(bname, geometry=geometry, point=point, rpy=rpy, **kwargs)
         self.add_binder(binder)
         return binder
 
@@ -271,7 +271,7 @@ class PlanningScene:
                 node_new = node_new[:i] + (new_node_component,) + (node_new[i + 1:] if len_node > 1 else ())
                 if node_new != node or include_self:
                     neighbor_list.append(node_new)
-        return neighbor_list
+        return sorted(set(neighbor_list))
 
     ##
     # @brief get all handles in the scene
@@ -434,7 +434,7 @@ class PlanningScene:
                 for binder_name in self.geometry_actor_dict[bname]:
                     binder = self.actor_dict[binder_name]
                     for ap in self.subject_dict[oname].action_points_dict.values():
-                        if binder.check_type(ap):
+                        if binder.check_pair(ap):
                             available_actor_dict[oname].append(binder.geometry.name)
                             pass_now = True
                             break

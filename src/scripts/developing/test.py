@@ -148,9 +148,9 @@ def add_lever(pscene, knob,lname="lever", lever_ang=np.pi/4, knob_offset=(0.09),
 
     lever_g = pscene.create_subject(oname=lname+"_grip", gname=lever.name, _type=CustomObject,
                                      action_points_dict={lgrasp.name: lgrasp, lattach.name: lattach})
-    kpoint0 = pscene.create_binder(bname=knob.name + "_0", gname=knob.name, _type=AttachFrame,
+    kpoint0 = pscene.create_binder(bname=knob.name + "_0", gname=knob.name, _type=AttachFramer,
                                    point=(0, 0, knob.dims[2]/2+clearance))
-    kpoint1 = pscene.create_binder(bname=knob.name + "_1", gname=knob.name, _type=AttachFrame,
+    kpoint1 = pscene.create_binder(bname=knob.name + "_1", gname=knob.name, _type=AttachFramer,
                                    point=(0, 0, knob.dims[2]/2+clearance), rpy=(0, 0, lever_ang))
 
     lever_plug = pscene.create_binder(bname=knob.name+"_plug", gname=lname, _type=KnobFramer,

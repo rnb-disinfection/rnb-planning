@@ -55,7 +55,7 @@ def sample_redundancy_offset(subject, actor, drop_downward_dir=None, show_state=
     for i_s in range(100):
         assert i_s < 100, "Set drop_downward_dir to the direction you want to keep upward on the actor coordinate, default is y-axis"
             
-        handle = binding_sampler([ap for ap in subject.action_points_dict.values() if actor.check_type(ap)])
+        handle = binding_sampler([ap for ap in subject.action_points_dict.values() if actor.check_pair(ap)])
         redundancy_tot = combine_redundancy(handle, actor)
         redundancy = sample_redundancy(redundancy_tot, sampler=redundancy_sampler)
         btf = BindingTransform(subject, handle, actor, redundancy)

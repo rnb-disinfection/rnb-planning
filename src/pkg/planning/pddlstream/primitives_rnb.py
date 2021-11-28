@@ -75,7 +75,7 @@ def get_matching_object(pscene, binder, approach_vec, Q_dict):
             handle_T = handle.get_tf_handle(Q_dict)
 
             if binder.check_available(Q_dict):
-                if binder.geometry.name in self_family or not binder.check_type(handle):
+                if binder.geometry.name in self_family or not binder.check_pair(handle):
                     continue
                 binder_redundancy = binder.get_redundancy()
                 handle_redundancy = handle.get_redundancy()
@@ -109,7 +109,7 @@ def get_matching_binder(pscene, subject, Q_dict, excludes=[]):
         for bname, binder in actor_dict.items():
             if binder.check_available(Q_dict):
                 binder_T = binder_T_dict[bname]
-                if binder.geometry.name in self_family or not binder.check_type(handle):
+                if binder.geometry.name in self_family or not binder.check_pair(handle):
                     continue
                 binder_redundancy = binder.get_redundancy()
                 handle_redundancy = handle.get_redundancy()

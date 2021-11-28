@@ -32,6 +32,7 @@ class TaskRRT(TaskInterface):
         self.explicit_edges = {}
         self.node_trial_max = node_trial_max
         self.random_try_goal = random_try_goal
+        self.explicit_rule = lambda pscene, node, leaf: True
 
     ##
     # @brief build object-level node graph
@@ -106,7 +107,7 @@ class TaskRRT(TaskInterface):
                 ## unstoppable node should change or at terminal
                 leaf_list = [leaf
                              for leaf in leafs
-                             if self.check_unstoppable_terminals(node, leaf)]
+                             if self.explicit_rule(self.pscene, node, leaf)]
                 self.node_dict[node] = set(leaf_list)
             for leaf in self.node_dict[node]:
                 self.node_parent_dict[leaf].add(node)
@@ -192,8 +193,6 @@ class TaskRRT(TaskInterface):
                 snode_tar = self.snode_dict[new_node]
                 to_state = snode_tar.state
             else:
-                print("from_state.node: {}".format(from_state.node))
-                print("new_node: {}".format(new_node))
                 available_binding_dict = self.pscene.get_available_binding_dict(from_state, new_node,
                                                                                 list2dict(from_state.Q, self.pscene.gscene.joint_names))
                 if not all([len(abds)>0 for abds in available_binding_dict.values()]):
@@ -203,7 +202,6 @@ class TaskRRT(TaskInterface):
                 to_state = self.pscene.sample_leaf_state(from_state, available_binding_dict, new_node,
                                                          binding_sampler=self.binding_sampler,
                                                          redundancy_sampler=self.redundancy_sampler)
-                print("to_state.node: {}".format(to_state.node))
             sample_fail = False
         return parent_snode, from_state, to_state, sample_fail
 
@@ -275,9 +273,3 @@ class TaskRRT(TaskInterface):
     # @param state rnb-planning.src.pkg.planning.scene.State
     def check_goal(self, state):
         return state.node in self.goal_nodes
-
-    def check_unstoppable_terminals(self, node, leaf=None):
-        return all([(node[k] in self.unstoppable_terminals[sname] or
-                     (False if leaf is None else node[k] != leaf[k]))
-                    for k, sname in enumerate(self.pscene.subject_name_list)
-                    if sname in self.unstoppable_terminals])

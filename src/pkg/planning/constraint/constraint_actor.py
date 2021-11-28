@@ -18,8 +18,8 @@ class Actor(ActionPoint):
         binding = BindingTransform(action_obj, action_obj.action_points_dict[bind_point], self, T_lao=Tlao)
         action_obj.set_state(binding, None)
 
-    def check_type(self, action_point):
-        return action_point.ctype == self.ctype
+    def check_pair(self, action_point):
+        return action_point.ctype == self.ctype and action_point.key == self.key
 
     ##
     # @brief function prototype to check quick availability of action point when building search tree
@@ -145,18 +145,22 @@ class PlaceFrame(FrameActor):
         return self.get_tf_handle(joint_dict)[2,2]>self.VERTICAL_CUT
 
 ##
-# @class AttachFrame
+# @class AttachFramer
 # @brief Actor class for placing frame. Fully constrained. (FrameActor)
-class AttachFrame(FrameActor):
+class AttachFramer(FrameActor):
     active = False
     multiple = True
     ctype = ConstraintType.Frame
     VERTICAL_CUT = np.cos(np.deg2rad(10))
 
+    def __init__(self, *args, **kwargs):
+        self.available = True
+        FrameActor.__init__(self, *args, **kwargs)
+
     ##
     # @brief place frame is only available when vertical direction is in range of VERTICAL_CUT (10 deg)
     def check_available(self, joint_dict):
-        return True
+        return self.available
 
 
 ##
