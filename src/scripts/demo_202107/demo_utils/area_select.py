@@ -589,7 +589,7 @@ def refine_order_plan(ppline, snode_schedule_list_in, idx_bases, idc_divs, Qcur,
                 state_0_to.Q = Qnxt_new
                 pscene.set_object_state(state_0)
                 mplan.update_gscene()
-                Traj, LastQ, error, success, binding_list = mplan.plan_transition(state_0, state_0_to, timeout=1)
+                Traj, LastQ, error, success, chain_list = mplan.plan_transition(state_0, state_0_to, timeout=1)
                 if success:
                     print("update {}th motion".format(snode_schedule.index(snode_nxt)))
                     snode_nxt.set_traj(Traj)
@@ -617,7 +617,7 @@ def refine_order_plan(ppline, snode_schedule_list_in, idx_bases, idc_divs, Qcur,
             state_0_to.Q[6:] = np.copy(snode_first_nxt.state.Q[6:])
             pscene.set_object_state(state_0)
             mplan.update_gscene()
-            Traj, LastQ, error, success, binding_list = mplan.plan_transition(state_0, state_0_to, timeout=1)
+            Traj, LastQ, error, success, chain_list = mplan.plan_transition(state_0, state_0_to, timeout=1)
             if success:
                 print("skip success")
                 snode_first_nxt.set_traj(Traj)

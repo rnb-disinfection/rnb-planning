@@ -213,8 +213,8 @@ class EtaslPlanner(MotionInterface):
             additional_constraints += make_action_constraints(
                 self.pscene.subject_dict[sname],
                 self.pscene.subject_dict[sname].
-                    action_points_dict[btf.binding.handle_name],
-                self.pscene.actor_dict[btf.binding.actor_name],
+                    action_points_dict[btf.chain.handle_name],
+                self.pscene.actor_dict[btf.chain.actor_name],
                 btf_from=from_state.binding_state[sname],
                 btf_to=to_state.binding_state[sname], activation=activation)
 

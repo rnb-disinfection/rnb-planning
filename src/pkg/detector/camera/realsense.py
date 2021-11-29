@@ -14,8 +14,9 @@ class RealSense(CameraInterface):
     def initialize(self):
         self.pipeline = rs.pipeline()
         config = rs.config()
-        # config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
-        config.enable_stream(rs.stream.color, 1920, 1080, rs.format.bgr8, 30)
+        config.enable_stream(rs.stream.depth, 1024, 768, rs.format.z16, 30)
+        config.enable_stream(rs.stream.color, 1280, 720, rs.format.bgr8, 30)
+        # config.enable_stream(rs.stream.color, 1920, 1080, rs.format.bgr8, 30)
 
         # Start streaming
         print("Start streaming")
@@ -45,7 +46,23 @@ class RealSense(CameraInterface):
         return color_image
 
     ##
-    # @brief   disconnect kinect
+    # @brief   get RGB image and depthmap
+    def get_image_depthmap(self):
+        frames = self.pipeline.wait_for_frames()
+
+        # Align depth to color
+        align_to = rs.stream.color
+        align = rs.align(align_to)
+        frames = align.process(frames)
+
+        color_frame = frames.get_color_frame()
+        depth_frame = frames.get_depth_frame()
+        color_image = np.asanyarray(color_frame.get_data())
+        depth_image = np.asanyarray(depth_frame.get_data())
+        return color_image, depth_image
+
+    ##
+    # @brief   disconnect realsense
     def disconnect(self):
         if self.pipeline is not None:
             try:

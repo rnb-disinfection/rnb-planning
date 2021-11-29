@@ -1,5 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import cv2
+from rotation_utils import *
+from threading import Thread, Lock
 
 def plot_band(plt, X, Y,title=None, legend=True):
     plt.errorbar(x=X,y=np.mean(Y,axis=1), yerr=np.std(Y,axis=1), color='k', label="mean", capsize=3)
@@ -104,3 +107,104 @@ def grouped_bar(data_dict, groups=None, options=None, scatter=False, average_all
         plt.xticks(X_big + np.mean(X_small), np.array(groups))
         plt.legend(options)
     return groups, options
+
+
+def draw_arrow(img, root, angle_x, length, color=(255, 0, 0)):
+    R = Rot_axis(3, -angle_x)[:2, :2]
+    thick_qt = length / 4
+    len_hf = length / 2
+    root = np.array(root)
+
+    pt_list = np.array([tuple(root.astype(int)),
+                        tuple((root + np.matmul(R, (0, thick_qt))).astype(int)),
+                        tuple((root + np.matmul(R, (len_hf, thick_qt))).astype(int)),
+                        tuple((root + np.matmul(R, (len_hf, thick_qt * 2))).astype(int)),
+                        tuple((root + np.matmul(R, (length, 0))).astype(int)),
+                        tuple((root + np.matmul(R, (len_hf, -thick_qt * 2))).astype(int)),
+                        tuple((root + np.matmul(R, (len_hf, -thick_qt))).astype(int)),
+                        tuple((root + np.matmul(R, (0, -thick_qt))).astype(int))
+                        ], dtype=np.int)
+    pt_list = pt_list.reshape((-1, 1, 2))
+
+    return cv2.fillPoly(img, [pt_list], color, cv2.LINE_AA)
+
+class ArrowStream:
+    ##
+    # @param fun shoud return normalized arrow length (<1.0),
+    #                         angle from x axis in radian,
+    #                         and normalized BGR color.
+    def __init__(self, fun, im_size=(500, 500), sname="arrowing"):
+        self.im_size, self.sname = im_size, sname
+        self.update_arrow = None
+        self.set_updater(fun)
+        self.im_lock = Lock()
+
+    ##
+    # @brief set arrow updater function.
+    #        fun shoud return normalized arrow length (<1.0),
+    #                         angle from x axis in radian,
+    #                         and normalized RGB color.
+    def set_updater(self, fun):
+        self.update_arrow = fun
+
+    def draw_off_thread(self):
+        cv2.namedWindow(self.sname)
+        root = tuple(reversed(np.divide(self.im_size, 2)))
+        self.stop_now_sig = False
+        while not self.stop_now_sig:
+            key = cv2.waitKey(33)
+
+            # if 'esc' button pressed, escape loop and exit streaming
+            if key == 27:
+                cv2.destroyAllWindows()
+                break
+            length, angle_x, color = self.update_arrow()
+            length = length * np.max(self.im_size) / 2
+            color = np.array(color) * 255
+            self.img = np.zeros(tuple(self.im_size) + (3,), dtype=np.uint8)
+            self.img = draw_arrow(self.img, root, angle_x,
+                                  length, color=color)
+            with self.im_lock:
+                cv2.imshow(self.sname, self.img)
+        cv2.destroyWindow(self.sname)
+
+    def draw_background(self):
+        t = Thread(target=self.draw_off_thread)
+        t.daemon = True
+        t.start()
+
+    def stop_now(self):
+        self.stop_now_sig = True
+
+
+def draw_off_thread_multi(astream_list):
+    root_list = []
+    for astream in astream_list:
+        cv2.namedWindow(astream.sname)
+        root = tuple(reversed(np.divide(astream.im_size, 2)))
+        root_list.append(root)
+        astream.stop_now_sig = False
+    while not all([astream.stop_now_sig for astream in astream_list]):
+        key = cv2.waitKey(33)
+
+        # if 'esc' button pressed, escape loop and exit streaming
+        if key == 27:
+            cv2.destroyAllWindows()
+            break
+        for astream, root in zip(astream_list, root_list):
+            length, angle_x, color = astream.update_arrow()
+            length = length * np.max(astream.im_size) / 2
+            color = np.array(color) * 255
+            astream.img = np.zeros(tuple(astream.im_size) + (3,), dtype=np.uint8)
+            astream.img = draw_arrow(astream.img, root, angle_x,
+                                  length, color=color)
+            with astream.im_lock:
+                cv2.imshow(astream.sname, astream.img)
+    for astream in astream_list:
+        cv2.destroyWindow(astream.sname)
+
+def draw_background_multi(astream_list):
+    t = Thread(target=draw_off_thread_multi, args=(astream_list,))
+    t.daemon = True
+    t.start()
+

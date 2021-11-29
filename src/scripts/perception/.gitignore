@@ -13,6 +13,7 @@ configs/
 mmcv_custom/
 mmdet/
 Untitled.ipynb
+exp_data/
 cfg/
 tutorials/
 pytorch/

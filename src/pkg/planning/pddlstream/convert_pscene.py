@@ -30,6 +30,7 @@ from pkg.utils.test_scripts import set_meta_data, get_meta_data, create_data_dir
 
 SAMPLE_GRASP_COUNT_DEFAULT = 10
 SAMPLE_STABLE_COUNT_DEFAULT = 10
+RECORD_MODE = False
 
 ##
 # @brief    add axis marker to handle
@@ -54,7 +55,7 @@ def sample_redundancy_offset(subject, actor, drop_downward_dir=None, show_state=
     for i_s in range(100):
         assert i_s < 100, "Set drop_downward_dir to the direction you want to keep upward on the actor coordinate, default is y-axis"
             
-        handle = binding_sampler([ap for ap in subject.action_points_dict.values() if actor.check_type(ap)])
+        handle = binding_sampler([ap for ap in subject.action_points_dict.values() if actor.check_pair(ap)])
         redundancy_tot = combine_redundancy(handle, actor)
         redundancy = sample_redundancy(redundancy_tot, sampler=redundancy_sampler)
         btf = BindingTransform(subject, handle, actor, redundancy)
@@ -89,22 +90,23 @@ def sample_redundancy_offset(subject, actor, drop_downward_dir=None, show_state=
 def prepare_stable_redundancy_set(body_subject_map, body_actor_map, show_state=False,
                                   sample_count=SAMPLE_STABLE_COUNT_DEFAULT,
                                   binding_sampler=random.choice, redundancy_sampler=random.uniform):
-    meta_data = get_meta_data()
-    if any(map(lambda x: x  not in meta_data, ["dat_root", "rtype", "dat_dir", "fname"])):
-        TextColors.RED.println("================== ERROR in preparing redundancy set =====================")
-        TextColors.RED.println('===== metadata is not set for "dat_root", "rtype", "dat_dir", "fname" ====')
-    data_path = create_data_dirs(meta_data['dat_root'], meta_data['rtype'], meta_data['dat_dir']+"-stableset")
-    rdc_file = os.path.join(data_path, meta_data['fname'])
-    redundancyque_dict = {}
     save_dict = True
-    if os.path.isfile(rdc_file):
-        TextColors.BLUE.println("[INFO] Load stable set {}".format(meta_data['fname']))
-        redundancyque_dict = load_pickle(rdc_file)
-        save_dict = False
+    redundancyque_dict = {}
+    if RECORD_MODE:
+        meta_data = get_meta_data()
+        if any(map(lambda x: x  not in meta_data, ["dat_root", "rtype", "dat_dir", "fname"])):
+            TextColors.RED.println("================== ERROR in preparing redundancy set =====================")
+            TextColors.RED.println('===== metadata is not set for "dat_root", "rtype", "dat_dir", "fname" ====')
+        data_path = create_data_dirs(meta_data['dat_root'], meta_data['rtype'], meta_data['dat_dir']+"-stableset")
+        rdc_file = os.path.join(data_path, meta_data['fname'])
+        if os.path.isfile(rdc_file):
+            TextColors.BLUE.println("[INFO] Load stable set {}".format(meta_data['fname']))
+            redundancyque_dict = load_pickle(rdc_file)
+            save_dict = False
 
     for body, subject in body_subject_map.items():
         for surface, actor in body_actor_map.items():
-            if actor.controlled:
+            if actor.active:
                 continue
             rd_key = (subject.oname, actor.name)
             if rd_key in redundancyque_dict:
@@ -123,7 +125,8 @@ def prepare_stable_redundancy_set(body_subject_map, body_actor_map, show_state=F
                                                 redundancy_sampler=redundancy_sampler)
                 redundancyque.append(T_ao)
             redundancyque_dict[rd_key] = redundancyque
-    if save_dict:
+
+    if RECORD_MODE and save_dict:
         TextColors.YELLOW.println("[INFO] Save stable set {}".format(meta_data['fname']))
         save_pickle(rdc_file, redundancyque_dict)
     return redundancyque_dict
@@ -169,18 +172,19 @@ def get_stable_gen_rnb(body_subject_map, body_actor_map, home_dict, fixed=[], sh
 def prepare_grasp_redundancy_set(body_subject_map, actor,
                                  sample_count=SAMPLE_GRASP_COUNT_DEFAULT, show_state=False,
                                  binding_sampler=random.choice, redundancy_sampler=random.uniform):
-    meta_data = get_meta_data()
-    if any(map(lambda x: x  not in meta_data, ["dat_root", "rtype", "dat_dir", "fname"])):
-        TextColors.RED.println("================== ERROR in preparing redundancy set =====================")
-        TextColors.RED.println('===== metadata is not set for "dat_root", "rtype", "dat_dir", "fname" ====')
-    data_path = create_data_dirs(meta_data['dat_root'], meta_data['rtype'], meta_data['dat_dir']+"-graspset")
-    rdc_file = os.path.join(data_path, meta_data['fname'])
     redundancyque_dict = {}
     save_dict = True
-    if os.path.isfile(rdc_file):
-        TextColors.BLUE.println("[INFO] Load grasp set {}".format(meta_data['fname']))
-        redundancyque_dict = load_pickle(rdc_file)
-        save_dict = False
+    if RECORD_MODE:
+        meta_data = get_meta_data()
+        if any(map(lambda x: x  not in meta_data, ["dat_root", "rtype", "dat_dir", "fname"])):
+            TextColors.RED.println("================== ERROR in preparing redundancy set =====================")
+            TextColors.RED.println('===== metadata is not set for "dat_root", "rtype", "dat_dir", "fname" ====')
+        data_path = create_data_dirs(meta_data['dat_root'], meta_data['rtype'], meta_data['dat_dir']+"-graspset")
+        rdc_file = os.path.join(data_path, meta_data['fname'])
+        if os.path.isfile(rdc_file):
+            TextColors.BLUE.println("[INFO] Load grasp set {}".format(meta_data['fname']))
+            redundancyque_dict = load_pickle(rdc_file)
+            save_dict = False
 
     for body, subject in body_subject_map.items():
         rd_key = subject.oname
@@ -200,7 +204,8 @@ def prepare_grasp_redundancy_set(body_subject_map, actor,
                                             redundancy_sampler=redundancy_sampler)
             redundancyque.append(T_ao)
         redundancyque_dict[rd_key] = redundancyque
-    if save_dict:
+
+    if RECORD_MODE and save_dict:
         TextColors.YELLOW.println("[INFO] Save grasp set {}".format(meta_data['fname']))
         save_pickle(rdc_file, redundancyque_dict)
     return redundancyque_dict
@@ -449,8 +454,8 @@ def play_pddl_plan(pscene, gripper, initial_state, body_names, plan, SHOW_PERIOD
             T_bgl = np.matmul(gripper.geometry.get_tf(list2dict(q_e, gscene.joint_names)), SE3_inv(gripper.geometry.Toff))
             T_lgo = np.matmul(SE3_inv(T_bgl), T_obj)
             obj_pscene = pscene.subject_dict[tar_obj]
-            obj_pscene.set_state(binding=BindingChain(tar_obj, None, gripper.name, gripper.geometry.name),
-                                 state_param=(gripper.geometry.link_name, T_lgo))
+            obj_pscene.set_state(binding=BindingTransform(obj_pscene, None, gripper, T_lao=T_lgo),
+                                 state_param=None)
             gscene.show_motion(np.array(traj_rev), period=SHOW_PERIOD)
 
         if action.name == "move_holding":
@@ -467,7 +472,7 @@ def play_pddl_plan(pscene, gripper, initial_state, body_names, plan, SHOW_PERIOD
             T_obj = np.matmul(SE3_inv(get_tf("base_link", list2dict(q_s, gscene.joint_names), gscene.urdf_content)), T_obj)
             obj_pscene = pscene.subject_dict[tar_obj]
             gscene.show_motion(np.array(traj), period=SHOW_PERIOD)
-            obj_pscene.set_state(binding=BindingChain(tar_obj, None, None, None),
-                             state_param=("base_link", T_obj))
+            obj_pscene.set_state(binding=BindingTransform(obj_pscene, None, None, T_lao=T_obj, null_bind_link="base_link"),
+                                 state_param=None)
             gscene.show_motion(np.array(traj_rev), period=SHOW_PERIOD)
 

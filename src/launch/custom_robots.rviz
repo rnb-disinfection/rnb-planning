@@ -68,74 +68,55 @@ Visualization Manager:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-        indy1_link0:
+        panda0_hand:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        indy1_link1:
+        panda0_link0:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        indy1_link2:
+        panda0_link1:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        indy1_link3:
+        panda0_link2:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        indy1_link4:
+        panda0_link3:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        indy1_link5:
+        panda0_link4:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        indy1_link6:
+        panda0_link5:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        indy1_tcp:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        kmb0_link0:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        kmb0_link1:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        kmb0_link2:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        kmb0_link3:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        kmb0_link4:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        kmb0_link5:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        kmb0_platform:
+        panda0_link6:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
+        panda0_link7:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        panda0_link8:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
       Name: RobotModel
       Robot Description: robot_description
       TF Prefix: ""
@@ -165,35 +146,25 @@ Visualization Manager:
         All Enabled: true
         base_link:
           Value: true
-        indy1_link0:
+        panda0_hand:
           Value: true
-        indy1_link1:
+        panda0_link0:
           Value: true
-        indy1_link2:
+        panda0_link1:
           Value: true
-        indy1_link3:
+        panda0_link2:
           Value: true
-        indy1_link4:
+        panda0_link3:
           Value: true
-        indy1_link5:
+        panda0_link4:
           Value: true
-        indy1_link6:
+        panda0_link5:
           Value: true
-        indy1_tcp:
+        panda0_link6:
           Value: true
-        kmb0_link0:
+        panda0_link7:
           Value: true
-        kmb0_link1:
-          Value: true
-        kmb0_link2:
-          Value: true
-        kmb0_link3:
-          Value: true
-        kmb0_link4:
-          Value: true
-        kmb0_link5:
-          Value: true
-        kmb0_platform:
+        panda0_link8:
           Value: true
       Marker Scale: 0.5
       Name: TF
@@ -202,22 +173,17 @@ Visualization Manager:
       Show Names: true
       Tree:
         base_link:
-          kmb0_link0:
-            kmb0_link1:
-              kmb0_link2:
-                kmb0_link3:
-                  kmb0_link4:
-                    kmb0_link5:
-                      kmb0_platform:
-                        indy1_link0:
-                          indy1_link1:
-                            indy1_link2:
-                              indy1_link3:
-                                indy1_link4:
-                                  indy1_link5:
-                                    indy1_link6:
-                                      indy1_tcp:
-                                        {}
+          panda0_link0:
+            panda0_link1:
+              panda0_link2:
+                panda0_link3:
+                  panda0_link4:
+                    panda0_link5:
+                      panda0_link6:
+                        panda0_link7:
+                          panda0_link8:
+                            panda0_hand:
+                              {}
       Update Interval: 0
       Value: true
   Enabled: true
