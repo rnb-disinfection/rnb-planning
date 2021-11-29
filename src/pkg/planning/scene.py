@@ -449,6 +449,7 @@ class PlanningScene:
     # @param Q_dict current joint configuration in dictionary
     # @return {object name: [(point name, actor name)]}
     def get_available_binding_dict(self, state, to_node, Q_dict=None):
+        self.set_object_state(state)
         if Q_dict is None:
             Q_dict = list2dict(state.Q, self.gscene.joint_names)
         available_binding_dict = {}

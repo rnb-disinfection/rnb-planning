@@ -113,6 +113,15 @@ class FramedTool(FrameActor):
     multiple = False
     ctype = ConstraintType.Frame
 
+    def __init__(self, *args, **kwargs):
+        self.available = True
+        FrameActor.__init__(self, *args, **kwargs)
+
+    ##
+    # @brief place frame is only available when vertical direction is in range of VERTICAL_CUT (10 deg)
+    def check_available(self, joint_dict):
+        return self.available
+
 
 ##
 # @class PlacePlane

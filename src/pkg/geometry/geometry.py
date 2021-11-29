@@ -444,10 +444,43 @@ class GeometryScene(list):
                 gtem_args.append(deepcopy(gtem.get_args()))
         return gtem_args
 
-    def get_tf(self,to_link, Q, from_link="base_link"):
+    def get_tf(self, to_link, Q, from_link="base_link"):
         Q_dict = Q if isinstance(Q, dict) else list2dict(Q, self.joint_names)
         return get_tf(to_link=to_link, joint_dict=Q_dict,
                       urdf_content=self.urdf_content, from_link=from_link)
+
+    ##
+    # @brief calculate jacobian for a geometry movement
+    # @param gtem   GeometryItem
+    # @param Q      current joint pose as array
+    # @param ref_link reference link to calculate pose
+    def get_jacobian(self, link_name, Q, Toff=np.identity(4), ref_link="base_link"):
+        Q_dict = list2dict(Q, self.joint_names)
+        Jac = []
+        chain = self.urdf_content.get_chain(root=ref_link, tip=link_name)
+        T_p = np.matmul(self.get_tf(link_name, Q_dict, ref_link), Toff)
+        for ij, jname in enumerate(self.joint_names):
+            if jname not in chain:
+                Jac.append(np.zeros(6))
+                continue
+            T_bj, zi = self.get_joint_tf(jname, Q_dict, ref_link)
+            dpi = T_p[:3, 3] - T_bj[:3, 3]
+            zp = np.cross(zi, dpi)
+            Ji = np.concatenate([zp, zi])
+            Jac.append(Ji)
+        Jac = np.array(Jac).transpose()
+        return Jac
+
+    ##
+    # @param dVW twist on base coord = concat(w, v)
+    def get_joint_increment(self, link_name, Q0, twist, Toff=np.identity(4), ref_link="base_link", Jac=None, Tcur=None):
+        if Jac is None:
+            Jac = self.get_jacobian(link_name, Q0, Toff=Toff, ref_link=ref_link)
+        if Tcur is None:
+            Tcur = np.matmul(self.get_tf(link_name, Q0, ref_link), Toff)
+        Jinv = np.linalg.pinv(Jac)
+        dQ = np.matmul(Jinv, np.asarray(twist)[[3, 4, 5, 0, 1, 2]])
+        return np.add(Q0, dQ)
 
     def get_children_links(self, link_name):
         if link_name in self.urdf_content.child_map:
@@ -732,33 +765,12 @@ class GeometryItem(object):
     # @param Q      current joint pose as array
     # @param ref_link reference link to calculate pose
     def get_jacobian(self, Q, ref_link="base_link"):
-
-        Q_dict = list2dict(Q, self.gscene.joint_names)
-        Jac = []
-        chain = self.gscene.urdf_content.get_chain(root=ref_link, tip=self.link_name)
-        for ij, jname in enumerate(self.gscene.joint_names):
-            if jname not in chain:
-                Jac.append(np.zeros(6))
-                continue
-            T_bj, zi = self.gscene.get_joint_tf(jname, Q_dict, ref_link)
-            T_p = self.get_tf(Q_dict, ref_link)
-            dpi = T_p[:3, 3] - T_bj[:3, 3]
-            zp = np.cross(zi, dpi)
-            Ji = np.concatenate([zp, zi])
-            Jac.append(Ji)
-        Jac = np.array(Jac).transpose()
-        return Jac
+        return self.gscene.get_jacobian(self.link_name, Q, Toff=self.Toff, ref_link=ref_link)
 
     ##
     # @param dVW twist on base coord = concat(w, v)
     def get_joint_increment(self, Q0, twist, ref_link="base_link", Jac=None, Tcur=None):
-        if Jac is None:
-            Jac = self.get_jacobian(Q0, ref_link)
-        if Tcur is None:
-            Tcur = self.get_tf(Q0, ref_link)
-        Jinv = np.linalg.pinv(Jac)
-        dQ = np.matmul(Jinv, np.asarray(twist)[[3, 4, 5, 0, 1, 2]])
-        return np.add(Q0, dQ)
+        return get_joint_increment(self.link_name, Q0, twist, Toff=self.Toff, ref_link=ref_link, Jac=Jac, Tcur=Tcur)
 
 def load_gtem_args(gscene, gtem_args):
     gtem_remove = []

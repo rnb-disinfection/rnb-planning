@@ -128,7 +128,7 @@ def add_indy_sweep_tool(gscene, robot_name, face_name="brush_face", tool_offset=
 from pkg.planning.constraint.constraint_subject import Grasp2Point, FramePoint, SweepFrame, SweepLineTask, CustomObject
 from pkg.planning.constraint.constraint_actor import Gripper2Tool, PlaceFrame, SweepFramer, AttachFramer
 from pkg.planning.constraint.constraint_actor import KnobFramer, HingeFramer
-from pkg.planning.constraint.constraint_subject import KnobFrame, HingeFrame, KnobTask
+from pkg.planning.constraint.constraint_subject import KnobFrame, HingeFrame, HingeTask
 
 def add_drawer(pscene, dname="drawer", draw_len=0.2,
                center=(1, 1, 1), rpy=(0, 0, 0), dims=(0.4, 0.4, 0.2),

@@ -249,10 +249,10 @@ class Subject:
     def update_sub_points(self):
         gfams = self.geometry.get_family()
         for ap in self.action_points_dict.values():     # you should update action points here
-            assert ap.geometry.name in gfams, "The geometries of action points should be in the family of subject geometry"
+            assert ap.geometry.name in gfams, "The geometries of action points should be in the family of subject geometry {} - {}".format(self.oname, ap.name)
             ap.update_handle()
         for bp in self.sub_binders_dict.values():     # you should update action points here
-            assert bp.geometry.name in gfams, "The geometries of action points should be in the family of subject geometry"
+            assert bp.geometry.name in gfams, "The geometries of action points should be in the family of subject geometry {} - {}".format(self.oname, bp.name)
             bp.update_handle()
 
     ##
@@ -567,8 +567,8 @@ class SweepLineTask(SweepTask):
 class HingeTask(AbstractTask):
     # @param binding_pairs list of tuple (handle, attach frame) [(handle, binder), ...]
     def __init__(self, oname, geometry, binding_pairs, sub_binders_dict=None, tol=1e-3):
-        self.T0 = geometry.Toff
-        self.link0 = geometry.link_name
+        self.T0 = np.copy(geometry.Toff)
+        self.link0 = deepcopy(geometry.link_name)
         self.oname = oname
         self.geometry = geometry
         self.binding_pairs = binding_pairs
@@ -659,7 +659,7 @@ class HingeTask(AbstractTask):
     ##
     # @brief (prototype) get all object-level node component
     def get_all_node_components(self, pscene):
-        return deepcopy(self.action_points_order)
+        return deepcopy(sorted(set(self.action_points_order)))
 
     ##
     # @brief make constraints. by default, empty list.
@@ -668,6 +668,8 @@ class HingeTask(AbstractTask):
     # @param binding_to next binding
     def make_constraints(self, binding_from, binding_to, tol=None):
         return "Constraint not implemented yet. Use MoveitPlanner.incremental_constraint_motion=True"
+
+
 
 ##
 # @class AbstractObject
@@ -751,7 +753,7 @@ class AbstractObject(Subject):
     def get_neighbor_node_component_list(self, node_tem, pscene):
         ctrl_binders, uctrl_binders = pscene.separate_active_binders([ap.ctype for ap in self.action_points_dict.values()])
         next_node_component_list = [pscene.actor_dict[bname].geometry.name for bname in ctrl_binders]
-        if pscene.geometry_actor_dict[node_tem][0] in ctrl_binders: # if any of currently attached binder geometry's binder is active, it's active
+        if any([bname in ctrl_binders for bname in pscene.geometry_actor_dict[node_tem]]): # if any of currently attached binder geometry's binder is active, it's active
             next_node_component_list += [pscene.actor_dict[bname].geometry.name for bname in uctrl_binders] # thus we can add move it to uncontrolled binders
         if node_tem in next_node_component_list:
             next_node_component_list.remove(node_tem)
@@ -760,7 +762,8 @@ class AbstractObject(Subject):
     ##
     # @brief get all object-level node component
     def get_all_node_components(self, pscene):
-        return [v.geometry.name for k,v in pscene.actor_dict.items() if any(v.check_pair(ap) for ap in self.action_points_dict.values())]
+        return sorted(set([v.geometry.name for k,v in pscene.actor_dict.items()
+                           if any(v.check_pair(ap) for ap in self.action_points_dict.values())]))
 
 
 ################################# USABLE CLASS #########################################

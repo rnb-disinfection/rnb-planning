@@ -149,18 +149,18 @@ class BindingTransform:
         self.redundancy = redundancy
 
         if T_lao is not None:
-            T_laol = np.matmul(T_lao, SE3_inv(obj.geometry.Toff))
-            T_loal = SE3_inv(T_laol)
+            T_laol = np.matmul(T_lao, np.linalg.inv(obj.geometry.Toff))
+            T_loal = np.linalg.inv(T_laol)
 
         if redundancy is not None:
             self.set_redundancy(redundancy, handle, actor)
         elif T_loal is not None:
             T_handle_lh = np.matmul(T_loal, actor.Toff_lh)
-            T_add_handle = np.matmul(SE3_inv(handle.Toff_lh), T_handle_lh)
+            T_add_handle = np.matmul(np.linalg.inv(handle.Toff_lh), T_handle_lh)
             self.point_add_handle, self.rpy_add_handle = T2xyzrpy(T_add_handle)
         elif actor.name is not None:
             if actor.geometry.link_name == obj.geometry.link_name:
-                T_add_actor = np.matmul(SE3_inv(actor.Toff_lh), handle.Toff_lh)
+                T_add_actor = np.matmul(np.linalg.inv(actor.Toff_lh), handle.Toff_lh)
                 self.point_add_actor, self.rpy_add_actor = T2xyzrpy(T_add_actor)
 
         self.update_transforms(obj, handle, actor)
@@ -177,15 +177,15 @@ class BindingTransform:
         ## @brief redundant transformation added on the actor side
         self.T_add_actor = T_xyzrpy((self.point_add_actor, self.rpy_add_actor))
         ## @brief redundant transformation from handle to effector
-        self.T_add_ah = np.matmul(self.T_add_actor, SE3_inv(self.T_add_handle))
+        self.T_add_ah = np.matmul(self.T_add_actor, np.linalg.inv(self.T_add_handle))
         ## @brief link-to-handle transformation with redundancy
         self.T_handle_lh = np.matmul(handle.Toff_lh, self.T_add_handle)
         ## @brief link-to-actor transformation with redundancy
         self.T_actor_lh = np.matmul(actor.Toff_lh, self.T_add_actor)
         ## @brief link-object-actor-link transformation with redundancy
-        self.T_loal = np.matmul(self.T_handle_lh, SE3_inv(self.T_actor_lh))
+        self.T_loal = np.matmul(self.T_handle_lh, np.linalg.inv(self.T_actor_lh))
         ## @brief link-actor-object-link transformation with redundancy
-        self.T_laol = SE3_inv(self.T_loal)
+        self.T_laol = np.linalg.inv(self.T_loal)
         ## @brief link-actor-object transformation with redundancy
         self.T_lao = np.matmul(self.T_laol, obj.geometry.Toff)
 
