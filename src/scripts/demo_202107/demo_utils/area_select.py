@@ -897,7 +897,8 @@ class GreedyExecuter:
                 homing_stack += list(reversed(snode_cur.traj))
         return snode_schedule
 
-    def greedy_execute(self, Qcur, tool_dir, mode_switcher, offset_fun, auto_clear_subject=True, cost_cut=110, covereds=[]):
+    def greedy_execute(self, Qcur, tool_dir, mode_switcher, offset_fun, auto_clear_subject=True, cost_cut=110, covereds=[],
+                       repeat_sweep=2):
         gtimer = GlobalTimer.instance()
         Qcur = np.copy(Qcur)
         Qhome = np.copy(Qcur)
@@ -1036,6 +1037,12 @@ class GreedyExecuter:
                                                                                   for i_div in idc_select],
                                                                      tool_dir=tool_dir)
                             if len(snode_schedule) > 0:
+                                for snode_pre, snode_to in zip(snode_schedule[:-1], snode_schedule[1:]):
+                                    if snode_pre.state.node == (1,) and snode_to.state.node == (2,):
+                                        traj = list(snode_to.traj)
+                                        for _ in range(repeat_sweep):
+                                            traj += list(reversed(snode_to.traj)) + list(snode_to.traj)
+                                        snode_to.set_traj(np.array(traj))
                                 idc_divs_remain = sorted(set(idc_divs_remain) - set(idc_select))
                                 idc_succs += idc_select
                                 snode_schedule_all += snode_schedule
