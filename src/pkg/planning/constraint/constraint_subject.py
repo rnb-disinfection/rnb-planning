@@ -330,14 +330,6 @@ class AbstractTask(Subject):
         clearance = []
         raise(NotImplementedError("AbstractTask is abstract class"))
 
-    # ##
-    # # @brief get initial binding - for task, usually no binding is initial state
-    # # @param actor_dict dictionary of binder {binder_name: rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor}
-    # # @param Q_dict dictionary of joint values {joint_name: value}
-    # # @return binding (subject name, handle name, actor name, actor root geometry name)
-    # def get_initial_chain(self, actor_dict, Q_dict):
-    #     return BindingChain(self.oname, None, None, None)
-
 
 ##
 # @class WaypointTask
@@ -429,6 +421,14 @@ class WaypointTask(AbstractTask):
             print("=================================")
             print("=================================")
         return available_bindings
+
+    ##
+    # @brief get initial binding - for task, usually no binding is initial state
+    # @param actor_dict dictionary of binder {binder_name: rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor}
+    # @param Q_dict dictionary of joint values {joint_name: value}
+    # @return binding (subject name, handle name, actor name, actor root geometry name)
+    def get_initial_chain(self, actor_dict, Q_dict):
+        return BindingChain(self.oname, None, None, None)
 
     ##
     # @brief get object-level node component (finished waypoint count)
