@@ -40,7 +40,7 @@ def add_cam(gscene, tool_link="indy0_tcp"):
                        color=(0.8, 0.8, 0.8, 0.2), display=True, fixed=True, collision=True)
     return viewpoint
 
-def add_kiro_indytool_down(gscene, zoff=0, tool_link="indy1_tcp", face_name="brush_face", ext_off=0.032):
+def add_kiro_indytool_down(gscene, zoff=0, tool_link="indy1_tcp", face_name="brush_face", ext_off=0.032, tool_dim=(0.08, 0.32)):
 
     gscene.create_safe(gtype=GEOTYPE.MESH, name="indy_tool_vis", link_name=tool_link,
                        dims=(0.1,0.1,0.1), center=(0,0,ext_off), rpy=(0,0,0),
@@ -50,16 +50,16 @@ def add_kiro_indytool_down(gscene, zoff=0, tool_link="indy1_tcp", face_name="bru
                        center=(0.08, 0, 0.10+ext_off), dims=(0.1, 0.1, 0.25), rpy=(0, np.pi / 4, 0),
                        display=True, color=(0.8, 0.8, 0.8, 0.7), collision=True, fixed=True)
     brush_face = gscene.create_safe(gtype=GEOTYPE.BOX, name=face_name, link_name=tool_link,
-                       center=(0.27+zoff, 0, 0.236+ext_off), dims=(0.12, 0.34, 0.01), rpy=(0, -np.pi/2, 0),
+                       center=(0.27+zoff, 0, 0.236+ext_off), dims=(tool_dim[0]+0.02, tool_dim[1]+0.02, 0.01), rpy=(0, -np.pi/2, 0),
                        color=(1.0, 0.0, 0.0, 0.5),
                        collision=False, fixed=True)
     gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_col".format(face_name), link_name=tool_link,
-                       center=(0.225+zoff/2, 0, 0.236+ext_off), dims=(0.12, 0.34, 0.09+zoff), rpy=(0, -np.pi/2, 0),
+                       center=(0.225+zoff/2, 0, 0.236+ext_off), dims=(tool_dim[0]+0.02, tool_dim[1]+0.02, 0.09+zoff), rpy=(0, -np.pi/2, 0),
                        color=(0.8, 0.8, 0.8, 0.8),
                        collision=True, fixed=True)
     return brush_face
 
-def add_kiro_indytool_up(gscene, zoff=0, tool_link="indy1_tcp", face_name="brush_face", ext_off=0.032):
+def add_kiro_indytool_up(gscene, zoff=0, tool_link="indy1_tcp", face_name="brush_face", ext_off=0.032, tool_dim=(0.08, 0.32)):
     gscene.create_safe(gtype=GEOTYPE.MESH, name="indy_tool_vis", link_name=tool_link,
                        dims=(0.1,0.1,0.1), center=(0,0,0+ext_off), rpy=(0,0,0),
                        display=True, color=(0.8,0.8,0.8,1), collision=False, fixed=True,
@@ -68,11 +68,11 @@ def add_kiro_indytool_up(gscene, zoff=0, tool_link="indy1_tcp", face_name="brush
                        center=(0.08, 0, 0.10+ext_off), dims=(0.1, 0.1, 0.25), rpy=(0, np.pi / 4, 0),
                        display=True, color=(0.8, 0.8, 0.8, 0.7), collision=True, fixed=True)
     brush_face = gscene.create_safe(gtype=GEOTYPE.BOX, name=face_name, link_name=tool_link,
-                       center=(0.18, 0, 0.295+zoff+ext_off), dims=(0.12, 0.34, 0.01), rpy=(0, -np.pi, 0),
+                       center=(0.18, 0, 0.295+zoff+ext_off), dims=(tool_dim[0]+0.02, tool_dim[1]+0.02, 0.01), rpy=(0, -np.pi, 0),
                        color=(1.0, 0.0, 0.0, 0.5),
                        collision=False, fixed=True)
     gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_col".format(face_name), link_name=tool_link,
-                       center=(0.18, 0, 0.25+zoff/2+ext_off), dims=(0.12, 0.34, 0.09+zoff), rpy=(0, -np.pi, 0),
+                       center=(0.18, 0, 0.25+zoff/2+ext_off), dims=(tool_dim[0]+0.02, tool_dim[1]+0.02, 0.09+zoff), rpy=(0, -np.pi, 0),
                        color=(0.8, 0.8, 0.8, 0.8),
                        collision=True, fixed=True)
     return brush_face
@@ -392,17 +392,17 @@ class ToolDir(Enum):
     down = 0
     up = 1
 
-def change_tool(pscene, kmb, command, zoff, tool_link, tool_name, SweepFramer, clearance=1e-3):
+def change_tool(pscene, kmb, command, zoff, tool_link, tool_name, SweepFramer, clearance=1e-3, tool_dim=(0.08, 0.32)):
     gscene = pscene.gscene
     if command==ToolDir.up:
         kmb.tool_angle = 1
-        brush_face = add_kiro_indytool_up(gscene, zoff=zoff, tool_link=tool_link, face_name=tool_name)
+        brush_face = add_kiro_indytool_up(gscene, zoff=zoff, tool_link=tool_link, face_name=tool_name, tool_dim=tool_dim)
         brush_face = pscene.create_binder(bname=tool_name, gname=tool_name, _type=SweepFramer,
                                           point=(0,0,-brush_face.dims[2]/2-clearance), rpy=(0,0,0))
         print("Tool UP")
     elif command==ToolDir.down:
         kmb.tool_angle = 0
-        brush_face = add_kiro_indytool_down(gscene, zoff=zoff, tool_link=tool_link, face_name=tool_name)
+        brush_face = add_kiro_indytool_down(gscene, zoff=zoff, tool_link=tool_link, face_name=tool_name, tool_dim=tool_dim)
         brush_face = pscene.create_binder(bname=tool_name, gname=tool_name, _type=SweepFramer,
                                           point=(0,0,-brush_face.dims[2]/2-clearance), rpy=(0,0,0))
         print("Tool Down")

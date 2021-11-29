@@ -3,6 +3,8 @@ from enum import Enum
 from demo_config import *
 from pkg.utils.utils import *
 from pkg.utils.rotation_utils import *
+from pkg.controller.trajectory_client.trajectory_client import DEFAULT_TRAJ_FREQUENCY
+from pkg.utils.traj_utils import *
 from collections import defaultdict
 import copy
 
@@ -770,6 +772,8 @@ class GreedyExecuter:
         self.ccheck = CachedCollisionCheck(self.mplan, self.mobile_name, Qhome)
         self.pass_count = 0
         self.highlights = []
+        self.vel_lims = 0.5
+        self.acc_lims = 0.5
         if drift is None:
             self.drift = np.zeros(len(self.gscene.joint_names))
         else:
@@ -898,7 +902,7 @@ class GreedyExecuter:
         return snode_schedule
 
     def greedy_execute(self, Qcur, tool_dir, mode_switcher, offset_fun, auto_clear_subject=True, cost_cut=110, covereds=[],
-                       repeat_sweep=2):
+                       repeat_sweep=2, adjust_once=True):
         gtimer = GlobalTimer.instance()
         Qcur = np.copy(Qcur)
         Qhome = np.copy(Qcur)
@@ -950,32 +954,34 @@ class GreedyExecuter:
                 tkey_cur_exact = T2xyzquat(Tsm_cur, decimals=2)
                 tkey_cur_exact = (tkey_cur_exact[0], tkey_cur_exact[1][2:])
 
-            with gtimer.block("adjust_once"):
-                TextColors.BLUE.println("[PLAN] Adjust base once. {} / {}".format(tkey, tkey_cur_exact))
-                TextColors.BLUE.println("[PLAN] Qcur: {}".format(np.round(Qcur[:3], 3)))
-                TextColors.BLUE.println("[PLAN] Qref: {}".format(np.round(Qref[:3], 3)))
-                TextColors.BLUE.println("[PLAN] tar: {}".format(np.round(Qtar[:3], 3)))
-                Qmob_new = np.copy(Qmob)
-                Qmob_new[:2] = Qtar[:2]
-                self.kmb.joint_move_make_sure(Qmob_new, check_valid=0)
+            if adjust_once:
+                with gtimer.block("adjust_once"):
+                    TextColors.BLUE.println("[PLAN] Adjust base once. {} / {}".format(tkey, tkey_cur_exact))
+                    TextColors.BLUE.println("[PLAN] Qcur: {}".format(np.round(Qcur[:3], 3)))
+                    TextColors.BLUE.println("[PLAN] Qref: {}".format(np.round(Qref[:3], 3)))
+                    TextColors.BLUE.println("[PLAN] tar: {}".format(np.round(Qtar[:3], 3)))
+                    Qmob_new = np.copy(Qmob)
+                    Qmob_new[:2] = Qtar[:2]
+                    self.kmb.joint_move_make_sure(Qmob_new, check_valid=0)
 
-            with gtimer.block("update_adjusted_offset"):
-                try:
-                    Qref[self.idx_rb] = Qcur[self.idx_rb]
-                    Qcur, Qtar = offset_fun(self, self.crob, self.mplan, self.robot_name, Qref)
+                with gtimer.block("update_adjusted_offset"):
+                    try:
+                        Qref[self.idx_rb] = Qcur[self.idx_rb]
+                        Qcur, Qtar = offset_fun(self, self.crob, self.mplan, self.robot_name, Qref)
 
-                    self.drift = np.mean([np.subtract(Qcur, Qref), self.drift], axis=0)
-                    self.drift[self.idx_mb[2]] = (self.drift[2] + np.pi) % (np.pi * 2) - np.pi
-                    self.drift[self.idx_rb] = 0
-                    Tbm_cur = self.gscene.get_tf(self.mobile_link, Qcur)
-                    Tbs = self.surface.get_tf(Qcur)
-                    Tsm_cur = np.matmul(SE3_inv(Tbs), Tbm_cur)
-                    tkey_cur_exact = T2xyzquat(Tsm_cur, decimals=2)
-                    tkey_cur_exact = (tkey_cur_exact[0], tkey_cur_exact[1][2:])
-                except Exception as e:
-                    TextColors.RED.println("[PLAN] Error in offset fun")
-                    print(e)
-                    continue
+                        # self.drift = np.mean([np.subtract(Qcur, Qref), self.drift], axis=0)
+                        # self.drift[self.idx_mb[2]] = (self.drift[2] + np.pi) % (np.pi * 2) - np.pi
+                        # self.drift[self.idx_rb] = 0
+                        self.drift[:] = 0
+                        Tbm_cur = self.gscene.get_tf(self.mobile_link, Qcur)
+                        Tbs = self.surface.get_tf(Qcur)
+                        Tsm_cur = np.matmul(SE3_inv(Tbs), Tbm_cur)
+                        tkey_cur_exact = T2xyzquat(Tsm_cur, decimals=2)
+                        tkey_cur_exact = (tkey_cur_exact[0], tkey_cur_exact[1][2:])
+                    except Exception as e:
+                        TextColors.RED.println("[PLAN] Error in offset fun")
+                        print(e)
+                        continue
 
             with gtimer.block("update_base_offset"):
                 Tdiff_list = []
@@ -1041,8 +1047,12 @@ class GreedyExecuter:
                                     if snode_pre.state.node == (1,) and snode_to.state.node == (2,):
                                         traj = list(snode_to.traj)
                                         for _ in range(repeat_sweep):
-                                            traj += list(reversed(snode_to.traj)) + list(snode_to.traj)
-                                        snode_to.set_traj(np.array(traj))
+                                            traj += list(reversed(snode_to.traj))[1:] + list(snode_to.traj)[1:]
+#                                         t_all, traj = calc_safe_trajectory(1.0/DEFAULT_TRAJ_FREQUENCY, 
+#                                                                                np.array(traj),
+#                                                                                self.vel_lims, self.acc_lims)
+                                        traj = np.array(traj)
+                                        snode_to.set_traj(traj)
                                 idc_divs_remain = sorted(set(idc_divs_remain) - set(idc_select))
                                 idc_succs += idc_select
                                 snode_schedule_all += snode_schedule
