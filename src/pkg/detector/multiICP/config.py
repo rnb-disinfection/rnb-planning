@@ -73,6 +73,31 @@ def get_obj_info():
     return obj_info
 
 
+class IGuessRule:
+    def __init__(self, name, R=None, offset=None):
+        self.name = name
+        self.R = R
+        self.offset = offset
+
+    def get_initial_by_center(self, pcd, R=None, offset=None):
+        if R is None:
+            R = self.R
+        if offset is None:
+            offset = self.offset
+        # Get distance of pcd
+        center_p = pcd.get_center()
+        return SE3(R, center_p + offset)
+
+    def get_initial_by_median(self, pcd, R=None, offset=None):
+        if R is None:
+            R = self.R
+        if offset is None:
+            offset = self.offset
+        # Get distance of pcd
+        center_p = np.median(pcd.points, axis=0)
+        return SE3(R, center_p + offset)
+
+
 class MaskBox:
     def __init__(self, Toff, dims, include):
         self.Toff, self.dims, self.include = Toff, dims, include

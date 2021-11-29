@@ -104,6 +104,7 @@ class MultiICP:
         self.model_sampled = None
         self.micp_dict = {}
         self.hrule_dict = {}
+        self.grule_dict = {}
         self.objectPose_dict = {}
         self.pose = None
 
@@ -165,6 +166,16 @@ class MultiICP:
         return ColorDepthMap(color_masked, depth_masked, cdp.intrins, cdp.depth_scale)
 
     ##
+    # @brief add micp_dict, hrule_dict
+    # @param micp_dict MultiICP class for each object
+    # @param hrule_dict hrule class for each object
+    # @param grule_dict initial guess class for each object
+    def set_config(self, micp_dict, hrule_dict, grule_dict):
+        self.micp_dict = micp_dict
+        self.hrule_dict = hrule_dict
+        self.grule_dict = grule_dict
+
+    ##
     # @brief add model mesh
     # @param model_name name of CAD model
     def set_model(self, model_name):
@@ -192,6 +203,7 @@ class MultiICP:
     # @brief add pcd from image, sampled pcd from mesh
     # @param cdp_masked ColorDepthMap
     # @param Tc camera coord w.r.t base coord
+    # @param ratio ratio of number of points
     def make_pcd(self, cdp_masked, Tc=None, ratio=0.3):
         if Tc is None:
             Tc = np.identity(4)
@@ -213,11 +225,16 @@ class MultiICP:
 
     ##
     # @brief detect 3D objects pose
+    # @param  sd   shared detector to detect object
+    # @param  gscene   geometry scene
     # @param  color_image   color image of object
     # @param  depth_image   color image of object
+    # @param  Q joint values of robot
     # @param  Tc camera transformation matrix
-    def detect(self, sd, color_image=None, depth_image=None,
-               Tc=None, ratio=0.3, visualize=False):
+    # @param ratio ratio of number of points
+    # @param visualize visualize option during ICP on Open3D
+    def detect(self, sd, gscene, color_image=None, depth_image=None,
+               Q=None, Tc=None, ratio=0.3, visualize=False):
         if color_image is None or depth_image is None:
             color_image, depth_image = self.get_image()
             camera_mtx = self.config_list[0]
@@ -263,11 +280,20 @@ class MultiICP:
                     mask_list.append(mask_tmp)
 
                 T_cb = SE3_inv(Tc)
+
+                try:
+                    g_handle = gscene.NAME_DICT[name]
+                    Tguess = g_handle.get_tf(Q)
+                except:
+                    print("'{}' is not in gscene. Use manual input for initial guess".format(name))
+                    pass
+
                 for i_m, mask in enumerate(mask_list):
                     cdp_masked = micp.apply_mask(cdp, mask)
                     micp.make_pcd(cdp_masked, ratio=ratio)
-                    Tguess = micp.get_initial_by_center(R=np.matmul(T_cb[:3, :3], Rot_axis(3, np.pi)),
-                                                        offset=np.matmul(T_cb[:3, :3], (1.1 * 0.7, 0, -0.5)))
+                    Tguess = self.grule_dict[name].get_initial_by_center(micp.pcd)
+                    # Tguess = micp.get_initial_by_center(R=np.matmul(T_cb[:3, :3], Rot_axis(3, np.pi)),
+                    #                                     offset=np.matmul(T_cb[:3, :3], (1.1 * 0.7, 0, -0.5)))
 
                     # Compute ICP
                     T, _ = micp.compute_ICP(To=Tguess, visualize=visualize)
@@ -296,13 +322,23 @@ class MultiICP:
             micp.make_pcd(cdp, Tc=Tc, ratio=ratio)
             pcd_dict = mrule.apply_rule(micp.pcd, objectPose_dict)
             T_list = []
+
+            try:
+                g_handle = gscene.NAME_DICT[name]
+                initial_guess = g_handle.get_tf(Q)
+            except:
+                print("'{}' is not in gscene. Use manual input for initial guess".format(name))
+                pass
+
             for name_i, pcd in pcd_dict.items():
                 micp.pcd = pcd
-                initial_guess = micp.get_initial_by_median(np.matmul(Tc, self.micp_dict[hrule.parent].pose)[:3,:3],
-                                                           np.matmul(Tc[:3, :3], (0, 0, 0.3)) - (0.5, 0.2, 1))
+                Tguess = self.grule_dict[name].get_initial_by_median(micp.pcd,
+                                                        R=np.matmul(Tc, self.micp_dict[hrule.parent].pose)[:3, :3])
+                # initial_guess = micp.get_initial_by_median(np.matmul(Tc, self.micp_dict[hrule.parent].pose)[:3,:3],
+                #                                            np.matmul(Tc[:3, :3], (0, 0, 0.3)) - (0.5, 0.2, 1))
                 print("Number of points {}".format(len(np.asarray(micp.pcd.points))))
                 # T, _ = micp.compute_ICP(To=initial_guess, visualize=visualize)
-                T, _ = micp.compute_front_ICP(Tc, To=initial_guess, visualize=visualize)
+                T, _ = micp.compute_front_ICP(Tc, To=Tguess, visualize=visualize)
                 T_list.append(T)
             for i_t, T in enumerate(T_list):
                 name_i = "{}_{:02}".format(name, i_t)
@@ -311,37 +347,6 @@ class MultiICP:
                 print('Found 6DoF pose of {}'.format(name_i))
 
         return objectPose_dict
-
-
-    ##
-    # @brief add micp_dict, hrule_dict
-    # @param micp_dict MultiICP class for each object
-    # @param hrule_dict
-    def set_config(self, micp_dict, hrule_dict):
-        self.micp_dict = micp_dict
-        self.hrule_dict = hrule_dict
-
-
-    ##
-    # @brief add cad model to compute ICP
-    # @param model open3d.geometry.TriangleMesh or file path
-    # @param Toff  GeometryItem coordinate in TriangleMesh coordinate. externally, we use geometry coordinate for all TFs
-    # @param scale scale multiplier if model is given as file path
-    def add_model(self, model, Toff=None, scale=[1e-3,1e-3,1e-3]):
-        if Toff is None:
-            self.Toff = np.identity(4)
-            self.Toff_inv = SE3_inv(self.Toff)
-        else :
-            self.Toff = Toff
-            self.Toff_inv = SE3_inv(self.Toff)
-        if isinstance(model, o3d.geometry.TriangleMesh):
-            self.model = model
-        elif isinstance(model, str):
-            self.model = o3d.io.read_triangle_mesh(model)
-            self.model.vertices = o3d.utility.Vector3dVector(
-                np.asarray(self.model.vertices) * np.array([scale[0],scale[1],scale[2]]))
-        else:
-            raise (NotImplementedError("non available input for model : \n".format(model)))
 
     ##
     # @param cdp open3d.geometry.PointCloud
@@ -649,19 +654,14 @@ class MultiICP:
 
     ##
     # @brief    list registered targets of specific detection level
-    # @param    gscene  geometry scene
     # @param    detection_level list of target detection levels
     # @return   names list of target names
-    def get_targets_of_levels(self, gscene, detection_levels=None):
+    def get_targets_of_levels(self, detection_levels=None):
         obj_info = get_obj_info()
         names = []
-        for name in class_dict.keys():
-            try:
-                handle = gscene.NAME_DICT[name]
-                if obj_info[name].dlevel == detection_levels:
-                    names.append(name)
-            except:
-                pass
+        for name in self.micp_dict.keys():
+            if obj_info[name].dlevel == detection_levels:
+                names.append(name)
         return names
 
     ##
