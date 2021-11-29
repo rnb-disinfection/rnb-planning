@@ -262,11 +262,12 @@ class GeometryScene(list):
     def clear_highlight(self, hl_keys=[], sleep=True):
         for hl_key, hl_set in self.highlight_dict.items():
             if hl_key in hl_keys or not hl_keys:
-                for k,v in hl_set.items():
+                for k in deepcopy(sorted(hl_set.keys())):
+                    v = self.highlight_dict[hl_key][k]
                     del self.highlight_dict[hl_key][k]
                     if v in self:
                         self.remove(v)
-            del self.highlight_dict[hl_key]
+                del self.highlight_dict[hl_key]
 
     ##
     # @brief highlight a geometry
