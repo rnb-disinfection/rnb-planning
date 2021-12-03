@@ -503,26 +503,38 @@ class PlanningScene:
 
     ##
     # @brief    add axis marker to handle
-    def add_handle_axis(self, hl_key, handle, Toff=None, color=None):
+    def add_handle_axis(self, hl_key, handle, Toff=None, color=None, axis="xyz", dims=(0.10, 0.01, 0.01), idx=""):
         hobj = handle.geometry
         Toff_lh = handle.Toff_lh
         if Toff is not None:
             Toff_lh = np.matmul(Toff_lh, Toff)
-        axis = "xyz"
-        self.gscene.add_highlight_axis(hl_key, hobj.name, hobj.link_name, Toff_lh[:3,3], Toff_lh[:3,:3], color=color, axis=axis)
+        self.gscene.add_highlight_axis(hl_key, hobj.name+idx, hobj.link_name, Toff_lh[:3,3], Toff_lh[:3,:3],
+                                       color=color, axis=axis, dims=dims)
 
     ##
     # @brief    add axis marker to handle
     # @param binding tuple (subject name, handle name, binder name, binder geometry name)
     # @param btf BindingTransform
-    def show_binding(self, btf):
+    def show_binding(self, btf, axis="xyz", color=None, dims=(0.10, 0.01, 0.01), idx=""):
         sname, hname, aname, agname = btf.get_chain()
         if hname is not None:
             handle = self.subject_dict[sname].action_points_dict[hname]
-            self.add_handle_axis("{}_{}".format(sname, hname), handle, Toff=btf.T_add_handle)
+            if aname is not None:
+                actor = self.actor_dict[aname]
+                self.add_handle_axis("{}_{}".format(sname, hname), handle,
+                                     Toff=np.matmul(btf.T_add_handle, SE3_inv(btf.T_add_actor)), axis=axis, color=color,
+                                     dims=dims, idx=idx)
+            else:
+                self.add_handle_axis("{}_{}".format(sname, hname), handle, Toff=btf.T_add_handle, axis=axis, color=color,
+                                     dims=dims, idx=idx)
         if aname is not None:
             actor = self.actor_dict[aname]
-            self.add_handle_axis("{}".format(aname), actor, Toff=btf.T_add_actor)
+            if hname is None:
+                self.add_handle_axis("{}".format(aname), actor, Toff=btf.T_add_actor, axis=axis, color=color,
+                                     dims=dims, idx=idx)
+            else:
+                self.add_handle_axis("{}".format(aname), actor, Toff=np.identity(4), axis=axis, color=color,
+                                     dims=dims, idx=idx)
 
     def get_scene_args(self, Q):
         gtem_args = self.gscene.get_gtem_args()
