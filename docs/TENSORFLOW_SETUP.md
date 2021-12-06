@@ -3,7 +3,7 @@
 * TensorRT>=7.2.3 is needed to it is the first version that supports Conv3D
 * Building TF from source code is explained in **Build from source code**, but just building the same code with TensorRT==7.2.3 does not work. Just install compiled whl from pip.
 * This document is based on the package versions below.
-  * nvidia driver == 460.91.03
+  * nvidia driver == 460.106.00
   * CUDA == 11.2 update 1
   * cuDNN == 8.1.1
   * TensorRT == 7.2.2
@@ -26,10 +26,10 @@ mkdir ~/NVIDIA_TMP && cd ~/NVIDIA_TMP \
 
 * Install NVIDIA driver
 ```bash
-sudo apt-get install --no-install-recommends nvidia-driver-460=460.91.03-0ubuntu1 \
-  libxnvctrl0=460.91.03-0ubuntu1 \
-  nvidia-modprobe=460.91.03-0ubuntu1 \
-  nvidia-settings=460.91.03-0ubuntu1
+sudo apt-get install --no-install-recommends nvidia-driver-460=460.106.00-0ubuntu1 \
+  libxnvctrl0=460.106.00-0ubuntu1 \
+  nvidia-modprobe=460.106.00-0ubuntu1 \
+  nvidia-settings=460.106.00-0ubuntu1
 ```
 
 * ***[IMPORTANT]*** Reboot!!!  
@@ -37,7 +37,7 @@ sudo apt-get install --no-install-recommends nvidia-driver-460=460.91.03-0ubuntu
 
 * Install cuda - this will install many dependancies like cudart,cublas of version 11.2
 ```bash
-sudo apt-get install cuda-drivers=460.91.03-1 \
+sudo apt-get install cuda-drivers=460.106.00-1 \
 && sudo apt-get install --no-install-recommends cuda-11-2=11.2.1-1
 ```
 

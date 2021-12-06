@@ -22,6 +22,8 @@ class ConstraintType(Enum):
     Fixture = 4
     Sweep = 5
     Waypoint = 6
+    Knob = 7
+    Hinge = 8
 
 
 OPPOSITE_DICT = {
@@ -48,13 +50,14 @@ class ActionPoint:
     # @param    point       action point offset respect to parent geometry
     # @param    rpy         orientation offset respect to parent geometry
     # @param    name_full   constraint full name, mainly for eTaSL constraint definition
-    def __init__(self, name, geometry, point, rpy, name_full=None):
+    def __init__(self, name, geometry, point, rpy, name_full=None, key=0):
         self.gscene = geometry.gscene
         self.name = name
         self.geometry = geometry
         self.set_point_rpy(point, rpy)
         self.name_full = \
             name_full if name_full else "{objname}_{name}".format(objname=self.geometry.name, name=self.name)
+        self.key = key
 
     ##
     # @param    point       action point offset respect to parent geometry
@@ -121,7 +124,7 @@ BindingChain = namedtuple("BindingChain", ["subject_name", "handle_name", "actor
 # @brief    information holder that contains all sub-transfomations in the binding
 # @remark   give either one of redundancy, T_loal. It none is given, current position is used
 class BindingTransform:
-    def __init__(self, obj, handle, actor, redundancy=None, T_loal=None):
+    def __init__(self, obj, handle, actor, redundancy=None, T_loal=None, T_lao=None, null_bind_link="base_link"):
         self.point_add_handle, self.rpy_add_handle, self.point_add_actor, self.rpy_add_actor = [(0,0,0)]*4
 
         if handle is None: # for cases where handle is not important. this can cause errors
@@ -134,57 +137,68 @@ class BindingTransform:
             actor.name = None
             actor.Toff_lh = np.identity(4)
             actor_root = None
+            ## @brief link of actor
+            self.actor_link = null_bind_link
         else:
             actor_root = actor.geometry.name
+            self.actor_link = actor.geometry.link_name
 
         # @brief BindingChain, (subject name, handle name, actor name, actor's root geometry name)
-        self.binding = BindingChain(obj.oname, handle.name, actor.name, actor_root)
+        self.chain = BindingChain(obj.oname, handle.name, actor.name, actor_root)
         # @brief correscponding redundancy in form of {action point name: {axis: value}}
         self.redundancy = redundancy
+
+        if T_lao is not None:
+            T_laol = np.matmul(T_lao, np.linalg.inv(obj.geometry.Toff))
+            T_loal = np.linalg.inv(T_laol)
 
         if redundancy is not None:
             self.set_redundancy(redundancy, handle, actor)
         elif T_loal is not None:
             T_handle_lh = np.matmul(T_loal, actor.Toff_lh)
-            T_add_handle = np.matmul(SE3_inv(handle.Toff_lh), T_handle_lh)
+            T_add_handle = np.matmul(np.linalg.inv(handle.Toff_lh), T_handle_lh)
             self.point_add_handle, self.rpy_add_handle = T2xyzrpy(T_add_handle)
         elif actor.name is not None:
             if actor.geometry.link_name == obj.geometry.link_name:
-                T_add_actor = np.matmul(SE3_inv(actor.Toff_lh), handle.Toff_lh)
+                T_add_actor = np.matmul(np.linalg.inv(actor.Toff_lh), handle.Toff_lh)
                 self.point_add_actor, self.rpy_add_actor = T2xyzrpy(T_add_actor)
 
-        self.update_transforms(handle, actor)
+        self.update_transforms(obj, handle, actor)
 
     def set_redundancy(self, redundancy, handle, actor):
-        if self.binding.handle_name in redundancy:
+        if self.chain.handle_name in redundancy:
             self.point_add_handle, self.rpy_add_handle = calc_redundancy(redundancy[handle.name], handle)
-        if self.binding.actor_name in redundancy:
+        if self.chain.actor_name in redundancy:
             self.point_add_actor, self.rpy_add_actor = calc_redundancy(redundancy[actor.name], actor)
 
-    def update_transforms(self, handle, actor):
+    def update_transforms(self, obj, handle, actor):
         ## @brief redundant transformation added on the handle side
         self.T_add_handle = T_xyzrpy((self.point_add_handle, self.rpy_add_handle))
         ## @brief redundant transformation added on the actor side
         self.T_add_actor = T_xyzrpy((self.point_add_actor, self.rpy_add_actor))
         ## @brief redundant transformation from handle to effector
-        self.T_add_ah = np.matmul(self.T_add_actor, SE3_inv(self.T_add_handle))
+        self.T_add_ah = np.matmul(self.T_add_actor, np.linalg.inv(self.T_add_handle))
         ## @brief link-to-handle transformation with redundancy
         self.T_handle_lh = np.matmul(handle.Toff_lh, self.T_add_handle)
         ## @brief link-to-actor transformation with redundancy
         self.T_actor_lh = np.matmul(actor.Toff_lh, self.T_add_actor)
         ## @brief link-object-actor-link transformation with redundancy
-        self.T_loal = np.matmul(self.T_handle_lh, SE3_inv(self.T_actor_lh))
+        self.T_loal = np.matmul(self.T_handle_lh, np.linalg.inv(self.T_actor_lh))
+        ## @brief link-actor-object-link transformation with redundancy
+        self.T_laol = np.linalg.inv(self.T_loal)
+        ## @brief link-actor-object transformation with redundancy
+        self.T_lao = np.matmul(self.T_laol, obj.geometry.Toff)
 
     def get_chain(self):
-        return self.binding
+        return self.chain
 
     def get_instance_chain(self, pscene):
-        subject = pscene.subject_dict[self.binding.subject_name]
+        subject = pscene.subject_dict[self.chain.subject_name]
         return subject, \
-               subject.action_points_dict[self.binding.handle_name] \
-                   if self.binding.handle_name in subject.action_points_dict else self.binding.handle_name, \
-               pscene.actor_dict[self.binding.actor_name] \
-                   if self.binding.actor_name in pscene.actor_dict else self.binding.actor_name
+               subject.action_points_dict[self.chain.handle_name] \
+                   if self.chain.handle_name in subject.action_points_dict else self.chain.handle_name, \
+               pscene.actor_dict[self.chain.actor_name] \
+                   if self.chain.actor_name in pscene.actor_dict else self.chain.actor_name
 
 ##
 # @class    BindingState
@@ -323,7 +337,7 @@ def find_match(pscene, actor, T_ba, Q_dict, margin=1e-3):
     margin_max = -1e5
     for obj in pscene.subject_dict.values():
         for handle in obj.action_points_dict.values():
-            if actor.check_type(handle):
+            if actor.check_pair(handle):
                 handle_T = handle.get_tf_handle(Q_dict)
                 handle_redundancy = handle.get_redundancy()
                 margin_mat = get_binding_margins(handle_T, binder_T, handle_redundancy, binder_redundancy)

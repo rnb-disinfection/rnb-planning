@@ -227,6 +227,10 @@ class GeometryScene(list):
         if gtem.name in marker_dict:
             for marker in marker_dict[gtem.name]:
                 marker.delete(sleep=sleep)
+            if gtem.name in self.marker_dict_fixed:
+                del self.marker_dict_fixed[gtem.name]
+            if gtem.name in self.marker_dict:
+                del self.marker_dict[gtem.name]
 
     ##
     # @brief clear all markers
@@ -264,10 +268,12 @@ class GeometryScene(list):
     def clear_highlight(self, hl_keys=[], sleep=True):
         for hl_key, hl_set in self.highlight_dict.items():
             if hl_key in hl_keys or not hl_keys:
-                for k,v in hl_set.items():
+                for k in deepcopy(sorted(hl_set.keys())):
+                    v = self.highlight_dict[hl_key][k]
                     del self.highlight_dict[hl_key][k]
                     if v in self:
                         self.remove(v)
+                del self.highlight_dict[hl_key]
 
     ##
     # @brief highlight a geometry
@@ -383,29 +389,38 @@ class GeometryScene(list):
 
     ##
     # @brief set workspace boundary
-    def add_virtual_guardrail(self, plane_gtem, HEIGHT=0.05, margin=0.01, axis="y"):
+    def add_virtual_guardrail(self, plane_gtem, THICKNESS=0.01, HEIGHT=0.05, margin=0.01,
+                              axis="y", color=(0.8, 0.8, 0.8, 0.1)):
         gname = plane_gtem.name
         dims = plane_gtem.dims
-        XMIN, XMAX, YMIN, YMAX, ZMIN, ZMAX = -dims[0]/2, dims[0]/2, -dims[1]/2, dims[1]/2, 0, HEIGHT
+        XMIN, XMAX, YMIN, YMAX, ZMIN, ZMAX = -dims[0]/2, dims[0]/2, -dims[1]/2, dims[1]/2, -HEIGHT, HEIGHT
+        if "x" in axis.lower() and "y" in axis.lower():
+            add_edge = THICKNESS + margin * 2
+        else:
+            add_edge = 0
         if "x" in axis.lower():
-            gtem0 = self.create_safe(GEOTYPE.BOX, "{}_front_gr".format(gname), "base_link", (0.01, YMAX - YMIN, ZMAX - ZMIN),
+            gtem0 = self.create_safe(GEOTYPE.BOX, "{}_front_gr".format(gname), "base_link",
+                                     (THICKNESS, YMAX - YMIN + add_edge, ZMAX - ZMIN + add_edge),
                              (XMAX + margin, (YMAX + YMIN) / 2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
-                             color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent=gname)
-            gtem1 = self.create_safe(GEOTYPE.BOX, "{}_back_gr".format(gname), "base_link", (0.01, YMAX - YMIN, ZMAX - ZMIN),
+                             color=color, display=True, fixed=True, collision=True, parent=gname)
+            gtem1 = self.create_safe(GEOTYPE.BOX, "{}_back_gr".format(gname), "base_link",
+                                     (THICKNESS, YMAX - YMIN + add_edge, ZMAX - ZMIN + add_edge),
                              (XMIN - margin, (YMAX + YMIN) / 2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
-                             color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent=gname)
+                             color=color, display=True, fixed=True, collision=True, parent=gname)
             virtuals = []
             for virtual in self.virtuals:
                 if virtual.name not in [gtem0.name, gtem1.name]:
                     virtuals.append(virtual)
             self.virtuals = virtuals + [gtem0, gtem1]
         if "y" in axis.lower():
-            gtem0 = self.create_safe(GEOTYPE.BOX, "{}_left_gr".format(gname), "base_link", (XMAX - XMIN, 0.01, ZMAX - ZMIN),
+            gtem0 = self.create_safe(GEOTYPE.BOX, "{}_left_gr".format(gname), "base_link",
+                                     (XMAX - XMIN + add_edge, THICKNESS, ZMAX - ZMIN + add_edge),
                              ((XMAX + XMIN) / 2, YMIN - margin, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
-                             color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent=gname)
-            gtem1 = self.create_safe(GEOTYPE.BOX, "{}_right_gr".format(gname), "base_link", (XMAX - XMIN, 0.01, ZMAX - ZMIN),
+                             color=color, display=True, fixed=True, collision=True, parent=gname)
+            gtem1 = self.create_safe(GEOTYPE.BOX, "{}_right_gr".format(gname), "base_link",
+                                     (XMAX - XMIN + add_edge, THICKNESS, ZMAX - ZMIN + add_edge),
                              ((XMAX + XMIN) / 2, YMAX + margin, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
-                             color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent=gname)
+                             color=color, display=True, fixed=True, collision=True, parent=gname)
             virtuals = []
             for virtual in self.virtuals:
                 if virtual.name not in [gtem0.name, gtem1.name]:
@@ -436,10 +451,43 @@ class GeometryScene(list):
                 gtem_args.append(deepcopy(gtem.get_args()))
         return gtem_args
 
-    def get_tf(self,to_link, Q, from_link="base_link"):
+    def get_tf(self, to_link, Q, from_link="base_link"):
         Q_dict = Q if isinstance(Q, dict) else list2dict(Q, self.joint_names)
         return get_tf(to_link=to_link, joint_dict=Q_dict,
                       urdf_content=self.urdf_content, from_link=from_link)
+
+    ##
+    # @brief calculate jacobian for a geometry movement
+    # @param gtem   GeometryItem
+    # @param Q      current joint pose as array
+    # @param ref_link reference link to calculate pose
+    def get_jacobian(self, link_name, Q, Toff=np.identity(4), ref_link="base_link"):
+        Q_dict = list2dict(Q, self.joint_names)
+        Jac = []
+        chain = self.urdf_content.get_chain(root=ref_link, tip=link_name)
+        T_p = np.matmul(self.get_tf(link_name, Q_dict, ref_link), Toff)
+        for ij, jname in enumerate(self.joint_names):
+            if jname not in chain:
+                Jac.append(np.zeros(6))
+                continue
+            T_bj, zi = self.get_joint_tf(jname, Q_dict, ref_link)
+            dpi = T_p[:3, 3] - T_bj[:3, 3]
+            zp = np.cross(zi, dpi)
+            Ji = np.concatenate([zp, zi])
+            Jac.append(Ji)
+        Jac = np.array(Jac).transpose()
+        return Jac
+
+    ##
+    # @param dVW twist on base coord = concat(w, v)
+    def get_joint_increment(self, link_name, Q0, twist, Toff=np.identity(4), ref_link="base_link", Jac=None, Tcur=None):
+        if Jac is None:
+            Jac = self.get_jacobian(link_name, Q0, Toff=Toff, ref_link=ref_link)
+        if Tcur is None:
+            Tcur = np.matmul(self.get_tf(link_name, Q0, ref_link), Toff)
+        Jinv = np.linalg.pinv(Jac)
+        dQ = np.matmul(Jinv, np.asarray(twist)[[3, 4, 5, 0, 1, 2]])
+        return np.add(Q0, dQ)
 
     def get_children_links(self, link_name):
         if link_name in self.urdf_content.child_map:
@@ -458,6 +506,22 @@ class GeometryScene(list):
         zi = np.matmul(T_bj[:3, :3], joint.axis)
         return T_bj, zi
 
+    def show_vector(self, hl_key, name, origin, vector, link_name="base_link", color=(1,0,0,1)):
+        vector_len = np.linalg.norm(vector)
+        vector_nm = vector / (vector_len + 1e-6)
+        rotvec = calc_rotvec_vecs([0, 0, 1], vector_nm)
+        R = Rotation.from_rotvec(rotvec).as_dcm()
+        return self.add_highlight_axis(hl_key, name, link_name=link_name,
+                                       center=origin, orientation_mat=R,
+                                       axis="z", color=color, dims=(vector_len, vector_len*0.1, vector_len*0.1))
+
+    def show_wrench(self, name, wrench, Tbp, fscale=0.01, tscale=0.5, hl_key="wc", link_name="base_link"):
+        v, w = wrench[:3]*fscale, wrench[3:]*tscale
+        Rbp, Pbp = Tbp[:3,:3], Tbp[:3,3]
+        self.show_vector(hl_key, name+"_v", origin=Pbp,
+                         vector=np.matmul(Rbp, v), color=(1,0,0,1), link_name=link_name)
+        self.show_vector(hl_key, name+"_w", origin=Pbp,
+                         vector=np.matmul(Rbp, w), color=(0,0,1,1), link_name=link_name)
 
 ##
 # @class GeometryItem
@@ -710,33 +774,12 @@ class GeometryItem(object):
     # @param Q      current joint pose as array
     # @param ref_link reference link to calculate pose
     def get_jacobian(self, Q, ref_link="base_link"):
-
-        Q_dict = list2dict(Q, self.gscene.joint_names)
-        Jac = []
-        chain = self.gscene.urdf_content.get_chain(root=ref_link, tip=self.link_name)
-        for ij, jname in enumerate(self.gscene.joint_names):
-            if jname not in chain:
-                Jac.append(np.zeros(6))
-                continue
-            T_bj, zi = self.gscene.get_joint_tf(jname, Q_dict, ref_link)
-            T_p = self.get_tf(Q_dict, ref_link)
-            dpi = T_p[:3, 3] - T_bj[:3, 3]
-            zp = np.cross(zi, dpi)
-            Ji = np.concatenate([zp, zi])
-            Jac.append(Ji)
-        Jac = np.array(Jac).transpose()
-        return Jac
+        return self.gscene.get_jacobian(self.link_name, Q, Toff=self.Toff, ref_link=ref_link)
 
     ##
     # @param dVW twist on base coord = concat(w, v)
     def get_joint_increment(self, Q0, twist, ref_link="base_link", Jac=None, Tcur=None):
-        if Jac is None:
-            Jac = self.get_jacobian(Q0, ref_link)
-        if Tcur is None:
-            Tcur = self.get_tf(Q0, ref_link)
-        Jinv = np.linalg.pinv(Jac)
-        dQ = np.matmul(Jinv, np.asarray(twist)[[3, 4, 5, 0, 1, 2]])
-        return np.add(Q0, dQ)
+        return get_joint_increment(self.link_name, Q0, twist, Toff=self.Toff, ref_link=ref_link, Jac=Jac, Tcur=Tcur)
 
 def load_gtem_args(gscene, gtem_args):
     gtem_remove = []

@@ -80,7 +80,7 @@ class MotionInterface:
     # @return LastQ     Last joint configuration as array
     # @return error     planning error
     # @return success   success/failure of planning result
-    # @param binding_list   list of bindings to pursue [(subject name, handle name, actor name, actor root geometry name)]
+    # @param chain_list   list of bindings to pursue [(subject name, handle name, actor name, actor root geometry name)]
     def plan_transition(self, from_state, to_state, verbose=False, test_filters_only=False,
                         show_state=False, **kwargs):
         if from_state is not None:

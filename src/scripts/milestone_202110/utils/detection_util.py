@@ -57,6 +57,10 @@ MODEL_DIR = os.path.join(MILESTONE_DIR, "model_CAD")
 COLOR_PATH = os.path.join(MILESTONE_DIR, "save_img/top_table/color")
 DEPTH_PATH = os.path.join(MILESTONE_DIR, "save_img/top_table/depth")
 INTRINSIC_PATH = os.path.join(MILESTONE_DIR, "save_img/top_table")
+try:
+    os.mkdir(SAVE_DIR)
+except:
+    pass
 
 DEPTHMAP_SIZE = (480, 640)
 IMAGE_SIZE = (720, 1280)
@@ -1096,6 +1100,7 @@ class MultiICP:
             self.pcd += _pcd[2]
         if len(self.pcd_Tc_stack) > 1:
             self.pcd = self.pcd.uniform_down_sample(every_k_points=len(self.pcd_Tc_stack))
+        self.pcd = self.pcd.uniform_down_sample(every_k_points=int(1/ratio))
         self.model.compute_vertex_normals()
         self.model_sampled = self.model.sample_points_uniformly(
             number_of_points=int(len(np.array(self.pcd.points))*ratio))
@@ -1118,6 +1123,7 @@ class MultiICP:
             self.pcd += _pcd[2]
         if len(self.pcd_Tc_stack) > 1:
             self.pcd = self.pcd.uniform_down_sample(every_k_points=len(self.pcd_Tc_stack))
+        self.pcd = self.pcd.uniform_down_sample(every_k_points=int(1/ratio))
         self.model.compute_vertex_normals()
         self.model_sampled = self.model.sample_points_uniformly(
             number_of_points=int(len(np.array(self.pcd.points)) * ratio))

@@ -253,9 +253,14 @@ class MoveitPlanner(MotionInterface):
                 target, T_tar = binder, T_binder
                 T_add_tool = T_add_handle
                 T_add_tar = T_add_actor
+            elif group_name_handle == group_name_binder:
+                if verbose:
+                    print("link transfer between same links: {} - {}".format(subject_list, group_name_binder))
+                return [from_state.Q], from_state.Q, 1, False
             else:
                 if not self.enable_dual:
-                    raise(RuntimeError("dual arm motion is not enabled"))
+                    raise(RuntimeError("dual arm motion is not enabled - {} & {} - {}".format(
+                        group_name_handle, group_name_binder, subject_list)))
                 dual = True
                 group_name = "{}_{}".format(group_name_binder, group_name_handle)
                 self.update_gscene(group_name, only_self_collision=only_self_collision)
@@ -267,6 +272,11 @@ class MoveitPlanner(MotionInterface):
             T_tar_tool = np.matmul(T_tar, SE3_inv(T_tool))
             goal_pose = tuple(T_tar_tool[:3,3]) \
                         +tuple(Rotation.from_dcm(T_tar_tool[:3,:3]).as_quat())
+            T_tar_tool_cur = self.gscene.get_tf(Q=from_state.Q, to_link=tool.geometry.link_name, from_link=target.geometry.link_name)
+            if np.linalg.norm(T_tar_tool - T_tar_tool_cur) < 1e-3:
+                return [from_state.Q], from_state.Q, 0, True
+            if verbose:
+                print("error: {:.2}".format(np.linalg.norm(T_tar_tool - T_tar_tool_cur)))
 
             if dual:
                 dual_planner = self.dual_planner_dict[group_name]
@@ -283,18 +293,14 @@ class MoveitPlanner(MotionInterface):
             btf_to = to_state.binding_state[obj_name]
             constraints = obj.make_constraints(btf_from.get_chain(),
                                                btf_to.get_chain())
+            ref_link = self.chain_dict[group_name]["link_names"][0]
+            Tref = self.gscene.get_tf(Q=from_Q, to_link=target.geometry.link_name, from_link=ref_link)
             if constraints:
-                for motion_constraint in constraints:
-                    self.add_constraint(group_name, tool.geometry.link_name, tool.Toff_lh, motion_constraint=motion_constraint)
-                if verbose:
-                    print("try constrained motion") ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
 
                 if self.incremental_constraint_motion:
                     # ################################# Special planner ##############################
-                    ref_link = self.chain_dict[group_name]["link_names"][0]
-                    Tref = self.gscene.get_tf(Q=from_Q, to_link=target.geometry.link_name, from_link=ref_link)
-                    T_ref_tool = matmul_series(Tref, T_tar_tool, tool.geometry.Toff)
-                    trajectory, success = self.get_incremental_traj(tool.geometry, T_ref_tool,
+                    T_ref_tar = matmul_series(Tref, T_tar)
+                    trajectory, success = self.get_incremental_traj(tool.geometry.link_name, T_tool, T_ref_tar,
                                                                     from_Q, step_size=0.01, ERROR_CUT=0.01,
                                                                     SINGULARITY_CUT=0.01, VERBOSE=verbose,
                                                                     ref_link=ref_link, VISUALIZE=self.visualize_increments)
@@ -302,6 +308,10 @@ class MoveitPlanner(MotionInterface):
                         self.trajectory = trajectory
                         self.gscene.show_motion(trajectory)
                 else:
+                    for motion_constraint in constraints:
+                        self.add_constraint(group_name, tool.geometry.link_name, tool.Toff_lh, motion_constraint=motion_constraint)
+                    if verbose:
+                        print("try constrained motion") ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
                     ################################ Original planner ##############################
                     trajectory, success = planner.plan_constrained_py(
                         group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q),
@@ -327,12 +337,13 @@ class MoveitPlanner(MotionInterface):
                         ref_link = self.chain_dict[group_name]["link_names"][0]
                         Tref = self.gscene.get_tf(Q=from_Q_tmp, to_link=target.geometry.link_name, from_link=ref_link)
                         T_ref_tool = matmul_series(Tref, T_tar_tool, tool.geometry.Toff)
-                        trajectory, success = self.get_incremental_traj(tool.geometry, T_ref_tool,
-                                                                   from_Q_tmp, step_size=0.01, ERROR_CUT=0.01,
-                                                                   SINGULARITY_CUT=0.01,
-                                                                   VERBOSE=verbose,
-                                                                   ref_link=ref_link,
-                                                                   VISUALIZE=self.visualize_increments)
+                        trajectory, success = self.get_incremental_traj(tool.geometry.link_name,
+                                                                        tool.geometry.Toff, T_ref_tool,
+                                                                        from_Q_tmp, step_size=0.01, ERROR_CUT=0.01,
+                                                                        SINGULARITY_CUT=0.01,
+                                                                        VERBOSE=verbose,
+                                                                        ref_link=ref_link,
+                                                                        VISUALIZE=self.visualize_increments)
                         if success:
                             to_Q = trajectory[-1]
                             if self.validate_trajectory([to_Q], update_gscene=False):
@@ -433,13 +444,13 @@ class MoveitPlanner(MotionInterface):
     # @brief calculate incremental trajectory
     # @param gtem GeometryItem
     # @param T_tar target T of gtem in ref_link coords
-    def get_incremental_traj(self, gtem, T_tar, Q0, step_size=0.01, ERROR_CUT=0.01, SINGULARITY_CUT = 0.01, VISUALIZE=False,
+    def get_incremental_traj(self, link_name, Toff, T_tar, Q0, step_size=0.01, ERROR_CUT=0.01, SINGULARITY_CUT = 0.01, VISUALIZE=False,
                        VERBOSE=False, ref_link="base_link", check_collision=True):
-        gscene = gtem.gscene
+        gscene = self.gscene
         joint_limits = [(gscene.urdf_content.joint_map[jname].limit.lower,
                          gscene.urdf_content.joint_map[jname].limit.upper) for jname in gscene.joint_names]
         Q = Q0
-        Tcur = T0 = gtem.get_tf(Q0, from_link=ref_link)
+        Tcur = T0 = np.matmul(gscene.get_tf(link_name, Q0, from_link=ref_link), Toff)
         if VISUALIZE:
             gscene.show_pose(Q)
             gscene.add_highlight_axis("hl", "traj_start", link_name=ref_link, T=T0, dims=(0.3,0.03,0.03))
@@ -447,15 +458,17 @@ class MoveitPlanner(MotionInterface):
         wv_tar = calc_wv(T0, T_tar)
         Traj = []
         wv_norm = np.linalg.norm(wv_tar)
-        if wv_norm < 1e-6:
+        if wv_norm < 1e-3:
             return [Q0], True
         DIR = np.divide(wv_tar, wv_norm)
+        if wv_norm < step_size:
+            step_size = wv_norm
         N_div = int(np.round(wv_norm/step_size))
         step_size = wv_norm / N_div
         reason = "end"
         singularity = False
         for wv_cur in np.arange(0, wv_norm + step_size / 2, step_size):
-            Jac = gtem.get_jacobian(Q, ref_link=ref_link)
+            Jac = gscene.get_jacobian(link_name, Q, Toff=Toff,ref_link=ref_link)
             if np.min(np.abs(np.real(np.linalg.svd(Jac)[1]))) <= SINGULARITY_CUT:
                 singularity = True
                 reason = "singular"
@@ -463,7 +476,7 @@ class MoveitPlanner(MotionInterface):
             wv_ref = DIR*wv_cur
             Tref = apply_wv(T0, wv_ref)
             wv_cur = calc_wv(Tcur, Tref)
-            Q = gtem.get_joint_increment(Q, wv_cur, ref_link=ref_link, Jac=Jac, Tcur=Tcur)
+            Q = gscene.get_joint_increment(link_name, Q, wv_cur, Toff, ref_link=ref_link, Jac=Jac, Tcur=Tcur)
             dlim = np.subtract(joint_limits, Q[:, np.newaxis])[np.where(np.sum(np.abs(Jac), axis=0) > 1e-6)[0], :]
             if np.any(dlim[:, 0] > 0):
                 reason = "joint min"
@@ -471,7 +484,7 @@ class MoveitPlanner(MotionInterface):
             if np.any(dlim[:, 1] < 0):
                 reason = "joint max"
                 break
-            Tnxt = gtem.get_tf(Q, ref_link)
+            Tnxt = np.matmul(gscene.get_tf(link_name, Q, from_link=ref_link), Toff)
             if np.linalg.norm(calc_wv(Tref, Tnxt)) > ERROR_CUT:
                 reason = "error off"
                 break
