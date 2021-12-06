@@ -47,15 +47,15 @@ def extract_values(resdat_all, keys, fn=lambda x:x):
     return dat_dict_dict
 
 
-def get_valid_idc_dict(resdat_all):
+def get_valid_idc_dict(resdat_all, options=None):
     succ_dict = extract_values(resdat_all, ["success"])
-    valid_idc_dict = {case: np.all([succ for succ in casedict.values()], axis=0) for case, casedict in
-                      succ_dict.items()}
+    valid_idc_dict = {case: np.all([casedict[ckey] for ckey in casedict.keys() if (options is None or ckey in options)], axis=0) 
+                      for case, casedict in succ_dict.items()}
     return valid_idc_dict
 
 
 def print_results(RES_ROOT, RTYPE, DAT_DIR, CNAME_LIST=CNAME_LIST  # ,'Pairwise']
-                  , CNAMES_EXCLUDE=['None'],
+                  , CNAMES_EXCLUDE=[],
                   exp_list=EXP_LIST
                   , read_only=False
                   ):
@@ -330,7 +330,7 @@ import matplotlib.pyplot as plt
 def plot_times(resdat_all,
                CHECKERS=CNAME_LIST,
                CASES=EXP_LIST):
-    valid_idc_dict = get_valid_idc_dict(resdat_all)
+    valid_idc_dict = get_valid_idc_dict(resdat_all, CHECKERS)
 
     plt.figure(figsize=(15, 12))
     plt.subplot(2, 1, 1)
@@ -352,12 +352,21 @@ def plot_times(resdat_all,
     plt.title("scattered planning times")
     plt.title("total mean planning time")
 
-def extract_valid(resdat_all, keys, fn=np.mean):
-    valid_idc_dict = get_valid_idc_dict(resdat_all)
-    return {case:
-            {cname: np.array(tvec)[valid_idc_dict[case][:len(tvec)]].astype(np.float)
-             for cname, tvec in tdict.items()}
-            for case, tdict in extract_values(resdat_all, keys, fn=fn).items()}
+##
+# @param individual to collect the cases all successed cases or just individual success cases
+def extract_valid(resdat_all, keys, fn=np.mean, CHECKERS=CNAME_LIST, individual=False):
+    if individual:
+        succ_dict = extract_values(resdat_all, ["success"])
+        return {case:
+                {cname: np.array(tvec)[succ_dict[case][cname][:len(tvec)]].astype(np.float)
+                 for cname, tvec in tdict.items()}
+                for case, tdict in extract_values(resdat_all, keys, fn=fn).items()}
+    else:
+        valid_idc_dict = get_valid_idc_dict(resdat_all, CHECKERS)
+        return {case:
+                {cname: np.array(tvec)[valid_idc_dict[case][:len(tvec)]].astype(np.float)
+                 for cname, tvec in tdict.items()}
+                for case, tdict in extract_values(resdat_all, keys, fn=fn).items()}
 
 def plot_valid(
         resdat_all,
@@ -367,8 +376,9 @@ def plot_valid(
         CASES=EXP_LIST,
         scatter=False,
         average_all=False,
+        individual=False
 ):
-    val_dict = extract_valid(resdat_all, keys, fn)
+    val_dict = extract_valid(resdat_all, keys, fn, CHECKERS, individual=individual)
     grouped_bar(val_dict, groups=CASES, options=CHECKERS, scatter=scatter, average_all=average_all)
     return val_dict
 

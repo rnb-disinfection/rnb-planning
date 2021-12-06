@@ -607,3 +607,12 @@ from itertools import chain, combinations
 def powerset(iterable):
     s = list(iterable)
     return chain.from_iterable(combinations(s, r) for r in range(len(s)+1))
+
+from collections import defaultdict
+
+def swap_double_dict(double_dict):
+    swapped = defaultdict(dict)
+    for k1, v1 in double_dict.items():
+        for k2, v2 in v1.items():
+            swapped[k2][k1] = v2
+    return swapped

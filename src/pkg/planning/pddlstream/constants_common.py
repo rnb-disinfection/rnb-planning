@@ -1,1 +1,1 @@
-SHOW_TIME = 0.0
+SHOW_TIME = 0.2

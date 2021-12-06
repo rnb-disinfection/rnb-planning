@@ -309,18 +309,19 @@ def add_gtem_to_pybullet(gtem, robot_body=0L):
     T_base = gtem.get_tf(list2dict(get_configuration(robot_body), gtem.gscene.joint_names))
     if gtem.gtype == GEOTYPE.BOX:
         bid = create_box(*gtem.dims, color=gtem.color, collision=gtem.collision)
-    if gtem.gtype == GEOTYPE.CYLINDER:
+    elif gtem.gtype == GEOTYPE.CYLINDER:
         bid = create_cylinder(radius=np.mean(gtem.dims[0:1])/2, height=gtem.dims[2], color=gtem.color,
                               collision=gtem.collision)
-    if gtem.gtype == GEOTYPE.CAPSULE:
+    elif gtem.gtype == GEOTYPE.CAPSULE:
         bid = create_capsule(radius=np.mean(gtem.dims[0:1])/2, height=gtem.dims[2], color=gtem.color,
                              collision=gtem.collision)
-    if gtem.gtype == GEOTYPE.SPHERE:
+    elif gtem.gtype == GEOTYPE.SPHERE:
         bid = create_sphere(radius=np.mean(gtem.dims)/2, color=gtem.color, collision=gtem.collision)
-    if gtem.gtype == GEOTYPE.PLANE:
+    elif gtem.gtype == GEOTYPE.PLANE:
         bid = create_plane(color=gtem.color, collision=gtem.collision)
         print("[WARNING] plane geometry not supported yet")
-
+    else:
+        return -1
     set_point(bid, T_base[:3, 3])
     set_euler(bid, Rot2rpy(T_base[:3, :3]))
     return bid

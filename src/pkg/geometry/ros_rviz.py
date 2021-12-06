@@ -116,6 +116,8 @@ class GeoMarker:
                     self.marker.colors = [ColorRGBA(*(list(color[:3])+[1])) for color in self.geometry.colors]
                 else:
                     self.marker.colors = [ColorRGBA(*self.geometry.color) for _ in range(N_points)]
+        if self.geometry.gtype == GEOTYPE.TEXT:
+            self.marker.text = self.geometry.text
         if self.geometry.gtype == GEOTYPE.CAPSULE:
             if create or len(self.submarkers)==0:
                 self.submarkers.append(GeoMarker.create_marker_template(Marker.SPHERE, [self.geometry.radius*2]*3, self.geometry.color))
@@ -193,6 +195,8 @@ class GeoMarker:
             return Marker.ARROW
         elif self.geometry.gtype == GEOTYPE.PLANE:
             return Marker.CUBE
+        elif self.geometry.gtype == GEOTYPE.TEXT:
+            return Marker.TEXT_VIEW_FACING
         
     def delete(self, sleep=True):
         self.marker.action = Marker.DELETE

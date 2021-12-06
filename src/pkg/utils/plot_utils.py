@@ -4,6 +4,16 @@ import cv2
 from rotation_utils import *
 from threading import Thread, Lock
 
+MATLAB_COLORS = [
+    [0, 0.4470, 0.7410], 
+    [0.8500, 0.3250, 0.0980],
+    [0.9290, 0.6940, 0.1250],
+    [0.4940, 0.1840, 0.5560],
+    [0.4660, 0.6740, 0.1880],
+    [0.3010, 0.7450, 0.9330],
+    [0.6350, 0.0780, 0.1840]
+]
+
 def plot_band(plt, X, Y,title=None, legend=True):
     plt.errorbar(x=X,y=np.mean(Y,axis=1), yerr=np.std(Y,axis=1), color='k', label="mean", capsize=3)
     plt.plot(X, np.min(Y,axis=1),'-',color=(0.7,)*3)
@@ -50,7 +60,7 @@ from collections import Iterable
 # @param options sub-group option name list
 # @param average_all do not separate group and average all in one graph
 # @param autoscale auto fit y axis
-def grouped_bar(data_dict, groups=None, options=None, scatter=False, average_all=False, autoscale=True):
+def grouped_bar(data_dict, groups=None, options=None, scatter=False, average_all=False, autoscale=True, show_bar=True):
     if groups is None:
         groups = sorted(data_dict.keys())
         
@@ -80,14 +90,20 @@ def grouped_bar(data_dict, groups=None, options=None, scatter=False, average_all
                     dat_vec = np.concatenate(dat_vec)
                 std_vec = np.std(dat_vec)
                 dat_vec = np.mean(dat_vec)
-                plt.bar(xsmall, dat_vec, yerr=std_vec, capsize=3)
+                if show_bar:
+                    plt.bar(xsmall, dat_vec, yerr=std_vec, capsize=3)
+                else:
+                    plt.bar(xsmall, dat_vec, capsize=3)
             else:
                 if isinstance(dat_vec[0], Iterable):
                     std_vec = map(np.std, dat_vec)
                     dat_vec = map(np.mean, dat_vec)
                 else:
                     std_vec = None
-                plt.bar(X_big+xsmall, dat_vec, yerr=std_vec, capsize=3)
+                if show_bar:
+                    plt.bar(X_big+xsmall, dat_vec, yerr=std_vec, capsize=3)
+                else:
+                    plt.bar(X_big+xsmall, dat_vec, capsize=3)
             dat_max = max(dat_max, np.max(np.add(dat_vec, std_vec) 
                                            if std_vec is not None 
                                            else dat_vec))
@@ -107,6 +123,68 @@ def grouped_bar(data_dict, groups=None, options=None, scatter=False, average_all
         plt.xticks(X_big + np.mean(X_small), np.array(groups))
         plt.legend(options)
     return groups, options
+
+import networkx as nx
+def repel_labels(ax, x, y, labels, color='gray',arrowstyle='->', k=0.01, autoset_axis=True, 
+                 min_shift=0.8, max_shift=0.8, min_x=0, scale_y=1):
+    G = nx.DiGraph()
+    data_nodes = []
+    label_nodes = []
+    init_pos = {}
+    for xi, yi, label in zip(x, y, labels):
+        data_str = 'data_{0}'.format(label)
+        G.add_node(data_str)
+        G.add_node(label)
+        G.add_edge(label, data_str)
+        data_nodes.append(data_str)
+        label_nodes.append(label)
+        init_pos[data_str] = (xi, yi)
+        init_pos[label] = (xi, yi)
+
+#     pos = nx.spectral_layout(G)
+    pos = nx.spring_layout(G, pos=init_pos, fixed=data_nodes, k=k)
+
+    # undo spring_layout's rescaling
+    pos_before = np.vstack([init_pos[d] for d in data_nodes])
+    pos_after = np.vstack([pos[d] for d in data_nodes])
+    scale, shift_x = np.polyfit(pos_after[:,0], pos_before[:,0], 1)
+    scale, shift_y = np.polyfit(pos_after[:,1], pos_before[:,1], 1)
+    shift = np.array([shift_x, shift_y])
+    
+    for key, val in pos.items():
+        pos[key] = (val*scale) + shift
+        
+    pos_before = np.vstack([init_pos[d] for d in label_nodes])
+    pos_after = np.vstack([pos[d] for d in label_nodes])
+    shift = pos_after - pos_before
+    shift[:,1] *= scale_y
+    shift_nm = np.linalg.norm(shift, axis=1)
+    min_idc = np.where(shift_nm < min_shift)[0]
+    shift[min_idc, :] = shift[min_idc, :] / shift_nm[min_idc, np.newaxis] * min_shift
+    max_idc = np.where(shift_nm > max_shift)[0]
+    shift[max_idc, :] = shift[max_idc, :] / shift_nm[max_idc, np.newaxis] * max_shift
+    
+    for i_d, d in enumerate(label_nodes):
+        pos[d] = pos_before[i_d] + shift[i_d, :]
+        if pos[d][0] < min_x:
+            pos[d][0] = min_x
+
+    for label, data_str in G.edges():
+        ax.annotate(label,
+                    xy=pos[data_str], xycoords='data',
+                    xytext=pos[label], textcoords='data',
+                    arrowprops=dict(arrowstyle=arrowstyle,
+                                    shrinkA=0, shrinkB=5,
+                                    connectionstyle="arc3", 
+                                    color=color), )
+    # expand limits
+    if autoset_axis:
+        all_pos = np.vstack(pos.values())
+        x_span, y_span = np.ptp(all_pos, axis=0)
+        mins = np.min(all_pos-x_span*0.15, 0)
+        maxs = np.max(all_pos+y_span*0.15, 0)
+        ax.set_xlim([mins[0], maxs[0]])
+        ax.set_ylim([mins[1], maxs[1]])
 
 
 def draw_arrow(img, root, angle_x, length, color=(255, 0, 0)):
