@@ -11,3 +11,4 @@ class GEOTYPE(Enum):
     ARROW = 4
     CYLINDER = 5
     PLANE = 6
+    TEXT = 10

@@ -12,12 +12,17 @@ def make_state_param_hashable(pscene, state, as_dict=True):
     for i_obj, oname in enumerate(pscene.subject_name_list):
         subject = pscene.subject_dict[oname]
         if isinstance(subject, AbstractObject):
-            link_name, param = state.state_param[oname]
+            btf = state.binding_state[oname]
+            link_name, param = btf.actor_link, btf.T_lao
             param_flat = (state.node[i_obj], link_name) + tuple(
                 np.round(param, 4).flatten())  ## make state params hashable by flattenning
         elif isinstance(subject, AbstractTask):
             param = state.state_param[oname]
-            param_flat = (state.node[i_obj],) + tuple(param.flatten())  ## make state params hashable by flattenning
+            if isinstance(param, np.ndarray):
+                param_hash = param.flatten()
+            else:
+                param_hash = str(param)
+            param_flat = (state.node[i_obj],) + tuple(param_hash)  ## make state params hashable by flattenning
         else:
             raise(NotImplementedError("Unknown subject"))
         param_flat_dict[oname] = param_flat

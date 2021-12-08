@@ -392,18 +392,18 @@ class ToolDir(Enum):
     down = 0
     up = 1
 
-def change_tool(pscene, kmb, command, zoff, tool_link, tool_name, SweepFramer, clearance=1e-3, tool_dim=(0.08, 0.32)):
+def change_tool(pscene, kmb, command, zoff, tool_link, tool_name, _type, clearance=1e-3, tool_dim=(0.08, 0.32)):
     gscene = pscene.gscene
     if command==ToolDir.up:
         kmb.tool_angle = 1
         brush_face = add_kiro_indytool_up(gscene, zoff=zoff, tool_link=tool_link, face_name=tool_name, tool_dim=tool_dim)
-        brush_face = pscene.create_binder(bname=tool_name, gname=tool_name, _type=SweepFramer,
+        brush_face = pscene.create_binder(bname=tool_name, gname=tool_name, _type=_type,
                                           point=(0,0,-brush_face.dims[2]/2-clearance), rpy=(0,0,0))
         print("Tool UP")
     elif command==ToolDir.down:
         kmb.tool_angle = 0
         brush_face = add_kiro_indytool_down(gscene, zoff=zoff, tool_link=tool_link, face_name=tool_name, tool_dim=tool_dim)
-        brush_face = pscene.create_binder(bname=tool_name, gname=tool_name, _type=SweepFramer,
+        brush_face = pscene.create_binder(bname=tool_name, gname=tool_name, _type=_type,
                                           point=(0,0,-brush_face.dims[2]/2-clearance), rpy=(0,0,0))
         print("Tool Down")
     else:

@@ -127,7 +127,7 @@ def add_indy_sweep_tool(gscene, robot_name, face_name="brush_face", tool_offset=
 
 from pkg.planning.constraint.constraint_subject import Grasp2Point, FramePoint, SweepFrame, SweepLineTask, CustomObject
 from pkg.planning.constraint.constraint_actor import Gripper2Tool, PlaceFrame, SweepFramer, AttachFramer
-from pkg.planning.constraint.constraint_actor import KnobFramer, HingeFramer
+from pkg.planning.constraint.constraint_actor import KnobFramer, HingeFramer, FramedTool
 from pkg.planning.constraint.constraint_subject import KnobFrame, HingeFrame, HingeTask
 
 def add_drawer(pscene, dname="drawer", draw_len=0.2,
@@ -190,41 +190,8 @@ def add_drawer(pscene, dname="drawer", draw_len=0.2,
                                                       gp2.name: gp2}, one_direction=False)
     return drawer_bot, drawer, handle
 
-def add_door(pscene, dname = "door", center = (0.5,0,0.5), rpy = (0,0,0),
-             dims = (0.05, 0.4, 0.5), hinge_point = (-0.025, 0.2, 0),
-             door_ang = np.pi*1/4, door_div = 1, link_name="base_link", clearance=1e-3,
-             frame_depth=0.0, frame_thickness=0.01, color = (0.8,0.8,0.8,1), add_frame=False):
-    gscene = pscene.gscene
-    door = gscene.create_safe(GEOTYPE.BOX, dname, link_name=link_name,
-                              center=center, rpy=rpy, dims=dims,
-                              fixed=False, collision=True, color=color)
-    door_frame = gscene.create_safe(GEOTYPE.BOX, dname+"_frame", link_name=link_name,
-                                    center=center, rpy=Rot2rpy(np.matmul(Rot_rpy(rpy), Rot_axis(2,np.pi/2))),
-                                    dims=np.asarray(dims)[[2,1,0]],
-                                    fixed=True, collision=False, color=(1,1,1,0.0), display=False)
-    if add_frame:
-        gscene.add_virtual_guardrail(door_frame, axis="xy", color=color, THICKNESS=frame_thickness,
-                                     HEIGHT=dims[0]/2+frame_depth, margin=frame_thickness/2+clearance)
 
-    door_r = pscene.create_binder(bname=door.name+"_hinge", gname=door.name, _type=HingeFramer,
-                                  point=hinge_point)
-
-    hinge_points = []
-    for i_div in range(door_div+1):
-        ang = door_ang/door_div*i_div
-        hinge_points.append(HingeFrame("h{}".format(i_div), door_frame,
-                                       np.asarray(hinge_point)[[2,1,0]],
-                                       Rot2rpy(
-                                           np.matmul(Rot_axis(2,np.pi/2).transpose(),
-                                                     Rot_axis(3, -ang)))))
-
-    door_s = pscene.create_subject(oname=door.name, gname=door_frame.name, _type=SweepTask,
-                                  action_points_dict={hp.name: hp for hp in hinge_points},
-                                  one_direction=False)
-    return door, door_s
-
-
-def add_lever(pscene, knob, lname="lever", lever_ang=np.pi / 4, knob_offset=(0.09), dims=(0.02, 0.2, 0.02),
+def add_lever(pscene, knob, door_s=None, lname="lever", lever_ang=np.pi / 6, knob_offset=(0.09), dims=(0.02, 0.2, 0.02),
               link_name="base_link", color=(0.8, 0.8, 0.8, 1), clearance=1e-3):
     gscene = pscene.gscene
     Q0 = [0] * gscene.joint_num
@@ -235,13 +202,24 @@ def add_lever(pscene, knob, lname="lever", lever_ang=np.pi / 4, knob_offset=(0.0
                                center=Tbl[:3, 3], rpy=Rot2rpy(Tbl[:3, :3]), dims=dims,
                                fixed=False, collision=True, color=color)
     lgrasp = Grasp2Point("gp", lever, (0, 0, 0), (np.pi / 2, 0, -np.pi / 2))
-    lattach = PlaceFrame("cp", lever, (0, -knob_offset, -dims[2] / 2), (0, 0, 0), key=lname)
+    lattach = FramePoint("cp", lever, (0, -knob_offset, -dims[2] / 2), (0, 0, 0), key=lname)
 
-    lever_s = pscene.create_subject(oname=lname, gname=lever.name, _type=CustomObject,
-                                    action_points_dict={lgrasp.name: lgrasp, lattach.name: lattach})
-
-    lever_plug = pscene.create_binder(bname=knob.name + "_plug", gname=lname, _type=KnobFramer,
+    lever_plug = pscene.create_binder(bname=lname + "_plug", gname=lname, _type=KnobFramer,
                                       point=(0, -knob_offset, -dims[2] / 2), key=knob.name)
+
+    if door_s is not None:
+        knob_plug = pscene.create_binder(bname=knob.name + "_plug", gname=lname,
+                                         _type=FramedTool, point=(0, -knob_offset, -dims[2] / 2), rpy=(0, 0, 0),
+                                         key=knob.name)
+        knob_plug.available = False
+        door_s.action_points_dict[knob.name] = FramePoint(knob.name, knob, (0, 0, knob.dims[2] / 2 + clearance),
+                                                          (0, 0, lever_ang), key=knob.name)
+
+    lever_s = pscene.create_subject(oname=lname, gname=lname, _type=CustomObject,
+                                    action_points_dict={lgrasp.name: lgrasp, lattach.name: lattach},
+                                    sub_binders_dict={lever_plug.name: lever_plug,
+                                                      knob_plug.name: knob_plug})
+
     bd1 = (KnobFrame("r1", knob, (0, 0, knob.dims[2] / 2 + clearance), (0, 0, 0), key=knob.name),
            pscene.create_binder(bname=knob.name + "_1", gname=knob.name, _type=AttachFramer,
                                 point=(0, 0, knob.dims[2] / 2 + clearance), key=lname))
@@ -249,9 +227,56 @@ def add_lever(pscene, knob, lname="lever", lever_ang=np.pi / 4, knob_offset=(0.0
            pscene.create_binder(bname=knob.name + "_2", gname=knob.name, _type=AttachFramer,
                                 point=(0, 0, knob.dims[2] / 2 + clearance), rpy=(0, 0, lever_ang), key=lname)
            )
-    knob_s = pscene.create_subject(oname=knob.name, gname=knob.name, _type=HingeTask,
-                                   binding_pairs=[bd1, bd2])
+
+    knob_s = pscene.create_subject(oname=knob.name, gname=knob.name, _type=KnobTask,
+                                   binding_pairs=[bd1, bd2], knob_plug=knob_plug)
     return lever_s, knob_s
+
+
+def add_door(pscene, dname="door", center=(0.5, 0, 0.5), rpy=(0, 0, 0),
+             dims=(0.05, 0.4, 0.5), hinge_point=(-0.025, 0.2, 0),
+             door_ang=np.pi * 3 / 4, door_div=3, link_name="base_link", clearance=1e-3,
+             frame_depth=0.0, frame_thickness=0.01, color=(0.8, 0.8, 0.8, 1), add_frame=False):
+    gscene = pscene.gscene
+    door_frame = gscene.create_safe(GEOTYPE.BOX, dname + "_frame", link_name=link_name,
+                                    center=center, rpy=Rot2rpy(np.matmul(Rot_rpy(rpy), Rot_axis(2, np.pi / 2))),
+                                    dims=np.asarray(dims)[[2, 1, 0]],
+                                    fixed=True, collision=False, color=(1, 0, 0, 0.1), display=True)
+    door = gscene.create_safe(GEOTYPE.BOX, dname, link_name=link_name,
+                              center=center, rpy=rpy, dims=dims,
+                              fixed=False, collision=True, color=color)
+    if add_frame:
+        gscene.add_virtual_guardrail(door_frame, axis="xy", color=color, THICKNESS=frame_thickness,
+                                     HEIGHT=dims[0] / 2 + frame_depth, margin=frame_thickness / 2 + clearance)
+
+    hinge_p = FramePoint("hinge", door, hinge_point, (0, 0, 0), key=dname)
+
+    door_hinge = pscene.create_binder(bname=door.name + "_hinge", gname=door.name, _type=HingeFramer,
+                                      point=hinge_point, key=dname)
+
+    door_s = pscene.create_subject(oname=dname, gname=dname, _type=CustomObject,
+                                   action_points_dict={hinge_p.name: hinge_p},
+                                   sub_binders_dict={door_hinge.name: door_hinge})
+
+    hinge_bindings = []
+    for i_div in range(door_div + 1):
+        ang = door_ang / door_div * i_div
+        hp = HingeFrame("h{}".format(i_div), door_frame,
+                        np.asarray(hinge_point)[[2, 1, 0]],
+                        Rot2rpy(np.matmul(Rot_axis(2, np.pi / 2).transpose(),
+                                          Rot_axis(3, -ang))),
+                        key=dname)
+        bp = pscene.create_binder(bname=door_frame.name + "_{}".format(i_div),
+                                  gname=door_frame.name, _type=AttachFramer,
+                                  point=np.asarray(hinge_point)[[2, 1, 0]],
+                                  rpy=Rot2rpy(np.matmul(Rot_axis(2, np.pi / 2).transpose(),
+                                                        Rot_axis(3, -ang))),
+                                  key=dname)
+        hinge_bindings.append((hp, bp))
+
+    hinge_s = pscene.create_subject(oname=door_frame.name, gname=door_frame.name, _type=HingeTask,
+                                    binding_pairs=hinge_bindings)
+    return door_s, hinge_s
 
 def finish_L_shape(gscene, gtem_dict):
     if "l_shape" in gtem_dict:
