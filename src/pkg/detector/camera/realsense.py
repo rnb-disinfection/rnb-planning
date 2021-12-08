@@ -9,9 +9,14 @@ from .camera_interface import CameraInterface
 #           If "Couldn't resolve requests" error is raised, check if it is connected with USB3.
 #           You can check by running realsense-viewer from the terminal.
 class RealSense(CameraInterface):
+    def __init__(self):
+        self.connected = False
+
     ##
     # @brief   initialize RealSense
     def initialize(self):
+        if self.connected:
+            return self.pipeline
         self.pipeline = rs.pipeline()
         config = rs.config()
         config.enable_stream(rs.stream.depth, 1024, 768, rs.format.z16, 30)
@@ -21,6 +26,7 @@ class RealSense(CameraInterface):
         # Start streaming
         print("Start streaming")
         self.pipeline.start(config)
+        self.connected = True
         return self.pipeline
 
     ##
@@ -64,8 +70,11 @@ class RealSense(CameraInterface):
     ##
     # @brief   disconnect realsense
     def disconnect(self):
+        if not self.connected:
+            raise(RuntimeError("Tried to disconnect non-initialized RealSense"))
         if self.pipeline is not None:
             try:
                 self.pipeline.stop()
             except Exception as e:
                 print(e)
+            self.connected = False

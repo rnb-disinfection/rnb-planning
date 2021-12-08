@@ -1,4 +1,5 @@
 from ...detector.aruco.stereo import *
+from ...detector.multiICP.multiICP import *
 from ...constants import *
 from threading import Thread
 from .xacro_customizer import *
@@ -44,6 +45,9 @@ class SceneBuilder(Singleton):
     def __init__(self, detector, base_link="base_link"):
         self.detector = detector
         self.base_link = base_link
+        self.ref_coord = np.identity(4)
+        self.ref_coord_inv = np.identity(4)
+
 
     ##
     # @brief re-detect reference coordinate - in case the camera has moved

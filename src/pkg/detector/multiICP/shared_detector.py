@@ -36,9 +36,9 @@ def SharedDetectorGen(IMG_DIM=(720, 1280, 3)):
                 self.initizlied = True
                 # Load config, checkpoint file of cascade mask rcnn swin based
                 config_file = os.path.join(RNB_PLANNING_DIR,
-                                           'src/configs/detection_configs/swin/cascade_mask_rcnn_swin_base_patch4_window7_mstrain_480-800_giou_4conv1f_adamw_3x_coco.py')
+                                           'model/mmdet/configs/swin/cascade_mask_rcnn_swin_base_patch4_window7_mstrain_480-800_giou_4conv1f_adamw_3x_coco.py')
                 checkpoint_file = os.path.join(RNB_PLANNING_DIR,
-                                               'src/configs/cascade_mask_rcnn_swin_base_patch4_window7.pth')
+                                               'model/mmdet/cascade_mask_rcnn_swin_base_patch4_window7.pth')
 
                 device = 'cuda:0'
                 try:
@@ -55,14 +55,13 @@ def SharedDetectorGen(IMG_DIM=(720, 1280, 3)):
                 result = inference_detector(self.model, color_img)
                 boxes, masks = result[0], result[1]
 
-                detect_false = np.empty((IMG_DIM[0],IMG_DIM[1]), dtype=bool)
-                detect_false[:,:] = False
+                detect_false = np.zeros((IMG_DIM[0],IMG_DIM[1]), dtype=float)
 
-                return_img = np.zeros((80, IMG_DIM[0],IMG_DIM[1]))
+                return_img = np.zeros((80, IMG_DIM[0],IMG_DIM[1]), dtype=float)
 
                 for idx in range(80):
                     if len(masks[idx]) != 0:
-                        mask_res = np.empty((IMG_DIM[0], IMG_DIM[1]), dtype=bool)
+                        mask_res = np.empty((IMG_DIM[0], IMG_DIM[1]), dtype=float)
                         mask_res[:,:] = False
                         for i_t in range(len(masks[idx])):
                             mask_temp = masks[idx][i_t]
