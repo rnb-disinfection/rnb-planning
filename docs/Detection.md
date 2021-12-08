@@ -13,20 +13,20 @@
   ```  
   * Install MMDetection  
   ```bash
-  git clone https://github.com/open-mmlab/mmdetection.git
-  && cd mmdetection
-  && pip3 install -r requirements/build.txt
+  git clone https://github.com/open-mmlab/mmdetection.git \
+  && cd mmdetection \
+  && pip3 install -r requirements/build.txt \
   && pip3 install -v -e .  # or "python3 setup.py develop"  
   ```
 * [Optional] Install apex  
   ```bash
-  git clone https://github.com/NVIDIA/apex
-  && cd apex
+  git clone https://github.com/NVIDIA/apex \
+  && cd apex \
   && pip3 install -v --disable-pip-version-check --no-cache-dir --global-option="--cpp_ext" --global-option="--cuda_ext" ./  
   ```
 * Verification
   To verify whether MMDetection is installed correctly, we can run the following sample code to initialize a detector and inference a demo image.
-  ```bash
+  ```python
   from mmdet.apis import init_detector, inference_detector
 
   config_file = 'configs/faster_rcnn/faster_rcnn_r50_fpn_1x_coco.py'
