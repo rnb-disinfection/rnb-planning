@@ -620,6 +620,8 @@ class HingeTask(AbstractTask):
     def get_available_bindings(self, from_binding, to_node_item, actor_dict, Q_dict):
         if to_node_item in self.action_points_order:
             ap_list = [self.action_points_dict[to_node_item]]
+        else:
+            print("ERROR: Unknown node item {} for {}".format(to_node_item, self.oname))
 
         ctypes = [ap.ctype for ap in ap_list]
         bd_list = [actor for actor in actor_dict.values() if
@@ -669,6 +671,27 @@ class HingeTask(AbstractTask):
     def make_constraints(self, binding_from, binding_to, tol=None):
         return "Constraint not implemented yet. Use MoveitPlanner.incremental_constraint_motion=True"
 
+
+##
+# @class KnobTask
+# @brief sweep action points in alphabetical order
+# @remark   state_param: boolean vector of which each element represents if each waypoint is covered or not
+#           node_item: number of covered waypoints
+class KnobTask(HingeTask):
+    def __init__(self, oname, geometry, binding_pairs, knob_plug, sub_binders_dict=None, tol=1e-3):
+        self.knob_plug = knob_plug
+        HingeTask.__init__(self, oname, geometry, binding_pairs, sub_binders_dict=sub_binders_dict, tol=tol)
+    ##
+    # @brief (prototype) set state param
+    # @param binding BindingTransform
+    # @param state_param
+    def set_state(self, binding, state_param):
+        if self.knob_plug is not None:
+            if binding.chain.handle_name == self.action_points_order[-1]:
+                self.knob_plug.available=True
+            else:
+                self.knob_plug.available=False
+        HingeTask.set_state(self, binding, state_param)
 
 
 ##
