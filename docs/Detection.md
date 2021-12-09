@@ -54,17 +54,17 @@
 # Prepare Model & Config for SharedDetector and MultiICP
 * create model folder for mmdet
 ```bash
-mkdir $RNB_PLANNING_DIR/model/mmdet_data
+mkdir $RNB_PLANNING_DIR/model/mmdet
 ```
-* Download the pretrained model to model/mmdet_data/.  It wil be used from MultiICP Detector.
+* Download the pretrained model to model/mmdet/.  It wil be used from MultiICP Detector.
 ```bash
-cd $RNB_PLANNING_DIR/model/mmdet_data \
+cd $RNB_PLANNING_DIR/model/mmdet \
 && wget https://github.com/SwinTransformer/storage/releases/download/v1.0.2/cascade_mask_rcnn_swin_base_patch4_window7.pth
 ```
-* Clone the 'configs' folder in Swin-Transformer-Object-Detection to model/mmdet_data
+* Clone the 'configs' folder in Swin-Transformer-Object-Detection to model/mmdet
   1) move to Swin-Transformer-Object-Detection directory
   2) copy config folder
   ```bash
-  cp -rf ./configs $RNB_PLANNING_DIR/model/mmdet_data/
+  cp -rf ./configs $RNB_PLANNING_DIR/model/mmdet/
   ```
 * Follow instruction in [release/3.1.MultiICP.ipynb](../release/3.1.MultiICP.ipynb) for detailed usage.

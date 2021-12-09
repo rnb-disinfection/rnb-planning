@@ -109,36 +109,24 @@ class MultiICP:
 
     ##
     # @brief initialize camera and set camera configuration
-    def initialize(self):
-        if isinstance(self.camera, RealSense):
-            # for Realsense camera
-            pipeline = self.camera.initialize()
-            profile = pipeline.get_active_profile()
-            depth_sensor = profile.get_device().first_depth_sensor()
-            depth_scale = depth_sensor.get_depth_scale()
-
-            frames = pipeline.wait_for_frames()
-            color_frame = frames.get_color_frame()
-            color_intrinsics = color_frame.profile.as_video_stream_profile().intrinsics
-            cameraMatrix = np.array([[color_intrinsics.fx, 0, color_intrinsics.ppx],
-                                     [0, color_intrinsics.fy, color_intrinsics.ppy],
-                                     [0, 0, 1]])
-            distCoeffs = np.array(color_intrinsics.coeffs)
-            self.config_list = [cameraMatrix, distCoeffs, depth_scale]
-
-        elif isinstance(self.camera, Kinect):
-            # for Azure Kinect camera
-            self.camera.initialize()
-            cameraMatrix, distCoeffs = self.camera.get_config()
-            depth_scale = 1e-3
-            self.config_list = [cameraMatrix, distCoeffs, depth_scale]
-
+    def initialize(self, config_list=None, img_dim=None):
+        if self.camera is None:
+            print("Camera is not set - skip initialization, use manually given camera configs")
+            assert config_list is not None and img_dim is not None, "config_list and img_dim must be given for no-cam mode"
+            self.config_list = config_list
+            self.img_dim = img_dim
+            return
+        self.camera.initialize()
+        cameraMatrix, distCoeffs, depth_scale = self.camera.get_config()
+        self.config_list = [cameraMatrix, distCoeffs, depth_scale]
+        self.img_dim = self.camera.get_image().shape[:2]
         print("Initialize Done")
 
     ##
     # @brief disconnect camera
     def disconnect(self):
-        self.camera.disconnect()
+        if self.camera is not None:
+            self.camera.disconnect()
 
     ##
     # @brief   get camera configuration
@@ -174,8 +162,8 @@ class MultiICP:
     # @param  color_image   color image of object
     # @param  depth_image   depth image of object
     # @param  Q             joint values of robot
-    def cache_sensor(self, color_image, depth_image, Q, cam_intrins, depth_scale):
-        self.cache = color_image, depth_image, Q, cam_intrins, depth_scale
+    def cache_sensor(self, color_image, depth_image, Q):
+        self.cache = color_image, depth_image, Q
 
 
     ##
@@ -197,14 +185,14 @@ class MultiICP:
             return {}
         if self.cache is None:
             color_image, depth_image, Q = self.get_image()
-            camera_mtx = self.config_list[0]
-            cam_intrins = [self.img_dim[1], self.img_dim[0],
-                           camera_mtx[0, 0], camera_mtx[1, 1],
-                           camera_mtx[0, 2], camera_mtx[1, 2]]
-            depth_scale = self.config_list[2]
         else:
-            color_image, depth_image, Q, cam_intrins, depth_scale = self.cache
+            color_image, depth_image, Q = self.cache
             self.cache = None
+        camera_mtx = self.config_list[0]
+        cam_intrins = [self.img_dim[1], self.img_dim[0],
+                       camera_mtx[0, 0], camera_mtx[1, 1],
+                       camera_mtx[0, 2], camera_mtx[1, 2]]
+        depth_scale = self.config_list[2]
 
         self.last_input = color_image, depth_image, Q, cam_intrins, depth_scale
 
@@ -406,6 +394,11 @@ class MultiICP_Obj:
         self.hrule = hrule
         self.grule = grule
         self.pose = None
+        self.model = o3d.io.read_triangle_mesh(self.obj_info.url)
+        self.model.vertices = o3d.utility.Vector3dVector(
+            np.asarray(self.model.vertices) * np.array([self.obj_info.scale[0],
+                                                        self.obj_info.scale[1],
+                                                        self.obj_info.scale[2]]))
 
     def get_info(self):
         return self.obj_info
@@ -426,17 +419,6 @@ class MultiICP_Obj:
         else:
             self.Toff = model_info.Toff
             self.Toff_inv = SE3_inv(self.Toff)
-
-        if isinstance(model_info.url, o3d.geometry.TriangleMesh):
-            self.model = model
-        elif isinstance(model_info.url, str):
-            self.model = o3d.io.read_triangle_mesh(model_info.url)
-            self.model.vertices = o3d.utility.Vector3dVector(
-                np.asarray(self.model.vertices) * np.array([model_info.scale[0],
-                                                            model_info.scale[1],
-                                                            model_info.scale[2]]))
-        else:
-            raise (NotImplementedError("non available input for model : \n".format(model)))
 
     ##
     # @brief add pcd from image, sampled pcd from mesh

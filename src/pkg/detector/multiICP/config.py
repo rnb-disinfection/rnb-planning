@@ -7,28 +7,29 @@ from enum import Enum
 from ...geometry.geometry import GEOTYPE
 from ...utils.rotation_utils import *
 from heuristics import *
+from ...global_config import RNB_PLANNING_DIR
 
 def get_obj_info():
     obj_info = {
         'cup': ObjectInfo('cup', dlevel=DetectionLevel.MOVABLE, gtype=GEOTYPE.CYLINDER,
                           dims=(0.4, 0.3, 0.01), color=(0.9, 0.9, 0.9, 0.2),
                           Toff=SE3(np.identity(3), (0, 0, 0)), scale=(1e-3,1e-3,1e-3),
-                          url='/home/jhkim/Projects/rnb-planning/release/multiICP_data/cup.STL'),
+                          url=RNB_PLANNING_DIR+'release/multiICP_data/cup.STL'),
 
         'table': ObjectInfo('table', dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX,
                             dims=(0.4, 0.3, 0.01), color=(0.9, 0.9, 0.9, 0.2),
                             Toff=SE3(np.identity(3), (0,0,0)), scale=(1e-3,1e-3,1e-3),
-                            url='/home/jhkim/Projects/rnb-planning/release/multiICP_data/table.STL'),
+                            url=RNB_PLANNING_DIR+'release/multiICP_data/table.STL'),
 
         'bed': ObjectInfo('bed', dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX,
                           dims=(1.70,0.91,0.66), color=(0.9,0.9,0.9,0.2),
                           Toff=SE3([[0,1,0],[0,0,1],[1,0,0]], (0.455,0,1.02)), scale=(1e-3,1e-3,1e-3),
-                          url='/home/jhkim/Projects/rnb-planning/release/multiICP_data/bed.STL'),
+                          url=RNB_PLANNING_DIR+'release/multiICP_data/bed.STL'),
 
         'closet': ObjectInfo('closet', dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX,
                              dims=(0.4, 0.3, 0.01), color=(0.9, 0.9, 0.9, 0.2),
                              Toff=SE3([[1,0,0],[0,0,1],[0,-1,0]], (0.3,0,0.2725)), scale=(1e-3,1e-3,1e-3),
-                             url='/home/jhkim/Projects/rnb-planning/release/multiICP_data/top_table.STL')
+                             url=RNB_PLANNING_DIR+'release/multiICP_data/top_table.STL')
     }
     return obj_info
 

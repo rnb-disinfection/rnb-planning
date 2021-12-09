@@ -68,55 +68,74 @@ Visualization Manager:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-        panda0_hand:
+        indy1_link0:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        panda0_link0:
+        indy1_link1:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        panda0_link1:
+        indy1_link2:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        panda0_link2:
+        indy1_link3:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        panda0_link3:
+        indy1_link4:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        panda0_link4:
+        indy1_link5:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        panda0_link5:
+        indy1_link6:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        panda0_link6:
+        indy1_tcp:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        kmb0_link0:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        kmb0_link1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        kmb0_link2:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        kmb0_link3:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        kmb0_link4:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        kmb0_link5:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        kmb0_platform:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        panda0_link7:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        panda0_link8:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
       Name: RobotModel
       Robot Description: robot_description
       TF Prefix: ""
@@ -146,25 +165,35 @@ Visualization Manager:
         All Enabled: true
         base_link:
           Value: true
-        panda0_hand:
+        indy1_link0:
           Value: true
-        panda0_link0:
+        indy1_link1:
           Value: true
-        panda0_link1:
+        indy1_link2:
           Value: true
-        panda0_link2:
+        indy1_link3:
           Value: true
-        panda0_link3:
+        indy1_link4:
           Value: true
-        panda0_link4:
+        indy1_link5:
           Value: true
-        panda0_link5:
+        indy1_link6:
           Value: true
-        panda0_link6:
+        indy1_tcp:
           Value: true
-        panda0_link7:
+        kmb0_link0:
           Value: true
-        panda0_link8:
+        kmb0_link1:
+          Value: true
+        kmb0_link2:
+          Value: true
+        kmb0_link3:
+          Value: true
+        kmb0_link4:
+          Value: true
+        kmb0_link5:
+          Value: true
+        kmb0_platform:
           Value: true
       Marker Scale: 0.5
       Name: TF
@@ -173,17 +202,22 @@ Visualization Manager:
       Show Names: true
       Tree:
         base_link:
-          panda0_link0:
-            panda0_link1:
-              panda0_link2:
-                panda0_link3:
-                  panda0_link4:
-                    panda0_link5:
-                      panda0_link6:
-                        panda0_link7:
-                          panda0_link8:
-                            panda0_hand:
-                              {}
+          kmb0_link0:
+            kmb0_link1:
+              kmb0_link2:
+                kmb0_link3:
+                  kmb0_link4:
+                    kmb0_link5:
+                      kmb0_platform:
+                        indy1_link0:
+                          indy1_link1:
+                            indy1_link2:
+                              indy1_link3:
+                                indy1_link4:
+                                  indy1_link5:
+                                    indy1_link6:
+                                      indy1_tcp:
+                                        {}
       Update Interval: 0
       Value: true
   Enabled: true
@@ -214,16 +248,16 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 2.9144630432128906
+      Distance: 12.571250915527344
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 5.5751166343688965
-        Y: -3.812553882598877
-        Z: 1.2002333402633667
+        X: 2.5918188095092773
+        Y: -3.2696168422698975
+        Z: -1.976861596107483
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
