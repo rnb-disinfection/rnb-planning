@@ -67,4 +67,4 @@ cd $RNB_PLANNING_DIR/model/mmdet_data \
   ```bash
   cp -rf ./configs $RNB_PLANNING_DIR/model/mmdet_data/
   ```
-* Follow instruction in [release/3.1. MultiICP] for detailed usage.
+* Follow instruction in [release/3.1.MultiICP.ipynb](../release/3.1.MultiICP.ipynb) for detailed usage.
