@@ -80,7 +80,7 @@ class MotionInterface:
     # @return LastQ     Last joint configuration as array
     # @return error     planning error
     # @return success   success/failure of planning result
-    # @param binding_list   list of bindings to pursue [(subject name, handle name, actor name, actor root geometry name)]
+    # @param chain_list   list of bindings to pursue [(subject name, handle name, actor name, actor root geometry name)]
     def plan_transition(self, from_state, to_state, verbose=False, test_filters_only=False,
                         show_state=False, **kwargs):
         if from_state is not None:
@@ -113,8 +113,19 @@ class MotionInterface:
                             if from_state.Q is not None:
                                 self.gscene.show_pose(from_state.Q)
                             vis_bak = self.gscene.highlight_robot(self.gscene.COLOR_LIST[i_f])
+                            filt_reason = ""
+                            if fname == "GraspChecker":
+                                filt_reason = "Tool Collison"
+                            if fname == "ReachChecker":
+                                filt_reason = "Inverse Kinematics"
+                            if fname == "LatticedChecker":
+                                filt_reason = "Path Existence"
+                            text = self.gscene.display_text("state", "Infeasible - {}".format(filt_reason), (0,0,1.4),
+                                                     color=tuple(np.add(self.gscene.COLOR_LIST[i_f], (0,0,0,0.5))))
+
                             time.sleep(0.5)
                             self.gscene.recover_robot(vis_bak)
+                            self.gscene.remove(text)
                         break
             if test_filters_only:
                 return success
@@ -156,8 +167,11 @@ class MotionInterface:
                     if from_state.Q is not None:
                         self.gscene.show_pose(from_state.Q)
                     vis_bak = self.gscene.highlight_robot(self.gscene.COLOR_LIST[-1])
+                    text = self.gscene.display_text("state", "Motion Plan Fail", (0,0,1.4),
+                                             color=tuple(np.add(self.gscene.COLOR_LIST[-1], (0,0,0,0.5))))
                     time.sleep(0.5)
                     self.gscene.recover_robot(vis_bak)
+                    self.gscene.remove(text)
         else:
             Traj, LastQ, error, success = [from_state.Q], from_state.Q, 1e10, False
         if LOG_MOTION_PLANNING:

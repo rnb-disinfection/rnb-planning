@@ -58,7 +58,7 @@ def Rot2zyx(R):
     '''
     sy = sqrt(R[0,0]**2 + R[1,0]**2)
 
-    if sy > 0.000001:
+    if sy > 1e-10:
         x = atan2(R[2,1] , R[2,2])
         y = atan2(-R[2,0], sy)
         z = atan2(R[1,0], R[0,0])
@@ -74,7 +74,7 @@ def Rot2zxz(R):
     '''
     sy = sqrt(R[0,2]**2 + R[1,2]**2)
 
-    if sy > 0.000001:
+    if sy > 1e-10:
         z1 = atan2(R[0,2] , -R[1,2])
         x2 = atan2(sy,R[2,2])
         z3 = atan2(R[2,0], R[2,1])
@@ -135,8 +135,8 @@ def fit_floor(Tcw, Tco, minz):
     Pco = Tco[0:3,3]
     Twc = np.linalg.inv(Tcw)
     Pco_wz = np.dot(Twc[2,0:3],Pco)
-    if abs(Pco_wz)<0.00001:
-        Pco_wz = 0.00001
+    if abs(Pco_wz)<0.000001:
+        Pco_wz = 0.000001
     alpha = abs((-minz - Twc[2,3])/Pco_wz)
     Pco_ = Pco*alpha
     Tco_out = Tco.copy()

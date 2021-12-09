@@ -28,9 +28,9 @@ class PlanningScene:
         self.gscene = gscene
         ## @brief rnb-planning.src.pkg.controller.combined_robot.CombinedRobot
         self.combined_robot = combined_robot
-        ## @brief {binder name: binder instance (rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor)}
+        ## @brief {actor name: binder instance (rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor)}
         self.actor_dict = {}
-        ## @brief {geometry name: binder name}
+        ## @brief {geometry name: actor name}
         self.geometry_actor_dict = defaultdict(list)
         ## @brief {object name: handle name)}
         self.handle_dict = {}
@@ -85,15 +85,15 @@ class PlanningScene:
                     del subject.sub_binders_dict[bname]
 
     ##
-    # @param bname binder name
+    # @param bname actor name
     # @param gname name of parent object
     # @param _type type of binder, subclass of rnb-planning.src.pkg.planning.constraint.constraint_actor.Actor
     # @param point binding point offset from object (m). Put None to disable single point constraint and enable surface constraint.
     # @param rpy   orientation of binding point (rad)
-    def create_binder(self, bname, gname, _type, point, rpy=(0, 0, 0)):
+    def create_binder(self, bname, gname, _type, point, rpy=(0, 0, 0), **kwargs):
         self.remove_binder(bname)
         geometry = self.gscene.NAME_DICT[gname]
-        binder = _type(bname, geometry=geometry, point=point, rpy=rpy)
+        binder = _type(bname, geometry=geometry, point=point, rpy=rpy, **kwargs)
         self.add_binder(binder)
         return binder
 
@@ -116,14 +116,14 @@ class PlanningScene:
         return uniq_binders
 
     ##
-    # @brief get controlled binders in dictionary
+    # @brief get active binders in dictionary
     # @param type_list rnb-planning.src.pkg.planning.constraint.constraint_common.ConstraintType
-    def divide_binders_by_control(self, type_list=None):
+    def separate_active_binders(self, type_list=None):
         controlled_binders = []
         uncontrolled_binders = []
         for k_b, binder in self.actor_dict.items():
             if type_list is None or binder.ctype in type_list:
-                if binder.controlled:
+                if binder.active:
                     controlled_binders += [k_b]
                 else:
                     uncontrolled_binders += [k_b]
@@ -149,11 +149,11 @@ class PlanningScene:
 
     ##
     # @brief add a subjct to the scene
-    # @param binding BindingChain
-    def add_subject(self, name, subject, binding=None):
+    # @param binding BindingTransform
+    def add_subject(self, name, subject, chain=None):
         self.subject_dict[name] = subject
-        if binding is not None:
-            self.actor_dict[binding.actor_name].bind(self.subject_dict[name], binding.handle_name,
+        if chain is not None:
+            self.actor_dict[chain.actor_name].bind(self.subject_dict[name], chain.handle_name,
                                               list2dict([0] * len(self.gscene.joint_names),
                                                         item_names=self.gscene.joint_names))
         self.update_subjects()
@@ -175,36 +175,38 @@ class PlanningScene:
     # @param oname object name
     # @param gname name of parent object
     # @param _type type of object, subclass of rnb-planning.src.pkg.planning.constraint.constraint_subject.Subject
-    # @param binding point offset from object (m)
-    def create_subject(self, oname, gname, _type, binding=None, **kwargs):
+    # @param chain Initial BindingChain
+    def create_subject(self, oname, gname, _type, chain=None, **kwargs):
         self.remove_subject(oname)
         geometry = self.gscene.NAME_DICT[gname]
         _object = _type(oname, geometry, **kwargs)
-        self.add_subject(oname, _object, binding)
+        self.add_subject(oname, _object, chain)
         return _object
 
     ##
     # @brief set object states
     # @param state State
     def set_object_state(self, state):
-        bd_list = state.binding_state.get_chains_sorted()
-        bd_list_done = []
-        while bd_list:
-            bd = bd_list.pop(0)
-            obj = self.subject_dict[bd.subject_name]
-            state_param = state.state_param[bd.subject_name]
-            if None in bd:
-                obj.set_state(bd, state_param)
+        chain_list = state.binding_state.get_chains_sorted()
+        chain_list_done = []
+        chain_list_postponed = set()
+        while chain_list:
+            chain = chain_list.pop(0)
+            obj = self.subject_dict[chain.subject_name]
+            state_param = state.state_param[chain.subject_name]
+            if None in chain:
+                obj.set_state(state.binding_state[chain.subject_name], state_param)
                 continue
-            binder = self.actor_dict[bd.actor_name]
+            binder = self.actor_dict[chain.actor_name]
             binder_family = set(binder.geometry.get_family())
-            remaining_subjects = [self.subject_dict[bd_tmp[0]].geometry.name for bd_tmp in bd_list]
-            if binder_family.intersection(remaining_subjects):
+            remaining_subjects = [self.subject_dict[chain_tmp[0]].geometry.name for chain_tmp in chain_list]
+            if binder_family.intersection(remaining_subjects)-chain_list_postponed:
                 # If binder is a family of remaining subjects, move it to end to change it after the subject is updated
-                bd_list += [bd]
+                chain_list.append(chain)
+                chain_list_postponed = chain_list_postponed.union(binder_family)
             else:
-                obj.set_state(bd, state_param)
-                bd_list_done += [bd]
+                obj.set_state(state.binding_state[chain.subject_name], state_param)
+                chain_list_done += [chain]
         for actor in self.actor_dict.values():
             actor.update_handle()
 
@@ -217,7 +219,7 @@ class PlanningScene:
         state_param = {}
         for k in self.subject_name_list:
             v = self.subject_dict[k]
-            sname, hname, aname, _ = v.binding
+            sname, hname, aname, _ = v.binding.chain
             subject = self.subject_dict[sname]
             handle =  subject.action_points_dict[hname] if hname in subject.action_points_dict else hname
             actor = self.actor_dict[aname] if aname in self.actor_dict else aname
@@ -244,12 +246,12 @@ class PlanningScene:
                 available_nodes.append(node)
         return available_nodes
 
-    def get_state_param_update(self, binding_state, state_param):
+    def get_updated_state_param(self, binding_state, state_param):
         state_param_new = {}
         for sname in self.subject_name_list:
             btf = binding_state[sname]
             subject = self.subject_dict[sname]
-            state_param_new[sname] = subject.get_state_param_update(btf, state_param[btf.binding.subject_name])
+            state_param_new[sname] = subject.get_updated_state_param(btf, state_param[btf.chain.subject_name])
         return state_param_new
 
     def get_node(self, binding_state, state_param):
@@ -269,7 +271,7 @@ class PlanningScene:
                 node_new = node_new[:i] + (new_node_component,) + (node_new[i + 1:] if len_node > 1 else ())
                 if node_new != node or include_self:
                     neighbor_list.append(node_new)
-        return neighbor_list
+        return sorted(set(neighbor_list))
 
     ##
     # @brief get all handles in the scene
@@ -318,30 +320,33 @@ class PlanningScene:
 
     ##
     # @brief change binding state
-    # @param binding    binding tuple (object name, binding point, binder)
+    # @param chain    BindingChain (object name, binding point, binder)
     # @param joint_dict joint pose in radian as dictionary
-    def rebind(self, binding, joint_dict):
-        object_tar = self.subject_dict[binding.subject_name]
+    def rebind(self, chain, joint_dict, done_log=[]):
+        object_tar = self.subject_dict[chain.subject_name]
         obj_fam = object_tar.geometry.get_family()
-        if binding.actor_name is None:
-            object_tar.set_state(binding, None)
+        if chain.actor_name is None:
+            object_tar.set_state(BindingTransform(object_tar, None, None, None), None)
         else:
-            binder = self.actor_dict[binding.actor_name]
-            binder.bind(action_obj=object_tar, bind_point=binding.handle_name, joint_dict_last=joint_dict)   # bind given binding
+            binder = self.actor_dict[chain.actor_name]
+            binder.bind(action_obj=object_tar, bind_point=chain.handle_name, joint_dict_last=joint_dict)   # bind given chain
+        done_log = done_log + [(chain.subject_name, chain.actor_name)]
         for binder_sub in [k for k,v in self.actor_dict.items()
                            if v.geometry.name in obj_fam]: # find bound object's sub-binder
-            for binding_sub in [v.binding for v in self.subject_dict.values()
-                                if v.binding.actor_name == binder_sub]: # find object bound to the sub-binder
-                self.rebind(binding_sub, joint_dict) # update binding of the sub-binder too
+            for binding_sub in [v.binding.chain for v in self.subject_dict.values()
+                                if v.binding.chain.actor_name == binder_sub]: # find object bound to the sub-binder
+                if (binding_sub.subject_name, binding_sub.actor_name) not in done_log:
+                    self.rebind(binding_sub, joint_dict, done_log=done_log) # update binding of the sub-binder too
+
 
     ##
     # @brief change binding state
-    # @param binding    list of binding tuple [(object name, binding point, binder), ..]
+    # @param binding    list of BindingChain [(object name, binding point, binder), ..]
     # @param Q          joint pose in radian array
     # @return           rebinded new state
-    def rebind_all(self, binding_list, Q):
-        for bd in binding_list:
-            self.rebind(bd, list2dict(Q, self.gscene.joint_names))
+    def rebind_all(self, chain_list, Q):
+        for chain in chain_list:
+            self.rebind(chain, list2dict(Q, self.gscene.joint_names))
 
         binding_state, state_param = self.get_object_state()
         end_state = State(binding_state, state_param, list(Q), self)
@@ -371,7 +376,7 @@ class PlanningScene:
         success = True
         if check_available:
             for btf1 in btf_list:
-                if not self.actor_dict[btf1.binding.actor_name].check_available(
+                if not self.actor_dict[btf1.chain.actor_name].check_available(
                         list2dict(from_state.Q, self.gscene.joint_names)):
                     success = False
             # else: # commenting out this because there's no need to filter out no-motion transitions
@@ -399,28 +404,28 @@ class PlanningScene:
         Q_dict = list2dict(Q, self.gscene.joint_names)
 
         ## get current binding state
-        binding_list = []
+        chain_list = []
         for kobj in self.subject_name_list:
-            binding = self.subject_dict[kobj].get_initial_binding(self.actor_dict, Q_dict)
-            binding_list.append(binding)
+            chain = self.subject_dict[kobj].get_initial_chain(self.actor_dict, Q_dict)
+            chain_list.append(chain)
 
         if force_fit_binding:
             objects_to_update = [obj for obj in self.subject_dict.values() if obj.stype == SubjectType.OBJECT]
             while objects_to_update:
                 obj = objects_to_update.pop(0)
-                oname, hname, bname, bgname = obj.get_initial_binding(self.actor_dict, self.combined_robot.home_dict)
+                oname, hname, bname, bgname = obj.get_initial_chain(self.actor_dict, self.combined_robot.home_dict)
                 if any([bgname in box_tmp.geometry.get_family() for box_tmp in objects_to_update]):  # binder will be updated
                     objects_to_update.append(obj)  # move to end to use updated binder info
                     continue
                 fit_binding(obj, obj.action_points_dict[hname], self.actor_dict[bname], self.combined_robot.home_dict,
                             Poffset=Poffset)
 
-        return self.rebind_all(binding_list=binding_list, Q=Q)
+        return self.rebind_all(chain_list=chain_list, Q=Q)
 
     ##
     # @brief    get a dictionary of available bindings in object-binding geometry level =
     #           **object**-point-binder- **geometry**
-    # @return   {object name: binder geometry name}
+    # @return   {object name: actor root geometry name}
     def get_available_actor_dict(self):
         available_actor_dict = defaultdict(list)
         for bname in self.geometry_actor_dict.keys():
@@ -429,7 +434,7 @@ class PlanningScene:
                 for binder_name in self.geometry_actor_dict[bname]:
                     binder = self.actor_dict[binder_name]
                     for ap in self.subject_dict[oname].action_points_dict.values():
-                        if binder.check_type(ap):
+                        if binder.check_pair(ap):
                             available_actor_dict[oname].append(binder.geometry.name)
                             pass_now = True
                             break
@@ -442,15 +447,16 @@ class PlanningScene:
     # @param state current state
     # @param to_node target object-level node
     # @param Q_dict current joint configuration in dictionary
-    # @return {object name: [(point name, binder name)]}
+    # @return {object name: [(point name, actor name)]}
     def get_available_binding_dict(self, state, to_node, Q_dict=None):
+        self.set_object_state(state)
         if Q_dict is None:
             Q_dict = list2dict(state.Q, self.gscene.joint_names)
         available_binding_dict = {}
         for oname, to_node_item, from_node_item in zip(
                 self.subject_name_list, to_node, state.node):
             from_binding = state.binding_state[oname].get_chain()
-            # bgname: binder geometry name
+            # bgname: actor root geometry name
             # sbgname: state
             if from_node_item != to_node_item:
                 available_binding_dict[oname] = self.subject_dict[oname].get_available_bindings(
@@ -463,9 +469,9 @@ class PlanningScene:
     # @brief    sample next state for given transition
     # @param    state current state
     # @param    available_binding_dict pre-extracted available bindings for each object
-    #           {object name: [(point name, binder name)]}
+    #           {object name: [(point name, actor name)]}
     # @param    to_node target object-level node
-    # @param    binding_sampler random sampling function to be apllied to available binding list [(point name, binder name)]
+    # @param    binding_sampler random sampling function to be apllied to available binding list [(point name, actor name)]
     #                           default=random.choice
     # @param    sampler         sampling function to be applied to redundancy param (default=random.uniform)
     # @return   (sampled next state, sampled redundancy)
@@ -498,31 +504,42 @@ class PlanningScene:
                 redundancy = sample_redundancy(redundancy_tot, sampler=redundancy_sampler)
                 btf_to = BindingTransform(obj, to_ap, to_binder, redundancy)
             to_binding_state[sname] = btf_to
-        to_state.set_binding_state(to_binding_state, self)
+        to_state.set_binding_state(self, to_binding_state, to_state.state_param)
         return to_state
 
     ##
     # @brief    add axis marker to handle
-    def add_handle_axis(self, hl_key, handle, Toff=None, color=None):
+    def add_handle_axis(self, hl_key, handle, Toff=None, color=None, axis="xyz", dims=(0.10, 0.01, 0.01), idx=""):
         hobj = handle.geometry
         Toff_lh = handle.Toff_lh
         if Toff is not None:
             Toff_lh = np.matmul(Toff_lh, Toff)
-        axis = "xyz"
-        self.gscene.add_highlight_axis(hl_key, hobj.name, hobj.link_name, Toff_lh[:3,3], Toff_lh[:3,:3], color=color, axis=axis)
+        self.gscene.add_highlight_axis(hl_key, hobj.name+idx, hobj.link_name, Toff_lh[:3,3], Toff_lh[:3,:3],
+                                       color=color, axis=axis, dims=dims)
 
     ##
     # @brief    add axis marker to handle
-    # @param binding tuple (subject name, handle name, binder name, binder geometry name)
     # @param btf BindingTransform
-    def show_binding(self, btf):
+    def show_binding(self, btf, axis="xyz", color=None, dims=(0.10, 0.01, 0.01), idx=""):
         sname, hname, aname, agname = btf.get_chain()
         if hname is not None:
             handle = self.subject_dict[sname].action_points_dict[hname]
-            self.add_handle_axis("{}_{}".format(sname, hname), handle, Toff=btf.T_add_handle)
+            if aname is not None:
+                actor = self.actor_dict[aname]
+                self.add_handle_axis("{}_{}".format(sname, hname), handle,
+                                     Toff=np.matmul(btf.T_add_handle, SE3_inv(btf.T_add_actor)), axis=axis, color=color,
+                                     dims=dims, idx=idx)
+            else:
+                self.add_handle_axis("{}_{}".format(sname, hname), handle, Toff=btf.T_add_handle, axis=axis, color=color,
+                                     dims=dims, idx=idx)
         if aname is not None:
             actor = self.actor_dict[aname]
-            self.add_handle_axis("{}".format(aname), actor, Toff=btf.T_add_actor)
+            if hname is None:
+                self.add_handle_axis("{}".format(aname), actor, Toff=btf.T_add_actor, axis=axis, color=color,
+                                     dims=dims, idx=idx)
+            else:
+                self.add_handle_axis("{}".format(aname), actor, Toff=np.identity(4), axis=axis, color=color,
+                                     dims=dims, idx=idx)
 
     def get_scene_args(self, Q):
         gtem_args = self.gscene.get_gtem_args()

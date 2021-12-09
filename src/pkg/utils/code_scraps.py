@@ -125,8 +125,158 @@ def add_indy_sweep_tool(gscene, robot_name, face_name="brush_face", tool_offset=
                        color=(0.0,0.8,0.0,0.5), display=True, fixed=True, collision=True)
 
 
+from pkg.planning.constraint.constraint_subject import Grasp2Point, FramePoint, SweepFrame, SweepLineTask, CustomObject
+from pkg.planning.constraint.constraint_actor import Gripper2Tool, PlaceFrame, SweepFramer, AttachFramer
+from pkg.planning.constraint.constraint_actor import KnobFramer, HingeFramer, FramedTool
+from pkg.planning.constraint.constraint_subject import KnobFrame, HingeFrame, HingeTask
+
+def add_drawer(pscene, dname="drawer", draw_len=0.2,
+               center=(1, 1, 1), rpy=(0, 0, 0), dims=(0.4, 0.4, 0.2),
+               wall_thickness=0.02, handle_size=(0.05, 0.1, 0.02),
+               color=(0.8, 0.8, 0.8, 1), link_name="base_link", clearance=2e-3):
+    gscene = pscene.gscene
+    botname = "{}_bot".format(dname)
+    drawer_bot = gscene.create_safe(GEOTYPE.BOX, botname, link_name=link_name,
+                                    center=center, rpy=rpy,
+                                    dims=(dims[0] + wall_thickness, dims[1] + wall_thickness, wall_thickness),
+                                    fixed=True, collision=True, color=color)
+    gscene.create_safe(GEOTYPE.BOX, "{}_ceil".format(dname), link_name=link_name,
+                       center=(0, 0, dims[2]),
+                       dims=(dims[0] + wall_thickness, dims[1] + wall_thickness, wall_thickness),
+                       fixed=True, collision=True, color=color, parent=botname)
+    gscene.create_safe(GEOTYPE.BOX, "{}_back".format(dname), link_name=link_name,
+                       center=(dims[0] / 2, 0, dims[2] / 2),
+                       dims=(wall_thickness, dims[1] + wall_thickness, dims[2] + wall_thickness),
+                       fixed=True, collision=True, color=color, parent=botname)
+    gscene.create_safe(GEOTYPE.BOX, "{}_left".format(dname), link_name=link_name,
+                       center=(0, -dims[1] / 2, dims[2] / 2),
+                       dims=(dims[0] + wall_thickness, wall_thickness, dims[2] + wall_thickness),
+                       fixed=True, collision=True, color=color, parent=botname)
+    gscene.create_safe(GEOTYPE.BOX, "{}_right".format(dname), link_name=link_name,
+                       center=(0, dims[1] / 2, dims[2] / 2),
+                       dims=(dims[0] + wall_thickness, wall_thickness, dims[2] + wall_thickness),
+                       fixed=True, collision=True, color=color, parent=botname)
+    Q0 = [0] * gscene.joint_num
+    Tbb = drawer_bot.get_tf(Q0)
+    center = np.matmul(Tbb, SE3(np.identity(3), (-wall_thickness - clearance / 2, 0, dims[2] / 2)))[:3, 3]
+    drawer = gscene.create_safe(GEOTYPE.BOX, dname, link_name=link_name,
+                                center=center, dims=np.subtract(dims, wall_thickness + clearance),
+                                fixed=False, collision=True, color=color)
+
+    pplane0 = pscene.create_binder(bname=drawer_bot.name + "_0", gname=drawer_bot.name, _type=PlaceFrame,
+                                   point=((drawer_bot.dims[0] - wall_thickness) / 2, 0, wall_thickness / 2))
+    pplane1 = pscene.create_binder(bname=drawer_bot.name + "_1", gname=drawer_bot.name, _type=PlaceFrame,
+                                   point=((drawer_bot.dims[0] - wall_thickness) / 2 - draw_len, 0, wall_thickness / 2))
+
+    handle = gscene.create_safe(GEOTYPE.BOX, "{}_handle".format(dname), link_name=link_name,
+                                center=(-dims[0] / 2 + wall_thickness / 2 - handle_size[0] / 2, 0, 0), dims=handle_size,
+                                fixed=False, collision=True, color=color, parent=drawer.name)
+
+    Tbp0, Tbh = pplane0.get_tf_handle(Q0), handle.get_tf(Q0)
+    Thp0 = np.matmul(SE3_inv(Tbh), Tbp0)
+    gpoint = Grasp2Point("gp", handle, (0, 0, 0), (0, 0, np.pi / 2))
+    ppoint = FramePoint("pp", handle, Thp0[:3, 3], Rot2rpy(Thp0[:3, :3]))
+    handle_s = pscene.create_subject(oname="handle", gname=handle.name, _type=CustomObject,
+                                     action_points_dict={gpoint.name: gpoint, ppoint.name: ppoint})
+    drawer = pscene.create_binder(bname=handle.name, gname=handle.name, _type=SweepFramer, point=(0, 0, 0),
+                                  rpy=(0, 0, 0))
+    Tbd = drawer.get_tf_handle(Q0)
+    Tdd = np.matmul(SE3_inv(Tbb), Tbd)
+    gp1 = SweepFrame("h1", drawer_bot, Tdd[:3, 3], Rot2rpy(Tdd[:3, :3]))
+    gp2 = SweepFrame("h2", drawer_bot, Tdd[:3, 3] - (draw_len, 0, 0), Rot2rpy(Tdd[:3, :3]))
+
+    sweep = pscene.create_subject(oname=dname, gname=drawer_bot.name, _type=SweepLineTask,
+                                  action_points_dict={gp1.name: gp1,
+                                                      gp2.name: gp2}, one_direction=False)
+    return drawer_bot, drawer, handle
 
 
+def add_lever(pscene, knob, door_s=None, lname="lever", lever_ang=np.pi / 6, knob_offset=(0.09), dims=(0.02, 0.2, 0.02),
+              link_name="base_link", color=(0.8, 0.8, 0.8, 1), clearance=1e-3):
+    gscene = pscene.gscene
+    Q0 = [0] * gscene.joint_num
+    Tbk = knob.get_tf(Q0)
+    Tbkp = np.matmul(Tbk, SE3(np.identity(3), (0, 0, knob.dims[2] / 2 + clearance)))
+    Tbl = np.matmul(Tbkp, SE3(np.identity(3), (0, knob_offset, dims[2] / 2)))
+    lever = gscene.create_safe(GEOTYPE.BOX, lname, link_name=link_name,
+                               center=Tbl[:3, 3], rpy=Rot2rpy(Tbl[:3, :3]), dims=dims,
+                               fixed=False, collision=True, color=color)
+    lgrasp = Grasp2Point("gp", lever, (0, 0, 0), (np.pi / 2, 0, -np.pi / 2))
+    lattach = FramePoint("cp", lever, (0, -knob_offset, -dims[2] / 2), (0, 0, 0), key=lname)
+
+    lever_plug = pscene.create_binder(bname=lname + "_plug", gname=lname, _type=KnobFramer,
+                                      point=(0, -knob_offset, -dims[2] / 2), key=knob.name)
+
+    if door_s is not None:
+        knob_plug = pscene.create_binder(bname=knob.name + "_plug", gname=lname,
+                                         _type=FramedTool, point=(0, -knob_offset, -dims[2] / 2), rpy=(0, 0, 0),
+                                         key=knob.name)
+        knob_plug.available = False
+        door_s.action_points_dict[knob.name] = FramePoint(knob.name, knob, (0, 0, knob.dims[2] / 2 + clearance),
+                                                          (0, 0, lever_ang), key=knob.name)
+
+    lever_s = pscene.create_subject(oname=lname, gname=lname, _type=CustomObject,
+                                    action_points_dict={lgrasp.name: lgrasp, lattach.name: lattach},
+                                    sub_binders_dict={lever_plug.name: lever_plug,
+                                                      knob_plug.name: knob_plug})
+
+    bd1 = (KnobFrame("r1", knob, (0, 0, knob.dims[2] / 2 + clearance), (0, 0, 0), key=knob.name),
+           pscene.create_binder(bname=knob.name + "_1", gname=knob.name, _type=AttachFramer,
+                                point=(0, 0, knob.dims[2] / 2 + clearance), key=lname))
+    bd2 = (KnobFrame("r2", knob, (0, 0, knob.dims[2] / 2 + clearance), rpy=(0, 0, lever_ang), key=knob.name),
+           pscene.create_binder(bname=knob.name + "_2", gname=knob.name, _type=AttachFramer,
+                                point=(0, 0, knob.dims[2] / 2 + clearance), rpy=(0, 0, lever_ang), key=lname)
+           )
+
+    knob_s = pscene.create_subject(oname=knob.name, gname=knob.name, _type=KnobTask,
+                                   binding_pairs=[bd1, bd2], knob_plug=knob_plug)
+    return lever_s, knob_s
+
+
+def add_door(pscene, dname="door", center=(0.5, 0, 0.5), rpy=(0, 0, 0),
+             dims=(0.05, 0.4, 0.5), hinge_point=(-0.025, 0.2, 0),
+             door_ang=np.pi * 3 / 4, door_div=3, link_name="base_link", clearance=1e-3,
+             frame_depth=0.0, frame_thickness=0.01, color=(0.8, 0.8, 0.8, 1), add_frame=False):
+    gscene = pscene.gscene
+    door_frame = gscene.create_safe(GEOTYPE.BOX, dname + "_frame", link_name=link_name,
+                                    center=center, rpy=Rot2rpy(np.matmul(Rot_rpy(rpy), Rot_axis(2, np.pi / 2))),
+                                    dims=np.asarray(dims)[[2, 1, 0]],
+                                    fixed=True, collision=False, color=(1, 0, 0, 0.1), display=True)
+    door = gscene.create_safe(GEOTYPE.BOX, dname, link_name=link_name,
+                              center=center, rpy=rpy, dims=dims,
+                              fixed=False, collision=True, color=color)
+    if add_frame:
+        gscene.add_virtual_guardrail(door_frame, axis="xy", color=color, THICKNESS=frame_thickness,
+                                     HEIGHT=dims[0] / 2 + frame_depth, margin=frame_thickness / 2 + clearance)
+
+    hinge_p = FramePoint("hinge", door, hinge_point, (0, 0, 0), key=dname)
+
+    door_hinge = pscene.create_binder(bname=door.name + "_hinge", gname=door.name, _type=HingeFramer,
+                                      point=hinge_point, key=dname)
+
+    door_s = pscene.create_subject(oname=dname, gname=dname, _type=CustomObject,
+                                   action_points_dict={hinge_p.name: hinge_p},
+                                   sub_binders_dict={door_hinge.name: door_hinge})
+
+    hinge_bindings = []
+    for i_div in range(door_div + 1):
+        ang = door_ang / door_div * i_div
+        hp = HingeFrame("h{}".format(i_div), door_frame,
+                        np.asarray(hinge_point)[[2, 1, 0]],
+                        Rot2rpy(np.matmul(Rot_axis(2, np.pi / 2).transpose(),
+                                          Rot_axis(3, -ang))),
+                        key=dname)
+        bp = pscene.create_binder(bname=door_frame.name + "_{}".format(i_div),
+                                  gname=door_frame.name, _type=AttachFramer,
+                                  point=np.asarray(hinge_point)[[2, 1, 0]],
+                                  rpy=Rot2rpy(np.matmul(Rot_axis(2, np.pi / 2).transpose(),
+                                                        Rot_axis(3, -ang))),
+                                  key=dname)
+        hinge_bindings.append((hp, bp))
+
+    hinge_s = pscene.create_subject(oname=door_frame.name, gname=door_frame.name, _type=HingeTask,
+                                    binding_pairs=hinge_bindings)
+    return door_s, hinge_s
 
 def finish_L_shape(gscene, gtem_dict):
     if "l_shape" in gtem_dict:
@@ -156,9 +306,9 @@ def use_current_place_point_only(pscene, current_state):
 ##
 # @brief remove attached binders on objects except for the current one
 def use_current_sub_binders_only(pscene, current_state):
-    active_binders  = [btf.binding.actor_name
+    active_binders  = [btf.chain.actor_name
                        for btf in current_state.binding_state.values()
-                       if btf.binding.actor_name is not None]
+                       if btf.chain.actor_name is not None]
 
     for obj in pscene.subject_dict.values():
         for bname, binder in pscene.actor_dict.items():
@@ -318,7 +468,7 @@ def play_schedule_clearance_highlight(ppline, snode_schedule, tcheck, period, ac
             if isinstance(ppline.pscene.subject_dict[obj_name], AbstractTask):
                 obj = ppline.pscene.subject_dict[obj_name]
                 btf = snode.state.binding_state[obj_name]
-                assert btf.binding.actor_name == actor_name, "someting wrong: actor name mismatch with BindingTransfrom"
+                assert btf.chain.actor_name == actor_name, "someting wrong: actor name mismatch with BindingTransfrom"
                 tcheck_res = tcheck.check(btf,
                                           list2dict(snode.state.Q, ppline.pscene.gscene.joint_names))
                 for gtem in obj.clearance:
@@ -418,8 +568,7 @@ def move_objects_down_until_collision(obj_list, gcheck, Q_dict):
 
         while(check_geometry_collision(gcheck, geometry, Q_dict=Q_dict)):
             if isinstance(obj, AbstractObject):
-                state_param = obj.get_state_param()
-                obj.set_state(obj.binding, (state_param[0], np.matmul(SE3(np.identity(3), [0,0,-1e-3]), state_param[1])))
+                obj.set_state(obj.binding, None)
             else:
                 Toff = np.matmul(SE3(np.identity(3), [0, 0, -1e-3]), geometry.Toff)
                 geometry.set_offset_tf(center=Toff[:3,3], orientation_mat=Toff[:3,:3])
@@ -435,8 +584,7 @@ def move_objects_up_until_no_collision(obj_list, gcheck, Q_dict):
 
         while(not check_geometry_collision(gcheck, geometry, Q_dict=Q_dict)):
             if isinstance(obj, AbstractObject):
-                state_param = obj.get_state_param()
-                obj.set_state(obj.binding, (state_param[0], np.matmul(SE3(np.identity(3), [0,0,1e-3]), state_param[1])))
+                obj.set_state(obj.binding, None)
             else:
                 Toff = np.matmul(SE3(np.identity(3), [0, 0, 1e-3]), geometry.Toff)
                 geometry.set_offset_tf(center=Toff[:3,3], orientation_mat=Toff[:3,:3])

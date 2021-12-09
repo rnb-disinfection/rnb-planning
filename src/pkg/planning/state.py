@@ -12,15 +12,14 @@ class State:
     # @param Q              robot joint configuration
     # @param pscene         PlanningScene instance
     def __init__(self, binding_state, state_param, Q, pscene):
-        self.state_param = state_param if state_param is not None else defaultdict(lambda:None)
         self.Q = np.array(Q)
-        self.set_binding_state(binding_state, pscene)
+        self.set_binding_state(pscene,binding_state, state_param)
 
-    def set_binding_state(self, binding_state, pscene):
+    def set_binding_state(self, pscene, binding_state, state_param):
         ## @brief tuple of binding state ((object name, binding point, binder), ..)
         self.binding_state = binding_state
-        self.state_param = pscene.get_state_param_update(self.binding_state, self.state_param)
-        ## @brief tuple of simplified binding state (binder geometry name 1, binder geometry name 2, ..)
+        self.state_param = pscene.get_updated_state_param(self.binding_state, state_param)
+        ## @brief tuple of simplified binding state (actor root geometry name 1, actor root geometry name 2, ..)
         self.node = pscene.get_node(self.binding_state, self.state_param)
 
     def get_tuple(self):

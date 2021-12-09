@@ -607,3 +607,24 @@ from itertools import chain, combinations
 def powerset(iterable):
     s = list(iterable)
     return chain.from_iterable(combinations(s, r) for r in range(len(s)+1))
+
+from collections import defaultdict
+
+def swap_double_dict(double_dict):
+    swapped = defaultdict(dict)
+    for k1, v1 in double_dict.items():
+        for k2, v2 in v1.items():
+            swapped[k2][k1] = v2
+    return swapped
+
+def print_com_ports():
+    import serial.tools.list_ports as sp
+    com_list = sp.comports()
+    connected = []
+    for i in com_list:
+        connected.append(i.device)
+
+    print("Connected COM ports: " + str(connected))
+
+def combine_bytes(up_byte, lo_byte):
+    return up_byte*0x100 + lo_byte

@@ -75,7 +75,7 @@ def get_matching_object(pscene, binder, approach_vec, Q_dict):
             handle_T = handle.get_tf_handle(Q_dict)
 
             if binder.check_available(Q_dict):
-                if binder.geometry.name in self_family or not binder.check_type(handle):
+                if binder.geometry.name in self_family or not binder.check_pair(handle):
                     continue
                 binder_redundancy = binder.get_redundancy()
                 handle_redundancy = handle.get_redundancy()
@@ -109,7 +109,7 @@ def get_matching_binder(pscene, subject, Q_dict, excludes=[]):
         for bname, binder in actor_dict.items():
             if binder.check_available(Q_dict):
                 binder_T = binder_T_dict[bname]
-                if binder.geometry.name in self_family or not binder.check_type(handle):
+                if binder.geometry.name in self_family or not binder.check_pair(handle):
                     continue
                 binder_redundancy = binder.get_redundancy()
                 handle_redundancy = handle.get_redundancy()
@@ -129,14 +129,14 @@ def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, too
     for fluent in fluents:
         subject = body_subject_map[fluent[1]]
         Tbase = T_xyzquat(fluent[2].value)
-        subject.set_state(binding=BindingChain(subject.oname, None, None, None),
-                          state_param=(base_link, Tbase))
+        subject.set_state(binding=BindingTransform(subject, None, None, T_lao=Tbase, null_bind_link=base_link),
+                                 state_param=None)
 
     if grasp is not None:
         graspped = body_subject_map[grasp.body]
         Tgrasp = T_xyzquat(grasp.grasp_pose)
-        graspped.set_state(binding=BindingChain(graspped.oname, None, tool.name, tool.geometry.name),
-                          state_param=(tool_link, Tgrasp))
+        graspped.set_state(binding=BindingTransform(graspped, None, tool, T_lao=Tgrasp),
+                           state_param=None)
 
     Qcur = conf1.values
     # from_state = pscene.initialize_state(np.array(Qcur))   #This resets the binding state
@@ -247,7 +247,7 @@ def plan_motion(mplan, body_subject_map, conf1, conf2, grasp, fluents, tool, too
         mplan.result_log["pre_motion_checks"].append(feas)
 
     if feas or DEBUG_MODE_PRIM_RNB:
-        Traj, LastQ, error, success, binding_list = mplan.plan_transition(
+        Traj, LastQ, error, success, chain_list = mplan.plan_transition(
             from_state, to_state, timeout=timeout, show_state=show_state)
     else:
         Traj, success = [], False
@@ -398,8 +398,8 @@ def check_feas(pscene, body_subject_map, actor, checkers, home_dict, body, pose,
     with gtimer.block('check_feas'):
         subject = body_subject_map[body]
         Tbo = T_xyzquat(pose.value)
-        subject.set_state(binding=BindingChain(subject.oname, None, None, None),
-                          state_param=(base_link, Tbo))
+        subject.set_state(binding=BindingTransform(subject, None, None, T_lao=Tbo, null_bind_link=base_link),
+                             state_param=None)
 
         Tlao = T_xyzquat(grasp.grasp_pose)
         Tboal = np.matmul(Tbo, SE3_inv(Tlao))
@@ -474,9 +474,20 @@ def run_checkers(checkers, actor, subject, Tloal_list, Q_dict, ignore=[], show_s
         if not res:
             print("Check Feas Fail: {}".format(checker.__class__.__name__))
             vis_bak = gscene.highlight_robot(color=gscene.COLOR_LIST[i_c])
+
+            filt_reason = ""
+            if checker.__class__.__name__ == "GraspChecker":
+                filt_reason = "Tool Collison"
+            if checker.__class__.__name__ == "ReachChecker":
+                filt_reason = "Inverse Kinematics"
+            if checker.__class__.__name__ == "LatticedChecker":
+                filt_reason = "Path Existence"
+            text = gscene.display_text("state", "Infeasible - {}".format(filt_reason), (0, 0, 1.4),
+                                     color=tuple(np.add(gscene.COLOR_LIST[i_c], (0,0,0,0.5))))
         time.sleep(SHOW_TIME)
         if not res:
             gscene.recover_robot(vis_bak)
+            gscene.remove(text)
     return res
 
 def reset_checker_cache():
@@ -591,13 +602,18 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                         if show_state:
                             if q_approach is None:
                                 print("inverse_kinematics fail to approach")
+                                ik_reason ="Inverse Kinematics Fail"
                                 color = pscene.gscene.COLOR_LIST[2]
                             else:
                                 print("IK-approach collision fail")
+                                ik_reason ="IK Solution in Collision"
                                 color = pscene.gscene.COLOR_LIST[0]
                             vis_bak = pscene.gscene.highlight_robot(color)
+                            text = pscene.gscene.display_text("state", ik_reason, (0,0,1.4),
+                                                              color=tuple(np.add(color, (0,0,0,0.5))))
                             time.sleep(SHOW_TIME)
                             pscene.gscene.recover_robot(vis_bak)
+                            pscene.gscene.remove(text)
                         continue
                     # print("go on")
                     conf = BodyConf(robot, q_approach)
@@ -635,13 +651,18 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                             if show_state:
                                 if q_grasp is None:
                                     print("inverse_kinematics fail to grasp")
+                                    ik_reason = "IK Grasp Fail"
                                     color = pscene.gscene.COLOR_LIST[2]
                                 else:
                                     print("IK-grasp collision fail")
+                                    ik_reason = "IK Grasp in Collision"
                                     color = pscene.gscene.COLOR_LIST[0]
                                 vis_bak = pscene.gscene.highlight_robot(color)
+                                text = pscene.gscene.display_text("state", ik_reason, (0,0,1.4),
+                                                                  color=tuple(np.add(color,(0,0,0,0.5))))
                                 time.sleep(SHOW_TIME)
                                 pscene.gscene.recover_robot(vis_bak)
+                                pscene.gscene.remove(text)
                             continue
                     if show_state:
                         time.sleep(SHOW_TIME)

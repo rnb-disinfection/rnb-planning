@@ -3,6 +3,8 @@ from enum import Enum
 from demo_config import *
 from pkg.utils.utils import *
 from pkg.utils.rotation_utils import *
+from pkg.controller.trajectory_client.trajectory_client import DEFAULT_TRAJ_FREQUENCY
+from pkg.utils.traj_utils import *
 from collections import defaultdict
 import copy
 
@@ -463,7 +465,7 @@ def set_sweep(pscene, surface, Tsm, swp_centers, ax_swp_tool, ax_swp_base,
 def test_base_divs(ppline, surface, Tsm, swp_centers,
                    ax_swp_tool, ax_swp_base, TOOL_DIM, Q_dict,
                    timeout=0.3, timeout_loop=3, verbose=False,
-                   multiprocess=True, terminate_on_first=True,
+                   multiprocess=True, max_solution_count=1,
                    show_motion=False, tool_dir=1, **kwargs):
     pscene = ppline.pscene
     gscene = pscene.gscene
@@ -476,7 +478,7 @@ def test_base_divs(ppline, surface, Tsm, swp_centers,
 
     ppline.search(initial_state, [(2,)], verbose=verbose,
                   timeout=timeout, timeout_loop=timeout_loop, multiprocess=multiprocess,
-                  add_homing=False, terminate_on_first=terminate_on_first, 
+                  add_homing=False, max_solution_count=max_solution_count, 
                   display=show_motion, post_optimize=False, **kwargs)
     snode_schedule = ppline.tplan.get_best_schedule(at_home=False)
     return snode_schedule
@@ -485,14 +487,14 @@ def test_base_divs(ppline, surface, Tsm, swp_centers,
 class TestBaseDivFunc:
     def __init__(self, ppline, surface, ax_swp_tool, ax_swp_base,
                  TOOL_DIM, Q_dict,
-                 multiprocess=True, terminate_on_first=True,
+                 multiprocess=True, max_solution_count=1,
                  show_motion=False, highlight_color=(1, 1, 0, 0.5), tool_dir=1, **kwargs):
         self.ppline, self.surface = ppline, surface
         self.TOOL_DIM, self.Q_dict = TOOL_DIM, Q_dict
         self.pscene = self.ppline.pscene
         self.gscene = self.pscene.gscene
         self.multiprocess = multiprocess
-        self.terminate_on_first = terminate_on_first
+        self.max_solution_count = max_solution_count
         self.show_motion = show_motion
         self.tool_dir = tool_dir
         self.highlight_color = highlight_color
@@ -504,7 +506,7 @@ class TestBaseDivFunc:
     def __call__(self, Tsm, swp_centers):
         output = test_base_divs(self.ppline, self.surface, Tsm, swp_centers,
                                 self.ax_swp_tool, self.ax_swp_base, self.TOOL_DIM, self.Q_dict,
-                                multiprocess=self.multiprocess, terminate_on_first=self.terminate_on_first,
+                                multiprocess=self.multiprocess, max_solution_count=self.max_solution_count,
                                 show_motion=self.show_motion, tool_dir=self.tool_dir, **self.kwargs)
         if output:
             # leave highlight on cleared area
@@ -589,7 +591,7 @@ def refine_order_plan(ppline, snode_schedule_list_in, idx_bases, idc_divs, Qcur,
                 state_0_to.Q = Qnxt_new
                 pscene.set_object_state(state_0)
                 mplan.update_gscene()
-                Traj, LastQ, error, success, binding_list = mplan.plan_transition(state_0, state_0_to, timeout=1)
+                Traj, LastQ, error, success, chain_list = mplan.plan_transition(state_0, state_0_to, timeout=1)
                 if success:
                     print("update {}th motion".format(snode_schedule.index(snode_nxt)))
                     snode_nxt.set_traj(Traj)
@@ -617,7 +619,7 @@ def refine_order_plan(ppline, snode_schedule_list_in, idx_bases, idc_divs, Qcur,
             state_0_to.Q[6:] = np.copy(snode_first_nxt.state.Q[6:])
             pscene.set_object_state(state_0)
             mplan.update_gscene()
-            Traj, LastQ, error, success, binding_list = mplan.plan_transition(state_0, state_0_to, timeout=1)
+            Traj, LastQ, error, success, chain_list = mplan.plan_transition(state_0, state_0_to, timeout=1)
             if success:
                 print("skip success")
                 snode_first_nxt.set_traj(Traj)
@@ -770,6 +772,8 @@ class GreedyExecuter:
         self.ccheck = CachedCollisionCheck(self.mplan, self.mobile_name, Qhome)
         self.pass_count = 0
         self.highlights = []
+        self.vel_lims = 0.5
+        self.acc_lims = 0.5
         if drift is None:
             self.drift = np.zeros(len(self.gscene.joint_names))
         else:
@@ -897,7 +901,8 @@ class GreedyExecuter:
                 homing_stack += list(reversed(snode_cur.traj))
         return snode_schedule
 
-    def greedy_execute(self, Qcur, tool_dir, mode_switcher, offset_fun, auto_clear_subject=True, cost_cut=110, covereds=[]):
+    def greedy_execute(self, Qcur, tool_dir, mode_switcher, offset_fun, auto_clear_subject=True, cost_cut=110, covereds=[],
+                       repeat_sweep=2, adjust_once=True):
         gtimer = GlobalTimer.instance()
         Qcur = np.copy(Qcur)
         Qhome = np.copy(Qcur)
@@ -936,43 +941,47 @@ class GreedyExecuter:
                 except Exception as e:
                     TextColors.RED.println("[PLAN] Error in offset fun")
                     print(e)
+                    self.mark_tested(tkey, i_ap, [], idc_divs)
                     continue
 
-                self.drift = np.mean([np.subtract(Qcur, Qref), self.drift], axis=0)
-                self.drift[self.idx_mb[2]] = (self.drift[2] + np.pi) % (np.pi * 2) - np.pi
-                self.drift[self.idx_rb] = 0
+#                 self.drift = np.mean([np.subtract(Qcur, Qref), self.drift], axis=0)
+#                 self.drift[self.idx_mb[2]] = (self.drift[2] + np.pi) % (np.pi * 2) - np.pi
+#                 self.drift[self.idx_rb] = 0
+                self.drift[:] = 0
                 Tbm_cur = self.gscene.get_tf(self.mobile_link, Qcur)
                 Tbs = self.surface.get_tf(Qcur)
                 Tsm_cur = np.matmul(SE3_inv(Tbs), Tbm_cur)
                 tkey_cur_exact = T2xyzquat(Tsm_cur, decimals=2)
                 tkey_cur_exact = (tkey_cur_exact[0], tkey_cur_exact[1][2:])
 
-            with gtimer.block("adjust_once"):
-                TextColors.BLUE.println("[PLAN] Adjust base once. {} / {}".format(tkey, tkey_cur_exact))
-                TextColors.BLUE.println("[PLAN] Qcur: {}".format(np.round(Qcur[:3], 3)))
-                TextColors.BLUE.println("[PLAN] Qref: {}".format(np.round(Qref[:3], 3)))
-                TextColors.BLUE.println("[PLAN] tar: {}".format(np.round(Qtar[:3], 3)))
-                Qmob_new = np.copy(Qmob)
-                Qmob_new[:2] = Qtar[:2]
-                self.kmb.joint_move_make_sure(Qmob_new)
+            if adjust_once:
+                with gtimer.block("adjust_once"):
+                    TextColors.BLUE.println("[PLAN] Adjust base once. {} / {}".format(tkey, tkey_cur_exact))
+                    TextColors.BLUE.println("[PLAN] Qcur: {}".format(np.round(Qcur[:3], 3)))
+                    TextColors.BLUE.println("[PLAN] Qref: {}".format(np.round(Qref[:3], 3)))
+                    TextColors.BLUE.println("[PLAN] tar: {}".format(np.round(Qtar[:3], 3)))
+                    Qmob_new = np.copy(Qmob)
+                    Qmob_new[:2] = Qtar[:2]
+                    self.kmb.joint_move_make_sure(Qmob_new, check_valid=0)
 
-            with gtimer.block("update_adjusted_offset"):
-                try:
-                    Qref[self.idx_rb] = Qcur[self.idx_rb]
-                    Qcur, Qtar = offset_fun(self, self.crob, self.mplan, self.robot_name, Qref)
+                with gtimer.block("update_adjusted_offset"):
+                    try:
+                        Qref[self.idx_rb] = Qcur[self.idx_rb]
+                        Qcur, Qtar = offset_fun(self, self.crob, self.mplan, self.robot_name, Qref)
 
-                    self.drift = np.mean([np.subtract(Qcur, Qref), self.drift], axis=0)
-                    self.drift[self.idx_mb[2]] = (self.drift[2] + np.pi) % (np.pi * 2) - np.pi
-                    self.drift[self.idx_rb] = 0
-                    Tbm_cur = self.gscene.get_tf(self.mobile_link, Qcur)
-                    Tbs = self.surface.get_tf(Qcur)
-                    Tsm_cur = np.matmul(SE3_inv(Tbs), Tbm_cur)
-                    tkey_cur_exact = T2xyzquat(Tsm_cur, decimals=2)
-                    tkey_cur_exact = (tkey_cur_exact[0], tkey_cur_exact[1][2:])
-                except Exception as e:
-                    TextColors.RED.println("[PLAN] Error in offset fun")
-                    print(e)
-                    continue
+                        # self.drift = np.mean([np.subtract(Qcur, Qref), self.drift], axis=0)
+                        # self.drift[self.idx_mb[2]] = (self.drift[2] + np.pi) % (np.pi * 2) - np.pi
+                        # self.drift[self.idx_rb] = 0
+                        self.drift[:] = 0
+                        Tbm_cur = self.gscene.get_tf(self.mobile_link, Qcur)
+                        Tbs = self.surface.get_tf(Qcur)
+                        Tsm_cur = np.matmul(SE3_inv(Tbs), Tbm_cur)
+                        tkey_cur_exact = T2xyzquat(Tsm_cur, decimals=2)
+                        tkey_cur_exact = (tkey_cur_exact[0], tkey_cur_exact[1][2:])
+                    except Exception as e:
+                        TextColors.RED.println("[PLAN] Error in offset fun")
+                        print(e)
+                        continue
 
             with gtimer.block("update_base_offset"):
                 Tdiff_list = []
@@ -1034,6 +1043,16 @@ class GreedyExecuter:
                                                                                   for i_div in idc_select],
                                                                      tool_dir=tool_dir)
                             if len(snode_schedule) > 0:
+                                for snode_pre, snode_to in zip(snode_schedule[:-1], snode_schedule[1:]):
+                                    if snode_pre.state.node == (1,) and snode_to.state.node == (2,):
+                                        traj = list(snode_to.traj)
+                                        for _ in range(repeat_sweep):
+                                            traj += list(reversed(snode_to.traj))[1:] + list(snode_to.traj)[1:]
+#                                         t_all, traj = calc_safe_trajectory(1.0/DEFAULT_TRAJ_FREQUENCY, 
+#                                                                                np.array(traj),
+#                                                                                self.vel_lims, self.acc_lims)
+                                        traj = np.array(traj)
+                                        snode_to.set_traj(traj)
                                 idc_divs_remain = sorted(set(idc_divs_remain) - set(idc_select))
                                 idc_succs += idc_select
                                 snode_schedule_all += snode_schedule
