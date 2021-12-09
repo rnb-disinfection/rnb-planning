@@ -79,8 +79,11 @@ source "$RNB_PLANNING_DIR"ws_ros/devel/setup.bash
 echo 'source "$RNB_PLANNING_DIR"ws_ros/devel/setup.bash' >> ~/.bashrc
 ```
 
-## 2.3 (Optional) Install PDDLStream
+## 2.3 (Optional) Optional 3rd Party Features
+### PDDLStream
 * To use PDDLStream task-motion planning, follow instruction in [docs/PDDLStream.md](docs/PDDLStream.md)
+### MMDet
+* To use MultiICP or SharedDetector, install mmdet by following instruction in [docs/Detection.md](docs/PDDLStream.md)
 
 ## 2.4 Recommended Tools and Options
 * Follow instruction in [docs/SUPPLEMENT_README.md](docs/SUPPLEMENT_README.md)

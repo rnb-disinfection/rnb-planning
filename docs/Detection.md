@@ -50,6 +50,21 @@
   # show inference result
   show_result_pyplot(model, image, result)
   ```
-* Download pretrained model of cascade mask rcnn based swin-transformer. It wil be used from MultiICP Detector
-  * link: https://github.com/SwinTransformer/storage/releases/download/v1.0.2/cascade_mask_rcnn_swin_base_patch4_window7.pth
-
+  
+# Prepare Model & Config for SharedDetector and MultiICP
+* create model folder for mmdet
+```bash
+mkdir $RNB_PLANNING_DIR/model/mmdet_data
+```
+* Download the pretrained model to model/mmdet_data/.  It wil be used from MultiICP Detector.
+```bash
+cd $RNB_PLANNING_DIR/model/mmdet_data \
+&& wget https://github.com/SwinTransformer/storage/releases/download/v1.0.2/cascade_mask_rcnn_swin_base_patch4_window7.pth
+```
+* Clone the 'configs' folder in Swin-Transformer-Object-Detection to model/mmdet_data
+  1) move to Swin-Transformer-Object-Detection directory
+  2) copy config folder
+  ```bash
+  cp -rf ./configs $RNB_PLANNING_DIR/model/mmdet_data/
+  ```
+* Follow instruction in [release/3.1. MultiICP] for detailed usage.
