@@ -115,11 +115,14 @@ class MultiICP:
             assert config_list is not None and img_dim is not None, "config_list and img_dim must be given for no-cam mode"
             self.config_list = config_list
             self.img_dim = img_dim
+            self.dsize = tuple(reversed(img_dim))
             return
         self.camera.initialize()
         cameraMatrix, distCoeffs, depth_scale = self.camera.get_config()
         self.config_list = [cameraMatrix, distCoeffs, depth_scale]
         self.img_dim = self.camera.get_image().shape[:2]
+        res_scale = np.max(np.ceil(np.divide(np.array(self.img_dim, dtype=float), 2000) / 2).astype(int) * 2)
+        self.dsize = tuple(reversed(np.divide(self.img_dim, res_scale).astype(int)))
         print("Initialize Done")
 
     ##
@@ -140,7 +143,6 @@ class MultiICP:
     # @brief   get aligned RGB image and depthmap
     def get_image(self):
         color_image, depth_image = self.camera.get_image_depthmap()
-        self.img_dim = (color_image.shape[0], color_image.shape[1])
         Q = self.crob.get_real_robot_pose()
         return color_image, depth_image, Q
 
@@ -198,13 +200,22 @@ class MultiICP:
 
         cdp = ColorDepthMap(color_image, depth_image, cam_intrins, depth_scale)
         Tc = self.viewpoint.get_tf(Q)
-        T_cb = SE3_inv(Tc)
 
         if self.sd is None:
             TextColors.YELLOW.println("[WARN] SharedDetector is not set: call set_config()")
             return {}
         # Output of inference(mask for detected object)
-        mask_out_list = self.sd.inference(color_img=cdp.color)
+        img_res = cv2.resize(cdp.color, dsize=self.dsize)
+        mask_out_list_res = self.sd.inference(color_img=img_res)
+        mask_out_list = np.zeros((80,) + tuple(cdp.color.shape[:2]), dtype=mask_out_list_res.dtype)
+        for idx in range(80):
+            if np.any(mask_out_list_res[idx]):
+                for i_obj in range(1, np.max(mask_out_list_res[idx])+1):
+                    mask_res = (cv2.resize((mask_out_list_res[idx] == i_obj).astype(np.uint8) * 255,
+                                           dsize=tuple(reversed(self.img_dim)), interpolation=cv2.INTER_AREA
+                                           ).astype(float) / 255
+                                ).astype(np.uint8) * i_obj
+                    mask_out_list[idx][np.where(mask_res>0)] = mask_res[np.where(mask_res>0)]
         mask_dict = {}
         for idx in range(80):
             if np.any(mask_out_list[idx]):
@@ -335,12 +346,14 @@ class MultiICP:
     ##
     # @brief    Acquire geometry kwargs of item
     # @param    name    item name
-    # @return   kwargs  kwargs
+    # @return   kwargs  kwargs if name is available object name. None if not available.
     def get_geometry_kwargs(self, name):
         if "_" in name:
             name_cat = name.split("_")[0]
         else:
             name_cat = name
+        if name_cat not in self.micp_dict:
+            return None
         micp = self.micp_dict[name_cat]
         model = micp.model
         return dict(gtype=GEOTYPE.MESH, name=name_cat,

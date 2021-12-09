@@ -49,19 +49,19 @@ def SharedDetectorGen(IMG_DIM=(720, 1280, 3)):
 
         @shared_fun(CallType.SYNC, "SharedDetector",
                     ArgSpec("color_img", IMG_DIM, np.uint8),
-                    ResSpec(0, (80, IMG_DIM[0],IMG_DIM[1]), float))
+                    ResSpec(0, (80, IMG_DIM[0],IMG_DIM[1]), np.uint8))
         def inference(self, color_img):
             if self.initizlied:
                 result = inference_detector(self.model, color_img)
                 boxes, masks = result[0], result[1]
 
-                detect_false = np.zeros((IMG_DIM[0],IMG_DIM[1]), dtype=float)
+                detect_false = np.zeros((IMG_DIM[0],IMG_DIM[1]), np.uint8)
 
-                return_img = np.zeros((80, IMG_DIM[0],IMG_DIM[1]), dtype=float)
+                return_img = np.zeros((80, IMG_DIM[0],IMG_DIM[1]), np.uint8)
 
                 for idx in range(80):
                     if len(masks[idx]) != 0:
-                        mask_res = np.empty((IMG_DIM[0], IMG_DIM[1]), dtype=float)
+                        mask_res = np.empty((IMG_DIM[0], IMG_DIM[1]), np.uint8)
                         mask_res[:,:] = False
                         for i_t in range(len(masks[idx])):
                             mask_temp = masks[idx][i_t]
