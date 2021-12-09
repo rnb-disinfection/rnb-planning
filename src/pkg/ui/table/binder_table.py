@@ -15,7 +15,7 @@ class BinderTable(TableInterface):
     def serialize(self, binder):
         return [binder.name, binder.ctype.name, binder.geometry.name,
                 round_it_str(binder.rpy_point, 3), "n" if binder.point is None else round_it_str(binder.point, 3),
-                str(binder.controlled), str(binder.multiple)]
+                str(binder.active), str(binder.multiple)]
 
     def highlight_item(self, binder, color=None):
         self.planning_pipeline.pscene.add_handle_axis(self.HILIGHT_KEY, binder)
@@ -46,7 +46,7 @@ class BinderTable(TableInterface):
             value = str_num_it(value) if "," in value else None
             binder.set_point_rpy(value, binder.rpy_point)
         elif active_col == 'Control':
-            binder.controlled = value.lower() in ["true", "t"]
+            binder.active = value.lower() in ["true", "t"]
         elif active_col == 'Multi':
             binder.multiple = value.lower() in ["true", "t"]
         return res, msg

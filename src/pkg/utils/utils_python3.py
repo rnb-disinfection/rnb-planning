@@ -18,6 +18,25 @@ def try_mkdir(path):
     try: os.mkdir(path)
     except: pass
 
+from enum import Enum
+
+##
+# @class TextColors
+# @brief color codes for terminal. use println to simply print colored message
+class TextColors(Enum):
+    HEADER = '\033[95m'
+    BLUE = '\033[94m'
+    CYAN = '\033[96m'
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    RED = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+    def println(self, msg):
+        print(self.value + str(msg) + self.ENDC.value)
+
 ##
 # @class    Singleton
 # @brief    Template to make a singleton class.
@@ -41,15 +60,20 @@ class Singleton:
 # @brief    A singleton timer to record timings anywhere in the code.
 # @remark   Call GlobalTimer.instance() to get the singleton timer.
 #           To see the recorded times, just print the timer: print(global_timer)
+# @param    scale       scale of the timer compared to a second. For ms timer, 1000
+# @param    timeunit    name of time unit for printing the log
+# @param    stack   default value for "stack" in toc
 class GlobalTimer(Singleton):
-    def __init__(self, scale=1000, timeunit='ms'):
-        self.reset(scale, timeunit)
+    def __init__(self, scale=1000, timeunit='ms', stack=False):
+        self.reset(scale, timeunit, stack)
 
     ##
     # @brief    reset the timer.
     # @param    scale       scale of the timer compared to a second. For ms timer, 1000
     # @param    timeunit    name of time unit for printing the log
-    def reset(self, scale=1000, timeunit='ms'):
+    # @param    stack   default value for "stack" in toc
+    def reset(self, scale=1000, timeunit='ms', stack=False):
+        self.stack = stack
         self.scale = scale
         self.timeunit = timeunit
         self.name_list = []
@@ -78,21 +102,32 @@ class GlobalTimer(Singleton):
     ##
     # @brief    record the time passed from last call of tic with same name
     # @param    name    name of the section to record time
-    # @param    stack   to stack each time duration to timelist_dict, set this value to True
-    def toc(self, name, stack=False):
+    # @param    stack   to stack each time duration to timelist_dict, set this value to True,
+    #                   don't set this value to use default setting
+    def toc(self, name, stack=None):
         if self.__on:
             dt = (time.time() - self.ts_dict[name]) * self.scale
             self.time_dict[name] = self.time_dict[name] + dt
             self.min_time_dict[name] = min(self.min_time_dict[name], dt)
             self.max_time_dict[name] = max(self.max_time_dict[name], dt)
             self.count_dict[name] = self.count_dict[name] + 1
-            if stack:
+            if stack or (stack is None and self.stack):
                 self.timelist_dict[name].append(dt)
             return dt
 
     ##
+    # @brief    get current time and estimated time arrival
+    # @param    name    name of the section to record time
+    # @param    current current index recommanded to start from 1
+    # @param    end     last index
+    # @return   (current time, eta)
+    def eta(self, name, current, end):
+        dt = self.toc(name, stack=False)
+        return dt, (dt / current * end if current != 0 else 0)
+
+    ##
     # @brief    record and start next timer in a line.
-    def toctic(self, name_toc, name_tic, stack=False):
+    def toctic(self, name_toc, name_tic, stack=None):
         dt = self.toc(name_toc, stack=stack)
         self.tic(name_tic)
         return dt
@@ -112,8 +147,8 @@ class GlobalTimer(Singleton):
 
     ##
     # @brief use "with timer:" to easily record duration of a code block
-    def block(self, key):
-        return BlockTimer(self, key)
+    def block(self, key, stack=None):
+        return BlockTimer(self, key,stack=stack)
 
     def __enter__(self):
         self.tic("block")
@@ -126,15 +161,15 @@ class GlobalTimer(Singleton):
 # @class    BlockTimer
 # @brief    Wrapper class to record timing of a code block.
 class BlockTimer:
-    def __init__(self, gtimer, key):
-        self.gtimer, self.key = gtimer, key
+    def __init__(self, gtimer, key, stack=None):
+        self.gtimer, self.key, self.stack = gtimer, key, stack
 
     def __enter__(self):
         self.gtimer.tic(self.key)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.gtimer.toc(self.key)
+        self.gtimer.toc(self.key, stack=self.stack)
 
 
 import json
@@ -153,6 +188,10 @@ def load_json(filename):
     with open(filename, "r") as st_json:
         st_python = json.load(st_json)
     return st_python
+
+def save_pickle(filename, data):
+    with open(filename, 'wb') as f:
+        pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
 
 def load_pickle(filename):
     with open(filename, 'rb') as f:
@@ -339,3 +378,18 @@ def cart2cyl(x, y, z):
 
 def sigmoid(x):
     return 1 / (1 +np.exp(-x))
+
+##
+# @brief    print confusion matrix
+# @remark   rows: ground truth, cols: prediction
+def print_confusion_mat(GT, Res):
+    TP = np.sum(np.logical_and(GT, Res))
+    FN = np.sum(np.logical_and(GT, np.logical_not(Res)))
+    FP = np.sum(np.logical_and(np.logical_not(GT), Res))
+    TN = np.sum(np.logical_and(np.logical_not(GT), np.logical_not(Res)))
+    N = TP + FN + FP + TN
+    print("\t PP \t \t PN \t \t {}".format(N))
+    print("GP \t {} \t \t {} \t \t {:.2%}".format(TP, FN, float(TP) / (TP + FN)))
+    print("GN \t {} \t \t {} \t {:.2%}".format(FP, TN, float(TN) / (FP + TN)))
+    print(
+        "AL \t {:.2%} \t {:.2%} \t {:.2%}".format(float(TP) / (TP + FP), float(TN) / (TN + FN), float(TP + TN) / N))

@@ -9,15 +9,15 @@ SET(OMPL_LIBRARIES /usr/local/lib/libompl.so)
 MESSAGE("ompl version - ${OMPL_VERSION}")
 MESSAGE("ompl include dir - ${OMPL_INCLUDE_DIRS}")
 MESSAGE("ompl libs - ${OMPL_LIBRARIES}")
-
 find_package(catkin REQUIRED
         COMPONENTS
         interactive_markers
         moveit_core
         moveit_ros_planning
         moveit_ros_planning_interface
-        moveit_visual_tools
+#        moveit_chomp_optimizer_adapter
         pluginlib
+        moveit_visual_tools
         geometric_shapes
         pcl_ros
         pcl_conversions
@@ -25,10 +25,13 @@ find_package(catkin REQUIRED
         tf2_ros
         tf2_eigen
         tf2_geometry_msgs
+#        stomp_core
+#        stomp_moveit
         )
 
-
+MESSAGE("=====================================================================================================================================================================")
 MESSAGE("catkin libs - ${catkin_LIBRARIES}")
+MESSAGE("=====================================================================================================================================================================")
 
 find_package(Eigen3 REQUIRED)
 find_package(Boost REQUIRED system filesystem date_time thread python)
@@ -63,8 +66,12 @@ add_library(${PROJECT_NAME} SHARED
         src/ompl_interface/detail/constraints_library.cpp
         src/ompl_interface/detail/constrained_sampler.cpp
         src/ompl_interface/detail/constrained_valid_state_sampler.cpp
-        src/ompl_interface/detail/constrained_goal_sampler.cpp src/logger.cpp src/typedef.cpp include/constants.h)
-target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${OMPL_LIBRARIES} yaml-cpp)
+        src/ompl_interface/detail/constrained_goal_sampler.cpp
+        src/logger.cpp
+        src/typedef.cpp
+        src/ompl_interface/planner/KPIECE_CUSTOM.cpp)
+target_link_libraries(${PROJECT_NAME}
+        ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${OMPL_LIBRARIES} yaml-cpp)
 ##############################  BUILD LIBRARY ##############################
 ############################################################################
 
@@ -72,6 +79,7 @@ target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${O
 #############################  TEST EXECUTION ##############################
 add_executable(${PROJECT_NAME}-test
         src/test_mpc.cpp)
-target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME} ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${OMPL_LIBRARIES} yaml-cpp)
+target_link_libraries(${PROJECT_NAME}-test
+        ${PROJECT_NAME} ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${OMPL_LIBRARIES} ${STOMP_PLUGIN_LIBRARIES} yaml-cpp)
 #############################  TEST EXECUTION ##############################
 ############################################################################

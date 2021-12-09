@@ -58,7 +58,7 @@ def Rot2zyx(R):
     '''
     sy = sqrt(R[0,0]**2 + R[1,0]**2)
 
-    if sy > 0.000001:
+    if sy > 1e-10:
         x = atan2(R[2,1] , R[2,2])
         y = atan2(-R[2,0], sy)
         z = atan2(R[1,0], R[0,0])
@@ -74,7 +74,7 @@ def Rot2zxz(R):
     '''
     sy = sqrt(R[0,2]**2 + R[1,2]**2)
 
-    if sy > 0.000001:
+    if sy > 1e-10:
         z1 = atan2(R[0,2] , -R[1,2])
         x2 = atan2(sy,R[2,2])
         z3 = atan2(R[2,0], R[2,1])
@@ -135,8 +135,8 @@ def fit_floor(Tcw, Tco, minz):
     Pco = Tco[0:3,3]
     Twc = np.linalg.inv(Tcw)
     Pco_wz = np.dot(Twc[2,0:3],Pco)
-    if abs(Pco_wz)<0.00001:
-        Pco_wz = 0.00001
+    if abs(Pco_wz)<0.000001:
+        Pco_wz = 0.000001
     alpha = abs((-minz - Twc[2,3])/Pco_wz)
     Pco_ = Pco*alpha
     Tco_out = Tco.copy()
@@ -154,6 +154,15 @@ def Rot_rpy(rpy):
 def Rot2rpy(R):
     return np.asarray(list(reversed(Rot2zyx(R))))
 
+def Rot2axis(R, axis):
+    shift = 1-axis
+    Rshift = np.zeros((3,3))
+    for ax in range(3):
+        Rshift[ax+shift,ax] = 1
+    Rx = matmul_series(Rshift, R, Rshift.transpose())
+    rot_x = Rot2zyx(Rx)[-1]
+    return rot_x
+
 ##
 # @return tuple(xyz, rpy(rad))
 def T2xyzrpy(T):
@@ -161,13 +170,19 @@ def T2xyzrpy(T):
 
 ##
 # @return tuple(xyz, rotvec)
-def T2xyzrvec(T):
-    return T[:3,3].tolist(), Rotation.from_dcm(T[:3,:3]).as_rotvec().tolist()
+def T2xyzrvec(T, decimals=None):
+    if decimals is None:
+        return T[:3,3].tolist(), Rotation.from_dcm(T[:3,:3]).as_rotvec().tolist()
+    else:
+        return tuple(np.round(T[:3,3], decimals)), tuple(Rotation.from_dcm(T[:3,:3]).as_rotvec())
 
 ##
 # @return tuple(xyz, quaternion)
-def T2xyzquat(T):
-    return T[:3,3].tolist(), Rotation.from_dcm(T[:3,:3]).as_quat().tolist()
+def T2xyzquat(T, decimals=None):
+    if decimals is None:
+        return T[:3,3].tolist(), Rotation.from_dcm(T[:3,:3]).as_quat().tolist()
+    else:
+        return tuple(np.round(T[:3,3], decimals)), tuple(np.round(Rotation.from_dcm(T[:3,:3]).as_quat(), decimals))
 
 ##
 # @param xyzrpy tuple(xyz, rpy(rad))
@@ -178,6 +193,11 @@ def T_xyzrpy(xyzrpy):
 # @param xyzrpy tuple(xyz, quaternion)
 def T_xyzquat(xyzquat):
     return SE3(Rotation.from_quat(xyzquat[1]).as_dcm(), xyzquat[0])
+
+##
+# @param xyzrpy tuple(xyz, quaternion)
+def T_xyzrvec(xyzrvec):
+    return SE3(Rotation.from_rotvec(xyzrvec[1]).as_dcm(), xyzrvec[0])
 
 def matmul_series(*Tlist):
     T = Tlist[0]
@@ -197,8 +217,19 @@ def calc_rotvec_vecs(vec1, vec2):
     cross_vec = np.cross(vec1, vec2)
     dot_val = np.dot(vec1, vec2)
     cross_abs = np.linalg.norm(cross_vec)
-    cross_nm = cross_vec/cross_abs
-    rotvec = cross_nm * np.arctan2(cross_abs, dot_val)
+    if np.linalg.norm(cross_abs) < 1e-8:
+        if len(vec1)==2:
+            if dot_val>=0:
+                rotvec = 0
+            else:
+                rotvec = np.pi
+        elif len(vec1)==3:
+            rotvec = np.zeros(3)
+            if dot_val<0:
+                rotvec[2] = np.pi
+    else:
+        cross_nm = cross_vec/cross_abs
+        rotvec = cross_nm * np.arctan2(cross_abs, dot_val)
     return rotvec
 
 def calc_zvec_R(zvec):
@@ -252,6 +283,27 @@ def mat2hori(orientation_mat, theta=0):
     return azimuth_loc, zenith
 
 ##
+# @brief convert cartesian coordinate to spherical coordinate
+# @return radius distance from origin
+# @return psi   angle from z-axis
+# @return theta angle from x-axis, along z-axis
+def cart2spher(x, y, z):
+    radius = np.sqrt(x**2+y**2+z**2)
+    psi = np.arctan2(y,x)
+    theta = np.arccos(z/radius)
+    return radius, psi, theta
+
+
+##
+# @brief convert spherical coordinate to cartesian coordinate
+# @param radius distance from origin
+# @param psi   angle from z-axis
+# @param theta angle from x-axis, along z-axis
+def spher2cart(radius, psi, theta):
+    sin_theta = np.sin(theta)
+    return radius*sin_theta*np.cos(psi), radius*sin_theta*np.sin(psi), radius*np.cos(theta)
+
+##
 # @brief interpolate between 2 transformation matrices(4x4)
 # @remark Either POS_STEP and ROT_STEP or N_STEP should be given
 def interpolate_T(T1, T2, POS_STEP=None, ROT_STEP=None, N_STEP=None):
@@ -280,3 +332,6 @@ def interpolate_T(T1, T2, POS_STEP=None, ROT_STEP=None, N_STEP=None):
     Rarr = np.array([np.matmul(R_cur, Rotation.from_rotvec(dRvec_tmp).as_dcm()) for dRvec_tmp in dRarr.transpose()])
 
     return [SE3(R, P) for R, P in zip(Rarr, Parr)]
+
+def norm_SE3(T, rot_scale=0.1):
+    return np.linalg.norm(T[:3,3]) + rot_scale*np.linalg.norm(Rotation.from_dcm(T[:3,:3]).as_rotvec())

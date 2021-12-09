@@ -8,7 +8,7 @@
   2. State: node + state_param(obj_pose_dict) + Q v
   3. TaskAction v
     3.1 get_neighbor -> node_dict v
-    3.2 get_slack_bindings, rebind v
+    3.2 get_changing_subjects, rebind v
     3.3 constraint
   4. Constraint + Object(action_point) v (can be added easily)
 

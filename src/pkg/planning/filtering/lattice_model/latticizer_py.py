@@ -15,6 +15,17 @@ def get_point_list_ltc(point_rows_np):
         pl.append(ltc.Point3(*v))
     return pl
 
+def get_centers(Nwdh, L_CELL, OFFSET_ZERO):
+    Nw, Nd, Nh = Nwdh
+    centers = np.zeros(Nwdh + (3,))
+    for iw in range(Nw):
+        centers[iw, :, :, 0] = (iw + 0.5) * L_CELL
+    for id in range(Nd):
+        centers[:, id, :, 1] = (id + 0.5) * L_CELL
+    for ih in range(Nh):
+        centers[:, :, ih, 2] = (ih + 0.5) * L_CELL
+    return centers - OFFSET_ZERO
+
 ##
 # @class    Latticizer_py
 # @brief    Latticize a geometry scene
@@ -49,15 +60,7 @@ class Latticizer_py:
             del self.coll_idx_dict[name]
 
     def get_centers(self):
-        Nw, Nd, Nh = self.Nwdh
-        self.centers = np.zeros(self.Nwdh + (3,))
-        for iw in range(Nw):
-            self.centers[iw, :, :, 0] = (iw + 0.5) * self.L_CELL
-        for id in range(Nd):
-            self.centers[:, id, :, 1] = (id + 0.5) * self.L_CELL
-        for ih in range(Nh):
-            self.centers[:, :, ih, 2] = (ih + 0.5) * self.L_CELL
-        return self.centers - self.OFFSET_ZERO
+        return get_centers(self.Nwdh, self.L_CELL, self.OFFSET_ZERO)
 
     def get_cell_vertices(self):
         ZERO_BOX = DEFAULT_VERT_DICT[GEOTYPE.BOX] * self.L_CELL
@@ -107,7 +110,7 @@ class Latticizer_py:
     # @brief update colliding cell indexes with geomerty list
     # @param vertices_radius_list [(vertices, radius), ... ]
     # @param Tref reference coodinate
-    def convert_vertices(self, vertinfo_list, Qdict, Tref=None):
+    def convert_vertices(self, vertinfo_list, Tref=None):
         if Tref is not None:
             Tref_inv = SE3_inv(Tref)
         else:
@@ -125,6 +128,22 @@ class Latticizer_py:
             for i in range(num_colls):
                 coll_idxes[i] = coll_idxes_bp[i]
             self.coll_idx_dict[geo_name] = coll_idxes
+
+    ##
+    # @brief update colliding cell indexes with geomerty list
+    # @param gtem_list GeometryItem list
+    # @param T_gl_list list of transformation of the lattice from the geometry
+    def convert_vertices_approx(self, gtem_list, T_gl_list):
+        for gtem, T_gl in zip(gtem_list, T_gl_list):
+            Rcoeffs = tuple(map(float, T_gl[:3, :3].flatten()))
+            Pcoeffs = tuple(map(float, T_gl[:3, 3]))
+            dims_bp = make_point3_ltc(*gtem.dims)
+            coll_idxes_bp = self.ltc_bp.get_colliding_cells_approx(*(Rcoeffs + Pcoeffs + (gtem.gtype.value, dims_bp)))
+            num_colls = len(coll_idxes_bp)
+            coll_idxes = np.zeros(num_colls, dtype=np.int)
+            for i in range(num_colls):
+                coll_idxes[i] = coll_idxes_bp[i]
+            self.coll_idx_dict[gtem.name] = coll_idxes
 
     ##
     # @brief convert flattened index to 3D grid indices

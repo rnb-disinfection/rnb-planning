@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "io.grpc.custom.FloorDisinfection.TaskPlanner";
+option java_outer_classname = "TaskPlannerProto";
+option objc_class_prefix = "FDTP";
+
+package TaskPlanner;
+
+service TaskExecutor {
+    rpc GetRobotInfo(GetRobotInfoRequest) returns (GetRobotInfoResponse) {}
+    rpc DoDisinfection(DoDisinfectionRequest) returns (DoDisinfectionResponse) {}
+    rpc GetRunningStatus(RunningStateRequest) returns (RunningStateResponse) {}
+}
+
+message GetRobotInfoRequest {
+    int32 request_flag = 1;
+}
+
+message GetRobotInfoResponse {
+    double width = 1;
+    double depth = 2;
+    double height = 3;
+    double x = 4;
+    double y = 5;
+}
+
+message object_info {
+    int32 object_id = 1;
+    string object_name = 2;
+    double center_x = 3;
+    double center_y = 4;
+}
+
+message DoDisinfectionRequest {
+    repeated object_info object_list = 1;
+}
+
+message DoDisinfectionResponse {
+    int32 response_flag = 1;
+}
+
+message RunningStateRequest {
+    int32 request_flag = 1;
+}
+
+message RunningStateResponse {
+    int32 object_id = 1;
+}
+

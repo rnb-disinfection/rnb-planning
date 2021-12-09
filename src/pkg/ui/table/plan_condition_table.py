@@ -103,7 +103,7 @@ class PlanConditionTable(TableInterface):
             elif args[1]:
                 self.planning_pipeline.mplan.update_gscene()
                 self.planning_pipeline.tplan.prepare()
-                self.initial_state = self.planning_pipeline.pscene.update_state(
+                self.initial_state = self.planning_pipeline.pscene.initialize_state(
                     self.planning_pipeline.pscene.combined_robot.home_pose)
             else:
                 print("Unknown button")

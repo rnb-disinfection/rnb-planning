@@ -33,6 +33,7 @@ namespace RNB {
 
         typedef Eigen::Vector3d Vec3;
         typedef Eigen::VectorXd JointState;
+        typedef std::vector<Vec3> Vec3List;
         typedef std::vector<JointState> Trajectory;
 
         typedef Eigen::Matrix<long double,-1, 1> VectorXld;
@@ -72,7 +73,8 @@ namespace RNB {
             BOX=shape_msgs::SolidPrimitive::BOX,
             SPHERE=shape_msgs::SolidPrimitive::SPHERE,
             CYLINDER=shape_msgs::SolidPrimitive::CYLINDER,
-            PLANE=104u
+            PLANE=104u,
+            MESH=1000u,
         };
 
         struct Geometry{

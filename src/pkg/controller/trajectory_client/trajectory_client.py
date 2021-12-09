@@ -51,9 +51,13 @@ class TrajectoryClient(object):
 
     ##
     # @brief Wait until the queue on the server is empty. This also means the trajectory motion is finished.
-    def wait_queue_empty(self):
+    def wait_queue_empty(self, max_dur=1000):
+        time_start = time.time()
         while self.get_qcount()>0:
-            self.periodic_x4.wait()
+            time.sleep(1.0/self.traj_freq)
+            if (time.time() - time_start) > max_dur:
+                TextColors.RED.println("[WARN] ROBOT MOTION TIMEOUT")
+                break
 
     ##
     # @brief    Send target pose to the server and store the queue count.
@@ -120,15 +124,17 @@ class TrajectoryClient(object):
     # @param trajectory radian
     # @param vel_lims radian/s, scalar or vector
     # @param acc_lims radian/s2, scalar or vector
+    # @return interpolated trajecotry, expected motion time
     def move_joint_wp(self, trajectory, vel_lims, acc_lims, auto_stop=True):
         trajectory = np.concatenate([[self.get_qcur()], trajectory])
-        traj_tot = calc_safe_cubic_traj(1.0/self.traj_freq, trajectory, vel_lim=vel_lims, acc_lim=acc_lims)
+        t_all, traj_tot = calc_safe_trajectory(1.0/self.traj_freq, trajectory, vel_lims=vel_lims, acc_lims=acc_lims)
         for Q in traj_tot:
             self.push_Q(Q)
         self.start_tracking()
         self.wait_queue_empty()
         if auto_stop:
             self.stop_tracking()
+        return traj_tot, float(len(traj_tot))/self.traj_freq
 
     ##
     # @brief Move joints to Q using the most guaranteed method for each robot.
@@ -145,6 +151,27 @@ class TrajectoryClient(object):
     @abc.abstractmethod
     def grasp(self, grasp):
         raise(NotImplementedError("Robot-specific implementation is required for grasp function"))
+
+    ##
+    # @brief move joint with waypoints, one-by-one
+    # @param trajectory numpy array (trajectory length, joint num)
+    def move_joint_traj(self, trajectory, auto_stop=True, wait_motion=True):
+        Q_init = trajectory[0]
+        Q_last = trajectory[-1]
+        Q_cur = self.get_qcur()
+        assert np.max(np.abs((np.subtract(Q_init, Q_cur)))) < 5e-2, \
+            "MOVE robot to trajectory initial: current robot pose does not match with trajectory initial state"
+
+        for Q in trajectory:
+            self.push_Q(Q)
+
+        self.start_tracking()
+
+        if wait_motion:
+            self.wait_queue_empty()
+
+            if auto_stop:
+                self.stop_tracking()
 
 
 class MultiTracker:

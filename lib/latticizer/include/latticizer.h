@@ -9,6 +9,20 @@ std::string hello(std::string name);
 
 
 namespace RNB{
+    /**
+     * @class GEOTYPE
+     * @brief Geometry type enumeration
+     */
+    enum GEOTYPE{
+        SPHERE = 0,
+        CAPSULE = 1,
+        BOX = 2,
+        MESH = 3,
+        ARROW = 4,
+        CYLINDER = 5,
+        PLANE = 6
+    };
+
     class Point3: public std::vector<double> {
     public:
         Point3(): std::vector<double>(){}
@@ -61,6 +75,19 @@ namespace RNB{
         PointList get_vertice_by_grid(int iw, int id, int ih);
 
         PointList get_vertice_by_index(int idx_cell);
+
+        /**
+         * @brief get cell indices that collides with given geometry
+         * @param R11 R11~R33 is orientation matrix of the lattice from the geometry
+         * @param P1 P1~P3 is position of the lattice from the geometry
+         * @param geo_type GEOTYPE
+         * @param geo_dims axial dimensions of geometry.
+         */
+        IntList get_colliding_cells_approx(double R11, double R12, double R13,
+                                           double R21, double R22, double R23,
+                                           double R31, double R32, double R33,
+                                           double P1, double P2, double P3,
+                                           int geo_type, Point3 geo_dims);
 
         /**
          * @brief get cell indices that collides with given geometry

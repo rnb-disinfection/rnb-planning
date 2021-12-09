@@ -1,4 +1,5 @@
 from ...detector.aruco.stereo import *
+from ...detector.multiICP.multiICP import *
 from ...constants import *
 from threading import Thread
 from .xacro_customizer import *
@@ -32,9 +33,9 @@ def select_put_dir(Robj, dir_vec_dict, ref_vec=[[0], [0], [-1]]):
 # @class    SceneBuilder
 # @brief    Geometric scene builder
 # @remark   Build geometric scene using a detector. All coordinates are converted relative to a reference coordinate.
-#           call reset_reference_coord -> create_gscene
 class SceneBuilder(Singleton):
     __rospy_initialized = False
+    autostart_roscore = True
     __roscore = None
 
     ##
@@ -43,15 +44,6 @@ class SceneBuilder(Singleton):
     def __init__(self, detector, base_link="base_link"):
         self.detector = detector
         self.base_link = base_link
-
-    ##
-    # @brief re-detect reference coordinate - in case the camera has moved
-    # @param ref_name   name of reference geometric item. this coordinate is synchronized with base link.
-    def reset_reference_coord(self, ref_name):
-        objectPose_dict = self.detector.detect(name_mask=[ref_name])
-        self.ref_name = ref_name
-        self.ref_coord = objectPose_dict[ref_name]
-        self.ref_coord_inv = SE3_inv(self.ref_coord)
 
     ##
     # @brief create and reset geometry handle with new robot configuration
@@ -67,8 +59,12 @@ class SceneBuilder(Singleton):
         custom_limits   = combined_robot.custom_limits
 
         if not SceneBuilder.__rospy_initialized:
-            SceneBuilder.__roscore = subprocess.Popen(['roscore'])
-            rospy.init_node(node_name, anonymous=True)
+            if self.autostart_roscore:
+                SceneBuilder.__roscore = subprocess.Popen(['roscore'])
+            try:
+                rospy.init_node(node_name, anonymous=True, disable_signals=True)
+            except:
+                TextColors.YELLOW.println("ros_node already initialized somewhere else")
             SceneBuilder.__rospy_initialized = True
 
         self.xcustom = XacroCustomizer.instance()
@@ -101,8 +97,7 @@ class SceneBuilder(Singleton):
             try:
                 objectPose_dict = self.detector.detect(name_mask=item_names, level_mask=level_mask, visualize=visualize)
                 for okey in objectPose_dict.keys():
-                    Tbr = np.matmul(self.ref_coord_inv, objectPose_dict[okey])
-                    xyz_rpy_dict[okey] = Tbr if as_matrix else T2xyzrpy(Tbr)
+                    xyz_rpy_dict[okey] = objectPose_dict[okey] if as_matrix else T2xyzrpy(objectPose_dict[okey])
                 break
             except KeyError as e:
                 print(e)
@@ -117,9 +112,10 @@ class SceneBuilder(Singleton):
     # @param item_names     List of string name for items
     # @param level_mask     List of rnb-planning.src.pkg.detector.detector_interface.DetectionLevel
     # @param gscene   rnb-planning.src.pkg.geometry.geometry.GeometryScene to add detected environment geometry
+    # @param xyz_rpy_dict pre-detected xyz rpy dict {"name": ((xyz), (rpy))}
     # @return gtem_dict dictionary of detected geometry items
     def detect_and_register(self, item_names=None, level_mask=None, color=(0.6,0.6,0.6,1), collision=True,
-                            gscene=None, visualize=False):
+                            gscene=None, visualize=False, xyz_rpy_dict = None):
         if gscene is None:
             gscene = self.gscene
         xyz_rpy_dict = self.detect_items(item_names=item_names, level_mask=level_mask, visualize=visualize)
@@ -206,7 +202,7 @@ class SceneBuilder(Singleton):
                         gscene.create_safe(
                             name=gname, link_name=link.name, gtype=GEOTYPE.CYLINDER,
                             center=xyz, dims=(geometry.radius * 2, geometry.radius * 2, geometry.length), rpy=rpy,
-                            color=color, display=display, collision=collision, fixed=True)
+                            color=color, display=display, collision=collision, fixed=True, in_urdf=True)
                     )
                 elif geotype == 'Box':
                     gname = "{}_{}_{}".format(link.name, geotype, id_dict[link.name])
@@ -214,7 +210,7 @@ class SceneBuilder(Singleton):
                         gscene.create_safe(
                             name=gname, link_name=link.name, gtype=GEOTYPE.BOX,
                             center=xyz, dims=geometry.size, rpy=rpy,
-                            color=color, display=display, collision=collision, fixed=True)
+                            color=color, display=display, collision=collision, fixed=True, in_urdf=True)
                     )
                 elif geotype == 'Sphere':
                     gname = "{}_{}_{}".format(link.name, geotype, id_dict[link.name])
@@ -222,7 +218,7 @@ class SceneBuilder(Singleton):
                         gscene.create_safe(
                             name=gname, link_name=link.name, gtype=GEOTYPE.SPHERE,
                             center=xyz, dims=[geometry.radius * 2] * 3, rpy=rpy,
-                            color=color, display=display, collision=collision, fixed=True)
+                            color=color, display=display, collision=collision, fixed=True, in_urdf=True)
                     )
                 elif geotype == 'Mesh':
                     raise (NotImplementedError("Mesh collision boundary is not supported"))
@@ -253,6 +249,7 @@ class DynamicDetector:
 
     def __enter__(self):
         self.t_det = Thread(target=self.detector_thread_fun)
+        self.t_det.daemon = True
         self.t_det.start()
         return self
 
@@ -289,6 +286,7 @@ class RvizPublisher:
 
     def __enter__(self):
         self.t_rviz = Thread(target=self.rviz_thread_fun)
+        self.t_rviz.daemon = True
         self.t_rviz.start()
         return self
 
