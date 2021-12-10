@@ -6,12 +6,12 @@ import open3d as o3d
 # Directory setting
 import os
 
-from milestone_config import *
+from demo_config import *
 import socket
 
-SAVE_DIR = os.path.join(MILESTONE_DIR, "save_img")
-CROP_DIR = os.path.join(MILESTONE_DIR, "crop_img")
-MODEL_DIR = os.path.join(MILESTONE_DIR, "model_CAD")
+SAVE_DIR = os.path.join(DEMO_DIR, "save_img")
+CROP_DIR = os.path.join(DEMO_DIR, "crop_img")
+MODEL_DIR = os.path.join(DEMO_DIR, "model_CAD")
 
 DEPTHMAP_SIZE = (480, 640)
 IMAGE_SIZE = (720, 1280)

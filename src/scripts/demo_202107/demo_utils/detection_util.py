@@ -6,7 +6,7 @@ import cv2
 import copy
 import matplotlib.pyplot as plt
 
-from milestone_config import *
+from demo_config import *
 from streaming import *
 
 import SharedArray as sa
@@ -50,13 +50,13 @@ def detect_from_server(image):
         print("Detect server not attached - call attach_to_server")
 
 
-SAVE_DIR = os.path.join(MILESTONE_DIR, "save_img")
-CROP_DIR = os.path.join(MILESTONE_DIR, "crop_img")
-EXP_IMG_DIR = os.path.join(MILESTONE_DIR, "exp_dataset")
-MODEL_DIR = os.path.join(MILESTONE_DIR, "model_CAD")
-COLOR_PATH = os.path.join(MILESTONE_DIR, "save_img/top_table/color")
-DEPTH_PATH = os.path.join(MILESTONE_DIR, "save_img/top_table/depth")
-INTRINSIC_PATH = os.path.join(MILESTONE_DIR, "save_img/top_table")
+SAVE_DIR = os.path.join(DEMO_DIR, "save_img")
+CROP_DIR = os.path.join(DEMO_DIR, "crop_img")
+EXP_IMG_DIR = os.path.join(DEMO_DIR, "exp_dataset")
+MODEL_DIR = os.path.join(DEMO_DIR, "model_CAD")
+COLOR_PATH = os.path.join(DEMO_DIR, "save_img/top_table/color")
+DEPTH_PATH = os.path.join(DEMO_DIR, "save_img/top_table/depth")
+INTRINSIC_PATH = os.path.join(DEMO_DIR, "save_img/top_table")
 try:
     os.mkdir(SAVE_DIR)
 except:
@@ -868,7 +868,7 @@ def reprocess_top_table_detection_scan(T_sc, T_cs_closet, bed_dims, T_toff_close
 
 
     # Load PCD of top table (obtained from reconstruction)
-    pcd_input = o3d.io.read_point_cloud(MILESTONE_DIR + "/pcd.ply")
+    pcd_input = o3d.io.read_point_cloud(DEMO_DIR + "/pcd.ply")
     pcd_input = pcd_input.uniform_down_sample(every_k_points=11)
 
 
@@ -988,7 +988,7 @@ import os
 import sys
 
 sys.path.append(os.path.join(os.path.join(os.environ["RNB_PLANNING_DIR"], 'src')))
-sys.path.append(os.path.join(os.environ["RNB_PLANNING_DIR"], 'src/scripts/milestone_202110'))
+sys.path.append(os.path.join(os.environ["RNB_PLANNING_DIR"], 'src/scripts/demo_202107'))
 from pkg.utils.rotation_utils import *
 from collections import namedtuple
 import open3d as o3d

@@ -7,4 +7,5 @@ crop_img/
 test_tcp/
 exp_datasets/
 210715_datasets/
+model_CAD/
 *.zip
