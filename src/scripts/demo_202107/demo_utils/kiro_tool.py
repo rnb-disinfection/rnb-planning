@@ -12,7 +12,7 @@ from enum import Enum
 from ctypes import c_int16
 
 KIRO_TOOL_PORT = '/dev/ttyUSB0'
-KIRO_TOOL_BDRATE = 9600
+KIRO_TOOL_BDRATE = 115200
 STX_BYTE, ETX_BYTE = 0x02, 0x03
 
 
@@ -89,15 +89,16 @@ class KiroToolPort:
                  baudrate=KIRO_TOOL_BDRATE, timeout=1):
         self.port_name, self.baudrate = port_name, baudrate
         self.sport = serial.Serial(port_name, baudrate, timeout=timeout)
+#         sudo chwon $USER port_name
         print("==== Kiro Tool connected ====")
         self.flush()
-        try:
-            self.initialize()
-        except Exception as e: 
-            print("[ERROR] Run this bash command to allow USB access: {}".format(
-                "sudo usermod -a -G dialout $USER"))
-            print(e)
-            raise(e)
+#         try:
+#             self.initialize()
+#         except Exception as e: 
+#             print("[ERROR] Run this bash command to allow USB access: {}".format(
+#                 "sudo usermod -a -G dialout $USER"))
+#             print(e)
+#             raise(e)
         
     def disable(self):
         data_fields = self.send_recv(MOTOR_CMD.DISABLE)
@@ -137,8 +138,8 @@ class KiroToolPort:
     def send_raw(self, raw):
         return self.send_recv_check_a0(MOTOR_CMD.OP, OP_CMD.DEGREE, raw/0x100%0x100, raw%0x100)
     
-    def send_degree(self, degree):
-        return self.send_recv_check_a0(MOTOR_CMD.OP, OP_CMD.DEGREE, 0, degree%0x100)
+    def send_degree(self, deci_degree):
+        return self.send_recv_check_a0(MOTOR_CMD.OP, OP_CMD.DEGREE, *divide_bytes(deci_degree%0x10000))
         
     def close(self):
         self.sport.close()
