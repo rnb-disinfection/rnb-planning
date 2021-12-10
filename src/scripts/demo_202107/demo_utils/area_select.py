@@ -11,10 +11,6 @@ import copy
 DATASET_DIR = os.path.join(os.environ["RNB_PLANNING_DIR"], 'data/sweep_reach')
 try_mkdir(DATASET_DIR)
 
-class Corners(Enum):
-    Left = 0
-    Right = 1
-
 class SweepDirections(Enum):
     front="front"
     up="up"
@@ -445,16 +441,6 @@ def add_sweep_task(pscene, sweep_name, surface, swp_min, swp_max, Tsm, ax_swp_t,
                                            for wp in wp_list})
     return sweep_task
 
-def add_waypoint_task(pscene, name, dims, center, rpy, parent, color=(1, 1, 0, 0.5)):
-    gscene = pscene.gscene
-    wp = gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_wp".format(name), link_name="base_link",
-                               dims=dims, center=center, rpy=rpy,
-                               color=color, display=True, collision=False, fixed=True, parent=parent)
-    wp_hdl = WayFrame(wp.name, wp, [0, 0, dims[2] / 2], [0, 0, 0])
-    wp_task = pscene.create_subject(oname="waypoints", gname="floor_ws", _type=WaypointTask,
-                                    action_points_dict={wp_hdl.name: wp_hdl})
-    return wp_task, wp_hdl
-
 def set_sweep(pscene, surface, Tsm, swp_centers, ax_swp_tool, ax_swp_base,
                    TOOL_DIM, tool_dir=1):
     TOOL_DIM_SWEEP = TOOL_DIM[ax_swp_tool]
@@ -482,155 +468,6 @@ def test_base_divs(ppline, surface, Tsm, swp_centers,
                   display=show_motion, post_optimize=False, **kwargs)
     snode_schedule = ppline.tplan.get_best_schedule(at_home=False)
     return snode_schedule
-
-
-class TestBaseDivFunc:
-    def __init__(self, ppline, surface, ax_swp_tool, ax_swp_base,
-                 TOOL_DIM, Q_dict,
-                 multiprocess=True, max_solution_count=1,
-                 show_motion=False, highlight_color=(1, 1, 0, 0.5), tool_dir=1, **kwargs):
-        self.ppline, self.surface = ppline, surface
-        self.TOOL_DIM, self.Q_dict = TOOL_DIM, Q_dict
-        self.pscene = self.ppline.pscene
-        self.gscene = self.pscene.gscene
-        self.multiprocess = multiprocess
-        self.max_solution_count = max_solution_count
-        self.show_motion = show_motion
-        self.tool_dir = tool_dir
-        self.highlight_color = highlight_color
-        self.pass_count = 0
-        self.highlights = []
-        self.kwargs = kwargs
-        self.ax_swp_tool, self.ax_swp_base = ax_swp_tool, ax_swp_base,
-
-    def __call__(self, Tsm, swp_centers):
-        output = test_base_divs(self.ppline, self.surface, Tsm, swp_centers,
-                                self.ax_swp_tool, self.ax_swp_base, self.TOOL_DIM, self.Q_dict,
-                                multiprocess=self.multiprocess, max_solution_count=self.max_solution_count,
-                                show_motion=self.show_motion, tool_dir=self.tool_dir, **self.kwargs)
-        if output:
-            # leave highlight on cleared area
-            swp_fin = self.gscene.copy_from(self.gscene.NAME_DICT["sweep"],
-                                            new_name="sweep_tested_{}".format(self.pass_count),
-                                            color=self.highlight_color)
-            swp_fin.dims = (swp_fin.dims[0], swp_fin.dims[1], swp_fin.dims[2] + 0.002)
-            self.gscene.update_marker(swp_fin)
-            self.highlights.append(swp_fin)
-            self.pass_count += 1
-        return output
-
-    def clear(self):
-        self.pass_count = 0
-        for htem in self.highlights:
-            self.gscene.remove(htem)
-        self.highlights = []
-
-
-def refine_order_plan(ppline, snode_schedule_list_in, idx_bases, idc_divs, Qcur,
-                      floor_gtem, wayframer, surface, Tsm_keys, surface_div_centers,
-                      WP_DIMS, TOOL_DIM, ROBOT_NAME, MOBILE_NAME, HOME_POSE_MOVE,
-                      ax_swp_tool, ax_swp_base, tool_dir=1):
-    pscene = ppline.pscene
-    mplan = ppline.mplan
-    gscene = pscene.gscene
-    crob = pscene.combined_robot
-
-    base_div_dict = {idx: triple for idx, triple in enumerate(zip(snode_schedule_list_in, idx_bases, idc_divs))}
-    idx_bases_remain = deepcopy(list(base_div_dict.keys()))
-    snode_schedule_list = []
-    idx_bases_out = []
-    idc_divs_out = []
-    scene_args_list = []
-    scene_kwargs_list = []
-    while idx_bases_remain:
-        Tbm_cur = wayframer.get_tf_handle(list2dict(Qcur, gscene.joint_names))
-        idx_sorted = sorted(
-            idx_bases_remain,
-            key=lambda x: norm_SE3(np.matmul(SE3_inv(Tbm_cur),
-                                             np.matmul(surface.get_tf(Qcur),
-                                                       T_xyzquat(Tsm_keys[base_div_dict[x][1]]))
-                                            )
-                                  ))
-            
-        snode_schedule, i_b, idc_div = base_div_dict[idx_sorted[0]]
-        idx_bases_remain.remove(idx_sorted[0])
-
-        swp_centers = np.array(surface_div_centers)[idc_div]
-        Tsm = T_xyzquat(Tsm_keys[i_b])
-        Q_dict = list2dict(Qcur, gscene.joint_names)
-        set_base_sweep(pscene, floor_gtem, Tsm, surface, swp_centers, ax_swp_tool, ax_swp_base,
-                       WP_DIMS, TOOL_DIM, Q_dict=Q_dict, tool_dir=tool_dir)
-        scene_args_list.append((pscene, floor_gtem, Tsm, surface, swp_centers,
-                                ax_swp_tool, ax_swp_base, WP_DIMS, TOOL_DIM))
-        scene_kwargs_list.append(dict(Q_dict=Q_dict, tool_dir=tool_dir))
-
-        Qcur_update = np.copy(Qcur)
-        to_update_list = []
-        to_update_list_all = []
-        for snode_pre, snode_nxt in zip(snode_schedule[:-1], snode_schedule[1:]):
-            Qpre_saved, Qnxt_saved = snode_pre.state.Q, snode_nxt.state.Q
-            rpairs = crob.get_robots_in_act(snode_nxt.traj, skip_not_connected=False)
-            idc_move = sorted(np.concatenate(map(lambda rpair: crob.idx_dict[rpair[0]], rpairs)))
-            idc_nomove = [i for i in range(gscene.joint_num) if i not in idc_move]
-            Qpre_new, Qnxt_new = np.copy(Qcur_update), np.copy(Qnxt_saved) # update Qpre with Qcur
-            Qnxt_new[idc_nomove] = Qpre_new[idc_nomove] # update non-moving part of Qnxt with Qcur
-            Qcur_update = np.copy(Qnxt_new)
-            if (np.sum(np.abs(Qpre_new - Qpre_saved)) > 1e-6 
-                    or np.sum(np.abs(Qnxt_new - Qnxt_saved)) > 1e-6): # to_update if new != saved
-                to_update_list.append((snode_pre, snode_nxt, Qpre_new, Qnxt_new))
-            else:
-                if to_update_list:
-                    to_update_list_all.append(to_update_list)
-                    to_update_list = []
-                    
-        for to_update_list in to_update_list_all:
-            for snode_pre, snode_nxt, Qpre_new, Qnxt_new in to_update_list:
-                state_0 = snode_pre.state
-                state_0.Q = Qpre_new
-                state_0_to = state_0.copy(pscene)
-                state_0_to.Q = Qnxt_new
-                pscene.set_object_state(state_0)
-                mplan.update_gscene()
-                Traj, LastQ, error, success, chain_list = mplan.plan_transition(state_0, state_0_to, timeout=1)
-                if success:
-                    print("update {}th motion".format(snode_schedule.index(snode_nxt)))
-                    snode_nxt.set_traj(Traj)
-                else:
-                    raise(RuntimeError("Fail to update {}".format(snode_schedule.index(snode_nxt))))
-        snode_last = snode_schedule[-1]
-        ref_state = snode_last.state.copy(pscene)
-        ref_state.Q[crob.idx_dict[ROBOT_NAME]] = HOME_POSE_MOVE
-        snode_schedule = snode_schedule + ppline.add_return_motion(snode_last, ref_state, timeout=5, try_count=5)
-        snode_schedule_list.append(snode_schedule)
-        idx_bases_out.append(i_b)
-        idc_divs_out.append(idc_div)
-#             ppline.play_schedule(snode_schedule) ## To visualize on-refine
-        Qcur = np.copy(snode_schedule[-1].state.Q)
-        Qcur[3:6] = 0
-
-    for i_ss, (snode_schedule_pre, snode_schedule_nxt) in enumerate(zip(snode_schedule_list[:-1], snode_schedule_list[1:])):
-        snode_last_pre = snode_schedule_pre[-2]
-        snode_first_nxt = snode_schedule_nxt[2]
-        base_shift = np.linalg.norm(np.subtract(snode_last_pre.state.Q[:6], snode_first_nxt.state.Q[:6]))
-        if base_shift < 1e-2:
-            print("can skip {}: {}".format(i_ss, round(base_shift, 4)))
-            state_0 = snode_last_pre.state
-            state_0_to = state_0.copy(pscene)
-            state_0_to.Q[6:] = np.copy(snode_first_nxt.state.Q[6:])
-            pscene.set_object_state(state_0)
-            mplan.update_gscene()
-            Traj, LastQ, error, success, chain_list = mplan.plan_transition(state_0, state_0_to, timeout=1)
-            if success:
-                print("skip success")
-                snode_first_nxt.set_traj(Traj)
-                del snode_schedule_pre[-1]
-                del snode_schedule_nxt[1]
-                snode_schedule_nxt[0].state.Q = np.copy(snode_last_pre.state.Q)
-        else:
-            print("no skip {}: {}".format(i_ss, round(base_shift, 4)))
-            TextColors.RED.println("Try mix")
-
-    return snode_schedule_list, idx_bases_out, idc_divs_out, scene_args_list, scene_kwargs_list
 
 def show_base_div(gscene, surface, surface_div_centers, div_base_dict, Q):
     Tbs = surface.get_tf(Q)
@@ -685,66 +522,6 @@ def show_lines(gscene, lines, base_link="base_link", orientation_mat=None, sweep
         gscene.add_highlight_axis("hl", "{}_{}".format(key, i_s), link_name=base_link,
                                  center=p_min, orientation_mat=orientation_mat, axis=sweep_axis,
                                  dims=(np.linalg.norm(np.subtract(p_max, p_min)), 0.05,0.005))
-
-
-
-
-def make_plan_fun(ppline, ccheck, surface, brush_face, tool_dim, wp_dims, mobile_name,
-                  robot_config, Q_CUR, tip_dir, sweep_dir, tool_dir, plane_val,
-                  planning_multiproc=True, xout_cut=False, covered_pre=[], timeout=0.5, timeout_loop=5):
-    gscene = brush_face.geometry.gscene
-    robot_name = robot_config.get_indexed_name()
-    floor_ws = gscene.NAME_DICT["floor_ws"]
-    wayframer = ppline.pscene.actor_dict["wayframer"]
-    ccheck.clear()
-    div_base_dict, Tsm_keys, surface_div_centers, div_num, (ax_step, ax_swp, ax_pln) = \
-        get_division_dict(surface, brush_face, robot_config,
-                          plane_val=plane_val, tip_dir=tip_dir, sweep_dir=sweep_dir,
-                          TOOL_DIM=tool_dim, ccheck=ccheck,
-                          resolution=0.02, xout_cut=xout_cut)
-
-    covered_pre = set(covered_pre)
-    remains = set(range(len(surface_div_centers))) - covered_pre
-
-    if covered_pre:
-        if remains:
-            div_base_dict_remains = defaultdict(lambda: defaultdict(list))
-            for k, div_dict in div_base_dict.items():
-                for i, divs in div_dict.items():
-                    divs = list(set(divs) - covered_pre)
-                    if divs:
-                        div_base_dict_remains[k][i] = divs
-            div_base_dict = div_base_dict_remains
-            Tsm_keys = [tkey for tkey in Tsm_keys if tkey in div_base_dict]
-        else:
-            return [], [], [], Q_CUR, None, div_num, []
-
-    ax_swp_base = ax_swp
-    Rre = SweepDirections.get_dcm_re(tip_dir)
-    Tet = brush_face.get_tf_handle(Q_CUR, from_link=brush_face.geometry.link_name)  ## get data
-    Rrt = np.matmul(Rre, Tet[:3, :3])
-    ax_swp_tool = np.where(np.abs(Rrt.transpose()[:, ax_swp_base]).astype(np.int))[0][0]
-
-    HOME_POSE_MOVE = np.copy(Q_CUR[6:])
-    test_fun = TestBaseDivFunc(ppline, floor_ws, surface, ax_swp_tool, ax_swp_base,
-                               wp_dims, tool_dim, list2dict(Q_CUR, gscene.joint_names),
-                               tool_dir=tool_dir, multiprocess=planning_multiproc,
-                               timeout=timeout, timeout_loop=timeout_loop)
-    test_fun.clear()
-
-    idx_bases, idc_divs, covered_all, snode_schedule_list = select_max_cover_bases(
-        div_base_dict, Tsm_keys, surface_div_centers, div_num, ax_step,
-        test_fun=test_fun, lazy_base_thresh=np.max(tool_dim) / 2)
-
-    snode_schedule_list, idx_bases, idc_divs, scene_args_list, scene_kwargs_list = refine_order_plan(
-        ppline, snode_schedule_list, idx_bases, idc_divs, Q_CUR,
-        floor_ws, wayframer, surface, Tsm_keys, surface_div_centers,
-        wp_dims, tool_dim, robot_name, mobile_name, HOME_POSE_MOVE,
-        ax_swp_tool, ax_swp_base, tool_dir=1)
-    test_fun.clear()
-    if len(snode_schedule_list) > 0:
-        Q_CUR = snode_schedule_list[-1][-1].state.Q
-    return snode_schedule_list, scene_args_list, scene_kwargs_list, Q_CUR, test_fun, covered_all
 
 
 class GreedyExecuter:
