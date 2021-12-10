@@ -176,7 +176,10 @@ cp -r $RNB_PLANNING_DIR/third-party/etasl/etasl_ros_control "$RNB_PLANNING_DIR"w
   </xacro:macro>  
   ```
 * change all link and joint names to have this form: "\<robotname\>${robot_id}\_\<itemname\>" 
-* include and call the xacro file in "custom_robots_src.urdf.xacro"  
+* include and call the xacro file in "custom_robots_src.urdf.xacro", by adding below line  
+  ```xml
+  <xacro:include filename="$(env RNB_PLANNING_DIR)/src/robots/<robotname>.xacro"/>
+  ```
 * test generating URDF file  
   ```bash
   rosrun xacro xacro "$RNB_PLANNING_DIR"src/robots/custom_robots.urdf.xacro > "$RNB_PLANNING_DIR"src/robots/custom_robots.urdf  

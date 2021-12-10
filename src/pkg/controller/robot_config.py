@@ -10,6 +10,7 @@ class RobotType(Enum):
     indy7gripper=2
     indy5dof=3
     kmb=4
+    indy7kiro=102
 
 
 ##
@@ -85,6 +86,17 @@ class RobotSpecs:
                                        vel_limits=[None,None, None, 0,0,0],
                                        acc_limits=[None,None, None, 0,0,0],
                                        shoulder_reach=1e1),
+        RobotType.indy7kiro: RobotTemplate(robot_name='indy', base_name="link0", tip_name="tcp",
+                                       joint_names=["joint{}".format(idx) for idx in range(7)],
+                                       home_pose=np.deg2rad([  0., 50.,  -70.,  -0.,  -90., 0, -45]),
+#                                        joint_limits=[(-np.pi*2/3, np.pi*2/3), (-np.pi/2, np.pi/2)] \
+                                       joint_limits=[(-3.05432619099, 3.05432619099)]*2 \
+                                                    +[(-3.05432619099, 3.05432619099)]*3 \
+                                                    +[(-3.75245789179, 3.75245789179)] \
+                                                    +[(-3.75245789179, 3.75245789179)],
+                                       vel_limits=np.deg2rad([150, 150, 150, 180, 180, 180, 180])/2,
+                                       acc_limits=np.deg2rad([180]*7)/2,
+                                       shoulder_reach=1.5),
     }
 
     @classmethod

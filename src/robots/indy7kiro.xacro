@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
-<robot name="indy7gripper" xmlns:xacro="http://ros.org/wiki/xacro">
-  <xacro:macro name="indy7gripper" params="robot_id:='0' description_pkg:='indy7_description' connected_to:='' xyz:='0 0 0' rpy:='0 0 0'">
+<robot name="indy7kiro" xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:macro name="indy7kiro" params="robot_id:='0' description_pkg:='indy7_description' connected_to:='' xyz:='0 0 0' rpy:='0 0 0'">
     <xacro:unless value="${not connected_to}">
       <joint name="indy${robot_id}_joint_${connected_to}" type="fixed">
         <parent link="${connected_to}"/>
@@ -154,10 +154,23 @@
 			</geometry>
 			<material name="${indy_material}"/>
 		</visual>
+		<visual>
+			<origin xyz="0 0 0.06" rpy="0 0 0"/>
+			<geometry>
+				<mesh filename="package://my_mesh/meshes/stl/kiro_indytool_link_res.stl"/>
+			</geometry>
+			<material name="${indy_material}"/>
+		</visual>
 		<collision>
 			<origin xyz="0 0 -0.058" rpy="0 0 0"/>
 			<geometry>
 				<cylinder length="0.26" radius="0.06"/>
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="0.09 0 0.17" rpy="0 ${PI/4} 0"/>
+			<geometry>
+				<cylinder length="0.3" radius="0.05"/>
 			</geometry>
 		</collision>
 		<inertial>
@@ -166,44 +179,22 @@
 			<inertia ixx="0.00043534" iyy="0.00044549" izz="0.00059634" ixy="+0.00000013" iyz="+0.00000051" ixz="-0.00000002"/>
 		</inertial>
 	</link>
-	<link name="indy${robot_id}_tcp">
+	<link name="indy${robot_id}_link7">
 		<visual>
-			<origin xyz="0 0 0" rpy="0 0 1.570796"/>
+			<origin xyz="0 0 0" rpy="0 0 0"/>
 			<geometry>
-				<mesh filename="package://my_mesh/meshes/stl/indy_gripper_asm2_res.STL"/>
+				<mesh filename="package://my_mesh/meshes/stl/kiro_indytool_mount_res.stl"/>
 			</geometry>
 			<material name="${indy_material}"/>
 		</visual>
 		<collision>
-			<origin xyz="0 0 0.04" rpy="0 0 0"/>
+			<origin xyz="-0.025 -0.0167 0.0" rpy="0 ${PI/2} 0"/>
 			<geometry>
-				<box size="0.06 0.08 0.06"/>
+				<cylinder length="0.05" radius="0.05"/>
 			</geometry>
 		</collision>
-		<collision>
-			<origin xyz="0.006 0.045 0.1" rpy="0 0 0"/>
-			<geometry>
-				<cylinder length="0.095" radius="0.015"/>
-			</geometry>
-		</collision>
-		<collision>
-			<origin xyz="-0.006  0.045  0.1" rpy="0 0 0"/>
-			<geometry>
-				<cylinder length="0.095" radius="0.015"/>
-			</geometry>
-		</collision>
-		<collision>
-			<origin xyz="0.006 -0.045  0.1" rpy="0 0 0"/>
-			<geometry>
-				<cylinder length="0.095" radius="0.015"/>
-			</geometry>
-		</collision>
-		<collision>
-			<origin xyz="-0.006 -0.045  0.1" rpy="0 0 0"/>
-			<geometry>
-				<cylinder length="0.095" radius="0.015"/>
-			</geometry>
-		</collision>
+	</link>
+	<link name="indy${robot_id}_tcp">
 	</link>
 
 	<joint name="indy${robot_id}_joint0" type="revolute">
@@ -254,10 +245,18 @@
 		<limit effort="10" velocity="1" lower="-${215*PI/180}" upper="${215*PI/180}"/>
 	</joint>
 
-	<joint name="indy${robot_id}_tcp" type="fixed">
+	<joint name="indy${robot_id}_joint6" type="revolute">
 		<parent link="indy${robot_id}_link6"/>
+		<child link="indy${robot_id}_link7"/>
+		<origin xyz="+0.19605 +0.00000000 +0.27855" rpy="-${PI/2} ${PI/4} -${PI}"/>
+		<axis xyz="0 0 1"/>
+		<limit effort="10" velocity="1" lower="-${215*PI/180}" upper="${215*PI/180}"/>
+	</joint>
+
+	<joint name="indy${robot_id}_tcp" type="fixed">
+		<parent link="indy${robot_id}_link7"/>
 		<child link="indy${robot_id}_tcp"/>
-		<origin xyz="0 0 0.06" rpy="0 0 0"/>
+		<origin xyz="-0.04975 -0.0167 0" rpy="0 0 0"/>
 	</joint>
   </xacro:macro>
 </robot>

@@ -10,34 +10,34 @@ def add_env(gscene):
                        dims=(10,10,0.01), center=(0,0,-0.439), rpy=(0,0,0), 
                        color=(0.8,0.8,0.8,0.5), display=True, fixed=True, collision=False)
 
-def add_cam(gscene, tool_link="indy0_tcp"):
+def add_cam(gscene, tool_link="indy0_tcp", center=(-0.0785, 0, 0.013), rpy=(0, 0, 0)):
     gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="cam", link_name=tool_link,
-                       dims=(0.061, 0.061, 0.026), center=(-0.0785, 0, 0.013), rpy=(0, 0, 0),
+                       dims=(0.061, 0.061, 0.026), center=center, rpy=rpy,
                        color=(0.8, 0.8, 0.8, 0.5), display=True, fixed=True, collision=False)
 
     gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="cam_col", link_name=tool_link,
-                       dims=(0.081, 0.081, 0.046), center=(-0.0785, 0, 0.013), rpy=(0, 0, 0),
-                       color=(0.8, 0.8, 0.8, 0.2), display=True, fixed=True, collision=True)
+                       dims=(0.081, 0.081, 0.046), center=(0,0,0), rpy=(0,0,0),
+                       color=(0.8, 0.8, 0.8, 0.2), display=True, fixed=True, collision=True, parent="cam")
 
     viewpoint = gscene.create_safe(gtype=GEOTYPE.SPHERE, name="viewpoint", link_name=tool_link,
                                    dims=(0.01, 0.01, 0.01), center=(-0.013, 0, 0), rpy=(0, 0, -np.pi / 2),
                                    color=(1, 0, 0, 0.3), display=True, fixed=True, collision=False, parent="cam")
 
     gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="body", link_name=tool_link,
-                       dims=(0.067, 0.067, 0.0335), center=(-0.0785, 0, -0.01675), rpy=(0, 0, 0),
-                       color=(0.8, 0.8, 0.8, 1), display=True, fixed=True, collision=False)
+                       dims=(0.067, 0.067, 0.0335), center=(0, 0, -0.02975), rpy=(0,0,0),
+                       color=(0.8, 0.8, 0.8, 1), display=True, fixed=True, collision=False, parent="cam")
 
     gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="body_col", link_name=tool_link,
-                       dims=(0.087, 0.087, 0.0535), center=(-0.0785, 0, -0.01675), rpy=(0, 0, 0),
-                       color=(0.8, 0.8, 0.8, 0.2), display=True, fixed=True, collision=True)
+                       dims=(0.087, 0.087, 0.0535), center=(0, 0, -0.02975), rpy=(0,0,0),
+                       color=(0.8, 0.8, 0.8, 0.2), display=True, fixed=True, collision=True, parent="cam")
 
     gscene.create_safe(gtype=GEOTYPE.SPHERE, name="backhead", link_name=tool_link,
-                       dims=(0.067, 0.067, 0.067), center=(-0.0785, 0, -0.0335), rpy=(0, 0, 0),
-                       color=(0.8, 0.8, 0.8, 1), display=True, fixed=True, collision=False)
+                       dims=(0.067, 0.067, 0.067), center=(0, 0, -0.0465), rpy=(0,0,0),
+                       color=(0.8, 0.8, 0.8, 1), display=True, fixed=True, collision=False, parent="cam")
 
     gscene.create_safe(gtype=GEOTYPE.SPHERE, name="backhead_col", link_name=tool_link,
-                       dims=(0.087, 0.087, 0.087), center=(-0.0785, 0, -0.0335), rpy=(0, 0, 0),
-                       color=(0.8, 0.8, 0.8, 0.2), display=True, fixed=True, collision=True)
+                       dims=(0.087, 0.087, 0.087), center=(0, 0, -0.0465), rpy=(0,0,0),
+                       color=(0.8, 0.8, 0.8, 0.2), display=True, fixed=True, collision=True, parent="cam")
     return viewpoint
 
 def add_kiro_indytool_down(gscene, zoff=0, tool_link="indy1_tcp", face_name="brush_face", ext_off=0.032, tool_dim=(0.08, 0.32)):

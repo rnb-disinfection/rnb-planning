@@ -51,7 +51,7 @@ class CombinedRobot:
                     self.custom_limits[jname].update({"velocity": vellim*self.vel_scale})
                 if acclim is not None:
                     self.custom_limits[jname].update({"effort": acclim*self.acc_scale})
-            self.home_pose += RobotSpecs.get_home_pose(_type)
+            self.home_pose += list(RobotSpecs.get_home_pose(_type))
             self.idx_dict[name] = range(i0, len(self.joint_names))
             self.robot_dict[name] = None
             self.robot_names.append(name)
