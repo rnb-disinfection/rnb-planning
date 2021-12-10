@@ -25,11 +25,25 @@ class ArucoStereo(DetectorInterface):
     ##
     # @param aruco_map   ArucoMap dictionary instance
     # @param camera_list list of 2 subclass instances of CameraInterface
-    def __init__(self, aruco_map, camera_list):
+    def __init__(self, aruco_map, camera_list, ref_name="floor"):
         self.aruco_map = aruco_map
         self.camera_list = camera_list
         self.config_list = []
         self.T_c12 = None
+        self.ref_name = ref_name
+        self.ref_coord = np.identity(4)
+        self.ref_coord_inv = np.identity(4)
+
+    ##
+    # @brief detect and set reference coordinate - in case the camera has moved
+    # @param ref_name   name of reference geometric item. this coordinate is synchronized with base link.
+    def set_reference_coord(self):
+        self.ref_coord = np.identity(4)
+        self.ref_coord_inv = np.identity(4)
+        objectPose_dict = self.detect(name_mask=[self.ref_name])
+        assert self.ref_name in objectPose_dict, "[Error] reference marker not in sight - {}".format(self.ref_name)
+        self.ref_coord = objectPose_dict[self.ref_name]
+        self.ref_coord_inv = SE3_inv(self.ref_coord)
 
     ##
     # @brief initialize cameras
@@ -123,6 +137,7 @@ class ArucoStereo(DetectorInterface):
                 T_c21 = SE3(R, T.flatten())
                 T_c12 = SE3_inv(T_c21)
                 self.T_c12 = T_c12
+        self.set_reference_coord()
         return self.config_list + [self.T_c12]
 
     ##
@@ -143,6 +158,8 @@ class ArucoStereo(DetectorInterface):
         if visualize:
             self.__visualize_detection(
                 objectPose_dict, ref_corner_dict, ref_img, sub_img, sub_objectPose_dict, sub_corner_dict)
+        for okey in objectPose_dict.keys():
+            objectPose_dict[okey] = np.matmul(self.ref_coord_inv, objectPose_dict[okey])
         return objectPose_dict
 
     ##
@@ -155,8 +172,10 @@ class ArucoStereo(DetectorInterface):
     ##
     # @brief    Acquire geometry kwargs of item
     # @param    name    item name
-    # @return   kwargs  kwargs
+    # @return   kwargs  kwargs if name is available object name. None if not available.
     def get_geometry_kwargs(self, name):
+        if name not in self.aruco_map:
+            return None
         return self.aruco_map[name].get_geometry_kwargs()
 
     ##
@@ -179,8 +198,8 @@ class ArucoStereo(DetectorInterface):
         ref_img = self.camera_list[0].get_image()
         sub_img = self.camera_list[1].get_image()
 
-        ref_objectPose_dict, ref_corner_dict = self.aruco_map.get_object_pose_dict(ref_img, *ref_config, name_mask=name_mask)
-        sub_objectPose_dict, sub_corner_dict = self.aruco_map.get_object_pose_dict(sub_img, *sub_config, name_mask=name_mask)
+        ref_objectPose_dict, ref_corner_dict = self.aruco_map.get_object_pose_dict(ref_img, *ref_config[:2], name_mask=name_mask)
+        sub_objectPose_dict, sub_corner_dict = self.aruco_map.get_object_pose_dict(sub_img, *sub_config[:2], name_mask=name_mask)
 
         projMatr1 = np.matmul(ref_config[0], np.identity(4)[:3])
         projMatr2 = np.matmul(sub_config[0], T_c21[:3])
@@ -352,9 +371,9 @@ class ArucoStereo(DetectorInterface):
                               objectPose_dict, ref_corner_dict, ref_img, sub_img, sub_objectPose_dict, sub_corner_dict):
         screen_size = (1080,1920)
         kn_image_out = self.aruco_map.draw_objects(ref_img, objectPose_dict, ref_corner_dict,
-                                                   *self.config_list[0], axis_len=0.1)
+                                                   *self.config_list[0][:2], axis_len=0.1)
         rs_image_out = self.aruco_map.draw_objects(sub_img, sub_objectPose_dict, sub_corner_dict,
-                                                   *self.config_list[1], axis_len=0.1)
+                                                   *self.config_list[1][:2], axis_len=0.1)
         kn_image_out_res = cv2.resize(kn_image_out, (rs_image_out.shape[1], rs_image_out.shape[0]))
         image_out = np.concatenate([kn_image_out_res, rs_image_out], axis=1)
         ratio = np.min(np.array(screen_size,dtype=np.float)/np.array(image_out.shape[:2],dtype=np.float))

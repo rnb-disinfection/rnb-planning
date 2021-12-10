@@ -63,7 +63,7 @@ crob = CombinedRobot(robots_on_scene=[robot_config]
               , connection_list=[CONNECT_INDY])
 
 s_builder = SceneBuilder(None)
-# s_builder.reset_reference_coord(ref_name="floor")
+# # deprecated: s_builder.reset_reference_coord(ref_name="floor")
 
 # xyz_rpy_robots = s_builder.detect_items(level_mask=[DetectionLevel.ROBOT])
 xyz_rpy_robots = {"indy0": ((0,0,0), (0,0,ROBOT_Z_ANGLE))}

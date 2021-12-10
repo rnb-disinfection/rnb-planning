@@ -283,6 +283,27 @@ def mat2hori(orientation_mat, theta=0):
     return azimuth_loc, zenith
 
 ##
+# @brief convert cartesian coordinate to spherical coordinate
+# @return radius distance from origin
+# @return psi   angle from z-axis
+# @return theta angle from x-axis, along z-axis
+def cart2spher(x, y, z):
+    radius = np.sqrt(x**2+y**2+z**2)
+    psi = np.arctan2(y,x)
+    theta = np.arccos(z/radius)
+    return radius, psi, theta
+
+
+##
+# @brief convert spherical coordinate to cartesian coordinate
+# @param radius distance from origin
+# @param psi   angle from z-axis
+# @param theta angle from x-axis, along z-axis
+def spher2cart(radius, psi, theta):
+    sin_theta = np.sin(theta)
+    return radius*sin_theta*np.cos(psi), radius*sin_theta*np.sin(psi), radius*np.cos(theta)
+
+##
 # @brief interpolate between 2 transformation matrices(4x4)
 # @remark Either POS_STEP and ROT_STEP or N_STEP should be given
 def interpolate_T(T1, T2, POS_STEP=None, ROT_STEP=None, N_STEP=None):

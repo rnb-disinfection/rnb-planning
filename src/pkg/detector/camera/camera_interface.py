@@ -14,6 +14,7 @@ class CameraInterface:
     # @brief   function prototype to get camera configuration
     # @return  cameraMatrix 3x3 camera matrix in pixel units,
     # @return  distCoeffs distortion coefficients, 5~14 float array
+    # @return  depth_scale scaling constant to be multiplied to depthmap(int) to get m scale values
     @abstractmethod
     def get_config(self):
         pass

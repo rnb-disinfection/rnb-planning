@@ -75,6 +75,8 @@ SHARED_FUN_URI_FORM = "shared_fun.{}.{}"
 
 SHARED_FUNC_ALL = []
 
+MAX_SHARE_SIZE = 100e6
+
 
 def shared_fun_uri(addr, identifier):
     return SHARED_FUN_URI_FORM.format(addr, identifier)
@@ -107,6 +109,8 @@ class CallType(Enum):
 class ExtendedData:
     def __init__(self, addr, shape, etype):
         self.addr, self.shape, self.etype = addr, shape, etype
+        if np.prod(self.shape)>MAX_SHARE_SIZE:
+            print("[WARN] Data size too big for shared function: {} - {}".format(np.prod(self.shape), self.addr))
         self.dtype = dtype = self.dtype(etype)
         sm_dict = {sm.name.decode(): sm for sm in sa.list()}
         if addr in sm_dict:

@@ -71,7 +71,7 @@ class DetectorInterface:
     ##
     # @brief    function prototype for acquiring geometry kwargs of last detection
     # @param    name    item name
-    # @return   kwargs  kwargs
+    # @return   kwargs  kwargs if name is available object name. None if not available.
     @abstractmethod
     def get_geometry_kwargs(self, name):
         pass

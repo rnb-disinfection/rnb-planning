@@ -1,4 +1,5 @@
 from ...detector.aruco.stereo import *
+from ...detector.multiICP.multiICP import *
 from ...constants import *
 from threading import Thread
 from .xacro_customizer import *
@@ -32,7 +33,6 @@ def select_put_dir(Robj, dir_vec_dict, ref_vec=[[0], [0], [-1]]):
 # @class    SceneBuilder
 # @brief    Geometric scene builder
 # @remark   Build geometric scene using a detector. All coordinates are converted relative to a reference coordinate.
-#           call reset_reference_coord -> create_gscene
 class SceneBuilder(Singleton):
     __rospy_initialized = False
     autostart_roscore = True
@@ -44,15 +44,6 @@ class SceneBuilder(Singleton):
     def __init__(self, detector, base_link="base_link"):
         self.detector = detector
         self.base_link = base_link
-
-    ##
-    # @brief re-detect reference coordinate - in case the camera has moved
-    # @param ref_name   name of reference geometric item. this coordinate is synchronized with base link.
-    def reset_reference_coord(self, ref_name):
-        objectPose_dict = self.detector.detect(name_mask=[ref_name])
-        self.ref_name = ref_name
-        self.ref_coord = objectPose_dict[ref_name]
-        self.ref_coord_inv = SE3_inv(self.ref_coord)
 
     ##
     # @brief create and reset geometry handle with new robot configuration
@@ -106,8 +97,7 @@ class SceneBuilder(Singleton):
             try:
                 objectPose_dict = self.detector.detect(name_mask=item_names, level_mask=level_mask, visualize=visualize)
                 for okey in objectPose_dict.keys():
-                    Tbr = np.matmul(self.ref_coord_inv, objectPose_dict[okey])
-                    xyz_rpy_dict[okey] = Tbr if as_matrix else T2xyzrpy(Tbr)
+                    xyz_rpy_dict[okey] = objectPose_dict[okey] if as_matrix else T2xyzrpy(objectPose_dict[okey])
                 break
             except KeyError as e:
                 print(e)

@@ -56,11 +56,13 @@ class CombinedDetector(DetectorInterface):
     ##
     # @brief    Acquire geometry kwargs of item
     # @param    name    item name
-    # @return   kwargs  kwargs
+    # @return   kwargs  kwargs if name is available object name. None if not available.
     def get_geometry_kwargs(self, name):
         gkwargs = {}
         for detector in self.detector_list:
-            gkwargs.update(detector.get_geometry_kwargs(name=name))
+            kwargs =  detector.get_geometry_kwargs(name=name)
+            if isinstance(kwargs, dict):
+                gkwargs.update(kwargs)
         return gkwargs
 
     ##

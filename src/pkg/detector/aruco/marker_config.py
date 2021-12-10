@@ -204,6 +204,24 @@ def get_aruco_map():
                          dlevel=DetectionLevel.MOVABLE, gtype=GEOTYPE.BOX, dims=(0.1, 0.1,0.01), color=(0.8,0.0,0.0,1),
                          _list=[
                              ObjectMarker('test_target', 220, 0.06, [0.0, 0.0, 0.0], (0, 0, 0))
-                         ])
+                         ]),
+
+        'bed_test': MarkerSet('bed_test',
+                                 dlevel=DetectionLevel.MOVABLE, gtype=GEOTYPE.BOX, dims=(0.1, 0.1, 0.01),
+                                 color=(0.8, 0.0, 0.0, 1),
+                                 _list=[
+                                     ObjectMarker('tbed1', 230, 0.15,
+                                                  [0.0, 0.0, 0.0],
+                                                  (1.76710024391e-08, -3.27356946939e-09, -1.58129703799e-08)),
+                                     # ObjectMarker('tbed2', 231, 0.15,
+                                     #              [0.42356434, -0.01624033,  0.0652546],
+                                     #              (0.05508569,  0.52189921, -0.05564199)),
+                                     # ObjectMarker('tbed3', 232, 0.15,
+                                     #              [0.18211129, -0.412807,    0.46110001],
+                                     #              (-0.04611736, -0.41278639, -0.04511286)),
+                                     # ObjectMarker('tbed4', 233, 0.15,
+                                     #              [0.48249638, -0.04557118, -1.06113917],
+                                     #              (-0.13945715, -1.10989934, -0.05032708))
+                                 ])
     })
     return aruco_map

@@ -31,8 +31,6 @@ pip install pybullet numpy scipy \
 ```python
 STANDBY = False
 ```
-
-## Edit to strictly obey timeout
 * Go to *pddlstream/algorithms/focused.py*
 * Find the line that calls the function ***iterative_plan_streams*** (around line 177)
 * Add a new argument *time_remain=max_time-store.elapsed_time()*
@@ -65,6 +63,10 @@ def export_summary(self):
 from pddlstream.algorithms.common import SolutionStore
 print(SolutionStore.last_log)
 ```
+
+
+## Integrated Usage
+* Check 4.3 TaskPlanner-PDDLStream section in [release/4.PlanningPipeline.ipynb](../release/4.PlanningPipeline.ipynb) for detailed usage.
 
 
 ## Examples
