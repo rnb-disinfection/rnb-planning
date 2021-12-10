@@ -6,16 +6,12 @@
 *.zip
 *.png
 *.jpg
-boost_gpd/
-boost_reconstruction/
 save_img/
 model_CAD/
 dataset/
 configs/
 mmcv_custom/
 mmdet/
-Untitled.ipynb
-Untitled1.ipynb
 exp_data/
 cfg/
 tutorials/
@@ -24,3 +20,8 @@ models/
 cfg/
 contrib/
 include
+
+boost_gpd
+boost_reconstruction
+Untitled.ipynb
+Untitled1.ipynb
