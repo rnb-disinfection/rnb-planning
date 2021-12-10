@@ -8,3 +8,4 @@ include/
 cmake-build-debug/
 src/
 Untitled.ipynb
+*/*.a
