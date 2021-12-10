@@ -21,11 +21,11 @@ class SweepDirections(Enum):
         if isinstance(tip_dir, cls):
             tip_dir = tip_dir.value
         if tip_dir is None or tip_dir == cls.front.value:
-            Rre = Rot_rpy([0, np.pi/2, 0])
+            Rre = Rot_axis(2, 0)
         elif tip_dir == cls.up.value:
-            Rre = Rot_rpy([0, 0, 0])
+            Rre = Rot_axis(2, -np.pi/2)
         elif tip_dir == cls.down.value:
-            Rre = Rot_rpy([0, np.pi, np.pi])
+            Rre = Rot_axis(2, np.pi/2)
         else:
             raise (RuntimeError("Not defined"))
         return Rre

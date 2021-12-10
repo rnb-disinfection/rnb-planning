@@ -64,7 +64,7 @@ def add_brush(gscene, thickness=0.03, tool_link="indy1_tcp", face_name="brush_fa
               col_color=(1,1,1,0.2), brush_color=(0.8, 0.8, 0.8, 0.8)):
     brush_face = gscene.create_safe(gtype=GEOTYPE.BOX, name=face_name, link_name=tool_link,
                                     dims=(tool_dim[0], tool_dim[1], clearance),
-                                    center=(-thickness+clearance/2, 0, 0), rpy=(-np.pi/2, 0, -np.pi/2),
+                                    center=(0, 0, -thickness+clearance/2), rpy=(0, 0, 0),
                                     color=(1.0, 0.0, 0.0, 0.5), collision=False, fixed=True)
     gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_body".format(face_name), link_name=tool_link,
                        dims=(tool_dim[0], tool_dim[1], thickness-clearance),

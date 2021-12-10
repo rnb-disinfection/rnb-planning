@@ -264,7 +264,7 @@
 	<joint name="indy${robot_id}_tcp" type="fixed">
 		<parent link="indy${robot_id}_link7"/>
 		<child link="indy${robot_id}_tcp"/>
-		<origin xyz="-0.04975 -0.0167 0" rpy="0 0 0"/>
+		<origin xyz="-0.04975 -0.0167 0" rpy="-${PI/2} 0 -${PI/2}"/>
 	</joint>
   </xacro:macro>
 </robot>
