@@ -6,3 +6,4 @@ save_img/
 crop_img/
 exp_dataset/
 *.zip
+*.ply

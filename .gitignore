@@ -10,6 +10,8 @@ src/data/
 src/logs/
 data/
 model/
+statistics/
+temp/
 
 # Pycharm
 .idea/
