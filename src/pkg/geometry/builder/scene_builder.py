@@ -1,5 +1,4 @@
-from ...detector.aruco.stereo import *
-from ...detector.multiICP.multiICP import *
+from ...detector.detector_interface import *
 from ...constants import *
 from threading import Thread
 from .xacro_customizer import *
