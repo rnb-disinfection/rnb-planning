@@ -59,6 +59,23 @@ def add_kiro_indytool_down(gscene, zoff=0, tool_link="indy1_tcp", face_name="bru
                        collision=True, fixed=True)
     return brush_face
 
+def add_brush(gscene, thickness=0.03, tool_link="indy1_tcp", face_name="brush_face",
+              tool_dim=(0.08, 0.32), clearance=1e-2, clearance_side=1e-2,
+              col_color=(1,1,1,0.2), brush_color=(0.8, 0.8, 0.8, 0.8)):
+    brush_face = gscene.create_safe(gtype=GEOTYPE.BOX, name=face_name, link_name=tool_link,
+                                    dims=(tool_dim[0], tool_dim[1], clearance),
+                                    center=(-thickness+clearance/2, 0, 0), rpy=(-np.pi/2, 0, -np.pi/2),
+                                    color=(1.0, 0.0, 0.0, 0.5), collision=False, fixed=True)
+    gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_body".format(face_name), link_name=tool_link,
+                       dims=(tool_dim[0], tool_dim[1], thickness-clearance),
+                       center=(0, 0, (thickness)/2), rpy=(0, 0, 0),
+                       color=brush_color, collision=False, fixed=True, parent=face_name)
+    gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_col".format(face_name), link_name=tool_link,
+                       dims=(tool_dim[0]+clearance_side*2, tool_dim[1]+clearance_side*2, thickness-clearance+clearance_side),
+                       center=(0, 0, (thickness+clearance_side)/2), rpy=(0, 0, 0),
+                       color=col_color, collision=True, fixed=True, parent=face_name)
+    return brush_face
+
 def add_kiro_indytool_up(gscene, zoff=0, tool_link="indy1_tcp", face_name="brush_face", ext_off=0.032, tool_dim=(0.08, 0.32)):
     gscene.create_safe(gtype=GEOTYPE.MESH, name="indy_tool_vis", link_name=tool_link,
                        dims=(0.1,0.1,0.1), center=(0,0,0+ext_off), rpy=(0,0,0),

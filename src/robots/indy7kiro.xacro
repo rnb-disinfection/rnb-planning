@@ -9,6 +9,7 @@
       </joint>
     </xacro:unless>
 	<xacro:property name="PI" value="3.1415926535897931"/>
+	<xacro:property name="Z_OFF" value="0.032"/>
 	<xacro:property name="indy_material" value="metal_white"/>
 	<xacro:property name="tool_material" value="red"/>
     
@@ -155,20 +156,27 @@
 			<material name="${indy_material}"/>
 		</visual>
 		<visual>
-			<origin xyz="0 0 0.06" rpy="0 0 0"/>
+			<origin xyz="0 0 ${0.06+Z_OFF}" rpy="0 0 0"/>
 			<geometry>
 				<mesh filename="package://my_mesh/meshes/stl/kiro_indytool_link_res.stl"/>
 			</geometry>
 			<material name="${indy_material}"/>
 		</visual>
-		<collision>
-			<origin xyz="0 0 -0.058" rpy="0 0 0"/>
+		<visual>
+			<origin xyz="0 0 ${0.06+Z_OFF/2+0.0005}" rpy="0 0 0"/>
 			<geometry>
-				<cylinder length="0.26" radius="0.06"/>
+				<cylinder length="${Z_OFF-0.0015}" radius="0.045"/>
+			</geometry>
+			<material name="${indy_material}"/>
+		</visual>
+		<collision>
+			<origin xyz="0 0 ${-0.058+Z_OFF/2}" rpy="0 0 0"/>
+			<geometry>
+				<cylinder length="${0.26+Z_OFF}" radius="0.06"/>
 			</geometry>
 		</collision>
 		<collision>
-			<origin xyz="0.09 0 0.17" rpy="0 ${PI/4} 0"/>
+			<origin xyz="0.09 0 ${0.17+Z_OFF}" rpy="0 ${PI/4} 0"/>
 			<geometry>
 				<cylinder length="0.3" radius="0.05"/>
 			</geometry>
@@ -190,7 +198,7 @@
 		<collision>
 			<origin xyz="-0.025 -0.0167 0.0" rpy="0 ${PI/2} 0"/>
 			<geometry>
-				<cylinder length="0.05" radius="0.05"/>
+				<cylinder length="0.05" radius="0.045"/>
 			</geometry>
 		</collision>
 	</link>
@@ -248,7 +256,7 @@
 	<joint name="indy${robot_id}_joint6" type="revolute">
 		<parent link="indy${robot_id}_link6"/>
 		<child link="indy${robot_id}_link7"/>
-		<origin xyz="+0.19605 +0.00000000 +0.27855" rpy="-${PI/2} ${PI/4} -${PI}"/>
+		<origin xyz="+0.19605 +0.00000000 ${+0.27855+Z_OFF}" rpy="-${PI/2} ${PI/4} -${PI}"/>
 		<axis xyz="0 0 1"/>
 		<limit effort="10" velocity="1" lower="-${215*PI/180}" upper="${215*PI/180}"/>
 	</joint>
