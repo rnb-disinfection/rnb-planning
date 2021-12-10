@@ -7,7 +7,6 @@ import copy
 import matplotlib.pyplot as plt
 
 from demo_config import *
-from streaming import *
 
 import SharedArray as sa
 import time
