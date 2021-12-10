@@ -9,9 +9,9 @@ cmake-build-debug/
 src/
 Untitled.ipynb
 */*.a
-grpd_interface/grasp_interface_py-test
-grpd_interface/detect_grasps
-grpd_interface/label_grasps
-grpd_interface/cem_detect_grasps
-grpd_interface/generate_candidates
-grpd_interface/test_grasp_image
+gpd_interface/grasp_interface_py-test
+gpd_interface/detect_grasps
+gpd_interface/label_grasps
+gpd_interface/cem_detect_grasps
+gpd_interface/generate_candidates
+gpd_interface/test_grasp_image
