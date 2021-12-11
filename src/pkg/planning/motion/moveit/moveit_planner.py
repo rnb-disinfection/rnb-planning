@@ -90,7 +90,7 @@ class MoveitPlanner(MotionInterface):
         self.reset_PRQdict(False)
         self.visualize_increments = False
 
-    def reset_PRQdict(self, enable_PRQ=True, radii=2e-2, kwargs={}):
+    def reset_PRQdict(self, enable_PRQ=0.5, radii=2e-2, kwargs={}):
         self.enable_PRQ = enable_PRQ
         self.radii = radii
         self.Pos_Rotvec_Qset_dict = {rname: defaultdict(lambda: defaultdict(set)) for rname in self.robot_names}
@@ -326,7 +326,7 @@ class MoveitPlanner(MotionInterface):
                     print("try transition motion") ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
 
                 pqr_pass = False
-                if self.enable_PRQ:
+                if self.enable_PRQ and random.random() < self.enable_PRQ:
                     T_rtar = self.gscene.get_tf(target.geometry.link_name, from_Q,
                                                 from_link=self.chain_dict[group_name]['link_names'][0])
                     Tre = np.matmul(T_rtar, T_tar_tool)
