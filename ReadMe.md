@@ -8,14 +8,17 @@ RNB-Planning Framework is an integrated framework for combined planning of task 
 
 # 1 Environment Setup  
 
-## 1.1 Tensorflow base environment  
-* Follow instruction in [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md)  
+## 1.1 Basic environment  
+* Follow instruction in [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md)
+  
+## 1.2 NVIDIA drivers, cuda and Tensorflow  
+* Follow instructions in  [docs/TENSORFLOW_SETUP.md](docs/TENSORFLOW_SETUP.md)  
    
-## 1.2 ROS Setup  
+## 1.3 ROS Setup  
 * The planning framework is based on ROS  
 * Follow instruction in [docs/ROS_SETUP.md](docs/ROS_SETUP.md)  
- 
-## 1.3 other dependencies  
+  
+## 1.4 other dependencies  
 * Python Package Dependencies  
 ```bash
 pip install colorama==0.3.9 llvmlite==0.31.0 numba==0.47.0
@@ -36,7 +39,7 @@ chmod +x ./install-ompl-ubuntu.sh
 ./install-ompl-ubuntu.sh --python
 ```
   
-## 1.4 hardware setup
+## 1.5 hardware setup
 * Setup camera and robot driver/sdk following instructions in [docs/HARDWARE_SETUP.md](docs/HARDWARE_SETUP.md) 
   
 # 2 Setup project  
@@ -81,15 +84,11 @@ source "$RNB_PLANNING_DIR"ws_ros/devel/setup.bash
 echo 'source "$RNB_PLANNING_DIR"ws_ros/devel/setup.bash' >> ~/.bashrc
 ```
 
-## 2.3 (Optional) Optional 3rd Party Features
+## 2.3 Optional 3rd Party Features
 ### PDDLStream
 * To use PDDLStream task-motion planning, follow instruction in [docs/PDDLStream.md](docs/PDDLStream.md)
 ### MMDet
 * To use MultiICP or SharedDetector, install mmdet by following instruction in [docs/Detection.md](docs/PDDLStream.md)
-
-## 2.4 Recommended Tools and Options
-* Follow instruction in [docs/SUPPLEMENT_README.md](docs/SUPPLEMENT_README.md)
-* To use eTaSL planner and **online planning**, follow instruction in **eTaSL** in [docs/SUPPLEMENT_README.md](docs/SUPPLEMENT_README.md)
 
 ## 2.4 fix default grub setting (disable linux kernel update)  
 * check list of kernel 
@@ -97,6 +96,10 @@ echo 'source "$RNB_PLANNING_DIR"ws_ros/devel/setup.bash' >> ~/.bashrc
 awk -F\' '/menuentry / {print $2}' /boot/grub/grub.cfg 
 ```
 * Edit /etc/default/grub contents as following
+
+## 2.5 (Optional) Recommended Tools and Options
+* Follow instruction in [docs/SUPPLEMENT_README.md](docs/SUPPLEMENT_README.md)
+* To use eTaSL planner and **online planning**, follow instruction in **eTaSL** in [docs/SUPPLEMENT_README.md](docs/SUPPLEMENT_README.md)
 ```
 GRUB_DEFAULT=0  ## Change this if the real time kernel is not loaded. remember the location of the kernel on the grub menu when you boot the computer, and change accordingly, ex) "1>2"
 GRUB_TIMEOUT_STYLE=menu  
@@ -111,7 +114,7 @@ GRUB_TIMEOUT=5
 * For further instruction on how to use & develop, read [docs/HOW_TO.md](docs/HOW_TO.md)
 
 
-# 4 Check shell environemnt settings
+# 4 Check shell environment settings
 * ~/.bashrc should contain following lines.  
    ```  bash
    # export PATH=$PATH:~/.local/bin  

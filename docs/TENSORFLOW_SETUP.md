@@ -114,6 +114,9 @@ echo "nvidia-driver-460 hold" | sudo dpkg --set-selections \
 && echo "libnvinfer7 hold" | sudo dpkg --set-selections \
 && echo "libnvinfer-dev hold" | sudo dpkg --set-selections
 ```
+
+### [IMPORTANT NOTE]
+* **NEVER** call *apt upgrade* afterwards!! This will ruin the environment setting!
   
 ## Install Tensorflow by pip3 or building from source
 ### CASE 1: Install with pip3
