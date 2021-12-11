@@ -103,6 +103,17 @@ echo 'export PATH=$PATH:/usr/local/cuda-11.2/bin' >> ~/.bashrc \
   ```
 
 * **[IMPORTANT]** Restart the terminal!
+
+* hold upgrade
+```bash
+echo "nvidia-driver-460 hold" | sudo dpkg --set-selections \
+&& echo "cuda-drivers hold" | sudo dpkg --set-selections \
+&& echo "cuda-11-2 hold" | sudo dpkg --set-selections \
+&& echo "libcudnn8 hold" | sudo dpkg --set-selections \
+&& echo "libcudnn8-dev hold" | sudo dpkg --set-selections \
+&& echo "libnvinfer7 hold" | sudo dpkg --set-selections \
+&& echo "libnvinfer-dev hold" | sudo dpkg --set-selections
+```
   
 ## Install Tensorflow by pip3 or building from source
 ### CASE 1: Install with pip3
@@ -148,7 +159,51 @@ pip3 install /tmp/tensorflow_pkg/tensorflow-2.6.0-cp36-cp36m-linux_x86_64.whl --
 ```
 
 ## Supplementary
-### nvidia, cuda, cudnn, tensorrt Clean Unsintall
+
+### Error in Using  Tensorflow near 2.4.0 version
+* ***[IMPORTANT]*** in *TF 2.4.0*, add below to python script before using tensorflow or you get "no algorithm worked" error! (no need to explicitly use session)
+```python
+from tensorflow.compat.v1 import ConfigProto
+from tensorflow.compat.v1 import InteractiveSession
+
+config = ConfigProto()
+config.gpu_options.allow_growth = True
+session = InteractiveSession(config=config)
+```
+
+### TROUBLESHOOTING
+* TensorRT version should match with linked version. Check by below script
+```python
+from tensorflow.compiler.tf2tensorrt._pywrap_py_utils import get_linked_tensorrt_version
+print(f"Linked TensorRT version {get_linked_tensorrt_version()}")
+
+from tensorflow.compiler.tf2tensorrt._pywrap_py_utils import get_loaded_tensorrt_version
+print(f"Loaded TensorRT version {get_loaded_tensorrt_version()}")
+```
+
+* Tensorflow can raise NUMA-relaed error as shown below in the terminal
+  ```bash
+  successful NUMA node read from SysFS had negative value (-1), but there must be at least one NUMA node, so returning NUMA node zero
+  ```
+  * This error means the numa node setting is incorrect.
+  * check the node id - the one starts with *VGA compatible controller* on the list shown by below command
+  ```bash
+  sys/bus/pci/devicecs/
+  ```
+  * check numa setting. The below command will return *-1* replace *{node-id-above}* with the id found above. this may be *01:00.0*. 
+  ```
+  cat /sys/bus/pci/devices/0000:{node-id-above}/numa_node
+  ```
+  * edit the value to 0
+  ```
+  echo 0 | sudo tee -a /sys/bus/pci/devices/0000:{node-id-above}/numa_node
+  ```
+  * check numa setting again. now it will return 0
+  ```
+  cat /sys/bus/pci/devices/0000:{node-id-above}/numa_node
+  ```
+
+### Clean Unsintall nvidia, cuda, cudnn, tensorrt
 * uninstall all related packages
 ```bash
 sudo apt remove --purge '*nvidia*' '*cuda*' 'libcudnn*' 'libcublas*' \
