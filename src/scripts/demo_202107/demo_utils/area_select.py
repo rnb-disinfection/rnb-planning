@@ -25,7 +25,7 @@ class SweepDirections(Enum):
         elif tip_dir == cls.up.value:
             Rre = Rot_axis(2, -np.pi/2)
         elif tip_dir == cls.down.value:
-            Rre = Rot_axis(2, np.pi/2)
+            Rre = Rot_rpy((-np.pi, np.pi/2, 0))
         else:
             raise (RuntimeError("Not defined"))
         return Rre
