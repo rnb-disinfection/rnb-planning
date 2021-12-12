@@ -1,5 +1,5 @@
 from area_select import *
-from pkg.controller.trajectory_client.kiro_udp_send import *
+from pkg.controller.trajectory_client.kiro.kiro_udp_send import *
 import time
 
 def add_env(gscene):
@@ -195,29 +195,6 @@ def add_backwall(gscene):
     gscene.create_safe(GEOTYPE.BOX, "back_wall", link_name="base_link",
                    dims=(0.2,7.,7), center=(-0.3,0,0), rpy=(0,0,0),
                    color=(1, 1, 1, 0.2), fixed=True, collision=True, parent="closet_vis")
-
-class ToolDir(Enum):
-    down = 0
-    up = 1
-
-def change_tool(pscene, kmb, command, zoff, tool_link, tool_name, _type, clearance=1e-3, tool_dim=(0.08, 0.32)):
-    gscene = pscene.gscene
-    if command==ToolDir.up:
-        kmb.tool_angle = 1
-        brush_face = add_kiro_indytool_up(gscene, zoff=zoff, tool_link=tool_link, face_name=tool_name, tool_dim=tool_dim)
-        brush_face = pscene.create_binder(bname=tool_name, gname=tool_name, _type=_type,
-                                          point=(0,0,-brush_face.dims[2]/2-clearance), rpy=(0,0,0))
-        print("Tool UP")
-    elif command==ToolDir.down:
-        kmb.tool_angle = 0
-        brush_face = add_kiro_indytool_down(gscene, zoff=zoff, tool_link=tool_link, face_name=tool_name, tool_dim=tool_dim)
-        brush_face = pscene.create_binder(bname=tool_name, gname=tool_name, _type=_type,
-                                          point=(0,0,-brush_face.dims[2]/2-clearance), rpy=(0,0,0))
-        print("Tool Down")
-    else:
-        raise(RuntimeError("command unknown"))
-    return brush_face
-
 
 class SwitchState(Enum):
     NONE = 0

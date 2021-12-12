@@ -1,16 +1,8 @@
 import os
 import sys
-
-sys.path.append(os.path.join(os.environ["RNB_PLANNING_DIR"], 'src'))
-sys.path.append(os.path.join(os.environ["RNB_PLANNING_DIR"], 'src/scripts/milestone_202110'))
-
-
-from pkg.controller.trajectory_client.trajectory_client  import TrajectoryClient
-from pkg.utils.utils import *
-from pkg.utils.rotation_utils import *
-# from .trajectory_client import TrajectoryClient
-# from ...utils.utils import *
-# from ...utils.rotation_utils import *
+from ....controller.trajectory_client.trajectory_client  import TrajectoryClient
+from ....utils.utils import *
+from ....utils.rotation_utils import *
 from kiro_udp_send import start_mobile_udp_thread, get_reach_state_edgeup, send_pose_udp, get_xyzw_cur
 
 
@@ -29,7 +21,6 @@ class KiroUDPClient(TrajectoryClient):
         self.xyzw_last = [0, 0, 0, 1]
         self.coster = None
         self.cost_cut = 0
-        self.tool_angle = 0
         self.sure_count_default = 0
         self.allowance = 2e-2
         self.gscene = None
@@ -176,8 +167,7 @@ class KiroUDPClient(TrajectoryClient):
                 if diff_nm <= self.allowance:
                     return
 
-                send_pose_udp(self.sock_mobile, self.joints2xyzw(Q),
-                              tool_angle=self.tool_angle, send_ip=self.server_ip)
+                send_pose_udp(self.sock_mobile, self.joints2xyzw(Q), send_ip=self.server_ip)
                 print("Distance={} ({})".format(diff_nm, np.round(diff, 3)))
                 if diff_nm < self.SHORT_MOTION_RANGE:
                     timeout_short = (diff_nm / self.SHORT_MOTION_RANGE) * self.DURATION_SHORT_MOTION_REF

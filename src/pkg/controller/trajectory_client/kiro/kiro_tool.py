@@ -1,8 +1,6 @@
 import os
 import sys
-sys.path.append(os.path.join(os.path.join(
-    os.environ["RNB_PLANNING_DIR"], 'src')))
-from pkg.utils.utils import *
+from ....utils.utils import *
 
 import serial
 import serial.tools.list_ports as sp
@@ -92,13 +90,13 @@ class KiroToolPort:
 #         sudo chwon $USER port_name
         print("==== Kiro Tool connected ====")
         self.flush()
-#         try:
-#             self.initialize()
-#         except Exception as e: 
-#             print("[ERROR] Run this bash command to allow USB access: {}".format(
-#                 "sudo usermod -a -G dialout $USER"))
-#             print(e)
-#             raise(e)
+        try:
+            self.initialize()
+        except Exception as e:
+            print("[ERROR] Run this bash command to allow USB access: {}".format(
+                "sudo usermod -a -G dialout $USER"))
+            print(e)
+            raise(e)
         
     def disable(self):
         data_fields = self.send_recv(MOTOR_CMD.DISABLE)
@@ -137,9 +135,10 @@ class KiroToolPort:
     
     def send_raw(self, raw):
         return self.send_recv_check_a0(MOTOR_CMD.OP, OP_CMD.DEGREE, raw/0x100%0x100, raw%0x100)
-    
-    def send_degree(self, deci_degree):
-        return self.send_recv_check_a0(MOTOR_CMD.OP, OP_CMD.DEGREE, *divide_bytes(deci_degree%0x10000))
+
+    # @brief send deci-degree value in two bytes
+    def send_degree(self, degree):
+        return self.send_recv_check_a0(MOTOR_CMD.OP, OP_CMD.DEGREE, *divide_bytes(int(degree*10)%0x10000))
         
     def close(self):
         self.sport.close()

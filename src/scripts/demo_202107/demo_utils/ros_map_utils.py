@@ -5,7 +5,7 @@ import sys
 sys.path.append(os.path.join(os.path.join(os.environ["RNB_PLANNING_DIR"], 'src')))
 sys.path.append(os.path.join(os.environ["RNB_PLANNING_DIR"], 'src/scripts/demo_202107'))
 # from demo_utils.map_converter import *
-from pkg.controller.trajectory_client.kiro_udp_send import start_mobile_udp_thread, get_xyzw_cur
+from pkg.controller.trajectory_client.kiro.kiro_udp_send import start_mobile_udp_thread, get_xyzw_cur
 from pkg.global_config import RNB_PLANNING_DIR
 from pkg.utils.ros_utils import *
 from pkg.utils.utils import *
