@@ -140,9 +140,8 @@ class TrajectoryClient(object):
     # @brief Move joints to Q using the most guaranteed method for each robot.
     # @remark Robot-specific implementation is required.
     # @param Q radian
-    @abc.abstractmethod
     def joint_move_make_sure(self, Q):
-        raise(NotImplementedError("Robot-specific implementation is required for joint_move_make_sure"))
+        self.move_joint_s_curve(Q, N_div=200, auto_stop=True)
 
     ##
     # @brief Execute grasping
@@ -172,7 +171,6 @@ class TrajectoryClient(object):
 
             if auto_stop:
                 self.stop_tracking()
-
 
 class MultiTracker:
     def __init__(self, robots, idx_list, Q0, on_rviz=False):
