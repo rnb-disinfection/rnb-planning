@@ -303,6 +303,19 @@ def spher2cart(radius, psi, theta):
     sin_theta = np.sin(theta)
     return radius*sin_theta*np.cos(psi), radius*sin_theta*np.sin(psi), radius*np.cos(theta)
 
+def intrins2cammat(instrins):
+    cameraMatrix = np.array([[intrins[2], 0, intrins[4]],
+                             [0, intrins[3], intrins[5]],
+                             [0,0,1]])
+    return cameraMatrix, intrins[:2]
+
+def cammat2intrins(cameraMatrix, img_dim):
+    intrins = [img_dim[0], img_dim[1],
+               cameraMatrix[0,0], cameraMatrix[1,1],
+               cameraMatrix[0,2], cameraMatrix[1,2]
+              ]
+    return intrins
+
 ##
 # @brief interpolate between 2 transformation matrices(4x4)
 # @remark Either POS_STEP and ROT_STEP or N_STEP should be given
