@@ -350,71 +350,15 @@ def stop_force_mode(indy, Qref, switch_delay=0.5):
     switch_command(indy.server_ip, False)
     indy.move_joint_s_curve(Qref, N_div=20, start_tracking=False, auto_stop=False)
 
+from ..planning.mode_switcher import ModeSwitcherTemplate, CombinedSwitcher, GraspModeSwitcher
 
-class ModeSwitcher:
-    def __init__(self, pscene):
-        self.pscene = pscene
-        self.crob = pscene.combined_robot
-        self.switch_delay = 0.5
-
-    def switch_in(self, snode_pre, snode_new):
-        switch_state = False
-        for n1, n2 in zip(snode_pre.state.node, snode_new.state.node):
-            if n1 == 1 and n2 == 2:
-                switch_state = True
-                break
-        if switch_state:
-            indy = self.crob.robot_dict['indy0']
-            if indy is not None:
-                start_force_mode(indy, switch_delay=self.switch_delay)
-        return switch_state
-
-    def switch_out(self, switch_state, snode_new):
-        if switch_state:
-            indy = self.crob.robot_dict['indy0']
-            if indy is not None:
-                stop_force_mode(indy, Qref=snode_new.traj[-1][self.crob.idx_dict['indy0']],
-                                                              switch_delay=self.switch_delay)
-
-
-import matplotlib.pyplot as plt
-
-def down_force_log(ip_addr, JOINT_DOF, UI_PORT=9990, DT=1.0 / 2e3):
-    uri = "http://{ip_addr}:{UI_PORT}/download_log".format(ip_addr=ip_addr, UI_PORT=UI_PORT)
-    print(uri)
-    log_dat = requests.get(uri)
-    dat = log_dat.text
-    lines = dat.split("\n")
-    heads = lines[0].split(",")[:-1]
-    data_mat = []
-    for line in lines[1:]:
-        data_line = list(map(float, line.split(",")[:-1]))
-        if len(data_line) > 0:
-            data_mat.append(data_line)
-    data_mat = np.array(data_mat)
-    Fext = data_mat[:, JOINT_DOF * 5:JOINT_DOF * 6]
-    Fext = Fext[-int(15.0 / DT):]
-    # idx_peak = np.argmax(Fext[:, 2])
-    # print("peak: {}".format(np.round(Fext[idx_peak, 2], 1)))
-    # Fext = Fext[idx_peak + int(1.0 / DT):idx_peak + int(4.0 / DT), 2]
-    # print("force min/max: {} / {} in {}".format(np.round(np.min(Fext), 1), np.round(np.max(Fext), 1), len(Fext)))
-    return Fext
-
-
-class ModeSwitcherForceLog:
-    def __init__(self, pscene, log_force=True, DT=1.0 / 2e3):
-        self.pscene = pscene
-        self.crob = pscene.combined_robot
-        self.switch_delay = 0.5
+class ForceOnlyModeSwitcher(ModeSwitcherTemplate):
+    def __init__(self, pscene, switch_delay=0.5, log_force=False, DT=1.0 / 2e3):
+        ModeSwitcherTemplate.__init__(self, pscene, switch_delay=switch_delay)
         self.DT = DT
         self.log_force = log_force
         self.force_log = []
 
-    def reset_log(self):
-        self.force_log = []
-
-    def get_log(self):
-        return self.force_log
     def switch_in(self, snode_pre, snode_new):
         switch_state = False
         for n1, n2 in zip(snode_pre.state.node, snode_new.state.node):
@@ -439,6 +383,41 @@ class ModeSwitcherForceLog:
                     sleep(self.switch_delay)
                     Fext = down_force_log(indy.server_ip, len(self.crob.idx_dict["indy0"]), DT=self.DT)
                     self.force_log.append(Fext)
+
+class ForceModeSwitcher(CombinedSwitcher):
+    def __init__(self, pscene, switch_delay=0.5, log_force=False):
+        self.switch_list = [GraspModeSwitcher(pscene, switch_delay=switch_delay),
+                            ForceOnlyModeSwitcher(pscene, switch_delay=switch_delay,log_force=log_force)]
+
+    def reset_log(self):
+        self.switch_list[1].force_log = []
+
+    def get_log(self):
+        return self.switch_list[1].force_log
+
+
+import matplotlib.pyplot as plt
+
+def down_force_log(ip_addr, JOINT_DOF, UI_PORT=9990, DT=1.0 / 2e3):
+    uri = "http://{ip_addr}:{UI_PORT}/download_log".format(ip_addr=ip_addr, UI_PORT=UI_PORT)
+    print(uri)
+    log_dat = requests.get(uri)
+    dat = log_dat.text
+    lines = dat.split("\n")
+    heads = lines[0].split(",")[:-1]
+    data_mat = []
+    for line in lines[1:]:
+        data_line = list(map(float, line.split(",")[:-1]))
+        if len(data_line) > 0:
+            data_mat.append(data_line)
+    data_mat = np.array(data_mat)
+    Fext = data_mat[:, JOINT_DOF * 5:JOINT_DOF * 6]
+    Fext = Fext[-int(15.0 / DT):]
+    # idx_peak = np.argmax(Fext[:, 2])
+    # print("peak: {}".format(np.round(Fext[idx_peak, 2], 1)))
+    # Fext = Fext[idx_peak + int(1.0 / DT):idx_peak + int(4.0 / DT), 2]
+    # print("force min/max: {} / {} in {}".format(np.round(np.min(Fext), 1), np.round(np.max(Fext), 1), len(Fext)))
+    return Fext
 
 def play_schedule_clearance_highlight(ppline, snode_schedule, tcheck, period, actor_name='brush_face',
                                       color_on=(0,1,0,0.3), color_off=(0.8,0.2,0.2,0.2)):
