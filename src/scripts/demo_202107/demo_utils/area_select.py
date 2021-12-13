@@ -675,7 +675,7 @@ class GreedyExecuter:
         return snode_schedule
 
     def greedy_execute(self, Qcur, tool_dir, mode_switcher, offset_fun, auto_clear_subject=True, cost_cut=110, covereds=[],
-                       repeat_sweep=2, adjust_once=True):
+                       repeat_sweep=2, adjust_once=True, skip_execute=True):
         gtimer = GlobalTimer.instance()
         Qcur = np.copy(Qcur)
         Qhome = np.copy(Qcur)
@@ -833,7 +833,8 @@ class GreedyExecuter:
                 if len(snode_schedule_all) > 0:  # no more available case in idc_idvs_remain
                     snode_schedule_all = self.force_add_return(snode_schedule_all, Qhome=Qhome)
                     Qcur = snode_schedule_all[-1].state.Q
-                    self.ppline.execute_schedule(snode_schedule_all, one_by_one=True, mode_switcher=mode_switcher)
+                    if not skip_execute:
+                        self.ppline.execute_schedule(snode_schedule_all, one_by_one=True, mode_switcher=mode_switcher)
                     snode_schedule_list.append(snode_schedule_all)
                 if len(snode_schedule_list) > 0:
                     if len(snode_schedule_list[-1]) > 0:

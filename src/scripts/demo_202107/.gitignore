@@ -3,6 +3,7 @@ configs/
 mmcv_custom/
 mmdet/
 save_img/
+save_img_bak/
 crop_img/
 test_tcp/
 exp_datasets/
