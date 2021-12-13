@@ -211,6 +211,8 @@ class KiroMobileMap:
             else:
                 self.Q_map = load_pickle(
                     os.path.join(RNB_PLANNING_DIR, "data/Q_map.pkl"))
+                if len(self.Q_map) == 12:
+                    self.Q_map = np.pad(self.Q_map, (0,1), "constant")
             Tbm_map = gscene.get_tf(mobile_base, self.Q_map)
             self.set_maps(*maps, T_bm=Tbm_map, canny_ksize=10)
 
