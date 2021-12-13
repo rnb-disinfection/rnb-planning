@@ -1,5 +1,8 @@
 import os
 import sys
+
+import numpy as np
+
 sys.path.append(os.path.join(os.path.join(
     os.environ["RNB_PLANNING_DIR"], 'src')))
 
@@ -18,7 +21,8 @@ class DataRecontructedCamera(CameraInterface):
         self.crob, self.viewpoint = crob, viewpoint
         if datetime_load is None:
             datetime_list = os.listdir(SCENE_DATA_PATH)
-            datetime_load = sorted(datetime_list)[-1]
+            if len(datetime_list) > 0:
+                datetime_load = sorted(datetime_list)[-1]
         self.datetime_load = datetime_load
 
     ##
@@ -71,18 +75,23 @@ class DataRecontructedCamera(CameraInterface):
     ##
     # @brief   Get depthmap from nearest data point and transform model point
     def get_depthmap(self):
-        T = self.viewpoint.get_tf(self.crob.get_real_robot_pose())
-        color_dat, depth_dat, Tdat = self.get_nearest_data(T)
-        depthmap = self.transform_depthmap(color_dat, depth_dat, Tdat, T)
-        return depthmap
+        return self.get_image_depthmap()[1]
 
     ##
     # @brief   Get image and depthmap from nearest data point and transform model point
-    def get_image_depthmap(self):
+    def get_image_depthmap(self, merge_all=False):
         T = self.viewpoint.get_tf(self.crob.get_real_robot_pose())
-        color_dat, depth_dat, Tdat = self.get_nearest_data(T)
-        depthmap = self.transform_depthmap(color_dat, depth_dat, Tdat, T)
-        return color_dat, depthmap
+        color, depth, T_dat = self.get_nearest_data(T)
+        if not merge_all:
+            depthmap = self.transform_depthmap(color, depth, T_dat, T)
+        else:
+            depthmap = (np.ones_like(depth)*15000).astype(depth.dtype)
+            for (color_dat, depth_dat), T_dat in zip(self.color_depth_list, self.cam_pose_list):
+                depthmap_i = self.transform_depthmap(color_dat, depth_dat, T_dat, T)
+                depthmap_i[np.where(depthmap_i==0)] = 15000
+                depthmap = np.minimum(depthmap, depthmap_i)
+            depthmap[np.where(depthmap == 15000)] = 0
+        return color, depthmap
 
     def transform_depthmap(self, color_dat, depth_dat, Tc_dat, Tc_to, depth_trunc=10.0):
         pcd = cdp2pcd(
@@ -97,11 +106,11 @@ class DataRecontructedCamera(CameraInterface):
         ptz = np.matmul(self.cameraMatrix, np.transpose(points_n)).transpose()
         pt_list = np.round(ptz[:, :2] / ptz[:, 2:3]).astype(int)
 
-        depthmap = np.ones_like(depth_dat, dtype=float) * 1e3
+        depthmap = np.ones_like(depth_dat, dtype=float) * 1e6
         for pt, z in zip(pt_list, ptz[:, 2]):
             if all(pt>=0) and pt[0]<depthmap.shape[1] and pt[1]<depthmap.shape[0]:
                 depthmap[pt[1], pt[0]] = min(depthmap[pt[1], pt[0]], z)
-        depthmap[np.where(depthmap == 1e3)] = 0
+        depthmap[np.where(depthmap == 1e6)] = 0
         depthmap = (depthmap / self.depth_scale).astype(depth_dat.dtype)
         return depthmap
 
