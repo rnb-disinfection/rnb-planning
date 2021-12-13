@@ -97,104 +97,104 @@ def add_kiro_indytool_up(gscene, zoff=0, tool_link="indy1_tcp", face_name="brush
 def add_bed(gscene, bed_center, bed_rpy, COLOR_BED_COL, add_back_wall=True,
             bed_width=0.91, margin=0.12, cover_len=1.7):
     col_width = bed_width + margin*2
-    bed_vis = gscene.create_safe(GEOTYPE.MESH, "bed_vis", link_name="base_link",
+    bed_vis = gscene.create_safe(GEOTYPE.MESH, "bed", link_name="base_link",
                                  dims=(0.1,0.1,0.1), center=bed_center, rpy=bed_rpy,
                                  color=(0.8,0.8,0.8,1), display=True, fixed=True, collision=False,
                                  uri="package://my_mesh/meshes/stl/bed_floor_centered_m_scale.stl", scale=(1,1.1,1))
     bed_mat = gscene.create_safe(GEOTYPE.BOX, "bed_mat", link_name="base_link", 
                                  dims=(cover_len,bed_width,0.01), center=(0.0,0,0.66), rpy=(0,0,0),
-                                 color=COLOR_BED_COL, fixed=True, collision=False, parent="bed_vis")
+                                 color=COLOR_BED_COL, fixed=True, collision=False, parent="bed")
 
     bed_mat_col = gscene.create_safe(GEOTYPE.BOX, "bed_mat_col", link_name="base_link",
                                  dims=(1.80,col_width,0.13), center=(0.02,0,0.6), rpy=(0,0,0),
-                                 color=(1, 1, 1, 0.1), fixed=True, collision=True, parent="bed_vis")
+                                 color=(1, 1, 1, 0.1), fixed=True, collision=True, parent="bed")
 
     gscene.create_safe(GEOTYPE.BOX, "bed_head", link_name="base_link", 
                                  dims=(0.3,col_width,1.30), center=(-1.03,0,0.5), rpy=(0,0,0),
-                                 color=(1, 1, 1, 0.1), fixed=True, collision=True, parent="bed_vis")
+                                 color=(1, 1, 1, 0.1), fixed=True, collision=True, parent="bed")
 
     gscene.create_safe(GEOTYPE.BOX, "bed_foot", link_name="base_link", 
                                  dims=(0.3,col_width,1.30), center=(1.05,0,0.5), rpy=(0,0,0),
-                                 color=(1, 1, 1, 0.1), fixed=True, collision=True, parent="bed_vis")
+                                 color=(1, 1, 1, 0.1), fixed=True, collision=True, parent="bed")
 
     gscene.create_safe(GEOTYPE.BOX, "bed_box", link_name="base_link",
                        dims=(3, col_width+0.5, 1.3), center=(0.02, 0, 0.5), rpy=(0, 0, 0),
-                       color=(1, 1, 1, 0.1), fixed=True, collision=False, parent="bed_vis")
+                       color=(1, 1, 1, 0.1), fixed=True, collision=False, parent="bed")
 
     gscene.create_safe(GEOTYPE.BOX, "room_box", link_name="base_link",
                        dims=(3, 6, 1.3), center=(0.02, 0, 0.5), rpy=(0, 0, 0),
-                       color=(1, 1, 1, 0.1), fixed=True, collision=False, parent="bed_vis")
+                       color=(1, 1, 1, 0.1), fixed=True, collision=False, parent="bed")
 
     gscene.create_safe(GEOTYPE.BOX, "bed_left_space", link_name="base_link",
                        dims=(2.5, 1, 3), center=(0.02, -col_width/2-0.4, 1), rpy=(0, 0, 0),
-                       color=(1, 1, 1, 0.05), fixed=True, collision=False, parent="bed_vis")
+                       color=(1, 1, 1, 0.05), fixed=True, collision=False, parent="bed")
 
     gscene.create_safe(GEOTYPE.BOX, "bed_right_space", link_name="base_link",
                        dims=(2.5, 1, 3), center=(0.02, col_width/2+0.4, 1), rpy=(0, 0, 0),
-                       color=(1, 1, 1, 0.05), fixed=True, collision=False, parent="bed_vis")
+                       color=(1, 1, 1, 0.05), fixed=True, collision=False, parent="bed")
 
     if add_back_wall:
         gscene.create_safe(GEOTYPE.BOX, "bed_wall", link_name="base_link",
                            dims=(0.5,7.0,3), center=(-1.27,0,1.5), rpy=(0,0,0),
-                           color=(1, 1, 1, 0.1), fixed=True, collision=True, parent="bed_vis")
+                           color=(1, 1, 1, 0.1), fixed=True, collision=True, parent="bed")
     return bed_mat
 
 def move_bed(gscene, bed_center, bed_rpy):
-    bed_vis = gscene.NAME_DICT["bed_vis"]
+    bed_vis = gscene.NAME_DICT["bed"]
     bed_vis.set_offset_tf(center=bed_center, orientation_mat=Rot_rpy(bed_rpy))
     gscene.update_markers_all()
 
 
 def add_closet(gscene, closet_center, closet_rpy, COLOR_CLOSET_COL = (0,1,0,0.3),
                margin = 0.01, margin_col = 0.06):    
-    closet_vis = gscene.create_safe(GEOTYPE.MESH, "closet_vis", link_name="base_link", 
+    closet_vis = gscene.create_safe(GEOTYPE.MESH, "closet", link_name="base_link",
                                     dims=(0.1,0.1,0.1), center=closet_center, rpy=closet_rpy,
                                     color=(0.8,0.8,0.8,1), display=True, fixed=True, collision=False,
                                     uri="package://my_mesh/meshes/stl/top_table_centered_m_scale.stl", scale=(1,1,1))
 
     closet_leftup = gscene.create_safe(GEOTYPE.BOX, "closet_leftup", link_name="base_link",
                              dims=(1.3,0.255+margin*2,0.02), center=(0.30,-0.145,1.52), rpy=(0,np.pi/2,0),
-                             color=COLOR_CLOSET_COL, fixed=True, collision=False, parent="closet_vis")
+                             color=COLOR_CLOSET_COL, fixed=True, collision=False, parent="closet")
     closet_leftup_col = gscene.create_safe(GEOTYPE.BOX, "closet_leftup_col", link_name="base_link",
                              dims=(1.2,0.255+margin_col,0.6), center=(0,-0.145-margin_col/2,1.52), rpy=(0,np.pi/2,0),
-                             color=(0, 0, 0, 0.1), fixed=True, collision=True, parent="closet_vis")
+                             color=(0, 0, 0, 0.1), fixed=True, collision=True, parent="closet")
 
     closet_rightup = gscene.create_safe(GEOTYPE.BOX, "closet_rightup", link_name="base_link", 
                              dims=(0.58,0.32,0.025), center=(0.22-0.065,0.19,1.87), rpy=(0,np.pi/2,0),
-                             color=COLOR_CLOSET_COL, fixed=True, collision=False, parent="closet_vis")
+                             color=COLOR_CLOSET_COL, fixed=True, collision=False, parent="closet")
     closet_rightup_col = gscene.create_safe(GEOTYPE.BOX, "closet_rightup_col", link_name="base_link",
                              dims=(1.0,0.22+margin_col,0.465), center=(-0.01-0.065,0.12 +margin_col/2,1.55), rpy=(0,np.pi/2,0),
-                             color=(0, 0, 0, 0.1), fixed=True, collision=True, parent="closet_vis")
+                             color=(0, 0, 0, 0.1), fixed=True, collision=True, parent="closet")
     
     closet_down = gscene.create_safe(GEOTYPE.BOX, "closet_down", link_name="base_link",
                                  dims=(0.78,0.495+margin*2,0.02), center=(0.31,-0.025,0.5), rpy=(0,np.pi/2,0),
-                                 color=COLOR_CLOSET_COL, fixed=True, collision=False, parent="closet_vis")
+                                 color=COLOR_CLOSET_COL, fixed=True, collision=False, parent="closet")
     closet_down_col = gscene.create_safe(GEOTYPE.BOX, "closet_down_col", link_name="base_link",
                                  dims=(0.78,0.495+margin_col*2,0.64), center=(-0.01,-0.025,0.5), rpy=(0,np.pi/2,0),
-                                 color=(0, 0, 0, 0.1), fixed=True, collision=True, parent="closet_vis")
+                                 color=(0, 0, 0, 0.1), fixed=True, collision=True, parent="closet")
     # closet_shelf = gscene.create_safe(GEOTYPE.BOX, "closet_shelf", link_name="base_link",
     #                              dims=(0.02,0.24+margin*2,0.465), center=(-0.065,0.105,1.24), rpy=(0,np.pi/2,0),
-    #                              color=(0, 0, 0, 0.1), fixed=True, collision=True, parent="closet_vis")
+    #                              color=(0, 0, 0, 0.1), fixed=True, collision=True, parent="closet")
     closet_back = gscene.create_safe(GEOTYPE.BOX, "closet_back", link_name="base_link", 
                                  dims=(0.02,0.24,0.73), center=(-0.29,0.105,1.22), rpy=(0,0,0),
-                                 color=(0, 0, 0, 0.1), fixed=True, collision=True, parent="closet_vis")
+                                 color=(0, 0, 0, 0.1), fixed=True, collision=True, parent="closet")
     gscene.create_safe(
         gtype=GEOTYPE.BOX, name="closet_box", link_name="base_link",
         dims=(1, 0.9, 2.3), center=(0, 0, 1.1), rpy=(0, 0, 0),
-        color=(0, 0, 0, 0.1), display=True, collision=False, fixed=True, parent="closet_vis")
+        color=(0, 0, 0, 0.1), display=True, collision=False, fixed=True, parent="closet")
     return closet_leftup, closet_rightup, closet_down
 
 def move_closet(gscene, closet_center, closet_rpy):
-    closet_vis = gscene.NAME_DICT["closet_vis"]
+    closet_vis = gscene.NAME_DICT["closet"]
     closet_vis.set_offset_tf(center=closet_center, orientation_mat=Rot_rpy(closet_rpy))
     gscene.update_markers_all()
 
 # add back_wall geometry
 def add_backwall(gscene):
-    closet_vis = gscene.NAME_DICT["closet_vis"]
+    closet_vis = gscene.NAME_DICT["closet"]
     gscene.create_safe(GEOTYPE.BOX, "back_wall", link_name="base_link",
                    dims=(0.2,7.,7), center=(-0.3,0,0), rpy=(0,0,0),
-                   color=(1, 1, 1, 0.2), fixed=True, collision=True, parent="closet_vis")
+                   color=(1, 1, 1, 0.2), fixed=True, collision=True, parent="closet")
 
 class SwitchState(Enum):
     NONE = 0

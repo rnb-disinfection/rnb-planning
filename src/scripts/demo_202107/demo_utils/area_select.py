@@ -707,13 +707,13 @@ class GreedyExecuter:
                 self.kmb.joint_move_make_sure(Qmob)
 
             with gtimer.block("offset_fun"):
-                try:
-                    Qcur, Qtar = offset_fun(self, self.crob, self.mplan, self.robot_name, Qref)
-                except Exception as e:
-                    TextColors.RED.println("[PLAN] Error in offset fun")
-                    print(e)
-                    self.mark_tested(tkey, i_ap, [], idc_divs)
-                    continue
+                # try:
+                Qcur, Qtar = offset_fun(self, self.crob, self.mplan, self.robot_name, Qref)
+                # except Exception as e:
+                #     TextColors.RED.println("[PLAN] Error in offset fun")
+                #     print(e)
+                #     self.mark_tested(tkey, i_ap, [], idc_divs)
+                #     continue
 
                 Tbm_cur = self.gscene.get_tf(self.mobile_link, Qcur)
                 Tbs = self.surface.get_tf(Qcur)
