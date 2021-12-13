@@ -303,7 +303,7 @@ def spher2cart(radius, psi, theta):
     sin_theta = np.sin(theta)
     return radius*sin_theta*np.cos(psi), radius*sin_theta*np.sin(psi), radius*np.cos(theta)
 
-def intrins2cammat(instrins):
+def intrins2cammat(intrins):
     cameraMatrix = np.array([[intrins[2], 0, intrins[4]],
                              [0, intrins[3], intrins[5]],
                              [0,0,1]])

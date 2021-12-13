@@ -99,7 +99,8 @@ class DataRecontructedCamera(CameraInterface):
 
         depthmap = np.ones_like(depth_dat, dtype=float) * 1e3
         for pt, z in zip(pt_list, ptz[:, 2]):
-            depthmap[pt[1], pt[0]] = min(depthmap[pt[1], pt[0]], z)
+            if all(pt>=0) and pt[0]<depthmap.shape[1] and pt[1]<depthmap.shape[0]:
+                depthmap[pt[1], pt[0]] = min(depthmap[pt[1], pt[0]], z)
         depthmap[np.where(depthmap == 1e3)] = 0
         depthmap = (depthmap / self.depth_scale).astype(depth_dat.dtype)
         return depthmap
