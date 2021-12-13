@@ -525,7 +525,7 @@ def show_lines(gscene, lines, base_link="base_link", orientation_mat=None, sweep
 
 
 class GreedyExecuter:
-    def __init__(self, ppline, brush_face, tool_dim, Qhome=None, drift=None):
+    def __init__(self, ppline, brush_face, tool_dim, Qhome=None):
         self.ppline, self.brush_face, self.tool_dim = ppline, brush_face, tool_dim
         self.pscene = self.ppline.pscene
         self.gscene = self.pscene.gscene
@@ -551,10 +551,6 @@ class GreedyExecuter:
         self.highlights = []
         self.vel_lims = 0.5
         self.acc_lims = 0.5
-        if drift is None:
-            self.drift = np.zeros(len(self.gscene.joint_names))
-        else:
-            self.drift = drift
 
     def get_division_dict(self, surface, tip_dir, sweep_dir, plane_val,
                           xout_cut=False, resolution=0.02, div_num=None):
@@ -700,17 +696,15 @@ class GreedyExecuter:
                 Qref = np.array(list(Qmob) + list(Qcur[self.idx_rb]))
                 T_bm = self.gscene.get_tf(self.mobile_link, Qref)
                 if ((not self.ccheck(T_loal=T_bm))
-                        or (not self.ccheck(T_loal=self.gscene.get_tf(self.mobile_link, np.add(Qref, self.drift))))
+                        or (not self.ccheck(T_loal=self.gscene.get_tf(self.mobile_link, Qref)))
                         or (not self.kmb.check_valid(Qref, cost_cut))):
                     self.mark_tested(tkey, i_ap, [], idc_divs)
                     TextColors.RED.println("[PLAN] Skip {} - collision base position ({} / {})".format(
                         tkey, np.round(self.kmb.coster(Qref)), cost_cut))
-                    print("Drift = {}".format(np.round(self.drift, 2)))
                     continue
 
-            print("Drift = {}".format(np.round(self.drift, 2)))
             with gtimer.block("move_base"):
-                self.kmb.joint_move_make_sure(np.subtract(Qmob, (self.drift[self.idx_mb] / 2)))
+                self.kmb.joint_move_make_sure(Qmob)
 
             with gtimer.block("offset_fun"):
                 try:
@@ -721,10 +715,6 @@ class GreedyExecuter:
                     self.mark_tested(tkey, i_ap, [], idc_divs)
                     continue
 
-#                 self.drift = np.mean([np.subtract(Qcur, Qref), self.drift], axis=0)
-#                 self.drift[self.idx_mb[2]] = (self.drift[2] + np.pi) % (np.pi * 2) - np.pi
-#                 self.drift[self.idx_rb] = 0
-                self.drift[:] = 0
                 Tbm_cur = self.gscene.get_tf(self.mobile_link, Qcur)
                 Tbs = self.surface.get_tf(Qcur)
                 Tsm_cur = np.matmul(SE3_inv(Tbs), Tbm_cur)
@@ -746,10 +736,6 @@ class GreedyExecuter:
                         Qref[self.idx_rb] = Qcur[self.idx_rb]
                         Qcur, Qtar = offset_fun(self, self.crob, self.mplan, self.robot_name, Qref)
 
-                        # self.drift = np.mean([np.subtract(Qcur, Qref), self.drift], axis=0)
-                        # self.drift[self.idx_mb[2]] = (self.drift[2] + np.pi) % (np.pi * 2) - np.pi
-                        # self.drift[self.idx_rb] = 0
-                        self.drift[:] = 0
                         Tbm_cur = self.gscene.get_tf(self.mobile_link, Qcur)
                         Tbs = self.surface.get_tf(Qcur)
                         Tsm_cur = np.matmul(SE3_inv(Tbs), Tbm_cur)
@@ -774,7 +760,6 @@ class GreedyExecuter:
                     TextColors.RED.println(
                         "[PLAN] Current position is closer to other Tsm_key. \n Try switch {} ({}) -> {} ({}) / {}".format(
                             tkey, i_ap, tkey_cur, i_ap, tkey_cur_exact))
-                    print("Drift = {}".format(np.round(self.drift, 2)))
                     idc_divs_cur = self.div_base_dict[tkey_cur][i_ap]
                     idc_divs_cur = list(set(idc_divs_cur) - set(covereds))
                     if len(idc_divs_cur) == 0:

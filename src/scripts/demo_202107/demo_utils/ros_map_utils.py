@@ -204,17 +204,17 @@ class KiroMobileMap:
             maps = self.get_maps(timeout=timeout)
             self.maps = maps
             if self.connection_state:
-                Q_map = crob.get_real_robot_pose()
+                self.Q_map = crob.get_real_robot_pose()
                 save_pickle(
                     os.path.join(RNB_PLANNING_DIR, "data/Q_map.pkl"),
-                    Q_map)
+                    self.Q_map)
             else:
-                Q_map = load_pickle(
+                self.Q_map = load_pickle(
                     os.path.join(RNB_PLANNING_DIR, "data/Q_map.pkl"))
-            Tbm_map = gscene.get_tf(mobile_base, Q_map)
+            Tbm_map = gscene.get_tf(mobile_base, self.Q_map)
             self.set_maps(*maps, T_bm=Tbm_map, canny_ksize=10)
 
-            gscene.show_pose(Q_map)
+            gscene.show_pose(self.Q_map)
             pt_list, costs = self.convert_im2scene(self.cost_im > 0, self.resolution, self.T_bi, img_cost=self.cost_im)
             pt_list = np.subtract(pt_list, (0, 0, self.resolution))
             YlOrRd = plt.get_cmap("YlOrRd")

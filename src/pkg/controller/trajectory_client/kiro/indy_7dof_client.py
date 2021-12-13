@@ -48,7 +48,7 @@ class Indy7DofClient(IndyTrajectoryClient):
         return IndyTrajectoryClient.send_qval(self, qval[:6])
 
     def get_qcount(self): # tool angle is synced when qcount is taken
-        qcount= ndyTrajectoryClient.get_qcount(self)
+        qcount= IndyTrajectoryClient.get_qcount(self)
         if qcount > 0: # if more than 0 que is left, send first(current) value to tool
             self.qstack = self.qstack[-qcount:]
             self.move_tool(self.qstack[0][-1])

@@ -203,8 +203,9 @@ class SwitchState(Enum):
     SWEEP_RETRACT = 3
     SWEEPING = 4
 
+from pkg.planning.mode_switcher import ModeSwitcherTemplate
 
-class ModeSwitcherKMB:
+class ModeSwitcherKMB(ModeSwitcherTemplate):
     def __init__(self, pscene, push_dist=0.05):
         self.pscene = pscene
         self.gscene = pscene.gscene
