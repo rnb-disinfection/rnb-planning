@@ -71,16 +71,10 @@ def draw_registration_result(source, target, transformation, option_geos=[]):
     source_temp.paint_uniform_color([1, 0.706, 0])
     target_temp.paint_uniform_color([0, 0.651, 0.929])
     source_temp.transform(transformation)
-    FOR_origin = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.2, origin=[0, 0, 0])
-
-    FOR_model = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.15, origin=[0, 0, 0])
-    FOR_model.transform(transformation)
-    FOR_model.translate(source_temp.get_center() - FOR_model.get_center())
-
+    FOR_origin = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.15, origin=[0, 0, 0])
     FOR_target = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.15, origin=target.get_center())
 
-    o3d.visualization.draw_geometries([source_temp, target_temp,
-                                       FOR_origin, FOR_model, FOR_target]+option_geos)
+    o3d.visualization.draw_geometries([source_temp, target_temp, FOR_origin, FOR_target]+option_geos)
 
 
 ##
@@ -105,7 +99,6 @@ class MultiICP:
         self.visualize = False
         self.cache = None
         self.pcd_total = None
-        self.mrule_dict = {}
 
 
     ##
@@ -186,6 +179,7 @@ class MultiICP:
         if self.crob is None:
             TextColors.YELLOW.println("[WARN] CombinedRobot is not set: call set_config()")
             return {}
+
         if self.cache is None:
             color_image, depth_image, Q = self.get_image()
         else:
@@ -246,8 +240,6 @@ class MultiICP:
 
         for name, micp in detect_dict.items():
             if name in mask_dict.keys():
-                micp.clear()
-
                 # add to micp
                 masks = mask_dict[name]
                 mask_list = []
@@ -311,16 +303,6 @@ class MultiICP:
 
             T_list = []
             for name_i, pcd in pcd_dict.items():
-                if visualize:
-                    model = copy.deepcopy(micp_parent.model_sampled)
-                    model.transform(np.matmul(micp_parent.pose, micp_parent.Toff_inv))
-                    origin = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.2, origin=(0,0,0))
-                    micp.pcd.paint_uniform_color([1, 0.706, 0])
-                    pcd.paint_uniform_color([0, 0.651, 0.929])
-                    print(len(np.asarray(micp.pcd.points)))
-                    print(len(np.asarray(pcd.points)))
-                    o3d.visualization.draw_geometries([micp.pcd, pcd, model, micp_parent.pcd, origin])
-
                 micp.pcd = pcd
 
                 skip_normal_icp = False
@@ -335,16 +317,6 @@ class MultiICP:
                     print("\n'{}' is not in gscene. Use manual input for initial guess\n".format(name))
                     Tguess = micp.grule.get_initial(micp.pcd,
                                                             R=detect_dict[hrule.parent].pose[:3, :3])
-                if visualize:
-                    T_init = np.matmul(Tguess, micp.Toff_inv)
-                    model = copy.deepcopy(micp.model_sampled)
-                    model.transform(T_init)
-                    origin = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.2, origin=(0,0,0))
-                    micp.pcd.paint_uniform_color([1, 0.706, 0])
-                    pcd.paint_uniform_color([0, 0.651, 0.929])
-                    print(len(np.asarray(micp.pcd.points)))
-                    print(len(np.asarray(pcd.points)))
-                    o3d.visualization.draw_geometries([micp.pcd, pcd, model, origin])
 
                 # Compute ICP, front iCP
                 if not skip_normal_icp:
