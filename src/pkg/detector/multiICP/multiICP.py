@@ -496,18 +496,42 @@ class MultiICP_Obj:
 
         To = np.matmul(To, self.Toff_inv)
 
+
         # Guess Initial Transformation
         trans_init = To
 
+        source_down = source.uniform_down_sample(every_k_points=5)
+        target_down = target.uniform_down_sample(every_k_points=5)
         print("Apply point-to-point ICP")
         threshold = thres
-        reg_p2p = o3d.registration.registration_icp(source, target, threshold, trans_init,
+        reg_p2p = o3d.registration.registration_icp(source_down, target_down, threshold, trans_init,
                                                     o3d.registration.TransformationEstimationPointToPoint(),
                                                     o3d.registration.ICPConvergenceCriteria(
                                                         relative_fitness=relative_fitness,
                                                         relative_rmse=relative_rmse,
                                                         max_iteration=max_iteration))
         print(reg_p2p)
+        #
+        # print(":: Downsample with a voxel size %.3f." % voxel_size)
+        # source_down = source.voxel_down_sample(voxel_size)
+        # target_down = target.voxel_down_sample(voxel_size)
+        # radius_normal = voxel_size * 2
+        # print(":: Estimate normal with search radius %.3f." % radius_normal)
+        # source_down.estimate_normals(
+        #     o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=30))
+        # target_down.estimate_normals(
+        #     o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=30))
+        #
+        # print("Apply point-to-plane ICP")
+        # threshold = thres
+        # reg_p2p = o3d.registration.registration_icp(source_down, target_down, threshold, trans_init,
+        #                                             o3d.registration.TransformationEstimationPointToPlane(),
+        #                                             o3d.registration.ICPConvergenceCriteria(
+        #                                                 relative_fitness=relative_fitness,
+        #                                                 relative_rmse=relative_rmse,
+        #                                                 max_iteration=max_iteration))
+        # print(reg_p2p)
+
         print("Transformation is:")
         print(reg_p2p.transformation)
         ICP_result = reg_p2p.transformation
@@ -606,6 +630,8 @@ class MultiICP_Obj:
 
         To = np.matmul(To, self.Toff_inv)
 
+        source_down = source.uniform_down_sample(every_k_points=5)
+        target_down = target.uniform_down_sample(every_k_points=5)
         # Guess Initial Transformation
         trans_init = To
 
