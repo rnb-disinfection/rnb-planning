@@ -1,5 +1,5 @@
 from ..indy_trajectory_client import *
-from .kiro_tool import *
+import kiro_tool
 
 
 ##
@@ -9,7 +9,7 @@ from .kiro_tool import *
 class Indy7DofClient(IndyTrajectoryClient):
     def __init__(self, server_ip, *args, **kwargs):
         IndyTrajectoryClient.__init__(self,server_ip, *args, **kwargs)
-        self.ktool = KiroToolPort()
+        self.ktool = kiro_tool.KiroToolPort()
         self.qstack = []
         self.qtool = 0
 

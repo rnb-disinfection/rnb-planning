@@ -392,8 +392,7 @@ def bspline_wps(dt_step, trajectory_simp, vel_lims, acc_lims, radii_deg=1):
         Qsteps_list.append(Qsteps)
     Qsteps_list.append([Q])
     traj_cat = np.concatenate(Qsteps_list, axis=0)
-    bspline_traj(traj_cat, radii_deg)
-    return traj_new
+    return bspline_traj(traj_cat, radii_deg)
 
 
 def bspline_traj(trajectory, radii_deg=1):

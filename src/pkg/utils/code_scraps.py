@@ -340,6 +340,7 @@ def switch_command(ip_addr, on_off, UI_PORT=9990):
 
 def start_force_mode(indy, switch_delay=0.5):
     sleep(switch_delay)
+    indy.reset()
     switch_command(indy.server_ip, True)
     sleep(switch_delay)
 
@@ -834,5 +835,12 @@ def get_look_motion(mplan, rname, from_Q, target_point, com_link,
                                                 SINGULARITY_CUT=0.01, VERBOSE=False,
                                                 ref_link=ref_link, VISUALIZE=False)
         if succ:
-            break
+            Qtar = traj[-1]
+            Qdiff = Qtar-from_Q
+            steps = int(np.max(np.abs(Qdiff)) / 0.01)
+            traj = from_Q[np.newaxis,:] + Qdiff[np.newaxis, :]*np.arange(steps+1)[:,np.newaxis].astype(float)/steps
+            if mplan.validate_trajectory(traj):
+                break
+            else:
+                succ = False
     return traj, succ

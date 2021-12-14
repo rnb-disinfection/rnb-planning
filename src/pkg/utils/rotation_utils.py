@@ -131,7 +131,11 @@ def align_z(Two):
     Two_out[0:3,0:3] = Rwo_
     return Two_out
 
-def fit_floor(Tcw, Tco, minz):
+def fit_floor(Tco, minz=0, Tcw=None ):
+    if Tcw is None:
+        Tbo = np.copy(Tco)
+        Tbo[2,3] = -minz
+        return Tbo
     Pco = Tco[0:3,3]
     Twc = np.linalg.inv(Tcw)
     Pco_wz = np.dot(Twc[2,0:3],Pco)

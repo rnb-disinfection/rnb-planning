@@ -199,17 +199,8 @@ class MultiICP:
             TextColors.YELLOW.println("[WARN] SharedDetector is not set: call set_config()")
             return {}
         # Output of inference(mask for detected object)
-        img_res = cv2.resize(cdp.color, dsize=self.dsize)
-        mask_out_list_res = self.sd.inference(color_img=img_res)
-        mask_out_list = np.zeros((80,) + tuple(cdp.color.shape[:2]), dtype=mask_out_list_res.dtype)
-        for idx in range(80):
-            if np.any(mask_out_list_res[idx]):
-                for i_obj in range(1, np.max(mask_out_list_res[idx])+1):
-                    mask_res = (cv2.resize((mask_out_list_res[idx] == i_obj).astype(np.uint8) * 255,
-                                           dsize=tuple(reversed(self.img_dim)), interpolation=cv2.INTER_AREA
-                                           ).astype(float) / 255
-                                ).astype(np.uint8) * i_obj
-                    mask_out_list[idx][np.where(mask_res>0)] = mask_res[np.where(mask_res>0)]
+        mask_out_list = self.inference(color_img=cdp.color)
+
         mask_dict = {}
         for idx in range(80):
             if np.any(mask_out_list[idx]):
@@ -280,7 +271,7 @@ class MultiICP:
             elif micp.hrule is not None:
                 hrule_targets_dict[name] = micp
             else:
-                raise (RuntimeError("Detection rule undefined for {}".format(name)))
+                raise (RuntimeError("{} not detected and has no detection rule".format(name)))
 
         for name, micp in sorted(hrule_targets_dict.items()):
             # add to micp
@@ -389,6 +380,22 @@ class MultiICP:
                 raise(RuntimeError("Multiple object link candidates - marker link cannot be determined"))
             Toff = item.Toff
         gscene.add_highlight_axis(hl_key, axis_name, link_name, Toff[:3,3], Toff[:3,:3], axis="xyz")
+
+    ##
+    # @brief resize and inference image
+    def inference(self, color_img):
+        img_res = cv2.resize(color_img, dsize=self.dsize)
+        mask_out_list_res = self.sd.inference(color_img=img_res)
+        mask_out_list = np.zeros((80,) + tuple(color_img.shape[:2]), dtype=mask_out_list_res.dtype)
+        for idx in range(80):
+            if np.any(mask_out_list_res[idx]):
+                for i_obj in range(1, np.max(mask_out_list_res[idx])+1):
+                    mask_res = (cv2.resize((mask_out_list_res[idx] == i_obj).astype(np.uint8) * 255,
+                                           dsize=tuple(reversed(self.img_dim)), interpolation=cv2.INTER_AREA
+                                           ).astype(float) / 255
+                                ).astype(np.uint8) * i_obj
+                    mask_out_list[idx][np.where(mask_res>0)] = mask_res[np.where(mask_res>0)]
+        return mask_out_list
 
 
 ##
@@ -600,6 +607,7 @@ class MultiICP_Obj:
         source = copy.deepcopy(front_pcd)
 
         if visualize:
+            print("initial: \n{}".format(np.round(To, 2)))
             cam_coord = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.15, origin=[0, 0, 0])
             cam_coord.transform(Tc_cur)
             self.draw(To, source, target, [cam_coord])
@@ -624,6 +632,7 @@ class MultiICP_Obj:
 
         ICP_result = np.matmul(ICP_result, self.Toff)
         if visualize:
+            print("result: \n{}".format(np.round(ICP_result, 2)))
             self.draw(ICP_result, source, target)
 
         self.pose = ICP_result
@@ -680,3 +689,15 @@ def apply_mask(cdp, mask):
     color_masked = cv2.bitwise_and(cdp.color, cdp.color, mask=mask_u8).astype(np.uint8)
     depth_masked = cv2.bitwise_and(cdp.depth, cdp.depth, mask=mask_u8).astype(np.uint16)
     return ColorDepthMap(color_masked, depth_masked, cdp.intrins, cdp.depth_scale)
+
+# @brief adjust T upright around roi pcd center
+def fit_vertical(T_bc, Tbo, pcd_roi, height=0):
+    pcd_center_prev = np.matmul(T_bc[:3,:3],
+                                pcd_roi.get_center()
+                               ) + T_bc[:3,3]
+    T_bo_p = SE3(Tbo[:3,:3], pcd_center_prev)
+    T_pooc = np.matmul(SE3_inv(T_bo_p), Tbo)
+    T_bo_p[:3,:3] = Rot_axis(3, Rot2axis(Tbo[:3,:3], 3))
+    T_bo_c_fix = np.matmul(T_bo_p, T_pooc)
+    T_bo_c_fix[2,3] = height
+    return T_bo_c_fix

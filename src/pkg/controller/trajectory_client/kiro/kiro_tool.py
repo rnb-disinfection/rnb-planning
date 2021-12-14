@@ -83,20 +83,20 @@ class KiroToolPacket:
 # @class KiroToolPort
 # @brief  Connection interface for Kiro Tool USB Connection
 class KiroToolPort:
-    def __init__(self, port_name=KIRO_TOOL_PORT, 
+    def __init__(self, port_name=None,
                  baudrate=KIRO_TOOL_BDRATE, timeout=1):
+        port_name = KIRO_TOOL_PORT if port_name is None else port_name # aggisn default here to set default value in script
         self.port_name, self.baudrate = port_name, baudrate
         self.sport = serial.Serial(port_name, baudrate, timeout=timeout)
 #         sudo chwon $USER port_name
-        print("==== Kiro Tool connected ====")
+        print("==== Kiro Tool connected to {} ({}) ====".format(port_name, baudrate))
         self.flush()
         try:
             self.initialize()
         except Exception as e:
-            print("[ERROR] Run this bash command to allow USB access: {}".format(
-                "sudo usermod -a -G dialout $USER"))
             print(e)
-            raise(e)
+            raise(RuntimeError("[ERROR] Run this bash command to allow USB access: {}".format(
+                "sudo usermod -a -G dialout $USER")))
         
     def disable(self):
         data_fields = self.send_recv(MOTOR_CMD.DISABLE)

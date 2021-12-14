@@ -8,8 +8,8 @@ from pkg.utils.traj_utils import *
 from collections import defaultdict
 import copy
 
-DATASET_DIR = os.path.join(os.environ["RNB_PLANNING_DIR"], 'data/sweep_reach')
-try_mkdir(DATASET_DIR)
+SWEEP_DATA_DIR = os.path.join(os.environ["RNB_PLANNING_DIR"], 'data/sweep_reach')
+try_mkdir(SWEEP_DATA_DIR)
 
 class SweepDirections(Enum):
     front="front"
@@ -675,7 +675,7 @@ class GreedyExecuter:
         return snode_schedule
 
     def greedy_execute(self, Qcur, tool_dir, mode_switcher, offset_fun, auto_clear_subject=True, cost_cut=110, covereds=[],
-                       repeat_sweep=2, adjust_once=True, skip_execute=True):
+                       repeat_sweep=2, adjust_once=True, skip_execute=False):
         gtimer = GlobalTimer.instance()
         Qcur = np.copy(Qcur)
         Qhome = np.copy(Qcur)
@@ -707,13 +707,13 @@ class GreedyExecuter:
                 self.kmb.joint_move_make_sure(Qmob)
 
             with gtimer.block("offset_fun"):
-                # try:
-                Qcur, Qtar = offset_fun(self, self.crob, self.mplan, self.robot_name, Qref)
-                # except Exception as e:
-                #     TextColors.RED.println("[PLAN] Error in offset fun")
-                #     print(e)
-                #     self.mark_tested(tkey, i_ap, [], idc_divs)
-                #     continue
+                try:
+                    Qcur, Qtar = offset_fun(self, self.crob, self.mplan, self.robot_name, Qref)
+                except Exception as e:
+                    TextColors.RED.println("[PLAN] Error in offset fun")
+                    print(e)
+                    self.mark_tested(tkey, i_ap, [], idc_divs)
+                    continue
 
                 Tbm_cur = self.gscene.get_tf(self.mobile_link, Qcur)
                 Tbs = self.surface.get_tf(Qcur)
@@ -810,9 +810,16 @@ class GreedyExecuter:
                                         traj = list(snode_to.traj)
                                         for _ in range(repeat_sweep):
                                             traj += list(reversed(snode_to.traj))[1:] + list(snode_to.traj)[1:]
-#                                         t_all, traj = calc_safe_trajectory(1.0/DEFAULT_TRAJ_FREQUENCY, 
-#                                                                                np.array(traj),
-#                                                                                self.vel_lims, self.acc_lims)
+                                        t_all, traj = calc_safe_trajectory(1.0/DEFAULT_TRAJ_FREQUENCY,
+                                                                               np.array(traj),
+                                                                               self.vel_lims, self.acc_lims)
+                                        traj = np.array(traj)
+                                        snode_to.set_traj(traj)
+                                    else:
+                                        traj = list(snode_to.traj)
+                                        t_all, traj = calc_safe_trajectory(1.0/DEFAULT_TRAJ_FREQUENCY,
+                                                                               np.array(traj),
+                                                                               self.vel_lims, self.acc_lims)
                                         traj = np.array(traj)
                                         snode_to.set_traj(traj)
                                 idc_divs_remain = sorted(set(idc_divs_remain) - set(idc_select))
@@ -825,7 +832,6 @@ class GreedyExecuter:
                         if len(snode_schedule) == 0:  # no more available case in idc_idvs_remain
                             idc_fails += idc_divs_remain
                             break
-
                 self.mark_tested(tkey, i_ap, idc_succs, idc_fails)
                 covereds += idc_succs
 

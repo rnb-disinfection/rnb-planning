@@ -300,67 +300,13 @@ def Rodrigues_Rot_mat(axis, q):
 
 
 sys.path.append(os.path.join(os.path.join(os.environ["RNB_PLANNING_DIR"], 'src')))
-sys.path.append(os.path.join(os.environ["RNB_PLANNING_DIR"], 'src/scripts/demo_202107'))
 from pkg.utils.rotation_utils import *
-from collections import namedtuple
 
-##
-# @class ColorDepthMap
-# @param color numpy 8 bit array
-# @param depth numpy 16 bit array
-# @param intrins CamIntrins
-# @param depth_scale multiplier for depthymap
-ColorDepthMap = namedtuple('ColorDepthMap', ['color', 'depth', 'intrins', 'depth_scale'])
+def save_last_input(micp, dcam, viewpoint):
+    color, depth, Q, cam_intrins, depth_scale = micp.last_input
+    cam_pose = viewpoint.get_tf(Q)
+    dcam.save_scene(color, depth, cam_pose)
 
-
-##
-# @# param fname file apth except extension
-def load_rdict(obj_type,
-               intrins=[1280, 720,
-                        909.957763671875, 909.90283203125,
-                        638.3824462890625, 380.0085144042969],
-               depth_scale=1 / 3999.999810010204):
-    rdict = {}
-    rdict['color'] = cv2.imread(
-        os.path.join(SAVE_DIR, obj_type + '.jpg'), flags=cv2.IMREAD_UNCHANGED)
-    rdict['depth'] = cv2.imread(
-        os.path.join(SAVE_DIR, obj_type + '.png'), flags=cv2.IMREAD_UNCHANGED)
-    rdict['intrins'], rdict['depth_scale'] = intrins, depth_scale
-    Q = np.loadtxt(os.path.join(SAVE_DIR, obj_type + '.csv'), delimiter=",")
-    if len(Q)==12:
-        Q = np.pad(Q, (0,1), "constant")
-        np.savetxt(os.path.join(SAVE_DIR, obj_type + '.csv'), Q, delimiter=",")
-    return rdict, np.array(Q)
-
-
-def rdict2cdp(rdict):
-    return ColorDepthMap(**{k: rdict[k] for k in ColorDepthMap._fields})
-
-
-def apply_mask(cdp, mask):
-    mask_u8 = np.zeros_like(mask).astype(np.uint8)
-    mask_u8[np.where(mask)] = 255
-    color_masked = cv2.bitwise_and(
-        cdp.color, cdp.color, mask=mask_u8
-    ).astype(np.uint8)
-    depth_masked = cv2.bitwise_and(
-        cdp.depth, cdp.depth, mask=mask_u8
-    ).astype(np.uint16)
-    return ColorDepthMap(color_masked, depth_masked, cdp.intrins, cdp.depth_scale)
-
-def cdp2pcd(cdp, Tc=None, depth_trunc=5.0):
-    if Tc is None:
-        Tc = np.identity(4)
-    color = o3d.geometry.Image(cdp.color)
-    depth = o3d.geometry.Image(cdp.depth)
-    d_scale = cdp.depth_scale
-    rgbd_image = o3d.geometry.RGBDImage.create_from_color_and_depth(color, depth, depth_scale=1 / d_scale,
-                                                                    depth_trunc=depth_trunc,
-                                                                    convert_rgb_to_intensity=False)
-    pcd = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_image,
-                                                         o3d.camera.PinholeCameraIntrinsic(
-                                                             *cdp.intrins), SE3_inv(Tc))
-    return pcd
 #
 # class MultiICP:
 #

@@ -5,17 +5,18 @@ from ....utils.utils import *
 from ....utils.rotation_utils import *
 from kiro_udp_send import start_mobile_udp_thread, get_reach_state_edgeup, send_pose_udp, get_xyzw_cur
 
+KIRO_UDP_OFFLINE_DEBUG = False
 
 class KiroUDPClient(TrajectoryClient):
     DURATION_SHORT_MOTION_REF = 5
     SHORT_MOTION_RANGE = 0.04
     NEAR_MOTION_RANGE = 0.4
 
-    def __init__(self, server_ip, ip_cur, dummy=False):
+    def __init__(self, server_ip, ip_cur):
         TrajectoryClient.__init__(self, server_ip, traj_freq=10)
-        self.server_ip, self.dummy = server_ip, dummy
+        self.server_ip = server_ip
         self.teleport = True
-        if not dummy:
+        if not KIRO_UDP_OFFLINE_DEBUG:
             self.sock_mobile, self.server_thread = start_mobile_udp_thread(recv_ip=ip_cur)
             time.sleep(1)
         self.xyzw_last = [0, 0, 0, 1]
@@ -40,7 +41,7 @@ class KiroUDPClient(TrajectoryClient):
         return not get_reach_state_edgeup()
 
     def get_qcur(self):
-        if self.dummy:
+        if KIRO_UDP_OFFLINE_DEBUG:
             cur_xyzw = self.xyzw_last
         else:
             cur_xyzw = get_xyzw_cur()
@@ -160,7 +161,7 @@ class KiroUDPClient(TrajectoryClient):
                         np.round(min_Q[:3], 2), min_val, np.round(Q[:3], 2), cur_val))
                     self.joint_move_make_sure(min_Q, sure_count=0, check_valid=check_valid-1)
 
-            if self.dummy:
+            if KIRO_UDP_OFFLINE_DEBUG:
                 self.xyzw_last = self.joints2xyzw(Q)
                 time.sleep(0.5)
             else:
