@@ -482,7 +482,7 @@ class PlanningPipeline:
         snode_pre = snode_schedule[0]
         if auto_sync_robot_pose:
             self.pscene.combined_robot.joint_move_make_sure(snode_schedule[0].state.Q)
-        mode_switcher = self.mode_switcher if mode_switcher is not None else mode_switcher
+        mode_switcher = mode_switcher if mode_switcher is not None else self.mode_switcher
         mode_switcher.init(snode_pre.state)
 
         for snode in snode_schedule:
@@ -537,7 +537,7 @@ class PlanningPipeline:
             snode_home.set_traj(trajectory, 0)
             snode_schedule.append(snode_home)
 
-        mode_switcher = self.mode_switcher if mode_switcher is not None else mode_switcher
+        mode_switcher = mode_switcher if mode_switcher is not None else self.mode_switcher
 
         if not on_rviz:
             mode_switcher.init(state_0)

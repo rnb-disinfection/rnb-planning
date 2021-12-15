@@ -247,3 +247,39 @@ class ModeSwitcherKMB(ModeSwitcherTemplate):
                 Qpush = list(Tbm2[:2, 3]) + [Rot2axis(Tbm2[:3, :3], 3), 0, 0, 0]
                 self.kmb.joint_move_make_sure(Qpush)
                 self.Q_before_push = Qcur
+
+
+class ModeSwitcherLED(ModeSwitcherTemplate):
+    def __init__(self, pscene, robot_name, brush_face):
+        self.pscene = pscene
+        self.gscene = pscene.gscene
+        self.crob = pscene.combined_robot
+        self.indy = self.crob.robot_dict[robot_name]
+        self.ktool = self.indy.ktool
+        self.brush_face = brush_face
+        self.brush_face_color = brush_face.color
+
+    def switch_in(self, snode_pre, snode_new):
+        switch_state = SwitchState.NONE
+        snode_pre_cp = snode_pre.copy(self.pscene)
+        snode_pre_cp.traj = None
+        #         ppline.play_schedule([snode_pre_cp, snode_new])
+
+        from_state = snode_pre.state
+        to_state = snode_new.state
+        subjects, ok = self.pscene.get_changing_subjects(from_state, to_state)
+        if from_state.node[0] == 1 and to_state.node[0] == 2:
+            switch_state = SwitchState.SWEEPING
+        if switch_state == SwitchState.SWEEPING:
+            print("LED ON")
+            self.ktool.led_on()
+            self.brush_face.color = (1,0,1,0.7)
+            self.gscene.update_marker(self.brush_face)
+        return switch_state
+
+    def switch_out(self, switch_state, snode_new):
+        if switch_state == SwitchState.SWEEPING:  # move forward
+            print("LED OFF")
+            self.ktool.led_off()
+            self.brush_face.color = self.brush_face_color
+            self.gscene.update_marker(self.brush_face)
