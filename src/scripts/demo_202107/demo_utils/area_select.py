@@ -525,7 +525,7 @@ def show_lines(gscene, lines, base_link="base_link", orientation_mat=None, sweep
 
 
 class GreedyExecuter:
-    def __init__(self, ppline, brush_face, tool_dim, Qhome=None):
+    def __init__(self, ppline, brush_face, tool_dim, Qhome=None, vel_lims=0.5, acc_lims=0.5):
         self.ppline, self.brush_face, self.tool_dim = ppline, brush_face, tool_dim
         self.pscene = self.ppline.pscene
         self.gscene = self.pscene.gscene
@@ -549,8 +549,8 @@ class GreedyExecuter:
         self.ccheck = CachedCollisionCheck(self.mplan, self.mobile_name, Qhome)
         self.pass_count = 0
         self.highlights = []
-        self.vel_lims = 0.5
-        self.acc_lims = 0.5
+        self.vel_lims = vel_lims
+        self.acc_lims = acc_lims
 
     def get_division_dict(self, surface, tip_dir, sweep_dir, plane_val,
                           xout_cut=False, resolution=0.02, div_num=None):
@@ -810,16 +810,6 @@ class GreedyExecuter:
                                         traj = list(snode_to.traj)
                                         for _ in range(repeat_sweep):
                                             traj += list(reversed(snode_to.traj))[1:] + list(snode_to.traj)[1:]
-                                        t_all, traj = calc_safe_trajectory(1.0/DEFAULT_TRAJ_FREQUENCY,
-                                                                               np.array(traj),
-                                                                               self.vel_lims, self.acc_lims)
-                                        traj = np.array(traj)
-                                        snode_to.set_traj(traj)
-                                    else:
-                                        traj = list(snode_to.traj)
-                                        t_all, traj = calc_safe_trajectory(1.0/DEFAULT_TRAJ_FREQUENCY,
-                                                                               np.array(traj),
-                                                                               self.vel_lims, self.acc_lims)
                                         traj = np.array(traj)
                                         snode_to.set_traj(traj)
                                 idc_divs_remain = sorted(set(idc_divs_remain) - set(idc_select))
@@ -838,6 +828,19 @@ class GreedyExecuter:
             with gtimer.block("execution"):
                 if len(snode_schedule_all) > 0:  # no more available case in idc_idvs_remain
                     snode_schedule_all = self.force_add_return(snode_schedule_all, Qhome=Qhome)
+                    for snode_pre, snode_to in zip(snode_schedule_all[:-1], snode_schedule_all[1:]):
+                        if snode_to.traj is not None:
+                            vel_lims, acc_lims = self.vel_lims, self.acc_lims
+                            if snode_pre.state.node == (1,) and snode_to.state.node == (2,):
+                                traj_length = snode_to.traj_length / 5
+                                DQ_REF = 1.0
+                                if traj_length < DQ_REF:
+                                    vel_lims = self.vel_lims * traj_length / DQ_REF # reduce velocity
+                                    acc_lims = self.acc_lims * traj_length / DQ_REF
+                            t_all, traj = calc_safe_trajectory(1.0 / DEFAULT_TRAJ_FREQUENCY,
+                                                               np.array(snode_to.traj),
+                                                               vel_lims, acc_lims)
+                            snode_to.set_traj(np.array(traj))
                     Qcur = snode_schedule_all[-1].state.Q
                     if not skip_execute:
                         self.ppline.execute_schedule(snode_schedule_all, one_by_one=True, mode_switcher=mode_switcher)

@@ -236,7 +236,7 @@ def calc_safe_trajectory(dt_step, trajectory, vel_lims, acc_lims):
             T_list_new.append(np.ceil(T_stack / dt_step) * dt_step)
             Q_list.append(Q)
             T_stack = 0
-    if np.any(Q != Q_list[-1]):
+    if len(Q_list)==0 or np.any(Q != Q_list[-1]):
         T_list_new.append(np.ceil(T_stack / dt_step) * dt_step)
         Q_list.append(Q)
     T_list = np.array(T_list_new)
