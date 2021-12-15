@@ -118,7 +118,7 @@ class KiroUDPClient(TrajectoryClient):
     ##
     # @brief Make sure the joints move to Q using the indy DCP joint_move_to function.
     # @param Q radian
-    def joint_move_make_sure(self, Q, sure_count=None, Qfinal=None, check_valid=3, *args, **kwargs):
+    def joint_move_make_sure(self, Q, sure_count=None, Qfinal=None, check_valid=1, *args, **kwargs):
         if self.gscene is not None:
             if sure_count==0:
                 arrow_name = "mob_tar_{}".format(check_valid)

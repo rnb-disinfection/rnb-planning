@@ -525,7 +525,8 @@ def show_lines(gscene, lines, base_link="base_link", orientation_mat=None, sweep
 
 
 class GreedyExecuter:
-    def __init__(self, ppline, brush_face, tool_dim, Qhome=None, vel_lims=0.5, acc_lims=0.5):
+    def __init__(self, ppline, brush_face, tool_dim, Qhome=None,
+                 vel_lims=0.5, acc_lims=0.5, swp_vel_lims=0.2, swp_acc_lims=0.2):
         self.ppline, self.brush_face, self.tool_dim = ppline, brush_face, tool_dim
         self.pscene = self.ppline.pscene
         self.gscene = self.pscene.gscene
@@ -551,6 +552,8 @@ class GreedyExecuter:
         self.highlights = []
         self.vel_lims = vel_lims
         self.acc_lims = acc_lims
+        self.swp_vel_lims = swp_vel_lims
+        self.swp_acc_lims = swp_acc_lims
 
     def get_division_dict(self, surface, tip_dir, sweep_dir, plane_val,
                           xout_cut=False, resolution=0.02, div_num=None):
@@ -830,19 +833,26 @@ class GreedyExecuter:
                     snode_schedule_all = self.force_add_return(snode_schedule_all, Qhome=Qhome)
                     for snode_pre, snode_to in zip(snode_schedule_all[:-1], snode_schedule_all[1:]):
                         if snode_to.traj is not None:
-                            vel_lims, acc_lims = self.vel_lims, self.acc_lims
                             if snode_pre.state.node == (1,) and snode_to.state.node == (2,):
                                 traj_length = snode_to.traj_length / 5
                                 DQ_REF = 1.0
                                 if traj_length < DQ_REF:
-                                    vel_lims = self.vel_lims * traj_length / DQ_REF # reduce velocity
-                                    acc_lims = self.acc_lims * traj_length / DQ_REF
+                                    vel_lims = self.swp_vel_lims * traj_length / DQ_REF # reduce velocity
+                                    acc_lims = self.swp_acc_lims * traj_length / DQ_REF
+                                else:
+                                    vel_lims = self.swp_vel_lims # reduce velocity
+                                    acc_lims = self.swp_acc_lims
+                            else:
+                                vel_lims = self.vel_lims
+                                acc_lims = self.acc_lims
+
                             t_all, traj = calc_safe_trajectory(1.0 / DEFAULT_TRAJ_FREQUENCY,
                                                                np.array(snode_to.traj),
                                                                vel_lims, acc_lims)
                             snode_to.set_traj(np.array(traj))
                     Qcur = snode_schedule_all[-1].state.Q
                     if not skip_execute:
+                        # sweep_g, wp_g_0, wp_g_1 self.gscene.NAME_DICT["sweep"]
                         self.ppline.execute_schedule(snode_schedule_all, one_by_one=True, mode_switcher=mode_switcher)
                     snode_schedule_list.append(snode_schedule_all)
                 if len(snode_schedule_list) > 0:

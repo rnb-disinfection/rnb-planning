@@ -99,48 +99,61 @@ class KiroToolPort:
                 "sudo usermod -a -G dialout $USER")))
         
     def disable(self):
+        print("[KTOOL] disable")
         data_fields = self.send_recv(MOTOR_CMD.DISABLE)
         return ascii2str(data_fields)
         
     def enable(self):
+        print("[KTOOL] enable")
         return self.send_recv_check_a0(MOTOR_CMD.ENABLE)
         
     def op_init(self):
+        print("[KTOOL] op_init")
         return self.send_recv_check_a0(MOTOR_CMD.OP_INIT)
     
     def initialize(self):
+        print("[KTOOL] initialize")
         for _ in range(10):
             if self.enable():
                 break
             time.sleep(1)
+        time.sleep(0.5)
         for _ in range(10):
             if self.op_init():
                 break
             time.sleep(1)
     
     def stop(self):
+        print("[KTOOL] stop")
         return self.send_recv_check_a0(MOTOR_CMD.OP, OP_CMD.STOP)
     
     def roll_forward(self):
+        print("[KTOOL] roll_forward")
         return self.send_recv_check_a0(MOTOR_CMD.OP, OP_CMD.FWD)
     
     def roll_back(self):
+        print("[KTOOL] roll_back")
         return self.send_recv_check_a0(MOTOR_CMD.OP, OP_CMD.BWD)
     
     def led_on(self):
+        print("[KTOOL] led_on")
         return self.send_recv_check_a0(MOTOR_CMD.OP, OP_CMD.LED_ON)
     
     def led_off(self):
+        print("[KTOOL] led_off")
         return self.send_recv_check_a0(MOTOR_CMD.OP, OP_CMD.LED_OFF)
     
     def send_raw(self, raw):
+        print("[KTOOL] send_raw: {}".format(raw))
         return self.send_recv_check_a0(MOTOR_CMD.OP, OP_CMD.DEGREE, raw/0x100%0x100, raw%0x100)
 
     # @brief send deci-degree value in two bytes
     def send_degree(self, degree):
+        print("[KTOOL] send degree: {}".format(degree))
         return self.send_recv_check_a0(MOTOR_CMD.OP, OP_CMD.DEGREE, *divide_bytes(int(degree*10)%0x10000))
         
     def close(self):
+        print("[KTOOL] close")
         self.sport.close()
         
     def send_recv(self, motor_cmd, op_cmd=OP_CMD.NONE, *args):
@@ -153,6 +166,7 @@ class KiroToolPort:
             
         
     def send(self, motor_cmd, op_cmd=OP_CMD.NONE, *args):
+        print("[KTOOL] send {}".format((motor_cmd, op_cmd)+args))
         cmd_pkt = KiroToolPacket(motor_cmd, op_cmd, *args)
         self.sport.write(cmd_pkt.pack())
         
@@ -163,6 +177,7 @@ class KiroToolPort:
         if type(resp) == str:
             resp = str2ascii(resp)
         res_pkt = KiroToolPacket.unpack(resp)
+        print("[KTOOL] recv {}".format(res_pkt.data_fields))
         return res_pkt.data_fields
     
     def flush(self):

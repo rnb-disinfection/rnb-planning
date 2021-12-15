@@ -12,6 +12,8 @@ class Indy7DofClient(IndyTrajectoryClient):
         self.ktool = kiro_tool.KiroToolPort()
         self.qstack = []
         self.qtool = 0
+        self.tool_time = time.time()
+        self.tool_dt = 0.1
 
     ##
     # @brief Make sure the joints move to Q using the indy DCP joint_move_to function.
@@ -21,7 +23,7 @@ class Indy7DofClient(IndyTrajectoryClient):
         with self:
             for _ in range(N_repeat):
                 self.joint_move_to(np.rad2deg(Q[:6]))
-                self.ktool.send_degree(np.rad2deg(Q[-1]))
+                self.move_tool(Q[-1])
                 self.wait_motion()
 
     ##
@@ -51,7 +53,9 @@ class Indy7DofClient(IndyTrajectoryClient):
         qcount= IndyTrajectoryClient.get_qcount(self)
         if qcount > 0: # if more than 0 que is left, send first(current) value to tool
             self.qstack = self.qstack[-qcount:]
-            self.move_tool(self.qstack[0][-1])
+            if time.time() - self.tool_time > self.tool_dt:
+                self.move_tool(self.qstack[0][-1])
+                self.tool_time = time.time()
         else: # no que left
             if len(self.qstack)>0: # if non-used qstack is left, send last(most recent) value to tool
                 self.move_tool(self.qstack[-1][-1])
@@ -59,5 +63,6 @@ class Indy7DofClient(IndyTrajectoryClient):
         return qcount
 
     def move_tool(self, qtool):
+        print("Move Tool: {} ({})".format(np.rad2deg(qtool), np.round(time.time(), 3)))
         self.ktool.send_degree(np.rad2deg(self.qtool)) # send value
         self.qtool = qtool # update saved value

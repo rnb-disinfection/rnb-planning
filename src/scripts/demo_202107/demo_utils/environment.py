@@ -61,10 +61,10 @@ def add_kiro_indytool_down(gscene, zoff=0, tool_link="indy1_tcp", face_name="bru
 
 def add_brush(gscene, thickness=0.03, tool_link="indy1_tcp", face_name="brush_face",
               tool_dim=(0.08, 0.32), clearance=1e-2, clearance_side=1e-2,
-              col_color=(1,1,1,0.2), brush_color=(0.8, 0.8, 0.8, 0.8)):
+              col_color=(1,1,1,0.2), brush_color=(0.8, 0.8, 0.8, 0.8), center_off=(0,0,0)):
     brush_face = gscene.create_safe(gtype=GEOTYPE.BOX, name=face_name, link_name=tool_link,
                                     dims=(tool_dim[0], tool_dim[1], clearance),
-                                    center=(0, 0, -thickness+clearance/2), rpy=(0, 0, 0),
+                                    center=np.add(center_off, (0, 0, -thickness+clearance/2)), rpy=(0, 0, 0),
                                     color=(1.0, 0.0, 0.0, 0.5), collision=False, fixed=True)
     gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_body".format(face_name), link_name=tool_link,
                        dims=(tool_dim[0], tool_dim[1], thickness-clearance),
@@ -267,7 +267,7 @@ class ModeSwitcherLED(ModeSwitcherTemplate):
 
         from_state = snode_pre.state
         to_state = snode_new.state
-        subjects, ok = self.pscene.get_changing_subjects(from_state, to_state)
+        # subjects, ok = self.pscene.get_changing_subjects(from_state, to_state)
         if from_state.node[0] == 1 and to_state.node[0] == 2:
             switch_state = SwitchState.SWEEPING
         if switch_state == SwitchState.SWEEPING:
