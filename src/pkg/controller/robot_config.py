@@ -90,8 +90,11 @@ class RobotSpecs:
                                        joint_names=["joint{}".format(idx) for idx in range(7)],
                                        home_pose=np.deg2rad([  0., 50.,  -70.,  -0.,  -90., 0, -45]),
 #                                        joint_limits=[(-np.pi*2/3, np.pi*2/3), (-np.pi/2, np.pi/2)] \
-                                       joint_limits=[(-2.95, 2.95)]*2 \
-                                                    +[(-3.00, 3.00)]*3 \
+                                       joint_limits=[(-np.pi*2/3, np.pi*2/3)] \
+                                                    +[(-3.00, 3.00)] \
+                                                    +[(-3.00, 0)] \
+                                                    +[(-3.00, 3.00)] \
+                                                    +[(-3.00, 3.00)] \
                                                     +[(-3.70, 3.70)] \
                                                     # +[(-np.pi*1/4-0.001, -np.pi*1/4+0.001)], \
                                                     +[(-np.pi*5/18, np.pi*5/18)],

@@ -27,7 +27,7 @@ class SweepDirections(Enum):
         elif tip_dir == cls.down.value:
             Rre = Rot_rpy((-np.pi, np.pi/2, 0))
         else:
-            raise (RuntimeError("Not defined"))
+            raise (RuntimeError("Not defined tip_dir {}".format(tip_dir)))
         return Rre
 
     @classmethod
@@ -442,11 +442,13 @@ def add_sweep_task(pscene, sweep_name, surface, swp_min, swp_max, Tsm, ax_swp_t,
     return sweep_task
 
 def set_sweep(pscene, surface, Tsm, swp_centers, ax_swp_tool, ax_swp_base,
-                   TOOL_DIM, tool_dir=1):
+              TOOL_DIM, tool_dir=1,
+              color_sweep=(0.6, 0.0, 0.0, 0.3), color_wp=(0.6, 0.0, 0.0, 0.5)):
     TOOL_DIM_SWEEP = TOOL_DIM[ax_swp_tool]
     ax_swp_surf = np.where(np.abs(Tsm[:3,ax_swp_base])>0.5)[0][0]
     swp_min, swp_max = get_min_max_sweep_points(surface, swp_centers, np.max(TOOL_DIM), TOOL_DIM_SWEEP, ax_swp_surf)
-    sweep_task = add_sweep_task(pscene, "sweep", surface, swp_min, swp_max, Tsm, ax_swp_tool, wp_dims=TOOL_DIM, tool_dir=tool_dir)
+    sweep_task = add_sweep_task(pscene, "sweep", surface, swp_min, swp_max, Tsm, ax_swp_tool, wp_dims=TOOL_DIM, tool_dir=tool_dir,
+                                color_sweep=color_sweep, color_wp=color_wp)
 
 def test_base_divs(ppline, surface, Tsm, swp_centers,
                    ax_swp_tool, ax_swp_base, TOOL_DIM, Q_dict,
@@ -606,7 +608,7 @@ class GreedyExecuter:
             # leave highlight on cleared area
             swp_fin = self.gscene.copy_from(self.gscene.NAME_DICT["sweep"],
                                             new_name="sweep_tested_{}".format(self.pass_count),
-                                            color=(1, 1, 0, 0.5))
+                                            color=(0, 0, 1, 0.5))
             swp_fin.dims = (swp_fin.dims[0], swp_fin.dims[1], swp_fin.dims[2] + 0.002)
             self.gscene.update_marker(swp_fin)
             self.highlights.append(swp_fin)
@@ -830,6 +832,9 @@ class GreedyExecuter:
 
             with gtimer.block("execution"):
                 if len(snode_schedule_all) > 0:  # no more available case in idc_idvs_remain
+                    set_sweep(self.pscene, self.surface, np.identity(4), [(0,0), (0,1)], 0, 0,
+                              (self.tool_dim), tool_dir=1,
+                              color_sweep=(0.6, 0.0, 0.0, 0.0), color_wp=(0.6, 0.0, 0.0, 0.0))
                     snode_schedule_all = self.force_add_return(snode_schedule_all, Qhome=Qhome)
                     for snode_pre, snode_to in zip(snode_schedule_all[:-1], snode_schedule_all[1:]):
                         if snode_to.traj is not None:
@@ -867,3 +872,36 @@ class GreedyExecuter:
         for child in copy.deepcopy(self.surface.children):
             self.gscene.remove(self.gscene.NAME_DICT[child])
 
+
+DEMO1222_DATA_DIR = os.path.join(RNB_PLANNING_DIR, "data", "demo1222")
+try_mkdir(DEMO1222_DATA_DIR)
+
+
+def save_schedules(snode_schedule_list_table_all, snode_schedule_list_sofa_all):
+    now_path =os.path.join(DEMO1222_DATA_DIR, get_now())
+    try_mkdir(now_path)
+    save_pickle(os.path.join(now_path, "table_schedule.pkl"), snode_schedule_list_table_all)
+    save_pickle(os.path.join(now_path, "sofa_schedule.pkl"), snode_schedule_list_sofa_all)
+
+
+def load_schedules(data_folder=None):
+    if data_folder is None:
+        print("[INFO] data_folder is not specified - select most recent data")
+        folders = sorted([fname for fname in os.listdir(DEMO1222_DATA_DIR)
+                          if os.path.isdir(os.path.join(DEMO1222_DATA_DIR, fname))])
+        assert len(folders)>0, "No available data folder in {}".format(DEMO1222_DATA_DIR)
+        data_folder = folders[-1]
+    data_path = os.path.join(DEMO1222_DATA_DIR, data_folder)
+    snode_schedule_list_table_all = load_pickle(os.path.join(data_path, "table_schedule.pkl"))
+    snode_schedule_list_sofa_all = load_pickle(os.path.join(data_path, "sofa_schedule.pkl"))
+    print("schedule loaded from {}".format(data_path))
+    return snode_schedule_list_table_all, snode_schedule_list_sofa_all
+
+
+def play_cleaning_schedule(ppline, surface, snode_schedule_list, mode_switcher, tool_dim):
+    set_sweep(ppline.pscene, surface, np.identity(4), [(0, 0), (0, 1)], 0, 0,
+              (tool_dim), tool_dir=1,
+              color_sweep=(0.6, 0.0, 0.0, 0.0), color_wp=(0.6, 0.0, 0.0, 0.0))
+    for snode_schedule in snode_schedule_list:
+        ppline.pscene.combined_robot.joint_move_make_sure(snode_schedule[0].state.Q)
+        ppline.execute_schedule(snode_schedule, one_by_one=True, mode_switcher=mode_switcher)

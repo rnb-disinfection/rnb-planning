@@ -383,6 +383,9 @@ class GeometryScene(list):
         self.create_safe(GEOTYPE.BOX, "rightwall_ws", "base_link", (XMAX - XMIN, thickness, ZMAX - ZMIN),
                          ((XMAX + XMIN) / 2, YMAX+thickness/2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
                          color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
+        self.create_safe(GEOTYPE.BOX, "room_ws", "base_link", (XMAX - XMIN, YMAX - YMIN, ZMAX - ZMIN),
+                         ((XMAX + XMIN) / 2, (YMAX + YMIN) / 2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
+                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=False)
 
     def clear_virtuals(self):
         for virtual in self.virtuals:

@@ -165,8 +165,10 @@ class KiroMobileMap:
             )
         return poles
 
+    ##
+    # @param inside set this value True to  remove poles inside the box
     @classmethod
-    def remove_poles_by_box(cls, gscene, box, pt_list, Q, inside=True):
+    def remove_poles_by_box(cls, gscene, box, pt_list, Q, inside=True, margin=0):
         T_bx = box.get_tf(Q)
         T_xb = SE3_inv(T_bx)
         box_dims = box.dims
@@ -174,9 +176,9 @@ class KiroMobileMap:
         for pt in pt_list:
             P_xp = np.matmul(T_xb[:3, :3], pt) + T_xb[:3, 3]
             if inside:
-                res = all(np.abs(P_xp[:2]) < np.divide(box_dims[:2], 2))
+                res = all(np.abs(P_xp[:2]) < (np.divide(box_dims[:2], 2) + margin))
             else:
-                res = any(np.abs(P_xp[:2]) > np.divide(box_dims[:2], 2))
+                res = any(np.abs(P_xp[:2]) > (np.divide(box_dims[:2], 2) + margin))
             if not res:
                 pt_list_remain.append(pt)
         return pt_list_remain

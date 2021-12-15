@@ -12,7 +12,7 @@ from ctypes import c_int16
 KIRO_TOOL_PORT = '/dev/ttyUSB0'
 KIRO_TOOL_BDRATE = 115200
 STX_BYTE, ETX_BYTE = 0x02, 0x03
-
+OFFLINE_MODE = False
 
 class CMD_BASE(Enum):
     
@@ -87,7 +87,8 @@ class KiroToolPort:
                  baudrate=KIRO_TOOL_BDRATE, timeout=1):
         port_name = KIRO_TOOL_PORT if port_name is None else port_name # aggisn default here to set default value in script
         self.port_name, self.baudrate = port_name, baudrate
-        self.sport = serial.Serial(port_name, baudrate, timeout=timeout)
+        if not OFFLINE_MODE:
+            self.sport = serial.Serial(port_name, baudrate, timeout=timeout)
 #         sudo chwon $USER port_name
         print("==== Kiro Tool connected to {} ({}) ====".format(port_name, baudrate))
         self.flush()
@@ -154,7 +155,8 @@ class KiroToolPort:
         
     def close(self):
         print("[KTOOL] close")
-        self.sport.close()
+        if not OFFLINE_MODE:
+            self.sport.close()
         
     def send_recv(self, motor_cmd, op_cmd=OP_CMD.NONE, *args):
         self.send(motor_cmd, op_cmd, *args)
@@ -162,23 +164,31 @@ class KiroToolPort:
         
     def send_recv_check_a0(self, motor_cmd, op_cmd=OP_CMD.NONE, *args):
         recv_dat = self.send_recv(motor_cmd, op_cmd, *args)
-        return recv_dat[0] == (motor_cmd.value + 0xa0)%0x100
+        if OFFLINE_MODE:
+            return True
+        else:
+            return recv_dat[0] == (motor_cmd.value + 0xa0)%0x100
             
         
     def send(self, motor_cmd, op_cmd=OP_CMD.NONE, *args):
         print("[KTOOL] send {}".format((motor_cmd, op_cmd)+args))
         cmd_pkt = KiroToolPacket(motor_cmd, op_cmd, *args)
-        self.sport.write(cmd_pkt.pack())
+        if not OFFLINE_MODE:
+            self.sport.write(cmd_pkt.pack())
         
     def recv(self):
-        resp = self.sport.read(KiroToolPacket.packet_length())
-        if len(resp)==0:
-            raise(RuntimeError("ERROR: packet not returned"))
-        if type(resp) == str:
-            resp = str2ascii(resp)
-        res_pkt = KiroToolPacket.unpack(resp)
-        print("[KTOOL] recv {}".format(res_pkt.data_fields))
-        return res_pkt.data_fields
+        if OFFLINE_MODE:
+            return [0]*KiroToolPacket.DATA_LEN
+        else:
+            resp = self.sport.read(KiroToolPacket.packet_length())
+            if len(resp)==0:
+                raise(RuntimeError("ERROR: packet not returned"))
+            if type(resp) == str:
+                resp = str2ascii(resp)
+            res_pkt = KiroToolPacket.unpack(resp)
+            print("[KTOOL] recv {}".format(res_pkt.data_fields))
+            return res_pkt.data_fields
     
     def flush(self):
-        self.sport.read_all()
+        if not OFFLINE_MODE:
+            self.sport.read_all()
