@@ -88,7 +88,8 @@ class GeometryScene(list):
     # @brief remove one item from handle
     def remove(self, geo, call_from_parent=False):
         for child in geo.children:
-            self.remove(self.NAME_DICT[child], call_from_parent=True)
+            try: self.remove(self.NAME_DICT[child], call_from_parent=True)
+            except Exception as e: print("ERROR: remove gtem - {}".format(e))
         if not call_from_parent:
             if geo.parent is not None:
                 self.NAME_DICT[geo.parent].children.remove(geo.name)
