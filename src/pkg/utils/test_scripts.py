@@ -46,7 +46,7 @@ def prepare_single_robot_scene(ROBOT_TYPE, ROBOT_NAME, TOOL_LINK, TOOL_XYZ, TOOL
                                VISUALIZE=True, base_xyz_rpy=((0, 0, 0), (0, 0, 0))):
     crob = CombinedRobot(robots_on_scene=[
         RobotConfig(0, ROBOT_TYPE, base_xyz_rpy,
-                    INDY_IP)]
+                    None)]
         , connection_list=[False])
 
     s_builder = SceneBuilder(None)

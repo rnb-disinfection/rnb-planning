@@ -79,9 +79,15 @@ class CombinedRobot:
                 else:
                     self.robot_dict[name] = indy_7dof_client.Indy7DofClient(server_ip=addr)
             elif _type == RobotType.panda:
-                self.robot_dict[name] = panda_trajectory_client.PandaTrajectoryClient(*addr.split("/"))
+                if addr is not None:
+                    self.robot_dict[name] = panda_trajectory_client.PandaTrajectoryClient(*addr.split("/"))
+                else:
+                    self.robot_dict[name] = panda_trajectory_client.PandaTrajectoryClient(None, None)
             elif _type == RobotType.kmb:
-                self.robot_dict[name] = kiro_udp_client.KiroUDPClient(*addr.split("/"))
+                if addr is not None:
+                    self.robot_dict[name] = kiro_udp_client.KiroUDPClient(*addr.split("/"))
+                else:
+                    self.robot_dict[name] = kiro_udp_client.KiroUDPClient(None, None)
             else:
                 self.robot_dict[name] = TrajectoryClient(server_ip=addr)
 

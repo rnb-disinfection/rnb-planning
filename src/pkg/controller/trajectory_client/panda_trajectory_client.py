@@ -8,11 +8,12 @@ class PandaTrajectoryClient(TrajectoryClient):
     def __init__(self, server_ip, robot_ip, **kwargs):
         TrajectoryClient.__init__(self, server_ip=server_ip, **kwargs)
         self.robot_ip = robot_ip
-        self.reset()
-        self.clear()
-        self.start_gripper_server()
-        self.finger_pub = rospy.Publisher('/franka_gripper/gripper_action/goal', GripperCommandActionGoal,
-                                          tcp_nodelay=True, queue_size=1)
+        if self.robot_ip is not None:
+            self.reset()
+            self.clear()
+            self.start_gripper_server()
+            self.finger_pub = rospy.Publisher('/franka_gripper/gripper_action/goal', GripperCommandActionGoal,
+                                              tcp_nodelay=True, queue_size=1)
         self.finger_cmd = GripperCommandActionGoal()
         self.close_bool = False
 
@@ -30,7 +31,7 @@ class PandaTrajectoryClient(TrajectoryClient):
         self.__kill_existing_subprocess()
 
     def grasp(self, close_bool, max_width=0.039, min_width=0.025, effort=1):
-        if close_bool != self.close_bool:
+        if close_bool != self.close_bool and self.robot_ip is not None:
             self.finger_cmd.goal.command.position = (max_width-min_width)*(1-close_bool)+min_width
             self.finger_cmd.goal.command.max_effort = effort
             self.finger_cmd.header.seq += 1
