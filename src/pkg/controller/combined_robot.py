@@ -1,7 +1,10 @@
-from .trajectory_client.indy_trajectory_client import *
-from .trajectory_client.indy_trajectory_client_nosdk import *
-from .trajectory_client.panda_trajectory_client import *
-from .trajectory_client.kiro_udp_client import *
+from .trajectory_client.trajectory_client import *
+from .trajectory_client import indy_trajectory_client
+from .trajectory_client import indy_trajectory_client_nosdk
+from .trajectory_client import panda_trajectory_client
+from .trajectory_client.kiro import kiro_udp_client
+from .trajectory_client.kiro import indy_7dof_client
+from .trajectory_client.kiro import indy_7dof_client_nosdk
 from .robot_config import *
 from collections import defaultdict
 import numpy as np
@@ -12,6 +15,7 @@ JOINT_LIM_DICT = []
 ##
 # @class CombinedRobot
 # @brief control interface for combined robot
+# @remark call CombinedRobot.simulator.set_gscene(gscene) to automatically visualize robot
 class CombinedRobot:
     ##
     # @param robots_on_scene list of rnb-planning.src.pkg.controller.robot_config.RobotConfig
@@ -51,13 +55,35 @@ class CombinedRobot:
                     self.custom_limits[jname].update({"velocity": vellim*self.vel_scale})
                 if acclim is not None:
                     self.custom_limits[jname].update({"effort": acclim*self.acc_scale})
-            self.home_pose += RobotSpecs.get_home_pose(_type)
+            self.home_pose += list(RobotSpecs.get_home_pose(_type))
             self.idx_dict[name] = range(i0, len(self.joint_names))
             self.robot_dict[name] = None
             self.robot_names.append(name)
         self.joint_num = len(self.joint_names)
         self.home_pose = np.array(self.home_pose)
         self.home_dict = list2dict(self.home_pose, self.joint_names)
+        self.simulator = RobotVisualModel(self,self.home_pose)
+
+    def __set_clients(self):
+        for rbt, addr in zip(self.robots_on_scene, self.address_list):
+            name = rbt.get_indexed_name()
+            _type = rbt.type
+            if _type in [RobotType.indy7, RobotType.indy7gripper]:
+                if "no_sdk" in rbt.specs and rbt.specs["no_sdk"]:
+                    self.robot_dict[name] = indy_trajectory_client_nosdk.IndyTrajectoryClientNoSDK(server_ip=addr)
+                else:
+                    self.robot_dict[name] = indy_trajectory_client.IndyTrajectoryClient(server_ip=addr)
+            elif _type == RobotType.indy7kiro:
+                if "no_sdk" in rbt.specs and rbt.specs["no_sdk"]:
+                    self.robot_dict[name] = indy_7dof_client_nosdk.Indy7DofClientNoSDK(server_ip=addr)
+                else:
+                    self.robot_dict[name] = indy_7dof_client.Indy7DofClient(server_ip=addr)
+            elif _type == RobotType.panda:
+                self.robot_dict[name] = panda_trajectory_client.PandaTrajectoryClient(*addr.split("/"))
+            elif _type == RobotType.kmb:
+                self.robot_dict[name] = kiro_udp_client.KiroUDPClient(*addr.split("/"))
+            else:
+                self.robot_dict[name] = TrajectoryClient(server_ip=addr)
 
     ##
     # @brief update robot position
@@ -91,27 +117,8 @@ class CombinedRobot:
         for rname, connection in zip(self.robot_names, self.connection_list):
             print("{}: {}".format(rname, connection))
 
-        for rbt, cnt, addr in zip(self.robots_on_scene, self.connection_list, self.address_list):
-            name = rbt.get_indexed_name()
-            _type = rbt.type
-            if cnt:
-                if _type == RobotType.indy7:
-                    if not self.robot_dict[name]:
-                        if "no_sdk" in rbt.specs and rbt.specs["no_sdk"]:
-                            self.robot_dict[name] = IndyTrajectoryClientNoSDK(server_ip=addr)
-                        else:
-                            self.robot_dict[name] = IndyTrajectoryClient(server_ip=addr)
-
-                elif _type == RobotType.panda:
-                    self.robot_dict[name] = PandaTrajectoryClient(*addr.split("/"))
-                elif _type == RobotType.kmb:
-                    self.robot_dict[name] = KiroUDPClient(*addr.split("/"),
-                                                          dummy=True
-                                                          if "dummy" in rbt.specs and rbt.specs["dummy"] else False)
-            else:
-                if self.robot_dict[name] is not None:
-                    self.robot_dict[name].disconnect()
-                    self.robot_dict[name] = None
+        self.__set_clients()
+        self.simulator.set_model()
 
     ##
     # @brief get a dictionary of rnb-planning.src.pkg.controller.robot_config.RobotConfig on scene
@@ -248,6 +255,14 @@ class CombinedRobot:
             return True
         if one_by_one:
             for rname, robot in robots_in_act:
+                Q_init = trajectory[0][self.idx_dict[rname]]
+                Q_cur = robot.get_qcur()
+                if np.max(np.abs((np.subtract(Q_init, Q_cur)))) > 5e-2:
+                    print("move_joint_traj: {} pose does not match with trajectory initial state. calling joint_move_make_sure".format(rname))
+                    print(np.round(np.rad2deg(Q_init), 1))
+                    print(np.round(np.rad2deg(Q_cur), 1))
+                    robot.joint_move_make_sure(Q_init)
+                    print("joint_move_make_sure done")
                 robot.move_joint_traj(trajectory[:, self.idx_dict[rname]], auto_stop=auto_stop, wait_motion=wait_motion)
                 if error_stop is not None:
                     if np.sum(np.abs(np.subtract(trajectory[-1, self.idx_dict[rname]], robot.get_qcur())))\
@@ -337,3 +352,84 @@ class CombinedRobot:
                 map(lambda x: RobotSpecs.get_joint_limits(x, none_as_inf=True),
                     [self.get_robot_config_dict()[rname].type for rname in self.robot_names])
                 )
+
+# @remark call set_gscene(gscene) to automatically visualize robot
+class RobotVisualModel:
+    def __init__(self, crob, Qhome, gscene=None, simul_speed=10):
+        self.gscene, self.crob = gscene, crob
+        self.qstack_dict = {rname: [] for rname in crob.robot_names}
+        self.Q_cur = np.copy(Qhome)
+        self.simul_speed = simul_speed
+
+    def set_gscene(self, gscene):
+        self.gscene = gscene
+
+    def set_model(self):
+        robot_names = self.crob.robot_names
+        for rname in robot_names:
+            self.__wrap_client(rname)
+
+    def __wrap_client(self, rname):
+        robot = self.crob.robot_dict[rname]
+        idx = self.crob.idx_dict[rname]
+        qstack = self.qstack_dict[rname]
+        connected = rname in self.crob.get_connected_robot_names()
+
+        def reset():
+            while qstack:
+                qstack.pop()
+            if connected:   return type(robot).reset(robot)
+            else:           print("[SIMUL] {} reset".format(rname))
+
+        def get_qcount():
+            if connected:
+                qcount = type(robot).get_qcount(robot)
+            else:
+                qcount = max(len(qstack) - self.simul_speed, 0)
+            while len(qstack) > qcount:
+                self.Q_cur[idx] = qstack.pop(0)
+            if self.gscene is not None:
+                self.gscene.show_pose(self.Q_cur)
+            return qcount
+        robot.get_qcount = get_qcount
+
+        def get_qcur():
+            if connected:   return type(robot).get_qcur(robot)
+            else:           return self.Q_cur[idx]
+        robot.get_qcur = get_qcur
+
+        def send_qval(qval):
+            qstack.append(qval)
+            if connected:   return type(robot).send_qval(robot, qval)
+            else:           return {'qcount': len(qstack)}
+        robot.send_qval = send_qval
+
+        def joint_move_make_sure(Q, *args, **kwargs):
+            while qstack:
+                qstack.pop()
+            if connected:
+                type(robot).joint_move_make_sure(robot, Q, *args, **kwargs)
+            self.Q_cur[idx] = Q
+            if self.gscene is not None:
+                self.gscene.show_pose(self.Q_cur)
+        robot.joint_move_make_sure = joint_move_make_sure
+
+        def start_tracking():
+            if connected:   return type(robot).start_tracking(robot)
+            else:           print("[SIMUL] {} start tracking".format(rname))
+        robot.start_tracking = start_tracking
+
+        def stop_tracking():
+            if connected:   return type(robot).stop_tracking(robot)
+            else:           print("[SIMUL] {} stop tracking".format(rname))
+        robot.stop_tracking = stop_tracking
+
+        def terminate_loop():
+            if connected:   return type(robot).terminate_loop(robot)
+            else:           print("[SIMUL] {} terminated".format(rname))
+        robot.terminate_loop = terminate_loop
+
+        if not connected:
+            def _grasp(grasp):
+                print("[SIMUL] {} grasp {}".format(rname, grasp))
+            robot.grasp = _grasp

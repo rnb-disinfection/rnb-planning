@@ -236,7 +236,7 @@ def calc_safe_trajectory(dt_step, trajectory, vel_lims, acc_lims):
             T_list_new.append(np.ceil(T_stack / dt_step) * dt_step)
             Q_list.append(Q)
             T_stack = 0
-    if np.any(Q != Q_list[-1]):
+    if len(Q_list)==0 or np.any(Q != Q_list[-1]):
         T_list_new.append(np.ceil(T_stack / dt_step) * dt_step)
         Q_list.append(Q)
     T_list = np.array(T_list_new)
@@ -392,8 +392,7 @@ def bspline_wps(dt_step, trajectory_simp, vel_lims, acc_lims, radii_deg=1):
         Qsteps_list.append(Qsteps)
     Qsteps_list.append([Q])
     traj_cat = np.concatenate(Qsteps_list, axis=0)
-    bspline_traj(traj_cat, radii_deg)
-    return traj_new
+    return bspline_traj(traj_cat, radii_deg)
 
 
 def bspline_traj(trajectory, radii_deg=1):

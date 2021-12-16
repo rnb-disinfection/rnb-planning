@@ -71,16 +71,10 @@ def draw_registration_result(source, target, transformation, option_geos=[]):
     source_temp.paint_uniform_color([1, 0.706, 0])
     target_temp.paint_uniform_color([0, 0.651, 0.929])
     source_temp.transform(transformation)
-    FOR_origin = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.2, origin=[0, 0, 0])
-
-    FOR_model = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.15, origin=[0, 0, 0])
-    FOR_model.transform(transformation)
-    FOR_model.translate(source_temp.get_center() - FOR_model.get_center())
-
+    FOR_origin = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.15, origin=[0, 0, 0])
     FOR_target = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.15, origin=target.get_center())
 
-    o3d.visualization.draw_geometries([source_temp, target_temp,
-                                       FOR_origin, FOR_model, FOR_target]+option_geos)
+    o3d.visualization.draw_geometries([source_temp, target_temp, FOR_origin, FOR_target]+option_geos)
 
 
 ##
@@ -185,6 +179,7 @@ class MultiICP:
         if self.crob is None:
             TextColors.YELLOW.println("[WARN] CombinedRobot is not set: call set_config()")
             return {}
+
         if self.cache is None:
             color_image, depth_image, Q = self.get_image()
         else:
@@ -196,26 +191,16 @@ class MultiICP:
                        camera_mtx[0, 2], camera_mtx[1, 2]]
         depth_scale = self.config_list[2]
 
-        self.last_input = color_image, depth_image, Q, cam_intrins, depth_scale
-
         cdp = ColorDepthMap(color_image, depth_image, cam_intrins, depth_scale)
         Tc = self.viewpoint.get_tf(Q)
+        T_cb = SE3_inv(Tc)
 
         if self.sd is None:
             TextColors.YELLOW.println("[WARN] SharedDetector is not set: call set_config()")
             return {}
         # Output of inference(mask for detected object)
-        img_res = cv2.resize(cdp.color, dsize=self.dsize)
-        mask_out_list_res = self.sd.inference(color_img=img_res)
-        mask_out_list = np.zeros((80,) + tuple(cdp.color.shape[:2]), dtype=mask_out_list_res.dtype)
-        for idx in range(80):
-            if np.any(mask_out_list_res[idx]):
-                for i_obj in range(1, np.max(mask_out_list_res[idx])+1):
-                    mask_res = (cv2.resize((mask_out_list_res[idx] == i_obj).astype(np.uint8) * 255,
-                                           dsize=tuple(reversed(self.img_dim)), interpolation=cv2.INTER_AREA
-                                           ).astype(float) / 255
-                                ).astype(np.uint8) * i_obj
-                    mask_out_list[idx][np.where(mask_res>0)] = mask_res[np.where(mask_res>0)]
+        mask_out_list = self.inference(color_img=cdp.color)
+
         mask_dict = {}
         for idx in range(80):
             if np.any(mask_out_list[idx]):
@@ -234,7 +219,6 @@ class MultiICP:
             else:
                 pass
 
-        objectPose_dict = {}
         hrule_targets_dict = {}
         detect_dict = {}
 
@@ -247,10 +231,7 @@ class MultiICP:
 
         for name, micp in detect_dict.items():
             if name in mask_dict.keys():
-                micp.clear()
-
                 # add to micp
-                micp.set_model()
                 masks = mask_dict[name]
                 mask_list = []
                 mask_zero = np.empty((self.img_dim[0],self.img_dim[1]), dtype=bool)
@@ -263,73 +244,86 @@ class MultiICP:
                 #     mask_tmp[np.where(masks==i+1)] = True
                 #     mask_list.append(mask_tmp)
 
-                # Check whether the object exists in gscene
-                try:
-                    g_handle = self.gscene.NAME_DICT[name]
-                    Tguess = g_handle.get_tf(Q)
-                except:
-                    print("\n'{}' is not in gscene. Use manual input for initial guess\n".format(name))
-                    pass
-
                 for i_m, mask in enumerate(mask_list):
                     cdp_masked = apply_mask(cdp, mask)
+                    micp.reset(Tref=Tc)
                     micp.make_pcd(cdp_masked, ratio=self.ratio)
-                    Tguess = None if micp.grule is None else micp.grule.get_initial(micp.pcd)
+
+                    skip_normal_icp = False
+                    if name in self.gscene.NAME_DICT: # if the object exists in gscene, use it as initial
+                        g_handle = self.gscene.NAME_DICT[name]
+                        print("\n'{}' is already in gscene. Use this to intial guess\n".format(name))
+                        Tbo = g_handle.get_tf(Q)
+                        Tguess = np.matmul(T_cb, Tbo)
+                        skip_normal_icp = True
+                    else: # if the object not exists in gscene, use grule
+                        print("\n'{}' is not in gscene. Use manual input for initial guess\n".format(name))
+                        Tguess = None if micp.grule is None else micp.grule.get_initial(micp.pcd)
 
                     # Compute ICP, front iCP
-                    T, _ = micp.compute_ICP(To=Tguess, visualize=visualize)
-                    T, _ = micp.compute_front_ICP(To=T, visualize=visualize)
+                    if not skip_normal_icp:
+                        Tguess, _ = micp.compute_ICP(To=Tguess, visualize=visualize)
+                    T, _ = micp.compute_front_ICP(To=Tguess, visualize=visualize)
 
                     # name_i = "{}_{:02}".format(name, i_m)
-                    objectPose_dict[name] = np.matmul(Tc, T)
                     self.objectPose_dict[name] = np.matmul(Tc, T)
                     print('Found 6DoF pose of {}'.format(name))
             elif micp.hrule is not None:
-                micp.clear()
                 hrule_targets_dict[name] = micp
             else:
-                raise (RuntimeError("Detection rule undefined for {}".format(name)))
+                raise (RuntimeError("{} not detected and has no detection rule".format(name)))
 
         for name, micp in sorted(hrule_targets_dict.items()):
             # add to micp
-            micp.set_model()
+            micp.reset(Tref=Tc)
             micp.make_pcd(cdp, ratio=self.ratio)
-            print('===== Apply heuristic rule for {} ====='.format(name))
             hrule = micp.hrule
-            mrule = hrule.update_rule(micp, detect_dict[hrule.parent], Tc=Tc)
-            micp.make_pcd(cdp, ratio=self.ratio)
-            # micp.make_pcd(cdp, Tc=Tc, ratio=self.ratio)
-            pcd_dict = mrule.apply_rule(micp.pcd, objectPose_dict)
+            print('===== Apply heuristic rule for {} ====='.format(name))
+            if hrule.parent in detect_dict:
+                micp_parent = detect_dict[hrule.parent]
+            else:
+                if hrule.parent in self.gscene.NAME_DICT: # if the object exists in gscene, use it as initial
+                    g_handle = self.gscene.NAME_DICT[hrule.parent]
+                    print("\nParent object '{}' of '{}' is already in gscene. Apply heuristic rule based on this\n".format(hrule.parent, name))
+                    micp_parent = self.micp_dict[hrule.parent]
+                    micp_parent.change_Tref(Tc)
+                else:
+                    continue
+            mrule = hrule.update_rule(micp, micp_parent, Tc=Tc)
+            pcd_dict = mrule.apply_rule(micp.pcd, {hrule.parent: micp_parent.pose})
+
             T_list = []
-
-            # Check whether the object exists in gscene
-            try:
-                g_handle = self.gscene.NAME_DICT[name]
-                initial_guess = g_handle.get_tf(Q)
-            except:
-                print("\n'{}' is not in gscene. Use manual input for initial guess\n".format(name))
-                pass
-
             for name_i, pcd in pcd_dict.items():
                 micp.pcd = pcd
-                Tguess = micp.grule.get_initial(micp.pcd,
-                                                        R=detect_dict[hrule.parent].pose[:3, :3])
+
+                skip_normal_icp = False
+                # Check whether the object exists in gscene
+                if name in self.gscene.NAME_DICT:
+                    g_handle = self.gscene.NAME_DICT[name]
+                    print("\n'{}' is already in gscene. Use this to intial guess\n".format(name))
+                    Tbo = g_handle.get_tf(Q)
+                    Tguess = np.matmul(T_cb, Tbo)
+                    skip_normal_icp = True
+                else:
+                    print("\n'{}' is not in gscene. Use manual input for initial guess\n".format(name))
+                    Tguess = micp.grule.get_initial(micp.pcd,
+                                                            R=detect_dict[hrule.parent].pose[:3, :3])
 
                 # Compute ICP, front iCP
-                T, _ = micp.compute_ICP(To=Tguess, visualize=visualize)
-                T, _ = micp.compute_front_ICP(To=T, visualize=visualize)
+                if not skip_normal_icp:
+                    Tguess, _ = micp.compute_ICP(To=Tguess, visualize=visualize)
+                T, _ = micp.compute_front_ICP(To=Tguess, visualize=visualize)
                 T_list.append(T)
-                objectPose_dict[name_i] = np.matmul(Tc, T)
                 self.objectPose_dict[name_i] = np.matmul(Tc, T)
                 print('Found 6DoF pose of {}'.format(name_i))
 
             # for i_t, T in enumerate(T_list):
             #     name_i = "{}_{:02}".format(name, i_t)
-            #     objectPose_dict[name_i] = T
             #     self.objectPose_dict[name_i] = T
             #     print('Found 6DoF pose of {}'.format(name_i))
 
-        return objectPose_dict
+        self.last_input = color_image, depth_image, Q, cam_intrins, depth_scale
+        return self.objectPose_dict
 
     ##
     # @brief    list registered targets of specific detection level
@@ -387,6 +381,22 @@ class MultiICP:
             Toff = item.Toff
         gscene.add_highlight_axis(hl_key, axis_name, link_name, Toff[:3,3], Toff[:3,:3], axis="xyz")
 
+    ##
+    # @brief resize and inference image
+    def inference(self, color_img):
+        img_res = cv2.resize(color_img, dsize=self.dsize)
+        mask_out_list_res = self.sd.inference(color_img=img_res)
+        mask_out_list = np.zeros((80,) + tuple(color_img.shape[:2]), dtype=mask_out_list_res.dtype)
+        for idx in range(80):
+            if np.any(mask_out_list_res[idx]):
+                for i_obj in range(1, np.max(mask_out_list_res[idx])+1):
+                    mask_res = (cv2.resize((mask_out_list_res[idx] == i_obj).astype(np.uint8) * 255,
+                                           dsize=tuple(reversed(self.img_dim)), interpolation=cv2.INTER_AREA
+                                           ).astype(float) / 255
+                                ).astype(np.uint8) * i_obj
+                    mask_out_list[idx][np.where(mask_res>0)] = mask_res[np.where(mask_res>0)]
+        return mask_out_list
+
 
 ##
 # @class    MultiICP_Obj
@@ -412,6 +422,9 @@ class MultiICP_Obj:
             np.asarray(self.model.vertices) * np.array([self.obj_info.scale[0],
                                                         self.obj_info.scale[1],
                                                         self.obj_info.scale[2]]))
+        self.set_Toff()
+        self.Tref = np.identity(4)
+
 
     def get_info(self):
         return self.obj_info
@@ -422,7 +435,7 @@ class MultiICP_Obj:
     ##
     # @brief add model mesh
     # @param model_name name of CAD model
-    def set_model(self):
+    def set_Toff(self):
         # obj_info = get_obj_info()
         # model_info = obj_info[model_name]
         model_info = self.obj_info
@@ -434,7 +447,22 @@ class MultiICP_Obj:
             self.Toff_inv = SE3_inv(self.Toff)
 
     ##
-    # @brief add pcd from image, sampled pcd from mesh
+    # @brief reset pcd and set reference coordinate
+    def reset(self, Tref=None):
+        self.clear()
+        self.Tref = Tref
+
+    ##
+    # @briref change reference coordinate and transform pcd & pose
+    def change_Tref(self, Tref_new):
+        Trr0 = np.matmul(np.linalg.inv(Tref_new), self.Tref)
+        self.pcd.points = o3d.utility.Vector3dVector(
+            np.matmul(Trr0[:3, :3], np.asarray(self.pcd.points).T).T + Trr0[:3, 3])
+        self.pose = np.matmul(Trr0, self.pose)
+        self.Tref = Tref_new
+
+    ##
+    # @brief add pcd from image, sampled pcd from mesh.
     # @param cdp_masked ColorDepthMap
     # @param Tc camera coord w.r.t base coord
     # @param ratio ratio of number of points
@@ -502,7 +530,7 @@ class MultiICP_Obj:
     # @param Tc_cur this is new camera transformation in pcd origin
     # @param To    initial transformation matrix of geometry object in the intended icp origin coordinate
     # @param thres max distance between corresponding points
-    def compute_front_ICP(self, Tc_cur=None, To=None, thres=0.12,
+    def compute_front_ICP(self, Tc_cur=None, To=None, thres=0.13,
                           relative_fitness=1e-15, relative_rmse=1e-15, max_iteration=500000,
                           voxel_size=0.04, visualize=False
                           ):
@@ -579,6 +607,7 @@ class MultiICP_Obj:
         source = copy.deepcopy(front_pcd)
 
         if visualize:
+            print("initial: \n{}".format(np.round(To, 2)))
             cam_coord = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.15, origin=[0, 0, 0])
             cam_coord.transform(Tc_cur)
             self.draw(To, source, target, [cam_coord])
@@ -603,6 +632,7 @@ class MultiICP_Obj:
 
         ICP_result = np.matmul(ICP_result, self.Toff)
         if visualize:
+            print("result: \n{}".format(np.round(ICP_result, 2)))
             self.draw(ICP_result, source, target)
 
         self.pose = ICP_result
@@ -636,6 +666,7 @@ class MultiICP_Obj:
         self.pcd = None
         self.pcd_Tc_stack = []
         self.cdp = None
+        self.model_sampled = None
 
 def draw_registration_result_original_color(source, target, transformation):
     source_temp = copy.deepcopy(source)
@@ -658,3 +689,15 @@ def apply_mask(cdp, mask):
     color_masked = cv2.bitwise_and(cdp.color, cdp.color, mask=mask_u8).astype(np.uint8)
     depth_masked = cv2.bitwise_and(cdp.depth, cdp.depth, mask=mask_u8).astype(np.uint16)
     return ColorDepthMap(color_masked, depth_masked, cdp.intrins, cdp.depth_scale)
+
+# @brief adjust T upright around roi pcd center
+def fit_vertical(T_bc, Tbo, pcd_roi, height=0):
+    pcd_center_prev = np.matmul(T_bc[:3,:3],
+                                pcd_roi.get_center()
+                               ) + T_bc[:3,3]
+    T_bo_p = SE3(Tbo[:3,:3], pcd_center_prev)
+    T_pooc = np.matmul(SE3_inv(T_bo_p), Tbo)
+    T_bo_p[:3,:3] = Rot_axis(3, Rot2axis(Tbo[:3,:3], 3))
+    T_bo_c_fix = np.matmul(T_bo_p, T_pooc)
+    T_bo_c_fix[2,3] = height
+    return T_bo_c_fix

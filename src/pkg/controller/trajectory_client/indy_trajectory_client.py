@@ -21,12 +21,11 @@ class IndyTrajectoryClient(IndyDCPClient, TrajectoryClient):
         IndyDCPClient.__init__(self, *args, server_ip=server_ip, **kwargs_indy)
         TrajectoryClient.__init__(self, server_ip=self.server_ip, **kwargs_otic)
         self.grasp_ref = True
-        with self:
-            self.set_collision_level(5)
-            self.set_joint_vel_level(1)
-            self.set_task_vel_level(1)
-            self.set_joint_blend_radius(5)
-            self.set_task_blend_radius(0.1)
+        self.COL_LEVEL = 5
+        self.QVEL_LEVEL = 3
+        self.TVEL_LEVEL = 1
+        self.QBLEND_RAD = 5
+        self.TBLEND_RAD = 0.1
 
     ##
     # @brief Make sure the joints move to Q using the indy DCP joint_move_to function.
@@ -82,6 +81,11 @@ class IndyTrajectoryClient(IndyDCPClient, TrajectoryClient):
             reset_done = all([not robot_state["resetting"], robot_state["ready"],
                               not robot_state["emergency"], not robot_state["error"]])
             time.sleep(0.5)
+        self.set_collision_level(self.COL_LEVEL)
+        self.set_joint_vel_level(self.QVEL_LEVEL)
+        self.set_task_vel_level(self.TVEL_LEVEL)
+        self.set_joint_blend_radius(self.QBLEND_RAD)
+        self.set_task_blend_radius(self.TBLEND_RAD)
 
     ##
     # @brief reset robot and trajectory client

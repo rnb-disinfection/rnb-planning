@@ -8,8 +8,8 @@ from pkg.utils.traj_utils import *
 from collections import defaultdict
 import copy
 
-DATASET_DIR = os.path.join(os.environ["RNB_PLANNING_DIR"], 'data/sweep_reach')
-try_mkdir(DATASET_DIR)
+SWEEP_DATA_DIR = os.path.join(os.environ["RNB_PLANNING_DIR"], 'data/sweep_reach')
+try_mkdir(SWEEP_DATA_DIR)
 
 class SweepDirections(Enum):
     front="front"
@@ -21,13 +21,13 @@ class SweepDirections(Enum):
         if isinstance(tip_dir, cls):
             tip_dir = tip_dir.value
         if tip_dir is None or tip_dir == cls.front.value:
-            Rre = Rot_rpy([0, np.pi/2, 0])
+            Rre = Rot_axis(2, 0)
         elif tip_dir == cls.up.value:
-            Rre = Rot_rpy([0, 0, 0])
+            Rre = Rot_axis(2, -np.pi/2)
         elif tip_dir == cls.down.value:
-            Rre = Rot_rpy([0, np.pi, np.pi])
+            Rre = Rot_rpy((-np.pi, np.pi/2, 0))
         else:
-            raise (RuntimeError("Not defined"))
+            raise (RuntimeError("Not defined tip_dir {}".format(tip_dir)))
         return Rre
 
     @classmethod
@@ -442,11 +442,13 @@ def add_sweep_task(pscene, sweep_name, surface, swp_min, swp_max, Tsm, ax_swp_t,
     return sweep_task
 
 def set_sweep(pscene, surface, Tsm, swp_centers, ax_swp_tool, ax_swp_base,
-                   TOOL_DIM, tool_dir=1):
+              TOOL_DIM, tool_dir=1,
+              color_sweep=(0.6, 0.0, 0.0, 0.3), color_wp=(0.6, 0.0, 0.0, 0.5)):
     TOOL_DIM_SWEEP = TOOL_DIM[ax_swp_tool]
     ax_swp_surf = np.where(np.abs(Tsm[:3,ax_swp_base])>0.5)[0][0]
     swp_min, swp_max = get_min_max_sweep_points(surface, swp_centers, np.max(TOOL_DIM), TOOL_DIM_SWEEP, ax_swp_surf)
-    sweep_task = add_sweep_task(pscene, "sweep", surface, swp_min, swp_max, Tsm, ax_swp_tool, wp_dims=TOOL_DIM, tool_dir=tool_dir)
+    sweep_task = add_sweep_task(pscene, "sweep", surface, swp_min, swp_max, Tsm, ax_swp_tool, wp_dims=TOOL_DIM, tool_dir=tool_dir,
+                                color_sweep=color_sweep, color_wp=color_wp)
 
 def test_base_divs(ppline, surface, Tsm, swp_centers,
                    ax_swp_tool, ax_swp_base, TOOL_DIM, Q_dict,
@@ -525,7 +527,8 @@ def show_lines(gscene, lines, base_link="base_link", orientation_mat=None, sweep
 
 
 class GreedyExecuter:
-    def __init__(self, ppline, brush_face, tool_dim, Qhome=None, drift=None):
+    def __init__(self, ppline, brush_face, tool_dim, Qhome=None,
+                 vel_lims=0.5, acc_lims=0.5, swp_vel_lims=0.2, swp_acc_lims=0.2):
         self.ppline, self.brush_face, self.tool_dim = ppline, brush_face, tool_dim
         self.pscene = self.ppline.pscene
         self.gscene = self.pscene.gscene
@@ -549,12 +552,10 @@ class GreedyExecuter:
         self.ccheck = CachedCollisionCheck(self.mplan, self.mobile_name, Qhome)
         self.pass_count = 0
         self.highlights = []
-        self.vel_lims = 0.5
-        self.acc_lims = 0.5
-        if drift is None:
-            self.drift = np.zeros(len(self.gscene.joint_names))
-        else:
-            self.drift = drift
+        self.vel_lims = vel_lims
+        self.acc_lims = acc_lims
+        self.swp_vel_lims = swp_vel_lims
+        self.swp_acc_lims = swp_acc_lims
 
     def get_division_dict(self, surface, tip_dir, sweep_dir, plane_val,
                           xout_cut=False, resolution=0.02, div_num=None):
@@ -607,7 +608,7 @@ class GreedyExecuter:
             # leave highlight on cleared area
             swp_fin = self.gscene.copy_from(self.gscene.NAME_DICT["sweep"],
                                             new_name="sweep_tested_{}".format(self.pass_count),
-                                            color=(1, 1, 0, 0.5))
+                                            color=(0, 0, 1, 0.5))
             swp_fin.dims = (swp_fin.dims[0], swp_fin.dims[1], swp_fin.dims[2] + 0.002)
             self.gscene.update_marker(swp_fin)
             self.highlights.append(swp_fin)
@@ -679,7 +680,7 @@ class GreedyExecuter:
         return snode_schedule
 
     def greedy_execute(self, Qcur, tool_dir, mode_switcher, offset_fun, auto_clear_subject=True, cost_cut=110, covereds=[],
-                       repeat_sweep=2, adjust_once=True):
+                       repeat_sweep=2, adjust_once=True, skip_execute=False):
         gtimer = GlobalTimer.instance()
         Qcur = np.copy(Qcur)
         Qhome = np.copy(Qcur)
@@ -700,17 +701,15 @@ class GreedyExecuter:
                 Qref = np.array(list(Qmob) + list(Qcur[self.idx_rb]))
                 T_bm = self.gscene.get_tf(self.mobile_link, Qref)
                 if ((not self.ccheck(T_loal=T_bm))
-                        or (not self.ccheck(T_loal=self.gscene.get_tf(self.mobile_link, np.add(Qref, self.drift))))
+                        or (not self.ccheck(T_loal=self.gscene.get_tf(self.mobile_link, Qref)))
                         or (not self.kmb.check_valid(Qref, cost_cut))):
                     self.mark_tested(tkey, i_ap, [], idc_divs)
                     TextColors.RED.println("[PLAN] Skip {} - collision base position ({} / {})".format(
                         tkey, np.round(self.kmb.coster(Qref)), cost_cut))
-                    print("Drift = {}".format(np.round(self.drift, 2)))
                     continue
 
-            print("Drift = {}".format(np.round(self.drift, 2)))
             with gtimer.block("move_base"):
-                self.kmb.joint_move_make_sure(np.subtract(Qmob, (self.drift[self.idx_mb] / 2)))
+                self.kmb.joint_move_make_sure(Qmob)
 
             with gtimer.block("offset_fun"):
                 try:
@@ -721,10 +720,6 @@ class GreedyExecuter:
                     self.mark_tested(tkey, i_ap, [], idc_divs)
                     continue
 
-#                 self.drift = np.mean([np.subtract(Qcur, Qref), self.drift], axis=0)
-#                 self.drift[self.idx_mb[2]] = (self.drift[2] + np.pi) % (np.pi * 2) - np.pi
-#                 self.drift[self.idx_rb] = 0
-                self.drift[:] = 0
                 Tbm_cur = self.gscene.get_tf(self.mobile_link, Qcur)
                 Tbs = self.surface.get_tf(Qcur)
                 Tsm_cur = np.matmul(SE3_inv(Tbs), Tbm_cur)
@@ -746,10 +741,6 @@ class GreedyExecuter:
                         Qref[self.idx_rb] = Qcur[self.idx_rb]
                         Qcur, Qtar = offset_fun(self, self.crob, self.mplan, self.robot_name, Qref)
 
-                        # self.drift = np.mean([np.subtract(Qcur, Qref), self.drift], axis=0)
-                        # self.drift[self.idx_mb[2]] = (self.drift[2] + np.pi) % (np.pi * 2) - np.pi
-                        # self.drift[self.idx_rb] = 0
-                        self.drift[:] = 0
                         Tbm_cur = self.gscene.get_tf(self.mobile_link, Qcur)
                         Tbs = self.surface.get_tf(Qcur)
                         Tsm_cur = np.matmul(SE3_inv(Tbs), Tbm_cur)
@@ -774,7 +765,6 @@ class GreedyExecuter:
                     TextColors.RED.println(
                         "[PLAN] Current position is closer to other Tsm_key. \n Try switch {} ({}) -> {} ({}) / {}".format(
                             tkey, i_ap, tkey_cur, i_ap, tkey_cur_exact))
-                    print("Drift = {}".format(np.round(self.drift, 2)))
                     idc_divs_cur = self.div_base_dict[tkey_cur][i_ap]
                     idc_divs_cur = list(set(idc_divs_cur) - set(covereds))
                     if len(idc_divs_cur) == 0:
@@ -825,9 +815,6 @@ class GreedyExecuter:
                                         traj = list(snode_to.traj)
                                         for _ in range(repeat_sweep):
                                             traj += list(reversed(snode_to.traj))[1:] + list(snode_to.traj)[1:]
-#                                         t_all, traj = calc_safe_trajectory(1.0/DEFAULT_TRAJ_FREQUENCY, 
-#                                                                                np.array(traj),
-#                                                                                self.vel_lims, self.acc_lims)
                                         traj = np.array(traj)
                                         snode_to.set_traj(traj)
                                 idc_divs_remain = sorted(set(idc_divs_remain) - set(idc_select))
@@ -840,15 +827,45 @@ class GreedyExecuter:
                         if len(snode_schedule) == 0:  # no more available case in idc_idvs_remain
                             idc_fails += idc_divs_remain
                             break
-
                 self.mark_tested(tkey, i_ap, idc_succs, idc_fails)
                 covereds += idc_succs
 
             with gtimer.block("execution"):
                 if len(snode_schedule_all) > 0:  # no more available case in idc_idvs_remain
+                    set_sweep(self.pscene, self.surface, np.identity(4), [(0,0), (0,1)], 0, 0,
+                              (self.tool_dim), tool_dir=1,
+                              color_sweep=(0.6, 0.0, 0.0, 0.0), color_wp=(0.6, 0.0, 0.0, 0.0))
                     snode_schedule_all = self.force_add_return(snode_schedule_all, Qhome=Qhome)
+                    for snode_pre, snode_to in zip(snode_schedule_all[:-1], snode_schedule_all[1:]):
+                        if snode_to.traj is not None:
+                            if snode_pre.state.node == (1,) and snode_to.state.node == (2,):
+                                traj_length = snode_to.traj_length / 5
+                                DQ_REF = 1.0
+                                if traj_length < DQ_REF:
+                                    vel_lims = self.swp_vel_lims * traj_length / DQ_REF # reduce velocity
+                                    acc_lims = self.swp_acc_lims * traj_length / DQ_REF
+                                else:
+                                    vel_lims = self.swp_vel_lims # reduce velocity
+                                    acc_lims = self.swp_acc_lims
+                            else:
+                                vel_lims = self.vel_lims
+                                acc_lims = self.acc_lims
+                            if "no_sdk" in self.robot_config.specs and self.robot_config.specs["no_sdk"]:
+                                traj = np.array(snode_to.traj)
+                                # if snode_pre.state.node == (1,) and snode_to.state.node == (2,):
+                                #     traj_len = len(traj)
+                                #     if traj_len > 50:
+                                #         steps = traj_len / 50
+                                #         traj = traj[::steps]
+                            else:
+                                t_all, traj = calc_safe_trajectory(1.0 / DEFAULT_TRAJ_FREQUENCY,
+                                                                   np.array(snode_to.traj),
+                                                                   vel_lims, acc_lims)
+                            snode_to.set_traj(np.array(traj))
                     Qcur = snode_schedule_all[-1].state.Q
-                    self.ppline.execute_schedule(snode_schedule_all, one_by_one=True, mode_switcher=mode_switcher)
+                    if not skip_execute:
+                        # sweep_g, wp_g_0, wp_g_1 self.gscene.NAME_DICT["sweep"]
+                        self.ppline.execute_schedule(snode_schedule_all, one_by_one=True, mode_switcher=mode_switcher)
                     snode_schedule_list.append(snode_schedule_all)
                 if len(snode_schedule_list) > 0:
                     if len(snode_schedule_list[-1]) > 0:
@@ -862,3 +879,36 @@ class GreedyExecuter:
         for child in copy.deepcopy(self.surface.children):
             self.gscene.remove(self.gscene.NAME_DICT[child])
 
+
+DEMO1222_DATA_DIR = os.path.join(RNB_PLANNING_DIR, "data", "demo1222")
+try_mkdir(DEMO1222_DATA_DIR)
+
+
+def save_schedules(snode_schedule_list_table_all, snode_schedule_list_sofa_all):
+    now_path =os.path.join(DEMO1222_DATA_DIR, get_now())
+    try_mkdir(now_path)
+    save_pickle(os.path.join(now_path, "table_schedule.pkl"), snode_schedule_list_table_all)
+    save_pickle(os.path.join(now_path, "sofa_schedule.pkl"), snode_schedule_list_sofa_all)
+
+
+def load_schedules(data_folder=None):
+    if data_folder is None:
+        print("[INFO] data_folder is not specified - select most recent data")
+        folders = sorted([fname for fname in os.listdir(DEMO1222_DATA_DIR)
+                          if os.path.isdir(os.path.join(DEMO1222_DATA_DIR, fname))])
+        assert len(folders)>0, "No available data folder in {}".format(DEMO1222_DATA_DIR)
+        data_folder = folders[-1]
+    data_path = os.path.join(DEMO1222_DATA_DIR, data_folder)
+    snode_schedule_list_table_all = load_pickle(os.path.join(data_path, "table_schedule.pkl"))
+    snode_schedule_list_sofa_all = load_pickle(os.path.join(data_path, "sofa_schedule.pkl"))
+    print("schedule loaded from {}".format(data_path))
+    return snode_schedule_list_table_all, snode_schedule_list_sofa_all
+
+
+def play_cleaning_schedule(ppline, surface, snode_schedule_list, mode_switcher, tool_dim):
+    set_sweep(ppline.pscene, surface, np.identity(4), [(0, 0), (0, 1)], 0, 0,
+              (tool_dim), tool_dir=1,
+              color_sweep=(0.6, 0.0, 0.0, 0.0), color_wp=(0.6, 0.0, 0.0, 0.0))
+    for snode_schedule in snode_schedule_list:
+        ppline.pscene.combined_robot.joint_move_make_sure(snode_schedule[0].state.Q)
+        ppline.execute_schedule(snode_schedule, one_by_one=True, mode_switcher=mode_switcher)

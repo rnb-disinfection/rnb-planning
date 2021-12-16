@@ -340,6 +340,7 @@ def switch_command(ip_addr, on_off, UI_PORT=9990):
 
 def start_force_mode(indy, switch_delay=0.5):
     sleep(switch_delay)
+    indy.reset()
     switch_command(indy.server_ip, True)
     sleep(switch_delay)
 
@@ -350,71 +351,15 @@ def stop_force_mode(indy, Qref, switch_delay=0.5):
     switch_command(indy.server_ip, False)
     indy.move_joint_s_curve(Qref, N_div=20, start_tracking=False, auto_stop=False)
 
+from ..planning.mode_switcher import ModeSwitcherTemplate, CombinedSwitcher, GraspModeSwitcher
 
-class ModeSwitcher:
-    def __init__(self, pscene):
-        self.pscene = pscene
-        self.crob = pscene.combined_robot
-        self.switch_delay = 0.5
-
-    def switch_in(self, snode_pre, snode_new):
-        switch_state = False
-        for n1, n2 in zip(snode_pre.state.node, snode_new.state.node):
-            if n1 == 1 and n2 == 2:
-                switch_state = True
-                break
-        if switch_state:
-            indy = self.crob.robot_dict['indy0']
-            if indy is not None:
-                start_force_mode(indy, switch_delay=self.switch_delay)
-        return switch_state
-
-    def switch_out(self, switch_state, snode_new):
-        if switch_state:
-            indy = self.crob.robot_dict['indy0']
-            if indy is not None:
-                stop_force_mode(indy, Qref=snode_new.traj[-1][self.crob.idx_dict['indy0']],
-                                                              switch_delay=self.switch_delay)
-
-
-import matplotlib.pyplot as plt
-
-def down_force_log(ip_addr, JOINT_DOF, UI_PORT=9990, DT=1.0 / 2e3):
-    uri = "http://{ip_addr}:{UI_PORT}/download_log".format(ip_addr=ip_addr, UI_PORT=UI_PORT)
-    print(uri)
-    log_dat = requests.get(uri)
-    dat = log_dat.text
-    lines = dat.split("\n")
-    heads = lines[0].split(",")[:-1]
-    data_mat = []
-    for line in lines[1:]:
-        data_line = list(map(float, line.split(",")[:-1]))
-        if len(data_line) > 0:
-            data_mat.append(data_line)
-    data_mat = np.array(data_mat)
-    Fext = data_mat[:, JOINT_DOF * 5:JOINT_DOF * 6]
-    Fext = Fext[-int(15.0 / DT):]
-    # idx_peak = np.argmax(Fext[:, 2])
-    # print("peak: {}".format(np.round(Fext[idx_peak, 2], 1)))
-    # Fext = Fext[idx_peak + int(1.0 / DT):idx_peak + int(4.0 / DT), 2]
-    # print("force min/max: {} / {} in {}".format(np.round(np.min(Fext), 1), np.round(np.max(Fext), 1), len(Fext)))
-    return Fext
-
-
-class ModeSwitcherForceLog:
-    def __init__(self, pscene, log_force=True, DT=1.0 / 2e3):
-        self.pscene = pscene
-        self.crob = pscene.combined_robot
-        self.switch_delay = 0.5
+class ForceOnlyModeSwitcher(ModeSwitcherTemplate):
+    def __init__(self, pscene, switch_delay=0.5, log_force=False, DT=1.0 / 2e3):
+        ModeSwitcherTemplate.__init__(self, pscene, switch_delay=switch_delay)
         self.DT = DT
         self.log_force = log_force
         self.force_log = []
 
-    def reset_log(self):
-        self.force_log = []
-
-    def get_log(self):
-        return self.force_log
     def switch_in(self, snode_pre, snode_new):
         switch_state = False
         for n1, n2 in zip(snode_pre.state.node, snode_new.state.node):
@@ -439,6 +384,41 @@ class ModeSwitcherForceLog:
                     sleep(self.switch_delay)
                     Fext = down_force_log(indy.server_ip, len(self.crob.idx_dict["indy0"]), DT=self.DT)
                     self.force_log.append(Fext)
+
+class ForceModeSwitcher(CombinedSwitcher):
+    def __init__(self, pscene, switch_delay=0.5, log_force=False):
+        self.switch_list = [GraspModeSwitcher(pscene, switch_delay=switch_delay),
+                            ForceOnlyModeSwitcher(pscene, switch_delay=switch_delay,log_force=log_force)]
+
+    def reset_log(self):
+        self.switch_list[1].force_log = []
+
+    def get_log(self):
+        return self.switch_list[1].force_log
+
+
+import matplotlib.pyplot as plt
+
+def down_force_log(ip_addr, JOINT_DOF, UI_PORT=9990, DT=1.0 / 2e3):
+    uri = "http://{ip_addr}:{UI_PORT}/download_log".format(ip_addr=ip_addr, UI_PORT=UI_PORT)
+    print(uri)
+    log_dat = requests.get(uri)
+    dat = log_dat.text
+    lines = dat.split("\n")
+    heads = lines[0].split(",")[:-1]
+    data_mat = []
+    for line in lines[1:]:
+        data_line = list(map(float, line.split(",")[:-1]))
+        if len(data_line) > 0:
+            data_mat.append(data_line)
+    data_mat = np.array(data_mat)
+    Fext = data_mat[:, JOINT_DOF * 5:JOINT_DOF * 6]
+    Fext = Fext[-int(15.0 / DT):]
+    # idx_peak = np.argmax(Fext[:, 2])
+    # print("peak: {}".format(np.round(Fext[idx_peak, 2], 1)))
+    # Fext = Fext[idx_peak + int(1.0 / DT):idx_peak + int(4.0 / DT), 2]
+    # print("force min/max: {} / {} in {}".format(np.round(np.min(Fext), 1), np.round(np.max(Fext), 1), len(Fext)))
+    return Fext
 
 def play_schedule_clearance_highlight(ppline, snode_schedule, tcheck, period, actor_name='brush_face',
                                       color_on=(0,1,0,0.3), color_off=(0.8,0.2,0.2,0.2)):
@@ -821,15 +801,16 @@ from ..planning.motion.moveit.moveit_py import PlannerConfig
 # @param target_point target point in global coords
 # @param view_dir     looking direction in tip link
 def get_look_motion(mplan, rname, from_Q, target_point, com_link, 
-                    view_dir=[0,0,1], timeout=1):
+                    cam_link=None, view_dir=[0,0,1], timeout=1):
     gscene = mplan.gscene
     if isinstance(target_point, GeometryItem):
         target_point = target_point.get_tf(from_Q)[:3,3]
-    tip_link = mplan.chain_dict[rname]['tip_link']
+    if cam_link is None:
+        cam_link = mplan.chain_dict[rname]['tip_link']
     ref_link = mplan.chain_dict[rname]['link_names'][0]
     Trb = SE3_inv(gscene.get_tf(ref_link, from_Q))
     target_point = np.matmul(Trb[:3,:3], target_point)+Trb[:3,3]
-    Tcur = gscene.get_tf(tip_link, from_Q, from_link=ref_link)
+    Tcur = gscene.get_tf(cam_link, from_Q, from_link=ref_link)
     Tcom = gscene.get_tf(com_link, from_Q, from_link=ref_link)
     cur_dir = np.matmul(Tcur[:3,:3], view_dir)
     target_dir = target_point - Tcom[:3,3]
@@ -846,9 +827,20 @@ def get_look_motion(mplan, rname, from_Q, target_point, com_link,
         dP = np.multiply(view_dir, retract_step*i_ret)
         Ttar = np.copy(Ttar_ref)
         Ttar[:3,3] = Ttar_ref[:3,3] - np.matmul(Ttar_ref[:3,:3], dP)
-        xyzquat = T2xyzquat(Ttar)
-        traj, succ = mplan.planner.plan_py(rname, tip_link, xyzquat[0]+xyzquat[1], ref_link, from_Q,
-                                           timeout=timeout)
+        # xyzquat = T2xyzquat(Ttar)
+        # traj, succ = mplan.planner.plan_py(rname, cam_link, xyzquat[0]+xyzquat[1], ref_link, from_Q,
+        #                                    timeout=timeout)
+        traj, succ = mplan.get_incremental_traj(cam_link, np.identity(4), Ttar,
+                                                from_Q, step_size=0.01, ERROR_CUT=0.01,
+                                                SINGULARITY_CUT=0.01, VERBOSE=False,
+                                                ref_link=ref_link, VISUALIZE=False)
         if succ:
-            break
+            Qtar = traj[-1]
+            Qdiff = Qtar-from_Q
+            steps = int(np.max(np.abs(Qdiff)) / 0.01)
+            traj = from_Q[np.newaxis,:] + Qdiff[np.newaxis, :]*np.arange(steps+1)[:,np.newaxis].astype(float)/steps
+            if mplan.validate_trajectory(traj):
+                break
+            else:
+                succ = False
     return traj, succ

@@ -5,7 +5,7 @@ import sys
 sys.path.append(os.path.join(os.path.join(os.environ["RNB_PLANNING_DIR"], 'src')))
 sys.path.append(os.path.join(os.environ["RNB_PLANNING_DIR"], 'src/scripts/demo_202107'))
 # from demo_utils.map_converter import *
-from pkg.controller.trajectory_client.kiro_udp_send import start_mobile_udp_thread, get_xyzw_cur
+from pkg.controller.trajectory_client.kiro.kiro_udp_send import start_mobile_udp_thread, get_xyzw_cur
 from pkg.global_config import RNB_PLANNING_DIR
 from pkg.utils.ros_utils import *
 from pkg.utils.utils import *
@@ -165,8 +165,10 @@ class KiroMobileMap:
             )
         return poles
 
+    ##
+    # @param inside set this value True to  remove poles inside the box
     @classmethod
-    def remove_poles_by_box(cls, gscene, box, pt_list, Q, inside=True):
+    def remove_poles_by_box(cls, gscene, box, pt_list, Q, inside=True, margin=0):
         T_bx = box.get_tf(Q)
         T_xb = SE3_inv(T_bx)
         box_dims = box.dims
@@ -174,9 +176,9 @@ class KiroMobileMap:
         for pt in pt_list:
             P_xp = np.matmul(T_xb[:3, :3], pt) + T_xb[:3, 3]
             if inside:
-                res = all(np.abs(P_xp[:2]) < np.divide(box_dims[:2], 2))
+                res = all(np.abs(P_xp[:2]) < (np.divide(box_dims[:2], 2) + margin))
             else:
-                res = any(np.abs(P_xp[:2]) > np.divide(box_dims[:2], 2))
+                res = any(np.abs(P_xp[:2]) > (np.divide(box_dims[:2], 2) + margin))
             if not res:
                 pt_list_remain.append(pt)
         return pt_list_remain
@@ -204,17 +206,19 @@ class KiroMobileMap:
             maps = self.get_maps(timeout=timeout)
             self.maps = maps
             if self.connection_state:
-                Q_map = crob.get_real_robot_pose()
+                self.Q_map = crob.get_real_robot_pose()
                 save_pickle(
                     os.path.join(RNB_PLANNING_DIR, "data/Q_map.pkl"),
-                    Q_map)
+                    self.Q_map)
             else:
-                Q_map = load_pickle(
+                self.Q_map = load_pickle(
                     os.path.join(RNB_PLANNING_DIR, "data/Q_map.pkl"))
-            Tbm_map = gscene.get_tf(mobile_base, Q_map)
+                if len(self.Q_map) == 12:
+                    self.Q_map = np.pad(self.Q_map, (0,1), "constant")
+            Tbm_map = gscene.get_tf(mobile_base, self.Q_map)
             self.set_maps(*maps, T_bm=Tbm_map, canny_ksize=10)
 
-            gscene.show_pose(Q_map)
+            gscene.show_pose(self.Q_map)
             pt_list, costs = self.convert_im2scene(self.cost_im > 0, self.resolution, self.T_bi, img_cost=self.cost_im)
             pt_list = np.subtract(pt_list, (0, 0, self.resolution))
             YlOrRd = plt.get_cmap("YlOrRd")

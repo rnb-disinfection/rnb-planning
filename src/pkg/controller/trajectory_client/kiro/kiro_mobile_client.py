@@ -1,6 +1,6 @@
-from .trajectory_client import *
-from ...utils.utils import *
-from ...utils.ros_utils import *
+from ..trajectory_client import *
+from ....utils.utils import *
+from ....utils.ros_utils import *
 import rospy
 from geometry_msgs.msg import PoseStamped
 from move_base_msgs.msg import MoveBaseActionFeedback, MoveBaseActionResult

@@ -11,6 +11,6 @@ python3 -m pip install grpcio_tools-1.42.0-cp36-cp36m-manylinux_2_17_x86_64.many
 2. Compile protobuf
 ```bash
 cd src/scripts/demo_202107/demo_proto
-protoc -I=. --python_out=. TaskPlanner.proto
-python3 -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. TaskPlanner.proto
+protoc -I=. --python_out=. DisinfectionOperation.proto
+python3 -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. DisinfectionOperation.proto
 ```

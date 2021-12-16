@@ -84,8 +84,7 @@ class MaskBox:
         self.Toff, self.dims, self.include = Toff, dims, include
 
     def get_tf(self, Tparent):
-        return self.Toff
-        # return np.matmul(Tparent, self.Toff)
+        return np.matmul(Tparent, self.Toff)
 
 ##
 # @class UpdateRuleFun
@@ -129,23 +128,28 @@ class MaskBoxRule(MaskRule):
         self.box_list.append(mbox)
         return self
 
+    def box_clear(self):
+        self.box_list = []
+
+    ##
+    # @param objectPose_dict in cam coords
     def apply_rule(self, pcd_in, objectPose_dict):
         pcd_dict = {}
         for oname, To in sorted(objectPose_dict.items()):
             pcd = copy.deepcopy(pcd_in)
-            points = np.asarray(pcd.points)
+            points = np.asarray(pcd.points) # in cam coords
             points4d = np.pad(points, ((0, 0), (0, 1)), 'constant', constant_values=1)
             mask_list = []
             for mbox in self.box_list:
-                if self.parent in oname:
-                    T_bx = mbox.get_tf(To)
-                    T_xb = SE3_inv(T_bx)
+                if self.parent == oname:
+                    T_bx = mbox.get_tf(To)  # box tf in cam coords
+                    T_xb = SE3_inv(T_bx)    # cam tf in box coords
                     abs_cuts = np.divide(mbox.dims, 2)
-                    points_x = np.matmul(points4d, T_xb.transpose())[:, :3]
+                    points_x = np.matmul(points4d, T_xb.transpose())[:, :3] # points in box coords
                     if mbox.include:
-                        mask = np.all(np.abs(points_x) < abs_cuts, axis=-1)
+                        mask = np.all(np.abs(points_x) < abs_cuts, axis=-1) # check inside box
                     else:
-                        mask = np.any(np.abs(points_x) > abs_cuts, axis=-1)
+                        mask = np.any(np.abs(points_x) > abs_cuts, axis=-1) # check outside box
                     mask_list.append(mask)
             idc = np.where(self.merge_rule(mask_list, axis=0))[0]
             pcd.points = o3d.utility.Vector3dVector(points[idc])

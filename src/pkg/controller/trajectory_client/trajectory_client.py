@@ -140,9 +140,8 @@ class TrajectoryClient(object):
     # @brief Move joints to Q using the most guaranteed method for each robot.
     # @remark Robot-specific implementation is required.
     # @param Q radian
-    @abc.abstractmethod
     def joint_move_make_sure(self, Q):
-        raise(NotImplementedError("Robot-specific implementation is required for joint_move_make_sure"))
+        self.move_joint_s_curve(Q, N_div=200, auto_stop=True)
 
     ##
     # @brief Execute grasping
@@ -158,9 +157,13 @@ class TrajectoryClient(object):
     def move_joint_traj(self, trajectory, auto_stop=True, wait_motion=True):
         Q_init = trajectory[0]
         Q_last = trajectory[-1]
-        Q_cur = self.get_qcur()
-        assert np.max(np.abs((np.subtract(Q_init, Q_cur)))) < 5e-2, \
-            "MOVE robot to trajectory initial: current robot pose does not match with trajectory initial state"
+        Q_cur = self.get_qcur()[:6]
+#         if np.max(np.abs((np.subtract(Q_init, Q_cur)))) > 5e-2:
+#             print("move_joint_traj: current robot pose does not match with trajectory initial state. calling joint_move_make_sure")
+#             self.joint_move_make_sure(Q_init)
+#             print("move_joint_traj: current robot pose does not match with trajectory initial state. calling joint_move_make_sure")
+#         assert np.max(np.abs((np.subtract(Q_init, Q_cur)))) < 5e-2, \
+#             "MOVE robot to trajectory initial: current robot pose does not match with trajectory initial state"
 
         for Q in trajectory:
             self.push_Q(Q)
@@ -172,7 +175,6 @@ class TrajectoryClient(object):
 
             if auto_stop:
                 self.stop_tracking()
-
 
 class MultiTracker:
     def __init__(self, robots, idx_list, Q0, on_rviz=False):

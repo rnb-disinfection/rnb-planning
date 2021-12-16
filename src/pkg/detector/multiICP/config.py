@@ -122,22 +122,23 @@ def hrule_closet(micp_closet, micp_bed, mrule_closet):
     bed_dims = obj_info["bed"].dims
     CLOSET_LOCATION = check_closet_location(micp_closet.pcd, micp_bed.pcd, micp_bed.pose, bed_dims)
 
+    mrule_closet.box_clear()
     # bed_box
-    mrule_closet.add_box(MaskBox(Toff=np.matmul(micp_bed.pose, SE3(np.identity(3), (0.02, 0, 0.5))),
+    mrule_closet.add_box(MaskBox(Toff=SE3(np.identity(3), (0.02, 0, 0.5)),
                                  dims=(3, 1.6, 1.3), include=False))
     # bed_wall
-    mrule_closet.add_box(MaskBox(Toff=np.matmul(micp_bed.pose, SE3(np.identity(3), (-1.27, 0, 1.5))),
+    mrule_closet.add_box(MaskBox(Toff=SE3(np.identity(3), (-1.27, 0, 1.5)),
                                  dims=(0.5, 0.7, 0.3), include=False))
     # floor_box
     mrule_closet.add_box(MaskBox(Toff=SE3(np.identity(3), (0, 0, 0)), dims=(15, 15, 0.4), include=False))
 
     if CLOSET_LOCATION == "LEFT":
         # bed_left_space
-        mrule_closet.add_box(MaskBox(Toff=np.matmul(micp_bed.pose, SE3(np.identity(3), (0.02, -0.9, 1))),
+        mrule_closet.add_box(MaskBox(Toff=SE3(np.identity(3), (0.02, -0.9, 1)),
                                      dims=(2.5, 1, 3), include=True))
     elif CLOSET_LOCATION == "RIGHT":
         # bed_right_space
-        mrule_closet.add_box(MaskBox(Toff=np.matmul(micp_bed.pose, SE3(np.identity(3), (0.02, 0.9, 1))),
+        mrule_closet.add_box(MaskBox(Toff=SE3(np.identity(3), (0.02, 0.9, 1)),
                                      dims=(2.5, 1, 3), include=True))
 
     return mrule_closet

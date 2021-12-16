@@ -1,35 +1,27 @@
 import os
 import sys
-
-sys.path.append(os.path.join(os.environ["RNB_PLANNING_DIR"], 'src'))
-sys.path.append(os.path.join(os.environ["RNB_PLANNING_DIR"], 'src/scripts/milestone_202110'))
-
-
-from pkg.controller.trajectory_client.trajectory_client  import TrajectoryClient
-from pkg.utils.utils import *
-from pkg.utils.rotation_utils import *
-# from .trajectory_client import TrajectoryClient
-# from ...utils.utils import *
-# from ...utils.rotation_utils import *
+from ....controller.trajectory_client.trajectory_client  import TrajectoryClient
+from ....utils.utils import *
+from ....utils.rotation_utils import *
 from kiro_udp_send import start_mobile_udp_thread, get_reach_state_edgeup, send_pose_udp, get_xyzw_cur
 
+KIRO_UDP_OFFLINE_DEBUG = False
 
 class KiroUDPClient(TrajectoryClient):
     DURATION_SHORT_MOTION_REF = 5
     SHORT_MOTION_RANGE = 0.04
     NEAR_MOTION_RANGE = 0.4
 
-    def __init__(self, server_ip, ip_cur, dummy=False):
+    def __init__(self, server_ip, ip_cur):
         TrajectoryClient.__init__(self, server_ip, traj_freq=10)
-        self.server_ip, self.dummy = server_ip, dummy
+        self.server_ip = server_ip
         self.teleport = True
-        if not dummy:
+        if not KIRO_UDP_OFFLINE_DEBUG:
             self.sock_mobile, self.server_thread = start_mobile_udp_thread(recv_ip=ip_cur)
             time.sleep(1)
         self.xyzw_last = [0, 0, 0, 1]
         self.coster = None
         self.cost_cut = 0
-        self.tool_angle = 0
         self.sure_count_default = 0
         self.allowance = 2e-2
         self.gscene = None
@@ -49,7 +41,7 @@ class KiroUDPClient(TrajectoryClient):
         return not get_reach_state_edgeup()
 
     def get_qcur(self):
-        if self.dummy:
+        if KIRO_UDP_OFFLINE_DEBUG:
             cur_xyzw = self.xyzw_last
         else:
             cur_xyzw = get_xyzw_cur()
@@ -126,7 +118,7 @@ class KiroUDPClient(TrajectoryClient):
     ##
     # @brief Make sure the joints move to Q using the indy DCP joint_move_to function.
     # @param Q radian
-    def joint_move_make_sure(self, Q, sure_count=None, Qfinal=None, check_valid=3, *args, **kwargs):
+    def joint_move_make_sure(self, Q, sure_count=None, Qfinal=None, check_valid=1, *args, **kwargs):
         if self.gscene is not None:
             if sure_count==0:
                 arrow_name = "mob_tar_{}".format(check_valid)
@@ -169,15 +161,14 @@ class KiroUDPClient(TrajectoryClient):
                         np.round(min_Q[:3], 2), min_val, np.round(Q[:3], 2), cur_val))
                     self.joint_move_make_sure(min_Q, sure_count=0, check_valid=check_valid-1)
 
-            if self.dummy:
+            if KIRO_UDP_OFFLINE_DEBUG:
                 self.xyzw_last = self.joints2xyzw(Q)
                 time.sleep(0.5)
             else:
                 if diff_nm <= self.allowance:
                     return
 
-                send_pose_udp(self.sock_mobile, self.joints2xyzw(Q),
-                              tool_angle=self.tool_angle, send_ip=self.server_ip)
+                send_pose_udp(self.sock_mobile, self.joints2xyzw(Q), send_ip=self.server_ip)
                 print("Distance={} ({})".format(diff_nm, np.round(diff, 3)))
                 if diff_nm < self.SHORT_MOTION_RANGE:
                     timeout_short = (diff_nm / self.SHORT_MOTION_RANGE) * self.DURATION_SHORT_MOTION_REF
