@@ -90,6 +90,8 @@ class MultiICP:
         self.camera = camera
         self.img_dim = (720, 1280)
         self.ratio = 0.3
+        self.thres_ICP = 0.15
+        self.thres_front_ICP = 0.10
         self.config_list = []
         self.micp_dict = {}
         self.objectPose_dict = {}
@@ -110,6 +112,8 @@ class MultiICP:
             self.config_list = config_list
             self.img_dim = img_dim
             self.dsize = tuple(reversed(img_dim))
+            self.h_fov_hf = np.arctan2(self.img_dim[1], 2 * config_list[0][0, 0])
+            self.v_fov_hf = np.arctan2(self.img_dim[0], 2 * config_list[0][1, 1])
             return
         self.camera.initialize()
         cameraMatrix, distCoeffs, depth_scale = self.camera.get_config()
@@ -117,6 +121,8 @@ class MultiICP:
         self.img_dim = self.camera.get_image().shape[:2]
         res_scale = np.max(np.ceil(np.divide(np.array(self.img_dim, dtype=float), 2000) / 2).astype(int) * 2)
         self.dsize = tuple(reversed(np.divide(self.img_dim, res_scale).astype(int)))
+        self.h_fov_hf = np.arctan2(self.img_dim[1], 2*cameraMatrix[0,0])
+        self.v_fov_hf = np.arctan2(self.img_dim[0], 2*cameraMatrix[1,1])
         print("Initialize Done")
 
     ##
@@ -161,6 +167,13 @@ class MultiICP:
     def cache_sensor(self, color_image, depth_image, Q):
         self.cache = color_image, depth_image, Q
 
+    ##
+    # @abrief change    threshold value to find correspondenc pair during ICP
+    # @param  thres_ICP     setting value of threshold
+    # @param  thres_front_ICP   setting value of threshold
+    def set_ICP_thres(self, thres_ICP=0.15, thres_front_ICP=0.10):
+        self.thres_ICP = thres_ICP
+        self.thres_front_ICP = thres_front_ICP
 
     ##
     # @brief    detect 3D objects pose
@@ -262,8 +275,9 @@ class MultiICP:
 
                     # Compute ICP, front iCP
                     if not skip_normal_icp:
-                        Tguess, _ = micp.compute_ICP(To=Tguess, visualize=visualize)
-                    T, _ = micp.compute_front_ICP(To=Tguess, visualize=visualize)
+                        Tguess, _ = micp.compute_ICP(To=Tguess, thres=self.thres_ICP, visualize=visualize)
+                    T, _ = micp.compute_front_ICP(h_fov_hf = self.h_fov_hf, v_fov_hf = self.v_fov_hf,
+                                                  To=Tguess, thres=self.thres_front_ICP, visualize=visualize)
 
                     # name_i = "{}_{:02}".format(name, i_m)
                     self.objectPose_dict[name] = np.matmul(Tc, T)
@@ -311,8 +325,9 @@ class MultiICP:
 
                 # Compute ICP, front iCP
                 if not skip_normal_icp:
-                    Tguess, _ = micp.compute_ICP(To=Tguess, visualize=visualize)
-                T, _ = micp.compute_front_ICP(To=Tguess, visualize=visualize)
+                    Tguess, _ = micp.compute_ICP(To=Tguess, thres=self.thres_ICP, visualize=visualize)
+                T, _ = micp.compute_front_ICP(h_fov_hf = self.h_fov_hf, v_fov_hf = self.v_fov_hf,
+                                              To=Tguess, thres=self.thres_front_ICP, visualize=visualize)
                 T_list.append(T)
                 self.objectPose_dict[name_i] = np.matmul(Tc, T)
                 print('Found 6DoF pose of {}'.format(name_i))
@@ -490,7 +505,7 @@ class MultiICP_Obj:
     # @param thres max distance between corresponding points
     def compute_ICP(self, To=None, thres=0.15,
                     relative_fitness=1e-15, relative_rmse=1e-15, max_iteration=500000,
-                    voxel_size=0.04, visualize=False
+                    voxel_size=0.04, ratio=0.3, visualize=False
                     ):
         if To is None:
             To, fitness = self.auto_init(0, voxel_size)
@@ -503,12 +518,17 @@ class MultiICP_Obj:
 
         To = np.matmul(To, self.Toff_inv)
 
+
         # Guess Initial Transformation
         trans_init = To
 
+        # Sampling points to reduct number of points
+        source_down = source.uniform_down_sample(every_k_points=2)
+        target_down = target.uniform_down_sample(every_k_points=2)
+
         print("Apply point-to-point ICP")
         threshold = thres
-        reg_p2p = o3d.registration.registration_icp(source, target, threshold, trans_init,
+        reg_p2p = o3d.registration.registration_icp(source_down, target_down, threshold, trans_init,
                                                     o3d.registration.TransformationEstimationPointToPoint(),
                                                     o3d.registration.ICPConvergenceCriteria(
                                                         relative_fitness=relative_fitness,
@@ -521,7 +541,7 @@ class MultiICP_Obj:
 
         ICP_result = np.matmul(ICP_result, self.Toff)
         if visualize:
-            self.draw(ICP_result)
+            self.draw(ICP_result, source_down, target_down)
 
         self.pose = ICP_result
         return ICP_result, reg_p2p.fitness
@@ -530,8 +550,8 @@ class MultiICP_Obj:
     # @param Tc_cur this is new camera transformation in pcd origin
     # @param To    initial transformation matrix of geometry object in the intended icp origin coordinate
     # @param thres max distance between corresponding points
-    def compute_front_ICP(self, Tc_cur=None, To=None, thres=0.13,
-                          relative_fitness=1e-15, relative_rmse=1e-15, max_iteration=500000,
+    def compute_front_ICP(self, h_fov_hf, v_fov_hf, Tc_cur=None, To=None, thres=0.07,
+                          relative_fitness=1e-18, relative_rmse=1e-18, max_iteration=700000,
                           voxel_size=0.04, visualize=False
                           ):
         if To is None:
@@ -550,6 +570,7 @@ class MultiICP_Obj:
         # model_mesh = self.model.compute_vertex_normals()
         model_pcd = self.model_sampled
 
+        # remove points whose normal vector direction are opposite to camera direction vector
         normals = np.asarray(model_pcd.normals)
         points = np.asarray(model_pcd.points)
         # point_normals = normals
@@ -564,9 +585,7 @@ class MultiICP_Obj:
             if np.dot(view_vec, point_normals[i]) < 0:
                 idx.append(i)
 
-        # pts = np.zeros((len(idx), 3))
-        # for i in range(len(idx)):
-        #     pts[i] = points[idx[i]]
+        # remove points which are not in trainge plane from traingles
         pts_md = np.array(points[idx])
 
         point_c = np.asarray(np.matmul(pts_md, np.transpose(T_co[:3, :3])) + T_co[:3, 3])
@@ -605,17 +624,52 @@ class MultiICP_Obj:
         front_pcd = o3d.geometry.PointCloud()
         front_pcd.points = o3d.utility.Vector3dVector(points_front)
         source = copy.deepcopy(front_pcd)
-
-        if visualize:
-            print("initial: \n{}".format(np.round(To, 2)))
-            cam_coord = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.15, origin=[0, 0, 0])
-            cam_coord.transform(Tc_cur)
-            self.draw(To, source, target, [cam_coord])
+        #
+        # if visualize:
+        #     cam_coord = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.15, origin=[0, 0, 0])
+        #     cam_coord.transform(Tc_cur)
+        #     self.draw(To, source, target, [cam_coord])
 
         To = np.matmul(To, self.Toff_inv)
 
         # Guess Initial Transformation
         trans_init = To
+
+        # # remove points which are not in FOV ver.1
+        # center_point = target.get_center()
+        # points_converted = np.matmul(To[:3,:3], points_front.T).T + To[:3,3]
+        # dist_v = np.sqrt((np.linalg.norm(center_point)/np.cos(v_fov_hf))**2 - np.linalg.norm(center_point)**2)
+        # point_upper = center_point + np.array([0, -dist_v,0])
+        # point_lower = center_point + np.array([0, dist_v,0])
+        #
+        # points_converted = points_converted[np.where(points_converted[:,1]<point_lower[1])]
+        # points_converted = points_converted[np.where(points_converted[:,1]>point_upper[1])]
+        #
+        # points_remain = np.matmul(np.linalg.inv(To)[:3,:3], points_converted.T).T + np.linalg.inv(To)[:3,3]
+
+        # remove points which are not in FOV ver.2
+        center_point = target.get_center()
+        points_converted = np.matmul(To[:3,:3], points_front.T).T + To[:3,3]
+
+        points_converted = points_converted[np.where(np.abs(points_converted[:,0]/points_converted[:,2]) < np.tan(h_fov_hf))]
+        points_converted = points_converted[np.where(np.abs(points_converted[:,1]/points_converted[:,2]) < np.tan(v_fov_hf))]
+
+        points_remain = np.matmul(np.linalg.inv(To)[:3,:3], points_converted.T).T + np.linalg.inv(To)[:3,3]
+
+
+        front_pcd = o3d.geometry.PointCloud()
+        front_pcd.points = o3d.utility.Vector3dVector(points_remain)
+        source = copy.deepcopy(front_pcd)
+
+        if visualize:
+            print("initial: \n{}".format(np.round(To, 2)))
+            cam_coord = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.15, origin=[0, 0, 0])
+            cam_coord.transform(Tc_cur)
+            self.draw(np.matmul(To, self.Toff), source, target, [cam_coord])
+
+        # Sampling points to reduct number of points
+        source_down = source.uniform_down_sample(every_k_points=2)
+        target_down = target.uniform_down_sample(every_k_points=2)
 
         print("Apply point-to-point ICP")
         threshold = thres
@@ -633,7 +687,7 @@ class MultiICP_Obj:
         ICP_result = np.matmul(ICP_result, self.Toff)
         if visualize:
             print("result: \n{}".format(np.round(ICP_result, 2)))
-            self.draw(ICP_result, source, target)
+            self.draw(ICP_result, source_down, target_down)
 
         self.pose = ICP_result
         return ICP_result, reg_p2p.fitness
