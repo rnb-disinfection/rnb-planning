@@ -4,6 +4,7 @@ from .trajectory_client import indy_trajectory_client_nosdk
 from .trajectory_client import panda_trajectory_client
 from .trajectory_client.kiro import kiro_udp_client
 from .trajectory_client.kiro import indy_7dof_client
+from .trajectory_client.kiro import indy_7dof_client_nosdk
 from .robot_config import *
 from collections import defaultdict
 import numpy as np
@@ -73,7 +74,10 @@ class CombinedRobot:
                 else:
                     self.robot_dict[name] = indy_trajectory_client.IndyTrajectoryClient(server_ip=addr)
             elif _type == RobotType.indy7kiro:
-                self.robot_dict[name] = indy_7dof_client.Indy7DofClient(server_ip=addr)
+                if "no_sdk" in rbt.specs and rbt.specs["no_sdk"]:
+                    self.robot_dict[name] = indy_7dof_client_nosdk.Indy7DofClientNoSDK(server_ip=addr)
+                else:
+                    self.robot_dict[name] = indy_7dof_client.Indy7DofClient(server_ip=addr)
             elif _type == RobotType.panda:
                 self.robot_dict[name] = panda_trajectory_client.PandaTrajectoryClient(*addr.split("/"))
             elif _type == RobotType.kmb:

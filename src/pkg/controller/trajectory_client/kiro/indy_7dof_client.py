@@ -29,10 +29,8 @@ class Indy7DofClient(IndyTrajectoryClient):
     ##
     # @brief reset robot and trajectory client
     def reset(self):
-        with self:
-            self.reset_robot()
         self.qstack = []
-        return TrajectoryClient.reset(self)
+        return IndyTrajectoryClient.reset(self)
 
 
     ##
