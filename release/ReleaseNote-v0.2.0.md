@@ -24,6 +24,8 @@
 ## New features
 ### 4. PlanningPipeline
 * **4.1 PlanningScene**  
+  - **create_binder()**
+    - *point* argument must be passed to ***pscene.create_binder()*** now. pass point=None if error occurs.
   - **BindingTransform**
     - ***pscene.sample_leaf_state()*** now returns *to_state* only. *redundancy_dict* is contained in ***to_state.binding_state***.
     - ***State.binding_state*** is a dictionary of **BindingTransform**. The redundancy can be accessed at ***BindingTransform.redundancy***.
