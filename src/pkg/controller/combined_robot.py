@@ -255,6 +255,14 @@ class CombinedRobot:
             return True
         if one_by_one:
             for rname, robot in robots_in_act:
+                Q_init = trajectory[0][self.idx_dict[rname]]
+                Q_cur = robot.get_qcur()
+                if np.max(np.abs((np.subtract(Q_init, Q_cur)))) > 5e-2:
+                    print("move_joint_traj: {} pose does not match with trajectory initial state. calling joint_move_make_sure".format(rname))
+                    print(np.round(np.rad2deg(Q_init), 1))
+                    print(np.round(np.rad2deg(Q_cur), 1))
+                    robot.joint_move_make_sure(Q_init)
+                    print("joint_move_make_sure done")
                 robot.move_joint_traj(trajectory[:, self.idx_dict[rname]], auto_stop=auto_stop, wait_motion=wait_motion)
                 if error_stop is not None:
                     if np.sum(np.abs(np.subtract(trajectory[-1, self.idx_dict[rname]], robot.get_qcur())))\

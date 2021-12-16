@@ -9,7 +9,7 @@ import time
 from enum import Enum
 from ctypes import c_int16
 
-KIRO_TOOL_PORT = '/dev/ttyUSB0'
+KIRO_TOOL_PORT = '/dev/ttyUSB1'
 KIRO_TOOL_BDRATE = 115200
 STX_BYTE, ETX_BYTE = 0x02, 0x03
 OFFLINE_MODE = False
@@ -62,7 +62,7 @@ class KiroToolPacket:
         )
     
     def to_hex(self):
-        return ("{:02}:"*self.DATA_LEN).format(*self.data_fields)[:-1]    
+        return ("{:02}:"*self.DATA_LEN).format(*self.data_fields)   
     
     @classmethod
     def unpack(cls, resp, checksum=False):
@@ -94,6 +94,8 @@ class KiroToolPort:
         self.flush()
         try:
             self.initialize()
+            time.sleep(0.5)
+            self.led_off()
         except Exception as e:
             print(e)
             raise(RuntimeError("[ERROR] Run this bash command to allow USB access: {}".format(
@@ -142,7 +144,7 @@ class KiroToolPort:
     
     def led_off(self):
         print("[KTOOL] led_off")
-        return self.send_recv_check_a0(MOTOR_CMD.OP, OP_CMD.LED_OFF)
+        return self.send(MOTOR_CMD.OP, OP_CMD.LED_OFF)
     
     def send_raw(self, raw):
         print("[KTOOL] send_raw: {}".format(raw))
@@ -151,7 +153,7 @@ class KiroToolPort:
     # @brief send deci-degree value in two bytes
     def send_degree(self, degree):
         print("[KTOOL] send degree: {}".format(degree))
-        return self.send_recv_check_a0(MOTOR_CMD.OP, OP_CMD.DEGREE, *divide_bytes(int(degree*10)%0x10000))
+        return self.send(MOTOR_CMD.OP, OP_CMD.DEGREE, *divide_bytes(int(degree*10)%0x10000))
         
     def close(self):
         print("[KTOOL] close")
@@ -173,6 +175,7 @@ class KiroToolPort:
     def send(self, motor_cmd, op_cmd=OP_CMD.NONE, *args):
         print("[KTOOL] send {}".format((motor_cmd, op_cmd)+args))
         cmd_pkt = KiroToolPacket(motor_cmd, op_cmd, *args)
+        print(cmd_pkt.to_hex())
         if not OFFLINE_MODE:
             self.sport.write(cmd_pkt.pack())
         

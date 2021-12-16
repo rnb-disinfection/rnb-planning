@@ -12,7 +12,7 @@ class Indy7DofClientNoSDK(IndyTrajectoryClientNoSDK):
         self.ktool = kiro_tool.KiroToolPort()
         self.qstack = []
         self.qtool = 0
-        self.tool_dt = 0.1
+        self.tool_dt = 0.02
 
     ##
     # @brief Make sure the joints move to Q using the indy DCP joint_move_to function.
@@ -40,7 +40,7 @@ class Indy7DofClientNoSDK(IndyTrajectoryClientNoSDK):
             moving = not self.get_robot_status()['movedone']
             if moving: # if more than 0 que is left, send first(current) value to tool
                 Q6cur = np.deg2rad(self.get_joint_pos())
-        if moving and len(len(self.qstack)>0)>0: # if more than 0 que is left, send first(current) value to tool
+        if moving and len(self.qstack)>0: # if more than 0 que is left, send first(current) value to tool
             diffs = np.sum(np.abs(np.asarray(self.qstack)[:,:6] - Q6cur), axis=-1)
             idx_cur = np.argmin(diffs)
             self.qstack = self.qstack[idx_cur:]
@@ -60,7 +60,7 @@ class Indy7DofClientNoSDK(IndyTrajectoryClientNoSDK):
 
         if not kiro_tool.OFFLINE_MODE:
             IndyTrajectoryClientNoSDK.move_joint_traj(
-                self, np.array(trajectory[:,:-1]), auto_stop=auto_stop, wait_motion=False)
+                self, np.array(trajectory[:,:6]), auto_stop=auto_stop, wait_motion=False)
 
         if wait_motion:
             time.sleep(0.1)

@@ -13,12 +13,12 @@ class Indy7DofClient(IndyTrajectoryClient):
         self.qstack = []
         self.qtool = 0
         self.tool_time = time.time()
-        self.tool_dt = 0.1
+        self.tool_dt = 0.01
 
     ##
     # @brief Make sure the joints move to Q using the indy DCP joint_move_to function.
     # @param Q radian
-    def joint_move_make_sure(self, Q, N_repeat=2):
+    def joint_move_make_sure(self, Q, N_repeat=1):
         self.stop_tracking()
         with self:
             for _ in range(N_repeat):

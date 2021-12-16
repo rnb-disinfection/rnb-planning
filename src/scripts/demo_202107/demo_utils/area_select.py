@@ -850,10 +850,17 @@ class GreedyExecuter:
                             else:
                                 vel_lims = self.vel_lims
                                 acc_lims = self.acc_lims
-
-                            t_all, traj = calc_safe_trajectory(1.0 / DEFAULT_TRAJ_FREQUENCY,
-                                                               np.array(snode_to.traj),
-                                                               vel_lims, acc_lims)
+                            if "no_sdk" in self.robot_config.specs and self.robot_config.specs["no_sdk"]:
+                                traj = np.array(snode_to.traj)
+                                # if snode_pre.state.node == (1,) and snode_to.state.node == (2,):
+                                #     traj_len = len(traj)
+                                #     if traj_len > 50:
+                                #         steps = traj_len / 50
+                                #         traj = traj[::steps]
+                            else:
+                                t_all, traj = calc_safe_trajectory(1.0 / DEFAULT_TRAJ_FREQUENCY,
+                                                                   np.array(snode_to.traj),
+                                                                   vel_lims, acc_lims)
                             snode_to.set_traj(np.array(traj))
                     Qcur = snode_schedule_all[-1].state.Q
                     if not skip_execute:

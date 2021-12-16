@@ -41,11 +41,11 @@ class DisinfectionOperationServicer(DisinfectionOperation_pb2_grpc.DisinfectionO
         else:
             return DisinfectionOperation_pb2.DoDisinfectionCompleteResponse(response_flag=1)
         
-def serve(servicer):
+def serve(servicer, host):
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     DisinfectionOperation_pb2_grpc.add_DisinfectionOperationServicer_to_server(
         servicer, server)
-    server.add_insecure_port('[::]:50307')
+    server.add_insecure_port(host+':50307')
     server.start()
     server.wait_for_termination()
         
