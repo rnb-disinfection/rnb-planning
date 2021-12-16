@@ -18,9 +18,6 @@ class SweepEntranceControlRule(CustomRuleInterface):
 
         no_enter_sidxes = [stype == SweepLineTask for stype in enumerate(self.pscene.subject_type_list)]
         no_enter_initials = [tplan.initial_state.node[sidx] for sidx in no_enter_sidxes]
-        self.sorted_unstop_keys = [i_s
-                                   for i_s, sname in enumerate(self.pscene.subject_name_list)
-                                   if sname in tplan.unstoppable_terminals]
 
         self.node_dict = {}
         self.enter_dict = {}

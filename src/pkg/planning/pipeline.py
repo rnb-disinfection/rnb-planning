@@ -87,7 +87,7 @@ class PlanningPipeline:
     # @param dt_vis display period
     # @param verbose boolean flag for printing intermediate process
     def search(self, initial_state, goal_nodes, multiprocess=False,
-               max_solution_count=100, N_search=None, N_agents=None, wait_proc=True,
+               max_solution_count=5, N_search=None, N_agents=None, wait_proc=True,
                display=False, dt_vis=0.01, verbose=False, timeout_loop=600, looptime_extra=None,
                terminate_on_first=False, timeout=1, **kwargs):
         self.gtimer.tic("search_loop")
