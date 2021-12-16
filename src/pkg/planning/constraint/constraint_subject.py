@@ -456,7 +456,11 @@ class WaypointTask(AbstractTask):
     ##
     # @brief use this function to create explicit node-edge checking rule for TaskRRT
     @classmethod
-    def make_unstopable_rule(cls, pscene, snames):
+    def make_unstopable_rule(cls, pscene, snames=None):
+        if snames is None:
+            snames = [sname for sname, stype
+                      in zip(pscene.subject_name_list, pscene.subject_type_list)
+                      if isinstance(stype, cls)]
         subjects = [pscene.subject_dict[sname] for sname in snames]
         idc = [pscene.subject_name_list.index(sname) for sname in snames]
         def check_edge(pscene, node, leaf):

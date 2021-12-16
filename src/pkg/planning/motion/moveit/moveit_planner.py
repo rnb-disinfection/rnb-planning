@@ -61,7 +61,7 @@ class MoveitPlanner(MotionInterface):
     # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
     # @param enable_dual    boolean flag to enable dual arm manipulation (default=True)
     # @param    motion_filters list of child-class of rnb-planning.src.pkg.planning.motion.filtering.filter_interface.MotionFilterInterface
-    def __init__(self, pscene, motion_filters=[], enable_dual=True, incremental_constraint_motion=True):
+    def __init__(self, pscene, motion_filters=[], enable_dual=True, incremental_constraint_motion=False):
         MotionInterface.__init__(self, pscene, motion_filters)
         config_path = os.path.dirname(self.urdf_path)+"/"
         self.incremental_constraint_motion = incremental_constraint_motion
