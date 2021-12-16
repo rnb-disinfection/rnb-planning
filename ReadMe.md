@@ -91,8 +91,10 @@ echo 'source "$RNB_PLANNING_DIR"ws_ros/devel/setup.bash' >> ~/.bashrc
 * To use **MultiICP** or **SharedDetector**, install mmdet by following instruction in [docs/Detection.md](docs/PDDLStream.md)
 ### ReachChecker
 * To use **ReachChecker**, get model files from https://github.com/rnb-disinfection/arxiv-highcap/tree/rnb-planning/model/reach_svm and put them in *$RNB_PLANNING_DIR/model/reach_svm* folder.
+* For robots that are indy7 variants (indy7gripper...), copy indy7 model file and assign the robot name as the file name.
 ### LatticedChecker
 * To use **LatticedChecker**, get model files from https://github.com/rnb-disinfection/arxiv-highcap/tree/rnb-planning/model/latticized and put them in *$RNB_PLANNING_DIR/model/latticized* folder.
+* For robots that are indy7 variants (indy7gripper...), copy indy7 model file and assign the robot name as the file name.
 
 ## 2.4 fix default grub setting (disable linux kernel update)  
 * check list of kernel 
