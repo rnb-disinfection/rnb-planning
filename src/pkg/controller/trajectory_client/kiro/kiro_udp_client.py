@@ -13,12 +13,18 @@ class KiroUDPClient(TrajectoryClient):
     NEAR_MOTION_RANGE = 0.4
 
     def __init__(self, server_ip, ip_cur):
+        global KIRO_UDP_OFFLINE_DEBUG
         TrajectoryClient.__init__(self, server_ip, traj_freq=10)
         self.server_ip = server_ip
         self.teleport = True
         if not KIRO_UDP_OFFLINE_DEBUG:
-            self.sock_mobile, self.server_thread = start_mobile_udp_thread(recv_ip=ip_cur)
-            time.sleep(1)
+            try:
+                self.sock_mobile, self.server_thread = start_mobile_udp_thread(recv_ip=ip_cur)
+                time.sleep(1)
+            except:
+                TextColors.RED.println("[ERROR] Could not connect to {} from {}".format(server_ip, ip_cur))
+                TextColors.RED.println("[ERROR] Keep running in OFFLINE MODE")
+                KIRO_UDP_OFFLINE_DEBUG = True
         self.xyzw_last = [0, 0, 0, 1]
         self.coster = None
         self.cost_cut = 0

@@ -85,10 +85,16 @@ class KiroToolPacket:
 class KiroToolPort:
     def __init__(self, port_name=None,
                  baudrate=KIRO_TOOL_BDRATE, timeout=1):
+        global OFFLINE_MODE
         port_name = KIRO_TOOL_PORT if port_name is None else port_name # aggisn default here to set default value in script
         self.port_name, self.baudrate = port_name, baudrate
         if not OFFLINE_MODE:
-            self.sport = serial.Serial(port_name, baudrate, timeout=timeout)
+            try:
+                self.sport = serial.Serial(port_name, baudrate, timeout=timeout)
+            except:
+                TextColors.RED.println("[ERROR] Could not connect to {}({})".format(port_name, baudrate))
+                TextColors.RED.println("[ERROR] Keep running in OFFLINE MODE")
+                OFFLINE_MODE = True
 #         sudo chwon $USER port_name
         print("==== Kiro Tool connected to {} ({}) ====".format(port_name, baudrate))
         self.flush()
@@ -98,7 +104,7 @@ class KiroToolPort:
             self.led_off()
         except Exception as e:
             print(e)
-            raise(RuntimeError("[ERROR] Run this bash command to allow USB access: {}".format(
+            raise(RuntimeError("[ERROR] You may need to run this bash command to allow USB access: {}".format(
                 "sudo usermod -a -G dialout $USER")))
         
     def disable(self):
