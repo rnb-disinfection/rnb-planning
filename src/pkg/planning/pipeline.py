@@ -463,10 +463,7 @@ class PlanningPipeline:
                 btf_pre, btf = snode_pre.state.binding_state[sname], snode.state.binding_state[sname]
                 if btf_pre.get_chain() != btf.get_chain():
                     self.pscene.show_binding(btf)
-            if period<0.01:
-                self.pscene.gscene.show_motion(snode.traj[::int(0.01/period)], period=0.01)
-            else:
-                self.pscene.gscene.show_motion(snode.traj, period=period)
+            self.pscene.gscene.show_motion(snode.traj, period=period)
             time.sleep(period)
             self.pscene.gscene.show_pose(snode.traj[-1])
             snode_pre = snode
@@ -474,15 +471,19 @@ class PlanningPipeline:
         time.sleep(0.1)
 
     ##
-    # @brief execute schedule
+    # @brief execute schedule. To deal with trajectory adjustment consistently, only snode.traj is tracked. Q is not used for tracking.
     # @param mode_switcher ModeSwitcherTemplate sub-class instance, to use non-default mode_switcher
     def execute_schedule(self, snode_schedule, auto_stop=True, mode_switcher=None, one_by_one=False, multiproc=False,
                          error_stop_deg=10, auto_sync_robot_pose=False):
         self.execute_res = False
-        snode_pre = snode_schedule[0]
         if auto_sync_robot_pose:
-            self.pscene.combined_robot.joint_move_make_sure(snode_schedule[0].state.Q)
+            for snode in snode_schedule:
+                if snode.traj is not None: # make sure robot is in sync with beginning of first trajectory
+                    self.pscene.combined_robot.joint_move_make_sure(snode.traj[0])
+                    break
+
         mode_switcher = mode_switcher if mode_switcher is not None else self.mode_switcher
+        snode_pre = snode_schedule[0]
         mode_switcher.init(snode_pre.state)
 
         for snode in snode_schedule:

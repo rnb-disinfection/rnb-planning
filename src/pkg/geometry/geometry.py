@@ -257,12 +257,15 @@ class GeometryScene(list):
     ##
     # @brief show motion list
     # @param pose_list list of Q in radian numpy array
-    def show_motion(self, pose_list, **kwargs):
+    def show_motion(self, pose_list, period=0.01, **kwargs):
         if self.rviz:
             marker_list = []
             for mks in self.marker_dict.values():
                 marker_list += mks
-            show_motion(pose_list, marker_list, self.pub, self.joints, self.joint_names, **kwargs)
+            if period<0.01:
+                pose_list = pose_list[::int(0.01/period)]
+                period = 0.01
+            show_motion(pose_list, marker_list, self.pub, self.joints, self.joint_names, period=period, **kwargs)
 
     ##
     # @brief clear all highlights
