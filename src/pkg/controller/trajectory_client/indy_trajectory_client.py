@@ -4,6 +4,7 @@ from .indy_utils.indydcp_client import IndyDCPClient
 INDY_DOF = 6
 INDY_NAME = "NRMK-Indy7"
 
+SURE_MOTION_DCP = False
 
 ##
 # @class IndyTrajectoryClient
@@ -31,11 +32,18 @@ class IndyTrajectoryClient(IndyDCPClient, TrajectoryClient):
     # @brief Make sure the joints move to Q using the indy DCP joint_move_to function.
     # @param Q radian
     def joint_move_make_sure(self, Q, N_repeat=2):
-        self.stop_tracking()
-        with self:
-            for _ in range(N_repeat):
-                self.joint_move_to(np.rad2deg(Q))
-                self.wait_motion()
+        if SURE_MOTION_DCP:
+            self.stop_tracking()
+            with self:
+                for _ in range(N_repeat):
+                    self.joint_move_to(np.rad2deg(Q))
+                    self.wait_motion()
+        else:
+            Qcur = self.get_qcur()
+            Qdiff = np.subtract(Q, Qcur)
+            move_time = np.linalg.norm(Qdiff) / (np.pi/6) # reference speed: 30deg/s
+            N_div = (move_time / self.traj_freq)
+            self.move_joint_s_curve(Q, q0=Qcur, N_div=N_div)
 
     ##
     # @brief Surely move joints to Q using the indy DCP joint_move_to function.
