@@ -4,8 +4,6 @@ from .indy_utils.indydcp_client import IndyDCPClient
 INDY_DOF = 6
 INDY_NAME = "NRMK-Indy7"
 
-SURE_MOTION_DCP = False
-
 ##
 # @class IndyTrajectoryClient
 # @brief    Trajectory and DCP client for Indy.
@@ -15,6 +13,8 @@ SURE_MOTION_DCP = False
 #           Be careful when calling these functions
 #           because the pose mismatch between Trajectory/DCP server can cause abrupt step motion.
 class IndyTrajectoryClient(IndyDCPClient, TrajectoryClient):
+    SURE_MOTION_DCP = False
+    
     def __init__(self, server_ip, *args, **kwargs):
         kwargs_indy, kwargs_otic = divide_kwargs(kwargs, IndyDCPClient.__init__, TrajectoryClient.__init__)
         if "robot_name" not in kwargs_indy:
@@ -27,23 +27,39 @@ class IndyTrajectoryClient(IndyDCPClient, TrajectoryClient):
         self.TVEL_LEVEL = 1
         self.QBLEND_RAD = 5
         self.TBLEND_RAD = 0.1
+        self.qcount_dummy = 0
+        self.q_start_time = None
 
     ##
     # @brief Make sure the joints move to Q using the indy DCP joint_move_to function.
     # @param Q radian
-    def joint_move_make_sure(self, Q, N_repeat=2):
-        if SURE_MOTION_DCP:
+    def joint_move_make_sure(self, Q, N_repeat=2, auto_stop=True):
+        if self.SURE_MOTION_DCP:
             self.stop_tracking()
             with self:
                 for _ in range(N_repeat):
                     self.joint_move_to(np.rad2deg(Q))
                     self.wait_motion()
         else:
-            Qcur = self.get_qcur()
-            Qdiff = np.subtract(Q, Qcur)
-            move_time = np.linalg.norm(Qdiff) / (np.pi/6) # reference speed: 30deg/s
-            N_div = (move_time / self.traj_freq)
-            self.move_joint_s_curve(Q, q0=Qcur, N_div=N_div)
+            TrajectoryClient.joint_move_make_sure(self, Q, auto_stop=auto_stop)
+
+    def get_qcount(self):
+        if self.q_start_time is not None:
+            qcount_est = int(self.qcount_dummy - (time.time()-self.q_start_time)*self.traj_freq)
+        if self.q_start_time is None or qcount_est <= 0:
+            self.q_start_time = None
+            return TrajectoryClient.get_qcount(self)
+        else:
+            return qcount_est
+
+    def send_qval(self, qval):
+        self.qcount_dummy += 1
+        return TrajectoryClient.send_qval(self, qval)
+    
+    def start_tracking(self):
+        self.qcount_dummy, self.q_start_time = 0, None
+        self.qcount_dummy, self.q_start_time = self.get_qcount(), time.time()
+        return TrajectoryClient.start_tracking(self)
 
     ##
     # @brief Surely move joints to Q using the indy DCP joint_move_to function.

@@ -14,6 +14,7 @@ DEFAULT_TRAJ_FREQUENCY = 50
 # @remark use move_joint_s_curve to send off-line trajectory
 #         use move_joint_s_curve_online to test online trajectory following.
 class TrajectoryClient(object):
+    MAX_INIT_ERROR = 8e-2
 
     def __init__(self, server_ip, server_port=DEFAULT_TRAJ_PORT, traj_freq=DEFAULT_TRAJ_FREQUENCY):
         self.server_ip, self.server_port, self.traj_freq = \
@@ -140,8 +141,14 @@ class TrajectoryClient(object):
     # @brief Move joints to Q using the most guaranteed method for each robot.
     # @remark Robot-specific implementation is required.
     # @param Q radian
-    def joint_move_make_sure(self, Q):
-        self.move_joint_s_curve(Q, N_div=200, auto_stop=True)
+    def joint_move_make_sure(self, Q, auto_stop=True):
+        Qcur = self.get_qcur()
+        Qdiff = np.subtract(Q, Qcur)
+        move_time = np.linalg.norm(Qdiff) / (np.pi/6) # reference speed: 30deg/s
+        N_div = int(move_time * self.traj_freq)
+        if N_div < 5:
+            N_div = 5
+        self.move_joint_s_curve(Q, N_div=N_div, auto_stop=auto_stop)
 
     ##
     # @brief Execute grasping
@@ -167,7 +174,13 @@ class TrajectoryClient(object):
 
         for Q in trajectory:
             self.push_Q(Q)
-
+        
+        qcur = self.get_qcur()
+        qerr = np.max(np.abs(np.subtract(qcur, trajectory[0])))
+        if qerr >self.MAX_INIT_ERROR:
+            raise(RuntimeError(("move_joint_traj: error too much: {} / {} \n{} / \n{}".format(
+                np.round(np.rad2deg(qerr), 1), np.round(np.rad2deg(self.MAX_INIT_ERROR), 1),
+                list(np.round(np.rad2deg(qcur), 1)), list(np.round(np.rad2deg(trajectory[0]), 1))))))
         self.start_tracking()
 
         if wait_motion:
