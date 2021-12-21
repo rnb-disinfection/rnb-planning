@@ -45,7 +45,7 @@ class IndyTrajectoryClient(IndyDCPClient, TrajectoryClient):
 
     def get_qcount(self):
         if self.q_start_time is not None:
-            qcount_est = int(self.qcount_dummy - (time.time()-self.q_start_time)*self.traj_freq)
+            qcount_est = int(self.qcount_dummy - (time.time()-self.q_start_time)*self.traj_freq)+1
         if self.q_start_time is None or qcount_est <= 0:
             self.q_start_time = None
             return TrajectoryClient.get_qcount(self)
@@ -123,8 +123,9 @@ class IndyTrajectoryClient(IndyDCPClient, TrajectoryClient):
     # @remark   reset_robot is added here because it resets the internal robot pose reference.
     #           If reset_robot is not called, it will immediately move to the original reference pose.
     def stop_tracking(self):
+        res = TrajectoryClient.stop_tracking(self)
         self.reset()
-        return TrajectoryClient.stop_tracking(self)
+        return res
 
     ##
     # @brief block entrance that connects to indy dcp server

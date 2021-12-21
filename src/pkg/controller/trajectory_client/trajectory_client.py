@@ -45,7 +45,9 @@ class TrajectoryClient(object):
         return send_recv({'follow': 1}, self.server_ip, self.server_port)
 
     def stop_tracking(self):
-        return send_recv({'stop': 1}, self.server_ip, self.server_port)
+        res = send_recv({'stop': 1}, self.server_ip, self.server_port)
+        self.wait_queue_empty(max_dur=1.0/self.traj_freq*10)
+        return res
 
     def terminate_loop(self):
         return send_recv({'terminate': 1}, self.server_ip, self.server_port)
@@ -59,6 +61,7 @@ class TrajectoryClient(object):
             if (time.time() - time_start) > max_dur:
                 TextColors.RED.println("[WARN] ROBOT MOTION TIMEOUT")
                 break
+        time.sleep(1.0 / self.traj_freq * 2)
 
     ##
     # @brief    Send target pose to the server and store the queue count.
