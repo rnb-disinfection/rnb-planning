@@ -496,12 +496,12 @@ class PlanningPipeline:
             if multiproc:
                 t_exe = Process(target=self.pscene.combined_robot.move_joint_traj,
                                 args = (snode.traj,),
-                                kwargs=dict(auto_stop=False, one_by_one=one_by_one, error_stop=error_stop_deg))
+                                kwargs=dict(auto_stop=True, one_by_one=one_by_one, error_stop=error_stop_deg))
                 t_exe.daemon = True
                 t_exe.start()
                 t_exe.join()
             else:
-                self.pscene.combined_robot.move_joint_traj(snode.traj, auto_stop=False, one_by_one=one_by_one)
+                self.pscene.combined_robot.move_joint_traj(snode.traj, auto_stop=True, one_by_one=one_by_one)
                 if len(self.pscene.combined_robot.get_robots_in_act(snode.traj)) == 0:
                     print("No motion for connected robot - playing motion in RVIZ")
                     self.pscene.gscene.show_motion(snode.traj)

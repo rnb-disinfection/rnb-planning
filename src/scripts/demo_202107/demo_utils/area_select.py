@@ -98,7 +98,7 @@ SWEEP_DAT_PATH = os.path.join(os.environ["RNB_PLANNING_DIR"], "data/sweep_reach"
 # @param tip_dir None, up, down
 # @return {approach dir 0~3: {Tsm_key: [idx_div]}}, surface_div_centers
 def get_division_dict(pscene, surface, brush_face, robot_config, plane_val, tip_dir, sweep_dir, TOOL_DIM, ccheck, resolution,
-                      sweep_margin=0, io_margin=0.2, xout_cut=False, div_num=None):
+                      sweep_margin=0, io_margin=0.2, xout_cut=False, yout_cut=False, div_num=None):
     gscene = pscene.gscene
     crob = pscene.combined_robot
 
@@ -266,6 +266,8 @@ def get_division_dict(pscene, surface, brush_face, robot_config, plane_val, tip_
                 Tbm = np.matmul(Tbs, Tsm)
                 if (np.all(np.abs(Tsm[:3, 3]) < np.divide(surface.dims[:3], 2)+io_margin)
                         or (xout_cut and (np.abs(Tsm[0, 3]) > np.divide(surface.dims[0],
+                                                                        2) + io_margin))
+                        or (yout_cut and (np.abs(Tsm[1, 3]) > np.divide(surface.dims[1],
                                                                         2) + io_margin))):  # mobile loc inside surface
                     Tbm_in_all.append(Tbm)
                     continue
@@ -558,7 +560,7 @@ class GreedyExecuter:
         self.swp_acc_lims = swp_acc_lims
 
     def get_division_dict(self, surface, tip_dir, sweep_dir, plane_val,
-                          xout_cut=False, resolution=0.02, div_num=None):
+                          xout_cut=False, yout_cut=False, resolution=0.02, div_num=None):
         self.surface = surface
         self.tip_dir, self.sweep_dir, self.plane_val = tip_dir, sweep_dir, plane_val
         self.div_base_dict, self.Tsm_keys, self.surface_div_centers, self.div_num, \
@@ -566,7 +568,7 @@ class GreedyExecuter:
             get_division_dict(self.pscene, self.surface, self.brush_face, self.robot_config,
                               plane_val=plane_val, tip_dir=tip_dir, sweep_dir=sweep_dir,
                               TOOL_DIM=self.tool_dim, ccheck=self.ccheck,
-                              resolution=resolution, xout_cut=xout_cut, div_num=div_num)
+                              resolution=resolution, xout_cut=xout_cut, yout_cut=yout_cut, div_num=div_num)
 
         self.ax_swp_base = self.ax_swp
         self.Rre = SweepDirections.get_dcm_re(tip_dir)
@@ -631,6 +633,13 @@ class GreedyExecuter:
         dist_scores = np.linalg.norm(
             np.array([np.matmul(Tbs, T_xyzquat(tkey))[:2,3] for tkey in self.Tsm_keys]) - Qcur[:2],
             axis=-1)*0.2
+        Tmb_cur = np.linalg.inv(self.gscene.get_tf(self.mobile_link, Qcur))
+        dist_scores += np.linalg.norm(
+            np.array([
+                np.matmul(np.matmul(Tbs, T_xyzquat(tkey))[:3,:3],
+                          Tmb_cur[:3,:3]
+                          )[:2,:2]-np.identity(2) for tkey in self.Tsm_keys]),
+            axis=(-2, -1))*0.2
         score_mat = np.sum(self.div_base_mat, axis=-1)
         score_mat -= dist_scores[:, np.newaxis]
         max_score = np.max(score_mat)
@@ -680,7 +689,7 @@ class GreedyExecuter:
         return snode_schedule
 
     def greedy_execute(self, Qcur, tool_dir, mode_switcher, offset_fun, auto_clear_subject=True, cost_cut=110, covereds=[],
-                       repeat_sweep=2, adjust_once=True, skip_execute=False):
+                       repeat_sweep=1, adjust_once=True, skip_execute=False):
         gtimer = GlobalTimer.instance()
         Qcur = np.copy(Qcur)
         Qhome = np.copy(Qcur)

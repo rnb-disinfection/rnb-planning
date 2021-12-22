@@ -22,4 +22,8 @@ jupyter notebook
   * if version does not match, get conty apk files from http://192.168.0.10:8888/tree/Downloads (It may be already downloaded on tablet.)
 
 ## Running
-1. open and run script *demo_1222_Load_and_Execute.ipynb*
+1. open and run script *demo_1222_Load_and_Execute_Loop_Table.py*
+```bash
+cd ~/Projets/rnb-planning/src/scripts/demo_202107
+python demo_1222_Load_and_Execute_Loop_Table.py
+```
