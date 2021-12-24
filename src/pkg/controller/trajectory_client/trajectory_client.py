@@ -57,7 +57,7 @@ class TrajectoryClient(object):
     def wait_queue_empty(self, max_dur=1000):
         time_start = time.time()
         while self.get_qcount()>0:
-            time.sleep(1.0/self.traj_freq)
+            self.periodic.wait()
             if (time.time() - time_start) > max_dur:
                 TextColors.RED.println("[WARN] ROBOT MOTION TIMEOUT")
                 break
@@ -159,7 +159,7 @@ class TrajectoryClient(object):
     # @param grasp True: grasp / False: release
     @abc.abstractmethod
     def grasp(self, grasp):
-        raise(NotImplementedError("Robot-specific implementation is required for grasp function"))
+        TextColors.YELLOW.println("Robot-specific implementation is required for grasp function")
 
     ##
     # @brief move joint with waypoints, one-by-one
