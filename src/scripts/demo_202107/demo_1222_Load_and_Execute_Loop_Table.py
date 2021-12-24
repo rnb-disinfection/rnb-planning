@@ -26,6 +26,7 @@ raw_input("==================================================\n=========== Start
 
 
 raw_input("==================================================\n========= Connect to Conty and reset robot =======\n")
+raw_input("==================================================\n========= Move robot to home pose =======\n")
 
 
 # In[1]:
@@ -587,12 +588,21 @@ snode_schedule_list_table_all, snode_schedule_list_sofa_all = load_schedules()
 
 # In[ ]:
 
-
-
+import cv2
+cv2.imshow("terminator", np.zeros((100,100,3), dtype=np.uint8))
 try:
     while True:
+        key = cv2.waitKey(5000)
+        print("key input: {}".format(key))
+        if key==27:
+            break
+        print("=========== START ================")
         for snode_schedule_list in snode_schedule_list_table_all:
             play_cleaning_schedule(ppline, table_surf, snode_schedule_list, mode_switcher, TOOL_DIM)
+        print("=========== FINISHED ================")
 finally:
-    indy.stop_tracking()
+    print("=========== STOPPINGG ================")
+    s_builder.xcustom.clear()
+print("=========== STOPPED ================")
+sys.exit()
 

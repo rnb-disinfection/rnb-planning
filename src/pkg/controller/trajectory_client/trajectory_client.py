@@ -191,6 +191,7 @@ class TrajectoryClient(object):
 
             if auto_stop:
                 self.stop_tracking()
+                time.sleep(0.2)
 
 class MultiTracker:
     def __init__(self, robots, idx_list, Q0, on_rviz=False):
