@@ -167,13 +167,6 @@ class TrajectoryClient(object):
     def move_joint_traj(self, trajectory, auto_stop=True, wait_motion=True):
         Q_init = trajectory[0]
         Q_last = trajectory[-1]
-        Q_cur = self.get_qcur()[:6]
-#         if np.max(np.abs((np.subtract(Q_init, Q_cur)))) > 5e-2:
-#             print("move_joint_traj: current robot pose does not match with trajectory initial state. calling joint_move_make_sure")
-#             self.joint_move_make_sure(Q_init)
-#             print("move_joint_traj: current robot pose does not match with trajectory initial state. calling joint_move_make_sure")
-#         assert np.max(np.abs((np.subtract(Q_init, Q_cur)))) < 5e-2, \
-#             "MOVE robot to trajectory initial: current robot pose does not match with trajectory initial state"
 
         for Q in trajectory:
             self.push_Q(Q)
@@ -183,7 +176,7 @@ class TrajectoryClient(object):
         if qerr >self.MAX_INIT_ERROR:
             raise(RuntimeError(("move_joint_traj: error too much: {} / {} \n{} / \n{}".format(
                 np.round(np.rad2deg(qerr), 1), np.round(np.rad2deg(self.MAX_INIT_ERROR), 1),
-                list(np.round(np.rad2deg(qcur), 1)), list(np.round(np.rad2deg(trajectory[0]), 1))))))
+                list(np.round(np.rad2deg(qcur), 1)), list(np.round(np.rad2deg(Q_init), 1))))))
         self.start_tracking()
 
         if wait_motion:
