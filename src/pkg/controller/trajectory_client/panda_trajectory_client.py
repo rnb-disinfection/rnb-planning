@@ -62,7 +62,7 @@ class PandaTrajectoryClient(TrajectoryClient):
     ##
     # @param Q radian
     def joint_move_make_sure(self, Q, auto_stop=True):
-        TrajectoryClient.move_jojoint_move_make_sureint_s_curve(self, Q, auto_stop=auto_stop)
+        TrajectoryClient.joint_move_make_sure(self, Q, auto_stop=auto_stop)
 
     def disconnect(self):
         pass
