@@ -147,10 +147,10 @@ class TrajectoryClient(object):
     def joint_move_make_sure(self, Q, auto_stop=True):
         Qcur = self.get_qcur()
         Qdiff = np.subtract(Q, Qcur)
-        move_time = np.linalg.norm(Qdiff) / (np.pi/6) # reference speed: 30deg/s
+        move_time = np.linalg.norm(Qdiff) / (np.pi/12) # reference speed: 15deg/s
         N_div = int(move_time * self.traj_freq)
-        if N_div < 5:
-            N_div = 5
+        if N_div < 10:
+            N_div = 10
         self.move_joint_s_curve(Q, N_div=N_div, auto_stop=auto_stop)
 
     ##

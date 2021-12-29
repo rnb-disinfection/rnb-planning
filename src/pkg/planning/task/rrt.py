@@ -90,13 +90,12 @@ class TaskRRT(TaskInterface):
             if node in goal_nodes:
                 self.node_dict[node] = set()
                 continue
+            leaf_list = [leaf
+                         for leaf in leafs
+                         if self.explicit_rule(self.pscene, node, leaf)]
+            self.node_dict[node] = set(leaf_list)
             if node in self.explicit_edges:
-                self.node_dict[node] = set(self.explicit_edges[node])
-            else:
-                leaf_list = [leaf
-                             for leaf in leafs
-                             if self.explicit_rule(self.pscene, node, leaf)]
-                self.node_dict[node] = set(leaf_list)
+                self.node_dict[node] = self.node_dict[node].union(self.explicit_edges[node])
             for leaf in self.node_dict[node]:
                 self.node_parent_dict[leaf].add(node)
         self.node_parent_dict = dict(self.node_parent_dict)
