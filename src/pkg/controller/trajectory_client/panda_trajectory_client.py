@@ -1,6 +1,12 @@
 from .trajectory_client import *
-import rospy
-from control_msgs.msg import GripperCommandActionGoal
+try:
+    import rospy
+    from control_msgs.msg import GripperCommandActionGoal
+    from franka_gripper.msg import MoveAction, MoveGoal
+    import actionlib
+except Exception as e:
+    print(e)
+    print("==== Error importing rospy: Use Python2 and install ros to use ros fucntions ====")
 import subprocess
 
 
@@ -17,9 +23,15 @@ class PandaTrajectoryClient(TrajectoryClient):
         self.finger_cmd = GripperCommandActionGoal()
         self.close_bool = False
 
+        self.move_action_client = actionlib.SimpleActionClient("/franka_gripper/move", MoveAction)
+
     def start_gripper_server(self):
         self.__kill_existing_subprocess()
         self.subp = subprocess.Popen(['roslaunch', 'franka_gripper', 'franka_gripper.launch', 'robot_ip:={robot_ip}'.format(robot_ip=self.robot_ip)])
+        try:
+            rospy.init_node("panda_client")
+        except Exception as e:
+            print(e)
 
 
     def __kill_existing_subprocess(self):
@@ -41,11 +53,16 @@ class PandaTrajectoryClient(TrajectoryClient):
         self.close_bool = close_bool
         return self.close_bool
 
+    def move_gripper(self, width, speed=0.05): 
+        goal = MoveGoal()
+        goal.width = width
+        goal.speed = speed
+        return self.move_action_client.send_goal(goal)
+
     ##
     # @param Q radian
-    def joint_move_make_sure(self, Q):
-        self.move_joint_s_curve(Q, N_div=200, auto_stop=True)
+    def joint_move_make_sure(self, Q, auto_stop=True):
+        TrajectoryClient.move_jojoint_move_make_sureint_s_curve(self, Q, auto_stop=auto_stop)
 
     def disconnect(self):
         pass
-

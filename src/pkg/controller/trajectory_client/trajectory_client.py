@@ -14,6 +14,7 @@ DEFAULT_TRAJ_FREQUENCY = 50
 # @remark use move_joint_s_curve to send off-line trajectory
 #         use move_joint_s_curve_online to test online trajectory following.
 class TrajectoryClient(object):
+    MAX_INIT_ERROR = 8e-2
 
     def __init__(self, server_ip, server_port=DEFAULT_TRAJ_PORT, traj_freq=DEFAULT_TRAJ_FREQUENCY):
         self.server_ip, self.server_port, self.traj_freq = \
@@ -44,7 +45,9 @@ class TrajectoryClient(object):
         return send_recv({'follow': 1}, self.server_ip, self.server_port)
 
     def stop_tracking(self):
-        return send_recv({'stop': 1}, self.server_ip, self.server_port)
+        res = send_recv({'stop': 1}, self.server_ip, self.server_port)
+        self.wait_queue_empty(max_dur=1.0/self.traj_freq*10)
+        return res
 
     def terminate_loop(self):
         return send_recv({'terminate': 1}, self.server_ip, self.server_port)
@@ -54,10 +57,11 @@ class TrajectoryClient(object):
     def wait_queue_empty(self, max_dur=1000):
         time_start = time.time()
         while self.get_qcount()>0:
-            time.sleep(1.0/self.traj_freq)
+            self.periodic.wait()
             if (time.time() - time_start) > max_dur:
                 TextColors.RED.println("[WARN] ROBOT MOTION TIMEOUT")
                 break
+        time.sleep(1.0 / self.traj_freq * 2)
 
     ##
     # @brief    Send target pose to the server and store the queue count.
@@ -140,8 +144,14 @@ class TrajectoryClient(object):
     # @brief Move joints to Q using the most guaranteed method for each robot.
     # @remark Robot-specific implementation is required.
     # @param Q radian
-    def joint_move_make_sure(self, Q):
-        self.move_joint_s_curve(Q, N_div=200, auto_stop=True)
+    def joint_move_make_sure(self, Q, auto_stop=True):
+        Qcur = self.get_qcur()
+        Qdiff = np.subtract(Q, Qcur)
+        move_time = np.linalg.norm(Qdiff) / (np.pi/6) # reference speed: 30deg/s
+        N_div = int(move_time * self.traj_freq)
+        if N_div < 5:
+            N_div = 5
+        self.move_joint_s_curve(Q, N_div=N_div, auto_stop=auto_stop)
 
     ##
     # @brief Execute grasping
@@ -149,7 +159,7 @@ class TrajectoryClient(object):
     # @param grasp True: grasp / False: release
     @abc.abstractmethod
     def grasp(self, grasp):
-        raise(NotImplementedError("Robot-specific implementation is required for grasp function"))
+        TextColors.YELLOW.println("Robot-specific implementation is required for grasp function")
 
     ##
     # @brief move joint with waypoints, one-by-one
@@ -157,17 +167,16 @@ class TrajectoryClient(object):
     def move_joint_traj(self, trajectory, auto_stop=True, wait_motion=True):
         Q_init = trajectory[0]
         Q_last = trajectory[-1]
-        Q_cur = self.get_qcur()[:6]
-#         if np.max(np.abs((np.subtract(Q_init, Q_cur)))) > 5e-2:
-#             print("move_joint_traj: current robot pose does not match with trajectory initial state. calling joint_move_make_sure")
-#             self.joint_move_make_sure(Q_init)
-#             print("move_joint_traj: current robot pose does not match with trajectory initial state. calling joint_move_make_sure")
-#         assert np.max(np.abs((np.subtract(Q_init, Q_cur)))) < 5e-2, \
-#             "MOVE robot to trajectory initial: current robot pose does not match with trajectory initial state"
 
         for Q in trajectory:
             self.push_Q(Q)
-
+        
+        qcur = self.get_qcur()
+        qerr = np.max(np.abs(np.subtract(qcur, trajectory[0])))
+        if qerr >self.MAX_INIT_ERROR:
+            raise(RuntimeError(("move_joint_traj: error too much: {} / {} \n{} / \n{}".format(
+                np.round(np.rad2deg(qerr), 1), np.round(np.rad2deg(self.MAX_INIT_ERROR), 1),
+                list(np.round(np.rad2deg(qcur), 1)), list(np.round(np.rad2deg(Q_init), 1))))))
         self.start_tracking()
 
         if wait_motion:
@@ -175,6 +184,7 @@ class TrajectoryClient(object):
 
             if auto_stop:
                 self.stop_tracking()
+                time.sleep(0.2)
 
 class MultiTracker:
     def __init__(self, robots, idx_list, Q0, on_rviz=False):

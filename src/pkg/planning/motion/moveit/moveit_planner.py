@@ -479,14 +479,15 @@ class MoveitPlanner(MotionInterface):
             Q = gscene.get_joint_increment(link_name, Q, wv_cur, Toff, ref_link=ref_link, Jac=Jac, Tcur=Tcur)
             dlim = np.subtract(joint_limits, Q[:, np.newaxis])[np.where(np.sum(np.abs(Jac), axis=0) > 1e-6)[0], :]
             if np.any(dlim[:, 0] > 0):
-                reason = "joint min"
+                reason = "joint min {} ({})".format(np.where(dlim[:, 0] > 0)[0], np.rad2deg(Q).astype(int))
                 break
             if np.any(dlim[:, 1] < 0):
-                reason = "joint max"
+                reason = "joint max {} \n{}\n{}".format(np.where(dlim[:, 1] < 0)[0],
+                                                            np.rad2deg(Q).astype(int), np.rad2deg(dlim[:, 1]).astype(int))
                 break
             Tnxt = np.matmul(gscene.get_tf(link_name, Q, from_link=ref_link), Toff)
             if np.linalg.norm(calc_wv(Tref, Tnxt)) > ERROR_CUT:
-                reason = "error off"
+                reason = "error off {}".format(np.round(calc_wv(Tref, Tnxt), 3))
                 break
             Tcur = Tnxt
             if check_collision and not self.validate_trajectory([Q]):

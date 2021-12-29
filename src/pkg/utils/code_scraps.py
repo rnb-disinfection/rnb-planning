@@ -437,10 +437,7 @@ def play_schedule_clearance_highlight(ppline, snode_schedule, tcheck, period, ac
             btf_pre, btf = snode_pre.state.binding_state[sname], snode.state.binding_state[sname]
             if not btf_pre.get_chain() == btf.get_chain():
                 ppline.pscene.show_binding(btf)
-        if period < 0.01:
-            ppline.pscene.gscene.show_motion(snode.traj[::int(0.01 / period)], period=0.01)
-        else:
-            ppline.pscene.gscene.show_motion(snode.traj, period=period)
+        ppline.pscene.gscene.show_motion(snode.traj, period=period)
         sleep(period)
         ppline.pscene.gscene.show_pose(snode.traj[-1])
         snode_pre = snode

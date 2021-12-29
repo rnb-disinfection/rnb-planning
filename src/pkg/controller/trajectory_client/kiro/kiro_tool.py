@@ -9,7 +9,7 @@ import time
 from enum import Enum
 from ctypes import c_int16
 
-KIRO_TOOL_PORT = '/dev/ttyUSB1'
+KIRO_TOOL_PORT = '/dev/ttyUSB0'
 KIRO_TOOL_BDRATE = 115200
 STX_BYTE, ETX_BYTE = 0x02, 0x03
 OFFLINE_MODE = False
@@ -158,7 +158,7 @@ class KiroToolPort:
 
     # @brief send deci-degree value in two bytes
     def send_degree(self, degree):
-        print("[KTOOL] send degree: {}".format(degree))
+#         print("[KTOOL] send degree: {}".format(degree))
         return self.send(MOTOR_CMD.OP, OP_CMD.DEGREE, *divide_bytes(int(degree*10)%0x10000))
         
     def close(self):
@@ -179,9 +179,9 @@ class KiroToolPort:
             
         
     def send(self, motor_cmd, op_cmd=OP_CMD.NONE, *args):
-        print("[KTOOL] send {}".format((motor_cmd, op_cmd)+args))
+#         print("[KTOOL] send {}".format((motor_cmd, op_cmd)+args))
         cmd_pkt = KiroToolPacket(motor_cmd, op_cmd, *args)
-        print(cmd_pkt.to_hex())
+#         print(cmd_pkt.to_hex())
         if not OFFLINE_MODE:
             self.sport.write(cmd_pkt.pack())
         

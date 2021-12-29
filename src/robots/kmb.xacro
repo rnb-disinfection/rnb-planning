@@ -62,6 +62,18 @@
 				<box size="0.2 0.1 0.2"/>
 			</geometry>
 		</collision>
+		<collision>
+			<origin xyz="0.3  0.3  0.50" rpy="0.  0.  0."/>
+			<geometry>
+				<box size="0.3 0.1 0.1"/>
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="0.3  -0.3  0.50" rpy="0.  0.  0."/>
+			<geometry>
+				<box size="0.3 0.1 0.1"/>
+			</geometry>
+		</collision>
 	</link>
 
 	<joint name="kmb${robot_id}_joint0" type="prismatic">

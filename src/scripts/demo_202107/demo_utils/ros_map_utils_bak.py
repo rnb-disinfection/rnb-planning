@@ -15,14 +15,15 @@ import subprocess
 import matplotlib.pyplot as plt
 from tf2_msgs.msg import TFMessage
 
+MAP_SIZE_MAX = 5
 TIMEOUT_GET_MAP = 3
 class GetMapResult(Enum):
     SUCCESS = 0
     TIMEOUT = 1
 
-MAP_SIZE = (300, 300)
 DEMO_UTIL_DIR = os.path.join(RNB_PLANNING_DIR, "src/scripts/demo_202107/demo_utils")
 
+GMAP_SIZE = (384, 384)
 SERVER_ID = "KiroMobileMap"
 
 class KiroMobileMap:
@@ -45,10 +46,10 @@ class KiroMobileMap:
             print("map_receiver: node initialized")
 
     @shared_fun(CallType.SYNC, SERVER_ID,
-                ResSpec(0, (1000000,), dict),
-                ResSpec(1, (1000000,), dict),
-                ResSpec(2, (1000000,), dict),
-                ResSpec(3, (1000000,), dict))
+                ResSpec(0, (50000000,), dict),
+                ResSpec(1, (50000000,), dict),
+                ResSpec(2, (50000000,), dict),
+                ResSpec(3, (50000000,), dict))
     def get_maps(self):
         if self.connection_state:
             # GET MAP
@@ -72,6 +73,11 @@ class KiroMobileMap:
             save_pickle(os.path.join(os.environ["RNB_PLANNING_DIR"],"data/cost_data.pkl"), cost_data)
             save_pickle(os.path.join(os.environ["RNB_PLANNING_DIR"],"data/lcost_data.pkl"), lcost_data)
             save_pickle(os.path.join(os.environ["RNB_PLANNING_DIR"],"data/tf_data.pkl"), tf_data)
+
+            map_dict = extract_attr_dict(map_data)
+            cost_dict = extract_attr_dict(cost_data)
+            lcost_dict = extract_attr_dict(lcost_data)
+            tf_dict = extract_attr_dict(tf_data)
             self.map_listener.last_dat = self.cost_listener.last_dat = \
                     self.lcost_listener.last_dat = self.tf_listener.last_dat = None
         else:
@@ -79,15 +85,10 @@ class KiroMobileMap:
             cost_data = load_pickle(os.path.join(os.environ["RNB_PLANNING_DIR"],"data/cost_data.pkl"))
             lcost_data = load_pickle(os.path.join(os.environ["RNB_PLANNING_DIR"],"data/lcost_data.pkl"))
             tf_data = load_pickle(os.path.join(os.environ["RNB_PLANNING_DIR"],"data/tf_data.pkl"))
-
-        map_dict = extract_attr_dict(map_data)
-        cost_dict = extract_attr_dict(cost_data)
-        lcost_dict = extract_attr_dict(lcost_data)
-        tf_dict = extract_attr_dict(tf_data)
-
-        lcost_dict = downsize_map_dict(lcost_dict, MAP_SIZE)
-        cost_dict = downsize_map_dict(cost_dict, MAP_SIZE)
-        map_dict = downsize_map_dict(map_dict, MAP_SIZE)
+            lcost_dict = extract_attr_dict(lcost_data)
+            cost_dict = extract_attr_dict(cost_data)
+            map_dict = extract_attr_dict(map_data)
+            tf_dict = extract_attr_dict(tf_data)
         return lcost_dict, cost_dict, map_dict, tf_dict
 
     def set_maps(self, lcost_dict, cost_dict, map_dict, tf_dict, T_bm, canny_ksize=10):
@@ -98,6 +99,16 @@ class KiroMobileMap:
         self.map_im, self.resolution = convert_map(map_dict)
         self.cost_im, self.resolution = convert_map(cost_dict)
         self.tf_dict = tf_dict
+        self.T_bm = T_bm
+
+        origin = self.cost_dict['info']['origin']
+        self.T_bi = T_xyzquat(([origin['position'][k] for k in "xyz"],
+                                [origin['orientation'][k] for k in "xyzw"]))
+        P_ib = np.linalg.inv(self.T_bi)[:2,3]
+        ct = (P_ib/self.resolution).astype(int)
+        cost_loc = self.cost_im[ct[1]-100:ct[1]+100, ct[0]-100:ct[0]+100]
+        self.cost_im = np.zeros_like(self.cost_im, dtype=self.cost_im.dtype)
+        self.cost_im[ct[1]-100:ct[1]+100, ct[0]-100:ct[0]+100] = cost_loc
 
         ret, self.cost_bin = cv2.threshold(self.cost_im, 100, 255, cv2.THRESH_BINARY)
         self.cost_im = self.cost_im + cv2.distanceTransform(np.array(self.cost_im>=100, dtype=np.uint8), cv2.DIST_L2, 5)
@@ -111,9 +122,6 @@ class KiroMobileMap:
                                              cv2.getStructuringElement(cv2.MORPH_ELLIPSE,
                                                                        (canny_ksize, canny_ksize)))
         self.lcost_canny = cv2.Canny(self.lcost_closed, 50, 150)
-        self.T_bm = T_bm
-
-        self.T_bi = T_rosorigin(self.cost_dict['info']['origin'])
 
     def convert_im2scene(self, img_bin, resolution, T_bi, img_cost=None):
         points_idc = np.where(img_bin)
@@ -332,40 +340,6 @@ def add_px_points(gscene, gtype, points_px, resolution, T_bi, height, radius, sa
                                   collision=True, fixed=True)
         gtem_list.append(gtem)
     return gtem_list
-
-def T_rosorigin(origin):
-    return T_xyzquat(([origin['position'][k] for k in "xyz"],
-                      [origin['orientation'][k] for k in "xyzw"]))
-
-def T2rosorigin(T):
-    xyz, quat = T2xyzquat(T)
-    origin = {'position': {ax: float(v) for ax, v in zip("xyz", xyz)},
-             'orientation': {ax: float(v) for ax, v in zip("xyzw", quat)}}
-    return origin
-
-def downsize_map_dict(map_dict, map_size):
-    info = map_dict['info']
-    map_size_cur = np.array((info["height"], info["width"]))
-    if np.all(map_size_cur<=map_size):
-        return map_dict
-    map_size = np.minimum(map_size_cur, map_size)
-    map_size_hf = map_size/2
-    T_bi = T_rosorigin(info['origin'])
-    T_ib = np.linalg.inv(T_bi)
-
-    map_im, resolution = convert_map(map_dict)
-    MAP_MIN = (T_ib[[1,0],3]/resolution).astype(int)-map_size_hf
-    MAP_MAX = (T_ib[[1,0],3]/resolution).astype(int)+map_size_hf
-    map_rect = map_im[MAP_MIN[0]:MAP_MAX[0], MAP_MIN[1]:MAP_MAX[1]]
-    T_ir = SE3(np.identity(3), tuple(MAP_MIN[[1,0]]*resolution)+(0,))
-    T_br = np.matmul(T_bi, T_ir)
-
-    info['origin'] = T2rosorigin(T_br)
-    info['height'] = int(map_size[0])
-    info['width'] = int(map_size[1])
-    map_dict['info'] = info
-    map_dict['data'] = map_rect.flatten().tolist()
-    return map_dict
     
 if __name__ == "__main__":
     set_serving(True)

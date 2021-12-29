@@ -58,9 +58,9 @@ class Indy7DofClientNoSDK(IndyTrajectoryClientNoSDK):
         for Q in trajectory:
             self.send_qval(Q)
 
-        if not kiro_tool.OFFLINE_MODE:
-            IndyTrajectoryClientNoSDK.move_joint_traj(
-                self, np.array(trajectory[:,:6]), auto_stop=auto_stop, wait_motion=False)
+        # if not kiro_tool.OFFLINE_MODE:
+        IndyTrajectoryClientNoSDK.move_joint_traj(
+            self, np.array(trajectory[:,:6]), auto_stop=auto_stop, wait_motion=False)
 
         if wait_motion:
             time.sleep(0.1)
