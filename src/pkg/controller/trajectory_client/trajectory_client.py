@@ -144,13 +144,14 @@ class TrajectoryClient(object):
     # @brief Move joints to Q using the most guaranteed method for each robot.
     # @remark Robot-specific implementation is required.
     # @param Q radian
-    def joint_move_make_sure(self, Q, auto_stop=True):
+    def joint_move_make_sure(self, Q, auto_stop=True, ref_speed=np.pi/6): # default reference speed: 10deg/s
         Qcur = self.get_qcur()
-        Qdiff = np.subtract(Q, Qcur)
-        move_time = np.linalg.norm(Qdiff) / (np.pi/12) # reference speed: 15deg/s
+        link_scale = np.arange(len(Qcur), 0, -1, dtype=float)
+        Qdiff = np.max(np.abs(np.subtract(Q, Qcur)*link_scale))
+        move_time = Qdiff / ref_speed
         N_div = int(move_time * self.traj_freq)
-        if N_div < 10:
-            N_div = 10
+        if N_div < 5:
+            N_div = 5
         self.move_joint_s_curve(Q, N_div=N_div, auto_stop=auto_stop)
 
     ##

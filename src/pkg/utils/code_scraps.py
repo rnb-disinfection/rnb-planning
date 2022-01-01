@@ -334,7 +334,7 @@ from bs4 import BeautifulSoup
 from time import sleep
 
 def switch_command(ip_addr, on_off, UI_PORT=9990):
-    uri = "http://{ip_addr}:{UI_PORT}/param_setting?control_force0={on_off}".format(ip_addr=ip_addr, UI_PORT=UI_PORT, on_off=int(on_off))
+    uri = "http://{ip_addr}:{UI_PORT}/param_setting?switch_control0={on_off}".format(ip_addr=ip_addr, UI_PORT=UI_PORT, on_off=int(on_off))
     print(uri)
     requests.get(uri)
 
@@ -343,13 +343,14 @@ def start_force_mode(indy, switch_delay=0.5):
     indy.reset()
     switch_command(indy.server_ip, True)
     sleep(switch_delay)
+    sleep(3)
 
 def stop_force_mode(indy, Qref, switch_delay=0.5):
     sleep(switch_delay)
-    indy.send_qval(indy.get_qcur())
-    indy.start_tracking()
+    indy.reset()
     switch_command(indy.server_ip, False)
-    indy.move_joint_s_curve(Qref, N_div=20, start_tracking=False, auto_stop=False)
+    sleep(switch_delay)
+    indy.joint_move_make_sure(Qref)
 
 from ..planning.mode_switcher import ModeSwitcherTemplate, CombinedSwitcher, GraspModeSwitcher
 

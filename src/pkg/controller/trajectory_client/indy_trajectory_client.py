@@ -33,7 +33,7 @@ class IndyTrajectoryClient(IndyDCPClient, TrajectoryClient):
     ##
     # @brief Make sure the joints move to Q using the indy DCP joint_move_to function.
     # @param Q radian
-    def joint_move_make_sure(self, Q, N_repeat=2, auto_stop=True):
+    def joint_move_make_sure(self, Q, N_repeat=2, auto_stop=True, ref_speed=np.pi/18):
         if self.SURE_MOTION_DCP:
             self.stop_tracking()
             with self:
@@ -41,7 +41,7 @@ class IndyTrajectoryClient(IndyDCPClient, TrajectoryClient):
                     self.joint_move_to(np.rad2deg(Q))
                     self.wait_motion()
         else:
-            TrajectoryClient.joint_move_make_sure(self, Q, auto_stop=auto_stop)
+            TrajectoryClient.joint_move_make_sure(self, Q, auto_stop=auto_stop, ref_speed=ref_speed)
 
     def get_qcount(self):
         if self.q_start_time is not None:
@@ -101,10 +101,10 @@ class IndyTrajectoryClient(IndyDCPClient, TrajectoryClient):
         IndyDCPClient.reset_robot(self)
         reset_done = False
         while not reset_done:
+            time.sleep(0.2)
             robot_state = self.get_robot_status()
             reset_done = all([not robot_state["resetting"], robot_state["ready"],
                               not robot_state["emergency"], not robot_state["error"]])
-            time.sleep(0.5)
         self.set_collision_level(self.COL_LEVEL)
         self.set_joint_vel_level(self.QVEL_LEVEL)
         self.set_task_vel_level(self.TVEL_LEVEL)
@@ -116,16 +116,15 @@ class IndyTrajectoryClient(IndyDCPClient, TrajectoryClient):
     def reset(self):
         with self:
             self.reset_robot()
-        return TrajectoryClient.reset(self)
+        return {}
 
     ##
     # @brief override stop_tracking in IndyDCPClient. reset the robot and trajectory client, and stop tracking.
     # @remark   reset_robot is added here because it resets the internal robot pose reference.
     #           If reset_robot is not called, it will immediately move to the original reference pose.
     def stop_tracking(self):
-        res = TrajectoryClient.stop_tracking(self)
-        self.reset()
-        return res
+        self.reset() # stop_tracking is included in reset() sequence in indy
+        return {}
 
     ##
     # @brief block entrance that connects to indy dcp server

@@ -190,7 +190,7 @@ def calc_T_list_simple(trajectory, vel_lims, acc_lims,
         vel_mid_list = np.abs((vel_list[1:] + vel_list[:-1])/2) # on q, N
         vel_ratio_mid = np.max(vel_mid_list/(vel_lims*(1+vel_margin_ratio)), axis=-1) # on q, N
         dT_list_mid = (dT_list[:-1]+dT_list[1:])/2 # on q, N
-        acc_list = np.abs(dv_list) / dT_list_mid[:,np.newaxis] # on q, N
+        acc_list = np.abs(dv_list) / (dT_list_mid[:,np.newaxis] + 1e-16) # on q, N
         acc_ratio = np.max(acc_list/(acc_lims*(1+acc_margin_ratio)), axis=-1) # on q, N
         vel_pass = vel_ratio_mid < upper_bound_ratio
         acc_pass = acc_ratio < upper_bound_ratio

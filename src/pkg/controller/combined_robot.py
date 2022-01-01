@@ -156,12 +156,12 @@ class CombinedRobot:
     ##
     # @brief move to joint pose target
     # @param Q motion target(rad)
-    def joint_move_make_sure(self, Q):
+    def joint_move_make_sure(self, Q, auto_stop=True):
         for name, rconfig in zip(self.robot_names, self.robots_on_scene):
             _type = rconfig.type
             robot = self.robot_dict[name]
             if robot is not None:
-                robot.joint_move_make_sure(Q[self.idx_dict[name]])
+                robot.joint_move_make_sure(Q[self.idx_dict[name]], auto_stop=auto_stop)
 
     ##
     # @brief move joint with waypoints, one-by-one
