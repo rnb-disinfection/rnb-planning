@@ -18,16 +18,16 @@ class PandaTrajectoryClient(TrajectoryClient):
             self.reset()
             self.clear()
             self.start_gripper_server()
-            self.finger_pub = rospy.Publisher('/franka_gripper/gripper_action/goal', GripperCommandActionGoal,
-                                              tcp_nodelay=True, queue_size=1)
         self.finger_cmd = GripperCommandActionGoal()
         self.close_bool = False
 
-        self.move_action_client = actionlib.SimpleActionClient("/franka_gripper/move", MoveAction)
 
     def start_gripper_server(self):
         self.__kill_existing_subprocess()
         self.subp = subprocess.Popen(['roslaunch', 'franka_gripper', 'franka_gripper.launch', 'robot_ip:={robot_ip}'.format(robot_ip=self.robot_ip)])
+        self.finger_pub = rospy.Publisher('/franka_gripper/gripper_action/goal', GripperCommandActionGoal,
+                                          tcp_nodelay=True, queue_size=1)
+        self.move_action_client = actionlib.SimpleActionClient("/franka_gripper/move", MoveAction)
         try:
             rospy.init_node("panda_client")
         except Exception as e:
@@ -61,8 +61,8 @@ class PandaTrajectoryClient(TrajectoryClient):
 
     ##
     # @param Q radian
-    def joint_move_make_sure(self, Q, auto_stop=True):
-        TrajectoryClient.joint_move_make_sure(self, Q, auto_stop=auto_stop)
+    def joint_move_make_sure(self, Q, auto_stop=True, **kwargs):
+        TrajectoryClient.joint_move_make_sure(self, Q, auto_stop=auto_stop, **kwargs)
 
     def disconnect(self):
         pass

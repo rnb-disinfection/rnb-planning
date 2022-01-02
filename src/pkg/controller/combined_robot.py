@@ -65,7 +65,7 @@ class CombinedRobot:
         self.simulator = RobotVisualModel(self,self.home_pose)
 
     def __set_clients(self):
-        for rbt, addr in zip(self.robots_on_scene, self.address_list):
+        for rbt, addr, cnt in zip(self.robots_on_scene, self.address_list, self.connection_list):
             name = rbt.get_indexed_name()
             _type = rbt.type
             if _type in [RobotType.indy7, RobotType.indy7gripper]:
@@ -79,7 +79,7 @@ class CombinedRobot:
                 else:
                     self.robot_dict[name] = indy_7dof_client.Indy7DofClient(server_ip=addr)
             elif _type == RobotType.panda:
-                if addr is not None:
+                if cnt:
                     self.robot_dict[name] = panda_trajectory_client.PandaTrajectoryClient(*addr.split("/"))
                 else:
                     self.robot_dict[name] = panda_trajectory_client.PandaTrajectoryClient(None, None)
