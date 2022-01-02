@@ -33,7 +33,7 @@ class IndyTrajectoryClient(IndyDCPClient, TrajectoryClient):
     ##
     # @brief Make sure the joints move to Q using the indy DCP joint_move_to function.
     # @param Q radian
-    def joint_move_make_sure(self, Q, N_repeat=2, auto_stop=True, ref_speed=np.pi/18):
+    def joint_move_make_sure(self, Q, N_repeat=2, **kwargs):
         if self.SURE_MOTION_DCP:
             self.stop_tracking()
             with self:
@@ -41,7 +41,7 @@ class IndyTrajectoryClient(IndyDCPClient, TrajectoryClient):
                     self.joint_move_to(np.rad2deg(Q))
                     self.wait_motion()
         else:
-            TrajectoryClient.joint_move_make_sure(self, Q, auto_stop=auto_stop, ref_speed=ref_speed)
+            TrajectoryClient.joint_move_make_sure(self, Q, **kwargs)
 
     def get_qcount(self):
         if self.q_start_time is not None:
