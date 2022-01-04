@@ -506,6 +506,8 @@ class MultiICP_Obj:
         target = copy.deepcopy(self.pcd)
         source = copy.deepcopy(self.model_sampled)
         source_bak = copy.deepcopy(source)
+        source = source.voxel_down_sample(0.02)
+        target = target.voxel_down_sample(0.02)
 
         if visualize:
             self.draw(To)
@@ -677,6 +679,9 @@ class MultiICP_Obj:
         discrepancy = float(len(np.asarray(target.points))/len(np.asarray(source.points)))
         target = target.uniform_down_sample(every_k_points=int(discrepancy))
         target, ind = target.remove_radius_outlier(nb_points=25, radius=0.1)
+
+        source = source.voxel_down_sample(0.02)
+        target = target.voxel_down_sample(0.02)
 
         if visualize:
             cam_coord = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.15, origin=[0, 0, 0])
