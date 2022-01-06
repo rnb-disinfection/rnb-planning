@@ -11,7 +11,7 @@
   * Install mmcv-full corresponding cuda version
   ```bash
   pip3 install timm
-  pip3 install mmcv-full -f https://download.openmmlab.com/mmcv/dist/cu110/torch1.7.1/index.html
+  pip3 install mmcv-full -f https://download.openmmlab.com/mmcv/dist/cu110/torch1.7.0/index.html
   ```  
   * Install MMDetection  
   ```bash
