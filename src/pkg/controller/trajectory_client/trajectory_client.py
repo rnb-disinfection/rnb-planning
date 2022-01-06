@@ -169,15 +169,16 @@ class TrajectoryClient(object):
         Q_init = trajectory[0]
         Q_last = trajectory[-1]
 
-        for Q in trajectory:
-            self.push_Q(Q)
-        
         qcur = self.get_qcur()
         qerr = np.max(np.abs(np.subtract(qcur, trajectory[0])))
         if qerr >self.MAX_INIT_ERROR:
             raise(RuntimeError(("move_joint_traj: error too much: {} / {} \n{} / \n{}".format(
                 np.round(np.rad2deg(qerr), 1), np.round(np.rad2deg(self.MAX_INIT_ERROR), 1),
                 list(np.round(np.rad2deg(qcur), 1)), list(np.round(np.rad2deg(Q_init), 1))))))
+
+        for Q in trajectory:
+            self.push_Q(Q)
+
         self.start_tracking()
 
         if wait_motion:
