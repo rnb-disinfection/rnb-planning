@@ -1,10 +1,10 @@
 from global_config import *
 from controller.robot_config import *
 
-INDY_IP = '192.168.0.63'
+INDY_IP = '192.168.21.6'
 
-PANDA_ROBOT_IP = '192.168.0.13'
-PANDA_REPEATER_IP = '192.168.0.172'
+PANDA_ROBOT_IP = '192.168.21.13'
+PANDA_REPEATER_IP = '192.168.21.14'
 
 ROBOTS_ON_SCENE = [
     RobotConfig(0, RobotType.indy7, ([-0.44648051261901855, 0.251528263092041, 0.009795188903808594],

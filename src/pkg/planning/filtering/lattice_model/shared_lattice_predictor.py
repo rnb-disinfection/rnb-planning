@@ -1,3 +1,11 @@
+import os
+import sys
+import shutil
+import random
+import time
+PROJ_DIR = os.environ["RNB_PLANNING_DIR"]
+sys.path.append(os.path.join(PROJ_DIR, "src"))
+
 import SharedArray as sa
 import numpy as np
 import time
@@ -7,9 +15,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='start shared lattice predictor')
     parser.add_argument('--rtype', type=str, help='robot type name')
     parser.add_argument('--model_path', type=str, default="None", help='relative path to model')
+    parser.add_argument('--precision', type=str, default="FP16", help='TRT precision. FP32, FP16 (Default), INT8. INT8 is not currently supported needs calibration and decreases accuracy')
     args = parser.parse_args()
     if args.model_path == "None":
         args.model_path = None
+    PRECISION = args.precision
 
     ok_to_go = False
     while not ok_to_go:
@@ -25,7 +35,7 @@ if __name__ == "__main__":
             try:
                 sa.delete("shm://{}.grasp_img".format(robot_type_name))
                 sa.delete("shm://{}.arm_img".format(robot_type_name))
-                sa.delete("shm://{}.rh_mask".format(robot_type_name))
+                sa.delete("shm://{}.rh_vals".format(robot_type_name))
                 sa.delete("shm://{}.result".format(robot_type_name))
                 sa.delete("shm://{}.query_in".format(robot_type_name))
                 sa.delete("shm://{}.response_out".format(robot_type_name))
@@ -34,24 +44,21 @@ if __name__ == "__main__":
                 pass
     prepared_p[0] = False
 
+import tensorflow as tf
 from tensorflow.compat.v1 import ConfigProto
 from tensorflow.compat.v1 import InteractiveSession
-import tensorflow as tf
-
 config = ConfigProto()
 config.gpu_options.allow_growth = True
 session = InteractiveSession(config=config)
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
-import os
-import sys
-import shutil
-import random
-import time
-PROJ_DIR = os.environ["RNB_PLANNING_DIR"]
-sys.path.append(os.path.join(PROJ_DIR, "src"))
+from tensorflow.python.saved_model import tag_constants, signature_constants
+from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
+
 
 from pkg.utils.utils_python3 import *
 from pkg.controller.robot_config import RobotType
+from pkg.planning.filtering.lattice_model.data_utils import *
 import numpy as np
 int2rtypename = {v.value:v.name for v in RobotType}
 DATA_PATH = os.path.join(PROJ_DIR, "data")
@@ -72,15 +79,6 @@ RH_MASK_STEP = 64
 
 BATCH_SIZE = 1
 SERVER_PERIOD = 1e-3
-
-def gaussian(x, mu, sig):
-    return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
-
-def div_r_gaussian(r_val):
-    return gaussian(r_val, np.arange(0.1,1.2, 0.05),0.1)
-
-def div_h_gaussian(h_val):
-    return gaussian(h_val, np.arange(-0.5,1.1, 0.05),0.1)
 
 ##
 # @class SharedLatticePredictor
@@ -116,6 +114,8 @@ class SharedLatticePredictor:
         query_in = sa.create(f"shm://{self.ROBOT_TYPE_NAME}.query_in", (1,), dtype=np.bool)
         response_out = sa.create(f"shm://{self.ROBOT_TYPE_NAME}.response_out", (1,), dtype=np.bool)
         query_quit = sa.create(f"shm://{self.ROBOT_TYPE_NAME}.query_quit", (1,), dtype=np.bool)
+        gtimer = GlobalTimer.instance()
+        gtimer.reset()
         grasp_img_p[:] = 0
         arm_img_p[:] = 0
         rh_vals_p[:] = 0
@@ -129,7 +129,10 @@ class SharedLatticePredictor:
         r_mask = div_r_gaussian(rh_vals_p[0][0])
         h_mask = div_h_gaussian(rh_vals_p[0][1])
         rh_mask[0] = np.concatenate([r_mask, h_mask])
-        self.inference([grasp_img_p, arm_img_p, rh_mask])
+        inputs = [tf.constant(grasp_img_p, dtype=tf.float32),
+                  tf.constant(arm_img_p, dtype=tf.float32),
+                  tf.constant(rh_mask, dtype=tf.float32)]
+        self.inference(inputs)
         print("=============== initialization done ==================")
         prepared_p[0] = True
 
@@ -143,7 +146,10 @@ class SharedLatticePredictor:
                 r_mask = div_r_gaussian(rh_vals_p[0][0])
                 h_mask = div_h_gaussian(rh_vals_p[0][1])
                 rh_mask[0] = np.concatenate([r_mask, h_mask])
-                result = self.inference([grasp_img_p, arm_img_p, rh_mask])
+                inputs = [tf.constant(grasp_img_p, dtype=tf.float32),
+                          tf.constant(arm_img_p, dtype=tf.float32),
+                          tf.constant(rh_mask, dtype=tf.float32)]
+                result = self.inference(inputs).numpy()
                 for i_b in range(BATCH_SIZE):
                     result_p[i_b] = result[i_b]
                 response_out[0] = True

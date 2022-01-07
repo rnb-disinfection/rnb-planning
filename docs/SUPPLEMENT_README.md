@@ -74,7 +74,64 @@
   ```bash
   sudo killall -9 roscore && nohup roscore &  
   ```
+* ROS keyserver error? When installing new ros package and apt-update are impossible: get ros2 key?
+  ```
+  curl http://repo.ros2.org/repos.key | sudo apt-key add -
+  ```
+* Killing zombie network process
+  ```bash
+  netstat -lntp
+  kill -9 <PID>
+  ```
 
+  
+
+## eTaSL
+* To use eTaSL planner and **online planning**, install eTaSL as shown [docs/ETASL_SETUP.md](docs/ETASL_SETUP.md)  
+
+### Build custom etasl
+* get custom etasl project from github and recompile etasl  
+```bash
+cd ~/etasl/ws \
+&& mv ./etasl ./etasl_bak && mv ./etasl-py ./etasl-py_bak \
+&& cp -r $RNB_PLANNING_DIR/third-party/etasl/etasl ./ \
+&& cp -r $RNB_PLANNING_DIR/third-party/etasl/etasl-py ./
+```
+* **[IMPORTANT]** comment out "source $HOME/etasl/ws/etasl-py/devel/setup.bash" in ~/.bashrc
+* restart terminal  
+* switch gcc and g++ version to 7 before installing etasl
+```bash
+sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
+```
+* rebuild etasl 
+```bash
+cd ~/etasl/ws/etasl \
+&& sudo rm -rf devel && sudo rm -rf build && catkin_make -DCMAKE_BUILD_TYPE=Release \
+&& source $HOME/etasl/ws/etasl/devel/setup.bash   
+```
+* switch gcc and g++ version to 5 before installing etasl-py
+```bash
+sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
+```
+* rebuild etasl-py 
+```bash
+cd ~/etasl/ws/etasl-py \
+&& sudo rm -rf devel && sudo rm -rf build && catkin_make -DCMAKE_BUILD_TYPE=Release \
+&& source $HOME/etasl/ws/etasl-py/devel/setup.bash   
+```
+* **[IMPORTANT]** uncomment "source $HOME/etasl/ws/etasl-py/devel/setup.bash" in ~/.bashrc
+* restart terminal  
+
+* switch gcc and g++ version back to 7
+```bash
+sudo update-alternatives --config gcc && sudo update-alternatives --config g++  
+```
+* copy custom ros package rebuild custom workspace.  
+```bash
+cp -r $RNB_PLANNING_DIR/third-party/etasl/etasl_ros_control "$RNB_PLANNING_DIR"ws_ros/src/ \
+&& cd "$RNB_PLANNING_DIR"ws_ros && rm -rf build devel && catkin_make -DCMAKE_BUILD_TYPE=Release  
+```
+* restart terminal  
 
 ## Panda simulator
 * Install
@@ -103,13 +160,13 @@
 * find xacro file in the description package for target robot  
 * copy the xacro file to "$RNB_PLANNING_DIR"/src/robots  
 * delete "world" and "base_link" links and joints connected to it  
-* add macro:  
+* add below macro on the top of the file, replace \<robotname\> and \<root_link\> to your robot name and the root link name.  
   ```xml
-  <xacro:macro name="robotname" params="robot_id:='0' description_pkg:='robot_description' connected_to:='' xyz:='0 0 0' rpy:='0 0 0'">  
+  <xacro:macro name="<robotname>" params="robot_id:='0' description_pkg:='robot_description' connected_to:='' xyz:='0 0 0' rpy:='0 0 0'">  
   <xacro:unless value="${not connected_to}">  
-  <joint name="robotname${robot_id}_joint_${connected_to}" type="fixed">  
+  <joint name="<robotname>${robot_id}_joint_${connected_to}" type="fixed">  
   <parent link="${connected_to}"/>  
-  <child link="robotname${robot_id}_link0"/>  
+  <child link="<robotname>${robot_id}_<root_link>"/>  
   <origin rpy="${rpy}" xyz="${xyz}"/>  
   </joint>  
   </xacro:unless>  
@@ -118,11 +175,14 @@
   <!-- robot contents  -->  
   </xacro:macro>  
   ```
-* change all item names: selectively replace {name="} with {"name="robotname${robot_id}}  
-* include and call the xacro file in "custom_robots.urdf.xacro"  
+* change all link and joint names to have this form: "\<robotname\>${robot_id}\_\<itemname\>" 
+* include and call the xacro file in "custom_robots_src.urdf.xacro", by adding below line  
+  ```xml
+  <xacro:include filename="$(env RNB_PLANNING_DIR)/src/robots/<robotname>.xacro"/>
+  ```
 * test generating URDF file  
   ```bash
-  rosrun xacro xacro "$RNB_PLANNING_DIR"src/robots/custom_robots.urdf.xacro \> "$RNB_PLANNING_DIR"src/robots/custom_robots.urdf  
+  rosrun xacro xacro "$RNB_PLANNING_DIR"src/robots/custom_robots.urdf.xacro > "$RNB_PLANNING_DIR"src/robots/custom_robots.urdf  
   ```
 * run rviz  
   ```bash
@@ -143,6 +203,20 @@
 ### python packages  
 ```bash
 pip install klampt
+```
+
+### STOMP-ROS  
+```bash
+cd $HOME/catkin_ws/src \
+&& git clone https://github.com/ros-planning/panda_moveit_config.git -b melodic-devel \
+&& git clone https://github.com/ros-industrial/stomp_ros.git -b melodic-devel \
+&& cd $HOME/catkin_ws \
+&& catkin_make -DCMAKE_BUILD_TYPE=Release  
+```  
+
+### CHOMP-Moveit-plugin
+```bash
+sudo apt-get install ros-melodic-moveit-chomp-optimizer-adapter
 ```
 
 ### Tesseract  

@@ -51,10 +51,8 @@ class HandleTable(TableInterface):
             res, msg = False, "Constraint Type is not changeable"
         elif active_col == 'Point':
             htem.set_point_rpy((map(float, value.split(','))), htem.rpy_point)
-            htem.update_handle()
         elif active_col == 'RPY':
             htem.set_point_rpy(htem.point, (map(float, value.split(','))))
-            htem.update_handle()
         return res, msg
 
     def button(self, button, *args, **kwargs):

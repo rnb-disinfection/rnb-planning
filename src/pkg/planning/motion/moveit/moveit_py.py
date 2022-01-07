@@ -9,10 +9,45 @@ from enum import Enum
 Geometry = mpc.Geometry
 GeometryList = mpc.GeometryList
 ObjectType = mpc.ObjectType
+Trajectory = mpc.Trajectory
+Vec3List = mpc.Vec3List
+ConstrainedSpaceType = mpc.ConstrainedSpaceType
+
+
+##
+# @class PlannerConfig
+# @brief define available planner configs
+class PlannerConfig:
+    SBLkConfigDefault = 'SBLkConfigDefault'
+    ESTkConfigDefault = 'ESTkConfigDefault'
+    LBKPIECEkConfigDefault = 'LBKPIECEkConfigDefault'
+    BKPIECEkConfigDefault = 'BKPIECEkConfigDefault'
+    KPIECEkConfigDefault = 'KPIECEkConfigDefault'
+    RRTkConfigDefault = 'RRTkConfigDefault'
+    RRTConnectkConfigDefault = 'RRTConnectkConfigDefault'
+    RRTstarkConfigDefault = 'RRTstarkConfigDefault'
+    TRRTkConfigDefault = 'TRRTkConfigDefault'
+    PRMkConfigDefault = 'PRMkConfigDefault'
+    PRMstarkConfigDefault = 'PRMstarkConfigDefault'
+    FMTkConfigDefault = 'FMTkConfigDefault'
+    BFMTkConfigDefault = 'BFMTkConfigDefault'
+    PDSTkConfigDefault = 'PDSTkConfigDefault'
+    STRIDEkConfigDefault = 'STRIDEkConfigDefault'
+    BiTRRTkConfigDefault = 'BiTRRTkConfigDefault'
+    LBTRRTkConfigDefault = 'LBTRRTkConfigDefault'
+    BiESTkConfigDefault = 'BiESTkConfigDefault'
+    ProjESTkConfigDefault = 'ProjESTkConfigDefault'
+    LazyPRMkConfigDefault = 'LazyPRMkConfigDefault'
+    LazyPRMstarkConfigDefault = 'LazyPRMstarkConfigDefault'
+    SPARSkConfigDefault = 'SPARSkConfigDefault'
+    SPARStwokConfigDefault = 'SPARStwokConfigDefault'
+    TrajOptDefault = 'TrajOptDefault'
+
 
 class ObjectOperation(Enum):
     ADD = 0
     REMOVE = 1
+
 
 def make_assign_arr(type, vals, cast=lambda x:x):
     arr = type()
@@ -48,7 +83,8 @@ def spread(bp_arr, size):
     return [bp_arr[i] for i in range(size)]
 
 class ObjectMPC:
-    def __init__(self, name, type, link_name, pose=None, dims=None, touch_links=None, attach=True):
+    def __init__(self, name, type, link_name, pose=None, dims=None, touch_links=None, attach=True,
+                 vertices=None, triangles=None):
         if pose is None:
             pose = [0]*7
         if dims is None:
@@ -57,15 +93,32 @@ class ObjectMPC:
             touch_links = []
         self.name, self.type, self.pose, self.dims, self.link_name, self.touch_links, self.attach = \
             name, type, pose, dims, link_name, touch_links, attach
+        if vertices is None or triangles is None:
+            self.vertices = vertices
+            self.triangles = triangles
+        elif triangles is None:
+            raise(RuntimeError(
+                "[Error] Only triangle mesh is implemented for MoveIt interpreter now. "
+                "Try to convert the point cloud to a triangle mesh or "
+                "implement adding point cloud object to the moveit_interface_py library in the project."))
+        else:
+            self.vertices = Vec3List()
+            self.triangles = Vec3List()
+            for vert in vertices:
+                self.vertices.append(Vec3(*vert))
+            for tri in triangles:
+                self.triangles.append(Vec3(*tri))
 
 ##
 # @class MoveitCompactPlanner_BP
 # @brief Python client of moveit-boost-python interface
 class MoveitCompactPlanner_BP(mpc.Planner):
-    def __init__(self, urdf_path, srdf_path, group_names, config_path):
+    def __init__(self, urdf_path, srdf_path, group_names, chain_dict, config_path):
         mpc.Planner.__init__(self)
         self.urdf_path, self.srdf_path, self.config_path = urdf_path, srdf_path, config_path
         self.group_names = group_names
+        self.chain_dict = chain_dict
+        self.group_joint_nums = {key: len(chain["joint_names"]) for key, chain in chain_dict.items()}
         self.__group_names = NameList(*group_names)
         if not self.init_planner_from_file(urdf_path, srdf_path, self.__group_names, self.config_path):
             raise (RuntimeError("Failed to initialize planner"))
@@ -84,7 +137,10 @@ class MoveitCompactPlanner_BP(mpc.Planner):
     def add_object(self, obj):
         if obj.attach:
             self.attached_dict[obj.name] = ObjectMPC(obj.name, obj.type, obj.link_name, attach=obj.attach)
-        return self.process_object_py(obj, ObjectOperation.ADD.value)
+        if obj.type == ObjectType.MESH:
+            return self.add_mesh_py(obj)
+        else:
+            return self.process_object_py(obj, ObjectOperation.ADD.value)
 
     def remove_object(self, obj):
         if obj.attach:
@@ -107,32 +163,41 @@ class MoveitCompactPlanner_BP(mpc.Planner):
     ##
     # @brief search for plan that bring tool_link to goal_pose in coordinate of goal_link.
     # @param goal_pose xyzquat(xyzw) style pose of goal transformation in goal_link.
-    def plan_py(self, robot_name, tool_link, goal_pose, goal_link, Q_init, plannerconfig="RRTConnectkConfigDefault", timeout=1):
+    def plan_py(self, robot_name, tool_link, goal_pose, goal_link, Q_init,
+                plannerconfig=PlannerConfig.RRTConnectkConfigDefault,
+                timeout=1, vel_scale=0.1, acc_scale=0.1, post_opt=False,  **kwargs):
         self.clear_context_cache()
         plan = self.plan(robot_name, str(tool_link), CartPose(*goal_pose), str(goal_link),
-                         JointState(self.joint_num, *Q_init), plannerconfig, timeout)
+                         JointState(self.joint_num, *Q_init), plannerconfig, timeout, vel_scale, acc_scale, post_opt)
         return np.array(
             [spread(Q, self.joint_num) for Q in spread(plan.trajectory, len(plan.trajectory))]), plan.success
 
     ##
     # @brief search for plan that bring tool_link to goal_pose in coordinate of goal_link.
     # @param goal_state joint value list only corresponding to specified robot chain
-    def plan_joint_motion_py(self, robot_name, goal_state, Q_init, plannerconfig="RRTConnectkConfigDefault", timeout=1):
+    def plan_joint_motion_py(self, robot_name, goal_state, Q_init, plannerconfig=PlannerConfig.RRTConnectkConfigDefault,
+                             timeout=1, vel_scale=0.1, acc_scale=0.1, post_opt=False,
+                             **kwargs):
         self.clear_context_cache()
         plan = self.plan_joint_motion(robot_name, JointState(len(goal_state), *goal_state),
-                                           JointState(self.joint_num, *Q_init), plannerconfig, timeout)
-        return np.array(
-            [spread(Q, self.joint_num) for Q in spread(plan.trajectory, len(plan.trajectory))]), plan.success
+                                           JointState(self.joint_num, *Q_init), plannerconfig, timeout,
+                                      vel_scale, acc_scale, post_opt)
+        return np.array([spread(Q, self.joint_num) for Q in spread(plan.trajectory, len(plan.trajectory))]), \
+               plan.success
 
     ##
     # @brief search for plan that bring tool_link to goal_pose in coordinate of goal_link, with constraints
     # @param goal_pose xyzquat(xyzw) style pose of goal transformation in goal_link.
-    def plan_constrained_py(self, robot_name, tool_link, goal_pose, goal_link, Q_init, plannerconfig="RRTConnectkConfigDefault", timeout=1, allow_approximate=False):
+    def plan_constrained_py(self, robot_name, tool_link, goal_pose, goal_link, Q_init,
+                            plannerconfig=PlannerConfig.RRTkConfigDefault, timeout=1,
+                            vel_scale=0.1, acc_scale=0.1, post_opt=False,
+                            cs_type=ConstrainedSpaceType.PROJECTED, allow_approximate=False, post_projection=False):
         assert goal_link=="base_link", "Constrained planning is only available in base_link currently!"
         self.clear_context_cache()
         plan = self.plan_with_constraints(robot_name, tool_link,
                                           CartPose(*goal_pose), goal_link, JointState(self.joint_num, *Q_init),
-                                          plannerconfig, timeout, allow_approximate)
+                                          plannerconfig, timeout, vel_scale, acc_scale, post_opt,
+                                          cs_type, allow_approximate, post_projection)
         return np.array(
             [spread(Q, self.joint_num) for Q in spread(plan.trajectory, len(plan.trajectory))]), plan.success
 
@@ -140,3 +205,32 @@ class MoveitCompactPlanner_BP(mpc.Planner):
         return self.process_object(
             str(obj.name), obj.type, CartPose(*obj.pose), Vec3(*obj.dims), str(obj.link_name),
             NameList(*obj.touch_links), obj.attach, action)
+
+    def add_mesh_py(self, obj):
+        return self.add_mesh(
+            str(obj.name), obj.type, CartPose(*obj.pose),
+            obj.vertices, obj.triangles,
+            str(obj.link_name), NameList(*obj.touch_links), obj.attach)
+
+    ##
+    # @brief get inverse kinematics solution
+    # @return joint values only for the specificed robot
+    def solve_ik_py(self, robot_name, goal_pose, timeout_single=0.01,
+                    self_collision=False, fulll_collision=False):
+        Q = self.solve_ik(robot_name, CartPose(*goal_pose), timeout_single,
+                             self_collision, fulll_collision)
+        Q = np.array(spread(Q, self.group_joint_nums[robot_name]))
+        if np.sum(np.abs(Q)) < 1e-4:
+            return None
+        return Q
+
+    ##
+    # @brief set joint state in the planner for collision testing in solve_ik_py
+    def set_joint_state_py(self, Q):
+        self.planner.set_joint_state(JointState(self.joint_num, *Q))
+
+    ##
+    # @brief get joint state in the planner
+    def get_joint_state_py(self):
+        return np.array(spread(self.planner.get_joint_state(), self.joint_num))
+

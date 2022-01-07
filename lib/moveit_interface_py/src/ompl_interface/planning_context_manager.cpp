@@ -49,6 +49,7 @@
 #include <ompl/geometric/planners/sbl/SBL.h>
 #include <ompl/geometric/planners/sbl/pSBL.h>
 #include <ompl/geometric/planners/kpiece/KPIECE1.h>
+#include <ompl_interface/planner/KPIECE_CUSTOM.h>
 #include <ompl/geometric/planners/kpiece/BKPIECE1.h>
 #include <ompl/geometric/planners/kpiece/LBKPIECE1.h>
 #include <ompl/geometric/planners/rrt/RRTstar.h>
@@ -67,11 +68,15 @@
 #include <ompl/geometric/planners/prm/SPARS.h>
 #include <ompl/geometric/planners/prm/SPARStwo.h>
 #include <ompl/base/spaces/constraint/ProjectedStateSpace.h>
+#include <ompl/base/spaces/constraint/TangentBundleStateSpace.h>
+#include <ompl/base/spaces/constraint/AtlasStateSpace.h>
 #include <ompl/base/ConstrainedSpaceInformation.h>
 
 #include "ompl_interface/parameterization/joint_space/joint_model_state_space_factory.h"
 #include "ompl_interface/parameterization/joint_space/joint_model_state_space.h"
 #include "ompl_interface/parameterization/work_space/pose_model_state_space_factory.h"
+
+#include "ompl_interface/planning_objective.h"
 
 using namespace std::placeholders;
 
@@ -275,6 +280,7 @@ void ompl_interface::PlanningContextManager::registerDefaultPlanners()
     registerPlannerAllocatorHelper<og::EST>("geometric::EST");
     registerPlannerAllocatorHelper<og::FMT>("geometric::FMT");
     registerPlannerAllocatorHelper<og::KPIECE1>("geometric::KPIECE");
+    registerPlannerAllocatorHelper<og::KPIECE_CUSTOM>("geometric::KPIECE_CUSTOM");
     registerPlannerAllocatorHelper<og::LazyPRM>("geometric::LazyPRM");
     registerPlannerAllocatorHelper<og::LazyPRMstar>("geometric::LazyPRMstar");
     registerPlannerAllocatorHelper<og::LazyRRT>("geometric::LazyRRT");
@@ -352,6 +358,10 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
         // Choose the correct simple setup type to load
         context_spec.ompl_simple_setup_.reset(new ompl::geometric::SimpleSetup(context_spec.state_space_));
 
+        // Define the constrained space information for this constrained state space.
+        context_spec.ompl_simple_setup_->getProblemDefinition()->setOptimizationObjective(
+                RNB::getBalancedObjective(context_spec.ompl_simple_setup_->getSpaceInformation()));
+
         ROS_DEBUG_NAMED(LOGNAME, "Creating new planning context");
         context.reset(new ModelBasedPlanningContext(config.name, context_spec));
         {
@@ -378,6 +388,7 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
         const StateSpaceFactoryTypeSelector& factory_selector,
         const moveit_msgs::MotionPlanRequest& req,
         ompl::base::ConstraintIntersectionPtr& manifold_intersection,
+        ompl_interface::ConstrainedSpaceType cs_type,
         bool allow_approximation) const
 {
     const ompl_interface::ModelBasedStateSpaceFactoryPtr& factory = factory_selector(config.group);
@@ -403,28 +414,43 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
     // Create a new planning context
     if (!context)
     {
-        ModelBasedStateSpaceSpecification space_spec(robot_model_, config.group, true);
+        ModelBasedStateSpaceSpecification space_spec(robot_model_, config.group);
         ModelBasedPlanningContextSpecification context_spec;
         context_spec.config_ = config.config;
         context_spec.planner_selector_ = getPlannerSelector();
         context_spec.constraint_sampler_manager_ = constraint_sampler_manager_;
         context_spec.state_space_ = factory->getNewStateSpace(space_spec);
 
-//        // Choose the correct simple setup type to load
-//        context_spec.ompl_simple_setup_.reset(new ompl::geometric::SimpleSetup(context_spec.state_space_));
-
         context_spec.constrained = true;
         context_spec.allow_approximate = allow_approximation;
 
+        // Set constrained space type
+        context_spec.cs_type_ = cs_type;
+
         // Combine the ambient space and the constraint into a constrained state space.
-        context_spec.constrained_state_space_ = std::make_shared<ob::ProjectedStateSpace>(context_spec.state_space_,
-                                                                                          manifold_intersection);
+        switch (cs_type){
+            case ompl_interface::ConstrainedSpaceType::PROJECTED:
+                context_spec.constrained_state_space_ = std::make_shared<ob::ProjectedStateSpace>(context_spec.state_space_,
+                                                                                                      manifold_intersection);
+                break;
+            case ompl_interface::ConstrainedSpaceType::TANGENTBUNDLE:
+                context_spec.constrained_state_space_ = std::make_shared<ob::TangentBundleStateSpace>(context_spec.state_space_,
+                                                                                                      manifold_intersection);
+                break;
+            case ompl_interface::ConstrainedSpaceType::ATLAS:
+                context_spec.constrained_state_space_ = std::make_shared<ob::AtlasStateSpace>(context_spec.state_space_,
+                                                                                                      manifold_intersection);
+                break;
+        }
 
         // Define the constrained space information for this constrained state space.
         context_spec.csi_ = std::make_shared<ob::ConstrainedSpaceInformation>(context_spec.constrained_state_space_);
 
         // Choose the correct simple setup type to load
         context_spec.ompl_simple_setup_.reset(new ompl::geometric::SimpleSetup(context_spec.csi_));
+        context_spec.ompl_simple_setup_->getProblemDefinition()->setOptimizationObjective(
+                RNB::getBalancedObjective(context_spec.csi_));
+
 
         ROS_DEBUG_NAMED(LOGNAME, "Creating new planning context");
         context.reset(new ModelBasedPlanningContext(config.name, context_spec));
@@ -590,7 +616,8 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
 ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextManager::getPlanningContextConstrained(
         const planning_scene::PlanningSceneConstPtr& planning_scene, const moveit_msgs::MotionPlanRequest& req,
         moveit_msgs::MoveItErrorCodes& error_code, const ros::NodeHandle& nh, bool use_constraints_approximation,
-        ompl::base::ConstraintIntersectionPtr& manifold_intersection, bool allow_approximation) const
+        ompl::base::ConstraintIntersectionPtr& manifold_intersection, ompl_interface::ConstrainedSpaceType cs_type,
+        bool allow_approximation) const
 {
     if (req.group_name.empty())
     {
@@ -647,7 +674,8 @@ ompl_interface::ModelBasedPlanningContextPtr ompl_interface::PlanningContextMana
         factory_selector = std::bind(&PlanningContextManager::getStateSpaceFactory2, this, std::placeholders::_1, req);
 
     ModelBasedPlanningContextPtr context = getPlanningContextConstrained(pc->second, factory_selector, req,
-                                                                         manifold_intersection, allow_approximation);
+                                                                         manifold_intersection, cs_type,
+                                                                         allow_approximation);
 
     if (context)
     {

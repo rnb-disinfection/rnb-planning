@@ -46,6 +46,7 @@ class Kinect(CameraInterface):
     # @brief    get camera configuration
     # @return   cameraMatrix 3x3 camera matrix in pixel units,
     # @return   distCoeffs distortion coefficients, 5~14 float array
+    # @return   depth_scale scaling constant to be multiplied to depthmap(int) to get m scale values
     def get_config(self):
         calibration = _k4a.k4a_calibration_t()
         # Get the camera calibration
@@ -54,7 +55,8 @@ class Kinect(CameraInterface):
         cameraMatrix = np.diag([cal_param.fx, cal_param.fx, 1])
         cameraMatrix[:2,2] = [cal_param.cx, cal_param.cy]
         distCoeffs = np.array([cal_param.k1, cal_param.k2, cal_param.p1, cal_param.p2, cal_param.k3, cal_param.k4, cal_param.k5, cal_param.k6])
-        return cameraMatrix, distCoeffs
+        depth_scale = 1e-3
+        return cameraMatrix, distCoeffs, depth_scale
 
     ##
     # @brief   get RGB image
@@ -150,8 +152,9 @@ class Kinect(CameraInterface):
     ##
     # @brief   disconnect kinect
     def disconnect(self):
-        Kinect.pyK4A.device_stop_cameras()
-        Kinect.pyK4A.device_close()
-        Kinect.pyK4A = None
+        if Kinect.pyK4A is not None:
+            Kinect.pyK4A.device_stop_cameras()
+            Kinect.pyK4A.device_close()
+            Kinect.pyK4A = None
 
 

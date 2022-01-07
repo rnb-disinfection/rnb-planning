@@ -37,15 +37,29 @@ namespace RNB {
         public:
             std::shared_ptr<pluginlib::ClassLoader<planning_interface::PlannerManager> > planner_plugin_loader_;
             std::string planner_plugin_name_;
+            std::vector<std::string> adapter_plugin_names_;
             ompl_interface::OMPLPlannerManagerCustomPtr planner_instance_;
+            std::shared_ptr<pluginlib::ClassLoader<planning_request_adapter::PlanningRequestAdapter> > adapter_plugin_loader_;
+            std::shared_ptr<planning_request_adapter::PlanningRequestAdapterChain> adapter_chain_;
             robot_model_loader::RobotModelLoaderPtr robot_model_loader_;
             robot_model::RobotModelPtr robot_model_;
             planning_scene::PlanningScenePtr planning_scene_;
             std::vector<ompl::base::ConstraintPtr> manifolds;
+            double tolerance_pose;
+            double tolerance_angle;
+            double tolerance_pose_const;
+            double tolerance_angle_const;
+            double tolerance_joint;
+            JointState tol_vals;
 
+            bool check_solution_paths_;
             PlanResult plan_result;
             NameList joint_names;
             int joint_num;
+
+            JointState result_ik;
+            JointState result_jac;
+            JointState current_state;
 
             /**
              * @brief initialize planner from urdf and srdf files. redirects to init_planner
@@ -87,20 +101,28 @@ namespace RNB {
             bool clear_manifolds();
 
             /**
+             * @brief set flag for post-checking solution paths
+             * @author Junsu Kang
+             */
+            void checkSolutionPaths(bool flag);
+
+            /**
              * @brief search for plan.
              * @author Junsu Kang
              */
             PlanResult &plan(string group_name, string tool_link,
                              CartPose goal_pose, string goal_link,
                              JointState init_state, string planner_id="RRTConnectkConfigDefault",
-                             double allowed_planning_time=0.1);
+                             double allowed_planning_time=0.1,
+                             double vel_scale=0.1, double acc_scale=0.1, bool post_opt=false);
 
             /**
              * @brief search for joint motion plan.
              * @author Junsu Kang
              */
             PlanResult &plan_joint_motion(string group_name, JointState goal_state, JointState init_state,
-                             string planner_id="RRTConnectkConfigDefault", double allowed_planning_time=0.1);
+                             string planner_id="RRTConnectkConfigDefault", double allowed_planning_time=0.1,
+                                          double vel_scale=0.1, double acc_scale=0.1, bool post_opt=false);
 
             /**
              * @brief search for plan with constraints.
@@ -110,13 +132,34 @@ namespace RNB {
                                              CartPose goal_pose, string goal_link,
                                              JointState init_state,
                                              string planner_id="RRTConnectkConfigDefault",
-                                             double allowed_planning_time=0.1, bool allow_approximation=false);
+                                             double allowed_planning_time=0.1,
+                                             double vel_scale=0.1, double acc_scale=0.1, bool post_opt=false,
+                                             ompl_interface::ConstrainedSpaceType cs_type=
+                                                     ompl_interface::ConstrainedSpaceType::ATLAS,
+                                             bool allow_approximation=false,
+                                             bool post_projection=false);
+
+            /**
+             * @brief set tolerance for planning
+             */
+            void set_tolerance(double pose=-1, double angle=-1, double pose_const=-1, double angle_const=-1, double joint=-1);
+
+            /**
+             * @brief get current tolerance for planning
+             */
+            JointState &get_tolerance();
 
             /**
              * @brief test jacobian
              * @author Junsu Kang
              */
             void test_jacobian(JointState init_state);
+
+            /**
+             * @brief validate joint moition trajectory
+             * @author Junsu Kang
+             */
+            bool validate_trajectory(Trajectory trajectory);
 
             /**
              * @brief generate and process ros object message
@@ -132,6 +175,13 @@ namespace RNB {
             bool add_object(string name, const ObjectType type,
                             CartPose pose, Vec3 dims,
                             string link_name, NameList touch_links, bool attach);
+            /**
+             * @brief simply add object
+             * @author Junsu Kang
+             */
+            bool add_mesh(string name, const ObjectType type,
+                          CartPose pose, Vec3List vertices, Vec3List triangles,
+                          string link_name, NameList touch_links, bool attach);
 
             /**
              * @brief clear all objects in the scene
@@ -143,15 +193,29 @@ namespace RNB {
 
             /**
              * @brief solve inverse kinematics
+             * @param values    values for all joints
+             * @author Junsu Kang
+             */
+            void set_joint_state(JointState values);
+
+            /**
+             * @brief solve inverse kinematics
+             * @param values    values for all joints
+             * @author Junsu Kang
+             */
+            JointState& get_joint_state();
+
+            /**
+             * @brief solve inverse kinematics
              * @param timeout_single    timeout for single ik
              * @param timeout_sampling  timeout for sampling loop
              * @param self_collision    to check self-collision
              * @param fulll_collision   to check full collision with environment
              * @author Junsu Kang
              */
-            JointState solve_ik(string group_name, CartPose goal_pose,
-                                double timeout_single, double timeout_sampling,
-                                bool self_collision, bool fulll_collision);
+            JointState& solve_ik(string group_name, CartPose goal_pose,
+                                 double timeout_single,
+                                 bool self_collision, bool fulll_collision);
 
             /**
              * @brief check current status of collision
@@ -160,7 +224,7 @@ namespace RNB {
              */
             bool check_collision(bool only_self);
 
-            JointState get_jacobian(string group_name, JointState Q);
+            JointState& get_jacobian(string group_name, JointState Q);
         };
 
     }

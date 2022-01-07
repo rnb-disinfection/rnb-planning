@@ -12,6 +12,25 @@ def try_mkdir(path):
     try: os.mkdir(path)
     except: pass
 
+from enum import Enum
+
+##
+# @class TextColors
+# @brief color codes for terminal. use println to simply print colored message
+class TextColors(Enum):
+    HEADER = '\033[95m'
+    BLUE = '\033[94m'
+    CYAN = '\033[96m'
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    RED = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+    def println(self, msg):
+        print(self.value + str(msg) + self.ENDC.value)
+
 import time
 from threading import Thread, Event
 import collections
@@ -42,9 +61,15 @@ def interpolate_double(X):
 def matmul_md(A, B):
     return np.sum((np.expand_dims(A, axis=-1) * np.expand_dims(B, axis=-3)), axis=-2)
 
+
 def get_mean_std(X, outlier_count=2):
     X_ex = [x[0] for x in sorted(zip(X,np.linalg.norm(X-np.mean(X, axis=0), axis=1)), key=lambda x: x[1])][:-outlier_count]
     return np.mean(X_ex, axis=0), np.std(X_ex, axis=0)
+
+
+class DummyObject:
+    def __init__(self):
+        pass
 
 
 ##
@@ -59,6 +84,7 @@ class PeriodicTimer:
         self.__tic = Event()
         self.__stop = Event()
         self.thread_periodic = Thread(target=self.__tic_loop)
+        self.thread_periodic.daemon = True
         self.thread_periodic.start()
 
     def __tic_loop(self):
@@ -67,7 +93,7 @@ class PeriodicTimer:
 
     ##
     # @brief    wait for next timer event
-    def wait(self): # Just waiting full period makes too much threading delay - make shorter loop
+    def wait(self):  # Just waiting full period makes too much threading delay - make shorter loop
         while not self.__tic.wait(self.period / 100):
             pass
         self.__tic.clear()
@@ -79,6 +105,24 @@ class PeriodicTimer:
 
     def __del__(self):
         self.stop()
+
+    def call_periodic(self, fun, N=None, timeout=None, args=[], kwargs={}):
+        i_call = 0
+        time_start = time.time()
+        while True:
+            self.wait()
+            fun(*args, **kwargs)
+            i_call += 1
+            if N is not None and i_call > N:
+                break
+            if timeout is not None and time.time() - time_start > timeout:
+                break
+
+    def call_in_thread(self, fun, N=None, timeout=None, args=[], kwargs={}):
+        kwargs_new = dict(fun=fun, N=N, timeout=timeout, **kwargs)
+        t = Thread(target=self.call_periodic, args=args, kwargs=kwargs_new)
+        t.daemon = True
+        t.start()
 
 
 ##
@@ -107,21 +151,33 @@ class PeriodicIterator(PeriodicTimer):
     def __len__(self):
         return len(self.item_list)
 
+##
+# @class    GlobalLogger
+# @brief    A singleton logger to record data anywhere in the code.
+class GlobalLogger(Singleton, dict):
+    def __init__(self):
+        pass
+
 
 ##
 # @class    GlobalTimer
 # @brief    A singleton timer to record timings anywhere in the code.
 # @remark   Call GlobalTimer.instance() to get the singleton timer.
 #           To see the recorded times, just print the timer: print(global_timer)
+# @param    scale       scale of the timer compared to a second. For ms timer, 1000
+# @param    timeunit    name of time unit for printing the log
+# @param    stack   default value for "stack" in toc
 class GlobalTimer(Singleton):
-    def __init__(self, scale=1000, timeunit='ms'):
-        self.reset(scale, timeunit)
+    def __init__(self, scale=1000, timeunit='ms', stack=False):
+        self.reset(scale, timeunit, stack)
 
     ##
     # @brief    reset the timer.
     # @param    scale       scale of the timer compared to a second. For ms timer, 1000
     # @param    timeunit    name of time unit for printing the log
-    def reset(self, scale=1000, timeunit='ms'):
+    # @param    stack   default value for "stack" in toc
+    def reset(self, scale=1000, timeunit='ms', stack=False):
+        self.stack = stack
         self.scale = scale
         self.timeunit = timeunit
         self.name_list = []
@@ -150,21 +206,32 @@ class GlobalTimer(Singleton):
     ##
     # @brief    record the time passed from last call of tic with same name
     # @param    name    name of the section to record time
-    # @param    stack   to stack each time duration to timelist_dict, set this value to True
-    def toc(self, name, stack=False):
+    # @param    stack   to stack each time duration to timelist_dict, set this value to True,
+    #                   don't set this value to use default setting
+    def toc(self, name, stack=None):
         if self.__on:
             dt = (time.time() - self.ts_dict[name]) * self.scale
             self.time_dict[name] = self.time_dict[name] + dt
             self.min_time_dict[name] = min(self.min_time_dict[name], dt)
             self.max_time_dict[name] = max(self.max_time_dict[name], dt)
             self.count_dict[name] = self.count_dict[name] + 1
-            if stack:
+            if stack or (stack is None and self.stack):
                 self.timelist_dict[name].append(dt)
             return dt
 
     ##
+    # @brief    get current time and estimated time arrival
+    # @param    name    name of the section to record time
+    # @param    current current index recommanded to start from 1
+    # @param    end     last index
+    # @return   (current time, eta)
+    def eta(self, name, current, end):
+        dt = self.toc(name, stack=False)
+        return dt, (dt / current * end if current != 0 else 0)
+
+    ##
     # @brief    record and start next timer in a line.
-    def toctic(self, name_toc, name_tic, stack=False):
+    def toctic(self, name_toc, name_tic, stack=None):
         dt = self.toc(name_toc, stack=stack)
         self.tic(name_tic)
         return dt
@@ -176,15 +243,15 @@ class GlobalTimer(Singleton):
         names = self.name_list
         for name in names:
             strout += "{name}: \t{tot_T} {timeunit}/{tot_C} = {per_T} {timeunit} ({minT}/{maxT})\n".format(
-                name=name, tot_T=np.round(np.sum(self.time_dict[name])), tot_C=self.count_dict[name], 
-                per_T= np.round(np.sum(self.time_dict[name])/self.count_dict[name], 3),
+                name=name, tot_T=np.round(np.sum(self.time_dict[name]),1), tot_C=self.count_dict[name],
+                per_T= np.round(np.sum(self.time_dict[name])/self.count_dict[name], 1),
                 timeunit=self.timeunit, minT=round(self.min_time_dict[name],3), maxT=round(self.max_time_dict[name],3)
             )
         return strout
 
     ##
     # @brief use "with timer:" to easily record duration of a code block
-    def block(self, key, stack=False):
+    def block(self, key, stack=None):
         return BlockTimer(self, key, stack=stack)
 
     def __enter__(self):
@@ -198,7 +265,7 @@ class GlobalTimer(Singleton):
 # @class    BlockTimer
 # @brief    Wrapper class to record timing of a code block.
 class BlockTimer:
-    def __init__(self, gtimer, key, stack=False):
+    def __init__(self, gtimer, key, stack=None):
         self.gtimer, self.key, self.stack = gtimer, key, stack
 
     def __enter__(self):
@@ -255,23 +322,26 @@ class NumpyEncoder(json.JSONEncoder):
             return obj.tolist()
         return json.JSONEncoder.default(self, obj)
 
-def send_recv(sdict, host, port):
+def send_recv(sdict, host, port, buffer_len=1024):
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     client_socket.connect((host, port))
 
     rdict = {}
     try:
-        sjson = json.dumps(sdict, cls=NumpyEncoder)
+        sjson = json.dumps(sdict, cls=NumpyEncoder, ensure_ascii = False)
         sbuff = sjson.encode()
         client_socket.sendall(sbuff)
 
-        rjson = client_socket.recv(1024)
-        # rjson = "".join(map(chr, rjson))
+        rjson = client_socket.recv(buffer_len)
+        send_recv.rjson = rjson
         rdict = json.loads(rjson)
+        send_recv.rdict = rdict
         if rdict is None:
             rdict = {}
         rdict = {str(k): v for k,v in rdict.items()}
+    except Exception as e:
+        print(e)
     finally:
         client_socket.close()
     return rdict
@@ -434,3 +504,130 @@ class DummyBlock:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
+
+##
+# @brief copy file and replace substring
+# @param line_callback function to be called when a line with string_from appeared
+def copyfile_replace(file_from, file_to, string_from, string_to, line_callback=None):
+    fin = open(file_from, "rt")
+    #output file to write the result to
+    fout = open(file_to, "wt")
+    #for each line in the input file
+    for line in fin:
+        #read replace the string and write to output file
+        if line_callback is not None and string_from in line:
+            line_callback(line, string_from, string_to)
+        fout.write(line.replace(string_from, string_to))
+    #close input and output files
+    fin.close()
+    fout.close()
+
+##
+# @brief    print confusion matrix
+# @remark   rows: ground truth, cols: prediction
+def print_confusion_mat(GT, Res):
+    TP = np.sum(np.logical_and(GT, Res))
+    FN = np.sum(np.logical_and(GT, np.logical_not(Res)))
+    FP = np.sum(np.logical_and(np.logical_not(GT), Res))
+    TN = np.sum(np.logical_and(np.logical_not(GT), np.logical_not(Res)))
+    N = TP + FN + FP + TN
+    print("   {:>10} {:>10} {:>10}".format("PP", "PN", N))
+    print("GP {:10} {:10} {:10.2%}".format(TP, FN, float(TP) / (TP + FN)))
+    print("GN {:10} {:10} {:10.2%}".format(FP, TN, float(TN) / (FP + TN)))
+    print(
+        "AL {:10.2%} {:10.2%} {:10.2%}".format(float(TP) / (TP + FP), float(TN) / (TN + FN), float(TP + TN) / N))
+
+def compare_dict(dict1, dict2):
+    if sorted(dict1.keys()) != sorted(dict2.keys()):
+        return False
+    for key in dict1.keys():
+        val1 = dict1[key]
+        val2 = dict2[key]
+        if isinstance(val1, dict):
+            res = compare_dict(val1, val2)
+        else:
+            res = val1 == val2
+            if isinstance(res, list) or isinstance(res, np.ndarray):
+                res = np.all(res)
+        if not res:
+            return res
+    return True
+
+def moving_median(values, window=3):
+    assert window>1, "window should be larger than 1"
+    assert window%2==1, "window should be odd number"
+    n = window
+    n1 = int((window-1)/2)
+    values_med = (list(values[:n1]) 
+                  + [np.median(values[i: i+n]) 
+                     for i in range(len(values)-n+1)] 
+                  + list(values[-n1:])
+                 )
+    return np.array(values_med)
+
+##
+# @brief convert ascii int list to string text
+def ascii2str(ascii):
+    return "".join(map(chr, ascii))
+
+##
+# @brief convert string text to ascii int list
+def str2ascii(text):
+    return map(ord, text)
+
+##
+# @brief get full name of given function including parent class
+def fullname(fun):
+    if hasattr(fun, '__qualname__'):
+        return ".".join(fun.__qualname__.split(".")[-2:])
+    elif hasattr(fun, 'im_class'):
+        return "{}.{}".format(fun.im_class.__name__, fun.__name__)
+    else:
+        return fun.__name__
+
+def extract_attr_dict(msg, valid_types=(int, float, str, tuple, list, dict)):
+    if msg is None:
+        return None
+    if type(msg) in valid_types:
+        if type(msg) == list:
+            return [extract_attr_dict(submsg) for submsg in msg]
+        return msg
+    msg_dict = {}
+    for k in dir(msg):
+        if k.startswith('_'):
+            continue
+        submsg = getattr(msg, k)
+        if callable(submsg):
+            continue
+        msg_dict[k] = extract_attr_dict(submsg)
+    return msg_dict
+
+from itertools import chain, combinations
+
+def powerset(iterable):
+    s = list(iterable)
+    return chain.from_iterable(combinations(s, r) for r in range(len(s)+1))
+
+from collections import defaultdict
+
+def swap_double_dict(double_dict):
+    swapped = defaultdict(dict)
+    for k1, v1 in double_dict.items():
+        for k2, v2 in v1.items():
+            swapped[k2][k1] = v2
+    return swapped
+
+def print_com_ports():
+    import serial.tools.list_ports as sp
+    com_list = sp.comports()
+    connected = []
+    for i in com_list:
+        connected.append(i.device)
+
+    print("Connected COM ports: " + str(connected))
+
+def divide_bytes(num):
+    return num / 0x100 % 0x100, num % 0x100
+
+def combine_bytes(up_byte, lo_byte):
+    return up_byte*0x100 + lo_byte

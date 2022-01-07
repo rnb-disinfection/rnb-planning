@@ -1,5 +1,6 @@
 #include "latticizer.h"
 #include "timer.h"
+#include "logger.h"
 
 #include <iostream>
 
@@ -93,6 +94,75 @@ RNB::PointList RNB::Latticizer::get_vertice_by_index(int idx_cell){
 }
 
 
+RNB::IntList RNB::Latticizer::get_colliding_cells_approx(
+        double R11, double R12, double R13,
+        double R21, double R22, double R23,
+        double R31, double R32, double R33,
+        double P1, double P2, double P3,
+        int geo_type, Point3 geo_dims){
+    Eigen::Matrix3d R_gl;
+    R_gl << R11, R12, R13, R21, R22, R23, R31, R32, R33;
+    Eigen::Vector3d p_gl(P1, P2, P3);
+    Eigen::Vector3d v_tmp;
+
+    // transform cells
+    Eigen::MatrixXd centers_gc_abs;
+    auto term1 = centers*R_gl.transpose();
+    auto term2 = p_gl.transpose();
+    centers_gc_abs = (term1.rowwise() + term2).cwiseAbs();
+    Eigen::Vector3d dims_hf(geo_dims[0]/2, geo_dims[1]/2, geo_dims[2]/2);
+
+    Eigen::VectorXd dist_list;
+    Eigen::VectorXd xy_dist;
+    Eigen::VectorXd z_dist;
+    switch(geo_type){
+        case RNB::GEOTYPE::PLANE:
+            dist_list = centers_gc_abs.block(0, 2, centers_gc_abs.rows(), 1);
+            break;
+        case RNB::GEOTYPE::SPHERE:
+            dist_list = centers_gc_abs.rowwise().norm();
+            dist_list.array() -= dims_hf[0];
+            break;
+        case RNB::GEOTYPE::CYLINDER:
+            xy_dist = centers_gc_abs.block(0,0,centers_gc_abs.rows(),2).rowwise().norm();
+            z_dist = centers_gc_abs.block(0,2,centers_gc_abs.rows(),1);
+            xy_dist.array() -= dims_hf[0];
+            z_dist.array() -= dims_hf[2];
+            xy_dist = xy_dist.cwiseMax(0);
+            z_dist = z_dist.cwiseMax(0);
+            dist_list = (xy_dist.cwiseProduct(xy_dist)+z_dist.cwiseProduct(z_dist)).cwiseSqrt();
+            break;
+        case RNB::GEOTYPE::CAPSULE:
+            xy_dist = centers_gc_abs.block(0,0,centers_gc_abs.rows(),2).rowwise().norm();
+            z_dist = centers_gc_abs.block(0,2,centers_gc_abs.rows(),1);
+            z_dist.array() -= dims_hf[2];
+            z_dist = z_dist.cwiseMax(0);
+            dist_list = (xy_dist.cwiseProduct(xy_dist)+z_dist.cwiseProduct(z_dist)).cwiseSqrt();
+            dist_list.array() -= dims_hf[0];
+            break;
+        case RNB::GEOTYPE::BOX:
+            // pass to default - BOX is implemented as default case
+        default:
+            if (geo_type!=RNB::GEOTYPE::BOX)
+                RNB::PRINT_ERROR("UNIMPLEMENTED TYPE - APPROXIMATE WITH BOX");
+            dist_list = (centers_gc_abs.rowwise() - dims_hf.transpose()).cwiseMax(0).rowwise().norm();
+            break;
+    }
+
+    IntList idx_occupy;
+    idx_occupy.clear();
+    int idx = 0;
+    double L_CELL_HF = L_CELL/2;
+    for(double* dist_p=dist_list.data(); dist_p!=dist_list.data()+dist_list.size(); dist_p++){
+        if((*dist_p)<L_CELL_HF){
+            idx_occupy.push_back(idx);
+        }
+        idx ++;
+    }
+    return idx_occupy;
+}
+
+
 RNB::IntList RNB::Latticizer::get_colliding_cells(double R11, double R12, double R13,
                                                   double R21, double R22, double R23,
                                                   double R31, double R32, double R33,
@@ -120,7 +190,7 @@ RNB::IntList RNB::Latticizer::get_colliding_cells(double R11, double R12, double
     auto term1 = centers*orientation_mat;
     auto term2 = (orientation_mat.transpose()*p_geo).transpose();
     centers_loc = (term1.rowwise() - term2).cwiseAbs();
-    Eigen::Vector3d dims(geo_dims[0]/2, geo_dims[1]/2, geo_dims[2]/2);
+    Eigen::Vector3d dims_hf(geo_dims[0]/2, geo_dims[1]/2, geo_dims[2]/2);
 
     Eigen::Vector3d L_CELL_vec(L_CELL, L_CELL, L_CELL);
     Eigen::VectorXd dist_list;
@@ -129,7 +199,7 @@ RNB::IntList RNB::Latticizer::get_colliding_cells(double R11, double R12, double
     // extract candidates
     Eigen::Vector3d L_CELL_max_vec;
     L_CELL_max_vec.fill(L_CELL * sqrt(3) /2);
-    dist_list = (centers_loc.rowwise() - (dims + L_CELL_max_vec).transpose()).rowwise().maxCoeff();
+    dist_list = (centers_loc.rowwise() - (dims_hf + L_CELL_max_vec).transpose()).rowwise().maxCoeff();
     int idx = 0;
     IntList idx_candi;
     idx_candi.clear();
@@ -179,13 +249,13 @@ RNB::IntList RNB::Latticizer::get_colliding_cells_box(double R11, double R12, do
     auto term1 = centers*orientation_mat;
     auto term2 = (orientation_mat.transpose()*p_geo).transpose();
     centers_loc = (term1.rowwise() - term2).cwiseAbs();
-    Eigen::Vector3d dims(geo_dims[0]/2, geo_dims[1]/2, geo_dims[2]/2);
+    Eigen::Vector3d dims_hf(geo_dims[0]/2, geo_dims[1]/2, geo_dims[2]/2);
 
     Eigen::Vector3d L_CELL_vec(L_CELL, L_CELL, L_CELL);
     Eigen::VectorXd dist_list;
     IntList idx_occupy;
     if(abs(R11+R22+R33-3)<1E-3){
-        dist_list = (centers_loc.rowwise() - (dims + L_CELL_vec).transpose()).rowwise().maxCoeff();
+        dist_list = (centers_loc.rowwise() - (dims_hf + L_CELL_vec).transpose()).rowwise().maxCoeff();
         int idx = 0;
         idx_occupy.clear();
         for(double* data_p=dist_list.data(); data_p!=dist_list.data()+dist_list.size(); data_p++){
@@ -200,7 +270,7 @@ RNB::IntList RNB::Latticizer::get_colliding_cells_box(double R11, double R12, do
     // extract candidates
     Eigen::Vector3d L_CELL_max_vec;
     L_CELL_max_vec.fill(L_CELL * sqrt(3) /2);
-    dist_list = (centers_loc.rowwise() - (dims + L_CELL_max_vec).transpose()).rowwise().maxCoeff();
+    dist_list = (centers_loc.rowwise() - (dims_hf + L_CELL_max_vec).transpose()).rowwise().maxCoeff();
     int idx = 0;
     IntList idx_candi;
     idx_candi.clear();

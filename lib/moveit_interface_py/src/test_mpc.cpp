@@ -8,22 +8,39 @@ using namespace RNB::MoveitCompact;
 
 int main(int argc, char** argv) {
     NameList group_names;
-    group_names.push_back("indy0");
-    group_names.push_back("panda1");
+    group_names.push_back("kmb0");
+    group_names.push_back("indy1");
 
-    string group_name("indy0");
-    string tool_link("indy0_tcp");
+    string group_name("kmb0");
+    string tool_link("kmb0_platform");
+    int group_start_idx = 0;
+
+//    string group_name("indy1");
+//    string tool_link("indy1_tcp");
+//    int group_start_idx = 3;
 
     Planner planner;
     planner.init_planner_from_file("../test_assets/custom_robots.urdf", "../test_assets/custom_robots.srdf",
                                    group_names, "../test_assets/");
-    JointState init_state(13);
-    init_state << 0, 0, -1.57, 0, -1.57, 0, 0, -0.4, 0, -1.57, 0, 1.57, 1.57;
+
+//    planner.set_tolerance(0.1,0.1,0.1,0.1,0.1);
+    JointState init_state(12);
+    init_state << 0, 0, 0, 0, 0, 0, \
+                    0, 0, -1.57, 0, -1.57, 0;
+
+    CartPose cartpose;
+//    cartpose << 0.1,0.2,0,0,0,0,1;
+    cartpose << 3.4572112560272217, -0.28122010827064514, 0.0, -3.5608298955615324e-17, -2.4632272317165464e-17, 0.9838032126426697, 0.17925205826759338;
+    JointState Q = planner.solve_ik(
+            "kmb0", cartpose, 0.1, false, false);
+    std::cout<<"========== IK test ========="<<std::endl;
+    std::cout<<Q.transpose()<<std::endl;
+    std::cout<<"========== IK test ========="<<std::endl;
 
     robot_state::RobotStatePtr kinematic_state = std::make_shared<robot_state::RobotState>(planner.robot_model_);
     robot_state::JointModelGroup* joint_model_group = planner.robot_model_->getJointModelGroup(group_name);
     kinematic_state->setToDefaultValues();
-    kinematic_state->setJointGroupPositions(joint_model_group, init_state.data());
+    kinematic_state->setJointGroupPositions(joint_model_group, init_state.data()+group_start_idx);
     const Eigen::Affine3d &end_effector_tf = kinematic_state->getGlobalLinkTransform(tool_link);
 
     std::vector<double> joint_values;
@@ -70,7 +87,7 @@ int main(int argc, char** argv) {
     Eigen::Vector3d _vec(end_effector_tf.translation());
     Eigen::Quaterniond _rot(end_effector_tf.linear());
 
-    auto goal_tf = end_effector_tf*Eigen::Translation3d(0,0.1,0);
+    auto goal_tf = end_effector_tf*Eigen::Translation3d(0.05,0.0,0);
 
     Eigen::Vector3d _vec_g(goal_tf.translation());
     Eigen::Quaterniond _rot_g(goal_tf.linear());
@@ -84,24 +101,24 @@ int main(int argc, char** argv) {
 //    goal_pose << _vec.x()+0.1, _vec.y()-0.1, _vec.z()-0.1, _rot.x(), _rot.y(), _rot.z(), _rot.w();
 
     std::cout<<"========== goal ========="<<std::endl;
-    std::cout<<goal_pose<<std::endl;
+    std::cout<<goal_pose.transpose()<<std::endl;
     std::cout<<"========== goal ========="<<std::endl;
     GeometryList geometry_list;
     CartPose tool_offset;
     tool_offset<<0,0,0,0,0,0,1;
-    CartPose plane_pose;
-    plane_pose << _vec.x()+0.05,_vec.y(),_vec.z(), _rot.x(), _rot.y(), _rot.z(), _rot.w();
+//    CartPose plane_pose;
+//    plane_pose << _vec.x(),_vec.y(),_vec.z(), _rot.x(), _rot.y(), _rot.z(), _rot.w();
 //    plane_pose << _vec.x(),_vec.y(),_vec.z(),0.70710678,0,0,0.70710678;
 //    plane_pose << _vec.x(),_vec.y(),_vec.z(),0.38268343, 0.0, 0.0, 0.92387953;
-    geometry_list.push_back(Geometry(ObjectType::CYLINDER, plane_pose, Vec3(0.1,0.1,0.1)));
-    planner.clear_manifolds();
-    planner.add_union_manifold(group_name, tool_link, tool_offset, geometry_list,
-                               true, true, 2e-3);
+//    geometry_list.push_back(Geometry(ObjectType::PLANE, plane_pose, Vec3(0.5,0.5,0.000001)));
+//    planner.clear_manifolds();
+//    planner.add_union_manifold(group_name, tool_link, tool_offset, geometry_list,
+//                               true, false, 2e-3);
 
-    PlanResult res = planner.plan_with_constraints(group_name, tool_link,
+    PlanResult res = planner.plan(group_name, tool_link,
                                                    goal_pose, "base_link", init_state,
                                                    "RRTConnectkConfigDefault",
-                                                   10, false);
+                                                   2);
 
     std::cout<<std::endl;
 
@@ -109,11 +126,11 @@ int main(int argc, char** argv) {
 //    std::cout<<init_state.transpose()<<std::endl;
 //    std::cout<<"==========================================="<<std::endl<<std::endl;
 //
-//    std::cout<<"=============== Trajectory ================"<<std::endl;
-//    for (auto it=res.trajectory.begin(); it!=res.trajectory.end(); it++){
-//        std::cout<<(*it).transpose()<<std::endl;
-//    }
-//    std::cout<<"==========================================="<<std::endl<<std::endl;
+    std::cout<<"=============== Trajectory ================"<<std::endl;
+    for (auto it=res.trajectory.begin(); it!=res.trajectory.end(); it++){
+        std::cout<<(*it).transpose()<<std::endl;
+    }
+    std::cout<<"==========================================="<<std::endl<<std::endl;
 
     std::cout<<"============== End Effector ==============="<<std::endl;
 //    if (res.trajectory.size()>0){
@@ -131,7 +148,7 @@ int main(int argc, char** argv) {
 //                  << " " << quat.x() << " "  << quat.y() << " "  << quat.z() << " "  << quat.w() <<std::endl;
 //    }
     for (auto it=res.trajectory.begin(); it!=res.trajectory.end(); it++){
-        kinematic_state->setJointGroupPositions(joint_model_group, it->data());
+        kinematic_state->setJointGroupPositions(joint_model_group, it->data()+group_start_idx);
         Eigen::Quaterniond quat(kinematic_state->getGlobalLinkTransform(tool_link).linear());
         std::cout<<kinematic_state->getGlobalLinkTransform(tool_link).translation().transpose()
                  << " " << quat.x() << " "  << quat.y() << " "  << quat.z() << " "  << quat.w() <<std::endl;
@@ -142,13 +159,12 @@ int main(int argc, char** argv) {
     std::cout<<inital_pose.transpose()<<std::endl;
     std::cout<<goal_pose.transpose()<<std::endl;
     std::cout<<"==========================================="<<std::endl<<std::endl;
-    std::cout<<"========== object_pose ========="<<std::endl;
-    std::cout<<plane_pose.transpose()<<std::endl;
-    std::cout<<"========== object_pose ========="<<std::endl;
+//    std::cout<<"========== object_pose ========="<<std::endl;
+//    std::cout<<plane_pose.transpose()<<std::endl;
+//    std::cout<<"========== object_pose ========="<<std::endl;
 
 
     planner.terminate();
-
 //
 //    double goal_obs[7] = {-0.3,-0.2,0.0,0,0,0,1};
 //    double dims[3] = {0.1,0.1,0.1};

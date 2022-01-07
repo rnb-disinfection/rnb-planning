@@ -1,0 +1,7 @@
+*.pth
+configs/
+mmcv_custom/
+mmdet/
+save_img/
+exp_datasets/
+*.zip

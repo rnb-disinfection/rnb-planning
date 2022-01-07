@@ -62,6 +62,7 @@ BOOST_PYTHON_MODULE(latticizer){
             .def("set_cell_vertices", &RNB::Latticizer::set_cell_vertices)
             .def("get_vertice_by_grid", &RNB::Latticizer::get_vertice_by_grid)
             .def("get_vertice_by_index", &RNB::Latticizer::get_vertice_by_index)
+            .def("get_colliding_cells_approx", &RNB::Latticizer::get_colliding_cells_approx)
             .def("get_colliding_cells", &RNB::Latticizer::get_colliding_cells)
             .def("get_colliding_cells_box", &RNB::Latticizer::get_colliding_cells_box)
             ;

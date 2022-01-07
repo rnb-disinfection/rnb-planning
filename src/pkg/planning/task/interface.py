@@ -19,17 +19,18 @@ class SearchNode:
     # @param parents    list of parent SearchNode idx
     # @param leafs      list of available nodes
     # @param depth      depth of current node = number of parent
-    # @param redundancy_dict defined redundancy of transition in dictionary form, {object name: {axis: value}}
-    def __init__(self, idx, state, parents, leafs, depth=None,
-                 redundancy_dict=None):
-        self.idx, self.state, self.parents, self.leafs, self.depth, self.redundancy_dict = \
-            idx, state, parents, leafs, depth, redundancy_dict
-        self.set_traj(None, 0)
+    def __init__(self, idx, state, parents, leafs, depth=None, traj=None, traj_tot_parent=0):
+        self.traj_tot, self.traj_length = 0, 0
+        self.idx, self.state, self.parents, self.leafs, self.depth = \
+            idx, state, parents, leafs, depth
+        self.set_traj(traj, traj_tot_parent)
 
     ##
     # @brief    set current transition's trajectory + update trajectory length
-    def set_traj(self, traj_full, traj_tot_parent):
+    def set_traj(self, traj_full, traj_tot_parent=None):
         if traj_full is not None:
+            if traj_tot_parent is None:
+                traj_tot_parent = self.traj_tot - self.traj_length
             self.traj_size = len(traj_full)
             self.traj_length = np.sum(np.abs(differentiate(traj_full, 1)[:-1])) if self.traj_size > 1 else 0
             self.traj_tot = traj_tot_parent + self.traj_length
@@ -49,7 +50,8 @@ class SearchNode:
     # @param    pscene  rnb-planning.src.pkg.planning.scene.PlanningScene
     def copy(self, pscene):
         return SearchNode(self.idx, State(self.state.binding_state, self.state.state_param, self.state.Q, pscene),
-                          self.parents, self.leafs, self.depth, self.redundancy_dict)
+                          self.parents, self.leafs, self.depth,
+                          self.traj, self.traj_tot-self.traj_length)
 
 
 ##
@@ -99,7 +101,7 @@ class TaskInterface:
     @abstractmethod
     def init_search(self, initial_state, goal_nodes, multiprocess_manager):
         ## When overiding init_search, Don't forget to make root SearchNode and connect, update it, as below!
-        snode_root = self.make_search_node(None, initial_state, None, None)
+        snode_root = self.make_search_node(None, initial_state, None)
         self.connect(None, snode_root)
         self.update(None, snode_root, True)
         raise(NotImplementedError("abstract method"))
@@ -129,15 +131,14 @@ class TaskInterface:
     # @param snode_pre SearchNode
     # @param new_state State
     # @param traj traj from previous state to new state
-    # @param redundancy_dict redundancy of current transition
-    def make_search_node(self, snode_pre, new_state, traj,  redundancy_dict):
+    def make_search_node(self, snode_pre, new_state, traj):
         if snode_pre is None:
             snode_new = SearchNode(idx=0, state=new_state, parents=[], leafs=[],
-                                    depth=0, redundancy_dict=redundancy_dict)
+                                    depth=0)
         else:
             snode_new = SearchNode(
                 idx=0, state=new_state, parents=snode_pre.parents + [snode_pre.idx], leafs=[],
-                depth=len(snode_pre.parents) + 1, redundancy_dict=redundancy_dict)
+                depth=len(snode_pre.parents) + 1)
             snode_new.set_traj(traj, snode_pre.traj_tot)
         return snode_new
 
@@ -159,9 +160,10 @@ class TaskInterface:
     ##
     # @brief find all schedules
     # @return list of SearchNode index list
-    def find_schedules(self, at_home=True):
+    def find_schedules(self, at_home=True, home_pose=None, in_indices=True):
         schedule_dict = {}
         sidx_checked = set()
+        home_pose = self.initial_state.Q if home_pose is None else home_pose
         for i in reversed(sorted(self.snode_dict.keys())):
             if i in sidx_checked:
                 continue
@@ -169,12 +171,27 @@ class TaskInterface:
             state = snode.state
             # parent should be checked - there are bi-directional trees
             if (self.check_goal(state) and len(snode.parents)>0 and snode.parents[0] == 0):
-                if at_home and np.linalg.norm(state.Q-self.initial_state.Q)>1e-2:
+                if at_home and np.linalg.norm(state.Q-home_pose)>1e-2:
                     continue
                 schedule = snode.parents + [i]
                 schedule_dict[i] = schedule
                 sidx_checked = sidx_checked.union(schedule)
-        return schedule_dict
+        if in_indices:
+            return schedule_dict
+        else:
+            return {k: self.idxSchedule2SnodeScedule(v) for k, v in schedule_dict.items()}
+
+
+    ##
+    # @brief find schedule with shortest path
+    # @returnlist of SearchNode instances
+    def get_best_schedule(self, at_home=True, home_pose=None):
+        schedules = self.find_schedules(at_home=at_home, home_pose=home_pose)
+        schedules_sorted = self.sort_schedule(schedules)
+        if len(schedules_sorted)==0:
+            return []
+        snode_schedule = self.idxSchedule2SnodeScedule(schedules_sorted[0])
+        return snode_schedule
 
     ##
     # @brief find all schedules

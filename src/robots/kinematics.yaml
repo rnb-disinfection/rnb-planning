@@ -23,7 +23,17 @@ indy0_panda1:
   kinematics_solver_search_resolution: 0.005
   kinematics_solver_timeout: 0.010
 
-panda1_indy0:
+indy1_panda0:
+  kinematics_solver: kdl_kinematics_plugin/KDLKinematicsPlugin
+  kinematics_solver_search_resolution: 0.005
+  kinematics_solver_timeout: 0.010
+
+panda0_indy1:
+  kinematics_solver: kdl_kinematics_plugin/KDLKinematicsPlugin
+  kinematics_solver_search_resolution: 0.005
+  kinematics_solver_timeout: 0.010
+
+kmb0:
   kinematics_solver: kdl_kinematics_plugin/KDLKinematicsPlugin
   kinematics_solver_search_resolution: 0.005
   kinematics_solver_timeout: 0.010

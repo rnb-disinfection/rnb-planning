@@ -3,11 +3,15 @@
 *.pdf
 *.npy
 *.out
+src/statistics/
+src/temp/
 src/markers/
 src/data/
 src/logs/
 data/
 model/
+statistics/
+temp/
 
 # Pycharm
 .idea/
@@ -150,3 +154,5 @@ log/
 **/Makefile
 **/CMakeCache.txt
 **/cmake_install.cmake
+
+lib/latticizer/latticizer-test

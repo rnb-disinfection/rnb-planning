@@ -107,12 +107,14 @@ def __get_adjacent_links(link_name, urdf_content, adjacent_links=None, propagate
     return list(set(adjacent_links))
 
 def get_joint_tf(joint, joint_dict):
-    if joint.type == 'revolute':
+    if joint.type in ['revolute', 'continuous']:
         T_J = SE3(Rot_axis(np.where(joint.axis)[0] + 1, joint_dict[joint.name]), [0,0,0])
+    elif joint.type == 'prismatic':
+        T_J = SE3(np.identity(3), np.multiply(joint.axis, joint_dict[joint.name]))
     elif joint.type == 'fixed':
         T_J = np.identity(4)
     else:
-        raise NotImplementedError
+        raise NotImplementedError("joint type {} not defined".format(joint_type))
     Toff = SE3(Rot_rpy(joint.origin.rpy), joint.origin.xyz)
     # T = np.matmul(Toff, np.matmul(T_J,T))
     return np.matmul(Toff,T_J)
