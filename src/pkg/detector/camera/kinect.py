@@ -152,8 +152,9 @@ class Kinect(CameraInterface):
     ##
     # @brief   disconnect kinect
     def disconnect(self):
-        Kinect.pyK4A.device_stop_cameras()
-        Kinect.pyK4A.device_close()
-        Kinect.pyK4A = None
+        if Kinect.pyK4A is not None:
+            Kinect.pyK4A.device_stop_cameras()
+            Kinect.pyK4A.device_close()
+            Kinect.pyK4A = None
 
 

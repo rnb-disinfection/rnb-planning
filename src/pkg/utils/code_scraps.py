@@ -329,33 +329,34 @@ def set_l_shape_object(pscene):
                 l_sub.register_binders(pscene, PlacePlane, geometry=child)
         l_sub.set_conflict_dict()
 
+
 import requests
 from bs4 import BeautifulSoup
 from time import sleep
+from pkg.planning.mode_switcher import ModeSwitcherTemplate, CombinedSwitcher, GraspModeSwitcher
+from pkg.utils.traj_utils import *
 
-def switch_command(ip_addr, on_off, UI_PORT=9990):
-    uri = "http://{ip_addr}:{UI_PORT}/param_setting?control_force0={on_off}".format(ip_addr=ip_addr, UI_PORT=UI_PORT, on_off=int(on_off))
+
+def switch_command(ip_addr, mode, UI_PORT=9990):
+    uri = "http://{ip_addr}:{UI_PORT}/param_setting?switch_control0={mode}".format(
+        ip_addr=ip_addr, UI_PORT=UI_PORT, mode=int(mode))
     print(uri)
     requests.get(uri)
 
-def start_force_mode(indy, switch_delay=0.5):
-    sleep(switch_delay)
-    switch_command(indy.server_ip, True)
-    sleep(switch_delay)
 
-def stop_force_mode(indy, Qref, switch_delay=0.5):
-    sleep(switch_delay)
-    indy.send_qval(indy.get_qcur())
-    indy.start_tracking()
-    switch_command(indy.server_ip, False)
-    indy.move_joint_s_curve(Qref, N_div=20, start_tracking=False, auto_stop=False)
-
-
-class ModeSwitcher:
-    def __init__(self, pscene):
+class ForceOnlyModeSwitcher(ModeSwitcherTemplate):
+    def __init__(self, pscene, mplan, brush_face, VEL, ACC, force_delay=3, switch_delay=0.5, log_force=False,
+                 DT=1.0 / 2e3):
+        ModeSwitcherTemplate.__init__(self, pscene, switch_delay=switch_delay)
+        self.DT = DT
+        self.log_force = log_force
+        self.force_log = []
         self.pscene = pscene
-        self.crob = pscene.combined_robot
-        self.switch_delay = 0.5
+        self.brush_face = brush_face
+        self.mplan = mplan
+        self.indy = self.crob.robot_dict['indy0']
+        self.force_delay = force_delay
+        self.VEL, self.ACC = VEL, ACC
 
     def switch_in(self, snode_pre, snode_new):
         switch_state = False
@@ -364,17 +365,95 @@ class ModeSwitcher:
                 switch_state = True
                 break
         if switch_state:
-            indy = self.crob.robot_dict['indy0']
-            if indy is not None:
-                start_force_mode(indy, switch_delay=self.switch_delay)
+            sweep_safe = self.recalculate_traj(snode_pre.state.Q, snode_new.traj,
+                                               contact_dist=0.02, ref_link="base_link")
+            if sweep_safe is not None:
+                indy = self.indy
+                if indy is not None:
+                    Qtac = sweep_safe[0]
+                    sleep(self.switch_delay)
+                    switch_command(indy.server_ip, mode=1)
+                    indy.joint_move_make_sure(Qtac[:6], ref_speed=np.pi / 36,
+                                              wait_finish=False, start_tracking=False, auto_stop=False)
+                    indy.start_tracking()
+                    indy.wait_queue_empty()
+                    sleep(self.switch_delay)
+                    switch_command(indy.server_ip, 2)
+                    sleep(self.force_delay)
+                    snode_new.set_traj(sweep_safe)
         return switch_state
 
     def switch_out(self, switch_state, snode_new):
         if switch_state:
-            indy = self.crob.robot_dict['indy0']
+            indy = self.indy
             if indy is not None:
-                stop_force_mode(indy, Qref=snode_new.traj[-1][self.crob.idx_dict['indy0']],
-                                                              switch_delay=self.switch_delay)
+                if self.log_force:
+                    sleep(1)
+                Qfin = snode_new.traj[-1]
+                sleep(self.switch_delay)
+                indy.move_joint_s_curve(indy.get_qcur(), q0=Qfin[:6], N_div=int(2.0 * indy.traj_freq),
+                                        wait_finish=False, start_tracking=False,
+                                        auto_stop=False)  # return planned trajectory
+                indy.start_tracking()
+                indy.wait_queue_empty()
+                sleep(self.switch_delay)
+                switch_command(indy.server_ip, mode=1)  # impedance control mode ( force reset ok)
+                sleep(self.switch_delay)
+                Qoff = snode_new.state.Q
+                indy.reset()  # sync nominal offset before turning impedance control off
+                switch_command(indy.server_ip, mode=0)  # return robust control
+                sleep(self.switch_delay)
+                indy.joint_move_make_sure(Qoff[:6], ref_speed=np.pi / 36)  # return planned trajectory
+                if self.log_force:
+                    sleep(self.switch_delay)
+                    Fext = down_force_log(indy.server_ip, len(self.crob.idx_dict["indy0"]), DT=self.DT)
+                    self.force_log.append(Fext)
+
+    def recalculate_traj(self, Qcur, sweep, contact_dist=0.02, ref_link="base_link"):
+        pscene = self.pscene
+        brush_face = self.brush_face
+        mplan = self.mplan
+        indy = self.indy
+        Tcur = brush_face.get_tf_handle(Qcur)
+        Ttac = np.matmul(Tcur, SE3(np.identity(3), (0, 0, -contact_dist)))
+        traj, succ = mplan.get_incremental_traj(brush_face.geometry.link_name,
+                                                brush_face.Toff_lh, Ttac,
+                                                Qcur, step_size=0.01, ERROR_CUT=0.01,
+                                                SINGULARITY_CUT=0.01, VERBOSE=False,
+                                                ref_link=ref_link, VISUALIZE=False, check_collision=False)
+        if succ:
+            Qtac = traj[-1]
+            Ts = brush_face.get_tf_handle(sweep[0])
+            Tf = brush_face.get_tf_handle(sweep[-1])
+            dTsweep = np.matmul(np.linalg.inv(Ts), Tf)
+            Tfin = np.matmul(Ttac, dTsweep)
+            sweep_tac, succ = mplan.get_incremental_traj(brush_face.geometry.link_name,
+                                                         brush_face.Toff_lh, Tfin,
+                                                         Qtac, step_size=0.01, ERROR_CUT=0.01,
+                                                         SINGULARITY_CUT=0.01, VERBOSE=False,
+                                                         ref_link="base_link", VISUALIZE=False, check_collision=False)
+            t_all, sweep_safe = calc_safe_trajectory(1. / indy.traj_freq, sweep_tac, self.VEL, self.ACC)
+            if succ:
+                return sweep_safe
+            else:
+                print("failed to update sweep traj")
+        else:
+            print("failed to get approach")
+        return None
+
+
+class ForceModeSwitcher(CombinedSwitcher):
+    def __init__(self, pscene, mplan, brush_face, VEL, ACC, force_delay=3, switch_delay=0.5, log_force=False):
+        self.switch_list = [GraspModeSwitcher(pscene, switch_delay=switch_delay),
+                            ForceOnlyModeSwitcher(
+                                pscene, mplan, brush_face, VEL=VEL, ACC=ACC,
+                                force_delay=force_delay, switch_delay=switch_delay, log_force=log_force)]
+
+    def reset_log(self):
+        self.switch_list[1].force_log = []
+
+    def get_log(self):
+        return self.switch_list[1].force_log
 
 
 import matplotlib.pyplot as plt
@@ -400,46 +479,6 @@ def down_force_log(ip_addr, JOINT_DOF, UI_PORT=9990, DT=1.0 / 2e3):
     # print("force min/max: {} / {} in {}".format(np.round(np.min(Fext), 1), np.round(np.max(Fext), 1), len(Fext)))
     return Fext
 
-
-class ModeSwitcherForceLog:
-    def __init__(self, pscene, log_force=True, DT=1.0 / 2e3):
-        self.pscene = pscene
-        self.crob = pscene.combined_robot
-        self.switch_delay = 0.5
-        self.DT = DT
-        self.log_force = log_force
-        self.force_log = []
-
-    def reset_log(self):
-        self.force_log = []
-
-    def get_log(self):
-        return self.force_log
-    def switch_in(self, snode_pre, snode_new):
-        switch_state = False
-        for n1, n2 in zip(snode_pre.state.node, snode_new.state.node):
-            if n1 == 1 and n2 == 2:
-                switch_state = True
-                break
-        if switch_state:
-            indy = self.crob.robot_dict['indy0']
-            if indy is not None:
-                start_force_mode(indy, switch_delay=self.switch_delay)
-        return switch_state
-
-    def switch_out(self, switch_state, snode_new):
-        if switch_state:
-            indy = self.crob.robot_dict['indy0']
-            if indy is not None:
-                if self.log_force:
-                    sleep(1)
-                stop_force_mode(indy, Qref=snode_new.traj[-1][self.crob.idx_dict['indy0']],
-                                switch_delay=self.switch_delay)
-                if self.log_force:
-                    sleep(self.switch_delay)
-                    Fext = down_force_log(indy.server_ip, len(self.crob.idx_dict["indy0"]), DT=self.DT)
-                    self.force_log.append(Fext)
-
 def play_schedule_clearance_highlight(ppline, snode_schedule, tcheck, period, actor_name='brush_face',
                                       color_on=(0,1,0,0.3), color_off=(0.8,0.2,0.2,0.2)):
     snode_pre = snode_schedule[0]
@@ -457,10 +496,7 @@ def play_schedule_clearance_highlight(ppline, snode_schedule, tcheck, period, ac
             btf_pre, btf = snode_pre.state.binding_state[sname], snode.state.binding_state[sname]
             if not btf_pre.get_chain() == btf.get_chain():
                 ppline.pscene.show_binding(btf)
-        if period < 0.01:
-            ppline.pscene.gscene.show_motion(snode.traj[::int(0.01 / period)], period=0.01)
-        else:
-            ppline.pscene.gscene.show_motion(snode.traj, period=period)
+        ppline.pscene.gscene.show_motion(snode.traj, period=period)
         sleep(period)
         ppline.pscene.gscene.show_pose(snode.traj[-1])
         snode_pre = snode
@@ -821,15 +857,16 @@ from ..planning.motion.moveit.moveit_py import PlannerConfig
 # @param target_point target point in global coords
 # @param view_dir     looking direction in tip link
 def get_look_motion(mplan, rname, from_Q, target_point, com_link, 
-                    view_dir=[0,0,1], timeout=1):
+                    cam_link=None, view_dir=[0,0,1], timeout=1):
     gscene = mplan.gscene
     if isinstance(target_point, GeometryItem):
         target_point = target_point.get_tf(from_Q)[:3,3]
-    tip_link = mplan.chain_dict[rname]['tip_link']
+    if cam_link is None:
+        cam_link = mplan.chain_dict[rname]['tip_link']
     ref_link = mplan.chain_dict[rname]['link_names'][0]
     Trb = SE3_inv(gscene.get_tf(ref_link, from_Q))
     target_point = np.matmul(Trb[:3,:3], target_point)+Trb[:3,3]
-    Tcur = gscene.get_tf(tip_link, from_Q, from_link=ref_link)
+    Tcur = gscene.get_tf(cam_link, from_Q, from_link=ref_link)
     Tcom = gscene.get_tf(com_link, from_Q, from_link=ref_link)
     cur_dir = np.matmul(Tcur[:3,:3], view_dir)
     target_dir = target_point - Tcom[:3,3]
@@ -846,9 +883,20 @@ def get_look_motion(mplan, rname, from_Q, target_point, com_link,
         dP = np.multiply(view_dir, retract_step*i_ret)
         Ttar = np.copy(Ttar_ref)
         Ttar[:3,3] = Ttar_ref[:3,3] - np.matmul(Ttar_ref[:3,:3], dP)
-        xyzquat = T2xyzquat(Ttar)
-        traj, succ = mplan.planner.plan_py(rname, tip_link, xyzquat[0]+xyzquat[1], ref_link, from_Q,
-                                           timeout=timeout)
+        # xyzquat = T2xyzquat(Ttar)
+        # traj, succ = mplan.planner.plan_py(rname, cam_link, xyzquat[0]+xyzquat[1], ref_link, from_Q,
+        #                                    timeout=timeout)
+        traj, succ = mplan.get_incremental_traj(cam_link, np.identity(4), Ttar,
+                                                from_Q, step_size=0.01, ERROR_CUT=0.01,
+                                                SINGULARITY_CUT=0.01, VERBOSE=False,
+                                                ref_link=ref_link, VISUALIZE=False)
         if succ:
-            break
+            Qtar = traj[-1]
+            Qdiff = Qtar-from_Q
+            steps = int(np.max(np.abs(Qdiff)) / 0.01)
+            traj = from_Q[np.newaxis,:] + Qdiff[np.newaxis, :]*np.arange(steps+1)[:,np.newaxis].astype(float)/steps
+            if mplan.validate_trajectory(traj):
+                break
+            else:
+                succ = False
     return traj, succ

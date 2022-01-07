@@ -21,7 +21,7 @@ class TaskRRT(TaskInterface):
     def __init__(self, pscene,
                  new_node_sampler=random.choice, parent_node_sampler=random.choice, parent_snode_sampler=random.choice,
                  binding_sampler=random.choice, redundancy_sampler=random.uniform, custom_rule=None, node_trial_max=1e2,
-                 random_try_goal=True):
+                 random_try_goal=True, explicit_edges=None, explicit_rule=None):
         TaskInterface.__init__(self, pscene)
         self.new_node_sampler = new_node_sampler
         self.parent_node_sampler = parent_node_sampler
@@ -29,10 +29,10 @@ class TaskRRT(TaskInterface):
         self.binding_sampler = binding_sampler
         self.redundancy_sampler = redundancy_sampler
         self.custom_rule = custom_rule
-        self.explicit_edges = {}
+        self.explicit_edges = {} if explicit_edges is None else explicit_edges
         self.node_trial_max = node_trial_max
         self.random_try_goal = random_try_goal
-        self.explicit_rule = lambda pscene, node, leaf: True
+        self.explicit_rule = (lambda pscene, node, leaf: True) if explicit_rule is None else explicit_rule
 
     ##
     # @brief build object-level node graph
@@ -52,9 +52,6 @@ class TaskRRT(TaskInterface):
         for node in self.node_list:
             self.node_dict_full[node] = set(self.node_dict_full[node])
             self.node_parent_dict_full[node] = set(self.node_parent_dict_full[node])
-
-        self.unstoppable_subjects = [sname for sname in self.pscene.subject_name_list
-                                     if self.pscene.subject_dict[sname].unstoppable]
 
     ##
     # @brief prepare memory variables
@@ -85,14 +82,6 @@ class TaskRRT(TaskInterface):
         self.goal_nodes = goal_nodes
         self.reserved_attempt = False
 
-        self.unstoppable_terminals = {}
-        for i_s, sname in enumerate(self.pscene.subject_name_list):
-            if sname not in self.unstoppable_subjects:
-                continue
-            self.unstoppable_terminals[sname] = [self.initial_state.node[i_s]]
-            for goal in goal_nodes:
-                self.unstoppable_terminals[sname].append(goal[i_s])
-
         self.node_dict = {}
         self.node_parent_dict = defaultdict(set)
         for node, leafs in self.node_dict_full.items():
@@ -101,14 +90,12 @@ class TaskRRT(TaskInterface):
             if node in goal_nodes:
                 self.node_dict[node] = set()
                 continue
+            leaf_list = [leaf
+                         for leaf in leafs
+                         if self.explicit_rule(self.pscene, node, leaf)]
+            self.node_dict[node] = set(leaf_list)
             if node in self.explicit_edges:
-                self.node_dict[node] = set(self.explicit_edges[node])
-            else:
-                ## unstoppable node should change or at terminal
-                leaf_list = [leaf
-                             for leaf in leafs
-                             if self.explicit_rule(self.pscene, node, leaf)]
-                self.node_dict[node] = set(leaf_list)
+                self.node_dict[node] = self.node_dict[node].union(self.explicit_edges[node])
             for leaf in self.node_dict[node]:
                 self.node_parent_dict[leaf].add(node)
         self.node_parent_dict = dict(self.node_parent_dict)

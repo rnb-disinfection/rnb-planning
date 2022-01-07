@@ -12,7 +12,6 @@ dataset/
 configs/
 mmcv_custom/
 mmdet/
-Untitled.ipynb
 exp_data/
 cfg/
 tutorials/
@@ -21,3 +20,8 @@ models/
 cfg/
 contrib/
 include
+
+boost_gpd
+boost_reconstruction
+Untitled.ipynb
+Untitled1.ipynb

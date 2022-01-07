@@ -131,7 +131,11 @@ def align_z(Two):
     Two_out[0:3,0:3] = Rwo_
     return Two_out
 
-def fit_floor(Tcw, Tco, minz):
+def fit_floor(Tco, minz=0, Tcw=None ):
+    if Tcw is None:
+        Tbo = np.copy(Tco)
+        Tbo[2,3] = -minz
+        return Tbo
     Pco = Tco[0:3,3]
     Twc = np.linalg.inv(Tcw)
     Pco_wz = np.dot(Twc[2,0:3],Pco)
@@ -302,6 +306,19 @@ def cart2spher(x, y, z):
 def spher2cart(radius, psi, theta):
     sin_theta = np.sin(theta)
     return radius*sin_theta*np.cos(psi), radius*sin_theta*np.sin(psi), radius*np.cos(theta)
+
+def intrins2cammat(intrins):
+    cameraMatrix = np.array([[intrins[2], 0, intrins[4]],
+                             [0, intrins[3], intrins[5]],
+                             [0,0,1]])
+    return cameraMatrix, intrins[:2]
+
+def cammat2intrins(cameraMatrix, img_dim):
+    intrins = [img_dim[0], img_dim[1],
+               cameraMatrix[0,0], cameraMatrix[1,1],
+               cameraMatrix[0,2], cameraMatrix[1,2]
+              ]
+    return intrins
 
 ##
 # @brief interpolate between 2 transformation matrices(4x4)

@@ -88,7 +88,8 @@ class GeometryScene(list):
     # @brief remove one item from handle
     def remove(self, geo, call_from_parent=False):
         for child in geo.children:
-            self.remove(self.NAME_DICT[child], call_from_parent=True)
+            try: self.remove(self.NAME_DICT[child], call_from_parent=True)
+            except Exception as e: print("ERROR: remove gtem - {}".format(e))
         if not call_from_parent:
             if geo.parent is not None:
                 self.NAME_DICT[geo.parent].children.remove(geo.name)
@@ -256,12 +257,15 @@ class GeometryScene(list):
     ##
     # @brief show motion list
     # @param pose_list list of Q in radian numpy array
-    def show_motion(self, pose_list, **kwargs):
+    def show_motion(self, pose_list, period=0.01, **kwargs):
         if self.rviz:
             marker_list = []
             for mks in self.marker_dict.values():
                 marker_list += mks
-            show_motion(pose_list, marker_list, self.pub, self.joints, self.joint_names, **kwargs)
+            if period<0.01:
+                pose_list = pose_list[::int(0.01/period)]
+                period = 0.01
+            show_motion(pose_list, marker_list, self.pub, self.joints, self.joint_names, period=period, **kwargs)
 
     ##
     # @brief clear all highlights
@@ -296,12 +300,16 @@ class GeometryScene(list):
 
     ##
     # @param points (Nx3)
-    def show_point_cloud(self, points, prefix="cloud", link_name="base_link", sample_to=300, **kwargs):
+    def show_point_cloud(self, points, name="cloud", link_name="base_link", sample_to=10000, point_size=0.01,
+                         center=(0,0,0), rpy=(0,0,0), color=(0, 1, 0, 0.5), collision=False, **kwargs):
         sample_step = int(len(points) / sample_to)
         if sample_step == 0:
             sample_step = 1
-        for ip, pt in enumerate(points[::sample_step]):
-            self.add_highlight_axis("hl", prefix + "_{}".format(ip), link_name=link_name, center=pt, axis=None, **kwargs)
+        points = points[::sample_step]
+        gtem = self.create_safe(gtype=GEOTYPE.MESH, name=name, link_name=link_name,
+                                center=center, rpy=rpy, dims=(0.1,)*3, color=color, collision=collision,
+                                vertices=points, scale=(point_size,point_size,1), **kwargs)
+        return gtem
 
     ##
     # @brief add highlight axis
@@ -378,6 +386,9 @@ class GeometryScene(list):
         self.create_safe(GEOTYPE.BOX, "rightwall_ws", "base_link", (XMAX - XMIN, thickness, ZMAX - ZMIN),
                          ((XMAX + XMIN) / 2, YMAX+thickness/2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
                          color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
+        self.create_safe(GEOTYPE.BOX, "room_ws", "base_link", (XMAX - XMIN, YMAX - YMIN, ZMAX - ZMIN),
+                         ((XMAX + XMIN) / 2, (YMAX + YMIN) / 2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
+                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=False)
 
     def clear_virtuals(self):
         for virtual in self.virtuals:
@@ -565,7 +576,7 @@ class GeometryItem(object):
                 vertices = np.copy(vertices)
                 point_ct = np.mean([np.max(vertices, axis=0), np.min(vertices, axis=0)], axis=0)
                 self.vertices = vertices - point_ct
-                center += np.matmul(Rot_rpy(rpy), point_ct)
+                center = center+np.matmul(Rot_rpy(rpy), point_ct)
         self.children = []
         self.parent = parent
         self.name = name
@@ -646,7 +657,7 @@ class GeometryItem(object):
                 raise(RuntimeError("Parent is not set for a child geometry"))
             ptem = self.gscene.NAME_DICT[self.parent]
             ## @brief (if child) xyz position in parent coordinate (tuple, m scale)
-            self.center_child = center if center is not None else self.center_child
+            self.center_child = deepcopy(center) if center is not None else self.center_child
             ## @brief orientation matrix relative to attached link coordinate
             self.orientation_mat_child = orientation_mat if orientation_mat is not None else self.orientation_mat_child
             ## @brief transformation matrix from parent geometry to attached link coordinate
@@ -661,7 +672,7 @@ class GeometryItem(object):
             ## @brief roll-pitch-yaw orientation relative to attached link coordinate
             self.rpy = Rot2rpy(self.orientation_mat)
         else:
-            self.center = center if center is not None else self.center
+            self.center = deepcopy(center) if center is not None else self.center
             self.rpy = Rot2rpy(orientation_mat) if orientation_mat is not None else self.rpy
             self.orientation_mat = orientation_mat if orientation_mat is not None else self.orientation_mat
             self.Toff = SE3(self.orientation_mat, self.center)

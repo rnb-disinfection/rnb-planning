@@ -9,6 +9,11 @@ RNB_PLANNING_DIR = os.environ["RNB_PLANNING_DIR"]
 sys.path.append(os.path.join(os.path.join(RNB_PLANNING_DIR, 'src')))
 if sys.version.startswith("3"):
     from pkg.utils.utils_python3 import *
+    try:
+        from mmdet.apis import init_detector, inference_detector
+    except Exception as e:
+        print(TextColors.RED.println("[ERROR] Could not import mmdet"))
+        raise(e)
 elif sys.version.startswith("2"):
     from pkg.utils.utils import *
 
@@ -84,11 +89,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     img_dims = tuple(map(int, args.dims[1:-1].split(",")))
-    try:
-        from mmdet.apis import init_detector, inference_detector
-    except Exception as e:
-        print(TextColors.RED.println("[ERROR] Could not import mmdet"))
-        print(e)
     sdet = SharedDetectorGen(img_dims)()
     set_serving(True)
     serve_forever("SharedDetector", [sdet.inference, sdet.init], verbose=True)

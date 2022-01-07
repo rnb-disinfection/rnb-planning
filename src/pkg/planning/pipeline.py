@@ -4,6 +4,7 @@ from ..utils.utils import SingleValue, DummyBlock, list2dict, differentiate, Glo
 from ..utils.joint_utils import apply_vel_acc_lims
 from ..controller.trajectory_client.trajectory_client import DEFAULT_TRAJ_FREQUENCY, MultiTracker
 from .task.interface import SearchNode
+from .mode_switcher import GraspModeSwitcher
 import numpy as np
 from copy import copy
 
@@ -26,7 +27,8 @@ PriorityQueueManager.register("PriorityQueue", PriorityQueue)
 class PlanningPipeline:
     ##
     # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
-    def __init__(self, pscene):
+    # @param mode_switcher ModeSwitcherTemplate sub-class instance
+    def __init__(self, pscene, mode_switcher=None):
         pscene.set_object_state(pscene.initialize_state(pscene.combined_robot.home_pose))
         ## @brief rnb-planning.src.pkg.planning.scene.PlanningScene
         self.pscene = pscene
@@ -47,6 +49,7 @@ class PlanningPipeline:
         self.counter_lock = self.manager.Lock()
         self.gtimer = GlobalTimer.instance()
         self.constrained_motion_scale = 0.3
+        self.mode_switcher = GraspModeSwitcher(self.pscene)
 
     ##
     # @param mplan subclass instance of rnb-planning.src.pkg.planning.motion.interface.MotionInterface
@@ -84,7 +87,7 @@ class PlanningPipeline:
     # @param dt_vis display period
     # @param verbose boolean flag for printing intermediate process
     def search(self, initial_state, goal_nodes, multiprocess=False,
-               max_solution_count=100, N_search=None, N_agents=None, wait_proc=True,
+               max_solution_count=5, N_search=None, N_agents=None, wait_proc=True,
                display=False, dt_vis=0.01, verbose=False, timeout_loop=600, looptime_extra=None,
                terminate_on_first=False, timeout=1, **kwargs):
         self.gtimer.tic("search_loop")
@@ -460,10 +463,7 @@ class PlanningPipeline:
                 btf_pre, btf = snode_pre.state.binding_state[sname], snode.state.binding_state[sname]
                 if btf_pre.get_chain() != btf.get_chain():
                     self.pscene.show_binding(btf)
-            if period<0.01:
-                self.pscene.gscene.show_motion(snode.traj[::int(0.01/period)], period=0.01)
-            else:
-                self.pscene.gscene.show_motion(snode.traj, period=period)
+            self.pscene.gscene.show_motion(snode.traj, period=period)
             time.sleep(period)
             self.pscene.gscene.show_pose(snode.traj[-1])
             snode_pre = snode
@@ -471,38 +471,26 @@ class PlanningPipeline:
         time.sleep(0.1)
 
     ##
-    # @brief execute grasping as described in the given state
-    def execute_grip(self, state):
-        grasp_dict = {}
-        for name in self.pscene.combined_robot.robot_names:
-            grasp_dict[name] = False
-
-        for btf in state.binding_state.values():
-            oname, bpoint, binder, bgeo = btf.get_chain()
-            print("binder: {}".format(binder))
-            if binder in self.pscene.actor_robot_dict:
-                rname = self.pscene.actor_robot_dict[binder]
-                print("rname: {}".format(rname))
-                if rname is not None:
-                    grasp_dict[rname] = True
-
-        self.pscene.combined_robot.grasp(**grasp_dict)
-
-    ##
-    # @brief execute schedule
-    # @param mode_switcher ModeSwitcher class instance
+    # @brief execute schedule. To deal with trajectory adjustment consistently, only snode.traj is tracked. Q is not used for tracking.
+    # @param mode_switcher ModeSwitcherTemplate sub-class instance, to use non-default mode_switcher
     def execute_schedule(self, snode_schedule, auto_stop=True, mode_switcher=None, one_by_one=False, multiproc=False,
                          error_stop_deg=10, auto_sync_robot_pose=False):
         self.execute_res = False
-        snode_pre = snode_schedule[0]
         if auto_sync_robot_pose:
-            self.pscene.combined_robot.joint_move_make_sure(snode_schedule[0].state.Q)
+            for snode in snode_schedule:
+                if snode.traj is not None: # make sure robot is in sync with beginning of first trajectory
+                    self.pscene.combined_robot.joint_move_make_sure(snode.traj[0])
+                    break
+
+        mode_switcher = mode_switcher if mode_switcher is not None else self.mode_switcher
+        snode_pre = snode_schedule[0]
+        mode_switcher.init(snode_pre.state)
+
         for snode in snode_schedule:
             if snode.traj is None or len(snode.traj) == 0:
                 snode_pre = snode
                 continue
-            if mode_switcher is not None:
-                switch_state = mode_switcher.switch_in(snode_pre, snode)
+            switch_state = mode_switcher.switch_in(snode_pre, snode)
 
             self.pscene.set_object_state(snode_pre.state)
             if multiproc:
@@ -526,9 +514,7 @@ class PlanningPipeline:
                     print("====== Robot configuration not in sync ======")
                     return False
 
-            if mode_switcher is not None:
-                mode_switcher.switch_out(switch_state, snode)
-            self.execute_grip(snode.state)
+            mode_switcher.switch_out(switch_state, snode)
             snode_pre = snode
 
         if auto_stop:
@@ -538,41 +524,9 @@ class PlanningPipeline:
 
     ##
     # @brief execute schedule
-    # @param vel_scale velocity scale to max. robot velocity defined in RobotConfig
-    # @param acc_scale acceleration scale to max. robot velocity defined in RobotConfig
-    def execute_schedule_interpolate(self, snode_schedule, vel_scale=None, acc_scale=None):
-        snode_schedule = [snode for snode in snode_schedule]  # re-wrap not to modify outer list
-        snode_pre = snode_schedule[0]
-        for snode, snode_next in zip(snode_schedule, snode_schedule[1:] + [None]):
-            if snode.traj is None or len(snode.traj) == 0:
-                snode_pre = snode
-                continue
-            self.pscene.set_object_state(snode_pre.state)
-
-            # slow down if constrained motion
-            scale_tmp = 1
-            subject_list, success = self.pscene.get_changing_subjects(snode_pre.state, snode.state)
-            for sname in subject_list:
-                binding_to = snode.state.binding_state[sname].get_chain()
-                binding_prev = snode_pre.state.binding_state[sname].get_chain()
-                if self.pscene.subject_dict[sname].make_constraints(binding_to, binding_prev):
-                    scale_tmp = self.constrained_motion_scale
-                    break
-
-            self.pscene.combined_robot.move_joint_wp(snode.traj,
-                                                     vel_scale=vel_scale * scale_tmp,
-                                                     acc_scale=acc_scale * scale_tmp)
-            self.execute_grip(snode.state)
-            snode_pre = snode
-
-        for robot in self.pscene.combined_robot.robot_dict.values():
-            if robot is not None:
-                robot.stop_tracking()
-
-    ##
-    # @brief execute schedule
+    # @param mode_switcher ModeSwitcherTemplate sub-class instance, to use non-default mode_switcher
     def execute_schedule_in_sync(self, snode_schedule, control_freq=DEFAULT_TRAJ_FREQUENCY, on_rviz=False, stop_count_ref=25,
-                         vel_scale=0.2, acc_scale=0.005, rviz_pub=None):
+                         vel_scale=0.2, acc_scale=0.005, rviz_pub=None, mode_switcher=None):
         snode_schedule = [snode for snode in snode_schedule]    # re-wrap not to modify outer list
         state_0 = snode_schedule[0].state
         state_fin = snode_schedule[-1].state
@@ -584,11 +538,17 @@ class PlanningPipeline:
             snode_home.set_traj(trajectory, 0)
             snode_schedule.append(snode_home)
 
+        mode_switcher = mode_switcher if mode_switcher is not None else self.mode_switcher
+
         if not on_rviz:
-            self.execute_grip(state_0)
+            mode_switcher.init(state_0)
             self.pscene.set_object_state(state_0)
+            snode_pre = snode_schedule[0]
 
         for snode in snode_schedule:
+            if not on_rviz:
+                switch_state = mode_switcher.switch_in(snode_pre, snode)
+
             if snode.traj is not None:
                 trajectory, trajectory_vel = apply_vel_acc_lims(snode.traj, DT=1 / float(control_freq),
                                                                 urdf_content=self.pscene.gscene.urdf_content,
@@ -629,7 +589,8 @@ class PlanningPipeline:
 
             self.pscene.set_object_state(snode.state)
             if not on_rviz:
-                self.execute_grip(state_0)
+                mode_switcher.switch_out(switch_state, snode)
+            snode_pre = snode
 
     def get_updated_schedule(self, snode_schedule, Q0, stype_overwrite_on_conflict=None, **kwargs):
         snode_schedule_new = []
@@ -734,3 +695,5 @@ class PlanningPipeline:
                     TextColors.RED.println(("Update fail: {} -> {}".format(snode_pre.state.node, snode_nxt.state.node)))
                     raise (RuntimeError("Update fail: {} -> {}".format(snode_pre.state.node, snode_nxt.state.node)))
         return snode_schedule_new
+
+

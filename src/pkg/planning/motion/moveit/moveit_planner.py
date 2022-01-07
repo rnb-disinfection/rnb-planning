@@ -61,7 +61,7 @@ class MoveitPlanner(MotionInterface):
     # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
     # @param enable_dual    boolean flag to enable dual arm manipulation (default=True)
     # @param    motion_filters list of child-class of rnb-planning.src.pkg.planning.motion.filtering.filter_interface.MotionFilterInterface
-    def __init__(self, pscene, motion_filters=[], enable_dual=True, incremental_constraint_motion=True):
+    def __init__(self, pscene, motion_filters=[], enable_dual=False, incremental_constraint_motion=False):
         MotionInterface.__init__(self, pscene, motion_filters)
         config_path = os.path.dirname(self.urdf_path)+"/"
         self.incremental_constraint_motion = incremental_constraint_motion
@@ -90,7 +90,7 @@ class MoveitPlanner(MotionInterface):
         self.reset_PRQdict(False)
         self.visualize_increments = False
 
-    def reset_PRQdict(self, enable_PRQ=True, radii=2e-2, kwargs={}):
+    def reset_PRQdict(self, enable_PRQ=0.5, radii=2e-2, kwargs={}):
         self.enable_PRQ = enable_PRQ
         self.radii = radii
         self.Pos_Rotvec_Qset_dict = {rname: defaultdict(lambda: defaultdict(set)) for rname in self.robot_names}
@@ -326,7 +326,7 @@ class MoveitPlanner(MotionInterface):
                     print("try transition motion") ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
 
                 pqr_pass = False
-                if self.enable_PRQ:
+                if self.enable_PRQ and random.random() < self.enable_PRQ:
                     T_rtar = self.gscene.get_tf(target.geometry.link_name, from_Q,
                                                 from_link=self.chain_dict[group_name]['link_names'][0])
                     Tre = np.matmul(T_rtar, T_tar_tool)
@@ -479,14 +479,15 @@ class MoveitPlanner(MotionInterface):
             Q = gscene.get_joint_increment(link_name, Q, wv_cur, Toff, ref_link=ref_link, Jac=Jac, Tcur=Tcur)
             dlim = np.subtract(joint_limits, Q[:, np.newaxis])[np.where(np.sum(np.abs(Jac), axis=0) > 1e-6)[0], :]
             if np.any(dlim[:, 0] > 0):
-                reason = "joint min"
+                reason = "joint min {} ({})".format(np.where(dlim[:, 0] > 0)[0], np.rad2deg(Q).astype(int))
                 break
             if np.any(dlim[:, 1] < 0):
-                reason = "joint max"
+                reason = "joint max {} \n{}\n{}".format(np.where(dlim[:, 1] < 0)[0],
+                                                            np.rad2deg(Q).astype(int), np.rad2deg(dlim[:, 1]).astype(int))
                 break
             Tnxt = np.matmul(gscene.get_tf(link_name, Q, from_link=ref_link), Toff)
             if np.linalg.norm(calc_wv(Tref, Tnxt)) > ERROR_CUT:
-                reason = "error off"
+                reason = "error off {}".format(np.round(calc_wv(Tref, Tnxt), 3))
                 break
             Tcur = Tnxt
             if check_collision and not self.validate_trajectory([Q]):

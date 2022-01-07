@@ -1,5 +1,6 @@
 import socket
 import cv2
+import os
 import numpy as np
 from queue import Queue
 from _thread import *
@@ -7,6 +8,7 @@ import pyrealsense2 as rs
 import json
 import socket
 import argparse
+from .detection_util import SAVE_DIR
 
 PORT = 8580
 DEPTHMAP_SIZE = (480, 640)
@@ -87,6 +89,9 @@ class CameraGenerator:
         self.depth_sensor = self.profile.get_device().first_depth_sensor()
         self.depth_sensor.set_option(rs.option.visual_preset, 3)
         # Custom = 0, Default = 1, Hand = 2, HighAccuracy = 3, HighDensity = 4, MediumDensity = 5
+        self.depth_sensor.set_option(rs.option.post_processing_sharpening, 3)
+        self.depth_sensor.set_option(rs.option.receiver_gain, 13)
+        self.depth_sensor.set_option(rs.option.noise_filtering, 4)
         self.depth_scale = self.depth_sensor.get_depth_scale()
         self.align_to = rs.stream.color
         self.align = rs.align(self.align_to)
@@ -96,21 +101,13 @@ class CameraGenerator:
         frames = self.pipeline.wait_for_frames()
         aligned_frames = self.align.process(frames)
 
-        # aligned_color_frame = aligned_frames.get_color_frame()
-        # depth_frame = aligned_frames.get_depth_frame()
 
         aligned_depth_frame = aligned_frames.get_depth_frame()
         color_frame = aligned_frames.get_color_frame()
-        # depth_frame = frames.get_depth_frame()
-        # color_frame = frames.get_color_frame()
         if not aligned_depth_frame or not color_frame:
             return None, None, None
 
-        # depth_to_color_extrins = depth_frame.profile.get_extrinsics_to(color_frame.profile)
         depth_intrins = aligned_depth_frame.profile.as_video_stream_profile().intrinsics
-        # depth_intrins = depth_frame.profile.as_video_stream_profile().intrinsics
-        # color_intrins = aligned_color_frame.profile.as_video_stream_profile().intrinsics
-        # intrins = depth_intrins
 
         # Convert images to numpy arrays
         depth_image = np.asanyarray(aligned_depth_frame.get_data())
@@ -160,6 +157,33 @@ class CameraGenerator:
         finally:
             pass
 
+    ##
+    # @brief press s to save image
+    def stream_capture_image(self, obj_type, crob):
+        # print("== press s to save image ==")
+        while True:
+            color_image, depth_image, depth_intrins = self.catch_frame()
+            intrinsics = (depth_intrins.width, depth_intrins.height,
+                          depth_intrins.fx, depth_intrins.fy,
+                          depth_intrins.ppx, depth_intrins.ppy)
+            rdict = {'color': color_image,
+                     'depth': depth_image,
+                     'intrins': intrinsics, 'depth_scale': self.depth_scale}
+            cv2.imshow('ColorImage', rdict['color'])
+            cv2.imshow('DepthImage', rdict['depth'])
+
+            # key = cv2.waitKey(1)
+            key = 115
+            if (key == 27):
+                cv2.destroyAllWindows()
+                break
+            elif key == 115:
+                cv2.imwrite(SAVE_DIR + '/{}.jpg'.format(obj_type), rdict['color'])
+                cv2.imwrite(SAVE_DIR + '/{}.png'.format(obj_type), rdict['depth'])
+                Q = crob.get_real_robot_pose()
+                np.savetxt(SAVE_DIR + '/{}.csv'.format(obj_type), Q, delimiter=",")
+                break
+        return rdict
 
 def run_server(host=None, port=PORT):
     if host is None or host == "None":

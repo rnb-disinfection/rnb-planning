@@ -626,5 +626,8 @@ def print_com_ports():
 
     print("Connected COM ports: " + str(connected))
 
+def divide_bytes(num):
+    return num / 0x100 % 0x100, num % 0x100
+
 def combine_bytes(up_byte, lo_byte):
     return up_byte*0x100 + lo_byte

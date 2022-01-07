@@ -35,9 +35,6 @@ class TaskBiRRT(TaskInterface):
             self.node_dict_full[node] = set(self.node_dict_full[node])
             self.node_parent_dict_full[node] = set(self.node_parent_dict_full[node])
 
-        self.unstoppable_subjects = [sname for sname in self.pscene.subject_name_list
-                                     if self.pscene.subject_dict[sname].unstoppable]
-
     ##
     # @brief prepare memory variables
     # @param multiprocess_manager multiprocess_mananger instance if multiprocessing is used
@@ -84,25 +81,13 @@ class TaskBiRRT(TaskInterface):
         self.target_sidx = -1
         self.bool_forward = True
 
-        self.unstoppable_terminals = {}
-        for i_s, sname in enumerate(self.pscene.subject_name_list):
-            if sname not in self.unstoppable_subjects:
-                continue
-            self.unstoppable_terminals[sname] = [self.initial_state.node[i_s]]
-            for goal in goal_nodes:
-                self.unstoppable_terminals[sname].append(goal[i_s])
-
         self.node_dict = {}
         for node, leafs in self.node_dict_full.items():
-            self.node_dict[node] = set(
-                [lnode for lnode in leafs ## unstoppable node should change or at terminal
-                 if self.check_unstoppable_terminals(node, lnode)])
+            self.node_dict[node] = set([lnode for lnode in leafs])
 
         self.node_parent_dict = {}
         for node, parents in self.node_parent_dict_full.items():
-            self.node_parent_dict[node] = set(
-                [pnode for pnode in parents ## unstoppable node should change or at terminal
-                 if self.check_unstoppable_terminals(node, pnode)])
+            self.node_parent_dict[node] = set([pnode for pnode in parents])
 
         snode_root = self.make_search_node(None, initial_state, None)
         self.connect(None, snode_root)
@@ -400,9 +385,3 @@ class TaskBiRRT(TaskInterface):
     # @param state rnb-planning.src.pkg.planning.scene.State
     def check_goal(self, state):
         return state.node in self.goal_nodes
-
-    def check_unstoppable_terminals(self, node, leaf=None):
-        return all([(node[k] in self.unstoppable_terminals[sname] or
-                     False if leaf is None else node[k] != leaf[k])
-                    for k, sname in enumerate(self.pscene.subject_name_list)
-                    if sname in self.unstoppable_terminals])

@@ -181,7 +181,6 @@ class SubjectType(Enum):
 class Subject:
     ## @brief SubjectType
     stype = None
-    unstoppable = False
     def __init__(self):
         ## @brief name of object
         self.oname = None
@@ -348,7 +347,7 @@ class WaypointTask(AbstractTask):
         self.action_points_order = sorted(self.action_points_dict.keys())
         self.action_point_len = len(self.action_points_order)
         self.sub_binders_dict = {} if sub_binders_dict is None else sub_binders_dict
-        self.state_param = np.zeros(len(self.action_points_order), dtype=np.bool)
+        self.state_param = np.zeros(self.action_point_len, dtype=np.bool)
         self.binding = BindingTransform(self, None, None, None)
         self.tol = tol
         self.one_direction = one_direction
@@ -363,7 +362,7 @@ class WaypointTask(AbstractTask):
         if self.one_direction and state_param is not None:
             self.state_param = np.copy(state_param)
         else:
-            self.state_param = np.zeros(len(self.action_points_order), dtype=np.bool)
+            self.state_param = np.zeros(self.action_point_len, dtype=np.bool)
         if self.binding.chain.handle_name is not None:
             if self.binding.chain.handle_name in self.action_points_order:
                 self.state_param[:self.action_points_order.index(self.binding.chain.handle_name)+1] = True
@@ -377,7 +376,7 @@ class WaypointTask(AbstractTask):
         if self.one_direction and state_param is not None:
             state_param = np.copy(state_param)
         else:
-            state_param = np.zeros(len(self.action_points_order), dtype=np.bool)
+            state_param = np.zeros(self.action_point_len, dtype=np.bool)
         if btf.chain.handle_name is not None:
             state_param[:self.action_points_order.index(btf.chain.handle_name) + 1] = True
         return state_param
@@ -454,6 +453,24 @@ class WaypointTask(AbstractTask):
             neighbor.append(node_tem + 1)
         return neighbor
 
+    ##
+    # @brief use this function to create explicit node-edge checking rule for TaskRRT
+    @classmethod
+    def make_unstopable_rule(cls, pscene, snames=None):
+        if snames is None:
+            snames = [sname for sname, stype
+                      in zip(pscene.subject_name_list, pscene.subject_type_list)
+                      if isinstance(stype, cls)]
+        subjects = [pscene.subject_dict[sname] for sname in snames]
+        idc = [pscene.subject_name_list.index(sname) for sname in snames]
+        def check_edge(pscene, node, leaf):
+            ok = True
+            for idx, subject in zip(idc, subjects):
+                if node[idx] > 0 and node[idx] < subject.action_point_len:
+                    ok = ok and node[idx]+1 == leaf[idx]
+            return ok
+        return check_edge
+
 
 ##
 # @class SweepTask
@@ -480,7 +497,6 @@ class SweepTask(WaypointTask):
 # @remark   state_param: boolean vector of which each element represents if each waypoint is covered or not
 #           node_item: number of covered waypoints
 class SweepLineTask(SweepTask):
-    unstoppable = True
     ##
     # @param oname object's name
     # @param geometry parent geometry
@@ -732,6 +748,8 @@ class AbstractObject(Subject):
             print("Not available:{}-{}".format(self.oname,to_node_item))
             print("ap_exclude:{}".format(apk_exclude))
             print("bd_exclude:{}".format(bd_exclude))
+            print("ap_list:{}".format(ap_list))
+            print("bd_list:{}".format(bd_list))
             print("=================================")
             print("=================================")
             print("=================================")
