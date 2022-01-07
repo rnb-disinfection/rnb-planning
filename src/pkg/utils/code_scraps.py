@@ -345,7 +345,7 @@ def switch_command(ip_addr, mode, UI_PORT=9990):
 
 
 class ForceOnlyModeSwitcher(ModeSwitcherTemplate):
-    def __init__(self, pscene, mplan, brush_face, VEL, ACC, force_delay=5, switch_delay=0.5, log_force=False,
+    def __init__(self, pscene, mplan, brush_face, VEL, ACC, force_delay=3, switch_delay=0.5, log_force=False,
                  DT=1.0 / 2e3):
         ModeSwitcherTemplate.__init__(self, pscene, switch_delay=switch_delay)
         self.DT = DT
@@ -443,7 +443,7 @@ class ForceOnlyModeSwitcher(ModeSwitcherTemplate):
 
 
 class ForceModeSwitcher(CombinedSwitcher):
-    def __init__(self, pscene, mplan, brush_face, VEL, ACC, force_delay=5, switch_delay=0.5, log_force=False):
+    def __init__(self, pscene, mplan, brush_face, VEL, ACC, force_delay=3, switch_delay=0.5, log_force=False):
         self.switch_list = [GraspModeSwitcher(pscene, switch_delay=switch_delay),
                             ForceOnlyModeSwitcher(
                                 pscene, mplan, brush_face, VEL=VEL, ACC=ACC,
