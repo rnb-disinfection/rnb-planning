@@ -1,15 +1,6 @@
 # RNB-Planning v0.2.0 Release Notes (2021-11-18)
 
-## Preparing release
-### Branches to merge
-* feature-manual-mobile
-* feature-demo1108
-* feature-perception-test?
-* feature-sweep-data-new?
-### Branches to remove
-* feature-wiping-area-dataset
-* feature-cpp
-### Added features
+## New features
 #### Detector
 * MultiICP
   - Implement as Detector subclass
@@ -18,10 +9,6 @@
 * CombinedDetector
   - Camera class as singletone
   
-### Removed features
-#### eTaSL planner
-
-## New features
 ### 4. PlanningPipeline
 * **4.1 PlanningScene**  
   - **create_binder()**
@@ -37,7 +24,7 @@
   - **PDDLStream (Pick&Place)**  
   
 ## Deprecated features
-* **TBD**    
+#### eTaSL planner
   
 ## Known issues
 * **WebUI **
@@ -51,7 +38,7 @@
 ## Requirements
 
 ### 1. Robot controller version
-  - [rnb-control v0.2.0](https://github.com/rnb-disinfection/rnb-control/releases/tag/v0.2.0-panda)
+  - [rnb-control v0.4.0](https://github.com/rnb-disinfection/rnb-control/releases/tag/v0.4.0)
 
 ### 2. Model
 * **ReachChecker**
