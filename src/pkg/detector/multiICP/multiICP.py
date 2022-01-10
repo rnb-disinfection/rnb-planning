@@ -499,15 +499,15 @@ class MultiICP_Obj:
     # @param thres max distance between corresponding points
     def compute_ICP(self, To=None, thres=0.15,
                     relative_fitness=1e-15, relative_rmse=1e-15, max_iteration=500000,
-                    voxel_size=0.04, ratio=0.3, visualize=False
+                    voxel_size=0.015, ratio=0.3, visualize=False
                     ):
         if To is None:
             To, fitness = self.auto_init(0, voxel_size)
         target = copy.deepcopy(self.pcd)
         source = copy.deepcopy(self.model_sampled)
         source_bak = copy.deepcopy(source)
-        source = source.voxel_down_sample(0.02)
-        target = target.voxel_down_sample(0.02)
+        source = source.voxel_down_sample(voxel_size)
+        target = target.voxel_down_sample(voxel_size)
 
         if visualize:
             self.draw(To)
@@ -577,8 +577,8 @@ class MultiICP_Obj:
     # @param To    initial transformation matrix of geometry object in the intended icp origin coordinate
     # @param thres max distance between corresponding points
     def compute_front_ICP(self, h_fov_hf, v_fov_hf, Tc_cur=None, To=None, thres=0.07,
-                          relative_fitness=1e-18, relative_rmse=1e-18, max_iteration=700000,
-                          voxel_size=0.04, visualize=False
+                          relative_fitness=1e-19, relative_rmse=1e-19, max_iteration=700000,
+                          voxel_size=0.015, visualize=False
                           ):
         if To is None:
             if self.pose is not None:
@@ -676,12 +676,11 @@ class MultiICP_Obj:
         source_bak = copy.deepcopy(source)
 
         # match the number of points between model_sampled pcd and data pcd
-        discrepancy = float(len(np.asarray(target.points))/len(np.asarray(source.points)))
-        target = target.uniform_down_sample(every_k_points=int(discrepancy))
-        target, ind = target.remove_radius_outlier(nb_points=25, radius=0.1)
-
-        source = source.voxel_down_sample(0.02)
-        target = target.voxel_down_sample(0.02)
+        # discrepancy = float(len(np.asarray(target.points))/len(np.asarray(source.points)))
+        # target = target.uniform_down_sample(every_k_points=int(discrepancy))
+        # target, ind = target.remove_radius_outlier(nb_points=25, radius=0.1)
+        source = source.voxel_down_sample(voxel_size)
+        target = target.voxel_down_sample(voxel_size)
 
         if visualize:
             cam_coord = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.15, origin=[0, 0, 0])
@@ -741,6 +740,42 @@ class MultiICP_Obj:
         if visualize:
             self.draw(ICP_result, source_bak, target)
 
+        # # BEV ICP
+        # T_bo = np.matmul(self.Tref, ICP_result)
+        # source_b_np = np.matmul(T_bo[:3, :3], np.asarray(source_bak.points).T).T + T_bo[:3, 3]
+        # source_b_np[:, 2] = 0
+        # source_b = o3d.geometry.PointCloud()
+        # source_b.points = o3d.utility.Vector3dVector(source_b_np)
+        # source_b.voxel_down_sample(0.03)
+        #
+        # target_b_np = np.matmul(self.Tref[:3, :3], np.asarray(target.points).T).T + self.Tref[:3, 3]
+        # target_b_np[:, 2] = 0
+        # target_b = o3d.geometry.PointCloud()
+        # target_b.points = o3d.utility.Vector3dVector(target_b_np)
+        # target_b.voxel_down_sample(0.03)
+        #
+        # if visualize:
+        #     draw_registration_result(source_b, target_b, np.identity(4))
+        #
+        # print("Apply point-to-point ICP, BEV version")
+        # reg_p2p = o3d.registration.registration_icp(source_b, target_b, thres, np.identity(4),
+        #                                             o3d.registration.TransformationEstimationPointToPoint(),
+        #                                             o3d.registration.ICPConvergenceCriteria(
+        #                                                 relative_fitness=relative_fitness,
+        #                                                 relative_rmse=relative_rmse,
+        #                                                 max_iteration=max_iteration))
+        # BEV_ICP_result = reg_p2p.transformation
+        # print("Total BEV ICP Transformation is:")
+        # print(BEV_ICP_result)
+        # if visualize:
+        #     draw_registration_result(source_b, target_b, BEV_ICP_result)
+        #
+        # Too_ = np.matmul(np.linalg.inv(ICP_result),
+        #                  np.matmul(np.linalg.inv(self.Tref),
+        #                            np.matmul(np.matmul(self.Tref, ICP_result), BEV_ICP_result)))
+        # self.pose = np.matmul(np.matmul(ICP_result, Too_), self.Toff)
+        # if visualize:
+        #     self.draw(self.pose, source_bak, target)
         self.pose = ICP_result
         return ICP_result, reg_p2p.fitness
 

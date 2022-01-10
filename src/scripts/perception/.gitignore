@@ -6,6 +6,8 @@
 *.zip
 *.png
 *.jpg
+*.yml
+*.yaml
 save_img/
 model_CAD/
 dataset/
@@ -20,7 +22,8 @@ models/
 cfg/
 contrib/
 include
-
+linemod/
+capture_dataset/
 boost_gpd
 boost_reconstruction
 Untitled.ipynb
