@@ -483,8 +483,15 @@ class GeometryScene(list):
                 continue
             T_bj, zi = self.get_joint_tf(jname, Q_dict, ref_link)
             dpi = T_p[:3, 3] - T_bj[:3, 3]
-            zp = np.cross(zi, dpi)
-            Ji = np.concatenate([zp, zi])
+            joint = self.urdf_content.joint_map[jname]
+            if joint.type in ["revolute", "continuous"]:
+                zp = np.cross(zi, dpi)
+                Ji = np.concatenate([zp, zi])
+            elif joint.type == "prismatic":
+                Ji = np.concatenate([zi, [0]*3])
+            else:
+                raise(NotImplementedError(
+                    "Jacobian calculation not implemented for joint type {} ({})".format(joint.type, joint.name)))
             Jac.append(Ji)
         Jac = np.array(Jac).transpose()
         return Jac

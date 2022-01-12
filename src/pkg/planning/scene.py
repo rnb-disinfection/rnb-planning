@@ -500,7 +500,7 @@ class PlanningScene:
                 obj = self.subject_dict[sname]
                 to_ap = obj.action_points_dict[hname_to]
                 to_binder = self.actor_dict[bname_to]
-                redundancy_tot = combine_redundancy(to_ap, to_binder)
+                redundancy_tot = combine_redundancy(to_ap, to_binder, state.Q)
                 redundancy = sample_redundancy(redundancy_tot, sampler=redundancy_sampler)
                 btf_to = BindingTransform(obj, to_ap, to_binder, redundancy)
             to_binding_state[sname] = btf_to
