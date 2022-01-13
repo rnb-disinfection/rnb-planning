@@ -128,15 +128,17 @@ class SlidePoint(FramedPoint):
     ctype=ConstraintType.Frame
     ##
     # @param    binded_on   binder on which this object is attached
-    # @param    dist_push   allowed max. distance to push
+    # @param    dist_push_min   allowed min. distance to push
+    # @param    dist_push_max   allowed max. distance to push
     # @param    dir_push    3d vector that represents push direction in local link coordinates. default = [1,0,0]
-    def __init__(self, name, geometry, point, rpy, binded_on, dist_push, dir_push=[1,0,0], name_full=None, key=0):
+    def __init__(self, name, geometry, point, rpy, binded_on, dist_push_min, dist_push_max, dir_push=[1,0,0], name_full=None, key=0):
         assert binded_on.ctype == ConstraintType.Frame, "Only Frame type actor is allow for binder_on"
         assert binded_on.key == key, "key does not match with binded_on {} / {}".format(binded_on.key, key)
         assert dir_push in [[1,0,0], [0,1,0], [0,0,1], [-1,0,0], [0,-1,0], [0,0,-1]], \
             "Only [1,0,0], [0,1,0], [0,0,1], [-1,0,0], [0,-1,0], [0,0,-1] are allowed for dir_push"
         self.binded_on = binded_on
-        self.dist_push = np.array(dist_push)
+        self.dist_push_min = dist_push_min
+        self.dist_push_max = dist_push_max
         self.dir_push = np.array(dir_push)
         FramedPoint.__init__(self, name, geometry, point, rpy, name_full=name_full, key=key)
 
@@ -151,10 +153,12 @@ class SlidePoint(FramedPoint):
             R_ha = T_ha[:3,:3]
             P_ha = T_ha[:3,3]
             T_lh = self.Toff_lh
-            dir_h = np.matmul(T_lh[:3,:3].T, self.dir_push)*self.dist_push # push vector in handle coordinates
-            P_ha_add = P_ha-dir_h
-            P_ha_min = np.minimum(P_ha, P_ha_add)
-            P_ha_max = np.maximum(P_ha, P_ha_add)
+            dir_h_min = np.matmul(T_lh[:3,:3].T, self.dir_push)*self.dist_push_min # push vector in handle coordinates
+            dir_h_max = np.matmul(T_lh[:3,:3].T, self.dir_push)*self.dist_push_max # push vector in handle coordinates
+            P_ha_min_ = P_ha-dir_h_min
+            P_ha_max_ = P_ha-dir_h_max
+            P_ha_min = np.minimum(P_ha_min_, P_ha_max_)
+            P_ha_max = np.maximum(P_ha_min_, P_ha_max_)
             wvu = Rot2zyx(R_ha)
             return {"x": (P_ha_min[0], P_ha_max[0]),
                     "y": (P_ha_min[1], P_ha_max[1]),

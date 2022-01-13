@@ -399,15 +399,16 @@ class PlanningScene:
     ##
     # @brief get current scene state
     # @force_fit_binding    force each bindings to be perfectly matched geometrically
-    def initialize_state(self, Q, force_fit_binding=False, Poffset=None):
+    def initialize_state(self, Q, force_fit_binding=False, Poffset=None, chain_list=None):
         ## calculate binder transformations
         Q_dict = list2dict(Q, self.gscene.joint_names)
 
         ## get current binding state
-        chain_list = []
-        for kobj in self.subject_name_list:
-            chain = self.subject_dict[kobj].get_initial_chain(self.actor_dict, Q_dict)
-            chain_list.append(chain)
+        if chain_list is None:
+            chain_list = []
+            for kobj in self.subject_name_list:
+                chain = self.subject_dict[kobj].get_initial_chain(self.actor_dict, Q_dict)
+                chain_list.append(chain)
 
         if force_fit_binding:
             objects_to_update = [obj for obj in self.subject_dict.values() if obj.stype == SubjectType.OBJECT]

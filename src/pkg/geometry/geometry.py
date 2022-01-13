@@ -404,18 +404,18 @@ class GeometryScene(list):
                               axis="y", color=(0.8, 0.8, 0.8, 0.1)):
         gname = plane_gtem.name
         dims = plane_gtem.dims
-        XMIN, XMAX, YMIN, YMAX, ZMIN, ZMAX = -dims[0]/2, dims[0]/2, -dims[1]/2, dims[1]/2, -HEIGHT, HEIGHT
+        XMIN, XMAX, YMIN, YMAX, ZMIN, ZMAX = -dims[0]/2, dims[0]/2, -dims[1]/2, dims[1]/2, dims[2]/2-HEIGHT, dims[2]/2+HEIGHT
         if "x" in axis.lower() and "y" in axis.lower():
             add_edge = THICKNESS + margin * 2
         else:
             add_edge = 0
         if "x" in axis.lower():
             gtem0 = self.create_safe(GEOTYPE.BOX, "{}_front_gr".format(gname), "base_link",
-                                     (THICKNESS, YMAX - YMIN + add_edge, ZMAX - ZMIN + add_edge),
+                                     (THICKNESS, YMAX - YMIN + add_edge, ZMAX - ZMIN),
                              (XMAX + margin, (YMAX + YMIN) / 2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
                              color=color, display=True, fixed=True, collision=True, parent=gname)
             gtem1 = self.create_safe(GEOTYPE.BOX, "{}_back_gr".format(gname), "base_link",
-                                     (THICKNESS, YMAX - YMIN + add_edge, ZMAX - ZMIN + add_edge),
+                                     (THICKNESS, YMAX - YMIN + add_edge, ZMAX - ZMIN),
                              (XMIN - margin, (YMAX + YMIN) / 2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
                              color=color, display=True, fixed=True, collision=True, parent=gname)
             virtuals = []
@@ -425,11 +425,11 @@ class GeometryScene(list):
             self.virtuals = virtuals + [gtem0, gtem1]
         if "y" in axis.lower():
             gtem0 = self.create_safe(GEOTYPE.BOX, "{}_left_gr".format(gname), "base_link",
-                                     (XMAX - XMIN + add_edge, THICKNESS, ZMAX - ZMIN + add_edge),
+                                     (XMAX - XMIN + add_edge, THICKNESS, ZMAX - ZMIN),
                              ((XMAX + XMIN) / 2, YMIN - margin, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
                              color=color, display=True, fixed=True, collision=True, parent=gname)
             gtem1 = self.create_safe(GEOTYPE.BOX, "{}_right_gr".format(gname), "base_link",
-                                     (XMAX - XMIN + add_edge, THICKNESS, ZMAX - ZMIN + add_edge),
+                                     (XMAX - XMIN + add_edge, THICKNESS, ZMAX - ZMIN),
                              ((XMAX + XMIN) / 2, YMAX + margin, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
                              color=color, display=True, fixed=True, collision=True, parent=gname)
             virtuals = []
