@@ -22,8 +22,8 @@ class TaskRRT(TaskInterface):
     # @param    config_gen          configuration generator for random joint motion. by default, this homing motion is generated.
     def __init__(self, pscene, allow_joint_motion=False, config_gen=None,
                  new_node_sampler=random.choice, parent_node_sampler=random.choice, parent_snode_sampler=random.choice,
-                 binding_sampler=random.choice, redundancy_sampler=random.uniform, custom_rule=None, node_trial_max=1e2,
-                 random_try_goal=True, explicit_edges=None, explicit_rule=None):
+                 binding_sampler=random.choice, redundancy_sampler=random.uniform, custom_rule=None, node_trial_max=1e3,
+                 random_try_goal=True, explicit_edges=None, explicit_rule=None, node_count_max=1e2):
         TaskInterface.__init__(self, pscene)
         self.new_node_sampler = new_node_sampler
         self.parent_node_sampler = parent_node_sampler
@@ -37,6 +37,7 @@ class TaskRRT(TaskInterface):
         self.explicit_rule = (lambda pscene, node, leaf: True) if explicit_rule is None else explicit_rule
         self.allow_joint_motion = allow_joint_motion
         self.config_gen = config_gen
+        self.node_count_max = node_count_max
 
     ##
     # @brief build object-level node graph
@@ -210,15 +211,20 @@ class TaskRRT(TaskInterface):
             node_new = snode_new.state.node
             for leaf in self.node_dict[node_new]:
                 if self.random_try_goal or leaf not in self.goal_nodes: # goal nodes are manually reached below when possible. no need for random access
-                    if self.node_trial_dict[leaf]:
-                        self.neighbor_nodes[leaf] = None
+                    if self.node_trial_dict[leaf]>0:
+                        self.neighbor_nodes[leaf] = None # register as neighbor node group
 
             with self.snode_dict_lock:
                 if snode_new.state.node not in self.node_snode_dict:
-                    self.node_snode_dict[snode_new.state.node] = [snode_new.idx]
+                    snode_list = [snode_new.idx]
                 else:
-                    self.node_snode_dict[snode_new.state.node] = \
-                        self.node_snode_dict[snode_new.state.node]+[snode_new.idx]
+                    snode_list = self.node_snode_dict[snode_new.state.node] + [snode_new.idx]
+                self.node_snode_dict[snode_new.state.node] = snode_list
+            if len(snode_list) > self.node_count_max:
+                with self.neighbor_node_lock:
+                    self.node_trial_dict[snode_new.state.node] = -1  # don't register this node anymore
+                    if snode_new.state.node in self.neighbor_nodes:
+                        self.neighbor_nodes.pop(snode_new.state.node)   # remove this node from neighbor group
 
             if self.check_goal(snode_new.state):
                 print("Goal reached")
