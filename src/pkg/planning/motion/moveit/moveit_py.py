@@ -213,10 +213,16 @@ class MoveitCompactPlanner_BP(mpc.Planner):
             str(obj.link_name), NameList(*obj.touch_links), obj.attach)
 
     ##
-    # @brief get inverse kinematics solution
-    # @return joint values only for the specificed robot
+    # @brief    get inverse kinematics solution
+    # @remark   currently only a manipulator fixed on global coordinate is supported. movable base is not considered.
+    # @param    goal_pose tip link pose in global coordinates
+    # @return   joint values only for the specificed robot
     def solve_ik_py(self, robot_name, goal_pose, timeout_single=0.01,
                     self_collision=False, fulll_collision=False):
+        base_link = self.chain_dict[robot_name]['link_names'][0]
+        assert base_link == "base_link", \
+            "[ERROR] Manipulator {} is not fixed on global coordinates (base_link) !!! " \
+            "currently only a manipulator fixed on global coordinate is supported. movable base is not considered.".format(robot_name)
         Q = self.solve_ik(robot_name, CartPose(*goal_pose), timeout_single,
                              self_collision, fulll_collision)
         Q = np.array(spread(Q, self.group_joint_nums[robot_name]))

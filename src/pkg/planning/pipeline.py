@@ -59,9 +59,10 @@ class PlanningPipeline:
 
     ##
     # @param tplan subclass instance of rnb-planning.src.pkg.planning.task.interface.TaskInterface
-    def set_task_planner(self, tplan):
+    def set_task_planner(self, tplan, **kwargs):
         self.tplan = tplan
-        self.tplan.prepare()
+        self.tplan.prepare(**kwargs)
+        self.tplan_kwargs = kwargs
 
     ##
     # @brief update planners
@@ -69,7 +70,7 @@ class PlanningPipeline:
         if self.mplan:
             self.mplan.update_gscene()
         if self.tplan:
-            self.tplan.prepare()
+            self.tplan.prepare(**self.tplan_kwargs)
 
     ##
     # @brief run search algorithm
@@ -160,7 +161,7 @@ class PlanningPipeline:
         self.non_joineds = []
         self.gtimer.tic("wait_procs")
         elapsed = 0
-        while (self.stop_now.value < self.N_agents) and (elapsed<timeout_loop):
+        while (self.stop_now.value < self.N_agents/2) and (elapsed<timeout_loop):
             time.sleep(0.1)
             elapsed = self.gtimer.toc("wait_procs") / self.gtimer.scale
 

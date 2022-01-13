@@ -17,8 +17,10 @@ from Queue import Queue
 # @brief    task level RRT algorithm
 class TaskRRT(TaskInterface):
     ##
-    # @param pscene rnb-planning.src.pkg.planning.scene.PlanningScene
-    def __init__(self, pscene,
+    # @param    pscene              rnb-planning.src.pkg.planning.scene.PlanningScene
+    # @param    allow_joint_motion  allow random joint motion, which is transition to same node. \r\n
+    # @param    config_gen          configuration generator for random joint motion. by default, this homing motion is generated.
+    def __init__(self, pscene, allow_joint_motion=False, config_gen=None,
                  new_node_sampler=random.choice, parent_node_sampler=random.choice, parent_snode_sampler=random.choice,
                  binding_sampler=random.choice, redundancy_sampler=random.uniform, custom_rule=None, node_trial_max=1e2,
                  random_try_goal=True, explicit_edges=None, explicit_rule=None):
@@ -33,17 +35,18 @@ class TaskRRT(TaskInterface):
         self.node_trial_max = node_trial_max
         self.random_try_goal = random_try_goal
         self.explicit_rule = (lambda pscene, node, leaf: True) if explicit_rule is None else explicit_rule
+        self.allow_joint_motion = allow_joint_motion
+        self.config_gen = config_gen
 
     ##
     # @brief build object-level node graph
-    # @param random_homing set this True to enable random homing motion
-    def prepare(self, random_homing=False):
+    def prepare(self):
         pscene = self.pscene
 
         # make all node connections
         self.node_list = pscene.get_all_nodes()
-        self.node_dict_full = {k: [k] if random_homing else [] for k in self.node_list}
-        self.node_parent_dict_full = {k: [k] if random_homing else [] for k in self.node_list}
+        self.node_dict_full = {k: [k] if self.allow_joint_motion else [] for k in self.node_list}
+        self.node_parent_dict_full = {k: [k] if self.allow_joint_motion else [] for k in self.node_list}
         for node in self.node_list:
             for leaf in pscene.get_node_neighbor(node):
                 if leaf in self.node_list:
@@ -188,7 +191,8 @@ class TaskRRT(TaskInterface):
                     continue
                 to_state = self.pscene.sample_leaf_state(from_state, available_binding_dict, new_node,
                                                          binding_sampler=self.binding_sampler,
-                                                         redundancy_sampler=self.redundancy_sampler)
+                                                         redundancy_sampler=self.redundancy_sampler,
+                                                         config_gen=self.config_gen)
             sample_fail = False
         return parent_snode, from_state, to_state, sample_fail
 

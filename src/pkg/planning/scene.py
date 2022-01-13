@@ -466,6 +466,22 @@ class PlanningScene:
         return available_binding_dict
 
     ##
+    # @brief generate homing configuration target
+    def gen_homing_config(self, state):
+        Q = np.copy(state.Q)
+        dQ = (self.combined_robot.home_pose - Q)
+        rcandis = [rname
+                   for rname in self.combined_robot.robot_names
+                   if np.sum(np.abs(dQ[self.combined_robot.idx_dict[rname]])) > 1e-4]
+        if len(rcandis)>0:
+            rname = random.choice(rcandis)
+            Q[self.combined_robot.idx_dict[rname]] = \
+                self.combined_robot.home_pose[self.combined_robot.idx_dict[rname]]
+            # print("============= try go home ({}) ===================".format(rname))
+            return Q
+        return None
+
+    ##
     # @brief    sample next state for given transition
     # @param    state current state
     # @param    available_binding_dict pre-extracted available bindings for each object
@@ -473,22 +489,20 @@ class PlanningScene:
     # @param    to_node target object-level node
     # @param    binding_sampler random sampling function to be apllied to available binding list [(point name, actor name)]
     #                           default=random.choice
-    # @param    sampler         sampling function to be applied to redundancy param (default=random.uniform)
+    # @param    redundancy_sampler  sampling function to be applied to redundancy param (default=random.uniform)
+    # @param    config_gen  configuration generator used when state.node == to_node. default=gen_homing_config
     # @return   (sampled next state, sampled redundancy)
     def sample_leaf_state(self, state, available_binding_dict, to_node,
-                          binding_sampler=random.choice, redundancy_sampler=random.uniform):
+                          binding_sampler=random.choice, redundancy_sampler=random.uniform,
+                          config_gen=None):
+        if config_gen is None:
+            config_gen = self.gen_homing_config
         self.set_object_state(state)
         to_state = state.copy(self)
         if state.node == to_node:
-            dQ = (self.combined_robot.home_pose - to_state.Q)
-            rcandis = [rname
-                       for rname in self.combined_robot.robot_names
-                       if np.sum(np.abs(dQ[self.combined_robot.idx_dict[rname]])) > 1e-4]
-            if len(rcandis)>0:
-                rname = random.choice(rcandis)
-                to_state.Q[self.combined_robot.idx_dict[rname]] = \
-                    self.combined_robot.home_pose[self.combined_robot.idx_dict[rname]]
-                # print("============= try go home ({}) ===================".format(rname))
+            Qnew = config_gen(to_state)
+            if Qnew is not None:
+                to_state.Q = Qnew
                 return to_state
         to_binding_state = BindingState()
         for sname, from_ntem, to_ntem in zip(self.subject_name_list, state.node, to_node):
