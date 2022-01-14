@@ -367,28 +367,31 @@ class GeometryScene(list):
 
     ##
     # @brief set workspace boundary
-    def set_workspace_boundary(self, XMIN, XMAX, YMIN, YMAX, ZMIN, ZMAX, thickness=0.01):
-        self.create_safe(GEOTYPE.BOX, "ceiling_ws", "base_link", (XMAX - XMIN, YMAX - YMIN, thickness),
-                         ((XMAX + XMIN) / 2, (YMAX + YMIN) / 2, ZMAX+thickness/2), rpy=(0, 0, 0),
-                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
-        self.create_safe(GEOTYPE.BOX, "floor_ws", "base_link", (XMAX - XMIN, YMAX - YMIN, thickness),
-                         ((XMAX + XMIN) / 2, (YMAX + YMIN) / 2, ZMIN-thickness/2), rpy=(0, 0, 0),
-                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
-        self.create_safe(GEOTYPE.BOX, "frontwall_ws", "base_link", (thickness, YMAX - YMIN, ZMAX - ZMIN),
-                         (XMAX+thickness/2, (YMAX + YMIN) / 2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
-                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
-        self.create_safe(GEOTYPE.BOX, "backwall_ws", "base_link", (thickness, YMAX - YMIN, ZMAX - ZMIN),
-                         (XMIN-thickness/2, (YMAX + YMIN) / 2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
-                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
-        self.create_safe(GEOTYPE.BOX, "leftwall_ws", "base_link", (XMAX - XMIN, thickness, ZMAX - ZMIN),
-                         ((XMAX + XMIN) / 2, YMIN-thickness/2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
-                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
-        self.create_safe(GEOTYPE.BOX, "rightwall_ws", "base_link", (XMAX - XMIN, thickness, ZMAX - ZMIN),
-                         ((XMAX + XMIN) / 2, YMAX+thickness/2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
-                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
-        self.create_safe(GEOTYPE.BOX, "room_ws", "base_link", (XMAX - XMIN, YMAX - YMIN, ZMAX - ZMIN),
-                         ((XMAX + XMIN) / 2, (YMAX + YMIN) / 2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
+    def set_workspace_boundary(self, XMIN, XMAX, YMIN, YMAX, ZMIN, ZMAX, RPY=(0,0,0), thickness=0.01):
+        ROOM_DIM = (float(XMAX - XMIN), float(YMAX - YMIN), float(ZMAX - ZMIN))
+        ROOM_LOC = (float(XMAX + XMIN) / 2, float(YMAX + YMIN) / 2, float(ZMAX + ZMIN) / 2)
+        thickness = float(thickness)
+        self.create_safe(GEOTYPE.BOX, "room_ws", "base_link", ROOM_DIM,
+                         ROOM_LOC, rpy=RPY,
                          color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=False)
+        self.create_safe(GEOTYPE.BOX, "ceiling_ws", "base_link", (ROOM_DIM[0], ROOM_DIM[1], thickness),
+                         (0, 0, ROOM_DIM[2]/2+thickness/2), rpy=(0, 0, 0),
+                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent="room_ws")
+        self.create_safe(GEOTYPE.BOX, "floor_ws", "base_link", (ROOM_DIM[0], ROOM_DIM[1], thickness),
+                         (0, 0, -ROOM_DIM[2]/2-thickness/2), rpy=(0, 0, 0),
+                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent="room_ws")
+        self.create_safe(GEOTYPE.BOX, "frontwall_ws", "base_link", (thickness, ROOM_DIM[1], ROOM_DIM[2]),
+                         (ROOM_DIM[0]/2+thickness/2, 0, 0), rpy=(0, 0, 0),
+                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent="room_ws")
+        self.create_safe(GEOTYPE.BOX, "backwall_ws", "base_link", (thickness, ROOM_DIM[1], ROOM_DIM[2]),
+                         (-ROOM_DIM[0]/2-thickness/2, 0, 0), rpy=(0, 0, 0),
+                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent="room_ws")
+        self.create_safe(GEOTYPE.BOX, "leftwall_ws", "base_link", (ROOM_DIM[0], thickness, ROOM_DIM[2]),
+                         (0, -ROOM_DIM[1]/2-thickness/2, 0), rpy=(0, 0, 0),
+                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent="room_ws")
+        self.create_safe(GEOTYPE.BOX, "rightwall_ws", "base_link", (ROOM_DIM[0], thickness, ROOM_DIM[2]),
+                         (0, +ROOM_DIM[1]/2+thickness/2, 0), rpy=(0, 0, 0),
+                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent="room_ws")
 
     def clear_virtuals(self):
         for virtual in self.virtuals:
