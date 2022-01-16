@@ -839,7 +839,7 @@ class AbstractObject(Subject):
     # @param    node_tem    geometry name of binder currently attached
     def get_neighbor_node_component_list(self, node_tem, pscene):
         ctrl_binders, uctrl_binders = pscene.separate_active_binders([ap.ctype for ap in self.action_points_dict.values()])
-        next_node_component_list = [pscene.actor_dict[bname].geometry.name for bname in ctrl_binders]
+        next_node_component_list = [pscene.actor_dict[bname].geometry.name for bname in ctrl_binders] # add node_tem for all controllable binders
         if any([bname in ctrl_binders for bname in pscene.geometry_actor_dict[node_tem]]): # if any of currently attached binder geometry's binder is active, it's active
             next_node_component_list += [pscene.actor_dict[bname].geometry.name for bname in uctrl_binders] # thus we can add move it to uncontrolled binders
         if node_tem in next_node_component_list:
