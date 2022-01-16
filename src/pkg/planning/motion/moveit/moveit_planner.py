@@ -130,14 +130,14 @@ class MoveitPlanner(MotionInterface):
     # @brief update changes in geometric scene and load collision boundaries to moveit planner
     # @remark IMPORTANT! geometry items with link name in it are ignored, consdering they are auto-generated from urdf
     # @param dual_key key of target dual planner: root_robot_name_end_robot_name
-    def update_gscene(self, dual_key=None, only_self_collision=False):
+    def update_gscene(self, dual_key=None, only_self_collision=False, ignore=[]):
         self.gscene.update()
         if only_self_collision:
             return
         if dual_key is None:
             obj_list = []
             for gtem in self.gscene:
-                if gtem.collision and not gtem.in_urdf:
+                if gtem.collision and gtem not in ignore and not gtem.in_urdf:
                     obj_list.append(ObjectMPC(
                         gtem.name, gtype_to_otype(gtem.gtype), gtem.link_name,
                         pose=tuple(gtem.center)+tuple(Rotation.from_dcm(gtem.orientation_mat).as_quat()),
@@ -171,7 +171,8 @@ class MoveitPlanner(MotionInterface):
     # @return error     planning error
     # @return success   success/failure of planning result
     def plan_algorithm(self, from_state, to_state, subject_list, timeout=1,
-                       timeout_joint=None, timeout_constrained=None, verbose=False, only_self_collision=False, **kwargs):
+                       timeout_joint=None, timeout_constrained=None, verbose=False, only_self_collision=False,
+                       ignore=[], **kwargs):
         timeout_joint = timeout_joint if timeout_joint is not None else timeout
         timeout_constrained = timeout_constrained if timeout_constrained is not None else timeout
         self.planner.clear_context_cache()
@@ -184,7 +185,7 @@ class MoveitPlanner(MotionInterface):
         if len(subject_list)>1:
             raise(RuntimeError("Only single manipulator operation is implemented with moveit!"))
 
-        self.update_gscene(only_self_collision=only_self_collision)
+        self.update_gscene(only_self_collision=only_self_collision, ignore=ignore)
 
         motion_type = 0
         if len(subject_list) == 0: # joint motion case
@@ -428,11 +429,11 @@ class MoveitPlanner(MotionInterface):
 
     ##
     # @brief check collision in a given trajectory
-    def validate_trajectory(self, trajectory, update_gscene=True):
+    def validate_trajectory(self, trajectory, update_gscene=True, ignore=[]):
         if update_gscene:
             self.planner.clear_context_cache()
             self.planner.clear_manifolds()
-            self.update_gscene()
+            self.update_gscene(ignore=ignore)
         if self.need_mapping:
             trajectory = trajectory[:, self.idx_pscene_to_mpc]
         traj_c = Trajectory()
