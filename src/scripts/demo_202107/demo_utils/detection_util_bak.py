@@ -476,12 +476,15 @@ class MultiICP:
     # @param thres max distance between corresponding points
     def compute_ICP(self, To=None, thres=0.1,
                     relative_fitness=1e-15, relative_rmse=1e-15, max_iteration=500000,
-                    voxel_size=0.04, visualize=False
+                    voxel_size=0.02, visualize=False
                     ):
         if To is None:
             To, fitness = self.auto_init(0, voxel_size)
         target = copy.deepcopy(self.pcd)
         source = copy.deepcopy(self.model_sampled)
+        source = source.voxel_down_sample(voxel_size)
+        target = target.voxel_down_sample(voxel_size)
+
 
         # To Be Done - add front only option and cut backward surface here based on To
         if visualize:
@@ -509,7 +512,7 @@ class MultiICP:
         if visualize:
             self.draw(ICP_result)
 
-        return ICP_result, reg_p2p.fitness
+        return ICP_result, reg_p2p.inlier_rmse
 
 
     ##
@@ -518,7 +521,7 @@ class MultiICP:
     # @param thres max distance between corresponding points
     def compute_front_ICP(self, Tc_cur=None, To=None, thres=0.1,
                     relative_fitness=1e-15, relative_rmse=1e-15, max_iteration=500000,
-                    voxel_size=0.04, visualize=False
+                    voxel_size=0.01, visualize=False
                     ):
         if To is None:
             To, fitness = self.auto_init(0, voxel_size)
@@ -551,6 +554,9 @@ class MultiICP:
         front_pcd = o3d.geometry.PointCloud()
         front_pcd.points = o3d.utility.Vector3dVector(pts)
         source = copy.deepcopy(front_pcd)
+        source = source.voxel_down_sample(voxel_size)
+        target = target.voxel_down_sample(voxel_size)
+
 
         if visualize:
             cam_coord = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.15, origin=[0, 0, 0])
@@ -579,7 +585,7 @@ class MultiICP:
         if visualize:
             self.draw(ICP_result, source, target)
 
-        return ICP_result, reg_p2p.fitness
+        return ICP_result, reg_p2p.inlier_rmse
 
 
     ##

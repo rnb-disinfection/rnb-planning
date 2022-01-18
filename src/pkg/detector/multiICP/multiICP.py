@@ -212,6 +212,7 @@ class MultiICP:
         if self.sd is None:
             TextColors.YELLOW.println("[WARN] SharedDetector is not set: call set_config()")
             return {}
+
         # Output of inference(mask for detected object)
         img_res = cv2.resize(cdp.color, dsize=self.dsize)
         mask_out_list_res = self.sd.inference(color_img=img_res)
@@ -499,11 +500,12 @@ class MultiICP_Obj:
     # @param thres max distance between corresponding points
     def compute_ICP(self, To=None, thres=0.15,
                     relative_fitness=1e-15, relative_rmse=1e-15, max_iteration=500000,
-                    voxel_size=0.015, ratio=0.3, visualize=False
+                    voxel_size=0.03, ratio=0.3, visualize=False
                     ):
         if To is None:
             To, fitness = self.auto_init(0, voxel_size)
         target = copy.deepcopy(self.pcd)
+        target, ind = target.remove_radius_outlier(nb_points=25, radius=0.05)
         source = copy.deepcopy(self.model_sampled)
         source_bak = copy.deepcopy(source)
         source = source.voxel_down_sample(voxel_size)
@@ -578,7 +580,7 @@ class MultiICP_Obj:
     # @param thres max distance between corresponding points
     def compute_front_ICP(self, h_fov_hf, v_fov_hf, Tc_cur=None, To=None, thres=0.07,
                           relative_fitness=1e-19, relative_rmse=1e-19, max_iteration=700000,
-                          voxel_size=0.015, visualize=False
+                          voxel_size=0.02, visualize=False
                           ):
         if To is None:
             if self.pose is not None:
@@ -678,9 +680,24 @@ class MultiICP_Obj:
         # match the number of points between model_sampled pcd and data pcd
         # discrepancy = float(len(np.asarray(target.points))/len(np.asarray(source.points)))
         # target = target.uniform_down_sample(every_k_points=int(discrepancy))
-        # target, ind = target.remove_radius_outlier(nb_points=25, radius=0.1)
+        # target, ind = target.remove_radius_outlier(nb_points=40, radius=0.03)
         source = source.voxel_down_sample(voxel_size)
         target = target.voxel_down_sample(voxel_size)
+
+        # source_num = np.asarray(source.points).shape[0]
+        # target_num = np.asarray(target.points).shape[0]
+        # total_num = min(int(source_num/2.5), int(target_num/2.5))
+        # source_indices = np.random.choice(source_num, total_num, replace=False)
+        # target_indices = np.random.choice(target_num, total_num, replace=False)
+        # source_rand = o3d.geometry.PointCloud()
+        # target_rand = o3d.geometry.PointCloud()
+        # for i in range(len(source_indices)):
+        #     source_rand.points.append(source.points[source_indices[i]])
+        # for i in range(len(target_indices)):
+        #     target_rand.points.append(target.points[target_indices[i]])
+        #
+        # source = source_rand
+        # target = target_rand
 
         if visualize:
             cam_coord = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.15, origin=[0, 0, 0])
