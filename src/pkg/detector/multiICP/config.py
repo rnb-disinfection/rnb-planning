@@ -29,7 +29,17 @@ def get_obj_info():
         'closet': ObjectInfo('closet', dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX,
                              dims=(0.4, 0.3, 0.01), color=(0.9, 0.9, 0.9, 0.2),
                              Toff=SE3([[1,0,0],[0,0,1],[0,-1,0]], (0.3,0,0.2725)), scale=(1e-3,1e-3,1e-3),
-                             url=RNB_PLANNING_DIR+'release/multiICP_data/top_table.STL')
+                             url=RNB_PLANNING_DIR+'release/multiICP_data/top_table.STL'),
+
+        'carrier': ObjectInfo('carrier', dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX,
+                             dims=(0.4, 0.29, 0.635), color=(0.9, 0.9, 0.9, 0.2),
+                             Toff=SE3(np.identity(3), (0, 0, 0)), scale=(1e-3, 1e-3, 1e-3),
+                             url=RNB_PLANNING_DIR + 'src/scripts/demo_202107/model_CAD/carrier.STL'),
+
+        'tableclock': ObjectInfo('tableclock', dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX,
+                             dims=(0.14, 0.05, 0.075), color=(0.9, 0.9, 0.9, 0.2),
+                             Toff=SE3(np.identity(3), (0, 0, 0)), scale=(1e-3, 1e-3, 1e-3),
+                             url=RNB_PLANNING_DIR + 'src/scripts/demo_202107/model_CAD/tableclock.STL')
     }
     return obj_info
 
