@@ -83,7 +83,7 @@ class RobotSpecs:
                                        joint_names=["joint{}".format(idx) for idx in range(6)],
                                        home_pose=[0,]*6,
                                        joint_limits=[(-10,10), (-10,10), (-np.pi*10, np.pi*10),
-                                                     (-1e-3,1e-3), (-1e-3,1e-3), (-1e-3,1e-3)],
+                                                     (-5e-4,5e-4), (-5e-4,5e-4), (-5e-4,5e-4)],
                                        vel_limits=[None,None, None, 0,0,0],
                                        acc_limits=[None,None, None, 0,0,0],
                                        shoulder_reach=1e1),
