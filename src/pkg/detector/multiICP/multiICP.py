@@ -265,6 +265,8 @@ class MultiICP:
                     micp.make_pcd(cdp_masked, ratio=self.ratio)
 
                     skip_normal_icp = False
+                    multi_init_icp = False
+                    Tguess = None
                     if name in self.gscene.NAME_DICT: # if the object exists in gscene, use it as initial
                         g_handle = self.gscene.NAME_DICT[name]
                         print("\n'{}' is already in gscene. Use this to intial guess\n".format(name))
@@ -272,14 +274,32 @@ class MultiICP:
                         Tguess = np.matmul(T_cb, Tbo)
                         skip_normal_icp = True
                     else: # if the object not exists in gscene, use grule
-                        print("\n'{}' is not in gscene. Use manual input for initial guess\n".format(name))
-                        Tguess = None if micp.grule is None else micp.grule.get_initial(micp.pcd)
+                        if micp.grule is not None: # if grule is defined by user
+                            print("\n'{}' is not in gscene. Use manual input for initial guess\n".format(name))
+                            Tguess = micp.grule.get_initial(micp.pcd)
+                        else: # if grule is not defined by user, then use multi initial for ICP
+                            print("\n'{}' is not in gscene. Use multiple initial guess\n".format(name))
+                            multi_init_icp = True
+
 
                     # Compute ICP, front iCP
-                    if not skip_normal_icp:
-                        Tguess, _ = micp.compute_ICP(To=Tguess, thres=self.thres_ICP, visualize=visualize)
-                    T, _ = micp.compute_front_ICP(h_fov_hf = self.h_fov_hf, v_fov_hf = self.v_fov_hf,
-                                                  To=Tguess, thres=self.thres_front_ICP, visualize=visualize)
+                    if multi_init_icp:
+                        Tguess_list = self.get_multi_init_icp(micp.pcd, micp.Tref)
+                        T_best = np.identity(4)
+                        rmse_best = 1.
+                        for it, Tguess in enumerate(Tguess_list):
+                            if not skip_normal_icp:
+                                Tguess, _ = micp.compute_ICP(To=Tguess, thres=self.thres_ICP, visualize=visualize)
+                            T_, rmse = micp.compute_front_ICP(h_fov_hf=self.h_fov_hf, v_fov_hf=self.v_fov_hf,
+                                                          To=Tguess, thres=self.thres_front_ICP, visualize=visualize)
+                            if rmse <= rmse_best:
+                                T_best = T_
+                        T = T_best
+                    else:
+                        if not skip_normal_icp:
+                            Tguess, _ = micp.compute_ICP(To=Tguess, thres=self.thres_ICP, visualize=visualize)
+                        T, rmse = micp.compute_front_ICP(h_fov_hf = self.h_fov_hf, v_fov_hf = self.v_fov_hf,
+                                                      To=Tguess, thres=self.thres_front_ICP, visualize=visualize)
 
                     # name_i = "{}_{:02}".format(name, i_m)
                     self.objectPose_dict[name] = np.matmul(Tc, T)
@@ -313,6 +333,7 @@ class MultiICP:
                 micp.pcd = pcd
 
                 skip_normal_icp = False
+                multi_init_icp = False
                 # Check whether the object exists in gscene
                 if name in self.gscene.NAME_DICT:
                     g_handle = self.gscene.NAME_DICT[name]
@@ -321,15 +342,33 @@ class MultiICP:
                     Tguess = np.matmul(T_cb, Tbo)
                     skip_normal_icp = True
                 else:
-                    print("\n'{}' is not in gscene. Use manual input for initial guess\n".format(name))
-                    Tguess = micp.grule.get_initial(micp.pcd,
-                                                            R=detect_dict[hrule.parent].pose[:3, :3])
+                    if micp.grule is not None:  # if grule is defined by user
+                        print("\n'{}' is not in gscene. Use manual input for initial guess\n".format(name))
+                        Tguess = micp.grule.get_initial(micp.pcd,
+                                                        R=detect_dict[hrule.parent].pose[:3, :3])
+                    else:  # if grule is not defined by user, then use multi initial for ICP
+                        print("\n'{}' is not in gscene. Use multiple initial guess\n".format(name))
+                        multi_init_icp = True
+
 
                 # Compute ICP, front iCP
-                if not skip_normal_icp:
-                    Tguess, _ = micp.compute_ICP(To=Tguess, thres=self.thres_ICP, visualize=visualize)
-                T, _ = micp.compute_front_ICP(h_fov_hf = self.h_fov_hf, v_fov_hf = self.v_fov_hf,
-                                              To=Tguess, thres=self.thres_front_ICP, visualize=visualize)
+                if multi_init_icp:
+                    Tguess_list = self.get_multi_init_icp(micp.pcd, micp.Tref)
+                    T_best = np.identity(4)
+                    rmse_best = 1.
+                    for it, Tguess in enumerate(Tguess_list):
+                        if not skip_normal_icp:
+                            Tguess, _ = micp.compute_ICP(To=Tguess, thres=self.thres_ICP, visualize=visualize)
+                        T_, rmse = micp.compute_front_ICP(h_fov_hf=self.h_fov_hf, v_fov_hf=self.v_fov_hf,
+                                                          To=Tguess, thres=self.thres_front_ICP, visualize=visualize)
+                        if rmse <= rmse_best:
+                            T_best = T_
+                    T = T_best
+                else:
+                    if not skip_normal_icp:
+                        Tguess, _ = micp.compute_ICP(To=Tguess, thres=self.thres_ICP, visualize=visualize)
+                    T, rmse = micp.compute_front_ICP(h_fov_hf=self.h_fov_hf, v_fov_hf=self.v_fov_hf,
+                                                     To=Tguess, thres=self.thres_front_ICP, visualize=visualize)
                 T_list.append(T)
                 self.objectPose_dict[name_i] = np.matmul(Tc, T)
                 print('Found 6DoF pose of {}'.format(name_i))
@@ -413,6 +452,30 @@ class MultiICP:
                                 ).astype(np.uint8) * i_obj
                     mask_out_list[idx][np.where(mask_res>0)] = mask_res[np.where(mask_res>0)]
         return mask_out_list
+
+    ##
+    # @brief generate multiple initials for ICP
+    # @param pcd point cloud
+    # @param base_coord camera coordinate w.r.t base coord
+    def get_multi_init_icp(self, pcd, Tbc):
+        T_list = []
+        center = pcd.get_center()
+        off_x, off_y, off_z = (pcd.get_max_bound() - pcd.get_min_bound())/4.
+        R_ = np.linalg.inv(Tbc[:3,:3])
+        for ir in range(5):
+            R = np.matmul(R_, Rot_axis(3, (1+ir)*2*np.pi / 5))
+            for it in range(2):
+                t_x = center[0] + float((1 - 2 * it) * off_x)
+                for jt in range(2):
+                    t_y = center[1] + float((1 - 2 * jt) * off_y)
+                    for kt in range(2):
+                        t_z = center[2] + float((1 - 2 * kt) * off_z)
+                        t = np.array([t_x,t_y,t_z])
+                        T = SE3(R, t)
+                        T_list.append(T)
+        return T_list
+
+
 
 
 ##
@@ -515,8 +578,7 @@ class MultiICP_Obj:
         target, ind = target.remove_radius_outlier(nb_points=25, radius=0.05)
         source = copy.deepcopy(self.model_sampled)
         source_bak = copy.deepcopy(source)
-        source = source.voxel_down_sample(voxel_size)
-        target = target.voxel_down_sample(voxel_size)
+
 
         if visualize:
             self.draw(To)
@@ -579,7 +641,7 @@ class MultiICP_Obj:
             self.draw(ICP_result, source_bak, target)
 
         self.pose = ICP_result
-        return ICP_result, reg_p2p.fitness
+        return ICP_result, inlier_rmse_prev
 
     ##
     # @param Tc_cur this is new camera transformation in pcd origin
@@ -603,7 +665,8 @@ class MultiICP_Obj:
         T_cb = SE3_inv(Tc_cur)  # base here is the point cloud base defined when added
         T_co = np.matmul(np.matmul(T_cb, To), self.Toff_inv)
         # model_mesh = self.model.compute_vertex_normals()
-        model_pcd = self.model_sampled
+        model_pcd = copy.deepcopy(self.model_sampled)
+        source_bak = copy.deepcopy(model_pcd)
 
         # remove points whose normal vector direction are opposite to camera direction vector
         normals = np.asarray(model_pcd.normals)
@@ -688,8 +751,8 @@ class MultiICP_Obj:
         # discrepancy = float(len(np.asarray(target.points))/len(np.asarray(source.points)))
         # target = target.uniform_down_sample(every_k_points=int(discrepancy))
         # target, ind = target.remove_radius_outlier(nb_points=40, radius=0.03)
-        source = source.voxel_down_sample(voxel_size)
-        target = target.voxel_down_sample(voxel_size)
+        # source = source.voxel_down_sample(voxel_size)
+        # target = target.voxel_down_sample(voxel_size)
 
         # source_num = np.asarray(source.points).shape[0]
         # target_num = np.asarray(target.points).shape[0]
@@ -764,7 +827,6 @@ class MultiICP_Obj:
         ICP_result = np.matmul(ICP_result, self.Toff)
         if visualize:
             print("result: \n{}".format(np.round(ICP_result, 2)))
-            self.draw(ICP_result, source_down, target_down)
             self.draw(ICP_result, source_bak, target)
 
         # # BEV ICP
@@ -804,7 +866,7 @@ class MultiICP_Obj:
         # if visualize:
         #     self.draw(self.pose, source_bak, target)
         self.pose = ICP_result
-        return ICP_result, reg_p2p.fitness
+        return ICP_result, inlier_rmse_prev
 
     def draw(self, To, source=None, target=None, option_geos=[]):
         if source is None: source = self.model_sampled
