@@ -90,7 +90,8 @@ def add_indy_gripper_asm3(gscene, robot_name):
 # @brief add add_sweep_tool to indy
 # @param gscene     rnb-planning.src.pkg.geometry.geometry.GeometryScene
 # @param robot_name full indexed name of the robot
-def add_indy_sweep_tool(gscene, robot_name, face_name="brush_face", tool_offset=0.12, color_col=(0.0, 0.8, 0.0, 0.5)):
+def add_indy_sweep_tool(gscene, robot_name, face_name="brush_face", tool_offset=0.12, color_col=(0.0, 0.8, 0.0, 0.5),
+                        W=0.05,L=0.13):
     gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="{}_fts".format(robot_name),
                        link_name="{}_tcp".format(robot_name),
                        center=(0, 0, 0.02), dims=(0.07, 0.07, 0.04), rpy=(0, 0, 0), color=(0.8, 0.8, 0.8, 1),
@@ -111,13 +112,13 @@ def add_indy_sweep_tool(gscene, robot_name, face_name="brush_face", tool_offset=
 
     gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_brushbase".format(robot_name),
                        link_name="{}_tcp".format(robot_name),
-                       center=(0, 0, tool_offset-0.025), dims=(0.06, 0.14, 0.02), rpy=(0, 0, 0), color=(0.8, 0.8, 0.8, 1),
+                       center=(0, 0, tool_offset-0.025), dims=(W+0.01, L+0.01, 0.02), rpy=(0, 0, 0), color=(0.8, 0.8, 0.8, 1),
                        collision=False, fixed=True)
     brush_face = gscene.create_safe(gtype=GEOTYPE.BOX, name=face_name, link_name="{}_tcp".format(robot_name),
-                       center=(0, 0, tool_offset-0.005), dims=(0.05, 0.13, 0.02), rpy=(0, 0, 0), color=(1.0, 1.0, 0.94, 1),
+                       center=(0, 0, tool_offset-0.005), dims=(W, L, 0.02), rpy=(0, 0, 0), color=(1.0, 1.0, 0.94, 1),
                        collision=False, fixed=True)
     gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_col".format(face_name), link_name="{}_tcp".format(robot_name),
-                       center=(0, 0, tool_offset-0.015), dims=(0.08, 0.15, 0.03), rpy=(0, 0, 0), color=color_col,
+                       center=(0, 0, tool_offset-0.015), dims=(W+0.02, L+0.02, 0.03), rpy=(0, 0, 0), color=color_col,
                        collision=True, fixed=True)
     gscene.create_safe(GEOTYPE.BOX, "{}_plug".format(robot_name),
                        link_name="{}_tcp".format(robot_name),
