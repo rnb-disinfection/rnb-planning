@@ -260,7 +260,7 @@ class MultiICP:
                 mask_zero = np.empty((self.img_dim[0],self.img_dim[1]), dtype=bool)
                 mask_zero[:, :] = False
                 for i in range(int(np.max(masks))):
-                    mask_tmp = mask_zero
+                    mask_tmp = copy.deepcopy(mask_zero)
                     mask_tmp[np.where(masks==i+1)] = True
                     mask_list.append(mask_tmp)
 
