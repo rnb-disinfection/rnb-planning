@@ -246,18 +246,23 @@ class MultiICP:
 
         for name, micp in detect_dict.items():
             if name in mask_dict.keys():
-                # add to micp
+                # # add to micp
+                # masks = mask_dict[name]
+                # mask_list = []
+                # mask_zero = np.empty((self.img_dim[0],self.img_dim[1]), dtype=bool)
+                # mask_zero[:,:] = False
+                # mask_zero[np.where(masks ==  1)] = True
+                # mask_list.append(mask_zero)
+
+                # multiple instance
                 masks = mask_dict[name]
                 mask_list = []
                 mask_zero = np.empty((self.img_dim[0],self.img_dim[1]), dtype=bool)
-                mask_zero[:,:] = False
-                mask_zero[np.where(masks ==  1)] = True
-                mask_list.append(mask_zero)
-
-                # for i in range(int(np.max(masks))):
-                #     mask_tmp = mask_zero
-                #     mask_tmp[np.where(masks==i+1)] = True
-                #     mask_list.append(mask_tmp)
+                mask_zero[:, :] = False
+                for i in range(int(np.max(masks))):
+                    mask_tmp = mask_zero
+                    mask_tmp[np.where(masks==i+1)] = True
+                    mask_list.append(mask_tmp)
 
                 for i_m, mask in enumerate(mask_list):
                     cdp_masked = apply_mask(cdp, mask)
@@ -301,11 +306,14 @@ class MultiICP:
                         T, rmse = micp.compute_front_ICP(h_fov_hf = self.h_fov_hf, v_fov_hf = self.v_fov_hf,
                                                       To=Tguess, thres=self.thres_front_ICP, visualize=visualize)
 
-                    # name_i = "{}_{:02}".format(name, i_m)
-                    self.objectPose_dict[name] = np.matmul(Tc, T)
-                    print('Found 6DoF pose of {}'.format(name))
+                    # self.objectPose_dict[name] = np.matmul(Tc, T)
+                    name_i = "{}_{:01}".format(name, i_m+1)
+                    self.objectPose_dict[name_i] = np.matmul(Tc, T)
+                    print('Found 6DoF pose of {}'.format(name_i))
             elif micp.hrule is not None:
                 hrule_targets_dict[name] = micp
+            elif name in class_dict.keys():
+                print("{} not detected".format(name))
             else:
                 raise (RuntimeError("{} not detected and has no detection rule".format(name)))
 

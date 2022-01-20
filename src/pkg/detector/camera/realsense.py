@@ -27,14 +27,14 @@ class RealSense(CameraInterface):
         else:
             fps_list = [fps_ for resolution_, fps_ in self.resolution_fps_dict['color'] if resolution_==resolution_color]
             assert len(fps_list)>0, "Not available color resolution! Availables are: \n{}".format(
-                self.self.resolution_fps_dict['color'])
+                self.resolution_fps_dict['color'])
             fps_color = fps_list[-1]
         if resolution_depth is None:
             resolution_depth, fps_depth = sorted(self.resolution_fps_dict['depth'])[-1]
         else:
             fps_list = [fps_ for resolution_, fps_ in self.resolution_fps_dict['depth'] if resolution_==resolution_depth]
             assert len(fps_list)>0, "Not available depth resolution! Availables are: \n{}".format(
-                self.self.resolution_fps_dict['depth'])
+                self.resolution_fps_dict['depth'])
             fps_depth = fps_list[-1]
         config.enable_stream(rs.stream.depth, resolution_depth[0], resolution_depth[1], rs.format.z16, fps_depth)
         config.enable_stream(rs.stream.color, resolution_color[0], resolution_color[1], rs.format.bgr8, fps_color)
