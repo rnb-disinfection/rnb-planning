@@ -1,7 +1,9 @@
 import os
 import sys
-sys.path.append(os.path.join(os.path.join(
-    os.environ["RNB_PLANNING_DIR"], 'src')))
+base_path = os.path.dirname(__file__)
+idx_path = base_path.rfind("rnb-planning") + len("rnb-planning")
+RNB_PLANNING_DIR = base_path[:idx_path]
+sys.path.append(os.path.join(RNB_PLANNING_DIR, 'src'))
 from pkg.utils.packet_utils import *
 
 import serial

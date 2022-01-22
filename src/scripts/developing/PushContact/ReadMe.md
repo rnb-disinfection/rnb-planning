@@ -9,3 +9,14 @@
 * Connect OpenCR board to your computer and upload the included sketch to **OpenCR board**, named ***biwheel*** using ***Arduino IDE***.
   * Dynamixel ID: Left wheel-1, Right wheel-2
 * Now connect **OpenCR board** to the master computer for the experiment.
+
+
+### Dependency
+```bash
+pip install serial pyserial keyboard
+```
+
+## Keyboard Test
+```bash
+sudo python3 biwheel_keyboard.py
+```
