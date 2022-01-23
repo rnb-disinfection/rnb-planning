@@ -592,7 +592,7 @@ class MultiICP_Obj:
             self.draw(ICP_result, source_down, target_down)
 
         self.pose = ICP_result
-        return ICP_result, reg_p2p.fitness
+        return ICP_result, reg_p2p.inlier_rmse
 
     ##
     # @param Tc_cur this is new camera transformation in pcd origin
@@ -715,9 +715,9 @@ class MultiICP_Obj:
             cam_coord.transform(Tc_cur)
             self.draw(np.matmul(To, self.Toff), source, target, [cam_coord])
 
-        # Sampling points to reduct number of points
-        source_down = source.uniform_down_sample(every_k_points=2)
-        target_down = target.uniform_down_sample(every_k_points=2)
+        # # Sampling points to reduct number of points
+        # source_down = source.uniform_down_sample(every_k_points=2)
+        # target_down = target.uniform_down_sample(every_k_points=2)
 
         print("Apply point-to-point ICP")
         threshold = thres
@@ -735,10 +735,10 @@ class MultiICP_Obj:
         ICP_result = np.matmul(ICP_result, self.Toff)
         if visualize:
             print("result: \n{}".format(np.round(ICP_result, 2)))
-            self.draw(ICP_result, source_down, target_down)
+            self.draw(ICP_result, source, target)
 
         self.pose = ICP_result
-        return ICP_result, reg_p2p.fitness
+        return ICP_result, reg_p2p.inlier_rmse
 
     def draw(self, To, source=None, target=None, option_geos=[]):
         if source is None: source = self.model_sampled
