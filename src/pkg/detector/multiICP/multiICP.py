@@ -295,8 +295,10 @@ class MultiICP:
                             T_, rmse = micp.compute_front_ICP(h_fov_hf=self.h_fov_hf, v_fov_hf=self.v_fov_hf,
                                                               To=Tguess, thres=self.thres_front_ICP,
                                                               visualize=visualize)
-                            if rmse <= rmse_best:
+                            if rmse < rmse_best and rmse>0:
+                                rmse_best = rmse
                                 T_best = T_
+                        print("Lowest rmse", rmse_best)
                         T = T_best
                     else:
                         if not skip_normal_icp:
@@ -368,8 +370,10 @@ class MultiICP:
                             Tguess, _ = micp.compute_ICP(To=Tguess, thres=self.thres_ICP, visualize=visualize)
                         T_, rmse = micp.compute_front_ICP(h_fov_hf=self.h_fov_hf, v_fov_hf=self.v_fov_hf,
                                                           To=Tguess, thres=self.thres_front_ICP, visualize=visualize)
-                        if rmse <= rmse_best:
+                        if rmse < rmse_best and rmse>0:
+                            rmse_best = rmse
                             T_best = T_
+                    print("Lowest rmse", rmse_best)
                     T = T_best
                 else:
                     if not skip_normal_icp:
@@ -459,6 +463,32 @@ class MultiICP:
                                 ).astype(np.uint8) * i_obj
                     mask_out_list[idx][np.where(mask_res>0)] = mask_res[np.where(mask_res>0)]
         return mask_out_list
+
+   ##
+    # @brief generate multiple initials for ICP
+    # @param pcd point cloud
+    # @param base_coord camera coordinate w.r.t base coord
+    def get_multi_init_icp(self, pcd, Tbc):
+        T_list = []
+        center = pcd.get_center()
+        off_x, off_y, off_z = (pcd.get_max_bound() - pcd.get_min_bound())/4.
+        R_ = np.linalg.inv(Tbc[:3,:3])
+        DIVIDE_NUM = 8
+        for ir in range(DIVIDE_NUM):
+            R = np.matmul(R_, np.linalg.inv(Rot_axis(3, ir*2*np.pi / DIVIDE_NUM)))
+            t = np.array([center[0], center[1], center[2]])
+            T = SE3(R,t)
+            # for it in range(2):
+            #     t_x = center[0] + float((1 - 2 * it) * off_x)
+            #     for jt in range(2):
+            #         t_y = center[1] + float((1 - 2 * jt) * off_y)
+            #         for kt in range(2):
+            #             t_z = center[2] + float((1 - 2 * kt) * off_z)
+            #             t = np.array([t_x,t_y,t_z])
+            #             T = SE3(R, t)
+            #             T_list.append(T)
+            T_list.append(T)
+        return T_list
 
 
 ##
@@ -570,13 +600,13 @@ class MultiICP_Obj:
         # Guess Initial Transformation
         trans_init = To
 
-        # Sampling points to reduct number of points
-        source_down = source.uniform_down_sample(every_k_points=2)
-        target_down = target.uniform_down_sample(every_k_points=2)
+        # # Sampling points to reduct number of points
+        # source_down = source.uniform_down_sample(every_k_points=2)
+        # target_down = target.uniform_down_sample(every_k_points=2)
 
         print("Apply point-to-point ICP")
         threshold = thres
-        reg_p2p = o3d.registration.registration_icp(source_down, target_down, threshold, trans_init,
+        reg_p2p = o3d.registration.registration_icp(source, target, threshold, trans_init,
                                                     o3d.registration.TransformationEstimationPointToPoint(),
                                                     o3d.registration.ICPConvergenceCriteria(
                                                         relative_fitness=relative_fitness,
@@ -589,7 +619,7 @@ class MultiICP_Obj:
 
         ICP_result = np.matmul(ICP_result, self.Toff)
         if visualize:
-            self.draw(ICP_result, source_down, target_down)
+            self.draw(ICP_result, source, target)
 
         self.pose = ICP_result
         return ICP_result, reg_p2p.inlier_rmse
