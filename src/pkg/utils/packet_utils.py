@@ -1,5 +1,3 @@
-from .utils import *
-
 class Packet:
     DATA_LEN = 5
     PAD_LEN = 3
@@ -31,3 +29,15 @@ class Packet:
     @classmethod
     def packet_length(cls):
         return cls.DATA_LEN + cls.PAD_LEN
+
+
+def divide_bytes(num):
+    num = int(num)
+    if num<0:
+        num = 0x10000 + num
+    return int(num%0x10000/0x100)%0x100, num%0x100
+
+
+def combine_bytes(up_byte, lo_byte):
+    int_val = up_byte*0x100 + lo_byte
+    return int_val%0x8000-int(int_val/0x8000)*0x8000

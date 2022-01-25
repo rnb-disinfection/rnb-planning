@@ -217,6 +217,8 @@ Ty180 = np.identity(4, 'float32')
 Ty180[0,0]=-1
 Ty180[2,2]=-1
 
+##
+# @brief rotation vector to rotate from vec1 to vec2
 def calc_rotvec_vecs(vec1, vec2):
     cross_vec = np.cross(vec1, vec2)
     dot_val = np.dot(vec1, vec2)
