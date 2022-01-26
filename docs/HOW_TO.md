@@ -3,6 +3,7 @@
 ## Documents  
 * The main instruction document is [ReadMe.md](../ReadMe.md)
 * Other instruction documents are stored in docs/
+* Lecture materials are uploaded on docs/Lectures (2022.01.25)
   
 ## Doxygen
 * To generate doxygen document, run following command (after installing doxygen from [docs/SUPPLEMENT_README.md](../docs/SUPPLEMENT_README.md)

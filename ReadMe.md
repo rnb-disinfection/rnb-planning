@@ -2,6 +2,7 @@ Instruction for RNB-Planning Framework {#mainpage}
 ============
 
 RNB-Planning Framework is an integrated framework for combined planning of task and motion.  
+* Please refer to the [LectureNote](./docs/Lectures) for detailed usage.
 
 ![framework](./docs/framework.png)
 
