@@ -3,35 +3,82 @@ from pkg.geometry.geometry import *
 
 
 # add camera geometry
-def add_cam(gscene, tool_link="indy0_tcp"):
-    gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="cam", link_name=tool_link,
-                       dims=(0.061, 0.061, 0.026), center=(-0.0785, 0, 0.013), rpy=(0, 0, 0),
+def add_cam(gscene, tool_link="panda0_link8"):
+    gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="body", link_name=tool_link,
+                       dims=(0.063, 0.063, 0.02), center=(0, 0, 0), rpy=(0, 0, -np.pi/4),
                        color=(0.8, 0.8, 0.8, 0.5), display=True, fixed=True, collision=False)
 
-    gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="cam_col", link_name=tool_link,
-                       dims=(0.081, 0.081, 0.046), center=(-0.0785, 0, 0.013), rpy=(0, 0, 0),
+    gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="body_col", link_name=tool_link,
+                       dims=(0.083, 0.083, 0.04), center=(0, 0, 0), rpy=(0, 0, 0),
                        color=(0.8, 0.8, 0.8, 0.2), display=True, fixed=True, collision=True)
+
+    gscene.create_safe(gtype=GEOTYPE.BOX, name="body_box1", link_name=tool_link,
+                       dims=(0.075, 0.045, 0.02), center=(0.0375, 0, 0), rpy=(0, 0, 0),
+                       color=(0.8, 0.8, 0.8, 0.5), display=True, fixed=True, collision=False, parent="body")
+
+    gscene.create_safe(gtype=GEOTYPE.BOX, name="body_box1_col", link_name=tool_link,
+                       dims=(0.095, 0.065, 0.04), center=(0.0375, 0, 0), rpy=(0, 0, 0),
+                       color=(0.8, 0.8, 0.8, 0.2), display=True, fixed=True, collision=False, parent="body")
+
+    gscene.create_safe(gtype=GEOTYPE.BOX, name="body_box2", link_name=tool_link,
+                       dims=(0.05, 0.045, 0.02), center=(0.0275, 0, -0.015), rpy=(0, np.pi / 2, 0),
+                       color=(0.8, 0.8, 0.8, 0.5), display=True, fixed=True, collision=False, parent="body_box1")
+
+    gscene.create_safe(gtype=GEOTYPE.BOX, name="body_box2_col", link_name=tool_link,
+                       dims=(0.07, 0.065, 0.04), center=(0.0275, 0, -0.015), rpy=(0, np.pi / 2, 0),
+                       color=(0.8, 0.8, 0.8, 0.2), display=True, fixed=True, collision=False, parent="body_box1")
+
+    gscene.create_safe(gtype=GEOTYPE.BOX, name="body_box3", link_name=tool_link,
+                       dims=(0.045, 0.045, 0.006), center=(0.028, 0, 0.0125), rpy=(0, -np.pi / 2, 0),
+                       color=(0.8, 0.8, 0.8, 0.5), display=True, fixed=True, collision=False, parent="body_box2")
+
+    gscene.create_safe(gtype=GEOTYPE.BOX, name="body_box3_col", link_name=tool_link,
+                       dims=(0.065, 0.065, 0.026), center=(0.028, 0, 0.0125), rpy=(0, -np.pi / 2, 0),
+                       color=(0.8, 0.8, 0.8, 0.2), display=True, fixed=True, collision=False, parent="body_box2")
+
+    gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="cam", link_name=tool_link,
+                       dims=(0.061, 0.061, 0.026), center=(0.012, 0, 0.0405), rpy=(-np.pi / 2, 0, np.pi / 2),
+                       color=(0.8, 0.8, 0.8, 0.5), display=True, fixed=True, collision=False, parent="body_box2")
+
+    gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="cam_col", link_name=tool_link,
+                       dims=(0.081, 0.081, 0.046), center=(0.012, 0, 0.0405), rpy=(-np.pi / 2, 0, np.pi / 2),
+                       color=(0.8, 0.8, 0.8, 0.2), display=True, fixed=True, collision=True, parent="body_box2")
 
     viewpoint = gscene.create_safe(gtype=GEOTYPE.SPHERE, name="viewpoint", link_name=tool_link,
-                                   dims=(0.01, 0.01, 0.01), center=(-0.013, 0, 0), rpy=(0, 0, -np.pi / 2),
+                                   dims=(0.01, 0.01, 0.01), center=(0, -(0.03115 + 0.014 - 0.0305), 0.013 - 0.012),
+                                   rpy=(0, 0, 0),
                                    color=(1, 0, 0, 0.3), display=True, fixed=True, collision=False, parent="cam")
-
-    gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="body", link_name=tool_link,
-                       dims=(0.067, 0.067, 0.0335), center=(-0.0785, 0, -0.01675), rpy=(0, 0, 0),
-                       color=(0.8, 0.8, 0.8, 1), display=True, fixed=True, collision=False)
-
-    gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="body_col", link_name=tool_link,
-                       dims=(0.087, 0.087, 0.0535), center=(-0.0785, 0, -0.01675), rpy=(0, 0, 0),
-                       color=(0.8, 0.8, 0.8, 0.2), display=True, fixed=True, collision=True)
-
-    gscene.create_safe(gtype=GEOTYPE.SPHERE, name="backhead", link_name=tool_link,
-                       dims=(0.067, 0.067, 0.067), center=(-0.0785, 0, -0.0335), rpy=(0, 0, 0),
-                       color=(0.8, 0.8, 0.8, 1), display=True, fixed=True, collision=False)
-
-    gscene.create_safe(gtype=GEOTYPE.SPHERE, name="backhead_col", link_name=tool_link,
-                       dims=(0.087, 0.087, 0.087), center=(-0.0785, 0, -0.0335), rpy=(0, 0, 0),
-                       color=(0.8, 0.8, 0.8, 0.2), display=True, fixed=True, collision=True)
     return viewpoint
+
+# def add_cam(gscene, tool_link="indy0_tcp"):
+#     gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="cam", link_name=tool_link,
+#                        dims=(0.061, 0.061, 0.026), center=(-0.0785, 0, 0.013), rpy=(0, 0, 0),
+#                        color=(0.8, 0.8, 0.8, 0.5), display=True, fixed=True, collision=False)
+#
+#     gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="cam_col", link_name=tool_link,
+#                        dims=(0.081, 0.081, 0.046), center=(-0.0785, 0, 0.013), rpy=(0, 0, 0),
+#                        color=(0.8, 0.8, 0.8, 0.2), display=True, fixed=True, collision=True)
+#
+#     viewpoint = gscene.create_safe(gtype=GEOTYPE.SPHERE, name="viewpoint", link_name=tool_link,
+#                                    dims=(0.01, 0.01, 0.01), center=(-0.013, 0, 0), rpy=(0, 0, -np.pi / 2),
+#                                    color=(1, 0, 0, 0.3), display=True, fixed=True, collision=False, parent="cam")
+#
+#     gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="body", link_name=tool_link,
+#                        dims=(0.067, 0.067, 0.0335), center=(-0.0785, 0, -0.01675), rpy=(0, 0, 0),
+#                        color=(0.8, 0.8, 0.8, 1), display=True, fixed=True, collision=False)
+#
+#     gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="body_col", link_name=tool_link,
+#                        dims=(0.087, 0.087, 0.0535), center=(-0.0785, 0, -0.01675), rpy=(0, 0, 0),
+#                        color=(0.8, 0.8, 0.8, 0.2), display=True, fixed=True, collision=True)
+#
+#     gscene.create_safe(gtype=GEOTYPE.SPHERE, name="backhead", link_name=tool_link,
+#                        dims=(0.067, 0.067, 0.067), center=(-0.0785, 0, -0.0335), rpy=(0, 0, 0),
+#                        color=(0.8, 0.8, 0.8, 1), display=True, fixed=True, collision=False)
+#
+#     gscene.create_safe(gtype=GEOTYPE.SPHERE, name="backhead_col", link_name=tool_link,
+#                        dims=(0.087, 0.087, 0.087), center=(-0.0785, 0, -0.0335), rpy=(0, 0, 0),
+#                        color=(0.8, 0.8, 0.8, 0.2), display=True, fixed=True, collision=True)
+#     return viewpoint
 
 
 # add object
