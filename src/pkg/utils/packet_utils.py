@@ -41,3 +41,11 @@ def divide_bytes(num):
 def combine_bytes(up_byte, lo_byte):
     int_val = up_byte*0x100 + lo_byte
     return int_val%0x8000-int(int_val/0x8000)*0x8000
+
+def print_hex(packet):
+    packet_str = []
+    for byte in packet:
+        bstr = hex(byte)[2:]
+        bstr = "0"*(2-len(bstr)) + bstr
+        packet_str.append(bstr)
+    return " ".join(packet_str)
