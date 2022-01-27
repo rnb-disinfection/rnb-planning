@@ -10,15 +10,15 @@ import cv2
 import numpy as np
 import pyrealsense2 as rs
 
-
+MAX_MESSAGE_LENGTH = 10000000
 PORT_CAM = 10509
 DEPTHMAP_SIZE = (480, 640)
-IMAGE_SIZE = (480, 640)
+IMAGE_SIZE = (720, 1280)
 
 ##
 # @brief camera streaming from remote computer
 class RemoteCamServicer(RemoteCam_pb2_grpc.RemoteCamProtoServicer):
-    def __init__(self): # start camera streaming
+    def __init__(self):
         # Configure depth and color streams
         self.pipeline = rs.pipeline()
         self.config = rs.config()
@@ -33,29 +33,15 @@ class RemoteCamServicer(RemoteCam_pb2_grpc.RemoteCamProtoServicer):
         self.depth_sensor.set_option(rs.option.visual_preset, 3)
         # Custom = 0, Default = 1, Hand = 2, HighAccuracy = 3, HighDensity = 4, MediumDensity = 5
         self.depth_sensor.set_option(rs.option.post_processing_sharpening, 3)
-        self.depth_sensor.set_option(rs.option.receiver_gain, 13)
+        self.depth_sensor.set_option(rs.option.receiver_gain, 16)
         self.depth_sensor.set_option(rs.option.noise_filtering, 4)
         self.align_to = rs.stream.color
         self.align = rs.align(self.align_to)
-        print("=======Start camera streaming=======")
 
+        self.width = IMAGE_SIZE[1]
+        self.height = IMAGE_SIZE[0]
+        print("==========Start camera streaming==========")
 
-    def GetImage(self, request, context):
-        request_id = request.request_id
-
-        frame = self.pipeline.wait_for_frames()
-        frames = self.align.process(frame)
-
-        color_frame = frames.get_color_frame()
-        depth_frame = frames.get_depth_frame()
-        color = np.asanyarray(color_frame.get_data())
-        depth = np.asanyarray(depth_frame.get_data())
-        # color = cv2.imread("test-container.png")         # sample image
-        # depth = cv2.cvtColor(color, cv2.COLOR_BGR2GRAY)  # fake depth map with gray image
-        return RemoteCam_pb2.GetImageResponse(response_id=request_id,
-                                              width=color.shape[1],height=color.shape[0],
-                                              color=color.flatten(),
-                                              depth=depth.flatten())
     def GetConfig(self, request, context):
         request_id = request.request_id
 
@@ -68,16 +54,44 @@ class RemoteCamServicer(RemoteCam_pb2_grpc.RemoteCamProtoServicer):
         distCoeffs = np.array(color_intrinsics.coeffs)
         depth_scale = self.depth_sensor.get_depth_scale()
         return RemoteCam_pb2.GetConfigResponse(response_id=request_id,
-                                               depth_scale=depth_scale,
                                                camera_matrix=cameraMatrix.flatten(),
-                                               dist_coeffs=distCoeffs.flatten())
+                                               dist_coeffs=distCoeffs.flatten(),
+                                               depth_scale=depth_scale)
 
+    def GetImage(self, request, context):
+        request_id = request.request_id
+
+        frame = self.pipeline.wait_for_frames()
+        frames = self.align.process(frame)
+
+        color_frame = frames.get_color_frame()
+        color = np.asanyarray(color_frame.get_data())
+        return RemoteCam_pb2.GetImageResponse(response_id=request_id,
+                                              width=color.shape[1], height=color.shape[0],
+                                              color=color.flatten())
+
+    def GetImageDepthmap(self, request, context):
+        request_id = request.request_id
+
+        frame = self.pipeline.wait_for_frames()
+        frames = self.align.process(frame)
+
+        color_frame = frames.get_color_frame()
+        depth_frame = frames.get_depth_frame()
+        color = np.asanyarray(color_frame.get_data())
+        depth = np.asanyarray(depth_frame.get_data())
+        return RemoteCam_pb2.GetImageDepthmapResponse(response_id=request_id,
+                                                      width=color.shape[1], height=color.shape[0],
+                                                      color=color.flatten(),
+                                                      depth=depth.flatten())
 
 
 ##
 # @brief start grpc server
 def serve(servicer, host='[::]'):
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10), options = [
+        ('grpc.max_send_message_length', MAX_MESSAGE_LENGTH),
+        ('grpc.max_receive_message_length', MAX_MESSAGE_LENGTH)])
     RemoteCam_pb2_grpc.add_RemoteCamProtoServicer_to_server(
         servicer, server)
     server.add_insecure_port('{}:{}'.format(host, PORT_CAM))

@@ -8,8 +8,20 @@ option objc_class_prefix = "FDDO";
 package RemoteCamProto;
 
 service RemoteCamProto {
-    rpc GetImage (GetImageRequest) returns (GetImageResponse) {}
     rpc GetConfig (GetConfigRequest) returns (GetConfigResponse) {}
+    rpc GetImage (GetImageRequest) returns (GetImageResponse) {}
+    rpc GetImageDepthmap (GetImageDepthmapRequest) returns (GetImageDepthmapResponse) {}
+}
+
+message GetConfigRequest {     // Planning Master -> Cam Server
+    int32 request_id = 1;      // for request-response coupling, no practical use
+}
+
+message GetConfigResponse {    // Cam Server -> Planning Master
+    int32 response_id = 1;      // for request-response coupling, no practical use
+    repeated float camera_matrix = 2 [packed=true];
+    repeated float dist_coeffs = 3 [packed=true];
+    float depth_scale = 4;
 }
 
 message GetImageRequest {     // Planning Master -> Cam Server
@@ -21,19 +33,18 @@ message GetImageResponse {    // Cam Server -> Planning Master
     int32 width = 2;
     int32 height = 3;
     repeated int32 color = 4 [packed=true];
-    repeated int32 depth = 5 [packed=true];
 }
 
-message GetConfigRequest {     // Planning Master -> Cam Server
+message GetImageDepthmapRequest {     // Planning Master -> Cam Server
     int32 request_id = 1;      // for request-response coupling, no practical use
 }
 
-message GetConfigResponse {    // Cam Server -> Planning Master
+message GetImageDepthmapResponse {    // Cam Server -> Planning Master
     int32 response_id = 1;      // for request-response coupling, no practical use
     int32 width = 2;
     int32 height = 3;
-    repeated float camera_matrix = 4 [packed=true];
-    repeated float dist_coeffs = 5 [packed=true];
-    float depth_scale = 6;
+    repeated int32 color = 4 [packed=true];
+    repeated int32 depth = 5 [packed=true];
 }
+
 

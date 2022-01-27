@@ -14,20 +14,31 @@ class RemoteCamProtoStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.GetImage = channel.unary_unary(
-                '/RemoteCamProto.RemoteCamProto/GetImage',
-                request_serializer=RemoteCam__pb2.GetImageRequest.SerializeToString,
-                response_deserializer=RemoteCam__pb2.GetImageResponse.FromString,
-                )
         self.GetConfig = channel.unary_unary(
                 '/RemoteCamProto.RemoteCamProto/GetConfig',
                 request_serializer=RemoteCam__pb2.GetConfigRequest.SerializeToString,
                 response_deserializer=RemoteCam__pb2.GetConfigResponse.FromString,
                 )
+        self.GetImage = channel.unary_unary(
+                '/RemoteCamProto.RemoteCamProto/GetImage',
+                request_serializer=RemoteCam__pb2.GetImageRequest.SerializeToString,
+                response_deserializer=RemoteCam__pb2.GetImageResponse.FromString,
+                )
+        self.GetImageDepthmap = channel.unary_unary(
+                '/RemoteCamProto.RemoteCamProto/GetImageDepthmap',
+                request_serializer=RemoteCam__pb2.GetImageDepthmapRequest.SerializeToString,
+                response_deserializer=RemoteCam__pb2.GetImageDepthmapResponse.FromString,
+                )
 
 
 class RemoteCamProtoServicer(object):
     """Missing associated documentation comment in .proto file."""
+
+    def GetConfig(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
 
     def GetImage(self, request, context):
         """Missing associated documentation comment in .proto file."""
@@ -35,7 +46,7 @@ class RemoteCamProtoServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def GetConfig(self, request, context):
+    def GetImageDepthmap(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -44,15 +55,20 @@ class RemoteCamProtoServicer(object):
 
 def add_RemoteCamProtoServicer_to_server(servicer, server):
     rpc_method_handlers = {
+            'GetConfig': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetConfig,
+                    request_deserializer=RemoteCam__pb2.GetConfigRequest.FromString,
+                    response_serializer=RemoteCam__pb2.GetConfigResponse.SerializeToString,
+            ),
             'GetImage': grpc.unary_unary_rpc_method_handler(
                     servicer.GetImage,
                     request_deserializer=RemoteCam__pb2.GetImageRequest.FromString,
                     response_serializer=RemoteCam__pb2.GetImageResponse.SerializeToString,
             ),
-            'GetConfig': grpc.unary_unary_rpc_method_handler(
-                    servicer.GetConfig,
-                    request_deserializer=RemoteCam__pb2.GetConfigRequest.FromString,
-                    response_serializer=RemoteCam__pb2.GetConfigResponse.SerializeToString,
+            'GetImageDepthmap': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetImageDepthmap,
+                    request_deserializer=RemoteCam__pb2.GetImageDepthmapRequest.FromString,
+                    response_serializer=RemoteCam__pb2.GetImageDepthmapResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -63,6 +79,23 @@ def add_RemoteCamProtoServicer_to_server(servicer, server):
  # This class is part of an EXPERIMENTAL API.
 class RemoteCamProto(object):
     """Missing associated documentation comment in .proto file."""
+
+    @staticmethod
+    def GetConfig(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/RemoteCamProto.RemoteCamProto/GetConfig',
+            RemoteCam__pb2.GetConfigRequest.SerializeToString,
+            RemoteCam__pb2.GetConfigResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
     def GetImage(request,
@@ -82,7 +115,7 @@ class RemoteCamProto(object):
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
-    def GetConfig(request,
+    def GetImageDepthmap(request,
             target,
             options=(),
             channel_credentials=None,
@@ -92,8 +125,8 @@ class RemoteCamProto(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/RemoteCamProto.RemoteCamProto/GetConfig',
-            RemoteCam__pb2.GetConfigRequest.SerializeToString,
-            RemoteCam__pb2.GetConfigResponse.FromString,
+        return grpc.experimental.unary_unary(request, target, '/RemoteCamProto.RemoteCamProto/GetImageDepthmap',
+            RemoteCam__pb2.GetImageDepthmapRequest.SerializeToString,
+            RemoteCam__pb2.GetImageDepthmapResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
