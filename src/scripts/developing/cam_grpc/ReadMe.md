@@ -3,6 +3,7 @@
 
 1. Install protobuf and grpcio
 ```bash
+python2 -m pip install protobuf grpcio grpcio_tools
 python3 -m pip install protobuf grpcio grpcio_tools
 ```
 
