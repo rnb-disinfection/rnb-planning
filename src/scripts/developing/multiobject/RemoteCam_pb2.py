@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=b'\n%io.grpc.custom.Disinfection.RemoteCamB\016RemoteCamProtoP\001\242\002\004FDDO',
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n\x0fRemoteCam.proto\x12\x0eRemoteCamProto\"%\n\x0fGetImageRequest\x12\x12\n\nrequest_id\x18\x01 \x01(\x05\"l\n\x10GetImageResponse\x12\x13\n\x0bresponse_id\x18\x01 \x01(\x05\x12\r\n\x05width\x18\x02 \x01(\x05\x12\x0e\n\x06height\x18\x03 \x01(\x05\x12\x11\n\x05\x63olor\x18\x04 \x03(\x05\x42\x02\x10\x01\x12\x11\n\x05\x64\x65pth\x18\x05 \x03(\x05\x42\x02\x10\x01\"&\n\x10GetConfigRequest\x12\x12\n\nrequest_id\x18\x01 \x01(\x05\"q\n\x11GetConfigResponse\x12\x13\n\x0bresponse_id\x18\x01 \x01(\x05\x12\x13\n\x0b\x64\x65pth_scale\x18\x02 \x01(\x02\x12\x19\n\rcamera_matrix\x18\x03 \x03(\x02\x42\x02\x10\x01\x12\x17\n\x0b\x64ist_coeffs\x18\x04 \x03(\x02\x42\x02\x10\x01\x32\xb5\x01\n\x0eRemoteCamProto\x12O\n\x08GetImage\x12\x1f.RemoteCamProto.GetImageRequest\x1a .RemoteCamProto.GetImageResponse\"\x00\x12R\n\tGetConfig\x12 .RemoteCamProto.GetConfigRequest\x1a!.RemoteCamProto.GetConfigResponse\"\x00\x42@\n%io.grpc.custom.Disinfection.RemoteCamB\x0eRemoteCamProtoP\x01\xa2\x02\x04\x46\x44\x44Ob\x06proto3'
+  serialized_pb=b'\n\x0fRemoteCam.proto\x12\x0eRemoteCamProto\"%\n\x0fGetImageRequest\x12\x12\n\nrequest_id\x18\x01 \x01(\x05\"l\n\x10GetImageResponse\x12\x13\n\x0bresponse_id\x18\x01 \x01(\x05\x12\r\n\x05width\x18\x02 \x01(\x05\x12\x0e\n\x06height\x18\x03 \x01(\x05\x12\x11\n\x05\x63olor\x18\x04 \x03(\x05\x42\x02\x10\x01\x12\x11\n\x05\x64\x65pth\x18\x05 \x03(\x05\x42\x02\x10\x01\"&\n\x10GetConfigRequest\x12\x12\n\nrequest_id\x18\x01 \x01(\x05\"\x90\x01\n\x11GetConfigResponse\x12\x13\n\x0bresponse_id\x18\x01 \x01(\x05\x12\r\n\x05width\x18\x02 \x01(\x05\x12\x0e\n\x06height\x18\x03 \x01(\x05\x12\x19\n\rcamera_matrix\x18\x04 \x03(\x02\x42\x02\x10\x01\x12\x17\n\x0b\x64ist_coeffs\x18\x05 \x03(\x02\x42\x02\x10\x01\x12\x13\n\x0b\x64\x65pth_scale\x18\x06 \x01(\x02\x32\xb5\x01\n\x0eRemoteCamProto\x12O\n\x08GetImage\x12\x1f.RemoteCamProto.GetImageRequest\x1a .RemoteCamProto.GetImageResponse\"\x00\x12R\n\tGetConfig\x12 .RemoteCamProto.GetConfigRequest\x1a!.RemoteCamProto.GetConfigResponse\"\x00\x42@\n%io.grpc.custom.Disinfection.RemoteCamB\x0eRemoteCamProtoP\x01\xa2\x02\x04\x46\x44\x44Ob\x06proto3'
 )
 
 
@@ -165,26 +165,40 @@ _GETCONFIGRESPONSE = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
-      name='depth_scale', full_name='RemoteCamProto.GetConfigResponse.depth_scale', index=1,
-      number=2, type=2, cpp_type=6, label=1,
-      has_default_value=False, default_value=float(0),
+      name='width', full_name='RemoteCamProto.GetConfigResponse.width', index=1,
+      number=2, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
-      name='camera_matrix', full_name='RemoteCamProto.GetConfigResponse.camera_matrix', index=2,
-      number=3, type=2, cpp_type=6, label=3,
-      has_default_value=False, default_value=[],
+      name='height', full_name='RemoteCamProto.GetConfigResponse.height', index=2,
+      number=3, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
-      serialized_options=b'\020\001', file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
-      name='dist_coeffs', full_name='RemoteCamProto.GetConfigResponse.dist_coeffs', index=3,
+      name='camera_matrix', full_name='RemoteCamProto.GetConfigResponse.camera_matrix', index=3,
       number=4, type=2, cpp_type=6, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=b'\020\001', file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='dist_coeffs', full_name='RemoteCamProto.GetConfigResponse.dist_coeffs', index=4,
+      number=5, type=2, cpp_type=6, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=b'\020\001', file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='depth_scale', full_name='RemoteCamProto.GetConfigResponse.depth_scale', index=5,
+      number=6, type=2, cpp_type=6, label=1,
+      has_default_value=False, default_value=float(0),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
   ],
   extensions=[
   ],
@@ -197,8 +211,8 @@ _GETCONFIGRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=224,
-  serialized_end=337,
+  serialized_start=225,
+  serialized_end=369,
 )
 
 DESCRIPTOR.message_types_by_name['GetImageRequest'] = _GETIMAGEREQUEST
@@ -249,8 +263,8 @@ _REMOTECAMPROTO = _descriptor.ServiceDescriptor(
   index=0,
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_start=340,
-  serialized_end=521,
+  serialized_start=372,
+  serialized_end=553,
   methods=[
   _descriptor.MethodDescriptor(
     name='GetImage',
