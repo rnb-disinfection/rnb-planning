@@ -16,6 +16,20 @@ from ...geometry.geotype import GEOTYPE
 from ...utils.rotation_utils import *
 from ...utils.utils import TextColors
 
+from concurrent import futures
+import logging
+import math
+import time
+import cv2
+import numpy as np
+import grpc
+from .grpc_cam import RemoteCam_pb2
+from .grpc_cam import RemoteCam_pb2_grpc
+
+MAX_MESSAGE_LENGTH = 10000000
+GRPC_PORT = 10509
+HOST_IP = "192.168.17.2"
+
 ##
 # @class ColorDepthMap
 # @param color numpy 8 bit array
@@ -102,29 +116,53 @@ class MultiICP:
         self.visualize = False
         self.cache = None
         self.pcd_total = None
+        self.remote_cam = False
 
 
     ##
     # @brief initialize camera and set camera configuration
-    def initialize(self, config_list=None, img_dim=None):
+    def initialize(self, config_list=None, img_dim=None, remote_cam=False):
         if self.camera is None:
-            print("Camera is not set - skip initialization, use manually given camera configs")
-            assert config_list is not None and img_dim is not None, "config_list and img_dim must be given for no-cam mode"
-            self.config_list = config_list
-            self.img_dim = img_dim
-            self.dsize = tuple(reversed(img_dim))
-            self.h_fov_hf = np.arctan2(self.img_dim[1], 2 * config_list[0][0, 0])
-            self.v_fov_hf = np.arctan2(self.img_dim[0], 2 * config_list[0][1, 1])
-            return
-        self.camera.initialize()
-        cameraMatrix, distCoeffs, depth_scale = self.camera.get_config()
-        self.config_list = [cameraMatrix, distCoeffs, depth_scale]
-        self.img_dim = self.camera.get_image().shape[:2]
-        res_scale = np.max(np.ceil(np.divide(np.array(self.img_dim, dtype=float), 2000) / 2).astype(int) * 2)
-        self.dsize = tuple(reversed(np.divide(self.img_dim, res_scale).astype(int)))
-        self.h_fov_hf = np.arctan2(self.img_dim[1], 2*cameraMatrix[0,0])
-        self.v_fov_hf = np.arctan2(self.img_dim[0], 2*cameraMatrix[1,1])
-        print("Initialize Done")
+            if remote_cam:
+               self.remote_cam = remote_cam
+               print("Camera is not set - skip initialization, use remote camera")
+
+               # get camera config from remote camera
+               with grpc.insecure_channel('{}:{}'.format(HOST_IP, GRPC_PORT)) as channel:
+                   stub = RemoteCam_pb2_grpc.RemoteCamProtoStub(channel)
+                   request_id = 0
+                   resp = stub.GetConfig(RemoteCam_pb2.GetConfigRequest(request_id=request_id))
+                   print("request {} -> response {}".format(request_id, resp.response_id))
+                   cam_mtx = np.array(resp.camera_matrix).reshape((3, 3))
+                   dist_coeffs = np.array(resp.dist_coeffs).reshape((5,))
+                   depth_scale = resp.depth_scale
+                   width = resp.width
+                   height = resp.height
+                   print("==== Received camera config from remote camera ====")
+                   self.config_list = [cam_mtx, dist_coeffs, depth_scale]
+                   self.img_dim = (height, width)
+                   self.dsize = tuple(reversed(self.img_dim))
+                   self.h_fov_hf = np.arctan2(self.img_dim[1], 2 * self.config_list[0][0, 0])
+                   self.v_fov_hf = np.arctan2(self.img_dim[0], 2 * self.config_list[0][1, 1])
+            else:
+                print("Camera is not set - skip initialization, use manually given camera configs")
+                assert config_list is not None and img_dim is not None, "config_list and img_dim must be given for no-cam mode"
+                self.config_list = config_list
+                self.img_dim = img_dim
+                self.dsize = tuple(reversed(img_dim))
+                self.h_fov_hf = np.arctan2(self.img_dim[1], 2 * config_list[0][0, 0])
+                self.v_fov_hf = np.arctan2(self.img_dim[0], 2 * config_list[0][1, 1])
+                return
+        else:
+            self.camera.initialize()
+            cameraMatrix, distCoeffs, depth_scale = self.camera.get_config()
+            self.config_list = [cameraMatrix, distCoeffs, depth_scale]
+            self.img_dim = self.camera.get_image().shape[:2]
+            res_scale = np.max(np.ceil(np.divide(np.array(self.img_dim, dtype=float), 2000) / 2).astype(int) * 2)
+            self.dsize = tuple(reversed(np.divide(self.img_dim, res_scale).astype(int)))
+            self.h_fov_hf = np.arctan2(self.img_dim[1], 2*cameraMatrix[0,0])
+            self.v_fov_hf = np.arctan2(self.img_dim[0], 2*cameraMatrix[1,1])
+            print("Initialize Done")
 
     ##
     # @brief disconnect camera
@@ -143,7 +181,20 @@ class MultiICP:
     ##
     # @brief   get aligned RGB image and depthmap
     def get_image(self):
-        color_image, depth_image = self.camera.get_image_depthmap()
+        if not self.remote_cam:
+            color_image, depth_image = self.camera.get_image_depthmap()
+        else:
+            with grpc.insecure_channel('{}:{}'.format(HOST_IP, GRPC_PORT),
+                                       options=[('grpc.max_send_message_length', MAX_MESSAGE_LENGTH),
+                                                ('grpc.max_receive_message_length', MAX_MESSAGE_LENGTH)]) as channel:
+                stub = RemoteCam_pb2_grpc.RemoteCamProtoStub(channel)
+                request_id = 0
+                resp = stub.GetImageDepthmap(RemoteCam_pb2.GetImageDepthmapRequest(request_id=request_id))
+                print("request {} -> response {}".format(request_id, resp.response_id))
+                color_image = np.array(resp.color).reshape((resp.height, resp.width, 3))
+                depth_image = np.array(resp.depth).reshape((resp.height, resp.width))
+                print("==== Received color, depth image from remote camera ====")
+                self.img_dim = (resp.height, resp.width)
         Q = self.crob.get_real_robot_pose()
         return color_image, depth_image, Q
 
@@ -263,12 +314,6 @@ class MultiICP:
                     mask_tmp = copy.deepcopy(mask_zero)
                     mask_tmp[np.where(masks==i+1)] = True
                     mask_list.append(mask_tmp)
-                mask_zero = np.empty((self.img_dim[0], self.img_dim[1]), dtype=bool)
-                mask_zero[:, :] = False
-                for i in range(int(np.max(masks))):
-                    mask_tmp = copy.deepcopy(mask_zero)
-                    mask_tmp[np.where(masks == i + 1)] = True
-                    mask_list.append(mask_tmp)
 
                 for i_m, mask in enumerate(mask_list):
                     cdp_masked = apply_mask(cdp, mask)
@@ -276,9 +321,6 @@ class MultiICP:
                     micp.make_pcd(cdp_masked, ratio=self.ratio)
 
                     skip_normal_icp = False
-                    multi_init_icp = False
-                    Tguess = None
-                    if name in self.gscene.NAME_DICT: # if the object exists in gscene, use it as initial
                     multi_init_icp = False
                     Tguess = None
                     if name in self.gscene.NAME_DICT:  # if the object exists in gscene, use it as initial
@@ -294,33 +336,8 @@ class MultiICP:
                         else: # if grule is not defined by user, then use multi initial for ICP
                             print("\n'{}' is not in gscene. Use multiple initial guess\n".format(name))
                             multi_init_icp = True
-                    else:  # if the object not exists in gscene, use grule
-                        if micp.grule is not None:  # if grule is defined by user
-                            print("\n'{}' is not in gscene. Use manual input for initial guess\n".format(name))
-                            Tguess = micp.grule.get_initial(micp.pcd)
-                        else:  # if grule is not defined by user, then use multi initial for ICP
-                            print("\n'{}' is not in gscene. Use multiple initial guess\n".format(name))
-                            multi_init_icp = True
-
 
                     # Compute ICP, front iCP
-                    if multi_init_icp:
-                        Tguess_list = self.get_multi_init_icp(micp.pcd, micp.Tref)
-                        T_best = np.identity(4)
-                        rmse_best = 1.
-                        for it, Tguess in enumerate(Tguess_list):
-                            if not skip_normal_icp:
-                                Tguess, _ = micp.compute_ICP(To=Tguess, thres=self.thres_ICP, visualize=visualize)
-                            T_, rmse = micp.compute_front_ICP(h_fov_hf=self.h_fov_hf, v_fov_hf=self.v_fov_hf,
-                                                          To=Tguess, thres=self.thres_front_ICP, visualize=visualize)
-                            if rmse <= rmse_best:
-                                T_best = T_
-                        T = T_best
-                    else:
-                        if not skip_normal_icp:
-                            Tguess, _ = micp.compute_ICP(To=Tguess, thres=self.thres_ICP, visualize=visualize)
-                        T, rmse = micp.compute_front_ICP(h_fov_hf = self.h_fov_hf, v_fov_hf = self.v_fov_hf,
-                                                      To=Tguess, thres=self.thres_front_ICP, visualize=visualize)
                     if multi_init_icp:
                         Tguess_list = self.get_multi_init_icp(micp.pcd, micp.Tref)
                         T_best = np.identity(4)
@@ -344,10 +361,6 @@ class MultiICP:
 
                     # self.objectPose_dict[name] = np.matmul(Tc, T)
                     name_i = "{}_{:01}".format(name, i_m+1)
-                    self.objectPose_dict[name_i] = np.matmul(Tc, T)
-                    print('Found 6DoF pose of {}'.format(name_i))
-                    # self.objectPose_dict[name] = np.matmul(Tc, T)
-                    name_i = "{}_{:01}".format(name, i_m + 1)
                     self.objectPose_dict[name_i] = np.matmul(Tc, T)
                     print('Found 6DoF pose of {}'.format(name_i))
             elif micp.hrule is not None:
@@ -647,13 +660,7 @@ class MultiICP_Obj:
         # source_down = source.uniform_down_sample(every_k_points=2)
         # target_down = target.uniform_down_sample(every_k_points=2)
 
-        if visualize:
-            vis = o3d.visualization.Visualizer()
-            vis.create_window()
-            vis.add_geometry(source)
-            vis.add_geometry(target)
-        fitness_prev = 0.0
-        inlier_rmse_prev = 1.0
+
         print("Apply point-to-point ICP")
         threshold = thres
         reg_p2p = o3d.registration.registration_icp(source, target, threshold, trans_init,
@@ -812,47 +819,47 @@ class MultiICP_Obj:
         # source_down = source.uniform_down_sample(every_k_points=2)
         # target_down = target.uniform_down_sample(every_k_points=2)
 
-        if visualize:
-            vis = o3d.visualization.Visualizer()
-            vis.create_window()
-            vis.add_geometry(source)
-            vis.add_geometry(target)
-        fitness_prev = 0.0
-        inlier_rmse_prev = 1.0
-        print("Apply point-to-point ICP")
-        while (True):
-            reg_p2p = o3d.registration.registration_icp(source, target, threshold, np.identity(4),
-                                                        o3d.registration.TransformationEstimationPointToPoint(),
-                                                        o3d.registration.ICPConvergenceCriteria(
-                                                            max_iteration=1))
-            source.transform(reg_p2p.transformation)
-            if visualize:
-                time.sleep(0.03)
-                vis.update_geometry(source)
-                vis.poll_events()
-                vis.update_renderer()
-            ICP_result = np.matmul(reg_p2p.transformation, ICP_result)
-            delta_fitness = abs(reg_p2p.fitness - fitness_prev)
-            delta_rmse = abs(reg_p2p.inlier_rmse - inlier_rmse_prev)
-            if delta_fitness < relative_fitness or delta_rmse < relative_rmse:
-                time.sleep(0.04)
-                break
-            else:
-                fitness_prev = reg_p2p.fitness
-                inlier_rmse_prev = reg_p2p.inlier_rmse
-        if visualize:
-            vis.destroy_window()
+        # if visualize:
+        #     vis = o3d.visualization.Visualizer()
+        #     vis.create_window()
+        #     vis.add_geometry(source)
+        #     vis.add_geometry(target)
+        # fitness_prev = 0.0
+        # inlier_rmse_prev = 1.0
         # print("Apply point-to-point ICP")
-        # reg_p2p = o3d.registration.registration_icp(source, target, thres, trans_init,
-        #                                             o3d.registration.TransformationEstimationPointToPoint(),
-        #                                             o3d.registration.ICPConvergenceCriteria(
-        #                                                 relative_fitness=relative_fitness,
-        #                                                 relative_rmse=relative_rmse,
-        #                                                 max_iteration=max_iteration))
-        # print(reg_p2p)
-        # print("Transformation is:")
-        # print(reg_p2p.transformation)
-        # ICP_result = reg_p2p.transformation
+        # while (True):
+        #     reg_p2p = o3d.registration.registration_icp(source, target, threshold, np.identity(4),
+        #                                                 o3d.registration.TransformationEstimationPointToPoint(),
+        #                                                 o3d.registration.ICPConvergenceCriteria(
+        #                                                     max_iteration=1))
+        #     source.transform(reg_p2p.transformation)
+        #     if visualize:
+        #         time.sleep(0.03)
+        #         vis.update_geometry(source)
+        #         vis.poll_events()
+        #         vis.update_renderer()
+        #     ICP_result = np.matmul(reg_p2p.transformation, ICP_result)
+        #     delta_fitness = abs(reg_p2p.fitness - fitness_prev)
+        #     delta_rmse = abs(reg_p2p.inlier_rmse - inlier_rmse_prev)
+        #     if delta_fitness < relative_fitness or delta_rmse < relative_rmse:
+        #         time.sleep(0.04)
+        #         break
+        #     else:
+        #         fitness_prev = reg_p2p.fitness
+        #         inlier_rmse_prev = reg_p2p.inlier_rmse
+        # if visualize:
+        #     vis.destroy_window()
+        print("Apply point-to-point ICP")
+        reg_p2p = o3d.registration.registration_icp(source, target, thres, trans_init,
+                                                    o3d.registration.TransformationEstimationPointToPoint(),
+                                                    o3d.registration.ICPConvergenceCriteria(
+                                                        relative_fitness=relative_fitness,
+                                                        relative_rmse=relative_rmse,
+                                                        max_iteration=max_iteration))
+        print(reg_p2p)
+        print("Transformation is:")
+        print(reg_p2p.transformation)
+        ICP_result = reg_p2p.transformation
 
         print("Total ICP Transformation is:")
         print(ICP_result)

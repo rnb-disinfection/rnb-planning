@@ -6,6 +6,7 @@ import grpc
 import RemoteCam_pb2
 import RemoteCam_pb2_grpc
 from threading import Thread
+import cv2
 import numpy as np
 import pyrealsense2 as rs
 
@@ -55,8 +56,7 @@ class RemoteCamServicer(RemoteCam_pb2_grpc.RemoteCamProtoServicer):
         return RemoteCam_pb2.GetConfigResponse(response_id=request_id,
                                                camera_matrix=cameraMatrix.flatten(),
                                                dist_coeffs=distCoeffs.flatten(),
-                                               depth_scale=depth_scale,
-                                               width=self.width, height=self.height)
+                                               depth_scale=depth_scale)
 
     def GetImage(self, request, context):
         request_id = request.request_id
