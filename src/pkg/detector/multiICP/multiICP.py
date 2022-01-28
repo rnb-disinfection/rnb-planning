@@ -272,6 +272,9 @@ class MultiICP:
             TextColors.YELLOW.println("[WARN] SharedDetector is not set: call set_config()")
             return {}
 
+
+        print("Maximun num of object for detection : {}".format(self.multiobject_num))
+
         # Output of inference(mask for detected object)
         mask_out_list = self.inference(color_img=cdp.color)
 
