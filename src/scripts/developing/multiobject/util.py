@@ -87,6 +87,12 @@ def add_carrier(gscene, name, carrier_center, carrier_rpy):
                                  dims=(0.1, 0.1, 0.1), center=carrier_center, rpy=carrier_rpy,
                                  color=(0.8, 0.8, 0.8, 1), display=True, fixed=False, collision=True,
                                  uri="package://my_mesh/meshes/stl/carrier.STL", scale=(1e-3, 1e-3, 1e-3))
+
+    obj_col = gscene.create_safe(GEOTYPE.BOX, "{}_col".format(name), link_name="base_link",
+                                 dims=(0.1, 0.1, 0.1), center=(0,0,0), rpy=(0,0,0),
+                                 color=(0, 0, 0, 0.1), display=True, fixed=False, collision=True,
+                                 scale=(1e-3, 1e-3, 1e-3), parent="{}".format(name))
+
     return obj_vis
 
 
@@ -95,14 +101,41 @@ def add_clock(gscene, name, clock_center, clock_rpy):
                                  dims=(0.1, 0.1, 0.1), center=clock_center, rpy=clock_rpy,
                                  color=(0.8, 0.8, 0.8, 1), display=True, fixed=False, collision=True,
                                  uri="package://my_mesh/meshes/stl/tableclock.STL", scale=(1e-3, 1e-3, 1e-3))
+
+    obj_col = gscene.create_safe(GEOTYPE.BOX, "{}_col".format(name), link_name="base_link",
+                                 dims=(0.1, 0.1, 0.1), center=(0,0,0), rpy=(0,0,0),
+                                 color=(0, 0, 0, 0.1), display=True, fixed=False, collision=True,
+                                 scale=(1e-3, 1e-3, 1e-3), parent="{}".format(name))
+
     return obj_vis
 
 
-def add_table(gscene, name, clock_center, clock_rpy):
+def add_table(gscene, name, table_center, table_rpy):
     obj_vis = gscene.create_safe(GEOTYPE.MESH, name, link_name="base_link",
-                                 dims=(0.1, 0.1, 0.1), center=clock_center, rpy=clock_rpy,
+                                 dims=(0.1, 0.1, 0.1), center=table_center, rpy=table_rpy,
                                  color=(0.8, 0.8, 0.8, 1), display=True, fixed=True, collision=True,
                                  uri="package://my_mesh/meshes/stl/table.STL", scale=(1e-3, 1e-3, 1e-3))
+
+    obj_body_col = gscene.create_safe(GEOTYPE.BOX, "{}_body_col".format(name), link_name="base_link",
+                                 dims=(0.1, 0.1, 0.1), center=(0,0,0), rpy=(0,0,0),
+                                 color=(0, 0, 0, 0.1), display=True, fixed=False, collision=True,
+                                 scale=(1e-3, 1e-3, 1e-3), parent="{}".format(name))
+
+    obj_back_col = gscene.create_safe(GEOTYPE.BOX, "{}_back_col".format(name), link_name="base_link",
+                                 dims=(0.1, 0.1, 0.1), center=(0,0,0), rpy=(0,0,0),
+                                 color=(0, 0, 0, 0.1), display=True, fixed=False, collision=True,
+                                 scale=(1e-3, 1e-3, 1e-3), parent="{}".format(name))
+
+    obj_left_leg_col = gscene.create_safe(GEOTYPE.BOX, "{}_left_leg_col".format(name), link_name="base_link",
+                                 dims=(0.1, 0.1, 0.1), center=(0,0,0), rpy=(0,0,0),
+                                 color=(0, 0, 0, 0.1), display=True, fixed=False, collision=True,
+                                 scale=(1e-3, 1e-3, 1e-3), parent="{}".format(name))
+
+    obj_right_leg_col = gscene.create_safe(GEOTYPE.BOX, "{}_right_leg_col".format(name), link_name="base_link",
+                                          dims=(0.1, 0.1, 0.1), center=(0, 0, 0), rpy=(0, 0, 0),
+                                          color=(0, 0, 0, 0.1), display=True, fixed=False, collision=True,
+                                          scale=(1e-3, 1e-3, 1e-3), parent="{}".format(name))
+
     return obj_vis
 
 
@@ -126,8 +159,10 @@ def move_table(gscene, name, table_center, table_rpy):
 
 
 def pose_refine(obj_type, T, obj_height=0.725):
+    # rotation constraint
     T_new = align_z(T)
 
+    # height constraint
     center = T_new[:3, 3]
     if obj_type == "suitcase" or obj_type == "dining table":
         center[2] = 0
