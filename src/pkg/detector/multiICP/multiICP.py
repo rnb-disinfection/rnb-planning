@@ -116,6 +116,7 @@ class MultiICP:
         self.visualize = False
         self.cache = None
         self.pcd_total = None
+        self.multiobject_num = 1
         self.remote_cam = False
 
 
@@ -220,12 +221,18 @@ class MultiICP:
         self.cache = color_image, depth_image, Q
 
     ##
-    # @abrief change    threshold value to find correspondenc pair during ICP
+    # @abrief change threshold value to find correspondenc pair during ICP
     # @param  thres_ICP     setting value of threshold
     # @param  thres_front_ICP   setting value of threshold
     def set_ICP_thres(self, thres_ICP=0.15, thres_front_ICP=0.10):
         self.thres_ICP = thres_ICP
         self.thres_front_ICP = thres_front_ICP
+
+    ##
+    # @abrief set the number of object which has multiple instance
+    # @param  num     setting value of num
+    def set_multiobject_num(self, num=1):
+        self.multiobject_num = num
 
     ##
     # @brief    detect 3D objects pose
@@ -259,6 +266,7 @@ class MultiICP:
         cdp = ColorDepthMap(color_image, depth_image, cam_intrins, depth_scale)
         Tc = self.viewpoint.get_tf(Q)
         T_cb = SE3_inv(Tc)
+        self.objectPose_dict = {}
 
         if self.sd is None:
             TextColors.YELLOW.println("[WARN] SharedDetector is not set: call set_config()")
@@ -308,12 +316,18 @@ class MultiICP:
                 # multiple instance
                 masks = mask_dict[name]
                 mask_list = []
-                mask_zero = np.empty((self.img_dim[0],self.img_dim[1]), dtype=bool)
+                mask_zero = np.empty((self.img_dim[0], self.img_dim[1]), dtype=bool)
                 mask_zero[:, :] = False
-                for i in range(int(np.max(masks))):
+                if self.multiobject_num == 1:
                     mask_tmp = copy.deepcopy(mask_zero)
-                    mask_tmp[np.where(masks==i+1)] = True
+                    mask_tmp[np.where(masks == 1)] = True
                     mask_list.append(mask_tmp)
+                else:
+                    num = min(self.multiobject_num, int(np.max(masks)))
+                    for i in range(num):
+                        mask_tmp = copy.deepcopy(mask_zero)
+                        mask_tmp[np.where(masks==i+1)] = True
+                        mask_list.append(mask_tmp)
 
                 for i_m, mask in enumerate(mask_list):
                     cdp_masked = apply_mask(cdp, mask)
