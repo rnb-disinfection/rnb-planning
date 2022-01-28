@@ -10,6 +10,7 @@ class RobotType(Enum):
     indy7gripper=2
     indy5dof=3
     kmb=4
+    pmb=5
     indy7kiro=102
 
 
@@ -80,6 +81,14 @@ class RobotSpecs:
                                        acc_limits=np.deg2rad([180]*5)/2,
                                        shoulder_reach=1.04),
         RobotType.kmb: RobotTemplate(robot_name='kmb', base_name="link0", tip_name="platform",
+                                       joint_names=["joint{}".format(idx) for idx in range(6)],
+                                       home_pose=[0,]*6,
+                                       joint_limits=[(-10,10), (-10,10), (-np.pi*10, np.pi*10),
+                                                     (-5e-4,5e-4), (-5e-4,5e-4), (-5e-4,5e-4)],
+                                       vel_limits=[None,None, None, 0,0,0],
+                                       acc_limits=[None,None, None, 0,0,0],
+                                       shoulder_reach=1e1),
+        RobotType.pmb: RobotTemplate(robot_name='pmb', base_name="link0", tip_name="platform",
                                        joint_names=["joint{}".format(idx) for idx in range(6)],
                                        home_pose=[0,]*6,
                                        joint_limits=[(-10,10), (-10,10), (-np.pi*10, np.pi*10),

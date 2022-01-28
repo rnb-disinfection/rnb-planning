@@ -88,6 +88,8 @@ class CombinedRobot:
                     self.robot_dict[name] = kiro_udp_client.KiroUDPClient(*addr.split("/"))
                 else:
                     self.robot_dict[name] = kiro_udp_client.KiroUDPClient(None, None)
+            elif _type == RobotType.pmb:
+                self.robot_dict[name] = postech_mobile_client.PostechMobileClient(server_ip=addr)
             else:
                 self.robot_dict[name] = TrajectoryClient(server_ip=addr)
 
