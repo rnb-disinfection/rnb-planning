@@ -43,7 +43,7 @@ ColorDepthMap = namedtuple('ColorDepthMap', ['color', 'depth', 'intrins', 'depth
 # @brief convert cdp to pcd
 # @param cdp ColorDepthMap
 # @param Tc camera coord w.r.t base coord
-def cdp2pcd(cdp, Tc=None, depth_trunc=5.0):
+def cdp2pcd(cdp, Tc=None, depth_trunc=10.0):
     if Tc is None:
         Tc = np.identity(4)
     color = o3d.geometry.Image(cdp.color)
@@ -116,8 +116,11 @@ class MultiICP:
         self.visualize = False
         self.cache = None
         self.pcd_total = None
+
         self.multiobject_num = 1
+        self.merge_mask = False
         self.remote_cam = False
+
 
 
     ##
@@ -221,7 +224,7 @@ class MultiICP:
         self.cache = color_image, depth_image, Q
 
     ##
-    # @abrief change threshold value to find correspondenc pair during ICP
+    # @brief change threshold value to find correspondenc pair during ICP
     # @param  thres_ICP     setting value of threshold
     # @param  thres_front_ICP   setting value of threshold
     def set_ICP_thres(self, thres_ICP=0.15, thres_front_ICP=0.10):
@@ -231,8 +234,16 @@ class MultiICP:
     ##
     # @abrief set the number of object which has multiple instance
     # @param  num     setting value of num
+    # @param  merget   whether separate masking merge or not
     def set_multiobject_num(self, num=1):
         self.multiobject_num = num
+
+    ##
+    # @brief  set merget option of masks for one object
+    # @param  merget   whether separate masking merge or not
+    def set_merge_mask(self, merge=True):
+        self.merge_mask = merge
+        self.multiobject_num = 1
 
     ##
     # @brief    detect 3D objects pose
@@ -323,8 +334,12 @@ class MultiICP:
                 mask_zero[:, :] = False
                 if self.multiobject_num == 1:
                     mask_tmp = copy.deepcopy(mask_zero)
-                    mask_tmp[np.where(masks == 1)] = True
-                    mask_list.append(mask_tmp)
+                    if self.merge_mask:
+                        print("[NOTICE] You choose merge option for mask. Detected masks would be merged.")
+                        mask_list.append(masks)
+                    else:
+                        mask_tmp[np.where(masks == 1)] = True
+                        mask_list.append(mask_tmp)
                 else:
                     num = min(self.multiobject_num, int(np.max(masks)))
                     for i in range(num):
@@ -571,7 +586,7 @@ class MultiICP_Obj:
     # @param hrule      heuristic rule class
     # @param grule      initial guess rule class
     def __init__(self, obj_info, hrule=None, grule=None):
-        self.depth_trunc = 5.0
+        self.depth_trunc = 10.0
         self.model = None
         self.cdp = None
         self.pcd = None

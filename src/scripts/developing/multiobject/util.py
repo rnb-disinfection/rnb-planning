@@ -117,22 +117,22 @@ def add_table(gscene, name, table_center, table_rpy):
                                  uri="package://my_mesh/meshes/stl/table_floor_centered_m_scale.STL", scale=(1., 1., 1.))
 
     obj_body_col = gscene.create_safe(GEOTYPE.BOX, "{}_body_col".format(name), link_name="base_link",
-                                 dims=(1.6+0.3, 0.8+0.2, 0.2+0.2), center=(0,0,0.715), rpy=(0,0,0),
+                                 dims=(1.6+0.14, 0.8+0.14, 0.1), center=(0,0,0.715), rpy=(0,0,0),
                                  color=(0, 0, 0, 0.1), display=True, fixed=False, collision=True,
                                  parent="{}".format(name))
 
     obj_back_col = gscene.create_safe(GEOTYPE.BOX, "{}_back_col".format(name), link_name="base_link",
-                                 dims=(1.6+0.2, 0.2, 0.705+0.2), center=(0,0,0), rpy=(0,0.4-0.05,0.705/2),
+                                 dims=(1.6+0.14, 0.14, 0.705+0.1), center=(0,0.4-0.05,0.705/2), rpy=(0,0,0),
                                  color=(0, 0, 0, 0.1), display=True, fixed=False, collision=True,
                                  parent="{}".format(name))
 
     obj_left_leg_col = gscene.create_safe(GEOTYPE.BOX, "{}_left_leg_col".format(name), link_name="base_link",
-                                 dims=(0.2, 0.8+0.2, 0.705+0.2), center=(-0.8,0,0.705/2), rpy=(0,0,0),
+                                 dims=(0.1, 0.8+0.1, 0.705+0.1), center=(-0.8+0.05,0,0.705/2), rpy=(0,0,0),
                                  color=(0, 0, 0, 0.1), display=True, fixed=False, collision=True,
                                  parent="{}".format(name))
 
     obj_right_leg_col = gscene.create_safe(GEOTYPE.BOX, "{}_right_leg_col".format(name), link_name="base_link",
-                                          dims=(0.2, 0.8+0.2, 0.705+0.2), center=(0.8, 0, 0.705/2), rpy=(0, 0, 0),
+                                          dims=(0.1, 0.8+0.1, 0.705+0.1), center=(0.8-0.05, 0, 0.705/2), rpy=(0, 0, 0),
                                           color=(0, 0, 0, 0.1), display=True, fixed=False, collision=True,
                                           parent="{}".format(name))
 
