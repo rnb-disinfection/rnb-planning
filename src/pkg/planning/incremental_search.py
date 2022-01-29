@@ -638,7 +638,7 @@ class MotionResolver(ConstraintResolver):
                     gnames = self.pscene.gscene.NAME_DICT[sname].get_family()
                     for gname in gnames:
                         self.pscene.gscene.highlight_geometry("mresv", gname, color=(1, 1, 0, 0.5))
-                self.pscene.gscene.show_motion(Traj)
+                self.pscene.gscene.show_motion(Traj, period=0.001)
                 self.pscene.gscene.clear_highlight()
             reason.append((col_tems, Traj))
             col_tems_all += col_tems
@@ -671,7 +671,7 @@ class MotionResolver(ConstraintResolver):
                 snode_new = self.inc.make_search_node(snode_next, to_state, Traj)
                 self.inc.connect(snode_next, snode_new)
                 if display:
-                    self.pscene.gscene.show_motion(Traj)
+                    self.pscene.gscene.show_motion(Traj, period=0.001)
                 if verbose:
                     print("valid transition found: {} - {}".format(snode_next.state.node, snode_new.state.node))
                 if reserveds:

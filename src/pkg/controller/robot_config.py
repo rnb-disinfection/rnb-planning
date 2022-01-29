@@ -11,6 +11,7 @@ class RobotType(Enum):
     indy5dof=3
     kmb=4
     pmb=5
+    panda_arm=6
     indy7kiro=102
 
 
@@ -96,6 +97,15 @@ class RobotSpecs:
                                        vel_limits=[None,None, None, 0,0,0],
                                        acc_limits=[None,None, None, 0,0,0],
                                        shoulder_reach=1e1),
+        RobotType.panda_arm: RobotTemplate(robot_name='panda_arm', base_name="link0", tip_name="link8",
+                                       joint_names=["joint{}".format(idx) for idx in range(1,8)],
+                                       home_pose=[0, -np.pi / 8, 0, -np.pi / 2, 0, np.pi / 2, np.pi / 2],
+                                       joint_limits=[(-2.75, 2.75), (-1.70, 1.70), (-2.75, 2.75),
+#                                        joint_limits=[(-np.pi*2/3, np.pi*2/3), (-1.70, 1.70), (-np.pi*2/3, np.pi*2/3),
+                                                     (-2.9, -0.1), (-2.75, 2.75), (0.1, 3.6), (-2.75, 2.75)],
+                                       vel_limits=np.deg2rad([150, 150, 150, 150, 180, 180, 180])/2,
+                                       acc_limits=np.deg2rad([180]*7)/2,
+                                       shoulder_reach=0.85),
         RobotType.indy7kiro: RobotTemplate(robot_name='indy', base_name="link0", tip_name="tcp",
                                        joint_names=["joint{}".format(idx) for idx in range(7)],
                                        home_pose=np.deg2rad([  0., 50.,  -70.,  -0.,  -90., 0, -45]),
