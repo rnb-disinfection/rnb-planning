@@ -174,7 +174,12 @@ def add_update_object(gscene, crob, obj_type, pose_dict, separate_dist = 0.5, he
                 check_update = False
                 for i in range(obj_count):
                     obj_name = "{}_{:01}".format(obj_type, i)
-                    T_ = gscene.NAME_DICT[obj_name].get_tf(crob.get_real_robot_pose())
+                    tvec = gscene.NAME_DICT[obj_name].get_args['center']
+                    Rmat = Rot_rpy(gscene.NAME_DICT[obj_name].get_args['rpy'])
+                    T_ = np.identity(4)
+                    T_[:3,:3] = Rmat
+                    T_[:3, 3] = tvec
+                    # T_ = gscene.NAME_DICT[obj_name].get_tf(crob.get_real_robot_pose())
                     center_, rpy_ = pose_refine(obj_type, T_, obj_height=height)
 
                     if np.linalg.norm(center-center_) < separate_dist: # consider same object
