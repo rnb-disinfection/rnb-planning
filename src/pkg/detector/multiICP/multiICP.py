@@ -5,6 +5,7 @@ import copy
 import pyrealsense2 as rs
 import numpy as np
 import open3d as o3d
+import time
 from collections import namedtuple
 from .heuristics import *
 from ..camera.kinect import Kinect
@@ -14,6 +15,20 @@ from ..detector_interface import DetectorInterface
 from ...geometry.geotype import GEOTYPE
 from ...utils.rotation_utils import *
 from ...utils.utils import TextColors
+
+from concurrent import futures
+import logging
+import math
+import time
+import cv2
+import numpy as np
+import grpc
+from .grpc_cam import RemoteCam_pb2
+from .grpc_cam import RemoteCam_pb2_grpc
+
+MAX_MESSAGE_LENGTH = 10000000
+GRPC_PORT = 10509
+HOST_IP = "192.168.17.2"
 
 ##
 # @class ColorDepthMap
@@ -28,7 +43,7 @@ ColorDepthMap = namedtuple('ColorDepthMap', ['color', 'depth', 'intrins', 'depth
 # @brief convert cdp to pcd
 # @param cdp ColorDepthMap
 # @param Tc camera coord w.r.t base coord
-def cdp2pcd(cdp, Tc=None, depth_trunc=5.0):
+def cdp2pcd(cdp, Tc=None, depth_trunc=10.0):
     if Tc is None:
         Tc = np.identity(4)
     color = o3d.geometry.Image(cdp.color)
@@ -102,28 +117,56 @@ class MultiICP:
         self.cache = None
         self.pcd_total = None
 
+        self.multiobject_num = 1
+        self.merge_mask = False
+        self.remote_cam = False
+
+
 
     ##
     # @brief initialize camera and set camera configuration
-    def initialize(self, config_list=None, img_dim=None):
+    def initialize(self, config_list=None, img_dim=None, remote_cam=False):
         if self.camera is None:
-            print("Camera is not set - skip initialization, use manually given camera configs")
-            assert config_list is not None and img_dim is not None, "config_list and img_dim must be given for no-cam mode"
-            self.config_list = config_list
-            self.img_dim = img_dim
-            self.dsize = tuple(reversed(img_dim))
-            self.h_fov_hf = np.arctan2(self.img_dim[1], 2 * config_list[0][0, 0])
-            self.v_fov_hf = np.arctan2(self.img_dim[0], 2 * config_list[0][1, 1])
-            return
-        self.camera.initialize()
-        cameraMatrix, distCoeffs, depth_scale = self.camera.get_config()
-        self.config_list = [cameraMatrix, distCoeffs, depth_scale]
-        self.img_dim = self.camera.get_image().shape[:2]
-        res_scale = np.max(np.ceil(np.divide(np.array(self.img_dim, dtype=float), 2000) / 2).astype(int) * 2)
-        self.dsize = tuple(reversed(np.divide(self.img_dim, res_scale).astype(int)))
-        self.h_fov_hf = np.arctan2(self.img_dim[1], 2*cameraMatrix[0,0])
-        self.v_fov_hf = np.arctan2(self.img_dim[0], 2*cameraMatrix[1,1])
-        print("Initialize Done")
+            if remote_cam:
+               self.remote_cam = remote_cam
+               print("Camera is not set - skip initialization, use remote camera")
+
+               # get camera config from remote camera
+               with grpc.insecure_channel('{}:{}'.format(HOST_IP, GRPC_PORT)) as channel:
+                   stub = RemoteCam_pb2_grpc.RemoteCamProtoStub(channel)
+                   request_id = 0
+                   resp = stub.GetConfig(RemoteCam_pb2.GetConfigRequest(request_id=request_id))
+                   print("request {} -> response {}".format(request_id, resp.response_id))
+                   cam_mtx = np.array(resp.camera_matrix).reshape((3, 3))
+                   dist_coeffs = np.array(resp.dist_coeffs).reshape((5,))
+                   depth_scale = resp.depth_scale
+                   width = resp.width
+                   height = resp.height
+                   print("==== Received camera config from remote camera ====")
+                   self.config_list = [cam_mtx, dist_coeffs, depth_scale]
+                   self.img_dim = (height, width)
+                   self.dsize = tuple(reversed(self.img_dim))
+                   self.h_fov_hf = np.arctan2(self.img_dim[1], 2 * self.config_list[0][0, 0])
+                   self.v_fov_hf = np.arctan2(self.img_dim[0], 2 * self.config_list[0][1, 1])
+            else:
+                print("Camera is not set - skip initialization, use manually given camera configs")
+                assert config_list is not None and img_dim is not None, "config_list and img_dim must be given for no-cam mode"
+                self.config_list = config_list
+                self.img_dim = img_dim
+                self.dsize = tuple(reversed(img_dim))
+                self.h_fov_hf = np.arctan2(self.img_dim[1], 2 * config_list[0][0, 0])
+                self.v_fov_hf = np.arctan2(self.img_dim[0], 2 * config_list[0][1, 1])
+                return
+        else:
+            self.camera.initialize()
+            cameraMatrix, distCoeffs, depth_scale = self.camera.get_config()
+            self.config_list = [cameraMatrix, distCoeffs, depth_scale]
+            self.img_dim = self.camera.get_image().shape[:2]
+            res_scale = np.max(np.ceil(np.divide(np.array(self.img_dim, dtype=float), 2000) / 2).astype(int) * 2)
+            self.dsize = tuple(reversed(np.divide(self.img_dim, res_scale).astype(int)))
+            self.h_fov_hf = np.arctan2(self.img_dim[1], 2*cameraMatrix[0,0])
+            self.v_fov_hf = np.arctan2(self.img_dim[0], 2*cameraMatrix[1,1])
+            print("Initialize Done")
 
     ##
     # @brief disconnect camera
@@ -142,7 +185,20 @@ class MultiICP:
     ##
     # @brief   get aligned RGB image and depthmap
     def get_image(self):
-        color_image, depth_image = self.camera.get_image_depthmap()
+        if not self.remote_cam:
+            color_image, depth_image = self.camera.get_image_depthmap()
+        else:
+            with grpc.insecure_channel('{}:{}'.format(HOST_IP, GRPC_PORT),
+                                       options=[('grpc.max_send_message_length', MAX_MESSAGE_LENGTH),
+                                                ('grpc.max_receive_message_length', MAX_MESSAGE_LENGTH)]) as channel:
+                stub = RemoteCam_pb2_grpc.RemoteCamProtoStub(channel)
+                request_id = 0
+                resp = stub.GetImageDepthmap(RemoteCam_pb2.GetImageDepthmapRequest(request_id=request_id))
+                print("request {} -> response {}".format(request_id, resp.response_id))
+                color_image = np.array(resp.color).reshape((resp.height, resp.width, 3))
+                depth_image = np.array(resp.depth).reshape((resp.height, resp.width))
+                print("==== Received color, depth image from remote camera ====")
+                self.img_dim = (resp.height, resp.width)
         Q = self.crob.get_real_robot_pose()
         return color_image, depth_image, Q
 
@@ -168,12 +224,26 @@ class MultiICP:
         self.cache = color_image, depth_image, Q
 
     ##
-    # @abrief change    threshold value to find correspondenc pair during ICP
+    # @brief change threshold value to find correspondenc pair during ICP
     # @param  thres_ICP     setting value of threshold
     # @param  thres_front_ICP   setting value of threshold
     def set_ICP_thres(self, thres_ICP=0.15, thres_front_ICP=0.10):
         self.thres_ICP = thres_ICP
         self.thres_front_ICP = thres_front_ICP
+
+    ##
+    # @abrief set the number of object which has multiple instance
+    # @param  num     setting value of num
+    # @param  merget   whether separate masking merge or not
+    def set_multiobject_num(self, num=1):
+        self.multiobject_num = num
+
+    ##
+    # @brief  set merget option of masks for one object
+    # @param  merget   whether separate masking merge or not
+    def set_merge_mask(self, merge=True):
+        self.merge_mask = merge
+        self.multiobject_num = 1
 
     ##
     # @brief    detect 3D objects pose
@@ -207,10 +277,15 @@ class MultiICP:
         cdp = ColorDepthMap(color_image, depth_image, cam_intrins, depth_scale)
         Tc = self.viewpoint.get_tf(Q)
         T_cb = SE3_inv(Tc)
+        self.objectPose_dict = {}
 
         if self.sd is None:
             TextColors.YELLOW.println("[WARN] SharedDetector is not set: call set_config()")
             return {}
+
+
+        print("Maximun num of object for detection : {}".format(self.multiobject_num))
+
         # Output of inference(mask for detected object)
         mask_out_list = self.inference(color_img=cdp.color)
 
@@ -244,18 +319,33 @@ class MultiICP:
 
         for name, micp in detect_dict.items():
             if name in mask_dict.keys():
-                # add to micp
+                # # add to micp
+                # masks = mask_dict[name]
+                # mask_list = []
+                # mask_zero = np.empty((self.img_dim[0],self.img_dim[1]), dtype=bool)
+                # mask_zero[:,:] = False
+                # mask_zero[np.where(masks ==  1)] = True
+                # mask_list.append(mask_zero)
+
+                # multiple instance
                 masks = mask_dict[name]
                 mask_list = []
-                mask_zero = np.empty((self.img_dim[0],self.img_dim[1]), dtype=bool)
-                mask_zero[:,:] = False
-                mask_zero[np.where(masks ==  1)] = True
-                mask_list.append(mask_zero)
-
-                # for i in range(int(np.max(masks))):
-                #     mask_tmp = mask_zero
-                #     mask_tmp[np.where(masks==i+1)] = True
-                #     mask_list.append(mask_tmp)
+                mask_zero = np.empty((self.img_dim[0], self.img_dim[1]), dtype=bool)
+                mask_zero[:, :] = False
+                if self.multiobject_num == 1:
+                    mask_tmp = copy.deepcopy(mask_zero)
+                    if self.merge_mask:
+                        print("[NOTICE] You choose merge option for mask. Detected masks would be merged.")
+                        mask_list.append(masks)
+                    else:
+                        mask_tmp[np.where(masks == 1)] = True
+                        mask_list.append(mask_tmp)
+                else:
+                    num = min(self.multiobject_num, int(np.max(masks)))
+                    for i in range(num):
+                        mask_tmp = copy.deepcopy(mask_zero)
+                        mask_tmp[np.where(masks==i+1)] = True
+                        mask_list.append(mask_tmp)
 
                 for i_m, mask in enumerate(mask_list):
                     cdp_masked = apply_mask(cdp, mask)
@@ -263,27 +353,52 @@ class MultiICP:
                     micp.make_pcd(cdp_masked, ratio=self.ratio)
 
                     skip_normal_icp = False
-                    if name in self.gscene.NAME_DICT: # if the object exists in gscene, use it as initial
+                    multi_init_icp = False
+                    Tguess = None
+                    if name in self.gscene.NAME_DICT:  # if the object exists in gscene, use it as initial
                         g_handle = self.gscene.NAME_DICT[name]
                         print("\n'{}' is already in gscene. Use this to intial guess\n".format(name))
                         Tbo = g_handle.get_tf(Q)
                         Tguess = np.matmul(T_cb, Tbo)
                         skip_normal_icp = True
                     else: # if the object not exists in gscene, use grule
-                        print("\n'{}' is not in gscene. Use manual input for initial guess\n".format(name))
-                        Tguess = None if micp.grule is None else micp.grule.get_initial(micp.pcd)
+                        if micp.grule is not None: # if grule is defined by user
+                            print("\n'{}' is not in gscene. Use manual input for initial guess\n".format(name))
+                            Tguess = micp.grule.get_initial(micp.pcd)
+                        else: # if grule is not defined by user, then use multi initial for ICP
+                            print("\n'{}' is not in gscene. Use multiple initial guess\n".format(name))
+                            multi_init_icp = True
 
                     # Compute ICP, front iCP
-                    if not skip_normal_icp:
-                        Tguess, _ = micp.compute_ICP(To=Tguess, thres=self.thres_ICP, visualize=visualize)
-                    T, _ = micp.compute_front_ICP(h_fov_hf = self.h_fov_hf, v_fov_hf = self.v_fov_hf,
-                                                  To=Tguess, thres=self.thres_front_ICP, visualize=visualize)
+                    if multi_init_icp:
+                        Tguess_list = self.get_multi_init_icp(micp.pcd, micp.Tref)
+                        T_best = np.identity(4)
+                        rmse_best = 1.
+                        for it, Tguess in enumerate(Tguess_list):
+                            if not skip_normal_icp:
+                                Tguess, _ = micp.compute_ICP(To=Tguess, thres=self.thres_ICP, visualize=visualize)
+                            T_, rmse = micp.compute_front_ICP(h_fov_hf=self.h_fov_hf, v_fov_hf=self.v_fov_hf,
+                                                              To=Tguess, thres=self.thres_front_ICP,
+                                                              visualize=visualize)
+                            if rmse < rmse_best and rmse>0:
+                                rmse_best = rmse
+                                T_best = T_
+                        print("Lowest rmse", rmse_best)
+                        T = T_best
+                    else:
+                        if not skip_normal_icp:
+                            Tguess, _ = micp.compute_ICP(To=Tguess, thres=self.thres_ICP, visualize=visualize)
+                        T, rmse = micp.compute_front_ICP(h_fov_hf=self.h_fov_hf, v_fov_hf=self.v_fov_hf,
+                                                         To=Tguess, thres=self.thres_front_ICP, visualize=visualize)
 
-                    # name_i = "{}_{:02}".format(name, i_m)
-                    self.objectPose_dict[name] = np.matmul(Tc, T)
-                    print('Found 6DoF pose of {}'.format(name))
+                    # self.objectPose_dict[name] = np.matmul(Tc, T)
+                    name_i = "{}_{:01}".format(name, i_m+1)
+                    self.objectPose_dict[name_i] = np.matmul(Tc, T)
+                    print('Found 6DoF pose of {}'.format(name_i))
             elif micp.hrule is not None:
                 hrule_targets_dict[name] = micp
+            elif name in class_dict.keys():
+                print("{} not detected".format(name))
             else:
                 raise (RuntimeError("{} not detected and has no detection rule".format(name)))
 
@@ -296,9 +411,11 @@ class MultiICP:
             if hrule.parent in detect_dict:
                 micp_parent = detect_dict[hrule.parent]
             else:
-                if hrule.parent in self.gscene.NAME_DICT: # if the object exists in gscene, use it as initial
+                if hrule.parent in self.gscene.NAME_DICT:  # if the object exists in gscene, use it as initial
                     g_handle = self.gscene.NAME_DICT[hrule.parent]
-                    print("\nParent object '{}' of '{}' is already in gscene. Apply heuristic rule based on this\n".format(hrule.parent, name))
+                    print(
+                        "\nParent object '{}' of '{}' is already in gscene. Apply heuristic rule based on this\n".format(
+                            hrule.parent, name))
                     micp_parent = self.micp_dict[hrule.parent]
                     micp_parent.change_Tref(Tc)
                 else:
@@ -311,6 +428,7 @@ class MultiICP:
                 micp.pcd = pcd
 
                 skip_normal_icp = False
+                multi_init_icp = False
                 # Check whether the object exists in gscene
                 if name in self.gscene.NAME_DICT:
                     g_handle = self.gscene.NAME_DICT[name]
@@ -319,15 +437,35 @@ class MultiICP:
                     Tguess = np.matmul(T_cb, Tbo)
                     skip_normal_icp = True
                 else:
-                    print("\n'{}' is not in gscene. Use manual input for initial guess\n".format(name))
-                    Tguess = micp.grule.get_initial(micp.pcd,
-                                                            R=detect_dict[hrule.parent].pose[:3, :3])
+                    if micp.grule is not None:  # if grule is defined by user
+                        print("\n'{}' is not in gscene. Use manual input for initial guess\n".format(name))
+                        Tguess = micp.grule.get_initial(micp.pcd,
+                                                        R=detect_dict[hrule.parent].pose[:3, :3])
+                    else:  # if grule is not defined by user, then use multi initial for ICP
+                        print("\n'{}' is not in gscene. Use multiple initial guess\n".format(name))
+                        multi_init_icp = True
+
 
                 # Compute ICP, front iCP
-                if not skip_normal_icp:
-                    Tguess, _ = micp.compute_ICP(To=Tguess, thres=self.thres_ICP, visualize=visualize)
-                T, _ = micp.compute_front_ICP(h_fov_hf = self.h_fov_hf, v_fov_hf = self.v_fov_hf,
-                                              To=Tguess, thres=self.thres_front_ICP, visualize=visualize)
+                if multi_init_icp:
+                    Tguess_list = self.get_multi_init_icp(micp.pcd, micp.Tref)
+                    T_best = np.identity(4)
+                    rmse_best = 1.
+                    for it, Tguess in enumerate(Tguess_list):
+                        if not skip_normal_icp:
+                            Tguess, _ = micp.compute_ICP(To=Tguess, thres=self.thres_ICP, visualize=visualize)
+                        T_, rmse = micp.compute_front_ICP(h_fov_hf=self.h_fov_hf, v_fov_hf=self.v_fov_hf,
+                                                          To=Tguess, thres=self.thres_front_ICP, visualize=visualize)
+                        if rmse < rmse_best and rmse>0:
+                            rmse_best = rmse
+                            T_best = T_
+                    print("Lowest rmse", rmse_best)
+                    T = T_best
+                else:
+                    if not skip_normal_icp:
+                        Tguess, _ = micp.compute_ICP(To=Tguess, thres=self.thres_ICP, visualize=visualize)
+                    T, rmse = micp.compute_front_ICP(h_fov_hf=self.h_fov_hf, v_fov_hf=self.v_fov_hf,
+                                                     To=Tguess, thres=self.thres_front_ICP, visualize=visualize)
                 T_list.append(T)
                 self.objectPose_dict[name_i] = np.matmul(Tc, T)
                 print('Found 6DoF pose of {}'.format(name_i))
@@ -412,6 +550,32 @@ class MultiICP:
                     mask_out_list[idx][np.where(mask_res>0)] = mask_res[np.where(mask_res>0)]
         return mask_out_list
 
+   ##
+    # @brief generate multiple initials for ICP
+    # @param pcd point cloud
+    # @param base_coord camera coordinate w.r.t base coord
+    def get_multi_init_icp(self, pcd, Tbc):
+        T_list = []
+        center = pcd.get_center()
+        off_x, off_y, off_z = (pcd.get_max_bound() - pcd.get_min_bound())/4.
+        R_ = np.linalg.inv(Tbc[:3,:3])
+        DIVIDE_NUM = 8
+        for ir in range(DIVIDE_NUM):
+            R = np.matmul(R_, np.linalg.inv(Rot_axis(3, ir*2*np.pi / DIVIDE_NUM)))
+            t = np.array([center[0], center[1], center[2]])
+            T = SE3(R,t)
+            # for it in range(2):
+            #     t_x = center[0] + float((1 - 2 * it) * off_x)
+            #     for jt in range(2):
+            #         t_y = center[1] + float((1 - 2 * jt) * off_y)
+            #         for kt in range(2):
+            #             t_z = center[2] + float((1 - 2 * kt) * off_z)
+            #             t = np.array([t_x,t_y,t_z])
+            #             T = SE3(R, t)
+            #             T_list.append(T)
+            T_list.append(T)
+        return T_list
+
 
 ##
 # @class    MultiICP_Obj
@@ -422,7 +586,7 @@ class MultiICP_Obj:
     # @param hrule      heuristic rule class
     # @param grule      initial guess rule class
     def __init__(self, obj_info, hrule=None, grule=None):
-        self.depth_trunc = 5.0
+        self.depth_trunc = 10.0
         self.model = None
         self.cdp = None
         self.pcd = None
@@ -505,30 +669,33 @@ class MultiICP_Obj:
     # @param thres max distance between corresponding points
     def compute_ICP(self, To=None, thres=0.15,
                     relative_fitness=1e-15, relative_rmse=1e-15, max_iteration=500000,
-                    voxel_size=0.04, ratio=0.3, visualize=False
+                    voxel_size=0.03, ratio=0.3, visualize=False
                     ):
         if To is None:
             To, fitness = self.auto_init(0, voxel_size)
         target = copy.deepcopy(self.pcd)
+        target, ind = target.remove_radius_outlier(nb_points=25, radius=0.05)
         source = copy.deepcopy(self.model_sampled)
+        source_bak = copy.deepcopy(source)
 
-        # To Be Done - add front only option and cut backward surface here based on To
+
         if visualize:
             self.draw(To)
 
         To = np.matmul(To, self.Toff_inv)
 
-
         # Guess Initial Transformation
         trans_init = To
+        threshold = thres
 
-        # Sampling points to reduct number of points
-        source_down = source.uniform_down_sample(every_k_points=2)
-        target_down = target.uniform_down_sample(every_k_points=2)
+        # # Sampling points to reduct number of points
+        # source_down = source.uniform_down_sample(every_k_points=2)
+        # target_down = target.uniform_down_sample(every_k_points=2)
+
 
         print("Apply point-to-point ICP")
         threshold = thres
-        reg_p2p = o3d.registration.registration_icp(source_down, target_down, threshold, trans_init,
+        reg_p2p = o3d.registration.registration_icp(source, target, threshold, trans_init,
                                                     o3d.registration.TransformationEstimationPointToPoint(),
                                                     o3d.registration.ICPConvergenceCriteria(
                                                         relative_fitness=relative_fitness,
@@ -539,20 +706,22 @@ class MultiICP_Obj:
         print(reg_p2p.transformation)
         ICP_result = reg_p2p.transformation
 
+        print("Total ICP Transformation is:")
+        print(ICP_result)
         ICP_result = np.matmul(ICP_result, self.Toff)
         if visualize:
-            self.draw(ICP_result, source_down, target_down)
+            self.draw(ICP_result, source, target)
 
         self.pose = ICP_result
-        return ICP_result, reg_p2p.fitness
+        return ICP_result, reg_p2p.inlier_rmse
 
     ##
     # @param Tc_cur this is new camera transformation in pcd origin
     # @param To    initial transformation matrix of geometry object in the intended icp origin coordinate
     # @param thres max distance between corresponding points
     def compute_front_ICP(self, h_fov_hf, v_fov_hf, Tc_cur=None, To=None, thres=0.07,
-                          relative_fitness=1e-18, relative_rmse=1e-18, max_iteration=700000,
-                          voxel_size=0.04, visualize=False
+                          relative_fitness=1e-19, relative_rmse=1e-19, max_iteration=700000,
+                          voxel_size=0.02, visualize=False
                           ):
         if To is None:
             if self.pose is not None:
@@ -568,7 +737,8 @@ class MultiICP_Obj:
         T_cb = SE3_inv(Tc_cur)  # base here is the point cloud base defined when added
         T_co = np.matmul(np.matmul(T_cb, To), self.Toff_inv)
         # model_mesh = self.model.compute_vertex_normals()
-        model_pcd = self.model_sampled
+        model_pcd = copy.deepcopy(self.model_sampled)
+        source_bak = copy.deepcopy(model_pcd)
 
         # remove points whose normal vector direction are opposite to camera direction vector
         normals = np.asarray(model_pcd.normals)
@@ -635,19 +805,7 @@ class MultiICP_Obj:
         # Guess Initial Transformation
         trans_init = To
 
-        # # remove points which are not in FOV ver.1
-        # center_point = target.get_center()
-        # points_converted = np.matmul(To[:3,:3], points_front.T).T + To[:3,3]
-        # dist_v = np.sqrt((np.linalg.norm(center_point)/np.cos(v_fov_hf))**2 - np.linalg.norm(center_point)**2)
-        # point_upper = center_point + np.array([0, -dist_v,0])
-        # point_lower = center_point + np.array([0, dist_v,0])
-        #
-        # points_converted = points_converted[np.where(points_converted[:,1]<point_lower[1])]
-        # points_converted = points_converted[np.where(points_converted[:,1]>point_upper[1])]
-        #
-        # points_remain = np.matmul(np.linalg.inv(To)[:3,:3], points_converted.T).T + np.linalg.inv(To)[:3,3]
-
-        # remove points which are not in FOV ver.2
+        # remove points which are not in FOV
         center_point = target.get_center()
         points_converted = np.matmul(To[:3,:3], points_front.T).T + To[:3,3]
 
@@ -656,10 +814,32 @@ class MultiICP_Obj:
 
         points_remain = np.matmul(np.linalg.inv(To)[:3,:3], points_converted.T).T + np.linalg.inv(To)[:3,3]
 
-
         front_pcd = o3d.geometry.PointCloud()
         front_pcd.points = o3d.utility.Vector3dVector(points_remain)
         source = copy.deepcopy(front_pcd)
+        source_bak = copy.deepcopy(source)
+
+        # match the number of points between model_sampled pcd and data pcd
+        # discrepancy = float(len(np.asarray(target.points))/len(np.asarray(source.points)))
+        # target = target.uniform_down_sample(every_k_points=int(discrepancy))
+        # target, ind = target.remove_radius_outlier(nb_points=40, radius=0.03)
+        # source = source.voxel_down_sample(voxel_size)
+        # target = target.voxel_down_sample(voxel_size)
+
+        # source_num = np.asarray(source.points).shape[0]
+        # target_num = np.asarray(target.points).shape[0]
+        # total_num = min(int(source_num/2.5), int(target_num/2.5))
+        # source_indices = np.random.choice(source_num, total_num, replace=False)
+        # target_indices = np.random.choice(target_num, total_num, replace=False)
+        # source_rand = o3d.geometry.PointCloud()
+        # target_rand = o3d.geometry.PointCloud()
+        # for i in range(len(source_indices)):
+        #     source_rand.points.append(source.points[source_indices[i]])
+        # for i in range(len(target_indices)):
+        #     target_rand.points.append(target.points[target_indices[i]])
+        #
+        # source = source_rand
+        # target = target_rand
 
         if visualize:
             print("initial: \n{}".format(np.round(To, 2)))
@@ -667,13 +847,42 @@ class MultiICP_Obj:
             cam_coord.transform(Tc_cur)
             self.draw(np.matmul(To, self.Toff), source, target, [cam_coord])
 
-        # Sampling points to reduct number of points
-        source_down = source.uniform_down_sample(every_k_points=2)
-        target_down = target.uniform_down_sample(every_k_points=2)
+        # # Sampling points to reduct number of points
+        # source_down = source.uniform_down_sample(every_k_points=2)
+        # target_down = target.uniform_down_sample(every_k_points=2)
 
+        # if visualize:
+        #     vis = o3d.visualization.Visualizer()
+        #     vis.create_window()
+        #     vis.add_geometry(source)
+        #     vis.add_geometry(target)
+        # fitness_prev = 0.0
+        # inlier_rmse_prev = 1.0
+        # print("Apply point-to-point ICP")
+        # while (True):
+        #     reg_p2p = o3d.registration.registration_icp(source, target, threshold, np.identity(4),
+        #                                                 o3d.registration.TransformationEstimationPointToPoint(),
+        #                                                 o3d.registration.ICPConvergenceCriteria(
+        #                                                     max_iteration=1))
+        #     source.transform(reg_p2p.transformation)
+        #     if visualize:
+        #         time.sleep(0.03)
+        #         vis.update_geometry(source)
+        #         vis.poll_events()
+        #         vis.update_renderer()
+        #     ICP_result = np.matmul(reg_p2p.transformation, ICP_result)
+        #     delta_fitness = abs(reg_p2p.fitness - fitness_prev)
+        #     delta_rmse = abs(reg_p2p.inlier_rmse - inlier_rmse_prev)
+        #     if delta_fitness < relative_fitness or delta_rmse < relative_rmse:
+        #         time.sleep(0.04)
+        #         break
+        #     else:
+        #         fitness_prev = reg_p2p.fitness
+        #         inlier_rmse_prev = reg_p2p.inlier_rmse
+        # if visualize:
+        #     vis.destroy_window()
         print("Apply point-to-point ICP")
-        threshold = thres
-        reg_p2p = o3d.registration.registration_icp(source, target, threshold, trans_init,
+        reg_p2p = o3d.registration.registration_icp(source, target, thres, trans_init,
                                                     o3d.registration.TransformationEstimationPointToPoint(),
                                                     o3d.registration.ICPConvergenceCriteria(
                                                         relative_fitness=relative_fitness,
@@ -684,13 +893,51 @@ class MultiICP_Obj:
         print(reg_p2p.transformation)
         ICP_result = reg_p2p.transformation
 
+        print("Total ICP Transformation is:")
+        print(ICP_result)
         ICP_result = np.matmul(ICP_result, self.Toff)
         if visualize:
             print("result: \n{}".format(np.round(ICP_result, 2)))
-            self.draw(ICP_result, source_down, target_down)
+            self.draw(ICP_result, source, target)
 
+        # # BEV ICP
+        # T_bo = np.matmul(self.Tref, ICP_result)
+        # source_b_np = np.matmul(T_bo[:3, :3], np.asarray(source_bak.points).T).T + T_bo[:3, 3]
+        # source_b_np[:, 2] = 0
+        # source_b = o3d.geometry.PointCloud()
+        # source_b.points = o3d.utility.Vector3dVector(source_b_np)
+        # source_b.voxel_down_sample(0.03)
+        #
+        # target_b_np = np.matmul(self.Tref[:3, :3], np.asarray(target.points).T).T + self.Tref[:3, 3]
+        # target_b_np[:, 2] = 0
+        # target_b = o3d.geometry.PointCloud()
+        # target_b.points = o3d.utility.Vector3dVector(target_b_np)
+        # target_b.voxel_down_sample(0.03)
+        #
+        # if visualize:
+        #     draw_registration_result(source_b, target_b, np.identity(4))
+        #
+        # print("Apply point-to-point ICP, BEV version")
+        # reg_p2p = o3d.registration.registration_icp(source_b, target_b, thres, np.identity(4),
+        #                                             o3d.registration.TransformationEstimationPointToPoint(),
+        #                                             o3d.registration.ICPConvergenceCriteria(
+        #                                                 relative_fitness=relative_fitness,
+        #                                                 relative_rmse=relative_rmse,
+        #                                                 max_iteration=max_iteration))
+        # BEV_ICP_result = reg_p2p.transformation
+        # print("Total BEV ICP Transformation is:")
+        # print(BEV_ICP_result)
+        # if visualize:
+        #     draw_registration_result(source_b, target_b, BEV_ICP_result)
+        #
+        # Too_ = np.matmul(np.linalg.inv(ICP_result),
+        #                  np.matmul(np.linalg.inv(self.Tref),
+        #                            np.matmul(np.matmul(self.Tref, ICP_result), BEV_ICP_result)))
+        # self.pose = np.matmul(np.matmul(ICP_result, Too_), self.Toff)
+        # if visualize:
+        #     self.draw(self.pose, source_bak, target)
         self.pose = ICP_result
-        return ICP_result, reg_p2p.fitness
+        return ICP_result, reg_p2p.inlier_rmse
 
     def draw(self, To, source=None, target=None, option_geos=[]):
         if source is None: source = self.model_sampled

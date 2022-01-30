@@ -81,7 +81,8 @@ class CombinedRobot:
                     self.robot_dict[name] = indy_7dof_client.Indy7DofClient(server_ip=addr)
             elif _type in [RobotType.panda, RobotType.panda_arm]:
                 if cnt:
-                    self.robot_dict[name] = panda_trajectory_client.PandaTrajectoryClient(*addr.split("/"))
+                    self.robot_dict[name] = panda_trajectory_client.PandaTrajectoryClient(
+                        *addr.split("/"), user_gripper=_type==RobotType.panda)
                 else:
                     self.robot_dict[name] = panda_trajectory_client.PandaTrajectoryClient(None, None)
             elif _type == RobotType.kmb:
@@ -159,12 +160,12 @@ class CombinedRobot:
     ##
     # @brief move to joint pose target
     # @param Q motion target(rad)
-    def joint_move_make_sure(self, Q, auto_stop=True):
+    def joint_move_make_sure(self, Q, auto_stop=True, **kwargs):
         for name, rconfig in zip(self.robot_names, self.robots_on_scene):
             _type = rconfig.type
             robot = self.robot_dict[name]
             if robot is not None:
-                robot.joint_move_make_sure(Q[self.idx_dict[name]], auto_stop=auto_stop)
+                robot.joint_move_make_sure(Q[self.idx_dict[name]], auto_stop=auto_stop, **kwargs)
 
     ##
     # @brief move joint with waypoints, one-by-one

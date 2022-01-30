@@ -190,7 +190,7 @@ class GeoMarker:
                 else:
                     return Marker.POINTS
             else:
-                raise(RuntimeError("Mesh geometry should have uri or vertices"))
+                raise(RuntimeError("Mesh geometry should have uri or vertices - {}".format(self.geometry.name)))
         elif self.geometry.gtype == GEOTYPE.ARROW:
             return Marker.ARROW
         elif self.geometry.gtype == GEOTYPE.PLANE:

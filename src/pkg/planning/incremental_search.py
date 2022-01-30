@@ -635,9 +635,10 @@ class MotionResolver(ConstraintResolver):
                     col_tems.append(sname)
             if display:
                 for sname in col_tems:
-                    gnames = self.pscene.gscene.NAME_DICT[sname].get_family()
+                    gnames = self.pscene.subject_dict[sname].geometry.get_family()
                     for gname in gnames:
-                        self.pscene.gscene.highlight_geometry("mresv", gname, color=(1, 1, 0, 0.5))
+                        if self.pscene.gscene.NAME_DICT[gname].collision:
+                            self.pscene.gscene.highlight_geometry("mresv", gname, color=(1, 1, 0, 0.5))
                 self.pscene.gscene.show_motion(Traj, period=dt_vis)
                 self.pscene.gscene.clear_highlight()
             reason.append((col_tems, Traj))
