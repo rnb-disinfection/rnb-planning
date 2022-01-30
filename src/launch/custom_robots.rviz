@@ -68,42 +68,80 @@ Visualization Manager:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-        indy0_link0:
+        panda1_hand:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        indy0_link1:
+        panda1_link0:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        indy0_link2:
+        panda1_link1:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        indy0_link3:
+        panda1_link2:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        indy0_link4:
+        panda1_link3:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        indy0_link5:
+        panda1_link4:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        indy0_link6:
+        panda1_link5:
           Alpha: 1
           Show Axes: false
           Show Trail: false
           Value: true
-        indy0_tcp:
+        panda1_link6:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        panda1_link7:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        panda1_link8:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        pmb0_link0:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        pmb0_link1:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        pmb0_link2:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        pmb0_link3:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        pmb0_link4:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        pmb0_link5:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        pmb0_platform:
           Alpha: 1
           Show Axes: false
           Show Trail: false
@@ -137,21 +175,39 @@ Visualization Manager:
         All Enabled: true
         base_link:
           Value: true
-        indy0_link0:
+        panda1_hand:
           Value: true
-        indy0_link1:
+        panda1_link0:
           Value: true
-        indy0_link2:
+        panda1_link1:
           Value: true
-        indy0_link3:
+        panda1_link2:
           Value: true
-        indy0_link4:
+        panda1_link3:
           Value: true
-        indy0_link5:
+        panda1_link4:
           Value: true
-        indy0_link6:
+        panda1_link5:
           Value: true
-        indy0_tcp:
+        panda1_link6:
+          Value: true
+        panda1_link7:
+          Value: true
+        panda1_link8:
+          Value: true
+        pmb0_link0:
+          Value: true
+        pmb0_link1:
+          Value: true
+        pmb0_link2:
+          Value: true
+        pmb0_link3:
+          Value: true
+        pmb0_link4:
+          Value: true
+        pmb0_link5:
+          Value: true
+        pmb0_platform:
           Value: true
       Marker Scale: 0.5
       Name: TF
@@ -160,15 +216,24 @@ Visualization Manager:
       Show Names: true
       Tree:
         base_link:
-          indy0_link0:
-            indy0_link1:
-              indy0_link2:
-                indy0_link3:
-                  indy0_link4:
-                    indy0_link5:
-                      indy0_link6:
-                        indy0_tcp:
-                          {}
+          pmb0_link0:
+            pmb0_link1:
+              pmb0_link2:
+                pmb0_link3:
+                  pmb0_link4:
+                    pmb0_link5:
+                      pmb0_platform:
+                        panda1_link0:
+                          panda1_link1:
+                            panda1_link2:
+                              panda1_link3:
+                                panda1_link4:
+                                  panda1_link5:
+                                    panda1_link6:
+                                      panda1_link7:
+                                        panda1_link8:
+                                          panda1_hand:
+                                            {}
       Update Interval: 0
       Value: true
   Enabled: true
@@ -199,25 +264,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 5.356684684753418
+      Distance: 3.650430679321289
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -0.9222805500030518
-        Y: 0.9775064587593079
-        Z: -0.8632557988166809
+        X: -1.04384446144104
+        Y: 0.804474413394928
+        Z: -0.5675374865531921
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.7197965383529663
+      Pitch: 0.6597965955734253
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 5.611794948577881
+      Yaw: 5.686795711517334
     Saved: ~
 Window Geometry:
   Displays:

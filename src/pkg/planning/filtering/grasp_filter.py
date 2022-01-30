@@ -66,7 +66,8 @@ class GraspChecker(MotionFilterInterface):
     # @param Q_dict joint configuration in dictionary format {joint name: radian value}
     # @param interpolate    interpolate path and check intermediate poses
     # @param ignore         GeometryItems to ignore
-    def check(self, btf, Q_dict, interpolate=False, obj_only=False, ignore=[],
+    # @param return_dist_dict   return distance dictionary
+    def check(self, btf, Q_dict, interpolate=False, obj_only=False, ignore=[], return_dist_dict=False,
               **kwargs):
         obj, handle, actor = btf.get_instance_chain(self.pscene)
         T_loal = btf.T_loal
@@ -103,7 +104,7 @@ class GraspChecker(MotionFilterInterface):
         for actor_vertice, actor_radius in actor_vertice_list:
             for object_vertice, object_radius in object_vertice_list:
                 dist_list.append(get_gjk_distance(actor_vertice, object_vertice) - actor_radius - object_radius)
-        res = np.min(dist_list) > + 1e-6
+        res = np.min(dist_list) > + 1e-20
         if self.show_vertices:
             print("res: {} ({})".format(res, round(np.min(dist_list), 4)))
             if not res:
@@ -120,7 +121,19 @@ class GraspChecker(MotionFilterInterface):
             save_scene(self.__class__.__name__, self.pscene, btf, Q_dict,
                        error_state=False, result=res,
                        interpolate=interpolate, obj_only=obj_only, ignore=[igtem.name for igtem in ignore], **kwargs)
-        return res
+        if return_dist_dict:
+            i_dist = 0
+            dist_dict = {}
+            for actor_vertinfo in actor_vertinfo_list:
+                aname = actor_vertinfo[0]
+                dist_dict[aname] = {}
+                for obj_vertinfo in object_vertinfo_list:
+                    oname = obj_vertinfo[0]
+                    dist_dict[aname][oname] = dist_list[i_dist]
+                    i_dist += 1
+            return dist_dict
+        else:
+            return res
 
     ##
     # @brief transfer actor to binding position and get vertices' information

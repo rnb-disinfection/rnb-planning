@@ -184,3 +184,31 @@ def a_star_search(graph, start, goal):
                 came_from[next] = current
     
     return came_from, cost_so_far
+
+def score_graph(node_dict, goal_node, backtrack=False, step_cost=1):
+    came_from = {}
+    node_cost_dict = {}
+    frontier = PriorityQueue()
+    if isinstance(goal_node, list):
+        for goal in goal_node:
+            frontier.put((0, goal))
+            came_from[goal] = None
+            node_cost_dict[goal] = 0
+    else:
+        frontier.put((0, goal_node))
+        came_from[goal_node] = None
+        node_cost_dict[goal_node] = 0
+
+    while not frontier.empty():
+        current = frontier.get()[1]
+        if current in node_dict:
+            for next in node_dict[current]:
+                if next == current:
+                    continue
+                new_cost = node_cost_dict[current] + step_cost
+                if next not in node_cost_dict or new_cost < node_cost_dict[next]:
+                    node_cost_dict[next] = new_cost
+                    priority = new_cost
+                    frontier.put((priority, next))
+                    came_from[next] = current
+    return node_cost_dict

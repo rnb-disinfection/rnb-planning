@@ -219,6 +219,12 @@ class KiroUDPClient(TrajectoryClient):
     def start_tracking(self):
         return {}
 
+    def pause_tracking(self):
+        return {}
+
+    def resume_tracking(self):
+        return {}
+
     ##
     # @brief override stop_tracking in IndyDCPClient. reset the robot and trajectory client, and stop tracking.
     # @remark   reset_robot is added here because it resets the internal robot pose reference.

@@ -139,7 +139,7 @@ class PlanningPipeline:
             with self.gtimer.block("start_process"):
                 kwargs.update({"timeout": timeout})
                 self.proc_list = [Process(
-                    target=self.__search_loop,
+                    target=self._search_loop,
                     args=(id_agent, N_search, False, dt_vis, verbose, timeout_loop),
                     kwargs=kwargs) for id_agent in range(N_agents)]
                 for proc in self.proc_list:
@@ -150,7 +150,7 @@ class PlanningPipeline:
                 self.wait_procs(timeout_loop, looptime_extra)
         else:
             self.proc_list = []
-            self.__search_loop(0, N_search, display, dt_vis, verbose, timeout_loop, timeout=timeout, **kwargs)
+            self._search_loop(0, N_search, display, dt_vis, verbose, timeout_loop, timeout=timeout, **kwargs)
         elapsed = self.gtimer.toc("search_loop")
         print(
             "========================== FINISHED ({} / {} s) ==============================]".format(
@@ -184,7 +184,7 @@ class PlanningPipeline:
         if len(self.non_joineds) > 0:
             TextColors.RED.println("[ERROR] Non-joined subprocesses: {}".format(self.non_joineds))
 
-    def __search_loop(self, ID, N_search,
+    def _search_loop(self, ID, N_search,
                       display=False, dt_vis=None, verbose=False, timeout_loop=600,
                       add_homing=True, post_optimize=False, home_pose=None,  **kwargs):
         loop_counter = 0

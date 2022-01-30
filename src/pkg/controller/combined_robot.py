@@ -2,6 +2,7 @@ from .trajectory_client.trajectory_client import *
 from .trajectory_client import indy_trajectory_client
 from .trajectory_client import indy_trajectory_client_nosdk
 from .trajectory_client import panda_trajectory_client
+from .trajectory_client import postech_mobile_client
 from .trajectory_client.kiro import kiro_udp_client
 from .trajectory_client.kiro import indy_7dof_client
 from .trajectory_client.kiro import indy_7dof_client_nosdk
@@ -78,7 +79,7 @@ class CombinedRobot:
                     self.robot_dict[name] = indy_7dof_client_nosdk.Indy7DofClientNoSDK(server_ip=addr)
                 else:
                     self.robot_dict[name] = indy_7dof_client.Indy7DofClient(server_ip=addr)
-            elif _type == RobotType.panda:
+            elif _type in [RobotType.panda, RobotType.panda_arm]:
                 if cnt:
                     self.robot_dict[name] = panda_trajectory_client.PandaTrajectoryClient(*addr.split("/"))
                 else:
@@ -88,6 +89,8 @@ class CombinedRobot:
                     self.robot_dict[name] = kiro_udp_client.KiroUDPClient(*addr.split("/"))
                 else:
                     self.robot_dict[name] = kiro_udp_client.KiroUDPClient(None, None)
+            elif _type == RobotType.pmb:
+                self.robot_dict[name] = postech_mobile_client.PostechMobileClient(server_ip=addr)
             else:
                 self.robot_dict[name] = TrajectoryClient(server_ip=addr)
 

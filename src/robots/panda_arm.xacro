@@ -1,6 +1,10 @@
 <?xml version='1.0' encoding='utf-8'?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="panda">
-  <xacro:macro name="panda_arm" params="arm_id:='panda' description_pkg:='franka_description' connected_to:='' xyz:='0 0 0' rpy:='0 0 0'">
+  <xacro:macro name="panda_arm"
+               params="arm_id:='panda' robot_id:='' description_pkg:='franka_description' connected_to:='' xyz:='0 0 0' rpy:='0 0 0'">
+    <xacro:unless value="${robot_id == ''}">
+      <xacro:property name="arm_id" value="panda_arm${robot_id}" />
+    </xacro:unless>
     <xacro:unless value="${not connected_to}">
       <joint name="${arm_id}_joint_${connected_to}" type="fixed">
         <parent link="${connected_to}"/>
@@ -174,7 +178,20 @@
       <axis xyz="0 0 1"/>
       <limit effort="12" lower="-2.8973" upper="2.8973" velocity="2.6100"/>
     </joint>
-    <link name="${arm_id}_link8"/>
+    <link name="${arm_id}_link8">
+      <collision>
+        <origin xyz="0.0 0.0 -0.09" rpy="0.  0.  0."/>
+        <geometry>
+          <cylinder length="0.20" radius="0.05"/>
+        </geometry>
+      </collision>
+      <collision>
+        <origin xyz="0.042 0.042 -0.028" rpy="0 0 ${-pi/4}"/>
+        <geometry>
+          <box size="0.08 0.07 0.036"/>
+        </geometry>
+      </collision>
+    </link>
     <joint name="${arm_id}_joint8" type="fixed">
       <origin rpy="0 0 0" xyz="0 0 0.107"/>
       <parent link="${arm_id}_link7"/>

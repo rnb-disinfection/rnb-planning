@@ -75,7 +75,7 @@ class TaskBiRRT(TaskInterface):
 
     ##
     # @brief calculate initial/goal scores and filter valid nodes
-    def init_search(self, initial_state, goal_nodes, tree_margin=None, depth_margin=None):
+    def init_search(self, initial_state, goal_nodes, **kwargs):
         self.initial_state = initial_state
         self.goal_nodes = goal_nodes
         self.target_sidx = -1

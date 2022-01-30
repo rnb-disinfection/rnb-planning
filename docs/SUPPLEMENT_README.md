@@ -190,6 +190,53 @@ cp -r $RNB_PLANNING_DIR/third-party/etasl/etasl_ros_control "$RNB_PLANNING_DIR"w
   ```
   * for "not unique" error, remove it from individual xacro files and include the item on the top of "custom_robots.urdf.xacro"  
 
+### Settings for Moveit planner
+* ***src/robots/kinematics.yaml***
+  - add below lines with **ROBOTNAME_WITH_ID** for your robot. (*ROBOTNAME_WITH_ID}* example: *indy0*)
+  ```yaml
+  ROBOTNAME_WITH_ID:
+  kinematics_solver: kdl_kinematics_plugin/KDLKinematicsPlugin
+  kinematics_solver_search_resolution: 0.005
+  kinematics_solver_timeout: 0.010
+  ```
+* ***src/robots/kinematics.yaml***
+  - add below lines with **ROBOTNAME_WITH_ID** and **TIP_LINK_NAME** for your robot. (*TIP_LINK_NAME* example: *indy0_tcp*)
+  ```yaml
+  ROBOTNAME_WITH_ID:
+  planner_configs:
+    - SBLkConfigDefault
+    - ESTkConfigDefault
+    - LBKPIECEkConfigDefault
+    - BKPIECEkConfigDefault
+    - KPIECEkConfigDefault
+    - RRTkConfigDefault
+    - RRTConnectkConfigDefault
+    - RRTstarkConfigDefault
+    - TRRTkConfigDefault
+    - PRMkConfigDefault
+    - PRMstarkConfigDefault
+    - FMTkConfigDefault
+    - BFMTkConfigDefault
+    - PDSTkConfigDefault
+    - STRIDEkConfigDefault
+    - BiTRRTkConfigDefault
+    - LBTRRTkConfigDefault
+    - BiESTkConfigDefault
+    - ProjESTkConfigDefault
+    - LazyPRMkConfigDefault
+    - LazyPRMstarkConfigDefault
+    - SPARSkConfigDefault
+    - SPARStwokConfigDefault
+    - TrajOptDefault
+  projection_evaluator: link(TIP_LINK_NAME)
+  ```
+### Settings for controller interface
+* ***src/pkg/controller/robot_config***
+  - Add **RobotTemplate** information to **RobotSpecs.SPEC_DICT**
+  
+* ***src/pkg/controller/combined_robot***
+  - Implement your own robot's control client class and add initialization rule to **CombinedRobot.__set_clients()**
+
 ## Removing cuda  
   ```bash
   sudo apt remove -y 'cuda*'

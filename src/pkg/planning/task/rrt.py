@@ -81,7 +81,7 @@ class TaskRRT(TaskInterface):
 
     ##
     # @brief calculate initial/goal scores and filter valid nodes
-    def init_search(self, initial_state, goal_nodes, tree_margin=None, depth_margin=None):
+    def init_search(self, initial_state, goal_nodes, **kwargs):
         self.initial_state = initial_state
         self.goal_nodes = goal_nodes
         self.reserved_attempt = False
@@ -264,9 +264,3 @@ class TaskRRT(TaskInterface):
                                 print(e)
 
         return False
-
-    ##
-    # @brief check if a state is in pre-defined goal nodes
-    # @param state rnb-planning.src.pkg.planning.scene.State
-    def check_goal(self, state):
-        return state.node in self.goal_nodes

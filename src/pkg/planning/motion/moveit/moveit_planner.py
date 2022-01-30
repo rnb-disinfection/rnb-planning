@@ -89,6 +89,8 @@ class MoveitPlanner(MotionInterface):
         self.debug_iterative_motion = False
         self.reset_PRQdict(False)
         self.visualize_increments = False
+        self.custom_planner = None
+        self.custom_planner_joint = None
 
     def reset_PRQdict(self, enable_PRQ=0.5, radii=2e-2, kwargs={}):
         self.enable_PRQ = enable_PRQ
@@ -130,14 +132,14 @@ class MoveitPlanner(MotionInterface):
     # @brief update changes in geometric scene and load collision boundaries to moveit planner
     # @remark IMPORTANT! geometry items with link name in it are ignored, consdering they are auto-generated from urdf
     # @param dual_key key of target dual planner: root_robot_name_end_robot_name
-    def update_gscene(self, dual_key=None, only_self_collision=False):
+    def update_gscene(self, dual_key=None, only_self_collision=False, ignore=[]):
         self.gscene.update()
         if only_self_collision:
             return
         if dual_key is None:
             obj_list = []
             for gtem in self.gscene:
-                if gtem.collision and not gtem.in_urdf:
+                if gtem.collision and gtem not in ignore and not gtem.in_urdf:
                     obj_list.append(ObjectMPC(
                         gtem.name, gtype_to_otype(gtem.gtype), gtem.link_name,
                         pose=tuple(gtem.center)+tuple(Rotation.from_dcm(gtem.orientation_mat).as_quat()),
@@ -171,7 +173,8 @@ class MoveitPlanner(MotionInterface):
     # @return error     planning error
     # @return success   success/failure of planning result
     def plan_algorithm(self, from_state, to_state, subject_list, timeout=1,
-                       timeout_joint=None, timeout_constrained=None, verbose=False, only_self_collision=False, **kwargs):
+                       timeout_joint=None, timeout_constrained=None, verbose=False, only_self_collision=False,
+                       ignore=[], **kwargs):
         timeout_joint = timeout_joint if timeout_joint is not None else timeout
         timeout_constrained = timeout_constrained if timeout_constrained is not None else timeout
         self.planner.clear_context_cache()
@@ -184,7 +187,7 @@ class MoveitPlanner(MotionInterface):
         if len(subject_list)>1:
             raise(RuntimeError("Only single manipulator operation is implemented with moveit!"))
 
-        self.update_gscene(only_self_collision=only_self_collision)
+        self.update_gscene(only_self_collision=only_self_collision, ignore=ignore)
 
         motion_type = 0
         if len(subject_list) == 0: # joint motion case
@@ -216,8 +219,12 @@ class MoveitPlanner(MotionInterface):
                 raise(RuntimeError("multi-robot joint motion not implemented!"))
             if verbose:
                 print("try joint motion") ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
-            trajectory, success = planner.plan_joint_motion_py(
-                group_name, tuple(to_Q), tuple(from_Q), timeout=timeout_joint, **kwargs)
+            if self.custom_planner_joint is not None:
+                trajectory, success = self.custom_planner_joint(
+                    group_name, tuple(to_Q), tuple(from_Q), timeout=timeout_joint, **kwargs)
+            else:
+                trajectory, success = planner.plan_joint_motion_py(
+                    group_name, tuple(to_Q), tuple(from_Q), timeout=timeout_joint, **kwargs)
             if success:
                 trajectory = np.concatenate([trajectory, [to_state.Q]], axis=0)
             if verbose:
@@ -355,8 +362,12 @@ class MoveitPlanner(MotionInterface):
                                 if "timeout" not in kwargs:
                                     pqr_kwargs["timeout"] = timeout_joint
                                 to_Q = to_Q[self.combined_robot.idx_dict[group_name]]
-                                trajectory, success = self.planner.plan_joint_motion_py(
-                                    group_name, tuple(to_Q), tuple(from_Q), **pqr_kwargs)
+                                if self.custom_planner_joint is not None:
+                                    trajectory, success = self.custom_planner_joint(
+                                        group_name, tuple(to_Q), tuple(from_Q), **kwargs)
+                                else:
+                                    trajectory, success = self.planner.plan_joint_motion_py(
+                                        group_name, tuple(to_Q), tuple(from_Q), timeout=timeout, **pqr_kwargs)
                                 if verbose and not success:
                                     print("[MPLAN] PRQ joint motion failed")
                             elif verbose:
@@ -366,9 +377,14 @@ class MoveitPlanner(MotionInterface):
                     elif verbose:
                         print("[MPLAN] PRQ not sampled")
                 if not pqr_pass:
-                    trajectory, success = self.planner.plan_py(
-                        group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q),
-                        timeout=timeout, **kwargs)
+                    if self.custom_planner is not None:
+                        trajectory, success = self.custom_planner(
+                            group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q),
+                            timeout=timeout, **kwargs)
+                    else:
+                        trajectory, success = self.planner.plan_py(
+                            group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q),
+                            timeout=timeout, **kwargs)
 
                 if verbose:
                     print("transition motion tried: {}".format(success)) ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
@@ -428,11 +444,11 @@ class MoveitPlanner(MotionInterface):
 
     ##
     # @brief check collision in a given trajectory
-    def validate_trajectory(self, trajectory, update_gscene=True):
+    def validate_trajectory(self, trajectory, update_gscene=True, ignore=[]):
         if update_gscene:
             self.planner.clear_context_cache()
             self.planner.clear_manifolds()
-            self.update_gscene()
+            self.update_gscene(ignore=ignore)
         if self.need_mapping:
             trajectory = trajectory[:, self.idx_pscene_to_mpc]
         traj_c = Trajectory()
