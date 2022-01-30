@@ -24,8 +24,8 @@ def get_nonholo_trajargs(x1, x2):
     v12 = T12[:2, 0]
     v21 = T21[:2, 0]
 
-    y12 = -x12[1]/v12[1]*v12[0]+x12[0]
-    y21 = -x21[1]/v21[1]*v21[0]+x21[0] # Backward
+    y12 = -x12[1]/(v12[1]+1e-16*sign_positive_bias(v12[1]))*v12[0]+x12[0]
+    y21 = -x21[1]/(v21[1]+1e-16*sign_positive_bias(v21[1]))*v21[0]+x21[0] # Backward
     theta = np.arctan2(v12[1], v12[0])
     
     y0min = sorted([y12, y21], key=abs)[0]
@@ -55,10 +55,16 @@ def calc_move_x(T, dist, step_size):
     return T_list
 
 def calc_rotate_x(T, theta, R, step_size, backward=False):
+    if abs(R)<1e-6 or not(-1e5<R<1e5):
+        return [T]
     step_theta = sign_positive_bias(theta)*step_size/abs(R)
     To = (np.matmul(T, SE2(None, [0, R*sign_positive_bias(theta)])))
     T_list = []
-    for theta_i in np.arange(0,theta+step_theta/2, step_theta):
+    try:
+        steps = np.arange(0,theta+step_theta/2, step_theta)
+    except:
+        print("steps error: ", theta, step_theta, R)
+    for theta_i in steps:
         T_list.append(matmul_series(To, 
                                     SE2(Rot_axis(3, theta_i)[:2,:2], None),
                                     SE2(None, [0, -sign_positive_bias(theta)*R]))

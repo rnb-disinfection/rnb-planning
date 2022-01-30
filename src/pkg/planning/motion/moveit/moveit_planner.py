@@ -89,6 +89,8 @@ class MoveitPlanner(MotionInterface):
         self.debug_iterative_motion = False
         self.reset_PRQdict(False)
         self.visualize_increments = False
+        self.custom_planner = None
+        self.custom_planner_joint = None
 
     def reset_PRQdict(self, enable_PRQ=0.5, radii=2e-2, kwargs={}):
         self.enable_PRQ = enable_PRQ
@@ -217,8 +219,12 @@ class MoveitPlanner(MotionInterface):
                 raise(RuntimeError("multi-robot joint motion not implemented!"))
             if verbose:
                 print("try joint motion") ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp
-            trajectory, success = planner.plan_joint_motion_py(
-                group_name, tuple(to_Q), tuple(from_Q), timeout=timeout_joint, **kwargs)
+            if self.custom_planner_joint is not None:
+                trajectory, success = self.custom_planner_joint(
+                    group_name, tuple(to_Q), tuple(from_Q), timeout=timeout_joint, **kwargs)
+            else:
+                trajectory, success = planner.plan_joint_motion_py(
+                    group_name, tuple(to_Q), tuple(from_Q), timeout=timeout_joint, **kwargs)
             if success:
                 trajectory = np.concatenate([trajectory, [to_state.Q]], axis=0)
             if verbose:
@@ -356,8 +362,12 @@ class MoveitPlanner(MotionInterface):
                                 if "timeout" not in kwargs:
                                     pqr_kwargs["timeout"] = timeout_joint
                                 to_Q = to_Q[self.combined_robot.idx_dict[group_name]]
-                                trajectory, success = self.planner.plan_joint_motion_py(
-                                    group_name, tuple(to_Q), tuple(from_Q), **pqr_kwargs)
+                                if self.custom_planner_joint is not None:
+                                    trajectory, success = self.custom_planner_joint(
+                                        group_name, tuple(to_Q), tuple(from_Q), **kwargs)
+                                else:
+                                    trajectory, success = self.planner.plan_joint_motion_py(
+                                        group_name, tuple(to_Q), tuple(from_Q), timeout=timeout, **pqr_kwargs)
                                 if verbose and not success:
                                     print("[MPLAN] PRQ joint motion failed")
                             elif verbose:
@@ -367,9 +377,14 @@ class MoveitPlanner(MotionInterface):
                     elif verbose:
                         print("[MPLAN] PRQ not sampled")
                 if not pqr_pass:
-                    trajectory, success = self.planner.plan_py(
-                        group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q),
-                        timeout=timeout, **kwargs)
+                    if self.custom_planner is not None:
+                        trajectory, success = self.custom_planner(
+                            group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q),
+                            timeout=timeout, **kwargs)
+                    else:
+                        trajectory, success = self.planner.plan_py(
+                            group_name, tool.geometry.link_name, goal_pose, target.geometry.link_name, tuple(from_Q),
+                            timeout=timeout, **kwargs)
 
                 if verbose:
                     print("transition motion tried: {}".format(success)) ## <- DO NOT REMOVE THIS: helps multi-process issue with boost python-cpp

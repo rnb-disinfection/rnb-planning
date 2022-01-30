@@ -310,7 +310,7 @@ class IncrementalSearch(TaskInterface, PlanningPipeline):
                 and (time.time() - self.t0) < timeout_loop \
                 and (self.stop_now.value < self.N_agents):
             loop_counter += 1
-            ret, snode_new = self.step_search(verbose=verbose, display=display, **kwargs)
+            ret, snode_new = self.step_search(verbose=verbose, display=display, dt_vis=dt_vis, **kwargs)
             if ret:
                 if add_homing:
                     print("++ adding return motion to acquired answer ++")
@@ -591,7 +591,7 @@ class MotionResolver(ConstraintResolver):
         self.inc, self.mplan = inc, mplan
         self.pscene = inc.pscene
 
-    def check(self, state, transition, skip_set_state=False, display=False, verbose=False, **kwargs):
+    def check(self, state, transition, skip_set_state=False, display=False, verbose=False, dt_vis=0.01, **kwargs):
         if not skip_set_state:
             self.pscene.set_object_state(state)
 
@@ -638,7 +638,7 @@ class MotionResolver(ConstraintResolver):
                     gnames = self.pscene.gscene.NAME_DICT[sname].get_family()
                     for gname in gnames:
                         self.pscene.gscene.highlight_geometry("mresv", gname, color=(1, 1, 0, 0.5))
-                self.pscene.gscene.show_motion(Traj, period=0.001)
+                self.pscene.gscene.show_motion(Traj, period=dt_vis)
                 self.pscene.gscene.clear_highlight()
             reason.append((col_tems, Traj))
             col_tems_all += col_tems
@@ -648,7 +648,7 @@ class MotionResolver(ConstraintResolver):
 
         return reason
 
-    def resolve(self, snode_from, reason, transitions, display=False, verbose=False, **kwargs):
+    def resolve(self, snode_from, reason, transitions, display=False, verbose=False, dt_vis=0.01, **kwargs):
         state = snode_from.state
         subj_seq = [trs.subject_name for trs in transitions if isinstance(trs, BindingTransition)]
         assert reason, "resolve is supposed to called only when there is failure reason"
@@ -671,7 +671,7 @@ class MotionResolver(ConstraintResolver):
                 snode_new = self.inc.make_search_node(snode_next, to_state, Traj)
                 self.inc.connect(snode_next, snode_new)
                 if display:
-                    self.pscene.gscene.show_motion(Traj, period=0.001)
+                    self.pscene.gscene.show_motion(Traj, period=dt_vis)
                 if verbose:
                     print("valid transition found: {} - {}".format(snode_next.state.node, snode_new.state.node))
                 if reserveds:
