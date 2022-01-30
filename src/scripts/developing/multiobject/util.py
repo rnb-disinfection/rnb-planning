@@ -85,11 +85,11 @@ def add_cam(gscene, tool_link="panda0_link8"):
 def add_carrier(gscene, name, carrier_center, carrier_rpy):
     obj_vis = gscene.create_safe(GEOTYPE.MESH, name, link_name="base_link",
                                  dims=(0.1, 0.1, 0.1), center=carrier_center, rpy=carrier_rpy,
-                                 color=(0.8, 0.8, 0.8, 1), display=True, fixed=False, collision=True,
+                                 color=(0.8, 0.8, 0.8, 1), display=True, fixed=False, collision=False,
                                  uri="package://my_mesh/meshes/stl/carrier_centered_m_scale.STL", scale=(1., 1., 1.))
 
     obj_col = gscene.create_safe(GEOTYPE.BOX, "{}_col".format(name), link_name="base_link",
-                                 dims=(0.4+0.12, 0.29+0.1, 0.635+0.14), center=(0,0,0), rpy=(0,0,0),
+                                 dims=(0.4+0.02, 0.29+0.02, 0.635), center=(0,0,0), rpy=(0,0,0),
                                  color=(0, 0, 0, 0.1), display=True, fixed=False, collision=True,
                                  parent="{}".format(name))
 
