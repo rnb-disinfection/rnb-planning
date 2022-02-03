@@ -29,7 +29,7 @@ def get_nonholo_trajargs(x1, x2):
     theta = np.arctan2(v12[1], v12[0])
     
     y0min = sorted([y12, y21], key=abs)[0]
-    R = abs(y0min/np.tan(abs(theta)/2))
+    R = abs(y0min/(np.tan(abs(theta)/2)+1e-20))
     
     return y12, y21, theta, R, T1, T2
 
