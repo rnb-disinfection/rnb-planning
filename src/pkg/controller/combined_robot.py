@@ -142,6 +142,11 @@ class CombinedRobot:
                 for rname, rconfig in self.get_robot_config_dict().items()}
 
     ##
+    # @brief get {robot name:root_link}
+    def get_robot_root_dict(self):
+        return {rname: rconfig.root_on for rname, rconfig in self.get_robot_config_dict().items()}
+
+    ##
     # @brief get {robot name:tip_link}
     def get_robot_tip_dict(self):
         return {rname: RobotSpecs.get_tip_name(rconfig.type, rname)

@@ -113,11 +113,12 @@ class ObjectMPC:
 # @class MoveitCompactPlanner_BP
 # @brief Python client of moveit-boost-python interface
 class MoveitCompactPlanner_BP(mpc.Planner):
-    def __init__(self, urdf_path, srdf_path, group_names, chain_dict, config_path):
+    def __init__(self, urdf_path, srdf_path, group_names, chain_dict, root_dict, config_path):
         mpc.Planner.__init__(self)
         self.urdf_path, self.srdf_path, self.config_path = urdf_path, srdf_path, config_path
         self.group_names = group_names
         self.chain_dict = chain_dict
+        self.root_dict = root_dict
         self.group_joint_nums = {key: len(chain["joint_names"]) for key, chain in chain_dict.items()}
         self.__group_names = NameList(*group_names)
         if not self.init_planner_from_file(urdf_path, srdf_path, self.__group_names, self.config_path):
@@ -219,10 +220,11 @@ class MoveitCompactPlanner_BP(mpc.Planner):
     # @return   joint values only for the specificed robot
     def solve_ik_py(self, robot_name, goal_pose, timeout_single=0.01,
                     self_collision=False, fulll_collision=False):
+        root_link = self.root_dict[robot_name]
         base_link = self.chain_dict[robot_name]['link_names'][0]
-        assert base_link == "base_link", \
+        assert root_link == "base_link", \
             "[ERROR] Manipulator {} is not fixed on global coordinates (base_link) !!! " \
-            "currently only a manipulator fixed on global coordinate is supported. movable base is not considered.".format(robot_name)
+            "currently only a manipulator fixed on global coordinate is supported. movable base ({}) is not considered.".format(robot_name, root_link)
         Q = self.solve_ik(robot_name, CartPose(*goal_pose), timeout_single,
                              self_collision, fulll_collision)
         Q = np.array(spread(Q, self.group_joint_nums[robot_name]))
