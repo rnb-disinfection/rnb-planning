@@ -3,6 +3,7 @@ import sys
 import subprocess
 RNB_TRACK_DIR = os.path.join(os.environ['RNB_TRACK_DIR'])
 sys.path.append(RNB_TRACK_DIR)
+sys.path.append(os.path.join(os.environ['RNB_PLANNING_DIR'], "src"))
 
 from pkg.utils.shared_function import shared_fun, CallType, ArgSpec, ResSpec, serve_forever, SHARED_FUNC_ALL
 from pkg.global_config import RNB_PLANNING_DIR
