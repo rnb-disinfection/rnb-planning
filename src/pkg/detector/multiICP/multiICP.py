@@ -120,6 +120,7 @@ class MultiICP:
         self.multiobject_num = 1
         self.merge_mask = False
         self.remote_cam = False
+        self.outlier_removal = None
 
 
 
@@ -234,16 +235,23 @@ class MultiICP:
     ##
     # @abrief set the number of object which has multiple instance
     # @param  num     setting value of num
-    # @param  merget   whether separate masking merge or not
     def set_multiobject_num(self, num=1):
         self.multiobject_num = num
 
     ##
     # @brief  set merget option of masks for one object
-    # @param  merget   whether separate masking merge or not
+    # @param  merge   whether separate masking merge or not
     def set_merge_mask(self, merge=True):
         self.merge_mask = merge
         self.multiobject_num = 1
+
+
+    ##
+    # @brief  setting the parameter remove points that have few neighbors in a given sphere around them
+    # @param  nb_points which lets you pick the minimum amount of points that the sphere should contain
+    # @param  radius   which defines the radius of the sphere that will be used for counting the neighbors
+    def set_outlier_removal(self, nb_points=25, radius=0.04):
+        self.outlier_removal = [nb_points, radius]
 
     ##
     # @brief    detect 3D objects pose
@@ -376,7 +384,8 @@ class MultiICP:
                         rmse_best = 1.
                         for it, Tguess in enumerate(Tguess_list):
                             if not skip_normal_icp:
-                                Tguess, _ = micp.compute_ICP(To=Tguess, thres=self.thres_ICP, visualize=visualize)
+                                Tguess, _ = micp.compute_ICP(To=Tguess, thres=self.thres_ICP,
+                                                             outlier_remove= self.outlier_removal, visualize=visualize)
                             T_, rmse = micp.compute_front_ICP(h_fov_hf=self.h_fov_hf, v_fov_hf=self.v_fov_hf,
                                                               To=Tguess, thres=self.thres_front_ICP,
                                                               visualize=visualize)
@@ -387,7 +396,8 @@ class MultiICP:
                         T = T_best
                     else:
                         if not skip_normal_icp:
-                            Tguess, _ = micp.compute_ICP(To=Tguess, thres=self.thres_ICP, visualize=visualize)
+                            Tguess, _ = micp.compute_ICP(To=Tguess, thres=self.thres_ICP,
+                                                         outlier_remove= self.outlier_removal, visualize=visualize)
                         T, rmse = micp.compute_front_ICP(h_fov_hf=self.h_fov_hf, v_fov_hf=self.v_fov_hf,
                                                          To=Tguess, thres=self.thres_front_ICP, visualize=visualize)
 
@@ -453,7 +463,8 @@ class MultiICP:
                     rmse_best = 1.
                     for it, Tguess in enumerate(Tguess_list):
                         if not skip_normal_icp:
-                            Tguess, _ = micp.compute_ICP(To=Tguess, thres=self.thres_ICP, visualize=visualize)
+                            Tguess, _ = micp.compute_ICP(To=Tguess, thres=self.thres_ICP,
+                                                         outlier_remove= self.outlier_removal, visualize=visualize)
                         T_, rmse = micp.compute_front_ICP(h_fov_hf=self.h_fov_hf, v_fov_hf=self.v_fov_hf,
                                                           To=Tguess, thres=self.thres_front_ICP, visualize=visualize)
                         if rmse < rmse_best and rmse>0:
@@ -463,7 +474,8 @@ class MultiICP:
                     T = T_best
                 else:
                     if not skip_normal_icp:
-                        Tguess, _ = micp.compute_ICP(To=Tguess, thres=self.thres_ICP, visualize=visualize)
+                        Tguess, _ = micp.compute_ICP(To=Tguess, thres=self.thres_ICP,
+                                                     outlier_remove= self.outlier_removal, visualize=visualize)
                     T, rmse = micp.compute_front_ICP(h_fov_hf=self.h_fov_hf, v_fov_hf=self.v_fov_hf,
                                                      To=Tguess, thres=self.thres_front_ICP, visualize=visualize)
                 T_list.append(T)
@@ -669,12 +681,15 @@ class MultiICP_Obj:
     # @param thres max distance between corresponding points
     def compute_ICP(self, To=None, thres=0.15,
                     relative_fitness=1e-15, relative_rmse=1e-15, max_iteration=500000,
-                    voxel_size=0.03, ratio=0.3, visualize=False
+                    voxel_size=0.03, ratio=0.3, outlier_remove=None, visualize=False
                     ):
         if To is None:
             To, fitness = self.auto_init(0, voxel_size)
         target = copy.deepcopy(self.pcd)
-        target, ind = target.remove_radius_outlier(nb_points=25, radius=0.05)
+        if outlier_remove is None:
+            target, ind = target.remove_radius_outlier(nb_points=25, radius=0.05)
+        else:
+            target, ind = target.remove_radius_outlier(nb_points=outlier_remove[0], radius=outlier_remove[1])
         source = copy.deepcopy(self.model_sampled)
         source_bak = copy.deepcopy(source)
 
