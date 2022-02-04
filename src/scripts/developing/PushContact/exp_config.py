@@ -72,7 +72,7 @@ def add_clock(gscene, name, clock_center, clock_rpy):
                                  uri="package://my_mesh/meshes/stl/tableclock_centered_m_scale.STL", scale=(1., 1., 1.))
 
     obj_col = gscene.create_safe(GEOTYPE.BOX, "{}_col".format(name), link_name="base_link",
-                                 dims=(0.138+0.035, 0.05+0.025, 0.078+0.025), center=(0,0,0), rpy=(0,0,0),
+                                 dims=(0.138+0.01, 0.05+0.01, 0.078), center=(0,0,0), rpy=(0,0,0),
                                  color=(0, 0, 0, 0.1), display=True, fixed=False, collision=True,
                                  parent="{}".format(name))
 
