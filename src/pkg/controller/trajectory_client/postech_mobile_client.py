@@ -12,24 +12,14 @@ class PostechMobileClient(TrajectoryClient):
         TrajectoryClient.__init__(self, server_ip, server_port=MOBILE_PORT, traj_freq=10)
 
     def get_qcur(self):
-        return np.array(list(send_recv({"pos": 1}, self.server_ip, self.server_port)["pos"])+[0,0,0])
+        return np.array(list(send_recv({"pos": 1}, self.server_ip, self.server_port)["pos"])
+                        +[0,0,0])
 
     def send_qval(self, qval):
-        raise (RuntimeError("send_qval is not supported with KiroUDPClient"))
+        return send_recv({'goal': qval[:3]}, self.server_ip, self.server_port)
 
     def terminate_loop(self):
-        raise (RuntimeError("terminate_loop is not supported with KiroUDPClient"))
-
-    ##
-    # @brief    Send target pose to the server and store the queue count.
-    # @param online If this flag is set True, it will wait the queue on the server to sync the motion.
-    def push_Q(self, Q, online=False):
-        raise (RuntimeError("push_Q is not supported with KiroUDPClient"))
-
-    ##
-    # @brief publish qtar trajectory will be generated on the mobile robot
-    def move_joint_s_curve(self, qtar, *args, **kwargs):
-        self.joint_move_make_sure(qtar)
+        return send_recv({'terminate': 1}, self.server_ip, self.server_port)
 
     ##
     # @brief    send s-surve trajectory on-line to move joint to target position.
@@ -39,34 +29,7 @@ class PostechMobileClient(TrajectoryClient):
     # @param start_tracking to reset trajectory and start tracking
     # @param auto_stop      auto-stop trajectory-following after finishing the motion
     def move_joint_s_curve_online(self, qtar, q0=None, N_div=100, auto_stop=True):
-        raise (RuntimeError("move_joint_s_curve_online is not supported with KiroUDPClient"))
-
-    ##
-    # @param trajectory radian
-    # @return interpolated trajecotry, expected motion time
-    def move_joint_wp(self, trajectory, *args, **kwargs):
-        trajectory = np.concatenate([[self.get_qcur()], trajectory])
-        traj_wps = simplify_traj(trajectory, step_fractions=[0, 1])
-
-        #         self.joint_waypoint_clean()
-        for Q in traj_wps:
-            self.joint_move_make_sure(Q)
-        return traj_wps, float(len(traj_wps)) / self.traj_freq
-
-    ##
-    # @brief move joint with waypoints, one-by-one
-    # @param trajectory numpy array (trajectory length, joint num)
-    def move_joint_traj(self, trajectory, auto_stop=True, wait_motion=True):
-        if not wait_motion:
-            TextColors.RED.println("KiroUDPClient always wait for motion")
-        self.move_joint_wp(trajectory)
-
-    ##
-    # @brief Make sure the joints move to Q using the indy DCP joint_move_to function.
-    # @param Q radian
-    def joint_move_make_sure(self, Q, sure_count=None, Qfinal=None, check_valid=1, *args, **kwargs):
-        pass
-
+        raise (RuntimeError("move_joint_s_curve_online is not supported with PostechMobileClient"))
 
     ##
     # @brief Surely move joints to Q using the indy DCP joint_move_to function.
