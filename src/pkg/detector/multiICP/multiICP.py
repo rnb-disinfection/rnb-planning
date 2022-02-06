@@ -755,84 +755,93 @@ class MultiICP_Obj:
         model_pcd = copy.deepcopy(self.model_sampled)
         source_bak = copy.deepcopy(model_pcd)
 
-        # remove points whose normal vector direction are opposite to camera direction vector
-        normals = np.asarray(model_pcd.normals)
-        points = np.asarray(model_pcd.points)
-        # point_normals = normals
-        # view_vec = SE3_inv(Tguess)[:3,2]
-        Poc = (np.max(points, axis=0) + np.min(points, axis=0)) / 2
-        P_co = np.matmul(T_co[:3, :3], Poc) + T_co[:3, 3]
+        try:
+            # remove points whose normal vector direction are opposite to camera direction vector
+            normals = np.asarray(model_pcd.normals)
+            points = np.asarray(model_pcd.points)
+            # point_normals = normals
+            # view_vec = SE3_inv(Tguess)[:3,2]
+            Poc = (np.max(points, axis=0) + np.min(points, axis=0)) / 2
+            P_co = np.matmul(T_co[:3, :3], Poc) + T_co[:3, 3]
 
-        point_normals = np.matmul(T_co[:3, :3], normals.T).T
-        view_vec = P_co / np.linalg.norm(P_co)
-        idx = []
-        for i in range(len(point_normals)):
-            if np.dot(view_vec, point_normals[i]) < 0:
-                idx.append(i)
+            point_normals = np.matmul(T_co[:3, :3], normals.T).T
+            view_vec = P_co / np.linalg.norm(P_co)
+            idx = []
+            for i in range(len(point_normals)):
+                if np.dot(view_vec, point_normals[i]) < 0:
+                    idx.append(i)
 
-        # remove points which are not in trainge plane from traingles
-        pts_md = np.array(points[idx])
+            # remove points which are not in trainge plane from traingles
+            pts_md = np.array(points[idx])
 
-        point_c = np.asarray(np.matmul(pts_md, np.transpose(T_co[:3, :3])) + T_co[:3, 3])
-        points_sph = np.transpose(cart2spher(*np.transpose(np.matmul(point_c, Rot_axis(1, np.pi / 2)))))
-        points_xyz = np.transpose(spher2cart(*np.transpose(points_sph)))
+            point_c = np.asarray(np.matmul(pts_md, np.transpose(T_co[:3, :3])) + T_co[:3, 3])
+            points_sph = np.transpose(cart2spher(*np.transpose(np.matmul(point_c, Rot_axis(1, np.pi / 2)))))
+            points_xyz = np.transpose(spher2cart(*np.transpose(points_sph)))
 
-        verts = np.asarray(np.matmul(self.model.vertices, np.transpose(T_co[:3, :3])) + T_co[:3, 3])
-        verts_sph = np.transpose(cart2spher(*np.transpose(np.matmul(verts, Rot_axis(1, np.pi / 2)))))
-        trigs = np.asarray(self.model.triangles)
+            verts = np.asarray(np.matmul(self.model.vertices, np.transpose(T_co[:3, :3])) + T_co[:3, 3])
+            verts_sph = np.transpose(cart2spher(*np.transpose(np.matmul(verts, Rot_axis(1, np.pi / 2)))))
+            trigs = np.asarray(self.model.triangles)
 
-        pts = points_sph[:, 1:]
-        dists = points_sph[:, 0] + 3e-3
-        in_mask_accum = np.zeros(len(points_sph), dtype=bool)
-        for count, (i, j, k) in enumerate(trigs):
-            r = np.max(verts_sph[[i, j, k]][:, 0])
-            p1, p2, p3 = verts_sph[[i, j, k]][:, 1:]
-            p12 = p1 - p2
-            pt2 = pts - p2
-            p23 = p2 - p3
-            pt3 = pts - p3
-            p31 = p3 - p1
-            pt1 = pts - p1
-            sign2 = np.sign(np.cross(p12, pt2))
-            sign3 = np.sign(np.cross(p23, pt3))
-            sign1 = np.sign(np.cross(p31, pt1))
+            pts = points_sph[:, 1:]
+            dists = points_sph[:, 0] + 3e-3
+            in_mask_accum = np.zeros(len(points_sph), dtype=bool)
+            for count, (i, j, k) in enumerate(trigs):
+                r = np.max(verts_sph[[i, j, k]][:, 0])
+                p1, p2, p3 = verts_sph[[i, j, k]][:, 1:]
+                p12 = p1 - p2
+                pt2 = pts - p2
+                p23 = p2 - p3
+                pt3 = pts - p3
+                p31 = p3 - p1
+                pt1 = pts - p1
+                sign2 = np.sign(np.cross(p12, pt2))
+                sign3 = np.sign(np.cross(p23, pt3))
+                sign1 = np.sign(np.cross(p31, pt1))
 
-            in_mask = np.all([sign1 == sign2,
-                              sign2 == sign3,
-                              dists > r], axis=0)
+                in_mask = np.all([sign1 == sign2,
+                                  sign2 == sign3,
+                                  dists > r], axis=0)
 
-            in_mask_accum = np.logical_or(in_mask_accum, in_mask)
-        idc_masked = np.logical_not(in_mask_accum)
+                in_mask_accum = np.logical_or(in_mask_accum, in_mask)
+            idc_masked = np.logical_not(in_mask_accum)
 
-        points_front = np.asarray(pts_md)[idc_masked]
+            points_front = np.asarray(pts_md)[idc_masked]
 
-        front_pcd = o3d.geometry.PointCloud()
-        front_pcd.points = o3d.utility.Vector3dVector(points_front)
-        source = copy.deepcopy(front_pcd)
-        #
-        # if visualize:
-        #     cam_coord = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.15, origin=[0, 0, 0])
-        #     cam_coord.transform(Tc_cur)
-        #     self.draw(To, source, target, [cam_coord])
+            front_pcd = o3d.geometry.PointCloud()
+            front_pcd.points = o3d.utility.Vector3dVector(points_front)
+            source = copy.deepcopy(front_pcd)
+            #
+            # if visualize:
+            #     cam_coord = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.15, origin=[0, 0, 0])
+            #     cam_coord.transform(Tc_cur)
+            #     self.draw(To, source, target, [cam_coord])
 
-        To = np.matmul(To, self.Toff_inv)
+            To = np.matmul(To, self.Toff_inv)
 
-        # Guess Initial Transformation
-        trans_init = To
+            # Guess Initial Transformation
+            trans_init = To
 
-        # remove points which are not in FOV
-        center_point = target.get_center()
-        points_converted = np.matmul(To[:3,:3], points_front.T).T + To[:3,3]
+            # remove points which are not in FOV
+            center_point = target.get_center()
+            points_converted = np.matmul(To[:3,:3], points_front.T).T + To[:3,3]
 
-        points_converted = points_converted[np.where(np.abs(points_converted[:,0]/points_converted[:,2]) < np.tan(h_fov_hf))]
-        points_converted = points_converted[np.where(np.abs(points_converted[:,1]/points_converted[:,2]) < np.tan(v_fov_hf))]
+            points_converted = points_converted[np.where(np.abs(points_converted[:,0]/points_converted[:,2]) < np.tan(h_fov_hf))]
+            points_converted = points_converted[np.where(np.abs(points_converted[:,1]/points_converted[:,2]) < np.tan(v_fov_hf))]
 
-        points_remain = np.matmul(np.linalg.inv(To)[:3,:3], points_converted.T).T + np.linalg.inv(To)[:3,3]
+            points_remain = np.matmul(np.linalg.inv(To)[:3,:3], points_converted.T).T + np.linalg.inv(To)[:3,3]
 
-        front_pcd = o3d.geometry.PointCloud()
-        front_pcd.points = o3d.utility.Vector3dVector(points_remain)
-        source = copy.deepcopy(front_pcd)
-        source_bak = copy.deepcopy(source)
+            front_pcd = o3d.geometry.PointCloud()
+            front_pcd.points = o3d.utility.Vector3dVector(points_remain)
+            source = copy.deepcopy(front_pcd)
+            source_bak = copy.deepcopy(source)
+        except Exception as e:
+            print(e)
+            print("[WARN] Number of points after front ICP pre-processing <=0")
+            source = copy.deepcopy(model_pcd)
+            src_num = len(np.asarray(source.points))
+            target_num = len(np.asarray(target.points))
+            source = source.uniform_down_sample(every_k_points=int(src_num/target_num))
+
 
         # match the number of points between model_sampled pcd and data pcd
         # discrepancy = float(len(np.asarray(target.points))/len(np.asarray(source.points)))
