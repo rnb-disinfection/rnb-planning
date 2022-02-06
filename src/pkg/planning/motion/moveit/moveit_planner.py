@@ -67,6 +67,7 @@ class MoveitPlanner(MotionInterface):
         self.incremental_constraint_motion = incremental_constraint_motion
         self.robot_names = self.combined_robot.robot_names
         self.chain_dict = pscene.robot_chain_dict
+        self.root_dict = self.combined_robot.get_robot_root_dict()
         self.robot_links_all = np.concatenate(
             [self.chain_dict[rname]['link_names'] for rname in self.robot_names]).tolist()
         binder_links = [self.chain_dict[rname]['tip_link'] for rname in self.robot_names]
@@ -75,7 +76,7 @@ class MoveitPlanner(MotionInterface):
                                     link_names=self.link_names, joint_names=self.joint_names,
                                     urdf_content=self.urdf_content, urdf_path=self.urdf_path
                                )
-        self.planner = MoveitCompactPlanner_BP(self.urdf_path, srdf_path, self.robot_names, self.chain_dict, config_path)
+        self.planner = MoveitCompactPlanner_BP(self.urdf_path, srdf_path, self.robot_names, self.chain_dict, self.root_dict, config_path)
         if not all([a==b for a,b in zip(self.joint_names, self.planner.joint_names_py)]):
             self.need_mapping = True
             self.idx_pscene_to_mpc = np.array([self.joint_names.index(jname) for jname in self.planner.joint_names_py])
