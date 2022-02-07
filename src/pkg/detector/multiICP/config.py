@@ -39,7 +39,11 @@ def get_obj_info():
         'clock': ObjectInfo('clock', dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX,
                             dims=(0.138, 0.05, 0.078), color=(0.9, 0.9, 0.9, 0.2),
                             Toff=SE3(np.identity(3), (0, 0, 0)), scale=(1., 1., 1.),
-                            url=RNB_PLANNING_DIR + 'ws_ros/src/my_mesh/meshes/stl/tableclock_centered_m_scale.STL')
+                            url=RNB_PLANNING_DIR + 'ws_ros/src/my_mesh/meshes/stl/tableclock_centered_m_scale.STL'),
+        'chair': ObjectInfo('chair', dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX,
+                            dims=(0.37, 0.37, 0.455), color=(0.9, 0.9, 0.9, 0.2),
+                            Toff=SE3(np.identity(3), (0, 0, 0)), scale=(1., 1., 1.),
+                            url=RNB_PLANNING_DIR + 'ws_ros/src/my_mesh/meshes/stl/chair_floor_centered_m_scale.STL')
     }
     return obj_info
 
