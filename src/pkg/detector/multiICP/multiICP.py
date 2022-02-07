@@ -283,7 +283,10 @@ class MultiICP:
         depth_scale = self.config_list[2]
 
         cdp = ColorDepthMap(color_image, depth_image, cam_intrins, depth_scale)
-        Tc = self.viewpoint.get_tf(Q)
+        if len(Q) == 13:
+            Tc = self.viewpoint.get_tf(Q)
+        elif len(Q) == 4:
+            Tc = Q
         T_cb = SE3_inv(Tc)
         self.objectPose_dict = {}
 
