@@ -903,3 +903,57 @@ def get_look_motion(mplan, rname, from_Q, target_point, com_link,
             else:
                 succ = False
     return traj, succ
+
+
+from scipy.cluster.vq import kmeans2
+
+
+##
+# @brief get scanning motion that covers target
+# @param mplan MoveitPlanner
+# @param viewpoint GeometryItem for viewpoint, of which +z is viewing direction
+# @param target    GeometryItem for target
+# @param Q_ref     Reference pose to try scanning
+# @param fov_def   Field of View of the camera, in degrees
+# @param N_max     max. number of view poses
+def get_scan_motions(mplan, viewpoint, target, Q_ref, fov_deg=60, N_max=10):
+    cam_link = viewpoint.link_name
+    robot_name = [rname for rname, info in mplan.chain_dict.items() if cam_link in info['link_names']][0]
+    T_ref = viewpoint.get_tf(Q_ref)
+    T_ref_inv = np.linalg.inv(T_ref)
+
+    # get vertices and internal point samples
+    verts, radi = target.get_vertice_radius_from(Q_ref)
+    vtx_samples = []
+    for _ in range(1000):
+        v1, v2, v3 = random.sample(verts, 3)
+        a, b, c = np.random.rand(3)
+        vtx_samples.append((a * v1 + b * v2 + c * v3) / (a + b + c))
+    vtx_samples = np.array(vtx_samples)
+    verts_c = np.matmul(T_ref_inv[:3, :3], vtx_samples.T).T + T_ref_inv[:3, 3]
+
+    # get theta and psi of vertices (rotate 90 degrees to convert in continuous region)
+    verts_sph = np.transpose(cart2spher(*np.transpose(np.matmul(verts_c, Rot_axis(1, np.pi / 2)))))
+    verts_sph2 = verts_sph[:, 1:]
+
+    # makes largest clusters with sizes smaller than fov
+    fov_rad_hf = np.deg2rad(fov_deg) / 2
+    for N in range(1, N_max + 1):
+        centroid, label = kmeans2(verts_sph2, N)
+        max_dists = []
+        for i in range(N):
+            max_dists.append(np.max(np.linalg.norm(verts_sph2[label == i] - centroid[i], axis=-1)))
+        if np.max(max_dists) < fov_rad_hf:  # stop if max angular dist < fov
+            break
+
+    # makes look trajectories for view centers
+    view_traj_list = []
+    for ctr in centroid:
+        ctr_c = np.matmul(spher2cart(1, *ctr), Rot_axis(1, np.pi / 2).T)
+        P_tar = np.matmul(T_ref[:3, :3], ctr_c) + T_ref[:3, 3]
+        traj, succ = get_look_motion(mplan, robot_name, np.array(Q_ref), P_tar, viewpoint.link_name,
+                                     view_dir=viewpoint.orientation_mat[:, 2])
+        if not succ:
+            raise (RuntimeError("Failed to generate look motion"))
+        view_traj_list.append(traj)
+    return view_traj_list
