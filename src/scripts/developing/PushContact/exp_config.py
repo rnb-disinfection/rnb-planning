@@ -109,6 +109,19 @@ def add_table(gscene, name, table_center, table_rpy):
     return obj_vis, obj_body
 
 
+def add_chair(gscene, name, chair_center, chair_rpy):
+    obj_vis = gscene.create_safe(GEOTYPE.MESH, name, link_name="base_link",
+                                 dims=(0.1, 0.1, 0.1), center=chair_center, rpy=chair_rpy,
+                                 color=(0.8, 0.8, 0.8, 1), display=True, fixed=False, collision=False,
+                                 uri="package://my_mesh/meshes/stl/chair_floor_centered_m_scale.STL", scale=(1., 1., 1.))
+
+    obj_col = gscene.create_safe(GEOTYPE.BOX, "{}_col".format(name), link_name="base_link",
+                                 dims=(0.37+0.02, 0.37+0.02, 0.455), center=(0,0,0.455/2), rpy=(0,0,0),
+                                 color=(0, 0, 0, 0.1), display=True, fixed=False, collision=True,
+                                 parent=name)
+
+    return obj_vis
+
 # move object(pose update)
 def move_carrier(gscene, name, carrier_center, carrier_rpy):
     obj_vis = gscene.NAME_DICT[name]
@@ -128,6 +141,12 @@ def move_table(gscene, name, table_center, table_rpy):
     gscene.update_markers_all()
 
 
+def move_chair(gscene, name, chair_center, chair_rpy):
+    obj_vis = gscene.NAME_DICT[name]
+    obj_vis.set_offset_tf(center=chair_center, orientation_mat=Rot_rpy(chair_rpy))
+    gscene.update_markers_all()
+
+
 def pose_refine(obj_type, T, obj_height=0.725):
     # rotation constraint
     T_new = align_z(T)
@@ -135,7 +154,7 @@ def pose_refine(obj_type, T, obj_height=0.725):
 
     # height constraint
     center = T_new[:3, 3]
-    if obj_type == "dining table":
+    if obj_type == "dining table" or obj_type == "chair":
         center[2] = 0
     elif obj_type == "suitcase" or obj_type == "clock":
         center[2] = obj_height
@@ -152,6 +171,7 @@ def pose_refine(obj_type, T, obj_height=0.725):
 # @param obj_type object name (e.g suitcase, clock)
 # @param pose_dict detection result dictionary from detector
 # @param separate_dict distance to distinguish whether object already detected or not
+# @param height height of floor fitting
 def add_update_object(gscene, crob, obj_type, pose_dict, separate_dist = 0.5, height = 0):
     # check num of object in the scene
     obj_count = 0
@@ -168,7 +188,7 @@ def add_update_object(gscene, crob, obj_type, pose_dict, separate_dist = 0.5, he
                 name_cat = name.split("_")[0]
             else:
                 name_cat = name
-            if name_cat != "suitcase" and name_cat !="clock":
+            if name_cat != "suitcase" and name_cat !="clock" and name_cat != "chair":
                 pass
             else:
                 T = pose_dict[name]
@@ -181,7 +201,9 @@ def add_update_object(gscene, crob, obj_type, pose_dict, separate_dist = 0.5, he
                     center_, rpy_ = pose_refine(obj_type, T_, obj_height=height)
 
                     if np.linalg.norm(center-center_) < separate_dist: # consider same object
-                        if name_cat == "suitcase":
+                        if name_cat == "chair":
+                            move_chair(gscene, obj_name, center, rpy)
+                        elif name_cat == "suitcase":
                             move_carrier(gscene, obj_name, center, rpy)
                         elif name_cat == "clock":
                             move_clock(gscene, obj_name, center, rpy)
@@ -196,7 +218,9 @@ def add_update_object(gscene, crob, obj_type, pose_dict, separate_dist = 0.5, he
             T = pose_dict[name]
             center, rpy = pose_refine(obj_type, T, obj_height=height)
             new_obj_name = "{}_{:01}".format(obj_type, obj_count)
-            if name_cat == "suitcase":
+            if name_cat == "chair":
+                add_chair(gscene, new_obj_name, center, rpy)
+            elif name_cat == "suitcase":
                 add_carrier(gscene, new_obj_name, center, rpy)
             elif name_cat == "clock":
                 add_clock(gscene, new_obj_name, center, rpy)
@@ -210,14 +234,16 @@ def add_update_object(gscene, crob, obj_type, pose_dict, separate_dist = 0.5, he
                 name_cat = name.split("_")[0]
             else:
                 name_cat = name
-            if name_cat != "suitcase" and name_cat !="clock":
+            if name_cat != "suitcase" and name_cat !="clock" and name_cat != "chair":
                 pass
             else:
                 T = pose_dict[name]
                 center, rpy = pose_refine(obj_type, T, obj_height=height)
 
                 new_obj_name = "{}_{:01}".format(obj_type, count_tmp)
-                if name_cat == "suitcase":
+                if name_cat == "chair":
+                    add_chair(gscene, new_obj_name, center, rpy)
+                elif name_cat == "suitcase":
                     add_carrier(gscene, new_obj_name, center, rpy)
                 elif name_cat == "clock":
                     add_clock(gscene, new_obj_name, center, rpy)
