@@ -26,7 +26,7 @@ import grpc
 from .grpc_cam import RemoteCam_pb2
 from .grpc_cam import RemoteCam_pb2_grpc
 
-MAX_MESSAGE_LENGTH = 10000000
+MAX_MESSAGE_LENGTH = 100000000
 GRPC_PORT = 10509
 HOST_IP = "192.168.17.2"
 
@@ -104,6 +104,7 @@ class MultiICP:
     def __init__(self, camera):
         self.camera = camera
         self.img_dim = (720, 1280)
+        # self.img_dim = (1080, 1920)
         self.ratio = 0.3
         self.thres_ICP = 0.15
         self.thres_front_ICP = 0.10
@@ -253,6 +254,10 @@ class MultiICP:
     def set_outlier_removal(self, nb_points=25, radius=0.04):
         self.outlier_removal = [nb_points, radius]
 
+
+    def set_pcd_ratio(self, ratio=0.3):
+        self.ratio = ratio
+
     ##
     # @brief    detect 3D objects pose
     # @param    name_mask   object names to detect
@@ -361,24 +366,103 @@ class MultiICP:
                 for i_m, mask in enumerate(mask_list):
                     cdp_masked = apply_mask(cdp, mask)
                     micp.reset(Tref=Tc)
-                    micp.make_pcd(cdp_masked, ratio=self.ratio)
+                    if micp.make_pcd(cdp_masked, ratio=self.ratio):
+                        skip_normal_icp = False
+                        multi_init_icp = False
+                        Tguess = None
+                        if name in self.gscene.NAME_DICT:  # if the object exists in gscene, use it as initial
+                            g_handle = self.gscene.NAME_DICT[name]
+                            print("\n'{}' is already in gscene. Use this to intial guess\n".format(name))
+                            Tbo = g_handle.get_tf(Q)
+                            Tguess = np.matmul(T_cb, Tbo)
+                            skip_normal_icp = True
+                        else: # if the object not exists in gscene, use grule
+                            if micp.grule is not None: # if grule is defined by user
+                                print("\n'{}' is not in gscene. Use manual input for initial guess\n".format(name))
+                                Tguess = micp.grule.get_initial(micp.pcd)
+                            else: # if grule is not defined by user, then use multi initial for ICP
+                                print("\n'{}' is not in gscene. Use multiple initial guess\n".format(name))
+                                multi_init_icp = True
+
+                        # Compute ICP, front iCP
+                        if multi_init_icp:
+                            Tguess_list = self.get_multi_init_icp(micp.pcd, micp.Tref)
+                            T_best = np.identity(4)
+                            rmse_best = 1.
+                            for it, Tguess in enumerate(Tguess_list):
+                                if not skip_normal_icp:
+                                    Tguess, _ = micp.compute_ICP(To=Tguess, thres=self.thres_ICP,
+                                                                 outlier_remove= self.outlier_removal, visualize=visualize)
+                                T_, rmse = micp.compute_front_ICP(h_fov_hf=self.h_fov_hf, v_fov_hf=self.v_fov_hf,
+                                                                  To=Tguess, thres=self.thres_front_ICP,
+                                                                  visualize=visualize)
+                                if rmse < rmse_best and rmse>0:
+                                    rmse_best = rmse
+                                    T_best = T_
+                            print("Lowest rmse", rmse_best)
+                            T = T_best
+                        else:
+                            if not skip_normal_icp:
+                                Tguess, _ = micp.compute_ICP(To=Tguess, thres=self.thres_ICP,
+                                                             outlier_remove= self.outlier_removal, visualize=visualize)
+                            T, rmse = micp.compute_front_ICP(h_fov_hf=self.h_fov_hf, v_fov_hf=self.v_fov_hf,
+                                                             To=Tguess, thres=self.thres_front_ICP, visualize=visualize)
+
+                        # self.objectPose_dict[name] = np.matmul(Tc, T)
+                        name_i = "{}_{:01}".format(name, i_m+1)
+                        self.objectPose_dict[name_i] = np.matmul(Tc, T)
+                        print('Found 6DoF pose of {}'.format(name_i))
+            elif micp.hrule is not None:
+                hrule_targets_dict[name] = micp
+            elif name in class_dict.keys():
+                print("{} not detected".format(name))
+            else:
+                raise (RuntimeError("{} not detected and has no detection rule".format(name)))
+
+        for name, micp in sorted(hrule_targets_dict.items()):
+            # add to micp
+            micp.reset(Tref=Tc)
+
+            if micp.make_pcd(cdp, ratio=self.ratio):
+                hrule = micp.hrule
+                print('===== Apply heuristic rule for {} ====='.format(name))
+                if hrule.parent in detect_dict:
+                    micp_parent = detect_dict[hrule.parent]
+                else:
+                    if hrule.parent in self.gscene.NAME_DICT:  # if the object exists in gscene, use it as initial
+                        g_handle = self.gscene.NAME_DICT[hrule.parent]
+                        print(
+                            "\nParent object '{}' of '{}' is already in gscene. Apply heuristic rule based on this\n".format(
+                                hrule.parent, name))
+                        micp_parent = self.micp_dict[hrule.parent]
+                        micp_parent.change_Tref(Tc)
+                    else:
+                        continue
+                mrule = hrule.update_rule(micp, micp_parent, Tc=Tc)
+                pcd_dict = mrule.apply_rule(micp.pcd, {hrule.parent: micp_parent.pose})
+
+                T_list = []
+                for name_i, pcd in pcd_dict.items():
+                    micp.pcd = pcd
 
                     skip_normal_icp = False
                     multi_init_icp = False
-                    Tguess = None
-                    if name in self.gscene.NAME_DICT:  # if the object exists in gscene, use it as initial
+                    # Check whether the object exists in gscene
+                    if name in self.gscene.NAME_DICT:
                         g_handle = self.gscene.NAME_DICT[name]
                         print("\n'{}' is already in gscene. Use this to intial guess\n".format(name))
                         Tbo = g_handle.get_tf(Q)
                         Tguess = np.matmul(T_cb, Tbo)
                         skip_normal_icp = True
-                    else: # if the object not exists in gscene, use grule
-                        if micp.grule is not None: # if grule is defined by user
+                    else:
+                        if micp.grule is not None:  # if grule is defined by user
                             print("\n'{}' is not in gscene. Use manual input for initial guess\n".format(name))
-                            Tguess = micp.grule.get_initial(micp.pcd)
-                        else: # if grule is not defined by user, then use multi initial for ICP
+                            Tguess = micp.grule.get_initial(micp.pcd,
+                                                            R=detect_dict[hrule.parent].pose[:3, :3])
+                        else:  # if grule is not defined by user, then use multi initial for ICP
                             print("\n'{}' is not in gscene. Use multiple initial guess\n".format(name))
                             multi_init_icp = True
+
 
                     # Compute ICP, front iCP
                     if multi_init_icp:
@@ -390,8 +474,7 @@ class MultiICP:
                                 Tguess, _ = micp.compute_ICP(To=Tguess, thres=self.thres_ICP,
                                                              outlier_remove= self.outlier_removal, visualize=visualize)
                             T_, rmse = micp.compute_front_ICP(h_fov_hf=self.h_fov_hf, v_fov_hf=self.v_fov_hf,
-                                                              To=Tguess, thres=self.thres_front_ICP,
-                                                              visualize=visualize)
+                                                              To=Tguess, thres=self.thres_front_ICP, visualize=visualize)
                             if rmse < rmse_best and rmse>0:
                                 rmse_best = rmse
                                 T_best = T_
@@ -403,87 +486,9 @@ class MultiICP:
                                                          outlier_remove= self.outlier_removal, visualize=visualize)
                         T, rmse = micp.compute_front_ICP(h_fov_hf=self.h_fov_hf, v_fov_hf=self.v_fov_hf,
                                                          To=Tguess, thres=self.thres_front_ICP, visualize=visualize)
-
-                    # self.objectPose_dict[name] = np.matmul(Tc, T)
-                    name_i = "{}_{:01}".format(name, i_m+1)
+                    T_list.append(T)
                     self.objectPose_dict[name_i] = np.matmul(Tc, T)
                     print('Found 6DoF pose of {}'.format(name_i))
-            elif micp.hrule is not None:
-                hrule_targets_dict[name] = micp
-            elif name in class_dict.keys():
-                print("{} not detected".format(name))
-            else:
-                raise (RuntimeError("{} not detected and has no detection rule".format(name)))
-
-        for name, micp in sorted(hrule_targets_dict.items()):
-            # add to micp
-            micp.reset(Tref=Tc)
-            micp.make_pcd(cdp, ratio=self.ratio)
-            hrule = micp.hrule
-            print('===== Apply heuristic rule for {} ====='.format(name))
-            if hrule.parent in detect_dict:
-                micp_parent = detect_dict[hrule.parent]
-            else:
-                if hrule.parent in self.gscene.NAME_DICT:  # if the object exists in gscene, use it as initial
-                    g_handle = self.gscene.NAME_DICT[hrule.parent]
-                    print(
-                        "\nParent object '{}' of '{}' is already in gscene. Apply heuristic rule based on this\n".format(
-                            hrule.parent, name))
-                    micp_parent = self.micp_dict[hrule.parent]
-                    micp_parent.change_Tref(Tc)
-                else:
-                    continue
-            mrule = hrule.update_rule(micp, micp_parent, Tc=Tc)
-            pcd_dict = mrule.apply_rule(micp.pcd, {hrule.parent: micp_parent.pose})
-
-            T_list = []
-            for name_i, pcd in pcd_dict.items():
-                micp.pcd = pcd
-
-                skip_normal_icp = False
-                multi_init_icp = False
-                # Check whether the object exists in gscene
-                if name in self.gscene.NAME_DICT:
-                    g_handle = self.gscene.NAME_DICT[name]
-                    print("\n'{}' is already in gscene. Use this to intial guess\n".format(name))
-                    Tbo = g_handle.get_tf(Q)
-                    Tguess = np.matmul(T_cb, Tbo)
-                    skip_normal_icp = True
-                else:
-                    if micp.grule is not None:  # if grule is defined by user
-                        print("\n'{}' is not in gscene. Use manual input for initial guess\n".format(name))
-                        Tguess = micp.grule.get_initial(micp.pcd,
-                                                        R=detect_dict[hrule.parent].pose[:3, :3])
-                    else:  # if grule is not defined by user, then use multi initial for ICP
-                        print("\n'{}' is not in gscene. Use multiple initial guess\n".format(name))
-                        multi_init_icp = True
-
-
-                # Compute ICP, front iCP
-                if multi_init_icp:
-                    Tguess_list = self.get_multi_init_icp(micp.pcd, micp.Tref)
-                    T_best = np.identity(4)
-                    rmse_best = 1.
-                    for it, Tguess in enumerate(Tguess_list):
-                        if not skip_normal_icp:
-                            Tguess, _ = micp.compute_ICP(To=Tguess, thres=self.thres_ICP,
-                                                         outlier_remove= self.outlier_removal, visualize=visualize)
-                        T_, rmse = micp.compute_front_ICP(h_fov_hf=self.h_fov_hf, v_fov_hf=self.v_fov_hf,
-                                                          To=Tguess, thres=self.thres_front_ICP, visualize=visualize)
-                        if rmse < rmse_best and rmse>0:
-                            rmse_best = rmse
-                            T_best = T_
-                    print("Lowest rmse", rmse_best)
-                    T = T_best
-                else:
-                    if not skip_normal_icp:
-                        Tguess, _ = micp.compute_ICP(To=Tguess, thres=self.thres_ICP,
-                                                     outlier_remove= self.outlier_removal, visualize=visualize)
-                    T, rmse = micp.compute_front_ICP(h_fov_hf=self.h_fov_hf, v_fov_hf=self.v_fov_hf,
-                                                     To=Tguess, thres=self.thres_front_ICP, visualize=visualize)
-                T_list.append(T)
-                self.objectPose_dict[name_i] = np.matmul(Tc, T)
-                print('Found 6DoF pose of {}'.format(name_i))
 
             # for i_t, T in enumerate(T_list):
             #     name_i = "{}_{:02}".format(name, i_t)
@@ -674,10 +679,16 @@ class MultiICP_Obj:
             self.pcd = self.pcd.uniform_down_sample(every_k_points=len(self.pcd_Tc_stack))
         self.pcd = self.pcd.uniform_down_sample(every_k_points=int(1/ratio))
         self.model.compute_vertex_normals()
-        self.model_sampled = self.model.sample_points_uniformly(
-            number_of_points=int(len(np.array(self.pcd.points)) * ratio))
-        # self.model_sampled = self.model.sample_points_poisson_disk(
-        #                                             number_of_points=int(len(np.array(self.pcd.points) * ratio)))
+        try:
+            self.model_sampled = self.model.sample_points_uniformly(
+                number_of_points=int(len(np.array(self.pcd.points)) * ratio))
+            # self.model_sampled = self.model.sample_points_poisson_disk(
+            #                                             number_of_points=int(len(np.array(self.pcd.points) * ratio)))
+        except Exception as e:
+            print("[WARN] Not obtained point cloud of object")
+            # self.model_sampled = self.model.sample_points_uniformly(number_of_points=2000)
+            return False
+        return True
 
     ##
     # @param To    initial transformation matrix of geometry object in the intended icp origin coordinate

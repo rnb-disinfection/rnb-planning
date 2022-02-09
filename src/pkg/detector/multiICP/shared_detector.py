@@ -74,9 +74,9 @@ def SharedDetectorGen(IMG_DIM=(720, 1280, 3)):
                             h_pixels, w_pixels = np.where(mask_temp==True)
                             h_mean = np.mean(h_pixels)
                             w_mean = np.mean(w_pixels)
-                            if w_mean < IMG_DIM[1]/9 or w_mean > IMG_DIM[1] - IMG_DIM[1]/9:
+                            if w_mean < IMG_DIM[1]/10 or w_mean > IMG_DIM[1] - IMG_DIM[1]/10:
                                 print("Detected masks out of width range")
-                            elif h_mean < IMG_DIM[0]/6 or h_mean > IMG_DIM[0] - IMG_DIM[0]/6:
+                            elif h_mean < IMG_DIM[0]/7 or h_mean > IMG_DIM[0] - IMG_DIM[0]/7:
                                 print("Detected masks out of height range")
                             else:
                                 mask_res[np.where(mask_temp==True)] = int(mask_idx)
