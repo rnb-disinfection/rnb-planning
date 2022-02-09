@@ -916,10 +916,21 @@ from scipy.cluster.vq import kmeans2
 # @param Q_ref     Reference pose to try scanning
 # @param fov_def   Field of View of the camera, in degrees
 # @param N_max     max. number of view poses
-def get_scan_motions(mplan, viewpoint, target, Q_ref, fov_deg=60, N_max=10):
+def get_scan_motions(mplan, viewpoint, target, Q_ref, fov_deg=60, N_max=5):
     cam_link = viewpoint.link_name
     robot_name = [rname for rname, info in mplan.chain_dict.items() if cam_link in info['link_names']][0]
-    T_ref = viewpoint.get_tf(Q_ref)
+    T_ref = mplan.gscene.get_tf(viewpoint.link_name, Q_ref)
+    T_ref_inv = np.linalg.inv(T_ref)
+
+    gscene.add_highlight_axis("hl", "tref", T=T_ref)
+    T_tar = target.get_tf(Q_ref)
+    gscene.add_highlight_axis("hl", "ttar", T=T_tar)
+    traj, succ = get_look_motion(mplan, robot_name, np.array(Q_ref), T_tar[:3, 3],
+                                 viewpoint.link_name, view_dir=viewpoint.orientation_mat[:, 2])
+
+    assert succ, "Failed to get initial ref view"
+    Q_ref = traj[-1]
+    T_ref = mplan.gscene.get_tf(viewpoint.link_name, Q_ref)
     T_ref_inv = np.linalg.inv(T_ref)
 
     # get vertices and internal point samples

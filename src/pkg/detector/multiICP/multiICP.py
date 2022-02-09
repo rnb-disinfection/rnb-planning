@@ -122,6 +122,7 @@ class MultiICP:
         self.merge_mask = False
         self.remote_cam = False
         self.outlier_removal = None
+        self.rmse_thres = 0.1
 
 
 
@@ -258,6 +259,10 @@ class MultiICP:
     def set_pcd_ratio(self, ratio=0.3):
         self.ratio = ratio
 
+
+    def set_inlier_ratio(self, ratio=0.1):
+        self.inlier_thres = ratio
+
     ##
     # @brief    detect 3D objects pose
     # @param    name_mask   object names to detect
@@ -384,6 +389,7 @@ class MultiICP:
                                 print("\n'{}' is not in gscene. Use multiple initial guess\n".format(name))
                                 multi_init_icp = True
 
+                        skip_detection = False
                         # Compute ICP, front iCP
                         if multi_init_icp:
                             Tguess_list = self.get_multi_init_icp(micp.pcd, micp.Tref)
@@ -391,27 +397,39 @@ class MultiICP:
                             rmse_best = 1.
                             for it, Tguess in enumerate(Tguess_list):
                                 if not skip_normal_icp:
-                                    Tguess, _ = micp.compute_ICP(To=Tguess, thres=self.thres_ICP,
+                                    Tguess, inlier_rmse, inlier_ratio = micp.compute_ICP(To=Tguess, thres=self.thres_ICP,
                                                                  outlier_remove= self.outlier_removal, visualize=visualize)
-                                T_, rmse = micp.compute_front_ICP(h_fov_hf=self.h_fov_hf, v_fov_hf=self.v_fov_hf,
-                                                                  To=Tguess, thres=self.thres_front_ICP,
-                                                                  visualize=visualize)
-                                if rmse < rmse_best and rmse>0:
-                                    rmse_best = rmse
-                                    T_best = T_
-                            print("Lowest rmse", rmse_best)
-                            T = T_best
+                                if inlier_ratio < self.inlier_thres:
+                                    skip_detection = True
+                                if not skip_detection:
+                                    T_, rmse, inlier_ratio = micp.compute_front_ICP(h_fov_hf=self.h_fov_hf, v_fov_hf=self.v_fov_hf,
+                                                                      To=Tguess, thres=self.thres_front_ICP,
+                                                                      visualize=visualize)
+                                    if rmse < rmse_best and rmse>0:
+                                        rmse_best = rmse
+                                        T_best = T_
+                                    if inlier_ratio < self.inlier_thres:
+                                        skip_detection = True
+
+                                print("Lowest rmse", rmse_best)
+                                T = T_best
                         else:
                             if not skip_normal_icp:
-                                Tguess, _ = micp.compute_ICP(To=Tguess, thres=self.thres_ICP,
+                                Tguess, inlier_rmse, inlier_ratio = micp.compute_ICP(To=Tguess, thres=self.thres_ICP,
                                                              outlier_remove= self.outlier_removal, visualize=visualize)
-                            T, rmse = micp.compute_front_ICP(h_fov_hf=self.h_fov_hf, v_fov_hf=self.v_fov_hf,
-                                                             To=Tguess, thres=self.thres_front_ICP, visualize=visualize)
+                            if inlier_ratio < self.inlier_thres:
+                                skip_detection = True
+                            if not skip_detection:
+                                T, rmse, inlier_ratio = micp.compute_front_ICP(h_fov_hf=self.h_fov_hf, v_fov_hf=self.v_fov_hf,
+                                                                 To=Tguess, thres=self.thres_front_ICP, visualize=visualize)
+                                if inlier_ratio < self.inlier_thres:
+                                    skip_detection = True
 
-                        # self.objectPose_dict[name] = np.matmul(Tc, T)
-                        name_i = "{}_{:01}".format(name, i_m+1)
-                        self.objectPose_dict[name_i] = np.matmul(Tc, T)
-                        print('Found 6DoF pose of {}'.format(name_i))
+                        if not skip_detection:
+                            # self.objectPose_dict[name] = np.matmul(Tc, T)
+                            name_i = "{}_{:01}".format(name, i_m+1)
+                            self.objectPose_dict[name_i] = np.matmul(Tc, T)
+                            print('Found 6DoF pose of {}'.format(name_i))
             elif micp.hrule is not None:
                 hrule_targets_dict[name] = micp
             elif name in class_dict.keys():
@@ -742,7 +760,14 @@ class MultiICP_Obj:
             self.draw(ICP_result, source, target)
 
         self.pose = ICP_result
-        return ICP_result, reg_p2p.inlier_rmse
+
+        len_correspends = len(set(np.asarray(reg_p2p.correspondence_set)[:,1]))
+        len_tar =  len(np.asarray(target.points))
+        inlier_ratio = float(len_correspends) / len_tar
+        print("Inlier ratio: {}".format(inlier_ratio))
+
+        self.reg_p2p = reg_p2p
+        return ICP_result, reg_p2p.inlier_rmse, inlier_ratio
 
     ##
     # @param Tc_cur this is new camera transformation in pcd origin
@@ -975,7 +1000,14 @@ class MultiICP_Obj:
         # if visualize:
         #     self.draw(self.pose, source_bak, target)
         self.pose = ICP_result
-        return ICP_result, reg_p2p.inlier_rmse
+
+        len_correspends = len(set(np.asarray(reg_p2p.correspondence_set)[:,1]))
+        len_tar =  len(np.asarray(target.points))
+        inlier_ratio = float(len_correspends) / len_tar
+        print("Inlier ratio: {}".format(inlier_ratio))
+
+        self.reg_p2p = reg_p2p
+        return ICP_result, reg_p2p.inlier_rmse, inlier_ratio
 
     def draw(self, To, source=None, target=None, option_geos=[]):
         if source is None: source = self.model_sampled
