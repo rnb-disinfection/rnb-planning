@@ -18,50 +18,50 @@
 	<link name="pmb${robot_id}_link5"/>
 	<link name="pmb${robot_id}_platform">
 		<visual>
-			<origin xyz="0 0 0" rpy="0 0 0"/>
+			<origin xyz="-0.28 0 0" rpy="0 0 0"/>
 			<geometry>
 				<mesh filename="package://my_mesh/meshes/stl/rnb_mobile_res.stl"/>
 			</geometry>
 			<material name="metal_white"/>
 		</visual>
 		<collision>
-			<origin xyz="-0.05   0.0  0.295" rpy="0.  0.  0."/>
+			<origin xyz="-0.33   0.0  0.295" rpy="0.  0.  0."/>
 			<geometry>
 				<box size="0.7 0.8 0.59"/>
 			</geometry>
 		</collision>
 		<collision>
-			<origin xyz="-0.05   0.3  0.65" rpy="0.  0.  0."/>
+			<origin xyz="-0.33   0.3  0.65" rpy="0.  0.  0."/>
 			<geometry>
 				<box size="0.7 0.2 0.1"/>
 			</geometry>
 		</collision>
 		<collision>
-			<origin xyz="-0.05   -0.3  0.65" rpy="0.  0.  0."/>
+			<origin xyz="-0.33   -0.3  0.65" rpy="0.  0.  0."/>
 			<geometry>
 				<box size="0.7 0.2 0.1"/>
 			</geometry>
 		</collision>
 		<collision>
-			<origin xyz="-0.3   0.0  0.65" rpy="0.  0.  0."/>
+			<origin xyz="-0.58   0.0  0.65" rpy="0.  0.  0."/>
 			<geometry>
 				<box size="0.2 0.4 0.1"/>
 			</geometry>
 		</collision>
 		<collision>
-			<origin xyz="0.25   0.0  0.65" rpy="0.  0.  0."/>
+			<origin xyz="-0.03   0.0  0.65" rpy="0.  0.  0."/>
 			<geometry>
 				<box size="0.1 0.4 0.1"/>
 			</geometry>
 		</collision>
 		<collision>
-			<origin xyz="0.35  0.35  0.35" rpy="0.  0.  0."/>
+			<origin xyz="0.07  0.35  0.35" rpy="0.  0.  0."/>
 			<geometry>
 				<box size="0.1 0.1 0.69"/>
 			</geometry>
 		</collision>
 		<collision>
-			<origin xyz="0.35  -0.35  0.35" rpy="0.  0.  0."/>
+			<origin xyz="0.07  -0.35  0.35" rpy="0.  0.  0."/>
 			<geometry>
 				<box size="0.1 0.1 0.69"/>
 			</geometry>
