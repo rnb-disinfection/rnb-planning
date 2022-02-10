@@ -4,7 +4,7 @@ from .ros_rviz import show_motion, get_markers, get_publisher
 from .geotype import GEOTYPE
 from ..utils.rotation_utils import *
 from ..utils.joint_utils import get_tf, get_link_adjacency_map, get_min_distance_map, get_link_control_dict
-from ..utils.utils import list2dict, dict2list, TextColors
+from ..utils.utils import list2dict, dict2list, TextColors, inspect_arguments
 from collections import defaultdict
 from copy import deepcopy
 
@@ -289,14 +289,14 @@ class GeometryScene(list):
         hname = "hl_" + gtem.name
         if hname in self.NAME_DICT:
             return
-        htem = self.create_safe(gtype=gtem.gtype, name=hname, link_name=gtem.link_name,
-                            center=gtem.center, dims=dims, rpy=Rot2rpy(gtem.orientation_mat), color=color,
-                            collision=False)
+        h_kwargs = gtem.get_args()
+        h_kwargs.update(dict(name=hname, dims=dims, collision=False, color=color))
+        htem = self.create_safe(**h_kwargs)
 
         self.highlight_dict[hl_key][htem.name] = htem
         if self.rviz:
             self.__add_marker(htem)
-        self.add_highlight_axis(hname, "axis", gtem.link_name, center=gtem.center, orientation_mat=gtem.orientation_mat)
+        self.add_highlight_axis(hl_key, hname+"_axis", gtem.link_name, center=gtem.center, orientation_mat=gtem.orientation_mat)
 
     ##
     # @param points (Nx3)
@@ -783,12 +783,11 @@ class GeometryItem(object):
         gtem.set_dims(tuple(np.abs(np.matmul(Roff.transpose(), gtem.dims))))
         
     def get_args(self):
-        center = self.center if self.parent is None else self.center_child
-        rpy = Rot2rpy(self.orientation_mat) if self.parent is None else Rot2rpy(self.orientation_mat_child)
-        return {'gtype': self.gtype, 'name': self.name, 'link_name': self.link_name, 
-                'dims': self.dims, 'center': center, 'rpy': rpy, 'color': self.color, 
-                'display': self.display, 'collision': self.collision, 'fixed': self.fixed, 
-                'parent': self.parent}
+        arg_keys = inspect_arguments(GeometryItem.__init__)[0][2:] + inspect_arguments(GeometryItem.__init__)[1].keys()
+        kwargs = {akey: getattr(self, akey) for akey in arg_keys if hasattr(self, akey)}
+        kwargs['center'] = self.center if self.parent is None else self.center_child
+        kwargs['rpy'] = Rot2rpy(self.orientation_mat) if self.parent is None else Rot2rpy(self.orientation_mat_child)
+        return kwargs
     ##
     # @brief calculate jacobian for a geometry movement
     # @param gtem   GeometryItem

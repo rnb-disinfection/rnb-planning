@@ -4,6 +4,7 @@ from ..utils.utils_graph import *
 from ..utils.utils import *
 from ..utils.rotation_utils import *
 from ..controller.combined_robot import RobotSpecs
+from .constraint.constraint_subject import AbstractTask
 from copy import deepcopy
 import random
 
@@ -569,15 +570,15 @@ class ReachResolver(ConstraintResolver):
                                                           dims=(0.3, 0.03, 0.03))
                     self.pscene.gscene.show_pose(Q)
                 res = self.mplan.validate_trajectory([Q], ignore=get_gtem_list_except(self.pscene, []))
-            if res:
-                if HOLD_DEBUG:
-                    raw_input()
-                if verbose: print("move base {}".format(state.node))
-                transition_new = JointTransition(self.pscene, mname, Qmb, node=state.node, rho=self.inc.rho)
-                self.inc.queue_transition(snode_from, transitions=home_transitions + [transition_new] + transitions)
-                if display:
-                    self.pscene.gscene.clear_highlight()
-                return
+                if res:
+                    if HOLD_DEBUG:
+                        raw_input()
+                    if verbose: print("move base {}".format(state.node))
+                    transition_new = JointTransition(self.pscene, mname, Qmb, node=state.node, rho=self.inc.rho)
+                    self.inc.queue_transition(snode_from, transitions=home_transitions + [transition_new] + transitions)
+                    if display:
+                        self.pscene.gscene.clear_highlight()
+                    return
         if display:
             self.pscene.gscene.clear_highlight()
         if verbose: print("reach not resolved")
@@ -612,6 +613,12 @@ class MotionResolver(ConstraintResolver):
                 self.pscene.gscene.show_pose(to_state.Q)
 
         col_tems_all = deepcopy(subject_list)  # do not ignore target subject from begining
+
+        for sname, subject in self.pscene.subject_dict.items(): # do not ignore task objects
+            if isinstance(subject, AbstractTask):
+                col_tems_all.append(sname)
+        col_tems_all = sorted(set(col_tems_all))
+
         reason = []
         while True:
             subjects_remain = list(set(self.pscene.subject_name_list) - set(col_tems_all))

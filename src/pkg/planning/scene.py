@@ -376,8 +376,9 @@ class PlanningScene:
         success = True
         if check_available:
             for btf1 in btf_list:
-                if not self.actor_dict[btf1.chain.actor_name].check_available(
-                        list2dict(from_state.Q, self.gscene.joint_names)):
+                if btf1.chain.actor_name in self.actor_dict and \
+                        not self.actor_dict[btf1.chain.actor_name].check_available(
+                            list2dict(from_state.Q, self.gscene.joint_names)):
                     success = False
             # else: # commenting out this because there's no need to filter out no-motion transitions
             #     if from_state.Q is not None and to_state.Q is not None:

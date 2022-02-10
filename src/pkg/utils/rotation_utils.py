@@ -131,6 +131,11 @@ def align_z(Two):
     Two_out[0:3,0:3] = Rwo_
     return Two_out
 
+##
+# @brief fit camera detection to workplane considering viewpoint
+# @param    Tco     object pose from camera
+# @param    minz    local z-axis value of object's bottom point
+# @param    Tcw     workplace cooridnate from camera view
 def fit_floor(Tco, minz=0, Tcw=None ):
     if Tcw is None:
         Tbo = np.copy(Tco)

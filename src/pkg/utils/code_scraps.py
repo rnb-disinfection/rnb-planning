@@ -922,13 +922,12 @@ def get_scan_motions(mplan, viewpoint, target, Q_ref, fov_deg=60, N_max=5):
     T_ref = mplan.gscene.get_tf(viewpoint.link_name, Q_ref)
     T_ref_inv = np.linalg.inv(T_ref)
 
-    gscene.add_highlight_axis("hl", "tref", T=T_ref)
     T_tar = target.get_tf(Q_ref)
-    gscene.add_highlight_axis("hl", "ttar", T=T_tar)
     traj, succ = get_look_motion(mplan, robot_name, np.array(Q_ref), T_tar[:3, 3],
                                  viewpoint.link_name, view_dir=viewpoint.orientation_mat[:, 2])
 
     assert succ, "Failed to get initial ref view"
+
     Q_ref = traj[-1]
     T_ref = mplan.gscene.get_tf(viewpoint.link_name, Q_ref)
     T_ref_inv = np.linalg.inv(T_ref)

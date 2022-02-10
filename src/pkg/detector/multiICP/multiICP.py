@@ -338,6 +338,7 @@ class MultiICP:
         else:
             detect_dict = self.micp_dict
 
+        obj_num = 0
         for name, micp in detect_dict.items():
             if name in mask_dict.keys():
                 # # add to micp
@@ -427,9 +428,10 @@ class MultiICP:
 
                         if not skip_detection:
                             # self.objectPose_dict[name] = np.matmul(Tc, T)
-                            name_i = "{}_{:01}".format(name, i_m+1)
+                            name_i = "{}_{:01}".format(name, obj_num+1)
                             self.objectPose_dict[name_i] = np.matmul(Tc, T)
                             print('Found 6DoF pose of {}'.format(name_i))
+                            obj_num +=1
             elif micp.hrule is not None:
                 hrule_targets_dict[name] = micp
             elif name in class_dict.keys():
