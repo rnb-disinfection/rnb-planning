@@ -338,7 +338,7 @@ class MultiICP:
         else:
             detect_dict = self.micp_dict
 
-        obj_num = 0
+        # obj_num = 0
         for name, micp in detect_dict.items():
             if name in mask_dict.keys():
                 # # add to micp
@@ -369,6 +369,7 @@ class MultiICP:
                         mask_tmp[np.where(masks==i+1)] = True
                         mask_list.append(mask_tmp)
 
+                obj_num = 0
                 for i_m, mask in enumerate(mask_list):
                     cdp_masked = apply_mask(cdp, mask)
                     micp.reset(Tref=Tc)

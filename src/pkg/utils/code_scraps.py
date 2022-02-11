@@ -952,7 +952,8 @@ def get_scan_motions(mplan, viewpoint, target, Q_ref, fov_deg=60, N_max=5):
         centroid, label = kmeans2(verts_sph2, N)
         max_dists = []
         for i in range(N):
-            max_dists.append(np.max(np.linalg.norm(verts_sph2[label == i] - centroid[i], axis=-1)))
+            if np.sum(label == i) > 0:
+                max_dists.append(np.max(np.linalg.norm(verts_sph2[label == i] - centroid[i], axis=-1)))
         if np.max(max_dists) < fov_rad_hf:  # stop if max angular dist < fov
             break
 

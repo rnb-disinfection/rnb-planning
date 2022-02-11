@@ -281,7 +281,7 @@ panda_arm0:
     - SPARSkConfigDefault
     - SPARStwokConfigDefault
     - TrajOptDefault
-  projection_evaluator: link(panda0_link8)
+  projection_evaluator: link(panda_arm0_link8)
 
 panda_arm1:
   planner_configs:
@@ -309,7 +309,7 @@ panda_arm1:
     - SPARSkConfigDefault
     - SPARStwokConfigDefault
     - TrajOptDefault
-  projection_evaluator: link(panda1_link8)
+  projection_evaluator: link(panda_arm1_link8)
 panda1_indy0:
   planner_configs:
     - SBLkConfigDefault

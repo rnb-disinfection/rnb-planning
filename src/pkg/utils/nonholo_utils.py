@@ -3,7 +3,7 @@ import numpy as np
 from .rotation_utils import *
 from .utils import *
 
-MIN_RADI_DEFAULT = 0.5
+MIN_RADI_DEFAULT = 0.3
 STEP_SIZE_DEFAULT = 0.05
 
 def SE2(R, P):

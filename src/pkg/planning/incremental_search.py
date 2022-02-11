@@ -98,8 +98,10 @@ class IncrementalSearch(TaskInterface, PlanningPipeline):
         TaskInterface.initialize_memory(self, multiprocess_manager)
         if multiprocess_manager is not None:
             self.transition_queue = multiprocess_manager.PriorityQueue()
+            self.queue_lock = multiprocess_manager.Lock()
         else:
             self.transition_queue = PriorityQueue()
+            self.queue_lock = DummyBlock()
 
     ##
     # @brief calculate initial/goal scores and filter valid nodes
@@ -160,7 +162,7 @@ class IncrementalSearch(TaskInterface, PlanningPipeline):
         rho = 1.0
         for transition in transitions:
             rho *= transition.rho
-        return -rho * self.rho ** self.error_dict[to_node]
+        return - rho * (self.rho ** self.error_dict[to_node])
 
     ##
     # @param snode_from  SearchNode from which transitoin will be made
@@ -278,26 +280,33 @@ class IncrementalSearch(TaskInterface, PlanningPipeline):
         return state.node in self.goal_nodes
 
     def step_search(self, **kwargs):
-        if self.transition_queue.empty():
-            TextColors.RED.println("[WARN] Transition Queue Empty")
-        priority, (idx_from, transitions) = self.transition_queue.get()
+        with self.queue_lock:
+            if self.transition_queue.empty():
+                TextColors.RED.println("[WARN] Transition Queue Empty")
+            priority, (idx_from, transitions) = self.transition_queue.get()
         snode_from = self.snode_dict[idx_from]
         transition = transitions[0]
         #     print("=============== {} ===================".format(i_step))
         #     print("{}: {} -> {}".format(snode_from.idx, snode_from.state.node, transition.node))
-        # queue repeat
-        if isinstance(transition, BindingTransition):
-            self.queue_transitions_all(snode_from, snames=[transition.subject_name], reserveds=transitions[1:],
-                                       rho=self.gamma * transition.rho)
 
+        succ, snode_return = False, None
         self.pscene.set_object_state(snode_from.state)
         for resv in self.resolver_stack:
             reason = resv.check(snode_from.state, transitions[0], skip_set_state=True, **kwargs)
             if reason:
                 snode_new = resv.resolve(snode_from, reason, transitions, **kwargs)
                 if snode_new is not None and self.check_goal(snode_new.state):
-                    return True, snode_new
-        return False, None
+                    succ, snode_return = True, snode_new
+                    break
+
+        # queue repeat
+        if isinstance(transition, BindingTransition):
+            if succ:
+                rho = self.gamma * self.gamma * self.gamma * self.gamma * transition.rho # lower priority if already suceeded
+            else:
+                rho = self.gamma * self.gamma * transition.rho # same priority to 1 additional item moving
+            self.queue_transitions_all(snode_from, snames=[transition.subject_name], reserveds=transitions[1:], rho=rho)
+        return succ, snode_return
 
     def _search_loop(self, ID, N_search,
                      display=False, dt_vis=None, verbose=False, timeout_loop=600,
@@ -446,7 +455,7 @@ class ReachResolver(ConstraintResolver):
     ##
     # @param inc IncrementalSearch instance
     # @param gcheck GraspChecker
-    def __init__(self, inc, rcheck, mplan, floor=None, N_try_max=100):
+    def __init__(self, inc, rcheck, mplan, floor=None, N_try_max=20):
         self.inc, self.rcheck, self.mplan = inc, rcheck, mplan
         self.pscene = inc.pscene
         self.crob = self.pscene.combined_robot
@@ -523,6 +532,7 @@ class ReachResolver(ConstraintResolver):
 
         idc_robot = self.crob.idx_dict[rname]
         idc_mobile = self.crob.idx_dict[mname]
+        theta_range = self.crob.get_joint_limits()[idc_mobile[2]]
 
         Q = np.copy(state.Q)
         home_transitions = []
@@ -533,10 +543,16 @@ class ReachResolver(ConstraintResolver):
                 node=state.node, rho=self.inc.rho))  # move robot to home config
             Q[idc_robot] = self.crob.home_pose[idc_robot]
 
+        snames_fixed = []
+        for sname, subject in self.pscene.subject_dict.items(): # do not ignore task objects
+            if isinstance(subject, AbstractTask):
+                snames_fixed.append(sname)
+
         radii_max = np.linalg.norm(rconfig.xyzrpy[0][:2]) + RobotSpecs.get_shoulder_reach(rconfig.type)
         sample_count = 0
+        ignorant_answer_done = False
         for _ in range(self.N_try_max):
-            r_loc, theta_loc, theta = np.random.uniform([0, -np.pi, -np.pi], [radii_max, np.pi, np.pi])
+            r_loc, theta_loc, theta = np.random.uniform([0, -np.pi, theta_range[0]], [radii_max, np.pi, theta_range[1]])
             xyz_lr = np.matmul(Rot_axis(3, theta_loc), [r_loc, 0, 0])[:3]
             xyz_br = T_loal[:3, 3] + xyz_lr
             Tbr_ = SE3(Rot_axis(3, theta), xyz_br)
@@ -569,16 +585,29 @@ class ReachResolver(ConstraintResolver):
                     self.pscene.gscene.add_highlight_axis("hl", "tbm", link_name=ref_link, T=Tbm,
                                                           dims=(0.3, 0.03, 0.03))
                     self.pscene.gscene.show_pose(Q)
-                res = self.mplan.validate_trajectory([Q], ignore=get_gtem_list_except(self.pscene, []))
-                if res:
+
+                # check ignoring moving subjects first, than not ignoring any
+                res = self.mplan.validate_trajectory(
+                    [Q], ignore=get_gtem_list_except(self.pscene, snames_fixed) if not ignorant_answer_done else [])
+                if res: # valid trajectory
                     if HOLD_DEBUG:
                         raw_input()
                     if verbose: print("move base {}".format(state.node))
                     transition_new = JointTransition(self.pscene, mname, Qmb, node=state.node, rho=self.inc.rho)
                     self.inc.queue_transition(snode_from, transitions=home_transitions + [transition_new] + transitions)
-                    if display:
-                        self.pscene.gscene.clear_highlight()
-                    return
+
+                    if ignorant_answer_done: # added is a non-ignorant answer - stop and return
+                        if display:
+                            self.pscene.gscene.clear_highlight()
+                        return
+                    else: # ignorant answer acquired - re-check with subject collision
+                        ignorant_answer_done = True
+                        res = self.mplan.validate_trajectory([Q])
+                        if res: # added is valid again with subject collision - this finishes all. return
+                            if display:
+                                self.pscene.gscene.clear_highlight()
+                            return
+
         if display:
             self.pscene.gscene.clear_highlight()
         if verbose: print("reach not resolved")

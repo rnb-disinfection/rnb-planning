@@ -93,17 +93,17 @@ def add_table(gscene, name, table_center, table_rpy):
                                  parent=vis_name)
 
     obj_back_col = gscene.create_safe(GEOTYPE.BOX, "{}_back_col".format(name), link_name="base_link",
-                                 dims=(1.6+0.14, 0.14, 0.705+0.1), center=(0,0.4-0.05,0.705/2), rpy=(0,0,0),
+                                 dims=(1.6+0.14, 0.14, 0.705), center=(0,0.4-0.05,0.705/2), rpy=(0,0,0),
                                  color=(0, 0, 0, 0.1), display=True, fixed=False, collision=True,
                                  parent=vis_name)
 
     obj_left_leg_col = gscene.create_safe(GEOTYPE.BOX, "{}_left_leg_col".format(name), link_name="base_link",
-                                 dims=(0.1, 0.8+0.1, 0.705+0.1), center=(-0.8+0.05,0,0.705/2), rpy=(0,0,0),
+                                 dims=(0.1, 0.8+0.1, 0.705), center=(-0.8+0.05,0,0.705/2), rpy=(0,0,0),
                                  color=(0, 0, 0, 0.1), display=True, fixed=False, collision=True,
                                  parent=vis_name)
 
     obj_right_leg_col = gscene.create_safe(GEOTYPE.BOX, "{}_right_leg_col".format(name), link_name="base_link",
-                                          dims=(0.1, 0.8+0.1, 0.705+0.1), center=(0.8-0.05, 0, 0.705/2), rpy=(0, 0, 0),
+                                          dims=(0.1, 0.8+0.1, 0.705), center=(0.8-0.05, 0, 0.705/2), rpy=(0, 0, 0),
                                           color=(0, 0, 0, 0.1), display=True, fixed=False, collision=True,
                                           parent=vis_name)
 
