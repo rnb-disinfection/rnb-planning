@@ -26,18 +26,20 @@ class NonHolonomicPlanner:
         edges = tree_cur["edges"]
         if not self.mplan.validate_trajectory([Qnew], update_gscene=update_gscene):  # validate
             return None
+        connect_N = int(connect_dist / step_size)
         
         Xnear = sorted(nodes, key=lambda x: calc_nonolho_dist(Xnew, x))[0]
-        Xlist = interpolate_nonholo_leastnorm(Xnear, Xnew, ref_step=step_size)
+        Xlist = interpolate_nonholo_leastnorm(Xnear, Xnew, ref_step=step_size, min_radi = self.min_radi)
+        if Xlist is None:
+            return None
         traj = []
-        for X in Xlist:
+        for X in Xlist[:min(connect_N, len(Xlist))]:
             Q_ = Qref.copy()
             Q_[self.idx_mobile[:3]] = X[:3]
             traj.append(Q_)
         traj = np.array(traj)
         
 ## OLD VERSION
-#         connect_N = int(connect_dist / step_size)
 #         Xnear = sorted(nodes, key=lambda x: calc_nonolho_dist(Xnew, x, min_radi=self.min_radi))[0]
 #         y12, y21, theta, R, T1, T2 = get_nonholo_trajargs(Xnear, Xnew)
 #         T_list = interpolate_nonholo_leastnorm(y12, y21, theta, R, T1, T2, min_radi=self.min_radi, step_size=step_size)
@@ -56,7 +58,7 @@ class NonHolonomicPlanner:
             i_n = len(nodes) - 1
             edge = (nodes.index(Xnear), i_n, traj)
             edges.append(edge)
-            return edge, len(T_list) == len(traj)
+            return edge, len(Xlist) == len(traj)
 
     def backtrack_tree(self, tree, i_node, invert=False):
         edges = tree["edges"]

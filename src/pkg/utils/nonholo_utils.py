@@ -3,7 +3,7 @@ import numpy as np
 from .rotation_utils import *
 from .utils import *
 
-MIN_RADI_DEFAULT = 0.3
+MIN_RADI_DEFAULT = 0.05
 STEP_SIZE_DEFAULT = 0.05
 
 def SE2(R, P):
@@ -17,12 +17,12 @@ def SE2(R, P):
 
 ##
 # @brief calculate simple distance for nonholonomic planning
-# @param X0   initial config = [X, Y, headX, headY]
-# @param Xn   final config = [X, Y, headX, headY]
+# @param X0   initial config = [X, Y, heading]. heading in radian
+# @param Xn   final config = [X, Y, heading]. heading in radian
 # @param rot_scale  scale of rotation when calculating distance
 def calc_nonolho_dist(X0, Xn, rot_scale=0.5):
     dist = np.linalg.norm(np.subtract(Xn[:2], X0[:2]))
-    dH = np.abs(calc_rotvec_vecs(X0[2:], Xn[2:]))
+    dH = np.abs(calc_rotvec_vecs([np.cos(X0[2]), np.sin(X0[2])], [np.cos(Xn[2]), np.sin(Xn[2])]))
     return dist + dH*rot_scale
 
 ##
@@ -32,15 +32,16 @@ def calc_nonolho_dist(X0, Xn, rot_scale=0.5):
 # @param N    number of interpolation steps
 # @param ref_step   reference step size
 # @param rot_scale  scale of rotation when calculating distance
-def interpolate_nonholo_leastnorm(X0, Xn, ref_step=0.1, N=None, rot_scale=0.5):
+def interpolate_nonholo_leastnorm(X0, Xn, ref_step=0.1, N=None, rot_scale=0.5, min_radi=MIN_RADI_DEFAULT):
     assert N is not None or ref_step is not None, "[Error] Either N or ref_step should be passed"
     
     X0_ = np.copy(X0)
+
+    if N is None:
+        N = max(int(calc_nonolho_dist(X0, Xn, rot_scale) / ref_step), 3)
+
     X0 = np.concatenate([X0[:2], [np.cos(X0[2]), np.sin(X0[2])]])
     Xn = np.concatenate([Xn[:2], [np.cos(Xn[2]), np.sin(Xn[2])]])
-    
-    if N is None:
-        N = int(calc_nonolho_dist(X0, Xn, rot_scale) / ref_step)
                 
     if ref_step is None:
         ref_step = np.linalg.norm(np.subtract(Xn, X0)[:2])/N
@@ -58,7 +59,6 @@ def interpolate_nonholo_leastnorm(X0, Xn, ref_step=0.1, N=None, rot_scale=0.5):
     
     A_i = np.identity(4)
     A_accum = []
-    print(N)
     for i_rev in range(N):
         A_accum.append(A_i[:,2:])
         A_i = np.matmul(A_i, A)
@@ -71,10 +71,18 @@ def interpolate_nonholo_leastnorm(X0, Xn, ref_step=0.1, N=None, rot_scale=0.5):
     dH_list = list(reversed(dH_list))    
     
     X_list = [X0_]
+    Xpre_ = np.copy(X0_)
     X = np.copy(X0)
     for dH in dH_list:
         X = np.matmul(A, X)
         X_ = np.concatenate([X[:2], [np.arctan2(depart_dir*X[3], depart_dir*X[2])]])
+        dX_ = (X_ - Xpre_)
+        dX_[2] = (dX_[2]+np.pi)%(2*np.pi)-np.pi
+        radi = np.linalg.norm(dX_[:2]) / (np.abs(dX_[2])+1e-16)
+        if radi < min_radi:
+            print("fail - radi: {} / {}".format(np.round(radi, 3), np.round(min_radi, 3)))
+            return None
+        Xpre_ = X_
         X_list.append(X_)
         X[2:] += dH
     X_list = np.array(X_list)
