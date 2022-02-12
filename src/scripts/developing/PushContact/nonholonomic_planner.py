@@ -24,21 +24,33 @@ class NonHolonomicPlanner:
         Qnew[self.idx_mobile[2]] = (Xnew[2] + np.pi) % (2 * np.pi) - np.pi
         nodes = tree_cur["nodes"]
         edges = tree_cur["edges"]
-        connect_N = int(connect_dist / step_size)
         if not self.mplan.validate_trajectory([Qnew], update_gscene=update_gscene):  # validate
             return None
-        Xnear = sorted(nodes, key=lambda x: dist_nonholo(Xnew, x, min_radi=self.min_radi))[0]
-        y12, y21, theta, R, T1, T2 = get_nonholo_trajargs(Xnear, Xnew)
-        T_list = interpolate_nonholo(y12, y21, theta, R, T1, T2, min_radi=self.min_radi, step_size=step_size)
-        if not T_list:
-            return None
+        
+        Xnear = sorted(nodes, key=lambda x: calc_nonolho_dist(Xnew, x))[0]
+        Xlist = interpolate_nonholo_leastnorm(Xnear, Xnew, ref_step=step_size)
         traj = []
-        for T in T_list[:connect_N]:
+        for X in Xlist:
             Q_ = Qref.copy()
-            Q_[self.idx_mobile[:2]] = T[:2, 2]
-            Q_[self.idx_mobile[2]] = np.arctan2(T[1, 0], T[0, 0])
+            Q_[self.idx_mobile[:3]] = X[:3]
             traj.append(Q_)
         traj = np.array(traj)
+        
+## OLD VERSION
+#         connect_N = int(connect_dist / step_size)
+#         Xnear = sorted(nodes, key=lambda x: calc_nonolho_dist(Xnew, x, min_radi=self.min_radi))[0]
+#         y12, y21, theta, R, T1, T2 = get_nonholo_trajargs(Xnear, Xnew)
+#         T_list = interpolate_nonholo_leastnorm(y12, y21, theta, R, T1, T2, min_radi=self.min_radi, step_size=step_size)
+#         if not T_list:
+#             return None
+#         traj = []
+#         for T in T_list[:connect_N]:
+#             Q_ = Qref.copy()
+#             Q_[self.idx_mobile[:2]] = T[:2, 2]
+#             Q_[self.idx_mobile[2]] = np.arctan2(T[1, 0], T[0, 0])
+#             traj.append(Q_)
+#         traj = np.array(traj)
+
         if self.mplan.validate_trajectory(traj, update_gscene=update_gscene):
             nodes.append(tuple(traj[-1, :3].tolist()))
             i_n = len(nodes) - 1
