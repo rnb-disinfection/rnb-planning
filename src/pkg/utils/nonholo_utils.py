@@ -39,7 +39,7 @@ def interpolate_nonholo_leastnorm(X0, Xn, ref_step=0.1, N=None, rot_scale=0.5, m
     X0_ = np.copy(X0)
 
     if N is None:
-        N = max(int(calc_nonolho_dist(X0, Xn, rot_scale) / ref_step), 3)
+        N = max(int(calc_nonolho_dist(X0, Xn, rot_scale) / ref_step), 1)
 
     X0 = np.concatenate([X0[:2], [np.cos(X0[2]), np.sin(X0[2])]])
     Xn = np.concatenate([Xn[:2], [np.cos(Xn[2]), np.sin(Xn[2])]])

@@ -88,7 +88,7 @@ def add_table(gscene, name, table_center, table_rpy):
                                  uri="package://my_mesh/meshes/stl/table_floor_centered_m_scale.STL", scale=(1., 1., 1.))
 
     obj_body = gscene.create_safe(GEOTYPE.BOX, name, link_name="base_link",
-                                 dims=(1.6+0.2, 0.8+0.2, 0.02), center=(0,0,0.715), rpy=(0,0,0),
+                                 dims=(1.6+0.14, 0.8+0.14, 0.02), center=(0,0,0.715), rpy=(0,0,0),
                                  color=(0, 0, 0, 0.1), display=True, fixed=False, collision=True,
                                  parent=vis_name)
 
