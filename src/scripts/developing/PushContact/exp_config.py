@@ -25,7 +25,7 @@ def add_panda_cam(gscene, tool_link, theta):
                                    display=True, fixed=True, collision=False, parent="panda_cam_body")
     return viewpoint
     
-def add_panda_brush(gscene, tool_link, theta, brush_name, offset=(0,0,0.011), tool_dims=(0.09,0.175,0.05), col_margin=0.01):
+def add_panda_brush(gscene, tool_link, theta, brush_name, offset=(0,0,0.011), tool_dims=(0.09,0.175,0.065), col_margin=0.005):
     gscene.create_safe(gtype=GEOTYPE.MESH, name="panda_tool_vis", link_name=tool_link, dims=(0.1,0.1,0.1), 
                        center=offset, rpy=(0,0,theta-np.pi/2), display=True, color=(0.8,0.8,0.8,1), collision=False, fixed=True,
                        uri="package://my_mesh/meshes/stl/WipingTool_res.STL")
@@ -42,7 +42,7 @@ def add_panda_brush(gscene, tool_link, theta, brush_name, offset=(0,0,0.011), to
                        center=(0.088,0.0,0.11), rpy=(0,np.pi/4,0), display=True, color=(0.8,0.8,0.8,0.2), collision=True, fixed=True,
                        parent="panda_tool_vis")
     brush_face = gscene.create_safe(gtype=GEOTYPE.BOX, name=brush_name, link_name=tool_link, dims=tool_dims, 
-                       center=(0.22,0.0,0.192), rpy=(0,-np.pi/2,0), display=True, color=(0.8,0.8,0.0,0.9), collision=False, fixed=True,
+                       center=(0.195+tool_dims[2]/2,0.0,0.192), rpy=(0,-np.pi/2,0), display=True, color=(0.8,0.8,0.0,0.9), collision=False, fixed=True,
                        parent="panda_tool_vis")
     gscene.create_safe(gtype=GEOTYPE.BOX, name=brush_name+"_col", link_name=tool_link, dims=np.add(tool_dims, (col_margin,col_margin,0)),
                        center=(0, 0, col_margin), rpy=(0,0,0), display=True, color=(0.8,0.8,0.8,0.2), collision=True, fixed=True,
@@ -88,7 +88,7 @@ def add_table(gscene, name, table_center, table_rpy):
                                  uri="package://my_mesh/meshes/stl/table_floor_centered_m_scale.STL", scale=(1., 1., 1.))
 
     obj_body = gscene.create_safe(GEOTYPE.BOX, name, link_name="base_link",
-                                 dims=(1.6+0.14, 0.8+0.14, 0.02), center=(0,0,0.715), rpy=(0,0,0),
+                                 dims=(1.6+0.2, 0.8+0.2, 0.02), center=(0,0,0.715), rpy=(0,0,0),
                                  color=(0, 0, 0, 0.1), display=True, fixed=False, collision=True,
                                  parent=vis_name)
 

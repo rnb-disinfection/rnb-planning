@@ -956,6 +956,8 @@ def get_scan_motions(mplan, viewpoint, target, Q_ref, fov_deg=60, N_max=5):
                 max_dists.append(np.max(np.linalg.norm(verts_sph2[label == i] - centroid[i], axis=-1)))
         if np.max(max_dists) < fov_rad_hf:  # stop if max angular dist < fov
             break
+        if N == N_max:
+            raise (RuntimeError("Failed to generate look motion in given number"))
 
     # makes look trajectories for view centers
     view_traj_list = []

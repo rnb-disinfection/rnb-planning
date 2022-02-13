@@ -766,7 +766,7 @@ class MultiICP_Obj:
 
         len_correspends = len(set(np.asarray(reg_p2p.correspondence_set)[:,1]))
         len_tar =  len(np.asarray(target.points))
-        inlier_ratio = float(len_correspends) / len_tar
+        inlier_ratio = float(len_correspends) / len_tar if len_tar > 0 else 0
         print("Inlier ratio: {}".format(inlier_ratio))
 
         self.reg_p2p = reg_p2p
@@ -1006,7 +1006,7 @@ class MultiICP_Obj:
 
         len_correspends = len(set(np.asarray(reg_p2p.correspondence_set)[:,1]))
         len_tar =  len(np.asarray(target.points))
-        inlier_ratio = float(len_correspends) / len_tar
+        inlier_ratio = float(len_correspends) / len_tar if len_tar > 0 else 0
         print("Inlier ratio: {}".format(inlier_ratio))
 
         self.reg_p2p = reg_p2p
