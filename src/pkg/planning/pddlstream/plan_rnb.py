@@ -268,7 +268,8 @@ def pddlstream_from_problem_general_rnb(pscene, robot, initial_state, body_names
                                                             show_state=show_state,
                                                             approach_vec=None)),
         'test-cfree-binding-binding': from_test(get_cfree_binding_binding_test_rnb()),
-        'test-cfree-conf-pose': from_test(get_cfree_conf_pose_test_rnb())
+        'test-cfree-conf-pose': from_test(get_cfree_conf_pose_test_rnb()),
+        'test-equal-pose-value': from_test(get_equal_pose_value_test_rnb())
     }
 
     if TIMED_COMPLETE:

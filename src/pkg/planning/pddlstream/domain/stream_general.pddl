@@ -33,4 +33,9 @@
     :domain (and (Conf ?r ?q) (Pose ?s2 ?p2))
     :certified (CFreeConfPose ?r ?q ?s2 ?p2)
   )
+  (:stream test-equal-pose-value
+    :inputs (?s1 ?p1 ?s2 ?p2)
+    :domain (and (Pose ?s1 ?p1) (Pose ?s2 ?p2))
+    :certified (EqValPosePose ?p1 ?p2)
+  )
 )

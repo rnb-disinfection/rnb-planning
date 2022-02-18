@@ -1,5 +1,6 @@
 import os
 import sys
+import numpy as np
 sys.path.insert(1, os.environ["PDDL_STREAM_DIR"])
 from ...utils.rotation_utils import *
 from ...utils.joint_utils import *
@@ -332,22 +333,30 @@ def get_free_motion_gen_rnb(mplan, body_subject_map, robot, tool, tool_link, app
 def get_general_motion_gen_rnb(mplan, body_subject_map, robot, tool, tool_link, timeout, show_state, approach_vec, base_link='base_link'):
     def fn(r, conf1, conf2, fluents=[]):
         print('plan general motion conf2.values')
+        print(conf2.body)
         print(conf2.values)
         skip_feas = True
-        with GlobalTimer.instance().block("free_motion_gen"):
-            assert ((conf1.body == conf2.body) and (conf1.joints == conf2.joints))
-            conf1.assign()
-            path, succ, feas = plan_motion(mplan=mplan, body_subject_map=body_subject_map,
-                                           conf1=conf1, conf2=conf2, grasp=None, fluents=fluents, tool=tool,
-                                           tool_link=tool_link, base_link=base_link, timeout=timeout,
-                                           show_state=show_state, approach_vec=approach_vec,
-                                           skip_feas=skip_feas)
-            if not succ:
-                if DEBUG_FAILURE: wait_if_gui('Free motion failed')
-                return None
+        if r == 0L:
+            with GlobalTimer.instance().block("free_motion_gen"):
+                assert ((conf1.body == conf2.body) and (conf1.joints == conf2.joints))
+                conf1.assign()
+                path, succ, feas = plan_motion(mplan=mplan, body_subject_map=body_subject_map,
+                                               conf1=conf1, conf2=conf2, grasp=None, fluents=fluents, tool=tool,
+                                               tool_link=tool_link, base_link=base_link, timeout=timeout,
+                                               show_state=show_state, approach_vec=approach_vec,
+                                               skip_feas=skip_feas)
+                if not succ:
+                    if DEBUG_FAILURE: wait_if_gui('Free motion failed')
+                    return None
 
-            command = Command([BodyPath(robot, path, joints=conf2.joints)])
-            return (command,)
+                command = Command([BodyPath(robot, path, joints=conf2.joints)])
+                print('print command')
+                print(command)
+                return (command,)
+        else:
+            print('robot not 0L')
+            print(r)
+            return None
     return fn
 
 
@@ -793,8 +802,7 @@ def get_ik_fn_general_rnb(pscene, actor_body_map, mplan, fixed=[], robot=0L,
                     for i_ in range(num_attempts):
                         q = mplan.planner.solve_ik_py('indy0', gripper_pose[0] + gripper_pose[1],
                                                                timeout_single=timeout_single,
-                                                               self_collision=True, fulll_collision=False
-                                                               )
+                                                               self_collision=True, fulll_collision=False)
                         print("get ik fn general, print movable_joints, q")
                         print(movable_joints)
                         print(q)
@@ -811,7 +819,7 @@ def get_ik_fn_general_rnb(pscene, actor_body_map, mplan, fixed=[], robot=0L,
                         # print(body_conf.values)
                         return (body_conf,)
             else:
-                body_conf = BodyConf(actor_body_map[actor_name], [])
+                body_conf = BodyConf(3L, []) ### need to find in robot dict
                 print('ik_fn print conf body val')
                 print(body_conf.body)
                 print(body_conf.values)
@@ -878,3 +886,21 @@ def get_cfree_conf_pose_test_rnb(collisions=True):
             res = not pairwise_collision(q1.body, s2)
             return res
     return test
+
+def get_equal_pose_value_test_rnb():
+    def test(s1, p1, s2, p2):
+        value1 = p1.value
+        value2 = p2.value
+        print('test eq')
+        print('p1, value1')
+        print(p1)
+        print(value1)
+        print('p2, value2')
+        print(p2)
+        print(value2)
+        val1 = (list(np.round(value1[0], 3)), list(np.round(value1[1], 3)))
+        val2 = (list(np.round(value2[0], 3)), list(np.round(value2[1], 3)))
+        # return val1 == val2
+        return True
+    return test
+
