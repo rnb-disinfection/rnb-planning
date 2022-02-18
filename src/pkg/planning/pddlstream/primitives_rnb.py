@@ -9,6 +9,7 @@ from ..scene import State
 from primitives_pybullet import *
 from examples.pybullet.tamp.streams import *
 from constants_common import *
+from examples.pybullet.utils.pybullet_tools.utils import Pose
 
 TIMEOUT_MOTION_DEFAULT = 1
 
@@ -52,6 +53,23 @@ def get_time_gen(dt=DT_DEFAULT):
                 yield None
     gen.time_last = 0
     return gen
+
+class Binding(object):
+    num = count()
+    def __init__(self, btf):
+        # self.T_lao = btf.T_lao
+        # self.chain = btf.chain
+        self.btf = btf
+        self.index = next(self.num)
+    @property
+    def value(self):
+        return self.btf.T_lao
+    @property
+    def binding_transform(self):
+        return self.btf
+    def __repr__(self):
+        index = self.index
+        return 'b{}'.format(index)
 
 ##
 # @brief find matching object at a given configuration to the given binder. Assume the handle is empty.
@@ -263,6 +281,15 @@ def get_free_motion_gen_rnb(mplan, body_subject_map, robot, tool, tool_link, app
     time_dict = {}
     returneds = set()
     def fn(conf1, conf2, time_=None, fluents=[]):
+        print('print conf1 and conf2 body joints configuration')
+        print(conf1)
+        print(conf1.body)
+        print(conf1.joints)
+        print(conf1.configuration)
+        print(conf2)
+        print(conf2.body)
+        print(conf2.joints)
+        print(conf2.configuration)
 
         skip_feas = False
         if time_ is not None:
@@ -300,6 +327,27 @@ def get_free_motion_gen_rnb(mplan, body_subject_map, robot, tool, tool_link, app
                 return (command,)
         else: # non-first call, postpone time not passed (X)
             return None
+    return fn
+
+def get_general_motion_gen_rnb(mplan, body_subject_map, robot, tool, tool_link, timeout, show_state, approach_vec, base_link='base_link'):
+    def fn(r, conf1, conf2, fluents=[]):
+        print('plan general motion conf2.values')
+        print(conf2.values)
+        skip_feas = True
+        with GlobalTimer.instance().block("free_motion_gen"):
+            assert ((conf1.body == conf2.body) and (conf1.joints == conf2.joints))
+            conf1.assign()
+            path, succ, feas = plan_motion(mplan=mplan, body_subject_map=body_subject_map,
+                                           conf1=conf1, conf2=conf2, grasp=None, fluents=fluents, tool=tool,
+                                           tool_link=tool_link, base_link=base_link, timeout=timeout,
+                                           show_state=show_state, approach_vec=approach_vec,
+                                           skip_feas=skip_feas)
+            if not succ:
+                if DEBUG_FAILURE: wait_if_gui('Free motion failed')
+                return None
+
+            command = Command([BodyPath(robot, path, joints=conf2.joints)])
+            return (command,)
     return fn
 
 
@@ -514,6 +562,8 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                   disabled_collisions=set(), robot=0L, fixed=[], teleport=False, num_attempts=10, mplan=None,
                   timeout_single=0.01, POSTPONE=POSTPONE_DEFAULT):
     robot_name = [k for k, v in pscene.robot_chain_dict.items() if v["tip_link"]==actor.geometry.link_name][0]
+    print('get ik fn rnb robot name')
+    print(robot_name)
     movable_joints = get_movable_joints(robot)
     sample_fn = get_sample_fn(robot, movable_joints)
     home_pose = dict2list(home_dict, pscene.gscene.joint_names)
@@ -559,7 +609,15 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
             obstacles = [body] + fixed
             set_pose(body, pose.pose)
             gripper_pose = end_effector_from_body(pose.pose, grasp.grasp_pose)
+            print('printing pose')
+            print(pose.pose)
+            print('printing grasp_pose')
+            print(grasp.grasp_pose)
+            print('printing gripper_pose')
+            print(gripper_pose)
             approach_pose = approach_from_grasp_tool_side(gripper_pose, grasp.approach_pose)
+            print("printing approach_pose: ")
+            print(approach_pose)
             # print("gripper_pose: {}".format(gripper_pose))
             # print("approach_pose: {}".format(approach_pose))
             ik_res_reason = IK_Reason.success
@@ -573,13 +631,19 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                         # GlobalLogger.instance()["ik_params"] = (robot, grasp.link, approach_pose)
                         if mplan is None:
                             q_approach = inverse_kinematics(robot, grasp.link, approach_pose)
+                            print('mplan is None q_approach')
+                            print(q_approach)
                         else:
                             q_approach = mplan.planner.solve_ik_py(robot_name, approach_pose[0]+approach_pose[1],
                                                                    timeout_single=timeout_single,
                                                                    self_collision=True, fulll_collision=False
                                                                    )
+                            print('mplan is not None q_approach')
+                            print(q_approach)
                             if q_approach is not None:
                                 q_approach_dict = list2dict(q_approach, mplan.chain_dict[robot_name]["joint_names"])
+                                print("q appr dict")
+                                print(q_approach_dict)
                                 home_dict_tmp = deepcopy(home_dict)
                                 home_dict_tmp.update(q_approach_dict)
                                 q_approach = tuple(dict2list(home_dict_tmp, pscene.gscene.joint_names))
@@ -589,7 +653,11 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
 
                     if q_approach is not None:
                         with GlobalTimer.instance().block("pairwise_collision_a"):
+                            print("ik print robot, obstacles")
+                            print(robot)
+                            print(obstacles)
                             pw_col = any(pairwise_collision(robot, b) for b in obstacles)
+                            print(pw_col)
                     else:
                         pw_col = False
 
@@ -617,9 +685,13 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                         continue
                     # print("go on")
                     conf = BodyConf(robot, q_approach)
+                    print('print robot')
+                    print(robot)
                     if no_approach:
                         q_grasp = deepcopy(q_approach)
                     else:
+                        print('print gripper pose')
+                        print(gripper_pose)
                         with GlobalTimer.instance().block("ik_grasp1"):
                             if mplan is None:
                                 q_grasp = inverse_kinematics(robot, grasp.link, gripper_pose)
@@ -702,6 +774,50 @@ def get_ik_fn_rnb(pscene, body_subject_map, actor, checkers, home_dict, base_lin
                 return None
     return fn
 
+def get_ik_fn_general_rnb(pscene, actor_body_map, mplan, fixed=[], robot=0L,
+                          num_attempts=10, timeout_single=0.01):
+    movable_joints = get_movable_joints(robot)
+    def fn(subject, body_pose, a_robot, actor, binding):
+        with GlobalTimer.instance().block("ik_fn"):
+            btf = binding.binding_transform
+            actor_name = btf.chain[2]
+            if pscene.actor_robot_dict[actor_name] == 'indy0':
+                grasp_pose = T2xyzrpy(btf.T_lao)
+                gripper_pose = end_effector_from_body(body_pose.value, Pose(point=grasp_pose[0], euler=grasp_pose[1]))
+                goal_pose = body_pose.value
+                print('print goal pose')
+                print(goal_pose)
+                obstacles = [body_pose.body] + fixed
+                set_pose(body_pose.body, body_pose.pose)
+                with GlobalTimer.instance().block("ik_loop"):
+                    for i_ in range(num_attempts):
+                        q = mplan.planner.solve_ik_py('indy0', gripper_pose[0] + gripper_pose[1],
+                                                               timeout_single=timeout_single,
+                                                               self_collision=True, fulll_collision=False
+                                                               )
+                        print("get ik fn general, print movable_joints, q")
+                        print(movable_joints)
+                        print(q)
+                        if q is not None:
+                            set_joint_positions(robot, movable_joints, q)
+                            pw_col = any(pairwise_collision(0L, b) for b in obstacles)
+                            print(pw_col)
+                        if (q is None) or pw_col:
+                            continue
+                        # print('print q')
+                        # print(q)
+                        body_conf = BodyConf(0L, q)
+                        # print('ik_fn print conf val')
+                        # print(body_conf.values)
+                        return (body_conf,)
+            else:
+                body_conf = BodyConf(actor_body_map[actor_name], [])
+                print('ik_fn print conf body val')
+                print(body_conf.body)
+                print(body_conf.values)
+                return (body_conf,)
+    return fn
+
 ## @brief same as the original
 def get_cfree_pose_pose_test_rnb(collisions=True, **kwargs):
     def test(b1, p1, b2, p2):
@@ -710,6 +826,16 @@ def get_cfree_pose_pose_test_rnb(collisions=True, **kwargs):
         p1.assign()
         p2.assign()
         res = not pairwise_collision(b1, b2, **kwargs)  # , max_distance=0.001)
+        return res
+    return test
+
+def get_cfree_binding_binding_test_rnb(collisions=True, **kwargs):
+    def test(s1, p1, s2, p2):
+        if not collisions or (s1 == s2):
+            return True
+        p1.assign()
+        p2.assign()
+        res = not pairwise_collision(s1, s2, **kwargs)  # , max_distance=0.001)
         return res
     return test
 
@@ -726,4 +852,29 @@ def get_cfree_obj_approach_pose_test_rnb(collisions=True):
             if pairwise_collision(b1, b2):
                 return False
         return True
+    return test
+
+# def get_cfree_approach_pose_test_rnb(collisions=True):
+#     def test(s1, a1, b1, p1, s2, p2):
+#         if not collisions or (s1 == s2):
+#             return True
+#         p2.assign()
+#         grasp_pose = p1.value
+#         return 0
+#     return test
+
+def get_cfree_conf_pose_test_rnb(collisions=True):
+    def test(r, q1, s2, p2):
+        if not collisions:
+            return True
+        p2.assign()
+        if q1.body == 0L:
+            # movable_joints = get_movable_joints(0L)
+            # set_joint_positions(0L, movable_joints, q1.values)
+            q1.assign()
+            res = not pairwise_collision(0L, s2)
+            return res
+        else:
+            res = not pairwise_collision(q1.body, s2)
+            return res
     return test

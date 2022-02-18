@@ -231,8 +231,14 @@ class MoveitPlanner(MotionInterface):
             obj = self.pscene.subject_dict[obj_name]
             handle = obj.action_points_dict[ap_name]
 
+            # print('plan algo  h b')
+            # print(handle.geometry.link_name)
+            # print(binder.geometry.link_name)
             group_name_handle = self.binder_link_robot_dict[handle.geometry.link_name] if handle.geometry.link_name in self.binder_link_robot_dict else None
             group_name_binder = self.binder_link_robot_dict[binder.geometry.link_name] if binder.geometry.link_name in self.binder_link_robot_dict else None
+            # print('group name h b')
+            # print(group_name_handle)
+            # print(group_name_binder)
 
             btf = to_state.binding_state[obj_name]
             T_handle = btf.T_handle_lh

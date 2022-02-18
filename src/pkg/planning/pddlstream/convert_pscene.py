@@ -24,12 +24,14 @@ rospack = rospkg.RosPack()
 
 from ..constraint.constraint_common import combine_redundancy, sample_redundancy, BindingTransform, BindingChain
 from primitives_pybullet import update_grasp_info, GraspInfo, pairwise_collision, BodyPose, sample_placement, BodyGrasp
+from primitives_rnb import Binding
 import random
 from constants_common import *
 from pkg.utils.test_scripts import set_meta_data, get_meta_data, create_data_dirs
 
 SAMPLE_GRASP_COUNT_DEFAULT = 10
 SAMPLE_STABLE_COUNT_DEFAULT = 10
+SAMPLE_BINDING_COUNT_DEFAULT = 10
 RECORD_MODE = False
 
 ##
@@ -156,6 +158,8 @@ def get_stable_gen_rnb(body_subject_map, body_actor_map, home_dict, fixed=[], sh
                 T_ao = redundancyque.pop(0)
                 T_pose = np.matmul(actor.get_tf_handle(home_dict), T_ao)
                 pose = T2xyzquat(T_pose)
+                print('printing xyzquat result: ')
+                print(pose)
 
                 set_pose(body, pose)
                 if (pose is None) or any(pairwise_collision(body, b) for b in fixed):
@@ -167,6 +171,80 @@ def get_stable_gen_rnb(body_subject_map, body_actor_map, home_dict, fixed=[], sh
                 body_pose = BodyPose(body, pose)
             yield (body_pose,)
     return gen
+
+def get_binding_gen_rnb(body_subject_map, body_actor_map, sample_count = SAMPLE_BINDING_COUNT_DEFAULT, binding_sampler=random.choice, redundancy_sampler=random.uniform):
+
+    def gen(robot, actor, subject):
+        print("sampling binding called")
+        # sampling redundancy part from sample_leaf_state function
+        available_bindings = []
+        for _ in range(10000):
+            with GlobalTimer.instance().block("sample_binding_{}_{}".format(actor, subject)):
+                bd = body_actor_map[actor]
+                obj = body_subject_map[subject]
+                ap_dict = obj.action_points_dict
+                apk_list = ap_dict.keys()
+                ap_list = [ap_dict[apk] for apk in apk_list]
+
+                for ap in ap_list:
+                    if bd.check_pair(ap):
+                        available_bindings.append((ap.name, bd.name, bd.geometry.name))
+
+                ap_name, bd_name, _ = binding_sampler(available_bindings)
+                redundancy_tot = combine_redundancy(ap_dict[ap_name], bd)
+                redundancy = sample_redundancy(redundancy_tot, sampler=redundancy_sampler)
+                btf = BindingTransform(obj, ap_dict[ap_name], bd, redundancy)
+                binding = Binding(btf)
+                print('sample bd: binding, redundancy, .btf.chain, .btf.T_lao')
+                print(binding)
+                print(binding.btf.redundancy)
+                print(binding.btf.chain)
+                print(binding.btf.T_lao)
+            yield (binding, )
+    return gen
+
+# def get_transform_gen(pscene, subject_body_map):
+#     def fn(body_conf, binding_tf):
+#         conf_values = body_conf.values()
+#         conf_dict = list2dict(conf_values, pscene.gscene.joint_names)
+#         T = get_tf(to_link=binding_tf.actor_link, joint_dict=conf_dict, urdf_content=pscene.gscene.urdf_content, from_link='base_link')
+#         T = np.matmul(binding_tf.T_lao, T)
+#         pose = T2xyzquat(T)
+#         body_pose = BodyPose(subject_body_map[binding_tf.chain[0], pose])
+#         return body_pose
+#     return fn
+
+def get_transform_gen_rnb(pscene, body_actor_map, subject_body_map):
+    def fn(robot, body_conf, subject, actor, binding):
+        config = body_conf.values
+        btf = binding.binding_transform
+        robot_body = body_conf.body
+        print('get tr, robot, body_conf(body, val), subject, actor, binding, binding.body')
+        print(robot)
+        print(body_conf.body)
+        print(body_conf.values)
+        print(subject)
+        print(actor)
+        print(binding)
+        print(binding.btf.chain)
+        if len(config) == 0:  ## if body_actor_map[robot_body] == 'floor':
+            pose = T2xyzquat(btf.T_lao)
+            body_pose = BodyPose(subject_body_map[btf.chain[0]], pose)
+            print('get tr print body_pose')
+            print(body_pose.body)
+            print(body_pose.value)
+            return (body_pose,)
+        else:
+            config_dict = list2dict(config, pscene.gscene.joint_names)
+            base_to_actor_link_tr = get_tf(to_link=btf.actor_link, joint_dict=config_dict, urdf_content=pscene.gscene.urdf_content, from_link='base_link')
+            T = np.matmul(base_to_actor_link_tr, btf.T_lao)
+            pose = T2xyzquat(T)
+            body_pose = BodyPose(subject_body_map[btf.chain[0]], pose)
+            print('get tr print body_pose')
+            print(body_pose.body)
+            print(body_pose.value)
+            return (body_pose,)
+    return fn
 
 
 def prepare_grasp_redundancy_set(body_subject_map, actor,
@@ -236,6 +314,10 @@ def get_grasp_gen_rnb(body_subject_map, robot, tool_link_name, actor,
                 #     TextColors.RED.println("strange here")
                 body_grasp = BodyGrasp(body, Pose(point=point, euler=euler),
                                        approach_pose, robot, tool_link)
+
+                print('At grasp gen, print BodyGrasp grasp_pose, approach')
+                print(body_grasp.value)
+                print(body_grasp.approach)
             yield (body_grasp,)
     return gen
 
@@ -477,3 +559,13 @@ def play_pddl_plan(pscene, gripper, initial_state, body_names, plan, SHOW_PERIOD
                                  state_param=None)
             gscene.show_motion(np.array(traj_rev), period=SHOW_PERIOD)
 
+def play_general_pddl_plan(pscene, gripper, initial_state, body_names, plan, SHOW_PERIOD=0.01):
+    gscene = pscene.gscene
+    pscene.set_object_state(initial_state)
+    gscene.update_markers_all()
+    gscene.show_pose(initial_state.Q)
+
+    for action in plan:
+        if action.name == 'motion':
+            traj = bps2traj(action.args[1].body_paths)
+            gscene.show_motion(traj, period=SHOW_PERIOD)
