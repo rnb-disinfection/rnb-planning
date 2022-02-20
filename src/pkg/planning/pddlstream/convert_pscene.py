@@ -569,3 +569,6 @@ def play_general_pddl_plan(pscene, gripper, initial_state, body_names, plan, SHO
         if action.name == 'motion':
             traj = bps2traj(action.args[1].body_paths)
             gscene.show_motion(traj, period=SHOW_PERIOD)
+        if action.name == "motion_holding":
+            traj = bps2traj(action.args[-1].body_paths)
+            gscene.show_motion(traj, period=SHOW_PERIOD)

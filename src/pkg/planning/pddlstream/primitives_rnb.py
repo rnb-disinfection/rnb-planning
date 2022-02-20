@@ -788,6 +788,10 @@ def get_ik_fn_general_rnb(pscene, actor_body_map, mplan, fixed=[], robot=0L,
     movable_joints = get_movable_joints(robot)
     def fn(subject, body_pose, a_robot, actor, binding):
         with GlobalTimer.instance().block("ik_fn"):
+            print("get ik fn print body_pose, body_pose.body, body_pose.value")
+            print(body_pose)
+            print(body_pose.body)
+            print(body_pose.value)
             btf = binding.binding_transform
             actor_name = btf.chain[2]
             if pscene.actor_robot_dict[actor_name] == 'indy0':
