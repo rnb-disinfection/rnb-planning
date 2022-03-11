@@ -19,6 +19,7 @@
     (AtConf ?r ?q)
     (AttachTo ?s ?a)
     (AtBinding ?s ?b)
+    (Active ?r)
     (Equal ?q1 ?q2)
     (CanMove)
 
@@ -58,7 +59,7 @@
   )
   (:action attach
     :parameters (?s ?p1 ?p2 ?a1 ?b1 ?a2 ?b2 ?r ?q)
-    :precondition (and (Kin ?s ?p1 ?a2 ?b2 ?r ?q) (BindingPose ?s ?a2 ?b2 ?p2) (AtPose ?s ?p1) (BindingPose ?s ?a1 ?b1 ?p1) (AtConf ?r ?q)
+    :precondition (and (Kin ?s ?p1 ?a2 ?b2 ?r ?q) (BindingPose ?s ?a2 ?b2 ?p2) (AtPose ?s ?p1) (BindingPose ?s ?a1 ?b1 ?p1) (AtConf ?r ?q) (Active ?r)
                        (not (AtPose ?s ?p2))
                        (not (UnsafePose ?s ?p2))
                        (not (UnsafeConf ?r ?q))
@@ -71,12 +72,11 @@
             )
   )
   (:action detach
-    :parameters (?s ?p1 ?p2 ?a1 ?b1 ?a2 ?b2 ?r ?q)
-    :precondition (and (Kin ?s ?p2 ?a1 ?b1 ?r ?q) (BindingPose ?s ?a1 ?b1 ?p1) (AtBinding ?s ?b1) (BindingPose ?s ?a2 ?b2 ?p2) (AtConf ?r ?q)
+    :parameters (?s ?p1 ?p2 ?a1 ?b1 ?r ?q)
+    :precondition (and (Kin ?s ?p2 ?a1 ?b1 ?r ?q) (BindingPose ?s ?a1 ?b1 ?p1) (AtBinding ?s ?b1) (AtConf ?r ?q) (Active ?r)
                        (not (UnsafePose ?s ?p2))
                        (not (UnsafeConf ?r ?q))
                        (not (CanMove))
-                       (not (= ?a1 ?a2))
                   )
     :effect (and (AtPose ?s ?p2)
                  (CanMove)
