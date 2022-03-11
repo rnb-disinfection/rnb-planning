@@ -31,39 +31,39 @@
 			</geometry>
 		</collision>
 		<collision>
-			<origin xyz="-0.33   0.3  0.65" rpy="0.  0.  0."/>
+			<origin xyz="-0.33   0.3  0.62" rpy="0.  0.  0."/>
 			<geometry>
-				<box size="0.7 0.2 0.1"/>
+				<box size="0.7 0.2 0.04"/>
 			</geometry>
 		</collision>
 		<collision>
-			<origin xyz="-0.33   -0.3  0.65" rpy="0.  0.  0."/>
+			<origin xyz="-0.33   -0.3  0.62" rpy="0.  0.  0."/>
 			<geometry>
-				<box size="0.7 0.2 0.1"/>
+				<box size="0.7 0.2 0.04"/>
 			</geometry>
 		</collision>
 		<collision>
-			<origin xyz="-0.58   0.0  0.65" rpy="0.  0.  0."/>
+			<origin xyz="-0.58   0.0  0.62" rpy="0.  0.  0."/>
 			<geometry>
-				<box size="0.2 0.4 0.1"/>
+				<box size="0.2 0.4 0.04"/>
 			</geometry>
 		</collision>
 		<collision>
-			<origin xyz="-0.03   0.0  0.65" rpy="0.  0.  0."/>
+			<origin xyz="0.02   0.0  0.62" rpy="0.  0.  0."/>
 			<geometry>
-				<box size="0.1 0.4 0.1"/>
+				<box size="0.2 0.6 0.04"/>
 			</geometry>
 		</collision>
 		<collision>
-			<origin xyz="0.07  0.35  0.35" rpy="0.  0.  0."/>
+			<origin xyz="0.02  0.365  0.32" rpy="0.  0.  0."/>
 			<geometry>
-				<box size="0.1 0.1 0.69"/>
+				<box size="0.2 0.13 0.63"/>
 			</geometry>
 		</collision>
 		<collision>
-			<origin xyz="0.07  -0.35  0.35" rpy="0.  0.  0."/>
+			<origin xyz="0.02  -0.365  0.32" rpy="0.  0.  0."/>
 			<geometry>
-				<box size="0.1 0.1 0.69"/>
+				<box size="0.2 0.13 0.63"/>
 			</geometry>
 		</collision>
 	</link>
@@ -84,12 +84,12 @@
     	<limit effort="10000" lower="-10" upper="10" velocity="1.0"/>
 	</joint>
 
-	<joint name="pmb${robot_id}_joint2" type="continuous">
+	<joint name="pmb${robot_id}_joint2" type="revolute">
 		<parent link="pmb${robot_id}_link2"/>
 		<child link="pmb${robot_id}_link3"/>
 		<origin xyz="0 0 0" rpy="0 0 0"/>
 		<axis xyz="0 0 1"/>
-    	<limit effort="10000" lower="-15.708" upper="15.708" velocity="1.5708"/>
+    	<limit effort="10000" lower="-1.5" upper="1.5" velocity="1.5708"/>
 	</joint>
 
 	<joint name="pmb${robot_id}_joint3" type="revolute">

@@ -1,22 +1,23 @@
 import os
 import sys
 import numpy as np
+from copy import deepcopy
 sys.path.append(os.path.join(os.path.join(
     os.environ["RNB_PLANNING_DIR"], 'src')))
 from pkg.geometry.geometry import *
 
 def add_panda_cam(gscene, tool_link, theta):
-    gscene.create_safe(gtype=GEOTYPE.MESH, name="panda_cam_mount_vis", link_name=tool_link, dims=(0.1,0.1,0.1), 
+    gscene.create_safe(gtype=GEOTYPE.MESH, name="panda_cam_mount_vis", link_name=tool_link, dims=(0.1,0.1,0.1),
                        center=(0,0,0), rpy=(0,0,theta), display=True, color=(0.8,0.8,0.8,1), collision=False, fixed=True,
                       uri="package://my_mesh/meshes/stl/cam_mount_v3_res.STL")
-    gscene.create_safe(gtype=GEOTYPE.BOX, name="panda_cam_mount_col", link_name=tool_link, dims=(0.061,0.061,0.06), 
+    gscene.create_safe(gtype=GEOTYPE.BOX, name="panda_cam_mount_col", link_name=tool_link, dims=(0.061,0.061,0.06),
                        center=(0.0,0.08,-0.015), rpy=(0,0,0), display=True, color=(0.8,0.8,0.8,0.2), collision=True, fixed=True,
                        parent="panda_cam_mount_vis")
-    gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="panda_cam_body", link_name=tool_link, dims=(0.061,0.061,0.026), 
-                       center=(0.0,0.12,-0.015), rpy=(0,0,0), display=True, color=(0.8,0.8,0.8,1), collision=False, fixed=True,
+    gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="panda_cam_body", link_name=tool_link, dims=(0.061,0.061,0.026),
+                       center=(0.0,0.12,-0.018), rpy=(0,0,0), display=True, color=(0.8,0.8,0.8,1), collision=False, fixed=True,
                        parent="panda_cam_mount_vis")
-    gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="panda_cam_body_col", link_name=tool_link, dims=(0.081,0.081,0.046), 
-                       center=(0.0,0.0,0.0), rpy=(0,0,0), display=True, color=(0.8,0.8,0.8,0.2), collision=True, fixed=True,
+    gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="panda_cam_body_col", link_name=tool_link, dims=(0.081,0.081,0.046),
+                       center=(0.0,0.0,-0.0), rpy=(0,0,0), display=True, color=(0.8,0.8,0.8,0.2), collision=True, fixed=True,
                        parent="panda_cam_body")
 
     viewpoint = gscene.create_safe(gtype=GEOTYPE.SPHERE, name="viewpoint", link_name=tool_link, dims=(0.01, 0.01, 0.01),
@@ -24,7 +25,7 @@ def add_panda_cam(gscene, tool_link, theta):
                                    display=True, fixed=True, collision=False, parent="panda_cam_body")
     return viewpoint
     
-def add_panda_brush(gscene, tool_link, theta, brush_name, offset=(0,0,0.011), tool_dims=(0.09,0.175,0.05), col_margin=0.01):
+def add_panda_brush(gscene, tool_link, theta, brush_name, offset=(0,0,0.011), tool_dims=(0.09,0.175,0.065), col_margin=0.005):
     gscene.create_safe(gtype=GEOTYPE.MESH, name="panda_tool_vis", link_name=tool_link, dims=(0.1,0.1,0.1), 
                        center=offset, rpy=(0,0,theta-np.pi/2), display=True, color=(0.8,0.8,0.8,1), collision=False, fixed=True,
                        uri="package://my_mesh/meshes/stl/WipingTool_res.STL")
@@ -41,7 +42,7 @@ def add_panda_brush(gscene, tool_link, theta, brush_name, offset=(0,0,0.011), to
                        center=(0.088,0.0,0.11), rpy=(0,np.pi/4,0), display=True, color=(0.8,0.8,0.8,0.2), collision=True, fixed=True,
                        parent="panda_tool_vis")
     brush_face = gscene.create_safe(gtype=GEOTYPE.BOX, name=brush_name, link_name=tool_link, dims=tool_dims, 
-                       center=(0.22,0.0,0.192), rpy=(0,-np.pi/2,0), display=True, color=(0.8,0.8,0.0,0.9), collision=False, fixed=True,
+                       center=(0.195+tool_dims[2]/2,0.0,0.192), rpy=(0,-np.pi/2,0), display=True, color=(0.8,0.8,0.0,0.9), collision=False, fixed=True,
                        parent="panda_tool_vis")
     gscene.create_safe(gtype=GEOTYPE.BOX, name=brush_name+"_col", link_name=tool_link, dims=np.add(tool_dims, (col_margin,col_margin,0)),
                        center=(0, 0, col_margin), rpy=(0,0,0), display=True, color=(0.8,0.8,0.8,0.2), collision=True, fixed=True,
@@ -72,7 +73,7 @@ def add_clock(gscene, name, clock_center, clock_rpy):
                                  uri="package://my_mesh/meshes/stl/tableclock_centered_m_scale.STL", scale=(1., 1., 1.))
 
     obj_col = gscene.create_safe(GEOTYPE.BOX, "{}_col".format(name), link_name="base_link",
-                                 dims=(0.138+0.01, 0.05+0.01, 0.078), center=(0,0,0), rpy=(0,0,0),
+                                 dims=(0.138+0.01, 0.05+0.01, 0.078+0.01), center=(0,-0.005,0), rpy=(0,0,0),
                                  color=(0, 0, 0, 0.1), display=True, fixed=False, collision=True,
                                  parent="{}".format(name))
 
@@ -92,17 +93,17 @@ def add_table(gscene, name, table_center, table_rpy):
                                  parent=vis_name)
 
     obj_back_col = gscene.create_safe(GEOTYPE.BOX, "{}_back_col".format(name), link_name="base_link",
-                                 dims=(1.6+0.14, 0.14, 0.705+0.1), center=(0,0.4-0.05,0.705/2), rpy=(0,0,0),
+                                 dims=(1.6+0.14, 0.14, 0.705), center=(0,0.4-0.05,0.705/2), rpy=(0,0,0),
                                  color=(0, 0, 0, 0.1), display=True, fixed=False, collision=True,
                                  parent=vis_name)
 
     obj_left_leg_col = gscene.create_safe(GEOTYPE.BOX, "{}_left_leg_col".format(name), link_name="base_link",
-                                 dims=(0.1, 0.8+0.1, 0.705+0.1), center=(-0.8+0.05,0,0.705/2), rpy=(0,0,0),
+                                 dims=(0.1, 0.8+0.1, 0.705), center=(-0.8+0.05,0,0.705/2), rpy=(0,0,0),
                                  color=(0, 0, 0, 0.1), display=True, fixed=False, collision=True,
                                  parent=vis_name)
 
     obj_right_leg_col = gscene.create_safe(GEOTYPE.BOX, "{}_right_leg_col".format(name), link_name="base_link",
-                                          dims=(0.1, 0.8+0.1, 0.705+0.1), center=(0.8-0.05, 0, 0.705/2), rpy=(0, 0, 0),
+                                          dims=(0.1, 0.8+0.1, 0.705), center=(0.8-0.05, 0, 0.705/2), rpy=(0, 0, 0),
                                           color=(0, 0, 0, 0.1), display=True, fixed=False, collision=True,
                                           parent=vis_name)
 
@@ -164,6 +165,34 @@ def pose_refine(obj_type, T, obj_height=0.725):
 
     return center, rpy
 
+
+##
+# @brief merge splitted detection result of same object
+# @param obj_type object name (e.g suitcase, clock)
+# @param pose_dict detection result dictionary from detector
+# @param separate_dict distance to distinguish whether object already detected or not
+def merge_multi_detection(obj_type, pose_dict, separate_dist=0.2):
+    num = len(pose_dict)
+    pose_dict_new = deepcopy(pose_dict)
+    check_idx_list = []
+    for i in range(num):
+        idx_cur = obj_type + "_{}".format(i + 1)
+        pose_cur = pose_dict[idx_cur]
+        for j in range(num):
+            if i != j:
+                idx_new = obj_type + "_{}".format(j + 1)
+                pose_new = pose_dict[idx_new]
+
+                if np.linalg.norm(pose_cur[:3, 3] - pose_new[:3, 3]) < separate_dist:
+                    #                     check_idx_list.append((idx_cur, idx_new))
+                    if i < j:
+                        del pose_dict_new[idx_new]
+    #     pose_dict_new = deepcopy(pose_dict)
+    #     for a1, a2 in check_idx_list:
+
+    return pose_dict_new
+
+
 ##
 # @brief add & update for suitcase, clock
 # @param gscene geometry scene
@@ -172,7 +201,7 @@ def pose_refine(obj_type, T, obj_height=0.725):
 # @param pose_dict detection result dictionary from detector
 # @param separate_dict distance to distinguish whether object already detected or not
 # @param height height of floor fitting
-def add_update_object(gscene, crob, obj_type, pose_dict, separate_dist = 0.5, height = 0):
+def add_update_object(gscene, crob, obj_type, pose_dict, separate_dist=0.5, height=0):
     # check num of object in the scene
     obj_count = 0
     for i in range(10):
@@ -181,26 +210,29 @@ def add_update_object(gscene, crob, obj_type, pose_dict, separate_dist = 0.5, he
             obj_count += 1
     print("Total {} {} in the scene".format(obj_count, obj_type))
 
-    if obj_count > 0: # If there are objects, add and update objects from detected result
+    # merge split detectino result of same object
+    pose_dict = merge_multi_detection(obj_type, pose_dict, separate_dist)
+
+    if obj_count > 0:  # If there are objects, add and update objects from detected result
         not_update_list = []
         for name in pose_dict.keys():
             if "_" in name:
                 name_cat = name.split("_")[0]
             else:
                 name_cat = name
-            if name_cat != "suitcase" and name_cat !="clock" and name_cat != "chair":
+            if name_cat != "suitcase" and name_cat != "clock" and name_cat != "chair":
                 pass
             else:
                 T = pose_dict[name]
                 center, rpy = pose_refine(obj_type, T, obj_height=height)
 
-                check_update = False # True if same on scene
+                check_update = False  # True if same on scene
                 for i in range(obj_count):
                     obj_name = "{}_{:01}".format(obj_type, i)
                     T_ = gscene.NAME_DICT[obj_name].get_tf(crob.home_pose)
                     center_, rpy_ = pose_refine(obj_type, T_, obj_height=height)
 
-                    if np.linalg.norm(center-center_) < separate_dist: # consider same object
+                    if np.linalg.norm(center - center_) < separate_dist:  # consider same object
                         if name_cat == "chair":
                             move_chair(gscene, obj_name, center, rpy)
                         elif name_cat == "suitcase":
@@ -227,14 +259,14 @@ def add_update_object(gscene, crob, obj_type, pose_dict, separate_dist = 0.5, he
             print("Add new {} in the scene".format(obj_type))
             obj_count += 1
 
-    else: # At first, there is no object, add all detected object in the scene
+    else:  # At first, there is no object, add all detected object in the scene
         count_tmp = 0
         for name in pose_dict.keys():
             if "_" in name:
                 name_cat = name.split("_")[0]
             else:
                 name_cat = name
-            if name_cat != "suitcase" and name_cat !="clock" and name_cat != "chair":
+            if name_cat != "suitcase" and name_cat != "clock" and name_cat != "chair":
                 pass
             else:
                 T = pose_dict[name]

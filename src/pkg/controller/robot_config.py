@@ -92,7 +92,7 @@ class RobotSpecs:
         RobotType.pmb: RobotTemplate(robot_name='pmb', base_name="link0", tip_name="platform",
                                        joint_names=["joint{}".format(idx) for idx in range(6)],
                                        home_pose=[0,]*6,
-                                       joint_limits=[(-10,10), (-10,10), (-np.pi*10, np.pi*10),
+                                       joint_limits=[(-5,5), (-5,5), (-np.pi*2/3, np.pi*2/3),
                                                      (-5e-4,5e-4), (-5e-4,5e-4), (-5e-4,5e-4)],
                                        vel_limits=[None,None, None, 0,0,0],
                                        acc_limits=[None,None, None, 0,0,0],
