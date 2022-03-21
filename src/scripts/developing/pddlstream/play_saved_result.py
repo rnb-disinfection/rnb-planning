@@ -46,15 +46,21 @@ gscene.update_markers_all()
 
 sample = load_pickle(os.path.join(RESULTSET_PATH, "result_%s_%02d_%s.pkl" % (file_option, data_idx, cname)))
 
+mplan = MoveitPlanner(pscene)
+gscene.show_pose(HOME_POSE)
+if not mplan.validate_trajectory([HOME_POSE]):
+    print("INVALID INITIAL")
+
 res = sample["success"]
 plan = sample["plan"]
 body_names = sample["body_names"]
 
-for action in plan:
-    print(action)
+if plan:
+    for action in plan:
+        print(action)
 
-if VISUALIZE and PLAY_RESULT and res:
-    play_pddl_plan(pscene, pscene.actor_dict["grip0"], initial_state=initial_state,
-                   body_names=body_names, plan=plan, SHOW_PERIOD=0.01)
+    if VISUALIZE and PLAY_RESULT and res:
+        play_pddl_plan(pscene, pscene.actor_dict["grip0"], initial_state=initial_state,
+                       body_names=body_names, plan=plan, SHOW_PERIOD=0.01)
 
 s_builder.xcustom.clear()
