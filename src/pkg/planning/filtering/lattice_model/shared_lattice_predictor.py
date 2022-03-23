@@ -94,6 +94,8 @@ class SharedLatticePredictor:
             last_save = sorted([item for item in os.listdir(os.path.join(self.ROBOT_MODEL_ROOT, last_model)) if item.startswith("model")])[-1]
             model_path_rel = os.path.join(last_model, last_save)
         model_log_dir = os.path.join(self.ROBOT_MODEL_ROOT, model_path_rel)
+        print("============== Load model from: ====================")
+        print(model_log_dir)
         self.model = tf.keras.models.load_model(model_log_dir)
 
     @tf.function
