@@ -73,12 +73,17 @@ def grouped_bar(data_dict, groups=None, options=None, scatter=False, average_all
         options = sorted(data_dict[groups[0]].keys())
 
     groups = [group for group in groups if group in data_dict]
-    X_big = np.arange(len(groups)) * (len(options) + 1) +1
+    if stack:
+        X_big = np.arange(len(groups)) +1
+    else:
+        X_big = np.arange(len(groups)) * (len(options) + 1) +1
     X_small = np.arange(len(options))
 
     dat_max = 0
     dat_min = 1e10
+    dat_vec_accum = 0
     for xsmall in X_small:
+        zorder = xsmall
         dat_vec = [data_dict[group][options[xsmall]] for group in groups]
         if len(dat_vec) == 0:
             continue
@@ -89,6 +94,8 @@ def grouped_bar(data_dict, groups=None, options=None, scatter=False, average_all
             dat_max = max(dat_max, np.max(dat_vec))
             dat_min = min(dat_min, np.min(dat_vec))
         else:
+            if stack:
+                xsmall=0
             if average_all:
                 if isinstance(dat_vec[0], Iterable):
                     dat_vec = np.concatenate(dat_vec)
@@ -99,14 +106,23 @@ def grouped_bar(data_dict, groups=None, options=None, scatter=False, average_all
                     else:
                         std_vec = (np.percentile(dat_vec, [50-show_bar*50, 50+show_bar*50])*[-1,1] + np.multiply(fn(dat_vec),[1,-1]))[:, np.newaxis]
                     dat_vec = fn(dat_vec)
+                    
+                    if stack:
+                        dat_vec_accum = np.add(dat_vec_accum, dat_vec)
+                        dat_vec = dat_vec_accum
                     if invert_axis:
-                        plot_fn(xsmall, dat_vec, xerr=std_vec, capsize=3)
+                        plot_fn(xsmall, dat_vec, xerr=std_vec, capsize=3, zorder=-zorder)
                     else:
-                        plot_fn(xsmall, dat_vec, yerr=std_vec, capsize=3)
+                        plot_fn(xsmall, dat_vec, yerr=std_vec, capsize=3, zorder=-zorder)
                 else:
                     std_vec = None
                     dat_vec = fn(dat_vec)
-                    plot_fn(xsmall, dat_vec, capsize=3)
+                    
+                    if stack:
+                        dat_vec_accum = np.add(dat_vec_accum, dat_vec)
+                        dat_vec = dat_vec_accum
+                        
+                    plot_fn(xsmall, dat_vec, capsize=3, zorder=-zorder)
             else:
                 if isinstance(dat_vec[0], Iterable):
                     if show_bar is True:
@@ -118,13 +134,18 @@ def grouped_bar(data_dict, groups=None, options=None, scatter=False, average_all
                     dat_vec = map(fn, dat_vec)
                 else:
                     std_vec = None
+                    
+                if stack:
+                    dat_vec_accum = np.add(dat_vec_accum, dat_vec)
+                    dat_vec = dat_vec_accum
+                    print(dat_vec_accum)
                 if show_bar and std_vec is not None:
                     if invert_axis:
-                        plot_fn(X_big+xsmall, dat_vec, xerr=std_vec, capsize=3)
+                        plot_fn(X_big+xsmall, dat_vec, xerr=std_vec, capsize=3, zorder=-zorder)
                     else:
-                        plot_fn(X_big+xsmall, dat_vec, yerr=std_vec, capsize=3)
+                        plot_fn(X_big+xsmall, dat_vec, yerr=std_vec, capsize=3, zorder=-zorder)
                 else:
-                    plot_fn(X_big+xsmall, dat_vec, capsize=3)
+                    plot_fn(X_big+xsmall, dat_vec, capsize=3, zorder=-zorder)
             dat_max = max(dat_max, np.max(np.add(dat_vec, std_vec[1]) 
                                            if std_vec is not None 
                                            else dat_vec))
@@ -139,10 +160,14 @@ def grouped_bar(data_dict, groups=None, options=None, scatter=False, average_all
             else:
                 plt.axis([-0.7,np.max(X_small)+0.7, dat_min-margin, dat_max+margin])
         else:
-            if invert_axis:
-                plt.axis([dat_min-margin, dat_max+margin, 0,np.max(X_big)+np.max(X_small)+1])
+            if stack:
+                label_axis = [0,np.max(X_big)+1]
             else:
-                plt.axis([0,np.max(X_big)+np.max(X_small)+1, dat_min-margin, dat_max+margin])
+                label_axis = [0,np.max(X_big)+np.max(X_small)+1]
+            if invert_axis:
+                plt.axis([dat_min-margin, dat_max+margin]+label_axis)
+            else:
+                plt.axis(label_axis + [dat_min-margin, dat_max+margin])
     plt.grid()
     if average_all:
         if invert_axis:
@@ -150,10 +175,14 @@ def grouped_bar(data_dict, groups=None, options=None, scatter=False, average_all
         else:
             plt.xticks(X_small, np.array(options))
     else:
-        if invert_axis:
-            plt.yticks(X_big + np.mean(X_small), np.array(groups))
+        if stack:
+            mean_X_small = 0
         else:
-            plt.xticks(X_big + np.mean(X_small), np.array(groups))
+            mean_X_small = np.mean(X_small)
+        if invert_axis:
+            plt.yticks(X_big + mean_X_small, np.array(groups))
+        else:
+            plt.xticks(X_big + mean_X_small, np.array(groups))
         plt.legend(options)
     return groups, options
 
