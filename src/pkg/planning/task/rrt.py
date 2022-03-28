@@ -14,7 +14,10 @@ from Queue import Queue
 
 ##
 # @class    TaskRRT
-# @brief    task level RRT algorithm
+# @brief    task level RRT algorithm. This is similar to Random-MMP in
+#           Hauser, Kris, and Victor Ng-Thow-Hing.
+#           "Randomized multi-modal motion planning for a humanoid robot manipulation task."
+#           The International Journal of Robotics Research 30.6 (2011): 678-698.
 class TaskRRT(TaskInterface):
     ##
     # @param    pscene              rnb-planning.src.pkg.planning.scene.PlanningScene

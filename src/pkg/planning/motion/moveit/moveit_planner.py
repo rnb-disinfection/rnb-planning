@@ -90,7 +90,9 @@ class MoveitPlanner(MotionInterface):
         self.debug_iterative_motion = False
         self.reset_PRQdict(False)
         self.visualize_increments = False
+        ## @brief custom planner for task motion planning
         self.custom_planner = None
+        ## @brief custom planner for joint motion planning
         self.custom_planner_joint = None
 
     def reset_PRQdict(self, enable_PRQ=0.5, radii=2e-2, kwargs={}):
