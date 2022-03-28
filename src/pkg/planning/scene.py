@@ -376,8 +376,9 @@ class PlanningScene:
         success = True
         if check_available:
             for btf1 in btf_list:
-                if not self.actor_dict[btf1.chain.actor_name].check_available(
-                        list2dict(from_state.Q, self.gscene.joint_names)):
+                if btf1.chain.actor_name in self.actor_dict and \
+                        not self.actor_dict[btf1.chain.actor_name].check_available(
+                            list2dict(from_state.Q, self.gscene.joint_names)):
                     success = False
             # else: # commenting out this because there's no need to filter out no-motion transitions
             #     if from_state.Q is not None and to_state.Q is not None:
@@ -399,15 +400,16 @@ class PlanningScene:
     ##
     # @brief get current scene state
     # @force_fit_binding    force each bindings to be perfectly matched geometrically
-    def initialize_state(self, Q, force_fit_binding=False, Poffset=None):
+    def initialize_state(self, Q, force_fit_binding=False, Poffset=None, chain_list=None):
         ## calculate binder transformations
         Q_dict = list2dict(Q, self.gscene.joint_names)
 
         ## get current binding state
-        chain_list = []
-        for kobj in self.subject_name_list:
-            chain = self.subject_dict[kobj].get_initial_chain(self.actor_dict, Q_dict)
-            chain_list.append(chain)
+        if chain_list is None:
+            chain_list = []
+            for kobj in self.subject_name_list:
+                chain = self.subject_dict[kobj].get_initial_chain(self.actor_dict, Q_dict)
+                chain_list.append(chain)
 
         if force_fit_binding:
             objects_to_update = [obj for obj in self.subject_dict.values() if obj.stype == SubjectType.OBJECT]
@@ -466,6 +468,22 @@ class PlanningScene:
         return available_binding_dict
 
     ##
+    # @brief generate homing configuration target
+    def gen_homing_config(self, state):
+        Q = np.copy(state.Q)
+        dQ = (self.combined_robot.home_pose - Q)
+        rcandis = [rname
+                   for rname in self.combined_robot.robot_names
+                   if np.sum(np.abs(dQ[self.combined_robot.idx_dict[rname]])) > 1e-4]
+        if len(rcandis)>0:
+            rname = random.choice(rcandis)
+            Q[self.combined_robot.idx_dict[rname]] = \
+                self.combined_robot.home_pose[self.combined_robot.idx_dict[rname]]
+            # print("============= try go home ({}) ===================".format(rname))
+            return Q
+        return None
+
+    ##
     # @brief    sample next state for given transition
     # @param    state current state
     # @param    available_binding_dict pre-extracted available bindings for each object
@@ -473,22 +491,20 @@ class PlanningScene:
     # @param    to_node target object-level node
     # @param    binding_sampler random sampling function to be apllied to available binding list [(point name, actor name)]
     #                           default=random.choice
-    # @param    sampler         sampling function to be applied to redundancy param (default=random.uniform)
+    # @param    redundancy_sampler  sampling function to be applied to redundancy param (default=random.uniform)
+    # @param    config_gen  configuration generator used when state.node == to_node. default=gen_homing_config
     # @return   (sampled next state, sampled redundancy)
     def sample_leaf_state(self, state, available_binding_dict, to_node,
-                          binding_sampler=random.choice, redundancy_sampler=random.uniform):
+                          binding_sampler=random.choice, redundancy_sampler=random.uniform,
+                          config_gen=None):
+        if config_gen is None:
+            config_gen = self.gen_homing_config
         self.set_object_state(state)
         to_state = state.copy(self)
         if state.node == to_node:
-            dQ = (self.combined_robot.home_pose - to_state.Q)
-            rcandis = [rname
-                       for rname in self.combined_robot.robot_names
-                       if np.sum(np.abs(dQ[self.combined_robot.idx_dict[rname]])) > 1e-4]
-            if len(rcandis)>0:
-                rname = random.choice(rcandis)
-                to_state.Q[self.combined_robot.idx_dict[rname]] = \
-                    self.combined_robot.home_pose[self.combined_robot.idx_dict[rname]]
-                # print("============= try go home ({}) ===================".format(rname))
+            Qnew = config_gen(to_state)
+            if Qnew is not None:
+                to_state.Q = Qnew
                 return to_state
         to_binding_state = BindingState()
         for sname, from_ntem, to_ntem in zip(self.subject_name_list, state.node, to_node):
@@ -500,7 +516,7 @@ class PlanningScene:
                 obj = self.subject_dict[sname]
                 to_ap = obj.action_points_dict[hname_to]
                 to_binder = self.actor_dict[bname_to]
-                redundancy_tot = combine_redundancy(to_ap, to_binder)
+                redundancy_tot = combine_redundancy(to_ap, to_binder, state.Q)
                 redundancy = sample_redundancy(redundancy_tot, sampler=redundancy_sampler)
                 btf_to = BindingTransform(obj, to_ap, to_binder, redundancy)
             to_binding_state[sname] = btf_to

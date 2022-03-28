@@ -11,14 +11,18 @@ import subprocess
 
 
 class PandaTrajectoryClient(TrajectoryClient):
-    def __init__(self, server_ip, robot_ip, **kwargs):
+    def __init__(self, server_ip, robot_ip, user_gripper=True, **kwargs):
         TrajectoryClient.__init__(self, server_ip=server_ip, **kwargs)
         self.robot_ip = robot_ip
+        self.user_gripper = user_gripper
         if self.robot_ip is not None:
             self.reset()
             self.clear()
-            self.start_gripper_server()
-        self.finger_cmd = GripperCommandActionGoal()
+            if user_gripper:
+                self.start_gripper_server()
+
+        if user_gripper:
+            self.finger_cmd = GripperCommandActionGoal()
         self.close_bool = False
 
 
@@ -43,21 +47,23 @@ class PandaTrajectoryClient(TrajectoryClient):
         self.__kill_existing_subprocess()
 
     def grasp(self, close_bool, max_width=0.039, min_width=0.025, effort=1):
-        if close_bool != self.close_bool and self.robot_ip is not None:
-            self.finger_cmd.goal.command.position = (max_width-min_width)*(1-close_bool)+min_width
-            self.finger_cmd.goal.command.max_effort = effort
-            self.finger_cmd.header.seq += 1
-            self.finger_cmd.goal_id.stamp = self.finger_cmd.header.stamp = rospy.Time.now()
-            self.finger_pub.publish(self.finger_cmd)
-            time.sleep(1)
-        self.close_bool = close_bool
-        return self.close_bool
+        if self.user_gripper:
+            if close_bool != self.close_bool and self.robot_ip is not None:
+                self.finger_cmd.goal.command.position = (max_width-min_width)*(1-close_bool)+min_width
+                self.finger_cmd.goal.command.max_effort = effort
+                self.finger_cmd.header.seq += 1
+                self.finger_cmd.goal_id.stamp = self.finger_cmd.header.stamp = rospy.Time.now()
+                self.finger_pub.publish(self.finger_cmd)
+                time.sleep(1)
+            self.close_bool = close_bool
+            return self.close_bool
 
-    def move_gripper(self, width, speed=0.05): 
-        goal = MoveGoal()
-        goal.width = width
-        goal.speed = speed
-        return self.move_action_client.send_goal(goal)
+    def move_gripper(self, width, speed=0.05):
+        if self.user_gripper:
+            goal = MoveGoal()
+            goal.width = width
+            goal.speed = speed
+            return self.move_action_client.send_goal(goal)
 
     ##
     # @param Q radian

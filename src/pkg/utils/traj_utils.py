@@ -269,7 +269,7 @@ def calculate_safe_schedule(pscene, snode_schedule, vel_lims, acc_lims, dt_step=
     for snode in snode_schedule:
         snode_cp = snode.copy(pscene)
         snode_schedule_safe.append(snode_cp)
-        if snode_cp.traj is not None:
+        if snode_cp.traj is not None and len(snode_cp.traj)>0:
             _, traj_new = calc_safe_trajectory(dt_step, snode_cp.traj, vel_lims=vel_lims, acc_lims=acc_lims)
             snode_cp.set_traj(traj_new)
     return snode_schedule_safe

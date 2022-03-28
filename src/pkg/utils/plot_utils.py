@@ -60,7 +60,12 @@ from collections import Iterable
 # @param options sub-group option name list
 # @param average_all do not separate group and average all in one graph
 # @param autoscale auto fit y axis
-def grouped_bar(data_dict, groups=None, options=None, scatter=False, average_all=False, autoscale=True, show_bar=True):
+def grouped_bar(data_dict, groups=None, options=None, scatter=False, average_all=False, autoscale=True, show_bar=True, fn=np.mean, 
+                invert_axis=False, stack=False):
+    if invert_axis:
+        plot_fn=plt.barh
+    else:
+        plot_fn=plt.bar
     if groups is None:
         groups = sorted(data_dict.keys())
         
@@ -84,43 +89,71 @@ def grouped_bar(data_dict, groups=None, options=None, scatter=False, average_all
             dat_max = max(dat_max, np.max(dat_vec))
             dat_min = min(dat_min, np.min(dat_vec))
         else:
-
             if average_all:
                 if isinstance(dat_vec[0], Iterable):
                     dat_vec = np.concatenate(dat_vec)
-                std_vec = np.std(dat_vec)
-                dat_vec = np.mean(dat_vec)
                 if show_bar:
-                    plt.bar(xsmall, dat_vec, yerr=std_vec, capsize=3)
-                else:
-                    plt.bar(xsmall, dat_vec, capsize=3)
-            else:
-                if isinstance(dat_vec[0], Iterable):
-                    std_vec = map(np.std, dat_vec)
-                    dat_vec = map(np.mean, dat_vec)
+                    if show_bar is True:
+                        std_vec = np.std(dat_vec)
+                        std_vec = [[std_vec], [std_vec]]
+                    else:
+                        std_vec = (np.percentile(dat_vec, [50-show_bar*50, 50+show_bar*50])*[-1,1] + np.multiply(fn(dat_vec),[1,-1]))[:, np.newaxis]
+                    dat_vec = fn(dat_vec)
+                    if invert_axis:
+                        plot_fn(xsmall, dat_vec, xerr=std_vec, capsize=3)
+                    else:
+                        plot_fn(xsmall, dat_vec, yerr=std_vec, capsize=3)
                 else:
                     std_vec = None
-                if show_bar:
-                    plt.bar(X_big+xsmall, dat_vec, yerr=std_vec, capsize=3)
+                    dat_vec = fn(dat_vec)
+                    plot_fn(xsmall, dat_vec, capsize=3)
+            else:
+                if isinstance(dat_vec[0], Iterable):
+                    if show_bar is True:
+                        std_vec = map(np.std, dat_vec)
+                        std_vec = [std_vec, std_vec]
+                    else:
+                        std_vec = map(lambda __x: np.percentile(__x, [50-show_bar*50, 50+show_bar*50])*[-1,1] + np.multiply(fn(__x),[1, -1]), dat_vec)
+                        std_vec = np.transpose(std_vec)
+                    dat_vec = map(fn, dat_vec)
                 else:
-                    plt.bar(X_big+xsmall, dat_vec, capsize=3)
-            dat_max = max(dat_max, np.max(np.add(dat_vec, std_vec) 
+                    std_vec = None
+                if show_bar and std_vec is not None:
+                    if invert_axis:
+                        plot_fn(X_big+xsmall, dat_vec, xerr=std_vec, capsize=3)
+                    else:
+                        plot_fn(X_big+xsmall, dat_vec, yerr=std_vec, capsize=3)
+                else:
+                    plot_fn(X_big+xsmall, dat_vec, capsize=3)
+            dat_max = max(dat_max, np.max(np.add(dat_vec, std_vec[1]) 
                                            if std_vec is not None 
                                            else dat_vec))
-            dat_min = min(dat_min, np.min(np.subtract(dat_vec, std_vec) 
+            dat_min = min(dat_min, np.min(np.subtract(dat_vec, std_vec[0]) 
                                            if std_vec is not None 
                                            else dat_vec))
     margin = (dat_max - dat_min)/3+abs(dat_min)/100
     if autoscale:
         if average_all:
-            plt.axis([-0.7,np.max(X_small)+0.7, dat_min-margin, dat_max+margin])
+            if invert_axis:
+                plt.axis([dat_min-margin, dat_max+margin, -0.7,np.max(X_small)+0.7])
+            else:
+                plt.axis([-0.7,np.max(X_small)+0.7, dat_min-margin, dat_max+margin])
         else:
-            plt.axis([0,np.max(X_big)+np.max(X_small)+1, dat_min-margin, dat_max+margin])
+            if invert_axis:
+                plt.axis([dat_min-margin, dat_max+margin, 0,np.max(X_big)+np.max(X_small)+1])
+            else:
+                plt.axis([0,np.max(X_big)+np.max(X_small)+1, dat_min-margin, dat_max+margin])
     plt.grid()
     if average_all:
-        plt.xticks(X_small, np.array(options))
+        if invert_axis:
+            plt.yticks(X_small, np.array(options))
+        else:
+            plt.xticks(X_small, np.array(options))
     else:
-        plt.xticks(X_big + np.mean(X_small), np.array(groups))
+        if invert_axis:
+            plt.yticks(X_big + np.mean(X_small), np.array(groups))
+        else:
+            plt.xticks(X_big + np.mean(X_small), np.array(groups))
         plt.legend(options)
     return groups, options
 

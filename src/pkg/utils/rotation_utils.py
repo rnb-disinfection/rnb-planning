@@ -131,6 +131,11 @@ def align_z(Two):
     Two_out[0:3,0:3] = Rwo_
     return Two_out
 
+##
+# @brief fit camera detection to workplane considering viewpoint
+# @param    Tco     object pose from camera
+# @param    minz    local z-axis value of object's bottom point
+# @param    Tcw     workplace cooridnate from camera view
 def fit_floor(Tco, minz=0, Tcw=None ):
     if Tcw is None:
         Tbo = np.copy(Tco)
@@ -217,6 +222,8 @@ Ty180 = np.identity(4, 'float32')
 Ty180[0,0]=-1
 Ty180[2,2]=-1
 
+##
+# @brief rotation vector to rotate from vec1 to vec2
 def calc_rotvec_vecs(vec1, vec2):
     cross_vec = np.cross(vec1, vec2)
     dot_val = np.dot(vec1, vec2)

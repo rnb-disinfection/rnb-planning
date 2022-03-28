@@ -84,7 +84,7 @@ class ActionPoint:
 
     ##
     # @brief    return redundancy of action point
-    def get_redundancy(self):
+    def get_redundancy(self, Q=None):
         return self.redundancy
 
     ##
@@ -216,10 +216,11 @@ class BindingState(dict):
 # @brief    combine redundancy of handle and binder
 # @param to_ap      handle
 # @param to_binder  binder
+# @param Q          joint angle list
 # @return {point name: {direction: (min, max)}}
-def combine_redundancy(to_ap, to_binder):
-    redundancy_bd = deepcopy(to_binder.get_redundancy())
-    redundancy_ap = deepcopy(to_ap.get_redundancy())
+def combine_redundancy(to_ap, to_binder, Q=None):
+    redundancy_bd = deepcopy(to_binder.get_redundancy(Q))
+    redundancy_ap = deepcopy(to_ap.get_redundancy(Q))
     redundancy_tot = {to_ap.name: redundancy_ap, to_binder.name: redundancy_bd}
     return redundancy_tot
 

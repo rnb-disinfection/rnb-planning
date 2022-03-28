@@ -90,39 +90,42 @@ def add_indy_gripper_asm3(gscene, robot_name):
 # @brief add add_sweep_tool to indy
 # @param gscene     rnb-planning.src.pkg.geometry.geometry.GeometryScene
 # @param robot_name full indexed name of the robot
-def add_indy_sweep_tool(gscene, robot_name, face_name="brush_face", tool_offset=0.12):
+def add_indy_sweep_tool(gscene, robot_name, face_name="brush_face", tool_offset=0.12, color_col=(0.0, 0.8, 0.0, 0.5),
+                        W=0.05,L=0.13, tip_link="tcp"):
+    tip_link = "{}_{}".format(robot_name, tip_link)
     gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="{}_fts".format(robot_name),
-                       link_name="{}_tcp".format(robot_name),
+                       link_name=tip_link,
                        center=(0, 0, 0.02), dims=(0.07, 0.07, 0.04), rpy=(0, 0, 0), color=(0.8, 0.8, 0.8, 1),
                        collision=False, fixed=True)
     gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="{}_fts_col".format(robot_name),
-                       link_name="{}_tcp".format(robot_name),
-                       center=(0, 0, 0.02), dims=(0.11, 0.11, 0.04), rpy=(0, 0, 0), color=(0.0, 0.8, 0.0, 0.5),
+                       link_name=tip_link.format(robot_name),
+                       center=(0, 0, 0.02), dims=(0.11, 0.11, 0.04), rpy=(0, 0, 0), color=color_col,
                        collision=True, fixed=True)
 
     gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="{}_pole".format(robot_name),
-                       link_name="{}_tcp".format(robot_name),
+                       link_name=tip_link.format(robot_name),
                        center=(0, 0, 0.071), dims=(0.03, 0.03, 0.062), rpy=(0, 0, 0), color=(0.8, 0.8, 0.8, 1),
                        collision=False, fixed=True)
     gscene.create_safe(gtype=GEOTYPE.CYLINDER, name="{}_pole_col".format(robot_name),
-                       link_name="{}_tcp".format(robot_name),
-                       center=(0, 0, 0.071), dims=(0.07, 0.07, 0.062), rpy=(0, 0, 0), color=(0.0, 0.8, 0.0, 0.2),
+                       link_name=tip_link.format(robot_name),
+                       center=(0, 0, 0.071), dims=(0.07, 0.07, 0.062), rpy=(0, 0, 0), color=color_col,
                        collision=True, fixed=True)
 
     gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_brushbase".format(robot_name),
-                       link_name="{}_tcp".format(robot_name),
-                       center=(0, 0, tool_offset-0.025), dims=(0.06, 0.14, 0.02), rpy=(0, 0, 0), color=(0.8, 0.8, 0.8, 1),
+                       link_name=tip_link.format(robot_name),
+                       center=(0, 0, tool_offset-0.025), dims=(W+0.01, L+0.01, 0.02), rpy=(0, 0, 0), color=(0.8, 0.8, 0.8, 1),
                        collision=False, fixed=True)
-    gscene.create_safe(gtype=GEOTYPE.BOX, name=face_name, link_name="{}_tcp".format(robot_name),
-                       center=(0, 0, tool_offset-0.005), dims=(0.05, 0.13, 0.02), rpy=(0, 0, 0), color=(1.0, 1.0, 0.94, 1),
+    brush_face = gscene.create_safe(gtype=GEOTYPE.BOX, name=face_name, link_name=tip_link.format(robot_name),
+                       center=(0, 0, tool_offset-0.005), dims=(W, L, 0.02), rpy=(0, 0, 0), color=(1.0, 1.0, 0.94, 1),
                        collision=False, fixed=True)
-    gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_col".format(face_name), link_name="{}_tcp".format(robot_name),
-                       center=(0, 0, tool_offset-0.015), dims=(0.08, 0.15, 0.03), rpy=(0, 0, 0), color=(0.0, 0.8, 0.0, 0.5),
+    gscene.create_safe(gtype=GEOTYPE.BOX, name="{}_col".format(face_name), link_name=tip_link.format(robot_name),
+                       center=(0, 0, tool_offset-0.015), dims=(W+0.02, L+0.02, 0.03), rpy=(0, 0, 0), color=color_col,
                        collision=True, fixed=True)
     gscene.create_safe(GEOTYPE.BOX, "{}_plug".format(robot_name),
-                       link_name="{}_tcp".format(robot_name),
+                       link_name=tip_link.format(robot_name),
                        dims=(0.05,0.1,0.05), center=(0,0.07,-0.03), rpy=(0,0,0),
-                       color=(0.0,0.8,0.0,0.5), display=True, fixed=True, collision=True)
+                       color=color_col, display=True, fixed=True, collision=True)
+    return brush_face
 
 
 from pkg.planning.constraint.constraint_subject import Grasp2Point, FramePoint, SweepFrame, SweepLineTask, CustomObject
@@ -900,3 +903,70 @@ def get_look_motion(mplan, rname, from_Q, target_point, com_link,
             else:
                 succ = False
     return traj, succ
+
+
+from scipy.cluster.vq import kmeans2
+
+
+##
+# @brief get scanning motion that covers target
+# @param mplan MoveitPlanner
+# @param viewpoint GeometryItem for viewpoint, of which +z is viewing direction
+# @param target    GeometryItem for target
+# @param Q_ref     Reference pose to try scanning
+# @param fov_def   Field of View of the camera, in degrees
+# @param N_max     max. number of view poses
+def get_scan_motions(mplan, viewpoint, target, Q_ref, fov_deg=60, N_max=5):
+    cam_link = viewpoint.link_name
+    robot_name = [rname for rname, info in mplan.chain_dict.items() if cam_link in info['link_names']][0]
+    T_ref = mplan.gscene.get_tf(viewpoint.link_name, Q_ref)
+    T_ref_inv = np.linalg.inv(T_ref)
+
+    T_tar = target.get_tf(Q_ref)
+    traj, succ = get_look_motion(mplan, robot_name, np.array(Q_ref), T_tar[:3, 3],
+                                 viewpoint.link_name, view_dir=viewpoint.orientation_mat[:, 2])
+
+    assert succ, "Failed to get initial ref view"
+
+    Q_ref = traj[-1]
+    T_ref = mplan.gscene.get_tf(viewpoint.link_name, Q_ref)
+    T_ref_inv = np.linalg.inv(T_ref)
+
+    # get vertices and internal point samples
+    verts, radi = target.get_vertice_radius_from(Q_ref)
+    vtx_samples = []
+    for _ in range(1000):
+        v1, v2, v3 = random.sample(verts, 3)
+        a, b, c = np.random.rand(3)
+        vtx_samples.append((a * v1 + b * v2 + c * v3) / (a + b + c))
+    vtx_samples = np.array(vtx_samples)
+    verts_c = np.matmul(T_ref_inv[:3, :3], vtx_samples.T).T + T_ref_inv[:3, 3]
+
+    # get theta and psi of vertices (rotate 90 degrees to convert in continuous region)
+    verts_sph = np.transpose(cart2spher(*np.transpose(np.matmul(verts_c, Rot_axis(1, np.pi / 2)))))
+    verts_sph2 = verts_sph[:, 1:]
+
+    # makes largest clusters with sizes smaller than fov
+    fov_rad_hf = np.deg2rad(fov_deg) / 2
+    for N in range(1, N_max + 1):
+        centroid, label = kmeans2(verts_sph2, N)
+        max_dists = []
+        for i in range(N):
+            if np.sum(label == i) > 0:
+                max_dists.append(np.max(np.linalg.norm(verts_sph2[label == i] - centroid[i], axis=-1)))
+        if np.max(max_dists) < fov_rad_hf:  # stop if max angular dist < fov
+            break
+        if N == N_max:
+            raise (RuntimeError("Failed to generate look motion in given number"))
+
+    # makes look trajectories for view centers
+    view_traj_list = []
+    for ctr in centroid:
+        ctr_c = np.matmul(spher2cart(1, *ctr), Rot_axis(1, np.pi / 2).T)
+        P_tar = np.matmul(T_ref[:3, :3], ctr_c) + T_ref[:3, 3]
+        traj, succ = get_look_motion(mplan, robot_name, np.array(Q_ref), P_tar, viewpoint.link_name,
+                                     view_dir=viewpoint.orientation_mat[:, 2])
+        if not succ:
+            raise (RuntimeError("Failed to generate look motion"))
+        view_traj_list.append(traj)
+    return view_traj_list

@@ -99,7 +99,7 @@ class TaskInterface:
     # @param initial_state rnb-planning.src.pkg.planning.scene.State
     # @param goal_nodes list of nodes
     @abstractmethod
-    def init_search(self, initial_state, goal_nodes, multiprocess_manager):
+    def init_search(self, initial_state, goal_nodes, **kwargs):
         ## When overiding init_search, Don't forget to make root SearchNode and connect, update it, as below!
         snode_root = self.make_search_node(None, initial_state, None)
         self.connect(None, snode_root)
@@ -119,12 +119,12 @@ class TaskInterface:
     def update(self, snode_src, snode_new, connection_result):
         raise(NotImplementedError("abstract method"))
 
+
     ##
-    # @brief (prototype) check if a state is in pre-defined goal nodes
+    # @brief check if a state is in pre-defined goal nodes
     # @param state rnb-planning.src.pkg.planning.scene.State
-    @abstractmethod
     def check_goal(self, state):
-        raise(NotImplementedError("abstract method"))
+        return state.node in self.goal_nodes
 
     ##
     # @brief update snode_counter and snode.idx

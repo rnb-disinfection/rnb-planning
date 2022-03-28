@@ -121,6 +121,52 @@ class RollGrasp2Point(RollPoint):
                                "y":(-dims[1]/2,dims[1]/2),
                                "u":(-np.pi,np.pi)}
 
+##
+# @class SlidePoint
+# @brief PlacePoint that movement is allowed for only a specific direction
+class SlidePoint(FramedPoint):
+    ctype=ConstraintType.Frame
+    ##
+    # @param    binded_on   binder on which this object is attached
+    # @param    dist_push_min   allowed min. distance to push
+    # @param    dist_push_max   allowed max. distance to push
+    # @param    dir_push    3d vector that represents push direction in local link coordinates. default = [1,0,0]
+    def __init__(self, name, geometry, point, rpy, binded_on, dist_push_min, dist_push_max, dir_push=[1,0,0], name_full=None, key=0):
+        assert binded_on.ctype == ConstraintType.Frame, "Only Frame type actor is allow for binder_on"
+        assert binded_on.key == key, "key does not match with binded_on {} / {}".format(binded_on.key, key)
+        assert dir_push in [[1,0,0], [0,1,0], [0,0,1], [-1,0,0], [0,-1,0], [0,0,-1]], \
+            "Only [1,0,0], [0,1,0], [0,0,1], [-1,0,0], [0,-1,0], [0,0,-1] are allowed for dir_push"
+        self.binded_on = binded_on
+        self.dist_push_min = dist_push_min
+        self.dist_push_max = dist_push_max
+        self.dir_push = np.array(dir_push)
+        FramedPoint.__init__(self, name, geometry, point, rpy, name_full=name_full, key=key)
+
+    ##
+    # @brief update redundancy based on current informations: point, dims
+    def get_redundancy(self, Q=None):
+        if Q is not None:
+            Qdict = list2dict(Q, self.geometry.gscene.joint_names)
+            T_bh = self.get_tf_handle(Qdict)
+            T_ba = self.binded_on.get_tf_handle(Qdict)
+            T_ha = np.matmul(np.linalg.inv(T_bh), T_ba)
+            R_ha = T_ha[:3,:3]
+            P_ha = T_ha[:3,3]
+            T_lh = self.Toff_lh
+            dir_h_min = np.matmul(T_lh[:3,:3].T, self.dir_push)*self.dist_push_min # push vector in handle coordinates
+            dir_h_max = np.matmul(T_lh[:3,:3].T, self.dir_push)*self.dist_push_max # push vector in handle coordinates
+            P_ha_min_ = P_ha-dir_h_min
+            P_ha_max_ = P_ha-dir_h_max
+            P_ha_min = np.minimum(P_ha_min_, P_ha_max_)
+            P_ha_max = np.maximum(P_ha_min_, P_ha_max_)
+            wvu = Rot2zyx(R_ha)
+            return {"x": (P_ha_min[0], P_ha_max[0]),
+                    "y": (P_ha_min[1], P_ha_max[1]),
+                    "z": (P_ha_min[2], P_ha_max[2]),
+                    "u": (wvu[2], wvu[2]),
+                    "v": (wvu[1], wvu[1]),
+                    "w": (wvu[0], wvu[0])}
+        return self.redundancy
 
 ##
 # @class SweepPoint
@@ -793,7 +839,7 @@ class AbstractObject(Subject):
     # @param    node_tem    geometry name of binder currently attached
     def get_neighbor_node_component_list(self, node_tem, pscene):
         ctrl_binders, uctrl_binders = pscene.separate_active_binders([ap.ctype for ap in self.action_points_dict.values()])
-        next_node_component_list = [pscene.actor_dict[bname].geometry.name for bname in ctrl_binders]
+        next_node_component_list = [pscene.actor_dict[bname].geometry.name for bname in ctrl_binders] # add node_tem for all controllable binders
         if any([bname in ctrl_binders for bname in pscene.geometry_actor_dict[node_tem]]): # if any of currently attached binder geometry's binder is active, it's active
             next_node_component_list += [pscene.actor_dict[bname].geometry.name for bname in uctrl_binders] # thus we can add move it to uncontrolled binders
         if node_tem in next_node_component_list:
@@ -831,6 +877,25 @@ class CustomObject(AbstractObject):
     def register_binders(self, planning_scene, _type):
         pass
 
+##
+# @class PushObject
+# @brief pushable object
+class PushObject(CustomObject):
+    def __init__(self, oname, geometry, push_point_list, slide_point, sub_binders_dict=None):
+        self.push_point_list, self.slide_point = push_point_list, slide_point
+        action_points_dict = {pp.name: pp for pp in push_point_list}
+        action_points_dict[slide_point.name] = slide_point
+        CustomObject.__init__(self, oname, geometry, action_points_dict, sub_binders_dict=sub_binders_dict)
+
+    ##
+    # @brief make constraints. by default, empty list.
+    # @remark whether to apply constarint or not is decided with previous and next bindings
+    # @param binding_from previous binding
+    # @param binding_to next binding
+    def make_constraints(self, binding_from, binding_to, tol=None):
+        if binding_to.actor_name == self.slide_point.binded_on.name:
+            return "Constraint not implemented. Use incremental_constraint_motion=True"
+        return []
 
 ##
 # @class SingleHandleObject

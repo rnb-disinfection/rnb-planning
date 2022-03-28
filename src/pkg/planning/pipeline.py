@@ -59,9 +59,10 @@ class PlanningPipeline:
 
     ##
     # @param tplan subclass instance of rnb-planning.src.pkg.planning.task.interface.TaskInterface
-    def set_task_planner(self, tplan):
+    def set_task_planner(self, tplan, **kwargs):
         self.tplan = tplan
-        self.tplan.prepare()
+        self.tplan.prepare(**kwargs)
+        self.tplan_kwargs = kwargs
 
     ##
     # @brief update planners
@@ -69,7 +70,7 @@ class PlanningPipeline:
         if self.mplan:
             self.mplan.update_gscene()
         if self.tplan:
-            self.tplan.prepare()
+            self.tplan.prepare(**self.tplan_kwargs)
 
     ##
     # @brief run search algorithm
@@ -138,7 +139,7 @@ class PlanningPipeline:
             with self.gtimer.block("start_process"):
                 kwargs.update({"timeout": timeout})
                 self.proc_list = [Process(
-                    target=self.__search_loop,
+                    target=self._search_loop,
                     args=(id_agent, N_search, False, dt_vis, verbose, timeout_loop),
                     kwargs=kwargs) for id_agent in range(N_agents)]
                 for proc in self.proc_list:
@@ -149,7 +150,7 @@ class PlanningPipeline:
                 self.wait_procs(timeout_loop, looptime_extra)
         else:
             self.proc_list = []
-            self.__search_loop(0, N_search, display, dt_vis, verbose, timeout_loop, timeout=timeout, **kwargs)
+            self._search_loop(0, N_search, display, dt_vis, verbose, timeout_loop, timeout=timeout, **kwargs)
         elapsed = self.gtimer.toc("search_loop")
         print(
             "========================== FINISHED ({} / {} s) ==============================]".format(
@@ -160,7 +161,7 @@ class PlanningPipeline:
         self.non_joineds = []
         self.gtimer.tic("wait_procs")
         elapsed = 0
-        while (self.stop_now.value < self.N_agents) and (elapsed<timeout_loop):
+        while (self.stop_now.value < self.N_agents/2) and (elapsed<timeout_loop):
             time.sleep(0.1)
             elapsed = self.gtimer.toc("wait_procs") / self.gtimer.scale
 
@@ -183,7 +184,7 @@ class PlanningPipeline:
         if len(self.non_joineds) > 0:
             TextColors.RED.println("[ERROR] Non-joined subprocesses: {}".format(self.non_joineds))
 
-    def __search_loop(self, ID, N_search,
+    def _search_loop(self, ID, N_search,
                       display=False, dt_vis=None, verbose=False, timeout_loop=600,
                       add_homing=True, post_optimize=False, home_pose=None,  **kwargs):
         loop_counter = 0

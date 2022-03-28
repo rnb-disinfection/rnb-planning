@@ -4,7 +4,7 @@ from .ros_rviz import show_motion, get_markers, get_publisher
 from .geotype import GEOTYPE
 from ..utils.rotation_utils import *
 from ..utils.joint_utils import get_tf, get_link_adjacency_map, get_min_distance_map, get_link_control_dict
-from ..utils.utils import list2dict, dict2list, TextColors
+from ..utils.utils import list2dict, dict2list, TextColors, inspect_arguments
 from collections import defaultdict
 from copy import deepcopy
 
@@ -263,7 +263,7 @@ class GeometryScene(list):
             for mks in self.marker_dict.values():
                 marker_list += mks
             if period<0.01:
-                pose_list = pose_list[::int(0.01/period)]
+                pose_list = list(reversed(list(reversed(pose_list))[::int(0.01/period)]))
                 period = 0.01
             show_motion(pose_list, marker_list, self.pub, self.joints, self.joint_names, period=period, **kwargs)
 
@@ -289,14 +289,14 @@ class GeometryScene(list):
         hname = "hl_" + gtem.name
         if hname in self.NAME_DICT:
             return
-        htem = self.create_safe(gtype=gtem.gtype, name=hname, link_name=gtem.link_name,
-                            center=gtem.center, dims=dims, rpy=Rot2rpy(gtem.orientation_mat), color=color,
-                            collision=False)
+        h_kwargs = gtem.get_args()
+        h_kwargs.update(dict(name=hname, dims=dims, collision=False, color=color))
+        htem = self.create_safe(**h_kwargs)
 
         self.highlight_dict[hl_key][htem.name] = htem
         if self.rviz:
             self.__add_marker(htem)
-        self.add_highlight_axis(hname, "axis", gtem.link_name, center=gtem.center, orientation_mat=gtem.orientation_mat)
+        self.add_highlight_axis(hl_key, hname+"_axis", gtem.link_name, center=gtem.center, orientation_mat=gtem.orientation_mat)
 
     ##
     # @param points (Nx3)
@@ -367,28 +367,31 @@ class GeometryScene(list):
 
     ##
     # @brief set workspace boundary
-    def set_workspace_boundary(self, XMIN, XMAX, YMIN, YMAX, ZMIN, ZMAX, thickness=0.01):
-        self.create_safe(GEOTYPE.BOX, "ceiling_ws", "base_link", (XMAX - XMIN, YMAX - YMIN, thickness),
-                         ((XMAX + XMIN) / 2, (YMAX + YMIN) / 2, ZMAX+thickness/2), rpy=(0, 0, 0),
-                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
-        self.create_safe(GEOTYPE.BOX, "floor_ws", "base_link", (XMAX - XMIN, YMAX - YMIN, thickness),
-                         ((XMAX + XMIN) / 2, (YMAX + YMIN) / 2, ZMIN-thickness/2), rpy=(0, 0, 0),
-                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
-        self.create_safe(GEOTYPE.BOX, "frontwall_ws", "base_link", (thickness, YMAX - YMIN, ZMAX - ZMIN),
-                         (XMAX+thickness/2, (YMAX + YMIN) / 2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
-                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
-        self.create_safe(GEOTYPE.BOX, "backwall_ws", "base_link", (thickness, YMAX - YMIN, ZMAX - ZMIN),
-                         (XMIN-thickness/2, (YMAX + YMIN) / 2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
-                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
-        self.create_safe(GEOTYPE.BOX, "leftwall_ws", "base_link", (XMAX - XMIN, thickness, ZMAX - ZMIN),
-                         ((XMAX + XMIN) / 2, YMIN-thickness/2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
-                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
-        self.create_safe(GEOTYPE.BOX, "rightwall_ws", "base_link", (XMAX - XMIN, thickness, ZMAX - ZMIN),
-                         ((XMAX + XMIN) / 2, YMAX+thickness/2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
-                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True)
-        self.create_safe(GEOTYPE.BOX, "room_ws", "base_link", (XMAX - XMIN, YMAX - YMIN, ZMAX - ZMIN),
-                         ((XMAX + XMIN) / 2, (YMAX + YMIN) / 2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
+    def set_workspace_boundary(self, XMIN, XMAX, YMIN, YMAX, ZMIN, ZMAX, RPY=(0,0,0), thickness=0.01):
+        ROOM_DIM = (float(XMAX - XMIN), float(YMAX - YMIN), float(ZMAX - ZMIN))
+        ROOM_LOC = (float(XMAX + XMIN) / 2, float(YMAX + YMIN) / 2, float(ZMAX + ZMIN) / 2)
+        thickness = float(thickness)
+        self.create_safe(GEOTYPE.BOX, "room_ws", "base_link", ROOM_DIM,
+                         ROOM_LOC, rpy=RPY,
                          color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=False)
+        self.create_safe(GEOTYPE.BOX, "ceiling_ws", "base_link", (ROOM_DIM[0], ROOM_DIM[1], thickness),
+                         (0, 0, ROOM_DIM[2]/2+thickness/2), rpy=(0, 0, 0),
+                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent="room_ws")
+        self.create_safe(GEOTYPE.BOX, "floor_ws", "base_link", (ROOM_DIM[0], ROOM_DIM[1], thickness),
+                         (0, 0, -ROOM_DIM[2]/2-thickness/2), rpy=(0, 0, 0),
+                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent="room_ws")
+        self.create_safe(GEOTYPE.BOX, "frontwall_ws", "base_link", (thickness, ROOM_DIM[1], ROOM_DIM[2]),
+                         (ROOM_DIM[0]/2+thickness/2, 0, 0), rpy=(0, 0, 0),
+                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent="room_ws")
+        self.create_safe(GEOTYPE.BOX, "backwall_ws", "base_link", (thickness, ROOM_DIM[1], ROOM_DIM[2]),
+                         (-ROOM_DIM[0]/2-thickness/2, 0, 0), rpy=(0, 0, 0),
+                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent="room_ws")
+        self.create_safe(GEOTYPE.BOX, "leftwall_ws", "base_link", (ROOM_DIM[0], thickness, ROOM_DIM[2]),
+                         (0, -ROOM_DIM[1]/2-thickness/2, 0), rpy=(0, 0, 0),
+                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent="room_ws")
+        self.create_safe(GEOTYPE.BOX, "rightwall_ws", "base_link", (ROOM_DIM[0], thickness, ROOM_DIM[2]),
+                         (0, +ROOM_DIM[1]/2+thickness/2, 0), rpy=(0, 0, 0),
+                         color=(0.8, 0.8, 0.8, 0.1), display=True, fixed=True, collision=True, parent="room_ws")
 
     def clear_virtuals(self):
         for virtual in self.virtuals:
@@ -404,18 +407,18 @@ class GeometryScene(list):
                               axis="y", color=(0.8, 0.8, 0.8, 0.1)):
         gname = plane_gtem.name
         dims = plane_gtem.dims
-        XMIN, XMAX, YMIN, YMAX, ZMIN, ZMAX = -dims[0]/2, dims[0]/2, -dims[1]/2, dims[1]/2, -HEIGHT, HEIGHT
+        XMIN, XMAX, YMIN, YMAX, ZMIN, ZMAX = -dims[0]/2, dims[0]/2, -dims[1]/2, dims[1]/2, dims[2]/2-HEIGHT, dims[2]/2+HEIGHT
         if "x" in axis.lower() and "y" in axis.lower():
             add_edge = THICKNESS + margin * 2
         else:
             add_edge = 0
         if "x" in axis.lower():
             gtem0 = self.create_safe(GEOTYPE.BOX, "{}_front_gr".format(gname), "base_link",
-                                     (THICKNESS, YMAX - YMIN + add_edge, ZMAX - ZMIN + add_edge),
+                                     (THICKNESS, YMAX - YMIN + add_edge, ZMAX - ZMIN),
                              (XMAX + margin, (YMAX + YMIN) / 2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
                              color=color, display=True, fixed=True, collision=True, parent=gname)
             gtem1 = self.create_safe(GEOTYPE.BOX, "{}_back_gr".format(gname), "base_link",
-                                     (THICKNESS, YMAX - YMIN + add_edge, ZMAX - ZMIN + add_edge),
+                                     (THICKNESS, YMAX - YMIN + add_edge, ZMAX - ZMIN),
                              (XMIN - margin, (YMAX + YMIN) / 2, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
                              color=color, display=True, fixed=True, collision=True, parent=gname)
             virtuals = []
@@ -425,11 +428,11 @@ class GeometryScene(list):
             self.virtuals = virtuals + [gtem0, gtem1]
         if "y" in axis.lower():
             gtem0 = self.create_safe(GEOTYPE.BOX, "{}_left_gr".format(gname), "base_link",
-                                     (XMAX - XMIN + add_edge, THICKNESS, ZMAX - ZMIN + add_edge),
+                                     (XMAX - XMIN + add_edge, THICKNESS, ZMAX - ZMIN),
                              ((XMAX + XMIN) / 2, YMIN - margin, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
                              color=color, display=True, fixed=True, collision=True, parent=gname)
             gtem1 = self.create_safe(GEOTYPE.BOX, "{}_right_gr".format(gname), "base_link",
-                                     (XMAX - XMIN + add_edge, THICKNESS, ZMAX - ZMIN + add_edge),
+                                     (XMAX - XMIN + add_edge, THICKNESS, ZMAX - ZMIN),
                              ((XMAX + XMIN) / 2, YMAX + margin, (ZMAX + ZMIN) / 2), rpy=(0, 0, 0),
                              color=color, display=True, fixed=True, collision=True, parent=gname)
             virtuals = []
@@ -483,8 +486,15 @@ class GeometryScene(list):
                 continue
             T_bj, zi = self.get_joint_tf(jname, Q_dict, ref_link)
             dpi = T_p[:3, 3] - T_bj[:3, 3]
-            zp = np.cross(zi, dpi)
-            Ji = np.concatenate([zp, zi])
+            joint = self.urdf_content.joint_map[jname]
+            if joint.type in ["revolute", "continuous"]:
+                zp = np.cross(zi, dpi)
+                Ji = np.concatenate([zp, zi])
+            elif joint.type == "prismatic":
+                Ji = np.concatenate([zi, [0]*3])
+            else:
+                raise(NotImplementedError(
+                    "Jacobian calculation not implemented for joint type {} ({})".format(joint.type, joint.name)))
             Jac.append(Ji)
         Jac = np.array(Jac).transpose()
         return Jac
@@ -773,12 +783,11 @@ class GeometryItem(object):
         gtem.set_dims(tuple(np.abs(np.matmul(Roff.transpose(), gtem.dims))))
         
     def get_args(self):
-        center = self.center if self.parent is None else self.center_child
-        rpy = Rot2rpy(self.orientation_mat) if self.parent is None else Rot2rpy(self.orientation_mat_child)
-        return {'gtype': self.gtype, 'name': self.name, 'link_name': self.link_name, 
-                'dims': self.dims, 'center': center, 'rpy': rpy, 'color': self.color, 
-                'display': self.display, 'collision': self.collision, 'fixed': self.fixed, 
-                'parent': self.parent}
+        arg_keys = inspect_arguments(GeometryItem.__init__)[0][2:] + inspect_arguments(GeometryItem.__init__)[1].keys()
+        kwargs = {akey: getattr(self, akey) for akey in arg_keys if hasattr(self, akey)}
+        kwargs['center'] = self.center if self.parent is None else self.center_child
+        kwargs['rpy'] = Rot2rpy(self.orientation_mat) if self.parent is None else Rot2rpy(self.orientation_mat_child)
+        return kwargs
     ##
     # @brief calculate jacobian for a geometry movement
     # @param gtem   GeometryItem

@@ -16,11 +16,6 @@ def get_obj_info():
                           Toff=SE3(np.identity(3), (0, 0, 0)), scale=(1e-3,1e-3,1e-3),
                           url=RNB_PLANNING_DIR+'release/multiICP_data/cup.STL'),
 
-        'table': ObjectInfo('table', dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX,
-                            dims=(0.4, 0.3, 0.01), color=(0.9, 0.9, 0.9, 0.2),
-                            Toff=SE3(np.identity(3), (0,0,0)), scale=(1e-3,1e-3,1e-3),
-                            url=RNB_PLANNING_DIR+'release/multiICP_data/table.STL'),
-
         'bed': ObjectInfo('bed', dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX,
                           dims=(1.70,0.91,0.66), color=(0.9,0.9,0.9,0.2),
                           Toff=SE3([[0,1,0],[0,0,1],[1,0,0]], (0.455,0,1.02)), scale=(1e-3,1e-3,1e-3),
@@ -29,7 +24,26 @@ def get_obj_info():
         'closet': ObjectInfo('closet', dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX,
                              dims=(0.4, 0.3, 0.01), color=(0.9, 0.9, 0.9, 0.2),
                              Toff=SE3([[1,0,0],[0,0,1],[0,-1,0]], (0.3,0,0.2725)), scale=(1e-3,1e-3,1e-3),
-                             url=RNB_PLANNING_DIR+'release/multiICP_data/top_table.STL')
+                             url=RNB_PLANNING_DIR+'release/multiICP_data/top_table.STL'),
+
+        'dining table': ObjectInfo('dining table', dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX,
+                                   dims=(1.6, 0.8, 0.725), color=(0.9, 0.9, 0.9, 0.2),
+                                   Toff=SE3(np.identity(3), (0, 0, 0)), scale=(1., 1., 1.),
+                                   url=RNB_PLANNING_DIR + 'ws_ros/src/my_mesh/meshes/stl/table_floor_centered_m_scale.STL'),
+
+        'suitcase': ObjectInfo('suitcase', dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX,
+                               dims=(0.4, 0.29, 0.635), color=(0.9, 0.9, 0.9, 0.2),
+                               Toff=SE3(np.identity(3), (0, 0, 0)), scale=(1., 1., 1.),
+                               url=RNB_PLANNING_DIR + 'ws_ros/src/my_mesh/meshes/stl/carrier_centered_m_scale.STL'),
+
+        'clock': ObjectInfo('clock', dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX,
+                            dims=(0.138, 0.05, 0.078), color=(0.9, 0.9, 0.9, 0.2),
+                            Toff=SE3(np.identity(3), (0, 0, 0)), scale=(1., 1., 1.),
+                            url=RNB_PLANNING_DIR + 'ws_ros/src/my_mesh/meshes/stl/tableclock_centered_m_scale.STL'),
+        'chair': ObjectInfo('chair', dlevel=DetectionLevel.ENVIRONMENT, gtype=GEOTYPE.BOX,
+                            dims=(0.37, 0.37, 0.455), color=(0.9, 0.9, 0.9, 0.2),
+                            Toff=SE3(np.identity(3), (0, 0, 0)), scale=(1., 1., 1.),
+                            url=RNB_PLANNING_DIR + 'ws_ros/src/my_mesh/meshes/stl/chair_floor_centered_m_scale.STL')
     }
     return obj_info
 

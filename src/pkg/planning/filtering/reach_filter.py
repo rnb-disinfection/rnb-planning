@@ -103,7 +103,9 @@ class ReachChecker(MotionFilterInterface):
         else:
             # dual motion not predictable
             return True
+        return self.check_T(group_name, T_tar)
 
+    def check_T(self, group_name, T_tar):
         shoulder_height = self.shoulder_height_dict[group_name]
         features = T2features(T_tar, shoulder_height)
         radius, theta, height, azimuth_loc, zenith, ee_dist, rot_z = features
@@ -111,7 +113,11 @@ class ReachChecker(MotionFilterInterface):
             res = False
         else:
             featurevec = self.feature_fn(*features)
-            res = self.model_dict[group_name].predict([featurevec])[0]
+            model = self.model_dict[group_name]
+            if model is not None:
+                res = model.predict([featurevec])[0]
+            else:
+                res = True
 
         if DEBUG_REACH_FILT_LOG:
             save_scene(self.__class__.__name__, self.pscene, btf, Q_dict,
@@ -542,5 +548,9 @@ class ReachTrainer:
 
     def load_model(self, robot_type):
         self.robot_type = robot_type
-        self.clf = load_pickle(os.path.join(self.model_path, "{}.pkl".format(self.robot_type.name)))
+        try:
+            self.clf = load_pickle(os.path.join(self.model_path, "{}.pkl".format(self.robot_type.name)))
+        except:
+            self.clf = None
+            TextColors.RED.println("[WARN] reach data is not ready for {}. Ignoring this robot...".format(self.robot_type.name))
         return self.clf
