@@ -108,9 +108,14 @@ GRUB_DEFAULT=0  ## Change this if the real time kernel is not loaded. remember t
 GRUB_TIMEOUT_STYLE=menu  
 GRUB_TIMEOUT=5  
 ```
-* sudo update-grub  
+* update-grub  
+```bash
+sudo update-grub  
+```
 * disable kernel update  
-  * sudo apt-mark hold linux-image-generic linux-headers-generic  
+```bash
+sudo apt-mark hold linux-image-generic linux-headers-generic  
+```
 
 ## 2.5 (Optional) Recommended Tools and Options
 * Follow instruction in [docs/SUPPLEMENT_README.md](docs/SUPPLEMENT_README.md)
