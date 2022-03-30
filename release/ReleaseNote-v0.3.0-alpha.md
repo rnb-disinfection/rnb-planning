@@ -30,7 +30,10 @@
   - *custom_planner* and *custom_planner_joint* features are added in MoveitPlanner
 
 ###  MultiICP updates
-  - To be filled by jhk
+  - Setting function for maximum number of instances per each object is added (check 'set_multiobject_num' function in multiICP.py)
+  - Camera can be used to remote cam in another pc (check remote_cam option in multiICP class instance). Two pcs are connected through grpc communication protocol
+  - Merge option for separate masking from Mask RCNN result of a object is added (check 'set_merge_mask' function in multiICP.py)
+  - Threshold for object detection is added ,which is depending on the inlier ratio from ICP result. Low inlier ratio would be rejected the detection result so that it judges no object is detected. (check 'set_inlier_ratio' function in multiICP.py)
   
     
 ## Known issues
