@@ -31,7 +31,7 @@
 * Anydesk - enable unattended access in Settings-Security
 * GitKraken  
 * PyCharm, Clion  
-  * add "export PATH=$PATH:{}/bin" to .bashrc  
+  * add "export PATH=$PATH:{INSTALLED-PATH}/bin" to .bashrc  
 * openssh-server  
   ```bash
   sudo apt-get install openssh-server -y && sudo service ssh start
