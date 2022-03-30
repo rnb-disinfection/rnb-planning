@@ -103,10 +103,6 @@ echo 'source "$RNB_PLANNING_DIR"ws_ros/devel/setup.bash' >> ~/.bashrc
 awk -F\' '/menuentry / {print $2}' /boot/grub/grub.cfg 
 ```
 * Edit /etc/default/grub contents as following
-
-## 2.5 (Optional) Recommended Tools and Options
-* Follow instruction in [docs/SUPPLEMENT_README.md](docs/SUPPLEMENT_README.md)
-* To use eTaSL planner and **online planning**, follow instruction in **eTaSL** in [docs/SUPPLEMENT_README.md](docs/SUPPLEMENT_README.md)
 ```
 GRUB_DEFAULT=0  ## Change this if the real time kernel is not loaded. remember the location of the kernel on the grub menu when you boot the computer, and change accordingly, ex) "1>2"
 GRUB_TIMEOUT_STYLE=menu  
@@ -115,6 +111,10 @@ GRUB_TIMEOUT=5
 * sudo update-grub  
 * disable kernel update  
   * sudo apt-mark hold linux-image-generic linux-headers-generic  
+
+## 2.5 (Optional) Recommended Tools and Options
+* Follow instruction in [docs/SUPPLEMENT_README.md](docs/SUPPLEMENT_README.md)
+* To use eTaSL planner and **online planning**, follow instruction in **eTaSL** in [docs/SUPPLEMENT_README.md](docs/SUPPLEMENT_README.md)
 
 # 3 How to
 
