@@ -89,7 +89,7 @@ echo 'source "$RNB_PLANNING_DIR"ws_ros/devel/setup.bash' >> ~/.bashrc
 ### PDDLStream
 * To use **PDDLStream** task-motion planning, follow instruction in [docs/PDDLStream.md](docs/PDDLStream.md)
 ### MMDet
-* To use **MultiICP** or **SharedDetector**, install mmdet by following instruction in [docs/Detection.md](docs/PDDLStream.md)
+* To use **MultiICP** or **SharedDetector**, install mmdet by following instruction in [docs/Detection.md](docs/Detection.md)
 ### ReachChecker
 * To use **ReachChecker**, get model files from https://github.com/rnb-disinfection/arxiv-highcap/tree/rnb-planning/model/reach_svm and put them in *$RNB_PLANNING_DIR/model/reach_svm* folder.
 * For robots that are indy7 variants (indy7gripper...), copy indy7 model file and assign the robot name as the file name.
