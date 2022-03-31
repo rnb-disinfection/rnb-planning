@@ -1,0 +1,141 @@
+<?xml version="1.0" ?>
+<robot name="kmb2" xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:macro name="kmb2" params="robot_id:='0' connected_to:='' xyz:='0 0 0' rpy:='0 0 0'">
+    <xacro:unless value="${not connected_to}">
+      <joint name="kmb2${robot_id}_joint_${connected_to}" type="fixed">
+        <parent link="${connected_to}"/>
+        <child link="kmb2${robot_id}_link0"/>
+        <origin rpy="${rpy}" xyz="${xyz}"/>
+      </joint>
+    </xacro:unless>
+	<xacro:property name="PI" value="3.1415926535897931"/>
+
+	<link name="kmb2${robot_id}_link0"/>
+	<link name="kmb2${robot_id}_link1"/>
+	<link name="kmb2${robot_id}_link2"/>
+	<link name="kmb2${robot_id}_link3"/>
+	<link name="kmb2${robot_id}_link4"/>
+	<link name="kmb2${robot_id}_link5"/>
+	<link name="kmb2${robot_id}_platform">
+		<visual>
+			<origin xyz="0 0 0" rpy="0 0 0"/>
+			<geometry>
+				<mesh filename="package://my_mesh/meshes/stl/mobile_ds_res.stl"/>
+			</geometry>
+			<material name="metal_white"/>
+		</visual>
+		<collision>
+			<origin xyz="0.335   0  0.55" rpy="0.  0.  0."/>
+			<geometry>
+				<cylinder length="0.03" radius="0.06"/>
+			</geometry>
+		</collision>
+
+		<collision>
+			<origin xyz="0.4758   0.325  0.28" rpy="0.  0.  0."/>
+			<geometry>
+				<box size="0.05 0.05 0.56"/>
+			</geometry>
+		</collision>
+
+		<collision>
+			<origin xyz="0.475   -0.325  0.28" rpy="0.  0.  0."/>
+			<geometry>
+				<box size="0.05 0.05 0.56"/>
+			</geometry>
+		</collision>
+
+		<collision>
+			<origin xyz="0.4   0.0  0.488" rpy="0.  0.  0."/>
+			<geometry>
+				<box size="0.10 0.5 0.1"/>
+			</geometry>
+		</collision>
+
+		<collision>
+			<origin xyz="-0.05   0  0.220" rpy="0.  0.  0."/>
+			<geometry>
+				<box size="1.0 0.7 0.438"/>
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="-0.3   0  0.55" rpy="0.  0.  0."/>
+			<geometry>
+				<box size="0.5 0.7 0.2"/>
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="0.05  0.3  0.55" rpy="0.  0.  0."/>
+			<geometry>
+				<box size="0.2 0.1 0.2"/>
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="0.05  -0.3  0.55" rpy="0.  0.  0."/>
+			<geometry>
+				<box size="0.2 0.1 0.2"/>
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="0.3  0.3  0.50" rpy="0.  0.  0."/>
+			<geometry>
+				<box size="0.3 0.1 0.1"/>
+			</geometry>
+		</collision>
+		<collision>
+			<origin xyz="0.3  -0.3  0.50" rpy="0.  0.  0."/>
+			<geometry>
+				<box size="0.3 0.1 0.1"/>
+			</geometry>
+		</collision>
+	</link>
+
+	<joint name="kmb2${robot_id}_joint0" type="prismatic">
+		<parent link="kmb2${robot_id}_link0"/>
+		<child link="kmb2${robot_id}_link1"/>
+		<origin xyz="0 0 0" rpy="0 0 0"/>
+		<axis xyz="1 0 0"/>
+    	<limit effort="10000" lower="-10" upper="10" velocity="1.0"/>
+	</joint>
+
+	<joint name="kmb2${robot_id}_joint1" type="prismatic">
+		<parent link="kmb2${robot_id}_link1"/>
+		<child link="kmb2${robot_id}_link2"/>
+		<origin xyz="0 0 0" rpy="0 0 0"/>
+		<axis xyz="0 1 0"/>
+    	<limit effort="10000" lower="-10" upper="10" velocity="1.0"/>
+	</joint>
+
+	<joint name="kmb2${robot_id}_joint2" type="continuous">
+		<parent link="kmb2${robot_id}_link2"/>
+		<child link="kmb2${robot_id}_link3"/>
+		<origin xyz="0 0 0" rpy="0 0 0"/>
+		<axis xyz="0 0 1"/>
+    	<limit effort="10000" lower="-15.708" upper="15.708" velocity="1.5708"/>
+	</joint>
+
+	<joint name="kmb2${robot_id}_joint3" type="revolute">
+		<parent link="kmb2${robot_id}_link3"/>
+		<child link="kmb2${robot_id}_link4"/>
+		<origin xyz="0 0 0" rpy="0 0 0"/>
+		<axis xyz="1 0 0"/>
+    	<limit effort="0" lower="0" upper="0" velocity="0"/>
+	</joint>
+
+	<joint name="kmb2${robot_id}_joint4" type="revolute">
+		<parent link="kmb2${robot_id}_link4"/>
+		<child link="kmb2${robot_id}_link5"/>
+		<origin xyz="0 0 0" rpy="0 0 0"/>
+		<axis xyz="0 1 0"/>
+    	<limit effort="0" lower="0" upper="0" velocity="0"/>
+	</joint>
+
+	<joint name="kmb2${robot_id}_joint5" type="prismatic">
+		<parent link="kmb2${robot_id}_link5"/>
+		<child link="kmb2${robot_id}_platform"/>
+		<origin xyz="0 0 0" rpy="0 0 0"/>
+		<axis xyz="0 0 1"/>
+    	<limit effort="0" lower="0" upper="0" velocity="0.0"/>
+	</joint>
+  </xacro:macro>
+</robot>
