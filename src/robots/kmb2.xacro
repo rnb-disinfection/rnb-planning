@@ -24,70 +24,80 @@
 			</geometry>
 			<material name="metal_white"/>
 		</visual>
-		<collision>
+		<visual>
 			<origin xyz="0.335   0  0.55" rpy="0.  0.  0."/>
 			<geometry>
 				<cylinder length="0.03" radius="0.06"/>
 			</geometry>
-		</collision>
+			<material name="blue"/>
+		</visual>
 
-		<collision>
+		<visual>
 			<origin xyz="0.4758   0.325  0.28" rpy="0.  0.  0."/>
 			<geometry>
 				<box size="0.05 0.05 0.56"/>
 			</geometry>
-		</collision>
+			<material name="blue"/>
+		</visual>
 
-		<collision>
+		<visual>
 			<origin xyz="0.475   -0.325  0.28" rpy="0.  0.  0."/>
 			<geometry>
 				<box size="0.05 0.05 0.56"/>
 			</geometry>
-		</collision>
+			<material name="blue"/>
+		</visual>
 
-		<collision>
+		<visual>
 			<origin xyz="0.4   0.0  0.488" rpy="0.  0.  0."/>
 			<geometry>
 				<box size="0.10 0.5 0.1"/>
 			</geometry>
-		</collision>
+			<material name="blue"/>
+		</visual>
 
-		<collision>
+		<visual>
 			<origin xyz="-0.05   0  0.220" rpy="0.  0.  0."/>
 			<geometry>
 				<box size="1.0 0.7 0.438"/>
 			</geometry>
-		</collision>
-		<collision>
+			<material name="blue"/>
+		</visual>
+		<visual>
 			<origin xyz="-0.3   0  0.55" rpy="0.  0.  0."/>
 			<geometry>
 				<box size="0.5 0.7 0.2"/>
 			</geometry>
-		</collision>
-		<collision>
+			<material name="blue"/>
+		</visual>
+		<visual>
 			<origin xyz="0.05  0.3  0.55" rpy="0.  0.  0."/>
 			<geometry>
 				<box size="0.2 0.1 0.2"/>
 			</geometry>
-		</collision>
-		<collision>
+			<material name="blue"/>
+		</visual>
+		<visual>
 			<origin xyz="0.05  -0.3  0.55" rpy="0.  0.  0."/>
 			<geometry>
 				<box size="0.2 0.1 0.2"/>
 			</geometry>
-		</collision>
-		<collision>
+			<material name="blue"/>
+		</visual>
+		<visual>
 			<origin xyz="0.3  0.3  0.50" rpy="0.  0.  0."/>
 			<geometry>
 				<box size="0.3 0.1 0.1"/>
 			</geometry>
-		</collision>
-		<collision>
+			<material name="blue"/>
+		</visual>
+		<visual>
 			<origin xyz="0.3  -0.3  0.50" rpy="0.  0.  0."/>
 			<geometry>
 				<box size="0.3 0.1 0.1"/>
 			</geometry>
-		</collision>
+			<material name="blue"/>
+		</visual>
 	</link>
 
 	<joint name="kmb2${robot_id}_joint0" type="prismatic">
