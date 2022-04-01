@@ -12,6 +12,7 @@ class RobotType(Enum):
     kmb=4
     pmb=5
     panda_arm=6
+    kmb2=7
     indy7kiro=102
 
 
