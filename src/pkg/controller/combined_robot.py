@@ -85,7 +85,7 @@ class CombinedRobot:
                         *addr.split("/"), user_gripper=_type==RobotType.panda)
                 else:
                     self.robot_dict[name] = panda_trajectory_client.PandaTrajectoryClient(None, None)
-            elif _type == RobotType.kmb:
+            elif _type == RobotType.kmb or _type == RobotType.kmb2:
                 if addr is not None:
                     self.robot_dict[name] = kiro_udp_client.KiroUDPClient(*addr.split("/"))
                 else:
