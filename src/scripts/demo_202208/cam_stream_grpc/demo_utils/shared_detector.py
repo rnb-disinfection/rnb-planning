@@ -31,7 +31,7 @@ RESP_URI = "shm://response"
 # IMG_DIM = (1080, 1920, 3)
 
 # FILE_PATH = os.path.join(RNB_PLANNING_DIR, 'src/pkg/detector/multiICP/shared_detector.py')
-FILE_PATH = os.path.join(RNB_PLANNING_DIR, 'src/scripts/demo_202208/demo_utils/shared_detector.py')
+FILE_PATH = os.path.join(RNB_PLANNING_DIR, 'src/scripts/demo_202208/cam_stream_grpc/demo_utils/shared_detector.py')
 
 def SharedDetectorGenerator(IMG_DIM=(720, 1280, 3)):
     if __name__ != "__main__":

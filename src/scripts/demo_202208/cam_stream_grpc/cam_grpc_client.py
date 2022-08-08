@@ -169,7 +169,7 @@ class RemoteCam_Client:
     # @param  crob   CombinedRobot
     # @param  viewpoint     GeometryItem for viewpoint
     # @param  initials      Initial transformation for each object
-    def set_config(self, micp_dict, sd, crob, viewpoint, initials):
+    def set_config(self, micp_dict, sd, initials):
         self.micp_dict = micp_dict
         self.sd = sd
         # self.crob = crob
@@ -395,6 +395,7 @@ class RemoteCam_Client:
                                 print("Lowest rmse", rmse_best)
                                 T = T_best
                         else:
+                            inlier_ratio = 1.0
                             if not skip_normal_icp:
                                 Tguess, inlier_rmse, inlier_ratio = micp.compute_ICP(To=Tguess, thres=self.thres_ICP,
                                                              outlier_remove= self.outlier_removal, visualize=visualize)
@@ -525,7 +526,7 @@ class MultiICP_Obj:
         self.hrule = hrule
         self.grule = grule
         self.pose = None
-        self.model = o3d.io.read_triangle_mesh(self.obj_info.url)
+        self.model = o3d.io.read_triangle_mesh(self.obj_info.uri)
         self.model.vertices = o3d.utility.Vector3dVector(
             np.asarray(self.model.vertices) * np.array([self.obj_info.scale[0],
                                                         self.obj_info.scale[1],

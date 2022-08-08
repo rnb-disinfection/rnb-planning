@@ -36,11 +36,11 @@ class ObjectInfo:
     # @param dims  geometry dimensions
     # @param color geometry visualization color
     # @param Toff
-    def __init__(self, name, dlevel, gtype=None, dims=None, color=None, Toff=None,
+    def __init__(self, name, dims=None, color=None, Toff=None,
                  scale=[1e-3,1e-3,1e-3], uri=None):
         if color is None:
             color = (0.6,0.6,0.6,1)
-        self.name, self.dlevel, self.gtype = name, dlevel, gtype
+        self.name = name
         self.dims, self.color = dims, color
         self.Toff = Toff
         self.scale = scale
