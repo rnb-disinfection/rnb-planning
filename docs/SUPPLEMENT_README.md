@@ -48,7 +48,7 @@
   doxywizard
   ```
   
-* ikfast (http://docs.ros.org/en/melodic/api/moveit_tutorials/html/doc/ikfast/ikfast_tutorial.html) - cannot install openrave
+* ikfast (http://docs.ros.org/en/noetic/api/moveit_tutorials/html/doc/ikfast/ikfast_tutorial.html) - cannot install openrave
 
 
 ## TIPS 
@@ -255,15 +255,15 @@ pip install klampt
 ### STOMP-ROS  
 ```bash
 cd $HOME/catkin_ws/src \
-&& git clone https://github.com/ros-planning/panda_moveit_config.git -b melodic-devel \
-&& git clone https://github.com/ros-industrial/stomp_ros.git -b melodic-devel \
+&& git clone https://github.com/ros-planning/panda_moveit_config.git -b noetic-devel \
+&& git clone https://github.com/ros-industrial/stomp_ros.git -b noetic-devel \
 && cd $HOME/catkin_ws \
 && catkin_make -DCMAKE_BUILD_TYPE=Release  
 ```  
 
 ### CHOMP-Moveit-plugin
 ```bash
-sudo apt-get install ros-melodic-moveit-chomp-optimizer-adapter
+sudo apt-get install ros-noetic-moveit-chomp-optimizer-adapter
 ```
 
 ### Tesseract  
@@ -306,9 +306,9 @@ sudo apt-get install ros-melodic-moveit-chomp-optimizer-adapter
   ``` 
   
 ### Moveit
-* Install moveit (after ros-melodic and catkin)
+* Install moveit (after ros-noetic and catkin)
   ```bash
-  sudo apt install ros-melodic-moveit
+  sudo apt install ros-noetic-moveit
   ```
 
 * Tutorial
@@ -316,13 +316,13 @@ sudo apt-get install ros-melodic-moveit-chomp-optimizer-adapter
   ```bash
   mkdir -p ~/ws_moveit/src
   cd ~/ws_moveit/src
-  git clone https://github.com/ros-planning/moveit_tutorials.git -b melodic-devel
-  git clone https://github.com/ros-planning/panda_moveit_config.git -b melodic-devel
+  git clone https://github.com/ros-planning/moveit_tutorials.git -b noetic-devel
+  git clone https://github.com/ros-planning/panda_moveit_config.git -b noetic-devel
   ```
   * install packages
   ```bash
   cd ~/ws_moveit/src
-  rosdep install -y --from-paths . --ignore-src --rosdistro melodic
+  rosdep install -y --from-paths . --ignore-src --rosdistro noetic
   cd ~/ws_moveit
   catkin config --extend /opt/ros/${ROS_DISTRO} --cmake-args -DCMAKE_BUILD_TYPE=Release
   catkin build
@@ -331,4 +331,4 @@ sudo apt-get install ros-melodic-moveit-chomp-optimizer-adapter
   ```bash
   source ~/ws_moveit/devel/setup.bash
   ```
-  * follow tutorial process in http://docs.ros.org/en/melodic/api/moveit_tutorials/html/doc/move_group_python_interface/move_group_python_interface_tutorial.html#getting-started
+  * follow tutorial process in http://docs.ros.org/en/noetic/api/moveit_tutorials/html/doc/move_group_python_interface/move_group_python_interface_tutorial.html#getting-started

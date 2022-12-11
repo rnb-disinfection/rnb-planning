@@ -1,33 +1,34 @@
 # ROS Setup
-* ROS Melodic  
+* ROS Noetic  
   ```bash
-  mkdir ~/ROS_TMP && cd ~/ROS_TMP \
-  && wget https://raw.githubusercontent.com/orocapangyo/meetup/master/190830/install_ros_melodic.sh && chmod 755 ./install_ros_melodic.sh && bash ./install_ros_melodic.sh \
-  && sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list' \
-  && sudo apt-key adv --keyserver hkp://ha.pool.sks-keyservers.net:80 --recv-key 421C365BD9FF1F717815A3895523BAEEB01FA116 \
+  sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list' \
+  && sudo apt install curl \
+  && curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | sudo apt-key add - \
   && sudo apt-get update \
-  && sudo apt-get install ros-melodic-desktop-full -y \
-  && sudo apt-get install ros-melodic-rqt* -y \
-  && sudo apt-get install python-rosdep -y \
+  && sudo apt-get install ros-noetic-desktop-full -y \
+  && source /opt/ros/noetic/setup.bash \ 
+  && echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc \
+  && sudo apt install python3-rosdep python3-rosinstall python3-rosinstall-generator python3-wstool build-essential -y \
   && sudo rosdep init \
   && rosdep update \
-  && sudo apt-get install python-rosinstall -y \
-  && sudo apt-get install ros-melodic-catkin python-catkin-tools -y \
-  && sudo apt-get install ros-melodic-move-base
+  && sudo apt-get install ros-noetic-catkin python3-catkin-tools python3-catkin-pkg -y \
+  && sudo apt-get install ros-noetic-move-base \
+  && pip3 install rospkg
   ```
   * **RESTART TERMINAL!**  
   * If key server fails:
   ```bash
-  sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-key F6E65AC044F831AC80A06380C8B3A55A6F3EFCDE || sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-key F6E65AC044F831AC80A06380C8B3A55A6F3EFCDE
+  sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-key F6E65AC044F831AC80A06380C8B3A55A6F3EFCDE \
+  || sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-key F6E65AC044F831AC80A06380C8B3A55A6F3EFCDE
   ```
   
 * Moveit  
   ```bash
-  sudo apt-get install -y ros-melodic-moveit ros-melodic-industrial-core ros-melodic-moveit-visual-tools ros-melodic-joint-state-publisher-gui
+  sudo apt-get install -y ros-noetic-moveit ros-noetic-industrial-core ros-noetic-moveit-visual-tools ros-noetic-joint-state-publisher-gui
   ```  
 * Gazebo  
   ```bash
-  sudo apt-get install -y ros-melodic-gazebo-ros-pkgs ros-melodic-gazebo-ros-control ros-melodic-joint-state-controller ros-melodic-effort-controllers ros-melodic-position-controllers ros-melodic-joint-trajectory-controller  
+  sudo apt-get install -y ros-noetic-gazebo-ros-pkgs ros-noetic-gazebo-ros-control ros-noetic-joint-state-controller ros-noetic-effort-controllers ros-noetic-position-controllers ros-noetic-joint-trajectory-controller  
   ```
 * UR package  
   * link: https://github.com/ros-industrial/universal_robot  
@@ -47,7 +48,7 @@
   * (not used now) To update Indy to 3.0, Follow instruction on external/IndyFramework3.0/ReadMe.md
 * Franka package  
   ```bash
-  sudo apt install ros-melodic-libfranka ros-melodic-franka-ros \
+  sudo apt install ros-noetic-libfranka ros-noetic-franka-ros \
   && cd ~/catkin_ws \
   && git clone https://github.com/justagist/franka_ros_interface src/franka_ros_interface \
   && catkin_make -DCMAKE_BUILD_TYPE=Release \

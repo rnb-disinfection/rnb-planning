@@ -56,7 +56,7 @@ mkdir ~/Projects && cd ~/Projects \
 ## 2.2 Build subprojects
 * Build moveit-python interpreter, copy it and clean Release folder  
 ```bash
-sudo apt-get remove ros-melodic-ompl \
+sudo apt-get remove ros-noetic-ompl \
 && cd "$RNB_PLANNING_DIR"lib/moveit_interface_py \
 && chmod +x ./build.sh \
 && ./build.sh \
@@ -148,7 +148,7 @@ sudo apt-mark hold linux-image-generic linux-headers-generic
    alias cw='cd ~/catkin_ws'
    alias cs='cd ~/catkin_ws/src'
    alias cm='cd ~/catkin_ws && catkin_make'
-   source /opt/ros/melodic/setup.bash
+   source /opt/ros/noetic/setup.bash
    source ~/catkin_ws/devel/setup.bash
    export ROS_MASTER_URI=http://localhost:11311
    export ROS_HOSTNAME=localhost
