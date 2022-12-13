@@ -20,7 +20,12 @@ RNB-Planning Framework is an integrated framework for combined planning of task 
 * Follow instruction in [docs/ROS_SETUP.md](docs/ROS_SETUP.md)  
   
 ## 1.4 other dependencies  
-* Python Package Dependencies  
+* Python Package Dependencies
+  * Check if pip is pointing to pip for python2.7
+    * ```pip --verion```
+  * If pip is for python 3.x, find the selected alias and remove it
+    * finding pip alias: ```which pip```
+    * removing pip example: ```/home/user/.local/bin/pip```
 ```bash
 pip install colorama==0.3.9 llvmlite==0.31.0 numba==0.47.0
 pip install autograd && pip install --user pymanopt==0.2.4
@@ -80,7 +85,7 @@ cd "$RNB_PLANNING_DIR"lib/latticizer \
   
 * build custom workspace  
 ```bash
-cd "$RNB_PLANNING_DIR"ws_ros && rm -rf build devel && catkin_make -DCMAKE_BUILD_TYPE=Release  
+cd "$RNB_PLANNING_DIR"ws_ros && rm -rf build devel src/CMakeLists.txt && catkin_make -DCMAKE_BUILD_TYPE=Release  
 source "$RNB_PLANNING_DIR"ws_ros/devel/setup.bash
 echo 'source "$RNB_PLANNING_DIR"ws_ros/devel/setup.bash' >> ~/.bashrc
 ```
